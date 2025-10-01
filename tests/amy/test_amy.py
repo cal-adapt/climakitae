@@ -2596,9 +2596,67 @@ class TestStackProfileData:
             three_level=False,
         )
 
-        # Verify outcome: data values are preserved
+        # Verify outcome: preserves data values correctly
         assert isinstance(result, np.ndarray), "Should return a numpy array"
         # Check that we have both 25.0 and 30.0 values in the result
         unique_values = np.unique(result)
         assert 25.0 in unique_values, "Should preserve 25.0 values from WL_1.5"
         assert 30.0 in unique_values, "Should preserve 30.0 values from WL_2.0"
+
+
+class TestCreateSimpleDataframe:
+    """Test class for _create_simple_dataframe function.
+
+    Tests the function that creates a simple DataFrame for single warming level
+    and single simulation scenarios, handling profile data dictionary structure
+    and proper DataFrame construction with hour columns.
+
+    Attributes
+    ----------
+    profile_data : dict
+        Sample profile data dictionary for testing.
+    warming_level : float
+        Sample warming level value.
+    simulation : str
+        Sample simulation identifier.
+    sim_label_func : callable
+        Function to get simulation labels.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.warming_level = 2.0
+        self.simulation = "sim1"
+        
+        # Create sample profile data dictionary
+        wl_key = "WL_2.0"
+        sim_key = "Sim1"
+        
+        # Create 365x24 profile matrix with realistic climate data
+        self.profile_data = {
+            (wl_key, sim_key): np.random.rand(365, 24) + 20.0  # Temperature-like data
+        }
+        
+        # Simple function to get simulation labels
+        def sim_label_func(sim, sim_idx):
+            return f"Sim{sim_idx + 1}"
+        
+        self.sim_label_func = sim_label_func
+        self.hours = np.arange(1, 25, 1)  # Hours 1-24
+
+    def test_create_simple_dataframe_returns_dataframe(self):
+        """Test _create_simple_dataframe returns pd.DataFrame."""
+        # Execute function
+        result = _create_simple_dataframe(
+            profile_data=self.profile_data,
+            warming_level=self.warming_level,
+            simulation=self.simulation,
+            sim_label_func=self.sim_label_func,
+            days_in_year=365,
+            hours=self.hours,
+        )
+
+        # Verify outcome: returns a pandas DataFrame
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape[0] > 0, "DataFrame should have rows"
+        assert result.shape[1] > 0, "DataFrame should have columns"
