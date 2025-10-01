@@ -3504,3 +3504,52 @@ class TestCreateMultiWlMultiSimDataframe:
                 # Verify all simulations present for this hour
                 sims = hour_cols.columns.get_level_values("Simulation").unique()
                 assert len(sims) == len(self.simulations), f"Hour {hour} should have all {len(self.simulations)} simulations"
+    
+    def test_preserves_data_integrity(self):
+        """Test that data values are preserved correctly in the transformation."""
+        # Create specific test data to verify data preservation
+        test_warming_levels = np.array([1.5, 2.0])
+        test_simulations = ["sim1", "sim2"]
+        test_profile_data = {}
+        
+        # Create known data patterns for each combination
+        for wl in test_warming_levels:
+            wl_key = f"WL_{wl}"
+            for sim in test_simulations:
+                sim_label = f"Simulation_{sim}"
+                # Create a matrix where values = day + hour + wl*10 + sim_index
+                sim_index = test_simulations.index(sim)
+                profile_matrix = np.zeros((365, 24))
+                for day in range(365):
+                    for hour in range(24):
+                        profile_matrix[day, hour] = day + hour + wl*10 + sim_index
+                test_profile_data[(wl_key, sim_label)] = profile_matrix
+        
+        # Execute function
+        result = _create_multi_wl_multi_sim_dataframe(
+            profile_data=test_profile_data,
+            warming_levels=test_warming_levels,
+            simulations=test_simulations,
+            sim_label_func=self.mock_sim_label_func,
+            days_in_year=self.days_in_year,
+            hours=self.hours,
+            hours_per_day=self.hours_per_day,
+        )
+        
+        # Verify outcome: data values are preserved correctly
+        # Check specific values for a sample of combinations
+        for day in [1, 100, 365]:  # Check first, middle, and last day
+            for hour in [1, 12, 24]:  # Check different hours
+                for wl in test_warming_levels:
+                    for sim_idx, sim in enumerate(test_simulations):
+                        wl_name = f"WL_{wl}"
+                        sim_name = f"Simulation_{sim}"
+                        
+                        # Get value from result DataFrame
+                        result_value = result.loc[day, (hour, wl_name, sim_name)]
+                        
+                        # Calculate expected value
+                        expected_value = (day - 1) + (hour - 1) + wl*10 + sim_idx
+                        
+                        assert abs(result_value - expected_value) < 0.001, \
+                            f"Value mismatch at day={day}, hour={hour}, wl={wl}, sim={sim}: expected {expected_value}, got {result_value}"
