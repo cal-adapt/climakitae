@@ -3306,3 +3306,68 @@ class TestCreateMultiWlSingleSimDataframe:
         
         # Day 2 (index 1), Hour 1, WL 2.0 should be 20 + 1 + 2.0 = 23.0
         assert result.loc[2, (1, "WL_2.0")] == 23.0, "Day 2, Hour 1, WL 2.0 should be 23.0"
+
+    def test_create_multi_wl_single_sim_dataframe_different_warming_level_configs(self):
+        """Test function with different warming level configurations."""
+        # Test scenarios with different warming level configurations
+        test_scenarios = [
+            {
+                "name": "single_warming_level",
+                "warming_levels": np.array([2.0]),
+                "expected_cols": 24 * 1,  # 24 hours × 1 WL
+                "expected_wl_names": ["WL_2.0"]
+            },
+            {
+                "name": "two_warming_levels",
+                "warming_levels": np.array([1.5, 3.0]),
+                "expected_cols": 24 * 2,  # 24 hours × 2 WLs
+                "expected_wl_names": ["WL_1.5", "WL_3.0"]
+            },
+            {
+                "name": "many_warming_levels",
+                "warming_levels": np.array([1.0, 1.5, 2.0, 2.5, 3.0, 4.0]),
+                "expected_cols": 24 * 6,  # 24 hours × 6 WLs
+                "expected_wl_names": ["WL_1.0", "WL_1.5", "WL_2.0", "WL_2.5", "WL_3.0", "WL_4.0"]
+            }
+        ]
+        
+        for scenario in test_scenarios:
+            # Create profile data for this scenario
+            scenario_profile_data = {}
+            sim_key = "test_simulation"
+            
+            for wl in scenario["warming_levels"]:
+                wl_key = f"WL_{wl}"
+                profile_matrix = np.random.rand(365, 24) + 20.0 + wl
+                scenario_profile_data[(wl_key, sim_key)] = profile_matrix
+            
+            # Execute function
+            result = _create_multi_wl_single_sim_dataframe(
+                profile_data=scenario_profile_data,
+                warming_levels=scenario["warming_levels"],
+                simulation=self.simulation,
+                sim_label_func=self.mock_sim_label_func,
+                days_in_year=self.days_in_year,
+                hours=self.hours,
+                hours_per_day=self.hours_per_day,
+            )
+            
+            # Verify outcome for this scenario
+            assert isinstance(result, pd.DataFrame), f"Should return DataFrame for {scenario['name']}"
+            assert result.shape[0] == 365, f"Should have 365 rows for {scenario['name']}"
+            assert result.shape[1] == scenario["expected_cols"], f"Should have {scenario['expected_cols']} columns for {scenario['name']}"
+            
+            # Verify MultiIndex structure
+            assert isinstance(result.columns, pd.MultiIndex), f"Should have MultiIndex columns for {scenario['name']}"
+            assert result.columns.names == ["Hour", "Warming_Level"], f"Should have correct level names for {scenario['name']}"
+            
+            # Verify warming level names
+            unique_wls = result.columns.get_level_values("Warming_Level").unique()
+            assert len(unique_wls) == len(scenario["warming_levels"]), f"Should have {len(scenario['warming_levels'])} unique warming levels for {scenario['name']}"
+            
+            for expected_wl in scenario["expected_wl_names"]:
+                assert expected_wl in unique_wls, f"Should contain {expected_wl} for {scenario['name']}"
+            
+            # Verify all hours are present for each warming level
+            unique_hours = result.columns.get_level_values("Hour").unique()
+            assert len(unique_hours) == 24, f"Should have 24 hours for {scenario['name']}"
