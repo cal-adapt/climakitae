@@ -3728,3 +3728,30 @@ class TestFormatMeteoYrDf:
             assert len(parts) == 2, "Index should be in Month-Day format"
             # Verify month is a 3-letter abbreviation
             assert len(parts[0]) == 3, "Month should be 3-letter abbreviation"
+    
+    def test_handles_leap_year(self):
+        """Test leap year handling (366 days)."""
+        # Execute function with 366-day dataframe
+        result = _format_meteo_yr_df(self.sample_df_366.copy())
+        
+        # Verify outcome: properly handles leap year with 366 days
+        assert result.shape[0] == 366, "Should have 366 rows for leap year"
+        assert result.shape[1] == 24, "Should have 24 columns"
+        
+        # Verify first and last days
+        assert result.index[0] == "Jan-01", "First day should be Jan-01"
+        assert result.index[-1] == "Dec-31", "Last day should be Dec-31"
+        
+        # Verify Feb-29 exists (leap day)
+        assert "Feb-29" in result.index, "Leap year should include Feb-29"
+        
+        # Find Feb-29 in the index
+        feb_29_idx = list(result.index).index("Feb-29")
+        # Feb-29 should be the 60th day (0-indexed: 59)
+        assert feb_29_idx == 59, "Feb-29 should be at position 59 (60th day)"
+        
+        # Verify Mar-01 comes after Feb-29
+        assert result.index[60] == "Mar-01", "Mar-01 should follow Feb-29"
+        
+        # Verify all dates are formatted correctly
+        assert all('-' in str(idx) for idx in result.index), "All indices should be in Month-Day format"
