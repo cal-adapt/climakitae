@@ -3371,3 +3371,70 @@ class TestCreateMultiWlSingleSimDataframe:
             # Verify all hours are present for each warming level
             unique_hours = result.columns.get_level_values("Hour").unique()
             assert len(unique_hours) == 24, f"Should have 24 hours for {scenario['name']}"
+
+
+class TestCreateMultiWlMultiSimDataframe:
+    """Test class for _create_multi_wl_multi_sim_dataframe function.
+    
+    Tests the function that creates DataFrames for climate profiles with
+    multiple warming levels and multiple simulations together, producing
+    (Hour, Warming_Level, Simulation) MultiIndex column structure.
+    
+    Attributes
+    ----------
+    warming_levels : np.ndarray
+        Array of warming level values for testing.
+    simulations : list
+        List of simulation identifiers for testing.
+    mock_sim_label_func : MagicMock
+        Mock simulation label function.
+    days_in_year : int
+        Number of days in year (365).
+    hours : np.ndarray
+        Array of hour values (1-24).
+    hours_per_day : int
+        Hours per day (24).
+    profile_data : dict
+        Sample profile data dictionary.
+    """
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.warming_levels = np.array([1.5, 2.0, 3.0])
+        self.simulations = ["sim1", "sim2"]
+        self.mock_sim_label_func = MagicMock(side_effect=lambda x, i: f"Simulation_{x}")
+        self.days_in_year = 365
+        self.hours = np.arange(1, 25, 1)
+        self.hours_per_day = 24
+        
+        # Create sample profile data with (warming_level, simulation_label) keys
+        # The keys must use the labeled names that sim_label_func produces
+        self.profile_data = {}
+        for wl in self.warming_levels:
+            wl_key = f"WL_{wl}"
+            for i, sim in enumerate(self.simulations):
+                sim_label = f"Simulation_{sim}"  # Match what sim_label_func returns
+                # Create 365x24 matrix for each combination
+                profile_matrix = np.random.rand(365, 24) + 20.0 + wl
+                self.profile_data[(wl_key, sim_label)] = profile_matrix
+    
+    def test_returns_dataframe(self):
+        """Test that _create_multi_wl_multi_sim_dataframe returns a pandas DataFrame."""
+        # Execute function
+        result = _create_multi_wl_multi_sim_dataframe(
+            profile_data=self.profile_data,
+            warming_levels=self.warming_levels,
+            simulations=self.simulations,
+            sim_label_func=self.mock_sim_label_func,
+            days_in_year=self.days_in_year,
+            hours=self.hours,
+            hours_per_day=self.hours_per_day,
+        )
+        
+        # Verify outcome: returns DataFrame with correct shape
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape[0] == 365, "Should have 365 rows (days)"
+        
+        # With 3 warming levels, 2 simulations, and 24 hours: 24 * 3 * 2 = 144 columns
+        expected_cols = 24 * len(self.warming_levels) * len(self.simulations)
+        assert result.shape[1] == expected_cols, f"Should have {expected_cols} columns"
