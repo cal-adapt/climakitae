@@ -2138,6 +2138,50 @@ class TestFindMatchingHistoricValue:
                 check_names=False
             )
 
+    def test_find_matching_historic_value_with_positional_fallback(self):
+        """Test _find_matching_historic_value with positional fallback when no hour matches."""
+        # Create future profile with hours that don't exist in historic
+        nonexistent_hours = [99, 100, 101]
+        warming_levels = [2.0]
+        simulations = ['sim1']
+
+        future_cols_no_match = pd.MultiIndex.from_product(
+            [nonexistent_hours, warming_levels, simulations],
+            names=['Hour', 'Warming_Level', 'Simulation'],
+        )
+        future_profile_no_match = pd.DataFrame(
+            np.random.rand(10, len(future_cols_no_match)) + 20.0,
+            index=range(1, 11),
+            columns=future_cols_no_match,
+        )
+
+        # Create historic profile with different hours
+        historic_hours = [1, 2, 3, 4, 5]
+        historic_profile_different = pd.DataFrame(
+            np.random.rand(10, len(historic_hours)) + 15.0,
+            index=range(1, 11),
+            columns=historic_hours,
+        )
+
+        # Test positional fallback for each future column
+        for i, future_col in enumerate(future_profile_no_match.columns):
+            # Execute function
+            result = _find_matching_historic_value(
+                future_col, future_profile_no_match, historic_profile_different
+            )
+
+            # Verify outcome: uses positional fallback
+            assert isinstance(result, pd.Series), f"Should return Series for {future_col}"
+            
+            # Calculate expected positional match
+            expected_col_idx = i % len(historic_profile_different.columns)
+            expected_series = historic_profile_different.iloc[:, expected_col_idx]
+            
+            pd.testing.assert_series_equal(
+                result, expected_series, 
+                check_names=False
+            )
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
