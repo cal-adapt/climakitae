@@ -2838,3 +2838,65 @@ class TestCreateSimpleDataframe:
                 result.values, profile_matrix,
                 err_msg=f"Data values should be preserved for {description}"
             )
+
+
+class TestCreateSingleWlMultiSimDataframe:
+    """Test class for _create_single_wl_multi_sim_dataframe function.
+
+    Tests the function that creates DataFrames for single warming level with
+    multiple simulations, validating MultiIndex column structure and data handling.
+
+    Attributes
+    ----------
+    sample_profile_data : dict
+        Sample profile data dictionary with (warming_level, simulation) keys.
+    mock_sim_label_func : MagicMock
+        Mock function for generating simulation labels.
+    warming_level : float
+        Sample warming level for testing.
+    simulations : list
+        Sample list of simulations.
+    hours : np.ndarray
+        Array of hour values for columns.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create mock simulation label function
+        self.mock_sim_label_func = MagicMock()
+        self.mock_sim_label_func.side_effect = lambda sim, idx: f"sim_{sim}_{idx}"
+        
+        # Test parameters
+        self.warming_level = 2.0
+        self.simulations = ["model_A", "model_B", "model_C"]
+        self.hours = np.arange(0, 24)
+        self.days_in_year = 365
+        self.hours_per_day = 24
+        
+        # Create sample profile data dictionary
+        # The function expects data for each (WL_X, sim_label) combination
+        self.sample_profile_data = {}
+        for i, sim in enumerate(self.simulations):
+            sim_key = f"sim_{sim}_{i}"
+            wl_key = f"WL_{self.warming_level}"
+            # Create random data for each simulation (365 days x 24 hours)
+            profile_matrix = np.random.rand(365, 24) + 20.0
+            self.sample_profile_data[(wl_key, sim_key)] = profile_matrix
+
+    def test_create_single_wl_multi_sim_dataframe_returns_dataframe(self):
+        """Test that _create_single_wl_multi_sim_dataframe returns a pandas DataFrame."""
+        # Execute function
+        result = _create_single_wl_multi_sim_dataframe(
+            profile_data=self.sample_profile_data,
+            warming_level=self.warming_level,
+            simulations=self.simulations,
+            sim_label_func=self.mock_sim_label_func,
+            days_in_year=self.days_in_year,
+            hours=self.hours,
+            hours_per_day=self.hours_per_day,
+        )
+
+        # Verify outcome: returns a pandas DataFrame
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape[0] > 0, "DataFrame should have rows"
+        assert result.shape[1] > 0, "DataFrame should have columns"
