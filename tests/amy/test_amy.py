@@ -314,6 +314,243 @@ class TestComputeProfile:
         assert result.attrs["units"] == "degC", "Should preserve original units"
 
 
+class TestGetSimulationLabel:
+    """Test class for _get_simulation_label helper function behavior.
+
+    Tests the simulation label extraction logic that handles WRF simulation
+    name parsing, including GCM, parameters, and SSP scenario extraction.
+    Since _get_simulation_label is a nested function, we test it through
+    compute_profile's behavior with different simulation naming patterns.
+
+    Attributes
+    ----------
+    base_data_shape : tuple
+        Shape for creating test data arrays.
+    time_delta : pd.DatetimeIndex
+        Time coordinate for test data.
+    warming_levels : list
+        Warming level values for test data.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create base components for test data
+        self.time_delta = pd.date_range("2020-01-01", periods=8760, freq="h")
+        self.warming_levels = [1.5]
+        self.base_data_shape = (len(self.warming_levels), len(self.time_delta))
+
+    def _create_test_dataarray(self, simulations):
+        """Helper to create test DataArray with specified simulations."""
+        data = np.random.rand(
+            len(self.warming_levels), len(self.time_delta), len(simulations)
+        )
+        return xr.DataArray(
+            data,
+            dims=["warming_level", "time_delta", "simulation"],
+            coords={
+                "warming_level": self.warming_levels,
+                "time_delta": self.time_delta,
+                "simulation": simulations,
+            },
+            attrs={"units": "degC"},
+        )
+
+    def test_wrf_simulation_label_full_format(self):
+        """Test WRF simulation name parsing with full format: WRF_GCM_params_scenario."""
+        # Create data with multiple WRF simulations to get MultiIndex
+        simulations = [
+            "WRF_CESM2_r11i1p1f1_historical+ssp245",
+            "WRF_CESM2_r11i1p1f1_historical+ssp370",
+        ]
+        test_data = self._create_test_dataarray(simulations)
+
+        # Execute function
+        result = compute_profile(test_data, days_in_year=365, q=0.5)
+
+        # Verify outcome: simulation labels are correctly parsed
+        assert isinstance(result.columns, pd.MultiIndex), "Should have MultiIndex"
+        sim_names = result.columns.get_level_values("Simulation").unique()
+        assert len(sim_names) == 2, "Should have two simulations"
+
+        # Should extract: CESM2-r11i1p1f1-ssp245 and CESM2-r11i1p1f1-ssp370
+        sim_labels = sorted(sim_names)
+        assert (
+            "CESM2-r11i1p1f1-ssp245" in sim_labels
+        ), "Should parse first simulation correctly"
+        assert (
+            "CESM2-r11i1p1f1-ssp370" in sim_labels
+        ), "Should parse second simulation correctly"
+        assert all("CESM2" in label for label in sim_labels), "Should extract GCM name"
+        assert all(
+            "r11i1p1f1" in label for label in sim_labels
+        ), "Should extract parameters"
+
+    def test_wrf_simulation_label_with_cnrm_esm(self):
+        """Test WRF simulation parsing with hyphenated GCM name."""
+        # Create data with CNRM-ESM2-1 GCM (contains hyphens) - use multiple sims
+        simulations = [
+            "WRF_CNRM-ESM2-1_r1i1p1f2_historical+ssp370",
+            "WRF_GFDL-CM4_r1i1p1f1_historical+ssp245",
+        ]
+        test_data = self._create_test_dataarray(simulations)
+
+        # Execute function
+        result = compute_profile(test_data, days_in_year=365, q=0.5)
+
+        # Verify outcome: handles hyphenated GCM names correctly
+        sim_names = result.columns.get_level_values("Simulation").unique()
+        assert len(sim_names) == 2, "Should have two simulations"
+        sim_labels = list(sim_names)
+
+        # Find the CNRM label
+        cnrm_label = [l for l in sim_labels if "CNRM" in l][0]
+        assert "CNRM-ESM2-1" in cnrm_label, "Should preserve hyphens in GCM name"
+        assert "r1i1p1f2" in cnrm_label, "Should extract parameters"
+        assert "ssp370" in cnrm_label, "Should extract ssp370"
+        assert (
+            cnrm_label == "CNRM-ESM2-1-r1i1p1f2-ssp370"
+        ), "Should format correctly with hyphenated GCM"
+
+    def test_wrf_simulation_label_historical_only(self):
+        """Test WRF simulation parsing with historical-only scenario (no SSP)."""
+        # Create data with historical-only scenarios - use multiple
+        simulations = [
+            "WRF_GFDL-CM4_r1i1p1f1_historical",
+            "WRF_MPI-ESM1-2-HR_r3i1p1f1_historical",
+        ]
+        test_data = self._create_test_dataarray(simulations)
+
+        # Execute function
+        result = compute_profile(test_data, days_in_year=365, q=0.5)
+
+        # Verify outcome: uses 'hist' fallback for historical-only
+        sim_names = result.columns.get_level_values("Simulation").unique()
+        assert len(sim_names) == 2, "Should have two simulations"
+
+        # Check both use hist fallback
+        gfdl_label = [label for label in sim_names if "GFDL" in label][0]
+        assert "GFDL-CM4" in gfdl_label, "Should extract GCM name"
+        assert "r1i1p1f1" in gfdl_label, "Should extract parameters"
+        assert "hist" in gfdl_label, "Should use 'hist' fallback for historical-only"
+        assert gfdl_label == "GFDL-CM4-r1i1p1f1-hist", "Should format with hist suffix"
+
+    def test_wrf_simulation_label_ssp585(self):
+        """Test WRF simulation parsing extracts ssp585 correctly."""
+        # Create data with ssp585 and ssp370 scenarios - use multiple
+        simulations = [
+            "WRF_EC-Earth3_r4i1p1f1_historical+ssp585",
+            "WRF_EC-Earth3_r4i1p1f1_historical+ssp370",
+        ]
+        test_data = self._create_test_dataarray(simulations)
+
+        # Execute function
+        result = compute_profile(test_data, days_in_year=365, q=0.5)
+
+        # Verify outcome: correctly extracts ssp585
+        sim_names = result.columns.get_level_values("Simulation").unique()
+        assert len(sim_names) == 2, "Should have two simulations"
+
+        # Find ssp585 label
+        ssp585_label = [label for label in sim_names if "ssp585" in label][0]
+        assert "ssp585" in ssp585_label, "Should extract ssp585 from scenario"
+        assert ssp585_label == "EC-Earth3-r4i1p1f1-ssp585", "Should format with ssp585"
+
+    def test_wrf_simulation_label_short_format_fallback(self):
+        """Test WRF simulation with fewer than 4 parts uses fallback format."""
+        # Create data with shorter WRF formats (fewer than 4 parts) - use multiple
+        simulations = ["WRF_CESM2_run1", "WRF_GFDL_run2"]
+        test_data = self._create_test_dataarray(simulations)
+
+        # Execute function
+        result = compute_profile(test_data, days_in_year=365, q=0.5)
+
+        # Verify outcome: uses fallback format with index
+        sim_names = result.columns.get_level_values("Simulation").unique()
+        assert len(sim_names) == 2, "Should have two simulations"
+        sim_labels = sorted(sim_names)
+
+        # Check fallback format: GCM-index
+        assert any(
+            "CESM2" in label for label in sim_labels
+        ), "Should extract CESM2 from second part"
+        assert any(
+            "GFDL" in label for label in sim_labels
+        ), "Should extract GFDL from second part"
+        assert all(
+            "-" in label for label in sim_labels
+        ), "Should append index with hyphen"
+
+    def test_non_wrf_simulation_label(self):
+        """Test non-WRF simulation names use base name with index."""
+        # Create data with non-WRF simulation names
+        simulations = ["LOCA_simulation_v1", "custom_model_run"]
+        test_data = self._create_test_dataarray(simulations)
+
+        # Execute function
+        result = compute_profile(test_data, days_in_year=365, q=0.5)
+
+        # Verify outcome: uses base name plus index for non-WRF
+        sim_names = result.columns.get_level_values("Simulation").unique()
+        assert len(sim_names) == 2, "Should have two simulations"
+
+        # Check that base names are extracted and indices appended
+        sim_labels = sorted(sim_names)
+        assert (
+            "LOCA" in sim_labels[0] or "custom" in sim_labels[0]
+        ), "Should extract base name"
+        assert any(
+            "-1" in label or "-2" in label for label in sim_labels
+        ), "Should append index"
+
+    def test_none_simulation_uses_fallback(self):
+        """Test that None simulation value uses Sim_N fallback format."""
+        # Create data without explicit simulation names - use multiple None values
+        simulations = [None, None]
+        test_data = self._create_test_dataarray(simulations)
+
+        # Execute function
+        result = compute_profile(test_data, days_in_year=365, q=0.5)
+
+        # Verify outcome: uses Sim_N format for None
+        sim_names = result.columns.get_level_values("Simulation").unique()
+        assert len(sim_names) == 2, "Should have two simulations"
+        # Should use fallback format like Sim_1, Sim_2 or None-1, None-2
+        for sim_label in sim_names:
+            assert (
+                "Sim_" in str(sim_label)
+                or "None" in str(sim_label)
+                or "-" in str(sim_label)
+            ), f"Should use fallback format for None simulation, got {sim_label}"
+
+    def test_multiple_wrf_simulations_parsed_correctly(self):
+        """Test multiple WRF simulations are all parsed correctly."""
+        # Create data with multiple WRF simulations
+        simulations = [
+            "WRF_CESM2_r11i1p1f1_historical+ssp245",
+            "WRF_CNRM-ESM2-1_r1i1p1f2_historical+ssp370",
+            "WRF_EC-Earth3_r4i1p1f1_historical+ssp585",
+        ]
+        test_data = self._create_test_dataarray(simulations)
+
+        # Execute function
+        result = compute_profile(test_data, days_in_year=365, q=0.5)
+
+        # Verify outcome: all simulations parsed correctly
+        sim_names = result.columns.get_level_values("Simulation").unique()
+        assert len(sim_names) == 3, "Should have three unique simulations"
+
+        sim_labels = sorted(sim_names)
+        assert any(
+            "CESM2" in label and "ssp245" in label for label in sim_labels
+        ), "Should parse CESM2 with ssp245"
+        assert any(
+            "CNRM-ESM2-1" in label and "ssp370" in label for label in sim_labels
+        ), "Should parse CNRM-ESM2-1 with ssp370"
+        assert any(
+            "EC-Earth3" in label and "ssp585" in label for label in sim_labels
+        ), "Should parse EC-Earth3 with ssp585"
+
+
 class TestProfileUtilityFunctions:
     """Test class for profile utility functions.
 
@@ -3000,33 +3237,33 @@ class TestCreateSingleWlMultiSimDataframe:
             lambda sim, idx: "duplicate_name"
         )  # All return same name
 
-        # Create profile data - need to have data for both original and modified names
-        # The function will try to access data using both original and uniquified names
+        # Create profile data with keys matching what the function will generate
+        # The function creates unique names: first is "duplicate_name",
+        # second is "duplicate_name_v1", third is "duplicate_name_v2"
         duplicate_profile_data = {}
         simulations_with_dups = ["model_A", "model_B", "model_C"]
         wl_key = f"WL_{self.warming_level}"
 
-        # Add data with original duplicate name (function will use this for first occurrence)
-        profile_matrix = np.random.rand(365, 24) + 20.0
-        duplicate_profile_data[(wl_key, "duplicate_name")] = profile_matrix
+        # Add data for original and uniquified names
+        for i, unique_suffix in enumerate(
+            ["duplicate_name", "duplicate_name_v1", "duplicate_name_v2"]
+        ):
+            profile_matrix = (
+                np.random.rand(365, 24) + 20.0 + i
+            )  # Slightly different data
+            duplicate_profile_data[(wl_key, unique_suffix)] = profile_matrix
 
-        # Since the function modifies names internally but doesn't update profile_data,
-        # we'll test the warning behavior but expect KeyError for missing keys
-        # Let's just test that the warning is printed when duplicate names are detected
+        # Execute function and verify warning is printed
         with patch("builtins.print") as mock_print:
-            try:
-                _create_single_wl_multi_sim_dataframe(
-                    profile_data=duplicate_profile_data,
-                    warming_level=self.warming_level,
-                    simulations=simulations_with_dups,
-                    sim_label_func=mock_dup_sim_func,
-                    days_in_year=self.days_in_year,
-                    hours=self.hours,
-                    hours_per_day=self.hours_per_day,
-                )
-            except KeyError:
-                # Expected since profile_data doesn't have the uniquified names
-                pass
+            result = _create_single_wl_multi_sim_dataframe(
+                profile_data=duplicate_profile_data,
+                warming_level=self.warming_level,
+                simulations=simulations_with_dups,
+                sim_label_func=mock_dup_sim_func,
+                days_in_year=self.days_in_year,
+                hours=self.hours,
+                hours_per_day=self.hours_per_day,
+            )
 
         # Verify outcome: warning message was printed about duplicates
         printed_calls = [str(call) for call in mock_print.call_args_list]
@@ -3042,6 +3279,18 @@ class TestCreateSingleWlMultiSimDataframe:
         assert mock_dup_sim_func.call_count == len(
             simulations_with_dups
         ), "Should call sim_label_func for each simulation"
+
+        # Verify the result has the uniquified names in columns
+        assert isinstance(result, pd.DataFrame), "Should return a DataFrame"
+        unique_sims = result.columns.get_level_values("Simulation").unique()
+
+        # Should have 3 unique simulation names after de-duplication
+        assert (
+            len(unique_sims) == 3
+        ), "Should have 3 unique simulations after de-duplication"
+        assert "duplicate_name" in unique_sims, "Should contain original duplicate_name"
+        assert "duplicate_name_v1" in unique_sims, "Should contain duplicate_name_v1"
+        assert "duplicate_name_v2" in unique_sims, "Should contain duplicate_name_v2"
 
     def test_create_single_wl_multi_sim_dataframe_preserves_data_integrity(self):
         """Test that profile data values are correctly preserved in MultiIndex structure."""
@@ -3709,6 +3958,93 @@ class TestCreateMultiWlMultiSimDataframe:
             assert len(unique_sims) == len(
                 scenario["simulations"]
             ), f"Should have {len(scenario['simulations'])} simulations for {scenario['name']}"
+
+    def test_create_multi_wl_multi_sim_dataframe_duplicate_simulation_names(self):
+        """Test function handles duplicate simulation names with uniqueness suffixes."""
+        # Create mock sim_label_func that returns duplicate names
+        mock_dup_sim_func = MagicMock()
+        mock_dup_sim_func.side_effect = (
+            lambda sim, idx: "duplicate_name"
+        )  # All return same name
+
+        # Create profile data with keys matching what the function will generate
+        # The function creates unique names: first is "duplicate_name",
+        # second is "duplicate_name_v1", third is "duplicate_name_v2"
+        duplicate_profile_data = {}
+        simulations_with_dups = ["model_A", "model_B", "model_C"]
+        test_warming_levels = np.array([1.5, 2.0])
+
+        # Add data for original and uniquified names for each warming level
+        for wl in test_warming_levels:
+            wl_key = f"WL_{wl}"
+            for i, unique_suffix in enumerate(
+                ["duplicate_name", "duplicate_name_v1", "duplicate_name_v2"]
+            ):
+                profile_matrix = (
+                    np.random.rand(365, 24) + 20.0 + wl + i
+                )  # Slightly different data
+                duplicate_profile_data[(wl_key, unique_suffix)] = profile_matrix
+
+        # Execute function and verify warning is printed
+        with patch("builtins.print") as mock_print:
+            result = _create_multi_wl_multi_sim_dataframe(
+                profile_data=duplicate_profile_data,
+                warming_levels=test_warming_levels,
+                simulations=simulations_with_dups,
+                sim_label_func=mock_dup_sim_func,
+                days_in_year=self.days_in_year,
+                hours=self.hours,
+                hours_per_day=self.hours_per_day,
+            )
+
+        # Verify outcome: warning message was printed about duplicates
+        printed_calls = [str(call) for call in mock_print.call_args_list]
+        printed_output = " ".join(printed_calls)
+        assert (
+            "duplicate simulation names" in printed_output.lower()
+        ), "Should warn about duplicate simulation names"
+        assert (
+            "uniqueness suffixes" in printed_output.lower()
+        ), "Should mention adding uniqueness suffixes"
+
+        # Verify the sim_label_func was called for each simulation
+        assert mock_dup_sim_func.call_count == len(
+            simulations_with_dups
+        ), "Should call sim_label_func for each simulation"
+
+        # Verify the result has the uniquified names in columns
+        assert isinstance(result, pd.DataFrame), "Should return a DataFrame"
+        unique_sims = result.columns.get_level_values("Simulation").unique()
+
+        # Should have 3 unique simulation names after de-duplication
+        assert (
+            len(unique_sims) == 3
+        ), "Should have 3 unique simulations after de-duplication"
+        assert "duplicate_name" in unique_sims, "Should contain original duplicate_name"
+        assert "duplicate_name_v1" in unique_sims, "Should contain duplicate_name_v1"
+        assert "duplicate_name_v2" in unique_sims, "Should contain duplicate_name_v2"
+
+        # Verify data exists for all combinations of warming levels and unique simulation names
+        for wl in test_warming_levels:
+            wl_name = f"WL_{wl}"
+            for unique_sim in [
+                "duplicate_name",
+                "duplicate_name_v1",
+                "duplicate_name_v2",
+            ]:
+                # Each hour-wl-sim combination should have a column
+                for hour in [1, 12, 24]:  # Sample a few hours
+                    # Check if the column exists in MultiIndex
+                    col_tuple = (hour, wl_name, unique_sim)
+                    assert (
+                        col_tuple in result.columns
+                    ), f"Should have column for (hour={hour}, wl={wl_name}, sim={unique_sim})"
+
+                    # Verify data length for this column
+                    col_data = result[col_tuple]
+                    assert (
+                        len(col_data) == 365
+                    ), f"Should have 365 days for hour={hour}, wl={wl_name}, sim={unique_sim}"
 
 
 class TestFormatMeteoYrDf:
