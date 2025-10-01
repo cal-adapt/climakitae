@@ -2900,3 +2900,32 @@ class TestCreateSingleWlMultiSimDataframe:
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape[0] > 0, "DataFrame should have rows"
         assert result.shape[1] > 0, "DataFrame should have columns"
+
+    def test_create_single_wl_multi_sim_dataframe_multiindex_structure(self):
+        """Test that the DataFrame has correct MultiIndex column structure."""
+        # Execute function
+        result = _create_single_wl_multi_sim_dataframe(
+            profile_data=self.sample_profile_data,
+            warming_level=self.warming_level,
+            simulations=self.simulations,
+            sim_label_func=self.mock_sim_label_func,
+            days_in_year=self.days_in_year,
+            hours=self.hours,
+            hours_per_day=self.hours_per_day,
+        )
+
+        # Verify outcome: correct MultiIndex column structure
+        assert isinstance(result.columns, pd.MultiIndex), "Columns should be MultiIndex"
+        assert result.columns.names == ["Hour", "Simulation"], "Column levels should be named Hour and Simulation"
+        
+        # Verify expected dimensions: 365 rows, (24 hours × 3 simulations) columns
+        expected_rows = 365
+        expected_cols = 24 * len(self.simulations)  # 24 hours × 3 simulations = 72
+        assert result.shape == (expected_rows, expected_cols), f"Should have {expected_rows} rows and {expected_cols} columns"
+        
+        # Verify index structure (day numbers)
+        expected_index = np.arange(1, self.days_in_year + 1)
+        np.testing.assert_array_equal(
+            result.index.values, expected_index,
+            err_msg="Index should be day numbers from 1 to days_in_year"
+        )
