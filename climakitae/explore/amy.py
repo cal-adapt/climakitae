@@ -5,20 +5,6 @@ the historical baseline, and uses a 30-year window around when a designated warm
 level is exceeded for the SSP3-7.0 future scenario for 1.5°C, 2°C, and 3°C.
 """
 
-## PROCESS: average meteorological year
-# for each hour, the average variable over the whole climatological period is determined
-# data for that hour that has the value most closely equal (smallest absolute difference)
-# to the hourly average over the whole measurement period is chosen as the AMY data for that hour
-# process is repeated for each hour in the year
-# repeat values (where multiple years have the same smallest abs value) are
-# removed, earliest occurrence selected for AMY
-# hours are added together to provide a full year of hourly samples
-
-## Produces 3 different kinds of AMY
-## 1: Absolute/unbias-corrected raw AMY, either historical or warming level-centered future
-## 2: Future-minus-historical warming level AMY (see warming_levels)
-## 3: Quantile AMY based upon historical baseline and a designated threshold/percentile
-
 from typing import Tuple
 
 import numpy as np
