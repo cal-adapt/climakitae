@@ -3474,3 +3474,33 @@ class TestCreateMultiWlMultiSimDataframe:
         assert len(unique_sims) == len(self.simulations), f"Should have {len(self.simulations)} simulations"
         for sim_name in expected_sim_names:
             assert sim_name in unique_sims, f"Should contain simulation {sim_name}"
+    
+    def test_handles_multiple_warming_levels_and_simulations(self):
+        """Test proper handling of multiple warming levels and simulations together."""
+        # Execute function with multiple warming levels and simulations
+        result = _create_multi_wl_multi_sim_dataframe(
+            profile_data=self.profile_data,
+            warming_levels=self.warming_levels,
+            simulations=self.simulations,
+            sim_label_func=self.mock_sim_label_func,
+            days_in_year=self.days_in_year,
+            hours=self.hours,
+            hours_per_day=self.hours_per_day,
+        )
+        
+        # Verify outcome: each hour has all combinations of warming levels and simulations
+        for hour in range(1, 25):
+            hour_cols = result.loc[:, hour]
+            
+            # Should have wl_count * sim_count columns for each hour
+            expected_cols_per_hour = len(self.warming_levels) * len(self.simulations)
+            assert hour_cols.shape[1] == expected_cols_per_hour, f"Hour {hour} should have {expected_cols_per_hour} columns"
+            
+            # Verify all warming levels present for this hour
+            if isinstance(hour_cols.columns, pd.MultiIndex):
+                wls = hour_cols.columns.get_level_values("Warming_Level").unique()
+                assert len(wls) == len(self.warming_levels), f"Hour {hour} should have all {len(self.warming_levels)} warming levels"
+                
+                # Verify all simulations present for this hour
+                sims = hour_cols.columns.get_level_values("Simulation").unique()
+                assert len(sims) == len(self.simulations), f"Hour {hour} should have all {len(self.simulations)} simulations"
