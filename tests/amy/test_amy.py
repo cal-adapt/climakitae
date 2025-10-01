@@ -3618,3 +3618,57 @@ class TestCreateMultiWlMultiSimDataframe:
             
             unique_sims = result.columns.get_level_values("Simulation").unique()
             assert len(unique_sims) == len(scenario["simulations"]), f"Should have {len(scenario['simulations'])} simulations for {scenario['name']}"
+
+
+class TestFormatMeteoYrDf:
+    """Test class for _format_meteo_yr_df function.
+    
+    Tests the function that reformats meteorological yearly dataframes by
+    converting numeric hour columns to 12-hour AM/PM format and Julian day
+    indices to Month-Day format for improved readability.
+    
+    Attributes
+    ----------
+    sample_df_365 : pd.DataFrame
+        Sample 365-day dataframe for testing regular years.
+    sample_df_366 : pd.DataFrame
+        Sample 366-day dataframe for testing leap years.
+    """
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create sample 365-day dataframe (regular year)
+        # 24 columns representing hours 0-23
+        # Index represents Julian days 1-365
+        self.sample_df_365 = pd.DataFrame(
+            np.random.rand(365, 24) + 20.0,
+            index=range(1, 366),
+            columns=range(24)
+        )
+        
+        # Create sample 366-day dataframe (leap year)
+        self.sample_df_366 = pd.DataFrame(
+            np.random.rand(366, 24) + 20.0,
+            index=range(1, 367),
+            columns=range(24)
+        )
+    
+    def test_returns_formatted_dataframe(self):
+        """Test that _format_meteo_yr_df returns a properly formatted DataFrame."""
+        # Execute function with 365-day dataframe
+        result = _format_meteo_yr_df(self.sample_df_365.copy())
+        
+        # Verify outcome: returns DataFrame with same shape
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape[0] == 365, "Should have 365 rows"
+        assert result.shape[1] == 24, "Should have 24 columns (hours)"
+        
+        # Verify column structure has AM/PM format
+        assert all('am' in str(col) or 'pm' in str(col) for col in result.columns), "All columns should have AM/PM format"
+        
+        # Verify index is formatted as Month-Day
+        assert all('-' in str(idx) for idx in result.index), "Index should be in Month-Day format"
+        
+        # Verify metadata
+        assert result.columns.name == "Hour", "Column name should be 'Hour'"
+        assert result.index.name == "Day of Year", "Index name should be 'Day of Year'"
