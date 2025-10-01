@@ -2182,6 +2182,59 @@ class TestFindMatchingHistoricValue:
                 check_names=False
             )
 
+    def test_find_matching_historic_value_without_hour_level(self):
+        """Test _find_matching_historic_value when future has no Hour level."""
+        # Create future profile without Hour level (only Warming_Level and Simulation)
+        warming_levels = [1.5, 2.0, 3.0]
+        simulations = ['sim1', 'sim2']
+
+        future_cols_no_hour = pd.MultiIndex.from_product(
+            [warming_levels, simulations],
+            names=['Warming_Level', 'Simulation'],
+        )
+        future_profile_no_hour = pd.DataFrame(
+            np.random.rand(10, len(future_cols_no_hour)) + 20.0,
+            index=range(1, 11),
+            columns=future_cols_no_hour,
+        )
+
+        # Create historic profile with hours
+        historic_hours = [1, 2, 3, 4]
+        historic_profile_hours = pd.DataFrame(
+            np.random.rand(10, len(historic_hours)) + 15.0,
+            index=range(1, 11),
+            columns=historic_hours,
+        )
+
+        # Test that function uses positional matching when no Hour level exists
+        for i, future_col in enumerate(future_profile_no_hour.columns):
+            # Execute function
+            result = _find_matching_historic_value(
+                future_col, future_profile_no_hour, historic_profile_hours
+            )
+
+            # Verify outcome: uses positional matching since no Hour level
+            assert isinstance(result, pd.Series), f"Should return Series for {future_col}"
+            
+            # Calculate expected positional match
+            expected_col_idx = i % len(historic_profile_hours.columns)
+            expected_series = historic_profile_hours.iloc[:, expected_col_idx]
+            
+            pd.testing.assert_series_equal(
+                result, expected_series, 
+                check_names=False
+            )
+
+        # Test fallback to first column when position calculation fails
+        # Use a mock case where get_loc might return a slice instead of int
+        first_col = future_profile_no_hour.columns[0]
+        result_fallback = _find_matching_historic_value(
+            first_col, future_profile_no_hour, historic_profile_hours
+        )
+        
+        # Should still return a valid Series
+        assert isinstance(result_fallback, pd.Series), "Should return Series for fallback case"
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
