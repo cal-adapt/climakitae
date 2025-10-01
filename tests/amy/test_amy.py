@@ -3004,3 +3004,70 @@ class TestCreateSingleWlMultiSimDataframe:
         
         # Verify the sim_label_func was called for each simulation
         assert mock_dup_sim_func.call_count == len(simulations_with_dups), "Should call sim_label_func for each simulation"
+
+    def test_create_single_wl_multi_sim_dataframe_preserves_data_integrity(self):
+        """Test that profile data values are correctly preserved in MultiIndex structure."""
+        # Create specific test data with known values for verification
+        test_simulations = ["test_sim_A", "test_sim_B"]
+        test_hours = np.array([0, 1, 2])  # Use smaller subset for easier verification
+        test_days = 3  # Use smaller dataset for precise testing
+        
+        # Create mock sim_label_func for predictable names
+        test_sim_func = MagicMock()
+        test_sim_func.side_effect = lambda sim, idx: f"test_{sim}_{idx}"
+        
+        # Create test profile data with known values
+        test_profile_data = {}
+        expected_values = {}
+        
+        for i, sim in enumerate(test_simulations):
+            sim_key = f"test_{sim}_{i}"
+            wl_key = f"WL_{self.warming_level}"
+            # Create known test data: day i, hour j has value (i+1)*10 + j
+            profile_matrix = np.zeros((test_days, len(test_hours)))
+            for day in range(test_days):
+                for hour_idx, hour in enumerate(test_hours):
+                    profile_matrix[day, hour_idx] = (day + 1) * 10 + hour
+            
+            test_profile_data[(wl_key, sim_key)] = profile_matrix
+            expected_values[sim_key] = profile_matrix
+
+        # Execute function
+        result = _create_single_wl_multi_sim_dataframe(
+            profile_data=test_profile_data,
+            warming_level=self.warming_level,
+            simulations=test_simulations,
+            sim_label_func=test_sim_func,
+            days_in_year=test_days,
+            hours=test_hours,
+            hours_per_day=len(test_hours),
+        )
+
+        # Verify outcome: data integrity is preserved
+        assert isinstance(result, pd.DataFrame), "Should return DataFrame"
+        assert result.shape == (test_days, len(test_hours) * len(test_simulations)), "Should have correct dimensions"
+        
+        # Verify specific data values are preserved for each (hour, simulation) combination
+        for hour in test_hours:
+            for i, sim in enumerate(test_simulations):
+                sim_key = f"test_{sim}_{i}"
+                expected_matrix = expected_values[sim_key]
+                
+                # Get column data for this (hour, simulation) combination
+                column_data = result[(hour, sim_key)]
+                expected_column = expected_matrix[:, list(test_hours).index(hour)]
+                
+                # Verify data values match
+                np.testing.assert_array_equal(
+                    column_data.values, expected_column,
+                    err_msg=f"Data mismatch for hour {hour}, simulation {sim_key}"
+                )
+                
+        # Verify specific known values at expected positions
+        # Day 1 (index 0), Hour 0, Sim A should be 10 (day 1 * 10 + hour 0)
+        sim_a_key = "test_test_sim_A_0"
+        assert result.loc[1, (0, sim_a_key)] == 10.0, "Day 1, Hour 0, Sim A should be 10"
+        
+        # Day 2 (index 1), Hour 1, Sim B should be 21 (day 2 * 10 + hour 1)
+        sim_b_key = "test_test_sim_B_1"
+        assert result.loc[2, (1, sim_b_key)] == 21.0, "Day 2, Hour 1, Sim B should be 21"
