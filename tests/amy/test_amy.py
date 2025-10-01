@@ -3755,3 +3755,35 @@ class TestFormatMeteoYrDf:
         
         # Verify all dates are formatted correctly
         assert all('-' in str(idx) for idx in result.index), "All indices should be in Month-Day format"
+    
+    def test_handles_regular_year(self):
+        """Test regular year handling (365 days)."""
+        # Execute function with 365-day dataframe
+        result = _format_meteo_yr_df(self.sample_df_365.copy())
+        
+        # Verify outcome: properly handles regular year with 365 days
+        assert result.shape[0] == 365, "Should have 365 rows for regular year"
+        assert result.shape[1] == 24, "Should have 24 columns"
+        
+        # Verify first and last days
+        assert result.index[0] == "Jan-01", "First day should be Jan-01"
+        assert result.index[-1] == "Dec-31", "Last day should be Dec-31"
+        
+        # Verify Feb-29 does NOT exist (not a leap year)
+        assert "Feb-29" not in result.index, "Regular year should not include Feb-29"
+        
+        # Verify Feb-28 exists and is followed by Mar-01
+        assert "Feb-28" in result.index, "Regular year should include Feb-28"
+        feb_28_idx = list(result.index).index("Feb-28")
+        # Feb-28 should be the 59th day (0-indexed: 58)
+        assert feb_28_idx == 58, "Feb-28 should be at position 58 (59th day)"
+        
+        # Verify Mar-01 follows Feb-28 in regular year
+        assert result.index[59] == "Mar-01", "Mar-01 should follow Feb-28 in regular year"
+        
+        # Verify some other key dates to ensure correct calendar
+        assert "Jul-04" in result.index, "Should include Jul-04"
+        assert "Dec-25" in result.index, "Should include Dec-25"
+        
+        # Verify all dates are formatted correctly
+        assert all('-' in str(idx) for idx in result.index), "All indices should be in Month-Day format"
