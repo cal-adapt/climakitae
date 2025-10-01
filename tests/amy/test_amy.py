@@ -2929,3 +2929,35 @@ class TestCreateSingleWlMultiSimDataframe:
             result.index.values, expected_index,
             err_msg="Index should be day numbers from 1 to days_in_year"
         )
+
+    def test_create_single_wl_multi_sim_dataframe_handles_multiple_simulations(self):
+        """Test function handles multiple simulations correctly."""
+        # Execute function
+        result = _create_single_wl_multi_sim_dataframe(
+            profile_data=self.sample_profile_data,
+            warming_level=self.warming_level,
+            simulations=self.simulations,
+            sim_label_func=self.mock_sim_label_func,
+            days_in_year=self.days_in_year,
+            hours=self.hours,
+            hours_per_day=self.hours_per_day,
+        )
+
+        # Verify outcome: each simulation creates columns for all hours
+        # Expected structure: (hour, sim) for each hour and each simulation
+        unique_simulations = result.columns.get_level_values("Simulation").unique()
+        unique_hours = result.columns.get_level_values("Hour").unique()
+        
+        # Should have one column for each (hour, simulation) combination
+        expected_sim_names = ["sim_model_A_0", "sim_model_B_1", "sim_model_C_2"]
+        assert len(unique_simulations) == len(self.simulations), f"Should have {len(self.simulations)} simulations"
+        assert len(unique_hours) == len(self.hours), f"Should have {len(self.hours)} hours"
+        
+        # Verify simulation names match expected pattern from mock function
+        for expected_sim in expected_sim_names:
+            assert expected_sim in unique_simulations, f"Should contain simulation {expected_sim}"
+        
+        # Verify each hour appears for each simulation (24 hours × 3 sims = 72 columns)
+        for hour in self.hours:
+            for sim_name in expected_sim_names:
+                assert (hour, sim_name) in result.columns, f"Should have column for hour {hour}, simulation {sim_name}"
