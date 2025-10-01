@@ -2060,6 +2060,36 @@ class TestFindMatchingHistoricValue:
             check_names=False
         )
 
+    def test_find_matching_historic_value_with_hour_level(self):
+        """Test _find_matching_historic_value with Hour level direct matching."""
+        # Test various hour matches
+        test_cases = [
+            (1, 1.5, 'sim1'),   # First hour
+            (12, 2.0, 'sim2'),  # Middle hour
+            (24, 1.5, 'sim1'),  # Last hour
+        ]
+
+        for future_col in test_cases:
+            hour = future_col[0]  # Extract hour from future column
+            
+            # Execute function
+            result = _find_matching_historic_value(
+                future_col, self.future_profile, self.historic_profile
+            )
+
+            # Verify outcome: returns correct historic data for the hour
+            assert isinstance(result, pd.Series), f"Should return Series for {future_col}"
+            expected_series = self.historic_profile[hour]
+            pd.testing.assert_series_equal(
+                result, expected_series, 
+                check_names=False
+            )
+            
+            # Verify the series contains the expected hour's data
+            assert hour in self.historic_profile.columns, (
+                f"Hour {hour} should exist in historic profile"
+            )
+
 
 class TestFormatBasedOnStructure:
     """Test class for _format_based_on_structure function.
