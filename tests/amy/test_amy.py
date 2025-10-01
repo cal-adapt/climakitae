@@ -2685,3 +2685,50 @@ class TestCreateSimpleDataframe:
         # Verify column structure (hours 1-24)
         expected_columns = np.arange(1, 25, 1)
         np.testing.assert_array_equal(result.columns.values, expected_columns)
+
+    def test_create_simple_dataframe_with_different_scenarios(self):
+        """Test _create_simple_dataframe with different warming level and simulation scenarios."""
+        # Test different warming level
+        different_wl = 1.5
+        different_wl_data = {
+            ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 15.0
+        }
+        
+        # Execute function with different warming level
+        result_wl = _create_simple_dataframe(
+            profile_data=different_wl_data,
+            warming_level=different_wl,
+            simulation=self.simulation,
+            sim_label_func=self.sim_label_func,
+            days_in_year=365,
+            hours=self.hours,
+        )
+        
+        # Verify outcome: maintains same structure with different data
+        assert isinstance(result_wl, pd.DataFrame), "Should return DataFrame for different WL"
+        assert result_wl.shape == (365, 24), "Should maintain same shape"
+        
+        # Test different simulation identifier  
+        different_sim = "sim2"
+        # Note: sim_label_func always uses index 0, so key will be "Sim1" regardless of simulation value
+        different_sim_data = {
+            ("WL_2.0", "Sim1"): np.random.rand(365, 24) + 25.0  
+        }
+        
+        # Execute function with different simulation
+        result_sim = _create_simple_dataframe(
+            profile_data=different_sim_data,
+            warming_level=self.warming_level,
+            simulation=different_sim,
+            sim_label_func=self.sim_label_func,
+            days_in_year=365,
+            hours=self.hours,
+        )
+        
+        # Verify outcome: handles different simulation correctly
+        assert isinstance(result_sim, pd.DataFrame), "Should return DataFrame for different sim"
+        assert result_sim.shape == (365, 24), "Should maintain same shape"
+        
+        # Verify all results have different data but same structure
+        assert not result_wl.equals(result_sim), "Different scenarios should produce different data"
+        assert list(result_wl.columns) == list(result_sim.columns), "Columns should be identical"
