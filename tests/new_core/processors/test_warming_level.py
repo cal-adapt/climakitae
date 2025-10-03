@@ -365,12 +365,21 @@ class TestWarmingLevelExecute:
     #         assert processor.warming_level_times.equals(mock_data)
     #         mock_read_csv_file.assert_called_once()  # Ensure the mock was called
 
-    def test_execute(self, request, full_processor):
+    def test_execute_updates_context(self, request, full_processor):
+        """Test that execute updates context with warming level information."""
         test_result = request.getfixturevalue("test_dataarray_dict")
         context = {}
-        response = full_processor.execute(result=test_result, context=context)
-        assert isinstance(response, dict)
-        print(response)
-        import pdb
+        _ = full_processor.execute(result=test_result, context=context)
+        assert full_processor.name in context[_NEW_ATTRS_KEY][full_processor.name]
+        assert str(full_processor.value) in context[_NEW_ATTRS_KEY][full_processor.name]
 
-        pdb.set_trace()
+    def test_execute_dims_correct(self, request, full_processor):
+        """Test that execute returns a dict with expected keys and types."""
+        test_result = request.getfixturevalue("test_dataarray_dict")
+        ret = full_processor.execute(result=test_result, context={})
+        # assert 'time_delta' in ret[]
+        assert 1 == 0
+        for key in ret:
+            assert isinstance(ret[key], xr.DataArray) or isinstance(
+                ret[key], xr.Dataset
+            )
