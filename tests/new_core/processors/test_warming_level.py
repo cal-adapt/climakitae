@@ -377,9 +377,9 @@ class TestWarmingLevelExecute:
         """Test that execute returns a dict with expected keys and types."""
         test_result = request.getfixturevalue("test_dataarray_dict")
         ret = full_processor.execute(result=test_result, context={})
-        # assert 'time_delta' in ret[]
-        assert 1 == 0
         for key in ret:
-            assert isinstance(ret[key], xr.DataArray) or isinstance(
-                ret[key], xr.Dataset
-            )
+            assert isinstance(ret[key], xr.Dataset)
+            assert "warming_level" in ret[key].dims
+            assert "time_delta" in ret[key].dims
+
+    def test_execute_
