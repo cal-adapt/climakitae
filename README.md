@@ -38,7 +38,7 @@ Climakitae is developed as part of the [Cal-Adapt Analytics Engine](https://anal
 - Python 3.12
 - [conda / miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions)
 
-#### Install 1.3.0 with `conda` on Linux
+#### Install 1.4.0 with `conda` on Linux
 
 For additional details on the latest version and step-by-step installation instructions please visit [the wiki](https://github.com/cal-adapt/climakitae/wiki)
 
@@ -51,7 +51,7 @@ conda create -n climakitae --file conda-linux-64.lock
 conda activate climakitae
 
 # install climakitae
-pip install https://github.com/cal-adapt/climakitae/archive/refs/tags/1.3.0.zip
+pip install https://github.com/cal-adapt/climakitae/archive/refs/tags/1.4.0.zip
 ```
 
 ### Installation via Pip
@@ -73,7 +73,7 @@ curl https://raw.githubusercontent.com/cal-adapt/climakitae/refs/heads/release-1
 pip install -r requirements.txt
 
 # install climakitae
-pip install https://github.com/cal-adapt/climakitae/archive/refs/tags/1.3.0.zip
+pip install https://github.com/cal-adapt/climakitae/archive/refs/tags/1.4.0.zip
 ```
 
 ### Basic Usage
