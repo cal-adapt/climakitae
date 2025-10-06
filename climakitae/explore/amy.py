@@ -13,8 +13,6 @@ import pandas as pd
 import xarray as xr
 from tqdm.auto import tqdm  # Progress bar
 
-from climakitae.core.data_interface import DataParameters, get_data
-from climakitae.core.data_load import read_catalog_from_select
 from climakitae.util.utils import julianDay_to_date
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
