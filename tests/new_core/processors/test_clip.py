@@ -89,3 +89,58 @@ class TestClipSetDataAccessor:
         # Verify catalog is set
         assert clip.catalog is mock_catalog
         assert clip.catalog is not UNSET
+
+
+class TestClipUpdateContext:
+    """Test class for update_context method."""
+    
+    def test_update_context_single_boundary(self):
+        """Test context update for single boundary clipping."""
+        clip = Clip("CA")
+        context = {}
+        
+        clip.update_context(context)
+        
+        assert _NEW_ATTRS_KEY in context
+        assert "clip" in context[_NEW_ATTRS_KEY]
+        assert "CA" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "Process 'clip' applied" in context[_NEW_ATTRS_KEY]["clip"]
+    
+    def test_update_context_single_point(self):
+        """Test context update for single point clipping."""
+        clip = Clip((37.7749, -122.4194))
+        context = {}
+        
+        clip.update_context(context)
+        
+        assert _NEW_ATTRS_KEY in context
+        assert "clip" in context[_NEW_ATTRS_KEY]
+        assert "Single point clipping" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "37.7749" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "-122.4194" in context[_NEW_ATTRS_KEY]["clip"]
+    
+    def test_update_context_multi_point(self):
+        """Test context update for multi-point clipping."""
+        points = [(37.7749, -122.4194), (34.0522, -118.2437)]
+        clip = Clip(points)
+        context = {}
+        
+        clip.update_context(context)
+        
+        assert _NEW_ATTRS_KEY in context
+        assert "clip" in context[_NEW_ATTRS_KEY]
+        assert "Multi-point clipping" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "2 coordinate pairs" in context[_NEW_ATTRS_KEY]["clip"]
+    
+    def test_update_context_multiple_boundaries(self):
+        """Test context update for multiple boundary clipping."""
+        clip = Clip(["CA", "OR", "WA"])
+        context = {}
+        
+        clip.update_context(context)
+        
+        assert _NEW_ATTRS_KEY in context
+        assert "clip" in context[_NEW_ATTRS_KEY]
+        assert "Multi-boundary clipping" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "3 boundaries" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "union" in context[_NEW_ATTRS_KEY]["clip"]
