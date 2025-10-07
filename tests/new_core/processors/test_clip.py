@@ -590,3 +590,78 @@ class TestClipBoundaryValidation:
         
         assert result['valid'] is False
         assert 'error' in result
+
+
+class TestClipExecuteErrorHandling:
+    """Test class for error handling in execute method."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.dataset = xr.Dataset({
+            'temp': (['time', 'y', 'x'], np.random.rand(3, 10, 10) + 20)
+        }, coords={
+            'time': pd.date_range('2020-01-01', periods=3),
+            'y': np.linspace(32, 42, 10),
+            'x': np.linspace(-124, -114, 10)
+        })
+        self.dataset.rio.write_crs("EPSG:4326", inplace=True)
+    
+    def test_execute_invalid_value_type(self):
+        """Test execute with invalid value type - outcome: raises ValueError."""
+        clip = Clip("CA")
+        clip.value = 123  # Invalid type
+        
+        with pytest.raises(ValueError, match="Invalid value type for clipping"):
+            context = {}
+            clip.execute(self.dataset, context)
+    
+    def test_execute_failed_geometry_creation(self):
+        """Test execute when geometry creation fails - outcome: raises ValueError."""
+        clip = Clip("CA")
+        mock_catalog = MagicMock()
+        clip.set_data_accessor(mock_catalog)
+        
+        # Mock the geometry method to return None
+        with patch.object(clip, '_get_boundary_geometry', return_value=None):
+            with pytest.raises(ValueError, match="Failed to create geometry"):
+                context = {}
+                clip.execute(self.dataset, context)
+    
+    def test_execute_missing_catalog_for_boundary(self):
+        """Test execute without catalog when boundary key provided - outcome: raises RuntimeError."""
+        clip = Clip("CA")  # Boundary key but no catalog
+        context = {}
+        
+        with pytest.raises(RuntimeError, match="DataCatalog is not set"):
+            clip.execute(self.dataset, context)
+    
+    def test_execute_with_dataarray(self):
+        """Test execute with DataArray - outcome: successful clipping."""
+        bounds = ((35.0, 40.0), (-122.0, -116.0))
+        clip = Clip(bounds)
+        context = {}
+        
+        # Convert dataset to DataArray
+        data_array = self.dataset['temp']
+        data_array.rio.write_crs("EPSG:4326", inplace=True)
+        
+        result = clip.execute(data_array, context)
+        
+        # Verify result
+        assert result is not None
+        assert isinstance(result, xr.DataArray)
+        assert _NEW_ATTRS_KEY in context
+    
+    def test_execute_with_tuple_of_datasets(self):
+        """Test execute with tuple of datasets - outcome: returns tuple."""
+        bounds = ((35.0, 40.0), (-122.0, -116.0))
+        clip = Clip(bounds)
+        context = {}
+        
+        data_tuple = (self.dataset, self.dataset)
+        result = clip.execute(data_tuple, context)
+        
+        # Verify result
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert _NEW_ATTRS_KEY in context
