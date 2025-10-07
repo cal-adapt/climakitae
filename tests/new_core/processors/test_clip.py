@@ -539,3 +539,54 @@ class TestClipIntegrationCoordinateBounds:
         # Verify spatial dimensions exist
         assert 'x' in result.dims or 'lon' in result.dims
         assert 'y' in result.dims or 'lat' in result.dims
+
+
+class TestClipBoundaryValidation:
+    """Integration tests for boundary validation methods."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.clip = Clip("CA")
+        self.mock_catalog = MagicMock()
+        
+        # Mock the boundary_dict structure
+        mock_boundaries = MagicMock()
+        mock_boundaries.boundary_dict.return_value = {
+            'states': {'CA': 5, 'OR': 6, 'WA': 7},
+            'CA counties': {'Los Angeles County': 0, 'San Diego County': 1},
+            'none': {},
+            'lat/lon': {}
+        }
+        self.mock_catalog.boundaries = mock_boundaries
+        self.clip.set_data_accessor(self.mock_catalog)
+    
+    def test_validate_boundary_key_valid(self):
+        """Test validate_boundary_key with valid key - outcome: validation succeeds."""
+        result = self.clip.validate_boundary_key("CA")
+        
+        assert result['valid'] is True
+        assert result['category'] == 'states'
+        assert result['suggestions'] == []
+    
+    def test_validate_boundary_key_invalid(self):
+        """Test validate_boundary_key with invalid key - outcome: returns suggestions."""
+        result = self.clip.validate_boundary_key("InvalidKey")
+        
+        assert result['valid'] is False
+        assert 'error' in result
+        assert isinstance(result['suggestions'], list)
+    
+    def test_validate_boundary_key_partial_match(self):
+        """Test validate_boundary_key with partial match - outcome: returns suggestions."""
+        result = self.clip.validate_boundary_key("Los Angeles")
+        
+        # Should find it or suggest it
+        assert 'suggestions' in result
+    
+    def test_validate_boundary_key_no_catalog(self):
+        """Test validate_boundary_key without catalog - outcome: returns error."""
+        clip_no_catalog = Clip("CA")
+        result = clip_no_catalog.validate_boundary_key("CA")
+        
+        assert result['valid'] is False
+        assert 'error' in result
