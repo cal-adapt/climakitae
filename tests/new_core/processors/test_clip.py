@@ -231,3 +231,68 @@ class TestClipExecuteWithSingleBoundary:
             
             # Verify context was updated
             assert _NEW_ATTRS_KEY in context
+
+
+class TestClipExecuteWithSinglePoint:
+    """Test class for execute method with single point."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.clip = Clip((37.7749, -122.4194))
+        self.sample_dataset = xr.Dataset({
+            'temp': (['time', 'y', 'x'], np.random.rand(10, 5, 5))
+        }, coords={
+            'time': pd.date_range('2020-01-01', periods=10),
+            'y': np.linspace(32, 42, 5),
+            'x': np.linspace(-124, -114, 5)
+        })
+        # Create a single-point result
+        self.clipped_point = self.sample_dataset.isel(x=2, y=2)
+    
+    def test_execute_single_point_dataset(self):
+        """Test execute with single point and xr.Dataset - outcome: closest gridcell returned."""
+        with patch.object(self.clip, '_clip_data_to_point', return_value=self.clipped_point) as mock_clip:
+            context = {}
+            result = self.clip.execute(self.sample_dataset, context)
+            
+            # Verify result exists and is the clipped data
+            assert result is not None
+            assert result is self.clipped_point
+            
+            # Verify clipping method was called with correct args
+            mock_clip.assert_called_once_with(self.sample_dataset, 37.7749, -122.4194)
+            
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
+            assert "Single point clipping" in context[_NEW_ATTRS_KEY]["clip"]
+    
+    def test_execute_single_point_list(self):
+        """Test execute with single point and list of datasets - outcome: list of closest gridcells."""
+        data_list = [self.sample_dataset, self.sample_dataset]
+        
+        with patch.object(self.clip, '_clip_data_to_point', return_value=self.clipped_point):
+            context = {}
+            result = self.clip.execute(data_list, context)
+            
+            # Verify result structure
+            assert isinstance(result, list)
+            assert len(result) == 2
+            
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
+    
+    def test_execute_single_point_dict(self):
+        """Test execute with single point and dict of datasets - outcome: dict of closest gridcells."""
+        data_dict = {'sim1': self.sample_dataset, 'sim2': self.sample_dataset}
+        
+        with patch.object(self.clip, '_clip_data_to_point', return_value=self.clipped_point):
+            context = {}
+            result = self.clip.execute(data_dict, context)
+            
+            # Verify result structure
+            assert isinstance(result, dict)
+            assert 'sim1' in result
+            assert 'sim2' in result
+            
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
