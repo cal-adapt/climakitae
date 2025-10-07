@@ -482,3 +482,60 @@ class TestClipExecuteWithMultipleBoundaries:
             
             # Verify context was updated
             assert _NEW_ATTRS_KEY in context
+
+
+class TestClipIntegrationCoordinateBounds:
+    """Integration tests for coordinate bounds clipping with real data."""
+    
+    def setup_method(self):
+        """Set up test fixtures with real data."""
+        # Create realistic dataset with proper CRS
+        self.dataset = xr.Dataset({
+            'temp': (['time', 'y', 'x'], np.random.rand(3, 10, 10) + 20)
+        }, coords={
+            'time': pd.date_range('2020-01-01', periods=3),
+            'y': np.linspace(32, 42, 10),
+            'x': np.linspace(-124, -114, 10)
+        })
+        self.dataset.rio.write_crs("EPSG:4326", inplace=True)
+    
+    def test_clip_with_coordinate_bounds_integration(self):
+        """Test real coordinate bounds clipping - outcome: dataset clipped to specified bounds."""
+        bounds = ((35.0, 40.0), (-122.0, -116.0))
+        clip = Clip(bounds)
+        context = {}
+        
+        result = clip.execute(self.dataset, context)
+        
+        # Verify result exists and is clipped
+        assert result is not None
+        assert isinstance(result, xr.Dataset)
+        
+        # Verify spatial dimensions are reduced
+        assert result.sizes['y'] < self.dataset.sizes['y']
+        assert result.sizes['x'] < self.dataset.sizes['x']
+        
+        # Verify context updated
+        assert _NEW_ATTRS_KEY in context
+        assert "clip" in context[_NEW_ATTRS_KEY]
+    
+    def test_clip_data_with_geom_static_method(self):
+        """Test _clip_data_with_geom static method - outcome: data clipped to geometry."""
+        # Create a simple geometry
+        geom = gpd.GeoDataFrame(
+            geometry=[box(-122, 35, -118, 40)],
+            crs=pyproj.CRS.from_epsg(4326)
+        )
+        
+        result = Clip._clip_data_with_geom(self.dataset, geom)
+        
+        # Verify result exists
+        assert result is not None
+        assert isinstance(result, xr.Dataset)
+        
+        # Verify it has data
+        assert 'temp' in result.data_vars
+        
+        # Verify spatial dimensions exist
+        assert 'x' in result.dims or 'lon' in result.dims
+        assert 'y' in result.dims or 'lat' in result.dims
