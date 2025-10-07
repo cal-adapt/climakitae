@@ -7,6 +7,7 @@ from .update_attributes import UpdateAttributes
 
 __all__ = [
     "Concat",
+    "Clip",
     "FilterUnAdjustedModels",
     "UpdateAttributes",
 ]
