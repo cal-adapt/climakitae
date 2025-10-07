@@ -52,3 +52,12 @@ class TestClipInit:
         assert clip.point_list[0] == (37.7749, -122.4194)
         assert clip.point_list[1] == (34.0522, -118.2437)
         assert clip.multi_mode is False
+    
+    def test_init_multiple_boundaries(self):
+        """Test initialization with multiple boundary keys."""
+        clip = Clip(["CA", "OR", "WA"])
+        assert clip.value == ["CA", "OR", "WA"]
+        assert clip.multi_mode is True
+        assert clip.operation == "union"
+        assert clip.is_single_point is False
+        assert clip.is_multi_point is False
