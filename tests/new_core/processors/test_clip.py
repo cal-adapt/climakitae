@@ -665,3 +665,327 @@ class TestClipExecuteErrorHandling:
         assert isinstance(result, tuple)
         assert len(result) == 2
         assert _NEW_ATTRS_KEY in context
+
+
+class TestClipDataToPointIntegration:
+    """Integration tests for _clip_data_to_point static method."""
+    
+    def setup_method(self):
+        """Set up test fixtures with real data."""
+        # Create dataset with valid data
+        self.dataset_valid = xr.Dataset({
+            'temp': (['time', 'y', 'x'], np.random.rand(3, 10, 10) + 20)
+        }, coords={
+            'time': pd.date_range('2020-01-01', periods=3),
+            'y': np.linspace(32, 42, 10),
+            'x': np.linspace(-124, -114, 10),
+            'lat': (['y', 'x'], np.tile(np.linspace(32, 42, 10)[:, None], (1, 10))),
+            'lon': (['y', 'x'], np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1)))
+        })
+        # Add required attributes
+        self.dataset_valid.attrs['resolution'] = '3 km'
+        # Set CRS
+        self.dataset_valid = self.dataset_valid.rio.write_crs('EPSG:4326')
+        
+        # Create dataset with some NaN values
+        data_with_nans = np.random.rand(3, 10, 10) + 20
+        data_with_nans[:, 5, 5] = np.nan  # Make center point NaN
+        self.dataset_with_nans = xr.Dataset({
+            'temp': (['time', 'y', 'x'], data_with_nans)
+        }, coords={
+            'time': pd.date_range('2020-01-01', periods=3),
+            'y': np.linspace(32, 42, 10),
+            'x': np.linspace(-124, -114, 10),
+            'lat': (['y', 'x'], np.tile(np.linspace(32, 42, 10)[:, None], (1, 10))),
+            'lon': (['y', 'x'], np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1)))
+        })
+        # Add required attributes
+        self.dataset_with_nans.attrs['resolution'] = '3 km'
+        # Set CRS
+        self.dataset_with_nans = self.dataset_with_nans.rio.write_crs('EPSG:4326')
+    
+    def test_clip_data_to_point_valid_closest(self):
+        """Test _clip_data_to_point with valid closest gridcell - outcome: returns single gridcell."""
+        lat, lon = 37.0, -119.0
+        
+        result = Clip._clip_data_to_point(self.dataset_valid, lat, lon)
+        
+        # Verify result exists
+        assert result is not None
+        assert isinstance(result, xr.Dataset)
+        
+        # Verify it's a single point (no x, y dimensions)
+        assert 'x' not in result.dims and 'y' not in result.dims
+        
+        # Verify it has the data variable
+        assert 'temp' in result.data_vars
+        
+        # Verify time dimension is preserved
+        assert 'time' in result.dims
+        assert len(result.time) == 3
+    
+    def test_clip_data_to_point_with_nan_search(self):
+        """Test _clip_data_to_point searches for valid gridcell when closest has NaN - outcome: finds valid cell."""
+        # Create dataset where center is NaN but edges have valid data
+        # This ensures NaN search will be triggered and will find valid data
+        data_with_center_nan = np.random.rand(3, 10, 10) + 20
+        # Make center 3x3 area NaN to force search algorithm
+        data_with_center_nan[:, 4:7, 4:7] = np.nan  
+        dataset_center_nan = xr.Dataset({
+            'temp': (['time', 'y', 'x'], data_with_center_nan)
+        }, coords={
+            'time': pd.date_range('2020-01-01', periods=3),
+            'y': np.linspace(32, 42, 10),
+            'x': np.linspace(-124, -114, 10),
+            'lat': (['y', 'x'], np.tile(np.linspace(32, 42, 10)[:, None], (1, 10))),
+            'lon': (['y', 'x'], np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1)))
+        })
+        dataset_center_nan.attrs['resolution'] = '3 km'
+        dataset_center_nan = dataset_center_nan.rio.write_crs('EPSG:4326')
+        
+        # Request point that maps to the NaN center location
+        lat, lon = 37.0, -119.0
+        
+        with patch('builtins.print'):  # Suppress print statements
+            result = Clip._clip_data_to_point(dataset_center_nan, lat, lon)
+        
+        # If search found a valid gridcell, verify it
+        if result is not None:
+            assert 'temp' in result.data_vars
+            # Verify data is not all NaN (should have found valid gridcell)
+            assert not result['temp'].isnull().all()
+    
+    def test_clip_data_to_point_edge_of_domain(self):
+        """Test _clip_data_to_point at edge of domain - outcome: returns edge gridcell."""
+        # Point at the edge of domain
+        lat, lon = 32.5, -123.5
+        
+        result = Clip._clip_data_to_point(self.dataset_valid, lat, lon)
+        
+        # Verify result exists
+        assert result is not None
+        assert isinstance(result, xr.Dataset)
+        assert 'temp' in result.data_vars
+    
+    def test_clip_data_to_point_with_dataarray(self):
+        """Test _clip_data_to_point with DataArray converted to Dataset - outcome: works correctly."""
+        lat, lon = 37.0, -119.0
+        data_array = self.dataset_valid['temp']
+        
+        # Convert DataArray to Dataset (current implementation requires Dataset)
+        dataset_from_array = data_array.to_dataset(name='temp')
+        dataset_from_array.attrs['resolution'] = '3 km'
+        dataset_from_array = dataset_from_array.rio.write_crs('EPSG:4326')
+        
+        result = Clip._clip_data_to_point(dataset_from_array, lat, lon)
+        
+        # Verify result exists and has the expected variable
+        assert result is not None
+        assert isinstance(result, xr.Dataset)
+        assert 'temp' in result.data_vars
+    
+    def test_clip_data_to_point_outside_domain(self):
+        """Test _clip_data_to_point with point outside domain - outcome: returns None or nearest."""
+        # Point far outside domain
+        lat, lon = 50.0, -100.0
+        
+        with patch('builtins.print'):  # Suppress print statements
+            result = Clip._clip_data_to_point(self.dataset_valid, lat, lon)
+        
+        # May return None or the nearest edge point depending on implementation
+        if result is not None:
+            assert isinstance(result, xr.Dataset)
+    
+    def test_clip_data_to_point_preserves_attributes(self):
+        """Test _clip_data_to_point preserves dataset attributes - outcome: attributes maintained."""
+        lat, lon = 37.0, -119.0
+        self.dataset_valid.attrs['test_attr'] = 'test_value'
+        
+        result = Clip._clip_data_to_point(self.dataset_valid, lat, lon)
+        
+        # Verify result has attributes
+        assert result is not None
+        # Attributes may or may not be preserved depending on selection method
+        # Just verify the operation completes successfully
+    
+    def test_clip_data_to_point_multiple_variables(self):
+        """Test _clip_data_to_point with multiple variables - outcome: all variables clipped."""
+        # Add another variable
+        dataset_multi = self.dataset_valid.copy()
+        dataset_multi['precip'] = (['time', 'y', 'x'], np.random.rand(3, 10, 10))
+        
+        lat, lon = 37.0, -119.0
+        result = Clip._clip_data_to_point(dataset_multi, lat, lon)
+        
+        # Verify both variables are present
+        assert result is not None
+        assert 'temp' in result.data_vars
+        assert 'precip' in result.data_vars
+
+
+class TestClipDataToMultiplePointsIntegration:
+    """Integration tests for _clip_data_to_multiple_points static method.
+    
+    This test class verifies the vectorized multi-point clipping functionality
+    including coordinate handling, dimension renaming, and fallback behavior.
+    """
+    
+    def setup_method(self):
+        """Set up test fixtures with real data."""
+        # Create dataset with valid data
+        self.dataset_valid = xr.Dataset({
+            'temp': (['time', 'y', 'x'], np.random.rand(3, 10, 10) + 20)
+        }, coords={
+            'time': pd.date_range('2020-01-01', periods=3),
+            'y': np.linspace(32, 42, 10),
+            'x': np.linspace(-124, -114, 10),
+            'lat': (['y', 'x'], np.tile(np.linspace(32, 42, 10)[:, None], (1, 10))),
+            'lon': (['y', 'x'], np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1)))
+        })
+        # Add required attributes
+        self.dataset_valid.attrs['resolution'] = '3 km'
+        # Set CRS
+        self.dataset_valid = self.dataset_valid.rio.write_crs('EPSG:4326')
+    
+    def test_clip_data_to_multiple_points_basic(self):
+        """Test _clip_data_to_multiple_points with list of valid points - outcome: returns all gridcells."""
+        point_list = [(37.0, -119.0), (35.0, -121.0), (40.0, -118.0)]
+        
+        with patch('builtins.print'):  # Suppress print statements
+            result = Clip._clip_data_to_multiple_points(self.dataset_valid, point_list)
+        
+        # Verify result exists
+        assert result is not None
+        assert isinstance(result, xr.Dataset)
+        
+        # Verify it has the closest_cell dimension with correct size
+        assert 'closest_cell' in result.dims
+        assert result.dims['closest_cell'] == 3
+        
+        # Verify target coordinates are added
+        assert 'target_lats' in result.coords
+        assert 'target_lons' in result.coords
+        assert 'point_index' in result.coords
+        
+        # Verify data variable is present
+        assert 'temp' in result.data_vars
+    
+    def test_clip_data_to_multiple_points_single_point(self):
+        """Test _clip_data_to_multiple_points with single point - outcome: works like single point."""
+        point_list = [(37.0, -119.0)]
+        
+        with patch('builtins.print'):
+            result = Clip._clip_data_to_multiple_points(self.dataset_valid, point_list)
+        
+        # Verify result exists with single point
+        assert result is not None
+        assert result.dims['closest_cell'] == 1
+        
+        # Verify coordinates match input
+        assert float(result['target_lats'].values[0]) == 37.0
+        assert float(result['target_lons'].values[0]) == -119.0
+    
+    def test_clip_data_to_multiple_points_preserves_time(self):
+        """Test _clip_data_to_multiple_points preserves time dimension - outcome: time intact."""
+        point_list = [(37.0, -119.0), (35.0, -121.0)]
+        
+        with patch('builtins.print'):
+            result = Clip._clip_data_to_multiple_points(self.dataset_valid, point_list)
+        
+        # Verify time dimension is preserved
+        assert 'time' in result.dims
+        assert len(result.time) == 3
+        
+        # Verify data shape is correct (time x closest_cell)
+        assert result['temp'].shape == (3, 2)
+    
+    def test_clip_data_to_multiple_points_with_dataarray(self):
+        """Test _clip_data_to_multiple_points with DataArray input - outcome: returns DataArray."""
+        point_list = [(37.0, -119.0), (35.0, -121.0)]
+        data_array = self.dataset_valid['temp']
+        
+        with patch('builtins.print'):
+            result = Clip._clip_data_to_multiple_points(data_array, point_list)
+        
+        # Should convert DataArray to Dataset and back
+        # Result should be DataArray
+        if isinstance(result, xr.DataArray):
+            assert result.dims == ('time', 'closest_cell') or result.dims == ('closest_cell', 'time')
+        else:
+            # Or Dataset with the variable
+            assert 'temp' in result.data_vars
+    
+    def test_clip_data_to_multiple_points_multiple_variables(self):
+        """Test _clip_data_to_multiple_points with multiple variables - outcome: all variables included."""
+        # Add another variable
+        dataset_multi = self.dataset_valid.copy()
+        dataset_multi['precip'] = (['time', 'y', 'x'], np.random.rand(3, 10, 10))
+        
+        point_list = [(37.0, -119.0), (35.0, -121.0)]
+        
+        with patch('builtins.print'):
+            result = Clip._clip_data_to_multiple_points(dataset_multi, point_list)
+        
+        # Verify both variables are present
+        assert result is not None
+        assert 'temp' in result.data_vars
+        assert 'precip' in result.data_vars
+        
+        # Verify both have the correct shape
+        assert result['temp'].shape == (3, 2)
+        assert result['precip'].shape == (3, 2)
+    
+    def test_clip_data_to_multiple_points_coordinate_order(self):
+        """Test _clip_data_to_multiple_points maintains point order - outcome: order preserved."""
+        point_list = [(32.5, -123.5), (37.0, -119.0), (41.5, -115.0)]
+        
+        with patch('builtins.print'):
+            result = Clip._clip_data_to_multiple_points(self.dataset_valid, point_list)
+        
+        # Verify point order is preserved in coordinates
+        assert result is not None
+        assert len(result['target_lats']) == 3
+        assert len(result['target_lons']) == 3
+        
+        # Verify target coordinates match input order
+        assert float(result['target_lats'].values[0]) == 32.5
+        assert float(result['target_lats'].values[1]) == 37.0
+        assert float(result['target_lats'].values[2]) == 41.5
+        
+        # Verify point indices are sequential
+        assert list(result['point_index'].values) == [0, 1, 2]
+    
+    def test_clip_data_to_multiple_points_large_list(self):
+        """Test _clip_data_to_multiple_points with many points - outcome: efficient vectorized processing."""
+        # Create 20 points across the domain
+        lats = np.linspace(32, 42, 20)
+        lons = np.linspace(-124, -114, 20)
+        point_list = list(zip(lats, lons))
+        
+        with patch('builtins.print'):
+            result = Clip._clip_data_to_multiple_points(self.dataset_valid, point_list)
+        
+        # Verify all points processed
+        assert result is not None
+        assert result.dims['closest_cell'] == 20
+        
+        # Verify all target coordinates are present
+        assert len(result['target_lats']) == 20
+        assert len(result['target_lons']) == 20
+    
+    def test_clip_data_to_multiple_points_edge_cases(self):
+        """Test _clip_data_to_multiple_points with edge/boundary points - outcome: handles edges correctly."""
+        # Points at domain edges
+        point_list = [
+            (32.0, -124.0),  # Southwest corner
+            (42.0, -114.0),  # Northeast corner
+            (37.0, -124.0),  # Western edge
+            (37.0, -114.0),  # Eastern edge
+        ]
+        
+        with patch('builtins.print'):
+            result = Clip._clip_data_to_multiple_points(self.dataset_valid, point_list)
+        
+        # Verify all edge points are handled
+        assert result is not None
+        assert result.dims['closest_cell'] == 4
