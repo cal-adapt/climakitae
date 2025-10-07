@@ -991,3 +991,207 @@ class TestClipDataToMultiplePointsIntegration:
         # Verify all edge points are handled
         assert result is not None
         assert result.dims['closest_cell'] == 4
+
+
+class TestValidateBoundaryKey:
+    """Test class for validate_boundary_key method.
+    
+    This test class verifies boundary key validation including:
+    - Valid boundary key detection
+    - Invalid boundary key handling with suggestions
+    - Error handling for missing catalog
+    - Partial match suggestion logic
+    """
+    
+    def setup_method(self):
+        """Set up test fixtures with mocked catalog."""
+        # Create a Clip instance with mocked data accessor
+        self.mock_boundaries = MagicMock()
+        self.mock_catalog = MagicMock()
+        self.mock_catalog.boundaries = self.mock_boundaries
+        
+        # Sample boundary dictionary structure
+        self.sample_boundary_dict = {
+            "states": {
+                "CA": "California",
+                "OR": "Oregon", 
+                "WA": "Washington",
+                "NV": "Nevada"
+            },
+            "counties": {
+                "Los Angeles County": "Los Angeles",
+                "San Diego County": "San Diego",
+                "Orange County": "Orange",
+                "Alameda County": "Alameda"
+            },
+            "watersheds": {
+                "Sacramento River": "Sacramento watershed",
+                "San Joaquin River": "San Joaquin watershed"
+            },
+            "none": {},  # Should be ignored
+            "lat/lon": {}  # Should be ignored
+        }
+        
+    def test_validate_boundary_key_valid_state(self):
+        """Test validate_boundary_key with valid state - outcome: returns valid=True with category."""
+        # Setup mock to return boundary dict
+        self.mock_boundaries.boundary_dict.return_value = self.sample_boundary_dict
+        
+        # Create Clip instance with mocked catalog
+        clip = Clip("CA")
+        clip.catalog = self.mock_catalog
+        
+        result = clip.validate_boundary_key("CA")
+        
+        # Verify validation passed
+        assert result['valid'] is True
+        assert result['category'] == 'states'
+        assert result['suggestions'] == []
+    
+    def test_validate_boundary_key_valid_county(self):
+        """Test validate_boundary_key with valid county - outcome: returns valid=True with category."""
+        self.mock_boundaries.boundary_dict.return_value = self.sample_boundary_dict
+        
+        clip = Clip("Los Angeles County")
+        clip.catalog = self.mock_catalog
+        
+        result = clip.validate_boundary_key("Los Angeles County")
+        
+        assert result['valid'] is True
+        assert result['category'] == 'counties'
+        assert result['suggestions'] == []
+    
+    def test_validate_boundary_key_valid_watershed(self):
+        """Test validate_boundary_key with valid watershed - outcome: returns valid=True with category."""
+        self.mock_boundaries.boundary_dict.return_value = self.sample_boundary_dict
+        
+        clip = Clip("Sacramento River")
+        clip.catalog = self.mock_catalog
+        
+        result = clip.validate_boundary_key("Sacramento River")
+        
+        assert result['valid'] is True
+        assert result['category'] == 'watersheds'
+        assert result['suggestions'] == []
+    
+    def test_validate_boundary_key_invalid_with_suggestions(self):
+        """Test validate_boundary_key with invalid key - outcome: returns suggestions."""
+        self.mock_boundaries.boundary_dict.return_value = self.sample_boundary_dict
+        
+        clip = Clip("CA")
+        clip.catalog = self.mock_catalog
+        
+        # Try invalid key that partially matches
+        result = clip.validate_boundary_key("Californ")
+        
+        assert result['valid'] is False
+        assert 'error' in result
+        assert 'Californ' in result['error']
+        assert len(result['suggestions']) > 0
+        # Should suggest California from states category
+        assert any('California' in s for s in result['suggestions'])
+    
+    def test_validate_boundary_key_invalid_partial_match(self):
+        """Test validate_boundary_key with partial match - outcome: returns matching suggestions."""
+        self.mock_boundaries.boundary_dict.return_value = self.sample_boundary_dict
+        
+        clip = Clip("CA")
+        clip.catalog = self.mock_catalog
+        
+        # Try "Diego" which should match "San Diego County"
+        result = clip.validate_boundary_key("Diego")
+        
+        assert result['valid'] is False
+        assert len(result['suggestions']) > 0
+        assert any('San Diego County' in s for s in result['suggestions'])
+    
+    def test_validate_boundary_key_invalid_no_match(self):
+        """Test validate_boundary_key with completely invalid key - outcome: returns empty suggestions."""
+        self.mock_boundaries.boundary_dict.return_value = self.sample_boundary_dict
+        
+        clip = Clip("CA")
+        clip.catalog = self.mock_catalog
+        
+        result = clip.validate_boundary_key("XYZ123NonExistent")
+        
+        assert result['valid'] is False
+        assert 'error' in result
+        assert result['suggestions'] == []
+    
+    def test_validate_boundary_key_case_insensitive_match(self):
+        """Test validate_boundary_key is case-insensitive for suggestions - outcome: finds matches."""
+        self.mock_boundaries.boundary_dict.return_value = self.sample_boundary_dict
+        
+        clip = Clip("CA")
+        clip.catalog = self.mock_catalog
+        
+        # Try lowercase version
+        result = clip.validate_boundary_key("california")
+        
+        assert result['valid'] is False  # Exact match is case-sensitive
+        assert len(result['suggestions']) > 0
+        assert any('California' in s for s in result['suggestions'])
+    
+    def test_validate_boundary_key_no_catalog(self):
+        """Test validate_boundary_key with no catalog set - outcome: returns catalog error."""
+        clip = Clip("CA")
+        # Don't set catalog (leave as UNSET)
+        
+        result = clip.validate_boundary_key("CA")
+        
+        assert result['valid'] is False
+        assert 'error' in result
+        assert 'DataCatalog is not set' in result['error']
+        assert result['suggestions'] == []
+    
+    def test_validate_boundary_key_catalog_access_error(self):
+        """Test validate_boundary_key when catalog access fails - outcome: returns error."""
+        # Mock boundary_dict to raise an exception
+        self.mock_boundaries.boundary_dict.side_effect = RuntimeError("Database connection failed")
+        
+        clip = Clip("CA")
+        clip.catalog = self.mock_catalog
+        
+        result = clip.validate_boundary_key("CA")
+        
+        assert result['valid'] is False
+        assert 'error' in result
+        assert 'Failed to access boundary data' in result['error']
+        assert 'Database connection failed' in result['error']
+        assert result['suggestions'] == []
+    
+    def test_validate_boundary_key_limits_suggestions(self):
+        """Test validate_boundary_key limits suggestions to 10 - outcome: max 10 suggestions."""
+        # Create a large boundary dict with many matches
+        large_boundary_dict = {
+            "items": {f"Item{i}": f"Description {i}" for i in range(50)}
+        }
+        self.mock_boundaries.boundary_dict.return_value = large_boundary_dict
+        
+        clip = Clip("CA")
+        clip.catalog = self.mock_catalog
+        
+        # Search for "Item" which matches all 50
+        result = clip.validate_boundary_key("Item")
+        
+        assert result['valid'] is False
+        assert len(result['suggestions']) <= 10
+    
+    def test_validate_boundary_key_ignores_special_categories(self):
+        """Test validate_boundary_key ignores 'none' and 'lat/lon' categories - outcome: not suggested."""
+        boundary_dict_with_special = {
+            "states": {"CA": "California"},
+            "none": {"TestNone": "Should be ignored"},
+            "lat/lon": {"TestLatLon": "Should be ignored"}
+        }
+        self.mock_boundaries.boundary_dict.return_value = boundary_dict_with_special
+        
+        clip = Clip("CA")
+        clip.catalog = self.mock_catalog
+        
+        # Try searching for items in special categories
+        result = clip.validate_boundary_key("TestNone")
+        
+        assert result['valid'] is False
+        # Should not find TestNone since it's in 'none' category
+        assert not any('TestNone' in s for s in result['suggestions'])
