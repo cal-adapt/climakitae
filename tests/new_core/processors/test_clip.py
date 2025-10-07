@@ -31,3 +31,13 @@ class TestClipInit:
         assert clip.is_multi_point is False
         assert clip.multi_mode is False
         assert clip.operation is None
+    
+    def test_init_single_point_tuple(self):
+        """Test initialization with single (lat, lon) point."""
+        clip = Clip((37.7749, -122.4194))
+        assert clip.value == (37.7749, -122.4194)
+        assert clip.is_single_point is True
+        assert clip.is_multi_point is False
+        assert clip.lat == 37.7749
+        assert clip.lon == -122.4194
+        assert clip.name == "clip"
