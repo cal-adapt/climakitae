@@ -144,3 +144,90 @@ class TestClipUpdateContext:
         assert "Multi-boundary clipping" in context[_NEW_ATTRS_KEY]["clip"]
         assert "3 boundaries" in context[_NEW_ATTRS_KEY]["clip"]
         assert "union" in context[_NEW_ATTRS_KEY]["clip"]
+
+
+class TestClipExecuteWithSingleBoundary:
+    """Test class for execute method with single boundary."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.clip = Clip("CA")
+        self.mock_catalog = MagicMock()
+        self.clip.set_data_accessor(self.mock_catalog)
+        
+        # Create sample dataset with rioxarray support
+        self.sample_dataset = xr.Dataset({
+            'temp': (['time', 'y', 'x'], np.random.rand(10, 5, 5))
+        }, coords={
+            'time': pd.date_range('2020-01-01', periods=10),
+            'y': np.linspace(32, 42, 5),
+            'x': np.linspace(-124, -114, 5)
+        })
+        # Set CRS
+        self.sample_dataset.rio.write_crs("EPSG:4326", inplace=True)
+        
+        # Create mock geometry
+        self.mock_geometry = gpd.GeoDataFrame(
+            geometry=[box(-125, 32, -114, 42)],
+            crs=pyproj.CRS.from_epsg(4326)
+        )
+    
+    def test_execute_single_boundary_dataset(self):
+        """Test execute with single boundary and xr.Dataset - outcome: data clipped correctly."""
+        with patch.object(self.clip, '_get_boundary_geometry', return_value=self.mock_geometry), \
+             patch.object(self.clip, '_clip_data_with_geom', return_value=self.sample_dataset) as mock_clip:
+            
+            context = {}
+            result = self.clip.execute(self.sample_dataset, context)
+            
+            # Verify result exists
+            assert result is not None
+            assert isinstance(result, xr.Dataset)
+            
+            # Verify clipping method was called
+            mock_clip.assert_called_once()
+            
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
+            assert "clip" in context[_NEW_ATTRS_KEY]
+    
+    def test_execute_single_boundary_dict(self):
+        """Test execute with single boundary and dict of datasets - outcome: all datasets clipped."""
+        data_dict = {'sim1': self.sample_dataset, 'sim2': self.sample_dataset}
+        
+        with patch.object(self.clip, '_get_boundary_geometry', return_value=self.mock_geometry), \
+             patch.object(self.clip, '_clip_data_with_geom', return_value=self.sample_dataset) as mock_clip:
+            
+            context = {}
+            result = self.clip.execute(data_dict, context)
+            
+            # Verify result structure
+            assert isinstance(result, dict)
+            assert 'sim1' in result
+            assert 'sim2' in result
+            
+            # Verify clipping was called for each dataset
+            assert mock_clip.call_count == 2
+            
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
+    
+    def test_execute_single_boundary_list(self):
+        """Test execute with single boundary and list of datasets - outcome: all datasets clipped."""
+        data_list = [self.sample_dataset, self.sample_dataset]
+        
+        with patch.object(self.clip, '_get_boundary_geometry', return_value=self.mock_geometry), \
+             patch.object(self.clip, '_clip_data_with_geom', return_value=self.sample_dataset) as mock_clip:
+            
+            context = {}
+            result = self.clip.execute(data_list, context)
+            
+            # Verify result structure
+            assert isinstance(result, list)
+            assert len(result) == 2
+            
+            # Verify clipping was called for each dataset
+            assert mock_clip.call_count == 2
+            
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
