@@ -61,3 +61,12 @@ class TestClipInit:
         assert clip.operation == "union"
         assert clip.is_single_point is False
         assert clip.is_multi_point is False
+    
+    def test_init_coordinate_bounds(self):
+        """Test initialization with coordinate bounding box."""
+        bounds = ((32.0, 42.0), (-125.0, -114.0))
+        clip = Clip(bounds)
+        assert clip.value == bounds
+        assert clip.is_single_point is False
+        assert clip.is_multi_point is False
+        assert clip.multi_mode is False
