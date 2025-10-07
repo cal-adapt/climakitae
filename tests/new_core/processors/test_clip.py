@@ -70,3 +70,22 @@ class TestClipInit:
         assert clip.is_single_point is False
         assert clip.is_multi_point is False
         assert clip.multi_mode is False
+
+
+class TestClipSetDataAccessor:
+    """Test class for set_data_accessor method."""
+    
+    def test_set_data_accessor_success(self):
+        """Test setting data catalog accessor successfully."""
+        clip = Clip("CA")
+        mock_catalog = MagicMock()
+        
+        # Initially catalog should be UNSET
+        assert clip.catalog is UNSET
+        
+        # Set the catalog
+        clip.set_data_accessor(mock_catalog)
+        
+        # Verify catalog is set
+        assert clip.catalog is mock_catalog
+        assert clip.catalog is not UNSET
