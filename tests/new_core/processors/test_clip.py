@@ -296,3 +296,72 @@ class TestClipExecuteWithSinglePoint:
             
             # Verify context was updated
             assert _NEW_ATTRS_KEY in context
+
+
+class TestClipExecuteWithMultiplePoints:
+    """Test class for execute method with multiple points."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.points = [(37.7749, -122.4194), (34.0522, -118.2437)]
+        self.clip = Clip(self.points)
+        self.sample_dataset = xr.Dataset({
+            'temp': (['time', 'y', 'x'], np.random.rand(10, 5, 5))
+        }, coords={
+            'time': pd.date_range('2020-01-01', periods=10),
+            'y': np.linspace(32, 42, 5),
+            'x': np.linspace(-124, -114, 5)
+        })
+        # Create a multi-point result with closest_cell dimension
+        self.clipped_multipoint = xr.concat([
+            self.sample_dataset.isel(x=2, y=2),
+            self.sample_dataset.isel(x=1, y=1)
+        ], dim='closest_cell')
+    
+    def test_execute_multiple_points_dataset(self):
+        """Test execute with multiple points and xr.Dataset - outcome: concatenated closest gridcells."""
+        with patch.object(self.clip, '_clip_data_to_multiple_points', return_value=self.clipped_multipoint) as mock_clip:
+            context = {}
+            result = self.clip.execute(self.sample_dataset, context)
+            
+            # Verify result exists
+            assert result is not None
+            assert result is self.clipped_multipoint
+            
+            # Verify clipping method was called with correct args
+            mock_clip.assert_called_once_with(self.sample_dataset, self.points)
+            
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
+            assert "Multi-point clipping" in context[_NEW_ATTRS_KEY]["clip"]
+    
+    def test_execute_multiple_points_list(self):
+        """Test execute with multiple points and list - outcome: list of multi-point results."""
+        data_list = [self.sample_dataset, self.sample_dataset]
+        
+        with patch.object(self.clip, '_clip_data_to_multiple_points', return_value=self.clipped_multipoint):
+            context = {}
+            result = self.clip.execute(data_list, context)
+            
+            # Verify result structure
+            assert isinstance(result, list)
+            assert len(result) == 2
+            
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
+    
+    def test_execute_multiple_points_dict(self):
+        """Test execute with multiple points and dict - outcome: dict of multi-point results."""
+        data_dict = {'sim1': self.sample_dataset, 'sim2': self.sample_dataset}
+        
+        with patch.object(self.clip, '_clip_data_to_multiple_points', return_value=self.clipped_multipoint):
+            context = {}
+            result = self.clip.execute(data_dict, context)
+            
+            # Verify result structure
+            assert isinstance(result, dict)
+            assert 'sim1' in result
+            assert 'sim2' in result
+            
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
