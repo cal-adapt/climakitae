@@ -365,3 +365,120 @@ class TestClipExecuteWithMultiplePoints:
             
             # Verify context was updated
             assert _NEW_ATTRS_KEY in context
+
+
+class TestClipExecuteWithCoordinateBounds:
+    """Test class for execute method with coordinate bounds."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.bounds = ((32.0, 42.0), (-125.0, -114.0))
+        self.clip = Clip(self.bounds)
+        self.sample_dataset = xr.Dataset({
+            'temp': (['time', 'y', 'x'], np.random.rand(10, 5, 5))
+        }, coords={
+            'time': pd.date_range('2020-01-01', periods=10),
+            'y': np.linspace(32, 42, 5),
+            'x': np.linspace(-124, -114, 5)
+        })
+        self.sample_dataset.rio.write_crs("EPSG:4326", inplace=True)
+        
+        # Create mock geometry for bounds
+        self.mock_geometry = gpd.GeoDataFrame(
+            geometry=[box(-125, 32, -114, 42)],
+            crs=pyproj.CRS.from_epsg(4326)
+        )
+    
+    def test_execute_coordinate_bounds_dataset(self):
+        """Test execute with coordinate bounds and xr.Dataset - outcome: data clipped to bounds."""
+        with patch.object(self.clip, '_clip_data_with_geom', return_value=self.sample_dataset) as mock_clip:
+            context = {}
+            result = self.clip.execute(self.sample_dataset, context)
+            
+            # Verify result exists
+            assert result is not None
+            assert isinstance(result, xr.Dataset)
+            
+            # Verify clipping method was called
+            mock_clip.assert_called_once()
+            
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
+    
+    def test_execute_coordinate_bounds_list(self):
+        """Test execute with coordinate bounds and list - outcome: all datasets clipped."""
+        data_list = [self.sample_dataset, self.sample_dataset]
+        
+        with patch.object(self.clip, '_clip_data_with_geom', return_value=self.sample_dataset):
+            context = {}
+            result = self.clip.execute(data_list, context)
+            
+            # Verify result structure
+            assert isinstance(result, list)
+            assert len(result) == 2
+            
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
+
+
+class TestClipExecuteWithMultipleBoundaries:
+    """Test class for execute method with multiple boundary keys."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.boundaries = ["CA", "OR", "WA"]
+        self.clip = Clip(self.boundaries)
+        self.mock_catalog = MagicMock()
+        self.clip.set_data_accessor(self.mock_catalog)
+        
+        self.sample_dataset = xr.Dataset({
+            'temp': (['time', 'y', 'x'], np.random.rand(10, 5, 5))
+        }, coords={
+            'time': pd.date_range('2020-01-01', periods=10),
+            'y': np.linspace(32, 42, 5),
+            'x': np.linspace(-124, -114, 5)
+        })
+        self.sample_dataset.rio.write_crs("EPSG:4326", inplace=True)
+        
+        # Create mock combined geometry
+        self.mock_geometry = gpd.GeoDataFrame(
+            geometry=[box(-125, 32, -114, 50)],
+            crs=pyproj.CRS.from_epsg(4326)
+        )
+    
+    def test_execute_multiple_boundaries_dataset(self):
+        """Test execute with multiple boundaries and xr.Dataset - outcome: union of boundaries applied."""
+        with patch.object(self.clip, '_get_multi_boundary_geometry', return_value=self.mock_geometry), \
+             patch.object(self.clip, '_clip_data_with_geom', return_value=self.sample_dataset) as mock_clip:
+            
+            context = {}
+            result = self.clip.execute(self.sample_dataset, context)
+            
+            # Verify result exists
+            assert result is not None
+            assert isinstance(result, xr.Dataset)
+            
+            # Verify clipping method was called
+            mock_clip.assert_called_once()
+            
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
+            assert "Multi-boundary clipping" in context[_NEW_ATTRS_KEY]["clip"]
+            assert "union" in context[_NEW_ATTRS_KEY]["clip"]
+    
+    def test_execute_multiple_boundaries_list(self):
+        """Test execute with multiple boundaries and list - outcome: all datasets clipped with union."""
+        data_list = [self.sample_dataset, self.sample_dataset]
+        
+        with patch.object(self.clip, '_get_multi_boundary_geometry', return_value=self.mock_geometry), \
+             patch.object(self.clip, '_clip_data_with_geom', return_value=self.sample_dataset):
+            
+            context = {}
+            result = self.clip.execute(data_list, context)
+            
+            # Verify result structure
+            assert isinstance(result, list)
+            assert len(result) == 2
+            
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
