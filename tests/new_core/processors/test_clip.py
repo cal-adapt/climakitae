@@ -41,3 +41,14 @@ class TestClipInit:
         assert clip.lat == 37.7749
         assert clip.lon == -122.4194
         assert clip.name == "clip"
+    
+    def test_init_multi_point_list(self):
+        """Test initialization with multiple (lat, lon) points."""
+        points = [(37.7749, -122.4194), (34.0522, -118.2437)]
+        clip = Clip(points)
+        assert clip.is_multi_point is True
+        assert clip.is_single_point is False
+        assert len(clip.point_list) == 2
+        assert clip.point_list[0] == (37.7749, -122.4194)
+        assert clip.point_list[1] == (34.0522, -118.2437)
+        assert clip.multi_mode is False
