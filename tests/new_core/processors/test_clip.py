@@ -1253,3 +1253,56 @@ class TestValidateBoundaryKey:
         assert result["valid"] is False
         # Should not find TestNone since it's in 'none' category
         assert not any("TestNone" in s for s in result["suggestions"])
+
+
+class TestGetBoundaryGeometry:
+    """Test class for _get_boundary_geometry method.
+
+    This class tests the method that retrieves geometry data for boundary keys
+    from the boundaries catalog, including:
+    - Valid boundary key retrieval from different categories
+    - Invalid boundary key handling
+    - Catalog availability checks
+    - Error handling for data access failures
+    """
+
+    def setup_method(self):
+        """Set up test fixtures with mocked catalog and boundary data."""
+        # Create mock catalog and boundaries
+        self.mock_boundaries = MagicMock()
+        self.mock_catalog = MagicMock()
+        self.mock_catalog.boundaries = self.mock_boundaries
+
+        # Sample boundary dictionary structure matching real data
+        self.sample_boundary_dict = {
+            "states": {
+                "CA": 5,
+                "OR": 6,
+                "WA": 7,
+                "NV": 8,
+            },
+            "CA counties": {
+                "Los Angeles County": 0,
+                "San Diego County": 1,
+                "Orange County": 2,
+            },
+            "CA watersheds": {
+                "Sacramento River": 0,
+                "San Joaquin River": 1,
+            },
+            "CA Electric Load Serving Entities (IOU & POU)": {
+                "PG&E": 0,
+                "SCE": 1,
+            },
+            "none": {},
+            "lat/lon": {},
+        }
+
+        # Create mock GeoDataFrame to return
+        self.mock_geodataframe = gpd.GeoDataFrame(
+            {"geometry": [box(-124, 32, -114, 42)]}, crs=pyproj.CRS.from_epsg(4326)
+        )
+
+        # Create Clip instance
+        self.clip = Clip("CA")
+        self.clip.catalog = self.mock_catalog
