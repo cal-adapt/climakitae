@@ -839,12 +839,25 @@ class Clip(DataProcessor):
         suggestions = []
         for category, lookups in boundary_dict.items():
             if category not in ["none", "lat/lon"]:
-                for key in lookups.keys():
-                    if (
+                for key, value in lookups.items():
+                    # Check if search term matches key or value (case-insensitive)
+                    key_match = (
                         boundary_key.lower() in key.lower()
                         or key.lower() in boundary_key.lower()
-                    ):
-                        suggestions.append(f"{category}: {key}")
+                    )
+                    value_match = False
+                    if isinstance(value, str):
+                        value_match = (
+                            boundary_key.lower() in value.lower()
+                            or value.lower() in boundary_key.lower()
+                        )
+                    
+                    if key_match or value_match:
+                        # Include both key and value in suggestion for clarity
+                        if isinstance(value, str) and value != key:
+                            suggestions.append(f"{category}: {key} ({value})")
+                        else:
+                            suggestions.append(f"{category}: {key}")
 
         return {
             "valid": False,
