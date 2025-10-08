@@ -1269,8 +1269,11 @@ class TestGetBoundaryGeometry:
     def setup_method(self):
         """Set up test fixtures with mocked catalog and boundary data."""
         # Create mock catalog and boundaries
+        # Import DataCatalog to use in spec
+        from climakitae.new_core.data_access.data_access import DataCatalog
+
         self.mock_boundaries = MagicMock()
-        self.mock_catalog = MagicMock()
+        self.mock_catalog = MagicMock(spec=DataCatalog)
         self.mock_catalog.boundaries = self.mock_boundaries
 
         # Sample boundary dictionary structure matching real data
@@ -1306,3 +1309,21 @@ class TestGetBoundaryGeometry:
         # Create Clip instance
         self.clip = Clip("CA")
         self.clip.catalog = self.mock_catalog
+
+    def test_get_boundary_geometry_valid_state(self):
+        """Test _get_boundary_geometry with valid state boundary key - outcome: returns GeoDataFrame."""
+        # Setup mock to return boundary dict and geometry
+        self.mock_boundaries.boundary_dict.return_value = self.sample_boundary_dict
+
+        # Mock _extract_geometry_from_category to return geodataframe
+        with patch.object(
+            self.clip, "_extract_geometry_from_category", return_value=self.mock_geodataframe
+        ) as mock_extract:
+            result = self.clip._get_boundary_geometry("CA")
+
+            # Verify extract was called with correct parameters
+            mock_extract.assert_called_once_with("states", 5)
+
+            # Verify result is the mock geodataframe
+            assert result is self.mock_geodataframe
+            assert isinstance(result, gpd.GeoDataFrame)
