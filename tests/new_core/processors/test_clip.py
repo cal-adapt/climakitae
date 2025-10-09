@@ -1815,3 +1815,20 @@ class TestClipErrorHandlingPaths:
             
             with pytest.raises(ValueError, match="Clipping operation failed to produce valid results"):
                 clip_processor.execute(self.dataset, self.context)
+
+    def test_multi_point_no_valid_gridcells(self):
+        """Test _clip_data_to_multiple_points when get_closest_gridcells returns None - outcome: returns None."""
+        point_list = [(37.0, -119.0), (35.0, -121.0)]
+        
+        # Mock get_closest_gridcells to return None
+        with patch("climakitae.new_core.processors.clip.get_closest_gridcells", return_value=None), \
+             patch("builtins.print") as mock_print:
+            
+            result = Clip._clip_data_to_multiple_points(self.dataset, point_list)
+        
+        # Verify result is None
+        assert result is None
+        
+        # Verify appropriate message was printed
+        printed_output = " ".join([str(call[0][0]) for call in mock_print.call_args_list])
+        assert "No valid gridcells found" in printed_output
