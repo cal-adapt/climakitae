@@ -1756,3 +1756,51 @@ class TestGetMultiBoundaryGeometry:
             
             with pytest.raises(ValueError, match="Invalid boundary keys"):
                 self.clip_processor._get_multi_boundary_geometry(["CA", "OR"])
+
+    def test_all_boundaries_invalid(self):
+        """Test when all boundaries are invalid - outcome: raises ValueError."""
+        # Mock validate_boundary_key to return invalid for all
+        def mock_validate(key):
+            return {"valid": False, "suggestions": ["California", "Oregon"]}
+        
+        with patch.object(self.clip_processor, "validate_boundary_key", side_effect=mock_validate):
+            
+            with pytest.raises(ValueError, match="Invalid boundary keys: \\['BAD1', 'BAD2'\\]"):
+                self.clip_processor._get_multi_boundary_geometry(["BAD1", "BAD2"])
+
+
+class TestClipErrorHandlingPaths:
+    """Test class for error handling paths in Clip processor.
+    
+    Tests various error conditions and edge cases to ensure proper
+    error handling and user feedback.
+    """
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create sample dataset
+        data = np.random.rand(3, 10, 10) + 20
+        self.dataset = xr.Dataset(
+            {"temp": (["time", "y", "x"], data)},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=3),
+                "y": np.linspace(32, 42, 10),
+                "x": np.linspace(-124, -114, 10),
+                "lat": (["y", "x"], np.tile(np.linspace(32, 42, 10)[:, None], (1, 10))),
+                "lon": (["y", "x"], np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1))),
+            },
+        )
+        self.dataset.attrs["resolution"] = "3 km"
+        self.dataset = self.dataset.rio.write_crs("EPSG:4326")
+        
+        self.context = {}
+
+    def test_execute_invalid_result_type(self):
+        """Test execute() with invalid result type - outcome: raises ValueError."""
+        clip_processor = Clip((37.0, -119.0))
+        
+        # Pass an invalid type (int instead of Dataset/DataArray/dict/Iterable)
+        invalid_result = 12345
+        
+        with pytest.raises(ValueError, match="Invalid result type for clipping"):
+            clip_processor.execute(invalid_result, self.context)
