@@ -1549,3 +1549,30 @@ class TestClipDataToMultiplePointsFallback:
 
         # Verify result is None when all points are invalid
         assert result is None
+
+    def test_fallback_mixed_valid_invalid(self):
+        """Test _clip_data_to_multiple_points_fallback with mix of valid and invalid points - outcome: returns valid ones only."""
+        # Save the original method
+        original_method = Clip._clip_data_to_point
+        
+        # Create a mock that returns None for the second point
+        def mock_clip_to_point(dataset, lat, lon):
+            if lat == 35.0:  # Second point
+                return None
+            else:
+                # Call the original method for other points
+                return original_method(dataset, lat, lon)
+        
+        with patch.object(Clip, "_clip_data_to_point", side_effect=mock_clip_to_point), \
+             patch("builtins.print"):
+            
+            point_list = [(37.0, -119.0), (35.0, -121.0), (40.0, -118.0)]
+            result = Clip._clip_data_to_multiple_points_fallback(self.dataset, point_list)
+
+        # Verify result exists and contains only valid points
+        assert result is not None
+        assert isinstance(result, xr.Dataset)
+        
+        # Should have 2 gridcells (first and third points)
+        assert "closest_cell" in result.dims
+        assert result.sizes["closest_cell"] == 2
