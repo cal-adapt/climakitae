@@ -17,6 +17,7 @@ import pyproj
 
 from climakitae.new_core.processors.clip import Clip
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
+from climakitae.new_core.data_access.data_access import DataCatalog
 
 
 class TestClipInit:
@@ -1643,3 +1644,29 @@ class TestClipDataToPointNaNSearch:
         # Verify appropriate message was printed
         printed_output = " ".join([str(call[0][0]) for call in mock_print.call_args_list])
         assert "Closest gridcell contains NaN values" in printed_output or "No valid gridcells found" in printed_output
+
+
+class TestGetMultiBoundaryGeometry:
+    """Test class for _get_multi_boundary_geometry method.
+    
+    Tests the multi-boundary geometry retrieval and combination logic.
+    This covers lines 894-934 in clip.py.
+    """
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create mock catalog
+        self.mock_catalog = MagicMock(spec=DataCatalog)
+        self.mock_catalog.boundaries = {
+            "states": {"CA": "California", "OR": "Oregon", "WA": "Washington"},
+            "counties": {"Los Angeles County": "Los Angeles County"}
+        }
+        
+        # Create Clip instance with mock catalog
+        self.clip_processor = Clip("CA")
+        self.clip_processor._data_accessor = self.mock_catalog
+
+    def test_empty_list_raises_error(self):
+        """Test empty list raises ValueError - outcome: raises ValueError."""
+        with pytest.raises(ValueError, match="Empty list provided"):
+            self.clip_processor._get_multi_boundary_geometry([])
