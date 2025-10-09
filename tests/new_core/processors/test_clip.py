@@ -1740,3 +1740,19 @@ class TestGetMultiBoundaryGeometry:
             
             with pytest.raises(ValueError, match="Invalid boundary keys: \\['INVALID'\\]"):
                 self.clip_processor._get_multi_boundary_geometry(["CA", "OR", "INVALID"])
+
+    def test_geometry_retrieval_failure(self):
+        """Test when validation passes but geometry retrieval fails - outcome: raises ValueError."""
+        # Mock validate_boundary_key to return valid
+        def mock_validate(key):
+            return {"valid": True}
+        
+        # Mock _get_boundary_geometry to raise exception
+        def mock_get_geometry(key):
+            raise Exception("Failed to retrieve geometry")
+        
+        with patch.object(self.clip_processor, "validate_boundary_key", side_effect=mock_validate), \
+             patch.object(self.clip_processor, "_get_boundary_geometry", side_effect=mock_get_geometry):
+            
+            with pytest.raises(ValueError, match="Invalid boundary keys"):
+                self.clip_processor._get_multi_boundary_geometry(["CA", "OR"])
