@@ -1460,3 +1460,32 @@ class TestClipDataToMultiplePointsFallback:
         )
         self.dataset.attrs["resolution"] = "3 km"
         self.dataset = self.dataset.rio.write_crs("EPSG:4326")
+
+    def test_fallback_multiple_valid_points(self):
+        """Test _clip_data_to_multiple_points_fallback with valid multiple points - outcome: returns concatenated dataset."""
+        # Define multiple points that should all find valid gridcells
+        point_list = [
+            (37.0, -119.0),  # Point 1
+            (35.0, -121.0),  # Point 2
+            (40.0, -118.0),  # Point 3
+        ]
+
+        with patch("builtins.print"):  # Suppress print statements
+            result = Clip._clip_data_to_multiple_points_fallback(self.dataset, point_list)
+
+        # Verify result exists and has correct structure
+        assert result is not None
+        assert isinstance(result, xr.Dataset)
+        
+        # Verify closest_cell dimension exists with correct size
+        assert "closest_cell" in result.dims
+        assert result.sizes["closest_cell"] == 3
+
+        # Verify target coordinates are added
+        assert "target_lats" in result.coords
+        assert "target_lons" in result.coords
+        assert len(result["target_lats"]) == 3
+        assert len(result["target_lons"]) == 3
+
+        # Verify original data variable is present
+        assert "temp" in result.data_vars
