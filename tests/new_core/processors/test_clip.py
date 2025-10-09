@@ -1345,3 +1345,21 @@ class TestGetBoundaryGeometry:
             # Verify result
             assert result is self.mock_geodataframe
             assert isinstance(result, gpd.GeoDataFrame)
+
+    def test_get_boundary_geometry_valid_watershed(self):
+        """Test _get_boundary_geometry with valid watershed boundary key - outcome: returns GeoDataFrame."""
+        # Setup mock to return boundary dict
+        self.mock_boundaries.boundary_dict.return_value = self.sample_boundary_dict
+
+        # Mock _extract_geometry_from_category
+        with patch.object(
+            self.clip, "_extract_geometry_from_category", return_value=self.mock_geodataframe
+        ) as mock_extract:
+            result = self.clip._get_boundary_geometry("Sacramento River")
+
+            # Verify extract was called with correct parameters for watersheds
+            mock_extract.assert_called_once_with("CA watersheds", 0)
+
+            # Verify result
+            assert result is self.mock_geodataframe
+            assert isinstance(result, gpd.GeoDataFrame)
