@@ -1576,3 +1576,15 @@ class TestClipDataToMultiplePointsFallback:
         # Should have 2 gridcells (first and third points)
         assert "closest_cell" in result.dims
         assert result.sizes["closest_cell"] == 2
+
+    def test_fallback_concatenation_error(self):
+        """Test _clip_data_to_multiple_points_fallback when concatenation fails - outcome: returns None."""
+        # Mock xr.concat to raise an exception
+        with patch("xarray.concat", side_effect=Exception("Concatenation failed")), \
+             patch("builtins.print"):
+            
+            point_list = [(37.0, -119.0), (35.0, -121.0)]
+            result = Clip._clip_data_to_multiple_points_fallback(self.dataset, point_list)
+
+        # Verify result is None when concatenation fails
+        assert result is None
