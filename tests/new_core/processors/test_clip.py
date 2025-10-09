@@ -1537,3 +1537,15 @@ class TestClipDataToMultiplePointsFallback:
         # Verify coordinates exist
         assert "target_lats" in result.coords
         assert "target_lons" in result.coords
+
+    def test_fallback_all_points_invalid(self):
+        """Test _clip_data_to_multiple_points_fallback when all points return None - outcome: returns None."""
+        # Mock _clip_data_to_point to always return None
+        with patch.object(Clip, "_clip_data_to_point", return_value=None), \
+             patch("builtins.print"):
+            
+            point_list = [(37.0, -119.0), (35.0, -121.0)]
+            result = Clip._clip_data_to_multiple_points_fallback(self.dataset, point_list)
+
+        # Verify result is None when all points are invalid
+        assert result is None
