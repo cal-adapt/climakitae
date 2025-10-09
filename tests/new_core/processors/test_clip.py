@@ -1363,3 +1363,12 @@ class TestGetBoundaryGeometry:
             # Verify result
             assert result is self.mock_geodataframe
             assert isinstance(result, gpd.GeoDataFrame)
+
+    def test_get_boundary_geometry_invalid_key(self):
+        """Test _get_boundary_geometry with invalid boundary key - outcome: raises ValueError with suggestions."""
+        # Setup mock to return boundary dict
+        self.mock_boundaries.boundary_dict.return_value = self.sample_boundary_dict
+
+        # Try to get boundary with invalid key
+        with pytest.raises(ValueError, match="Boundary key 'InvalidKey' not found"):
+            self.clip._get_boundary_geometry("InvalidKey")
