@@ -1382,3 +1382,12 @@ class TestGetBoundaryGeometry:
         # Try to get boundary without catalog
         with pytest.raises(RuntimeError, match="DataCatalog is not set"):
             clip_no_catalog._get_boundary_geometry("CA")
+
+    def test_get_boundary_geometry_catalog_access_error(self):
+        """Test _get_boundary_geometry when boundary_dict() fails - outcome: raises RuntimeError."""
+        # Setup mock to raise exception when accessing boundary_dict
+        self.mock_boundaries.boundary_dict.side_effect = RuntimeError("Database connection failed")
+
+        # Try to get boundary when catalog access fails
+        with pytest.raises(RuntimeError, match="Failed to access boundary data"):
+            self.clip._get_boundary_geometry("CA")
