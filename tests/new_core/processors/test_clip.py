@@ -1391,3 +1391,21 @@ class TestGetBoundaryGeometry:
         # Try to get boundary when catalog access fails
         with pytest.raises(RuntimeError, match="Failed to access boundary data"):
             self.clip._get_boundary_geometry("CA")
+
+    def test_extract_geometry_from_category_states(self):
+        """Test _extract_geometry_from_category for states category - outcome: returns GeoDataFrame."""
+        # Create mock DataFrame with index 5 for states
+        mock_df = pd.DataFrame({"name": ["California"]}, index=[5])
+        mock_gdf = gpd.GeoDataFrame(mock_df, geometry=[box(-124, 32, -114, 42)], crs="EPSG:4326")
+
+        # Mock the boundaries._us_states attribute
+        self.mock_boundaries._us_states = mock_gdf
+
+        # Call _extract_geometry_from_category
+        result = self.clip._extract_geometry_from_category("states", 5)
+
+        # Verify result
+        assert isinstance(result, gpd.GeoDataFrame)
+        assert len(result) == 1
+        assert result.index[0] == 5
+        assert result.crs is not None
