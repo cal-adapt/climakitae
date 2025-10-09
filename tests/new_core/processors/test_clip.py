@@ -1428,3 +1428,35 @@ class TestGetBoundaryGeometry:
         # Try to extract with invalid index
         with pytest.raises(ValueError, match="Index 999 not found in states data"):
             self.clip._extract_geometry_from_category("states", 999)
+
+
+class TestClipDataToMultiplePointsFallback:
+    """Test class for _clip_data_to_multiple_points_fallback method.
+
+    This class tests the fallback method for multiple point clipping that uses
+    individual point processing and filtering for duplicate gridcells.
+    
+    Tests include:
+    - Valid multiple points returning unique gridcells
+    - Single point handling
+    - Duplicate gridcell filtering
+    - Invalid points handling
+    - Mixed valid/invalid points
+    - Concatenation error handling
+    """
+
+    def setup_method(self):
+        """Set up test fixtures with sample dataset."""
+        # Create sample dataset with realistic structure
+        self.dataset = xr.Dataset(
+            {"temp": (["time", "y", "x"], np.random.rand(3, 10, 10) + 20)},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=3),
+                "y": np.linspace(32, 42, 10),
+                "x": np.linspace(-124, -114, 10),
+                "lat": (["y", "x"], np.tile(np.linspace(32, 42, 10)[:, None], (1, 10))),
+                "lon": (["y", "x"], np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1))),
+            },
+        )
+        self.dataset.attrs["resolution"] = "3 km"
+        self.dataset = self.dataset.rio.write_crs("EPSG:4326")
