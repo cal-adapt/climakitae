@@ -1489,3 +1489,25 @@ class TestClipDataToMultiplePointsFallback:
 
         # Verify original data variable is present
         assert "temp" in result.data_vars
+
+    def test_fallback_single_point(self):
+        """Test _clip_data_to_multiple_points_fallback with single point - outcome: returns single gridcell dataset."""
+        # Define single point in list
+        point_list = [(37.0, -119.0)]
+
+        with patch("builtins.print"):
+            result = Clip._clip_data_to_multiple_points_fallback(self.dataset, point_list)
+
+        # Verify result exists
+        assert result is not None
+        assert isinstance(result, xr.Dataset)
+
+        # Verify closest_cell dimension has size 1
+        assert "closest_cell" in result.dims
+        assert result.sizes["closest_cell"] == 1
+
+        # Verify coordinates
+        assert "target_lats" in result.coords
+        assert "target_lons" in result.coords
+        assert float(result["target_lats"].values[0]) == 37.0
+        assert float(result["target_lons"].values[0]) == -119.0
