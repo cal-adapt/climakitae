@@ -1682,3 +1682,39 @@ class TestGetMultiBoundaryGeometry:
         # Verify single boundary method was called
         mock_single.assert_called_once_with("CA")
         assert result == mock_geometry
+
+    def test_multiple_valid_boundaries_combined(self):
+        """Test multiple valid boundaries combined via union - outcome: returns combined geometry."""
+        # Create mock geometries
+        mock_geometry1 = MagicMock()
+        mock_geometry2 = MagicMock()
+        mock_combined = MagicMock()
+        
+        # Mock validate_boundary_key to return valid for all
+        def mock_validate(key):
+            return {"valid": True}
+        
+        # Mock _get_boundary_geometry to return geometries
+        def mock_get_geometry(key):
+            if key == "CA":
+                return mock_geometry1
+            elif key == "OR":
+                return mock_geometry2
+        
+        with patch.object(self.clip_processor, "validate_boundary_key", side_effect=mock_validate), \
+             patch.object(self.clip_processor, "_get_boundary_geometry", side_effect=mock_get_geometry) as mock_get, \
+             patch.object(self.clip_processor, "_combine_geometries", return_value=mock_combined) as mock_combine:
+            
+            result = self.clip_processor._get_multi_boundary_geometry(["CA", "OR"])
+        
+        # Verify geometries were retrieved
+        assert mock_get.call_count == 2
+        
+        # Verify combine was called with correct geometries
+        mock_combine.assert_called_once()
+        call_args = mock_combine.call_args
+        assert mock_geometry1 in call_args[0][0]
+        assert mock_geometry2 in call_args[0][0]
+        assert call_args[1]["operation"] == "union"
+        
+        assert result == mock_combined
