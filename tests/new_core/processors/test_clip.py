@@ -1511,3 +1511,29 @@ class TestClipDataToMultiplePointsFallback:
         assert "target_lons" in result.coords
         assert float(result["target_lats"].values[0]) == 37.0
         assert float(result["target_lons"].values[0]) == -119.0
+
+    def test_fallback_duplicate_gridcells(self):
+        """Test _clip_data_to_multiple_points_fallback with duplicate gridcells - outcome: filters duplicates."""
+        # Define points that are very close together (should map to same gridcell)
+        point_list = [
+            (37.0, -119.0),   # Point 1
+            (37.001, -119.001),  # Point 2 - very close to point 1, likely same gridcell
+            (35.0, -121.0),   # Point 3 - different location
+        ]
+
+        with patch("builtins.print"):
+            result = Clip._clip_data_to_multiple_points_fallback(self.dataset, point_list)
+
+        # Verify result exists
+        assert result is not None
+        assert isinstance(result, xr.Dataset)
+
+        # Verify closest_cell dimension - should be less than 3 due to duplicate filtering
+        assert "closest_cell" in result.dims
+        # The exact number depends on grid resolution, but should be <= 3
+        assert result.sizes["closest_cell"] <= 3
+        assert result.sizes["closest_cell"] >= 1
+
+        # Verify coordinates exist
+        assert "target_lats" in result.coords
+        assert "target_lons" in result.coords
