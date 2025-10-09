@@ -1588,3 +1588,58 @@ class TestClipDataToMultiplePointsFallback:
 
         # Verify result is None when concatenation fails
         assert result is None
+
+
+class TestClipDataToPointNaNSearch:
+    """Test class for NaN search logic in _clip_data_to_point method.
+    
+    Tests the expanding radius search functionality that looks for valid
+    (non-NaN) gridcells when the closest gridcell contains only NaN values.
+    This covers lines 453-509 in clip.py.
+    """
+    
+    def setup_method(self):
+        """Set up test fixtures for NaN search tests."""
+        # Create a base dataset with valid data
+        data = np.random.rand(5, 10, 10) + 20
+        self.dataset = xr.Dataset(
+            {"temp": (["time", "y", "x"], data)},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=5),
+                "y": np.linspace(32, 42, 10),
+                "x": np.linspace(-124, -114, 10),
+                "lat": (["y", "x"], np.tile(np.linspace(32, 42, 10)[:, None], (1, 10))),
+                "lon": (["y", "x"], np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1))),
+            },
+        )
+        self.dataset.attrs["resolution"] = "3 km"
+        self.dataset = self.dataset.rio.write_crs("EPSG:4326")
+
+    def test_nan_search_no_valid_cells_found(self):
+        """Test when no valid gridcells found within any search radius - outcome: returns None."""
+        # Create dataset where ALL data is NaN
+        data_all_nan = np.full((5, 10, 10), np.nan)
+        dataset_all_nan = xr.Dataset(
+            {"temp": (["time", "y", "x"], data_all_nan)},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=5),
+                "y": np.linspace(32, 42, 10),
+                "x": np.linspace(-124, -114, 10),
+                "lat": (["y", "x"], np.tile(np.linspace(32, 42, 10)[:, None], (1, 10))),
+                "lon": (["y", "x"], np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1))),
+            },
+        )
+        dataset_all_nan = dataset_all_nan.rio.write_crs("EPSG:4326")
+        
+        # Mock get_closest_gridcell to return None (simulating no closest gridcell found)
+        with patch("climakitae.new_core.processors.clip.get_closest_gridcell", return_value=None), \
+             patch("builtins.print") as mock_print:
+            
+            result = Clip._clip_data_to_point(dataset_all_nan, 37.0, -119.0)
+        
+        # Verify result is None when no valid gridcells found
+        assert result is None
+        
+        # Verify appropriate message was printed
+        printed_output = " ".join([str(call[0][0]) for call in mock_print.call_args_list])
+        assert "Closest gridcell contains NaN values" in printed_output or "No valid gridcells found" in printed_output
