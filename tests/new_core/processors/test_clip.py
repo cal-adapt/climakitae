@@ -1372,3 +1372,13 @@ class TestGetBoundaryGeometry:
         # Try to get boundary with invalid key
         with pytest.raises(ValueError, match="Boundary key 'InvalidKey' not found"):
             self.clip._get_boundary_geometry("InvalidKey")
+
+    def test_get_boundary_geometry_no_catalog(self):
+        """Test _get_boundary_geometry when catalog is not set - outcome: raises RuntimeError."""
+        # Create clip without catalog
+        clip_no_catalog = Clip("CA")
+        # Don't set catalog (leave as UNSET)
+
+        # Try to get boundary without catalog
+        with pytest.raises(RuntimeError, match="DataCatalog is not set"):
+            clip_no_catalog._get_boundary_geometry("CA")
