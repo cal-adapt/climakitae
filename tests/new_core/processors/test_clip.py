@@ -1804,3 +1804,14 @@ class TestClipErrorHandlingPaths:
         
         with pytest.raises(ValueError, match="Invalid result type for clipping"):
             clip_processor.execute(invalid_result, self.context)
+
+    def test_execute_clipping_returns_none(self):
+        """Test execute() when clipping returns None - outcome: raises ValueError."""
+        clip_processor = Clip((37.0, -119.0))
+        
+        # Mock _clip_data_to_point to return None
+        with patch.object(Clip, "_clip_data_to_point", return_value=None), \
+             patch("builtins.print"):
+            
+            with pytest.raises(ValueError, match="Clipping operation failed to produce valid results"):
+                clip_processor.execute(self.dataset, self.context)
