@@ -1409,3 +1409,9 @@ class TestGetBoundaryGeometry:
         assert len(result) == 1
         assert result.index[0] == 5
         assert result.crs is not None
+
+    def test_extract_geometry_from_category_unknown_category(self):
+        """Test _extract_geometry_from_category with unknown category - outcome: raises ValueError."""
+        # Try to extract from an unknown category
+        with pytest.raises(ValueError, match="Unknown boundary category"):
+            self.clip._extract_geometry_from_category("unknown_category", 0)
