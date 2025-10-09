@@ -1832,3 +1832,24 @@ class TestClipErrorHandlingPaths:
         # Verify appropriate message was printed
         printed_output = " ".join([str(call[0][0]) for call in mock_print.call_args_list])
         assert "No valid gridcells found" in printed_output
+
+    def test_multi_point_exception_triggers_fallback(self):
+        """Test _clip_data_to_multiple_points exception triggers fallback - outcome: calls fallback method."""
+        point_list = [(37.0, -119.0), (35.0, -121.0)]
+        mock_fallback_result = MagicMock()
+        
+        # Mock get_closest_gridcells to raise an exception
+        with patch("climakitae.new_core.processors.clip.get_closest_gridcells", side_effect=Exception("Vectorized clipping failed")), \
+             patch.object(Clip, "_clip_data_to_multiple_points_fallback", return_value=mock_fallback_result) as mock_fallback, \
+             patch("builtins.print") as mock_print:
+            
+            result = Clip._clip_data_to_multiple_points(self.dataset, point_list)
+        
+        # Verify fallback method was called
+        mock_fallback.assert_called_once_with(self.dataset, point_list)
+        assert result == mock_fallback_result
+        
+        # Verify error and fallback messages were printed
+        printed_output = " ".join([str(call[0][0]) for call in mock_print.call_args_list])
+        assert "Error in vectorized multi-point clipping" in printed_output
+        assert "Falling back" in printed_output
