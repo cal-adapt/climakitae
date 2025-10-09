@@ -1670,3 +1670,15 @@ class TestGetMultiBoundaryGeometry:
         """Test empty list raises ValueError - outcome: raises ValueError."""
         with pytest.raises(ValueError, match="Empty list provided"):
             self.clip_processor._get_multi_boundary_geometry([])
+
+    def test_single_boundary_delegates_to_single_method(self):
+        """Test single boundary in list uses single boundary method - outcome: delegates to _get_boundary_geometry."""
+        # Mock the single boundary geometry method
+        mock_geometry = MagicMock()
+        
+        with patch.object(self.clip_processor, "_get_boundary_geometry", return_value=mock_geometry) as mock_single:
+            result = self.clip_processor._get_multi_boundary_geometry(["CA"])
+        
+        # Verify single boundary method was called
+        mock_single.assert_called_once_with("CA")
+        assert result == mock_geometry
