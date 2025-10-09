@@ -1415,3 +1415,16 @@ class TestGetBoundaryGeometry:
         # Try to extract from an unknown category
         with pytest.raises(ValueError, match="Unknown boundary category"):
             self.clip._extract_geometry_from_category("unknown_category", 0)
+
+    def test_extract_geometry_from_category_invalid_index(self):
+        """Test _extract_geometry_from_category with invalid index - outcome: raises ValueError."""
+        # Create mock DataFrame without index 999
+        mock_df = pd.DataFrame({"name": ["California"]}, index=[5])
+        mock_gdf = gpd.GeoDataFrame(mock_df, geometry=[box(-124, 32, -114, 42)], crs="EPSG:4326")
+
+        # Mock the boundaries._us_states attribute
+        self.mock_boundaries._us_states = mock_gdf
+
+        # Try to extract with invalid index
+        with pytest.raises(ValueError, match="Index 999 not found in states data"):
+            self.clip._extract_geometry_from_category("states", 999)
