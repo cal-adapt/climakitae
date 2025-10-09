@@ -1718,3 +1718,25 @@ class TestGetMultiBoundaryGeometry:
         assert call_args[1]["operation"] == "union"
         
         assert result == mock_combined
+
+    def test_some_invalid_boundaries_raises_error(self):
+        """Test when some boundaries are invalid - outcome: raises ValueError with suggestions."""
+        # Mock validate_boundary_key to return valid for some, invalid for others
+        def mock_validate(key):
+            if key in ["CA", "OR"]:
+                return {"valid": True}
+            else:
+                return {"valid": False, "suggestions": ["Washington", "Wyoming"]}
+        
+        # Mock _get_boundary_geometry to succeed for valid keys
+        def mock_get_geometry(key):
+            if key in ["CA", "OR"]:
+                return MagicMock()
+            else:
+                raise ValueError(f"Invalid key: {key}")
+        
+        with patch.object(self.clip_processor, "validate_boundary_key", side_effect=mock_validate), \
+             patch.object(self.clip_processor, "_get_boundary_geometry", side_effect=mock_get_geometry):
+            
+            with pytest.raises(ValueError, match="Invalid boundary keys: \\['INVALID'\\]"):
+                self.clip_processor._get_multi_boundary_geometry(["CA", "OR", "INVALID"])
