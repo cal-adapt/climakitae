@@ -22,6 +22,7 @@ the interactive GUI selection interface.
 
 import difflib
 import warnings
+import threading
 from typing import List, Union
 
 import geopandas as gpd
@@ -62,6 +63,9 @@ pd.options.mode.chained_assignment = None  # default='warn'
 param.parameterized.docstring_describe_params = False
 # Docstring signatures are also hard to read and therefore removed
 param.parameterized.docstring_signature = False
+
+_data_interface_init_lock = threading.Lock()
+_data_interface_initialized = False
 
 
 def _get_user_options(
@@ -491,25 +495,34 @@ class DataInterface:
         return cls.instance
 
     def __init__(self):
-        var_desc = VariableDescriptions()
-        var_desc.load()
-        self._variable_descriptions = var_desc.variable_descriptions
-        self._stations = read_csv_file(STATIONS_CSV_PATH)
-        self._stations_gdf = gpd.GeoDataFrame(
-            self.stations,
-            crs="EPSG:4326",
-            geometry=gpd.points_from_xy(self.stations.LON_X, self.stations.LAT_Y),
-        )
-        self._data_catalog = intake.open_esm_datastore(DATA_CATALOG_URL)
-        self._warming_level_times = read_csv_file(
-            GWL_1850_1900_FILE, index_col=[0, 1, 2]
-        )
+        global _data_interface_initialized
 
-        # Get geography boundaries
-        self._boundary_catalog = intake.open_catalog(BOUNDARY_CATALOG_URL)
-        self._geographies = Boundaries(self.boundary_catalog)
+        if _data_interface_initialized:
+            return
 
-        self._geographies.load()
+        with _data_interface_init_lock:
+            if _data_interface_initialized:
+                return
+            var_desc = VariableDescriptions()
+            var_desc.load()
+            self._variable_descriptions = var_desc.variable_descriptions
+            self._stations = read_csv_file(STATIONS_CSV_PATH)
+            self._stations_gdf = gpd.GeoDataFrame(
+                self.stations,
+                crs="EPSG:4326",
+                geometry=gpd.points_from_xy(self.stations.LON_X, self.stations.LAT_Y),
+            )
+            self._data_catalog = intake.open_esm_datastore(DATA_CATALOG_URL)
+            self._warming_level_times = read_csv_file(
+                GWL_1850_1900_FILE, index_col=[0, 1, 2]
+            )
+
+            # Get geography boundaries
+            self._boundary_catalog = intake.open_catalog(BOUNDARY_CATALOG_URL)
+            self._geographies = Boundaries(self.boundary_catalog)
+
+            self._geographies.load()
+            _data_interface_initialized = True
 
     @property
     def variable_descriptions(self):
