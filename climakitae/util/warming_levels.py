@@ -489,6 +489,7 @@ def get_year_at_gwl(gwl: Union[float, int], ssp: str = "all") -> pd.DataFrame:
 
     """
     ssp_dict = generate_ssp_dict()
+
     wl_timing_df = pd.DataFrame(columns=["5%", "Mean", "95%"])
 
     ssp_list = (
@@ -509,10 +510,15 @@ def get_year_at_gwl(gwl: Union[float, int], ssp: str = "all") -> pd.DataFrame:
             return one_ssp.index[mask][0] if mask.any() else np.nan
 
         # Only add data for a scenario if the mean and upper bound of uncertainty reach the gwl
-        if mean_mask.any() and upper_mask.any():
-            x_5 = first_wl_year(ssp_selected, upper_mask)
-            x_95 = first_wl_year(ssp_selected, lower_mask)
+        if mean_mask.any() and upper_mask.any() and (not mean_mask.all()):
             year_gwl_reached = first_wl_year(ssp_selected, mean_mask)
+            x_95 = first_wl_year(ssp_selected, lower_mask)
+
+            # If the lower bound is outside the range of the ssp, use the historical data
+            if upper_mask.all():
+                x_5 = first_wl_year(ssp_dict['Historical'],(ssp_dict['Historical']["95%"] > gwl))
+            else:
+                x_5 = first_wl_year(ssp_selected, upper_mask)
 
         else:
             x_5 = x_95 = year_gwl_reached = np.nan
