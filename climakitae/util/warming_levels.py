@@ -516,7 +516,9 @@ def get_year_at_gwl(gwl: Union[float, int], ssp: str = "all") -> pd.DataFrame:
 
             # If the lower bound is outside the range of the ssp, use the historical data
             if upper_mask.all():
-                x_5 = first_wl_year(ssp_dict['Historical'],(ssp_dict['Historical']["95%"] > gwl))
+                x_5 = first_wl_year(
+                    ssp_dict["Historical"], (ssp_dict["Historical"]["95%"] > gwl)
+                )
             else:
                 x_5 = first_wl_year(ssp_selected, upper_mask)
 
