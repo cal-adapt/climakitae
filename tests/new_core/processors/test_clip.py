@@ -1871,3 +1871,31 @@ class TestClipErrorHandlingPaths:
         # Verify clipping still works
         assert result is not None
         assert isinstance(result, xr.Dataset)
+
+    def test_execute_with_shapefile_path(self):
+        """Test execute() with shapefile path - outcome: reads file and clips data."""
+        # Create a temporary shapefile
+        import tempfile
+        import os
+        
+        # Create GeoDataFrame
+        geometry = [box(-120, 35, -118, 38)]
+        gdf = gpd.GeoDataFrame(geometry=geometry, crs="EPSG:4326")
+        
+        # Write to temporary shapefile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            shapefile_path = os.path.join(tmpdir, "test.shp")
+            gdf.to_file(shapefile_path)
+            
+            # Verify file exists
+            assert os.path.exists(shapefile_path)
+            
+            # Create Clip processor with shapefile path
+            clip_processor = Clip(shapefile_path)
+            
+            # Execute clipping
+            result = clip_processor.execute(self.dataset, self.context)
+            
+            # Verify result
+            assert result is not None
+            assert isinstance(result, xr.Dataset)
