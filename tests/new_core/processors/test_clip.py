@@ -1931,3 +1931,15 @@ class TestCombineGeometries:
         """Test _combine_geometries with empty list - outcome: raises ValueError."""
         with pytest.raises(ValueError, match="No geometries provided"):
             self.clip_processor._combine_geometries([])
+
+    def test_combine_geometries_single_geometry(self):
+        """Test _combine_geometries with single geometry - outcome: returns geometry as-is."""
+        result = self.clip_processor._combine_geometries([self.geom1])
+        
+        # Should return the same geometry without modification
+        assert result is not None
+        assert isinstance(result, gpd.GeoDataFrame)
+        assert len(result) == 1
+        assert result.crs == self.geom1.crs
+        # Verify it's the same geometry
+        assert result.geometry[0].equals(self.geom1.geometry[0])
