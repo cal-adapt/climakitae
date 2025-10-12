@@ -1899,3 +1899,35 @@ class TestClipErrorHandlingPaths:
             # Verify result
             assert result is not None
             assert isinstance(result, xr.Dataset)
+
+
+class TestCombineGeometries:
+    """Test class for _combine_geometries method.
+    
+    Tests the geometry combination logic used for multi-boundary clipping.
+    This covers lines 959-992 in clip.py.
+    """
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create Clip instance
+        self.clip_processor = Clip("CA")
+        
+        # Create sample geometries
+        self.geom1 = gpd.GeoDataFrame(
+            geometry=[box(-120, 35, -118, 37)], 
+            crs="EPSG:4326"
+        )
+        self.geom2 = gpd.GeoDataFrame(
+            geometry=[box(-122, 37, -120, 39)], 
+            crs="EPSG:4326"
+        )
+        self.geom3 = gpd.GeoDataFrame(
+            geometry=[box(-124, 39, -122, 41)], 
+            crs="EPSG:4326"
+        )
+
+    def test_combine_geometries_empty_list(self):
+        """Test _combine_geometries with empty list - outcome: raises ValueError."""
+        with pytest.raises(ValueError, match="No geometries provided"):
+            self.clip_processor._combine_geometries([])
