@@ -1853,3 +1853,21 @@ class TestClipErrorHandlingPaths:
         printed_output = " ".join([str(call[0][0]) for call in mock_print.call_args_list])
         assert "Error in vectorized multi-point clipping" in printed_output
         assert "Falling back" in printed_output
+
+    def test_clip_data_with_geom_crs_warning(self):
+        """Test _clip_data_with_geom CRS warning when GeoDataFrame has no CRS - outcome: warning issued."""
+        # Create GeoDataFrame without CRS
+        geometry = [box(-120, 35, -118, 38)]
+        gdf = gpd.GeoDataFrame(geometry=geometry)
+        # Explicitly set CRS to None
+        gdf.crs = None
+        
+        # Verify dataset has CRS
+        assert self.dataset.rio.crs is not None
+        
+        with pytest.warns(UserWarning, match="does not have a CRS set"):
+            result = Clip._clip_data_with_geom(self.dataset, gdf)
+        
+        # Verify clipping still works
+        assert result is not None
+        assert isinstance(result, xr.Dataset)
