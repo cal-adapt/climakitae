@@ -2046,3 +2046,10 @@ class TestCombineGeometries:
         assert result.crs == self.geom1.crs
         # Verify the geometry is a union (single geometry that covers all input areas)
         assert result.geometry[0] is not None
+
+    def test_combine_geometries_concatenation_failure(self):
+        """Test _combine_geometries when concatenation fails - outcome: raises ValueError."""
+        # Mock pd.concat to raise an exception
+        with patch("pandas.concat", side_effect=Exception("Concatenation error")):
+            with pytest.raises(ValueError, match="Failed to concatenate geometries"):
+                self.clip_processor._combine_geometries([self.geom1, self.geom2])
