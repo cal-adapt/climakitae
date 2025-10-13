@@ -281,13 +281,20 @@ class TMY:
     are set along with a custom value for `station_name` (NOT a HadISD station), the
     custom station name will be used in file headers where appropriate.
 
+    How to set time period: The time period can either be set with a time approach using
+    `start_year` and `end_year` or with a warming level approach using `warming_level`.
+    If the warming level approach is used, a 30-year period is obtained centered around
+    the given warming level and the start and end years are taken for that warming level.
+
 
     Parameters
     ----------
     start_year : str
-        Initial year of TMY period
+        Initial year of TMY period (time approach)
     end_year : str
-        Final year of TMY period
+        Final year of TMY period (time approach)
+    warming_level: float | int
+        Desired warming level (warming level approach)
     station_name: str (optional)
         Long name of desired station
     latitude : float | int (optional)
@@ -303,6 +310,12 @@ class TMY:
         Initial year of TMY period
     end_year: str
         Final year of TMY period
+    warming_level: float | int
+        Warming level value
+    lat_range: tuple
+        Pair of latitudes that bracket `latitude`
+    lon_range: tuple
+        Pair of longitudes that bracket `longitude`
     simulations: list[str]
         List of included simulations
     scenario: list[str]
@@ -323,14 +336,15 @@ class TMY:
         All loaded variables for TMY
     tmy_data_to_export: dict[pd.Dataframe]
         Dictionary of TMY results by simulation
-
+    _skip_last: bool
+        Internal flag to track last year for warming level approach
     """
 
     def __init__(
         self,
         start_year: int = UNSET,
         end_year: int = UNSET,
-        warming_level: float = UNSET,
+        warming_level: float | int = UNSET,
         station_name: str = UNSET,
         latitude: float | int = UNSET,
         longitude: float | int = UNSET,
@@ -370,7 +384,7 @@ class TMY:
         # Time variables
         match start_year, end_year, warming_level:
             # User set all options - bad
-            case float() | int(), float() | int(), float():
+            case float() | int(), float() | int(), float() | int():
                 raise ValueError(
                     "Variables `start_year` and `end_year` cannot be paired with `warming_level`. Set either `start_year` and `end_year` OR `warming_level."
                 )
@@ -380,10 +394,10 @@ class TMY:
                 self.end_year = end_year
                 self.warming_level = warming_level
         # Whether to drop the last month as a possible match
-        self.skip_last = False
+        self._skip_last = False
         if self.warming_level:
             # True for warming levels because final hours get lost to UTC conversion
-            self.skip_last = True
+            self._skip_last = True
         # Ranges used in get_data to pull smaller dataset without warnings
         self.lat_range = (self.stn_lat - 0.1, self.stn_lat + 0.1)
         self.lon_range = (self.stn_lon - 0.1, self.stn_lon + 0.1)
@@ -410,7 +424,6 @@ class TMY:
             "Surface Pressure": "Pa",
             "Water Vapor Mixing Ratio at 2m": "g kg-1",
         }
-        self.gwl_year_range = UNSET
         self.verbose = verbose
         # These will get set later in analysis
         self.cdf_climatology = UNSET
@@ -883,7 +896,9 @@ class TMY:
         if self.weighted_fs_sum is UNSET:
             self.set_weighted_statistic()
         self._vprint("Finding top months (lowest F-S statistic)")
-        self.top_months = get_top_months(self.weighted_fs_sum, skip_last=self.skip_last)
+        self.top_months = get_top_months(
+            self.weighted_fs_sum, skip_last=self._skip_last
+        )
 
     def show_tmy_data_to_export(self, simulation: str):
         """Show line plots of TMY data for single model.
