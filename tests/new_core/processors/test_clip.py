@@ -2073,3 +2073,15 @@ class TestCombineGeometries:
         assert isinstance(result, gpd.GeoDataFrame)
         assert result.crs == self.geom1.crs  # Should use first geometry's CRS
         assert len(result) == 1  # Union should produce single geometry
+
+    def test_combine_geometries_union_failure(self):
+        """Test _combine_geometries when union operation fails - outcome: raises ValueError."""
+        # Create geometries that will successfully concatenate but fail during union
+        # Patch the unary_union property on GeoDataFrame to raise an exception
+        with patch.object(
+            gpd.GeoDataFrame, 
+            'unary_union', 
+            new_callable=lambda: property(lambda self: (_ for _ in ()).throw(Exception("Union operation failed")))
+        ):
+            with pytest.raises(ValueError, match="Failed to perform union operation on geometries"):
+                self.clip_processor._combine_geometries([self.geom1, self.geom2])
