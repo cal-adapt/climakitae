@@ -2053,3 +2053,23 @@ class TestCombineGeometries:
         with patch("pandas.concat", side_effect=Exception("Concatenation error")):
             with pytest.raises(ValueError, match="Failed to concatenate geometries"):
                 self.clip_processor._combine_geometries([self.geom1, self.geom2])
+
+    def test_combine_geometries_crs_consistency(self):
+        """Test _combine_geometries with CRS consistency handling - outcome: converts to common CRS.
+        
+        The method should handle geometries with different CRS by converting them all
+        to the reference CRS (from first geometry) before concatenation.
+        """
+        # Create geometry with different CRS (Web Mercator)
+        geom_different_crs = gpd.GeoDataFrame(
+            geometry=[box(-13358338, 4470057, -13135699, 4721671)],  # Approximate Web Mercator coords
+            crs="EPSG:3857"  # Web Mercator instead of WGS84
+        )
+        
+        # Should successfully combine and convert to reference CRS (EPSG:4326)
+        result = self.clip_processor._combine_geometries([self.geom1, geom_different_crs])
+        
+        # Verify result is a GeoDataFrame with consistent CRS
+        assert isinstance(result, gpd.GeoDataFrame)
+        assert result.crs == self.geom1.crs  # Should use first geometry's CRS
+        assert len(result) == 1  # Union should produce single geometry

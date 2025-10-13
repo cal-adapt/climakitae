@@ -851,7 +851,7 @@ class Clip(DataProcessor):
                             boundary_key.lower() in value.lower()
                             or value.lower() in boundary_key.lower()
                         )
-                    
+
                     if key_match or value_match:
                         # Include both key and value in suggestion for clarity
                         if isinstance(value, str) and value != key:
@@ -967,16 +967,24 @@ class Clip(DataProcessor):
                 f"Operation '{operation}' not supported in Phase 1. Only 'union' is supported."
             )
 
-        # Concatenate all geometries
-        try:
-            combined_df = gpd.GeoDataFrame(pd.concat(geometries, ignore_index=True))
-        except Exception as e:
-            raise ValueError(f"Failed to concatenate geometries: {e}")
-
         # Ensure consistent CRS - use the CRS from the first geometry
+        # Convert all geometries to reference CRS BEFORE concatenation
         reference_crs = geometries[0].crs
         if reference_crs is not None:
-            combined_df = combined_df.to_crs(reference_crs)
+            normalized_geometries = []
+            for geom in geometries:
+                if geom.crs != reference_crs:
+                    normalized_geometries.append(geom.to_crs(reference_crs))
+                else:
+                    normalized_geometries.append(geom)
+        else:
+            normalized_geometries = geometries
+
+        # Concatenate all geometries
+        try:
+            combined_df = gpd.GeoDataFrame(pd.concat(normalized_geometries, ignore_index=True))
+        except Exception as e:
+            raise ValueError(f"Failed to concatenate geometries: {e}")
 
         # Perform union operation
         try:
