@@ -1943,3 +1943,11 @@ class TestCombineGeometries:
         assert result.crs == self.geom1.crs
         # Verify it's the same geometry
         assert result.geometry[0].equals(self.geom1.geometry[0])
+
+    def test_combine_geometries_invalid_operation(self):
+        """Test _combine_geometries with invalid operation - outcome: raises ValueError."""
+        with pytest.raises(ValueError, match="Operation 'intersection' not supported"):
+            self.clip_processor._combine_geometries(
+                [self.geom1, self.geom2], 
+                operation="intersection"
+            )
