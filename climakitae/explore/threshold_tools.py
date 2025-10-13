@@ -656,7 +656,7 @@ def _conf_int(
     data_variable : str
         can be return_value, return_prob, return_period
     arg_value : np.ndarray
-        value to do the calucation to
+        value to do the calculation to
     bootstrap_runs : int
         Number of bootstrap samples
     conf_int_lower_bound : float
@@ -720,7 +720,7 @@ def _get_return_variable(
     data_variable : str
         can be return_value, return_prob, return_period
     arg_value : float
-        value to do the calucation to
+        value to do the calculation to
     distr : str
         name of distribution to use
     bootstrap_runs : int
