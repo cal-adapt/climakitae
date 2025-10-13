@@ -393,6 +393,8 @@ class TMY:
                 self.start_year = start_year
                 self.end_year = end_year
                 self.warming_level = warming_level
+                if isinstance(self.warming_level, int):
+                    self.warming_level = float(self.warming_level)
         # Whether to drop the last month as a possible match
         self._skip_last = False
         if self.warming_level:
