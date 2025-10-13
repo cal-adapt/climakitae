@@ -1318,7 +1318,9 @@ class TestGetBoundaryGeometry:
 
         # Mock _extract_geometry_from_category to return geodataframe
         with patch.object(
-            self.clip, "_extract_geometry_from_category", return_value=self.mock_geodataframe
+            self.clip,
+            "_extract_geometry_from_category",
+            return_value=self.mock_geodataframe,
         ) as mock_extract:
             result = self.clip._get_boundary_geometry("CA")
 
@@ -1336,7 +1338,9 @@ class TestGetBoundaryGeometry:
 
         # Mock _extract_geometry_from_category
         with patch.object(
-            self.clip, "_extract_geometry_from_category", return_value=self.mock_geodataframe
+            self.clip,
+            "_extract_geometry_from_category",
+            return_value=self.mock_geodataframe,
         ) as mock_extract:
             result = self.clip._get_boundary_geometry("Los Angeles County")
 
@@ -1354,7 +1358,9 @@ class TestGetBoundaryGeometry:
 
         # Mock _extract_geometry_from_category
         with patch.object(
-            self.clip, "_extract_geometry_from_category", return_value=self.mock_geodataframe
+            self.clip,
+            "_extract_geometry_from_category",
+            return_value=self.mock_geodataframe,
         ) as mock_extract:
             result = self.clip._get_boundary_geometry("Sacramento River")
 
@@ -1387,7 +1393,9 @@ class TestGetBoundaryGeometry:
     def test_get_boundary_geometry_catalog_access_error(self):
         """Test _get_boundary_geometry when boundary_dict() fails - outcome: raises RuntimeError."""
         # Setup mock to raise exception when accessing boundary_dict
-        self.mock_boundaries.boundary_dict.side_effect = RuntimeError("Database connection failed")
+        self.mock_boundaries.boundary_dict.side_effect = RuntimeError(
+            "Database connection failed"
+        )
 
         # Try to get boundary when catalog access fails
         with pytest.raises(RuntimeError, match="Failed to access boundary data"):
@@ -1397,7 +1405,9 @@ class TestGetBoundaryGeometry:
         """Test _extract_geometry_from_category for states category - outcome: returns GeoDataFrame."""
         # Create mock DataFrame with index 5 for states
         mock_df = pd.DataFrame({"name": ["California"]}, index=[5])
-        mock_gdf = gpd.GeoDataFrame(mock_df, geometry=[box(-124, 32, -114, 42)], crs="EPSG:4326")
+        mock_gdf = gpd.GeoDataFrame(
+            mock_df, geometry=[box(-124, 32, -114, 42)], crs="EPSG:4326"
+        )
 
         # Mock the boundaries._us_states attribute
         self.mock_boundaries._us_states = mock_gdf
@@ -1421,7 +1431,9 @@ class TestGetBoundaryGeometry:
         """Test _extract_geometry_from_category with invalid index - outcome: raises ValueError."""
         # Create mock DataFrame without index 999
         mock_df = pd.DataFrame({"name": ["California"]}, index=[5])
-        mock_gdf = gpd.GeoDataFrame(mock_df, geometry=[box(-124, 32, -114, 42)], crs="EPSG:4326")
+        mock_gdf = gpd.GeoDataFrame(
+            mock_df, geometry=[box(-124, 32, -114, 42)], crs="EPSG:4326"
+        )
 
         # Mock the boundaries._us_states attribute
         self.mock_boundaries._us_states = mock_gdf
@@ -1436,7 +1448,7 @@ class TestClipDataToMultiplePointsFallback:
 
     This class tests the fallback method for multiple point clipping that uses
     individual point processing and filtering for duplicate gridcells.
-    
+
     Tests include:
     - Valid multiple points returning unique gridcells
     - Single point handling
@@ -1456,7 +1468,10 @@ class TestClipDataToMultiplePointsFallback:
                 "y": np.linspace(32, 42, 10),
                 "x": np.linspace(-124, -114, 10),
                 "lat": (["y", "x"], np.tile(np.linspace(32, 42, 10)[:, None], (1, 10))),
-                "lon": (["y", "x"], np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1))),
+                "lon": (
+                    ["y", "x"],
+                    np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1)),
+                ),
             },
         )
         self.dataset.attrs["resolution"] = "3 km"
@@ -1472,12 +1487,14 @@ class TestClipDataToMultiplePointsFallback:
         ]
 
         with patch("builtins.print"):  # Suppress print statements
-            result = Clip._clip_data_to_multiple_points_fallback(self.dataset, point_list)
+            result = Clip._clip_data_to_multiple_points_fallback(
+                self.dataset, point_list
+            )
 
         # Verify result exists and has correct structure
         assert result is not None
         assert isinstance(result, xr.Dataset)
-        
+
         # Verify closest_cell dimension exists with correct size
         assert "closest_cell" in result.dims
         assert result.sizes["closest_cell"] == 3
@@ -1497,7 +1514,9 @@ class TestClipDataToMultiplePointsFallback:
         point_list = [(37.0, -119.0)]
 
         with patch("builtins.print"):
-            result = Clip._clip_data_to_multiple_points_fallback(self.dataset, point_list)
+            result = Clip._clip_data_to_multiple_points_fallback(
+                self.dataset, point_list
+            )
 
         # Verify result exists
         assert result is not None
@@ -1517,13 +1536,15 @@ class TestClipDataToMultiplePointsFallback:
         """Test _clip_data_to_multiple_points_fallback with duplicate gridcells - outcome: filters duplicates."""
         # Define points that are very close together (should map to same gridcell)
         point_list = [
-            (37.0, -119.0),   # Point 1
+            (37.0, -119.0),  # Point 1
             (37.001, -119.001),  # Point 2 - very close to point 1, likely same gridcell
-            (35.0, -121.0),   # Point 3 - different location
+            (35.0, -121.0),  # Point 3 - different location
         ]
 
         with patch("builtins.print"):
-            result = Clip._clip_data_to_multiple_points_fallback(self.dataset, point_list)
+            result = Clip._clip_data_to_multiple_points_fallback(
+                self.dataset, point_list
+            )
 
         # Verify result exists
         assert result is not None
@@ -1542,11 +1563,14 @@ class TestClipDataToMultiplePointsFallback:
     def test_fallback_all_points_invalid(self):
         """Test _clip_data_to_multiple_points_fallback when all points return None - outcome: returns None."""
         # Mock _clip_data_to_point to always return None
-        with patch.object(Clip, "_clip_data_to_point", return_value=None), \
-             patch("builtins.print"):
-            
+        with patch.object(Clip, "_clip_data_to_point", return_value=None), patch(
+            "builtins.print"
+        ):
+
             point_list = [(37.0, -119.0), (35.0, -121.0)]
-            result = Clip._clip_data_to_multiple_points_fallback(self.dataset, point_list)
+            result = Clip._clip_data_to_multiple_points_fallback(
+                self.dataset, point_list
+            )
 
         # Verify result is None when all points are invalid
         assert result is None
@@ -1555,7 +1579,7 @@ class TestClipDataToMultiplePointsFallback:
         """Test _clip_data_to_multiple_points_fallback with mix of valid and invalid points - outcome: returns valid ones only."""
         # Save the original method
         original_method = Clip._clip_data_to_point
-        
+
         # Create a mock that returns None for the second point
         def mock_clip_to_point(dataset, lat, lon):
             if lat == 35.0:  # Second point
@@ -1563,17 +1587,20 @@ class TestClipDataToMultiplePointsFallback:
             else:
                 # Call the original method for other points
                 return original_method(dataset, lat, lon)
-        
-        with patch.object(Clip, "_clip_data_to_point", side_effect=mock_clip_to_point), \
-             patch("builtins.print"):
-            
+
+        with patch.object(
+            Clip, "_clip_data_to_point", side_effect=mock_clip_to_point
+        ), patch("builtins.print"):
+
             point_list = [(37.0, -119.0), (35.0, -121.0), (40.0, -118.0)]
-            result = Clip._clip_data_to_multiple_points_fallback(self.dataset, point_list)
+            result = Clip._clip_data_to_multiple_points_fallback(
+                self.dataset, point_list
+            )
 
         # Verify result exists and contains only valid points
         assert result is not None
         assert isinstance(result, xr.Dataset)
-        
+
         # Should have 2 gridcells (first and third points)
         assert "closest_cell" in result.dims
         assert result.sizes["closest_cell"] == 2
@@ -1581,11 +1608,14 @@ class TestClipDataToMultiplePointsFallback:
     def test_fallback_concatenation_error(self):
         """Test _clip_data_to_multiple_points_fallback when concatenation fails - outcome: returns None."""
         # Mock xr.concat to raise an exception
-        with patch("xarray.concat", side_effect=Exception("Concatenation failed")), \
-             patch("builtins.print"):
-            
+        with patch(
+            "xarray.concat", side_effect=Exception("Concatenation failed")
+        ), patch("builtins.print"):
+
             point_list = [(37.0, -119.0), (35.0, -121.0)]
-            result = Clip._clip_data_to_multiple_points_fallback(self.dataset, point_list)
+            result = Clip._clip_data_to_multiple_points_fallback(
+                self.dataset, point_list
+            )
 
         # Verify result is None when concatenation fails
         assert result is None
@@ -1593,12 +1623,12 @@ class TestClipDataToMultiplePointsFallback:
 
 class TestClipDataToPointNaNSearch:
     """Test class for NaN search logic in _clip_data_to_point method.
-    
+
     Tests the expanding radius search functionality that looks for valid
     (non-NaN) gridcells when the closest gridcell contains only NaN values.
     This covers lines 453-509 in clip.py.
     """
-    
+
     def setup_method(self):
         """Set up test fixtures for NaN search tests."""
         # Create a base dataset with valid data
@@ -1610,7 +1640,10 @@ class TestClipDataToPointNaNSearch:
                 "y": np.linspace(32, 42, 10),
                 "x": np.linspace(-124, -114, 10),
                 "lat": (["y", "x"], np.tile(np.linspace(32, 42, 10)[:, None], (1, 10))),
-                "lon": (["y", "x"], np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1))),
+                "lon": (
+                    ["y", "x"],
+                    np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1)),
+                ),
             },
         )
         self.dataset.attrs["resolution"] = "3 km"
@@ -1627,41 +1660,51 @@ class TestClipDataToPointNaNSearch:
                 "y": np.linspace(32, 42, 10),
                 "x": np.linspace(-124, -114, 10),
                 "lat": (["y", "x"], np.tile(np.linspace(32, 42, 10)[:, None], (1, 10))),
-                "lon": (["y", "x"], np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1))),
+                "lon": (
+                    ["y", "x"],
+                    np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1)),
+                ),
             },
         )
         dataset_all_nan = dataset_all_nan.rio.write_crs("EPSG:4326")
-        
+
         # Mock get_closest_gridcell to return None (simulating no closest gridcell found)
-        with patch("climakitae.new_core.processors.clip.get_closest_gridcell", return_value=None), \
-             patch("builtins.print") as mock_print:
-            
+        with patch(
+            "climakitae.new_core.processors.clip.get_closest_gridcell",
+            return_value=None,
+        ), patch("builtins.print") as mock_print:
+
             result = Clip._clip_data_to_point(dataset_all_nan, 37.0, -119.0)
-        
+
         # Verify result is None when no valid gridcells found
         assert result is None
-        
+
         # Verify appropriate message was printed
-        printed_output = " ".join([str(call[0][0]) for call in mock_print.call_args_list])
-        assert "Closest gridcell contains NaN values" in printed_output or "No valid gridcells found" in printed_output
+        printed_output = " ".join(
+            [str(call[0][0]) for call in mock_print.call_args_list]
+        )
+        assert (
+            "Closest gridcell contains NaN values" in printed_output
+            or "No valid gridcells found" in printed_output
+        )
 
 
 class TestGetMultiBoundaryGeometry:
     """Test class for _get_multi_boundary_geometry method.
-    
+
     Tests the multi-boundary geometry retrieval and combination logic.
     This covers lines 894-934 in clip.py.
     """
-    
+
     def setup_method(self):
         """Set up test fixtures."""
         # Create mock catalog
         self.mock_catalog = MagicMock(spec=DataCatalog)
         self.mock_catalog.boundaries = {
             "states": {"CA": "California", "OR": "Oregon", "WA": "Washington"},
-            "counties": {"Los Angeles County": "Los Angeles County"}
+            "counties": {"Los Angeles County": "Los Angeles County"},
         }
-        
+
         # Create Clip instance with mock catalog
         self.clip_processor = Clip("CA")
         self.clip_processor._data_accessor = self.mock_catalog
@@ -1675,10 +1718,12 @@ class TestGetMultiBoundaryGeometry:
         """Test single boundary in list uses single boundary method - outcome: delegates to _get_boundary_geometry."""
         # Mock the single boundary geometry method
         mock_geometry = MagicMock()
-        
-        with patch.object(self.clip_processor, "_get_boundary_geometry", return_value=mock_geometry) as mock_single:
+
+        with patch.object(
+            self.clip_processor, "_get_boundary_geometry", return_value=mock_geometry
+        ) as mock_single:
             result = self.clip_processor._get_multi_boundary_geometry(["CA"])
-        
+
         # Verify single boundary method was called
         mock_single.assert_called_once_with("CA")
         assert result == mock_geometry
@@ -1689,93 +1734,114 @@ class TestGetMultiBoundaryGeometry:
         mock_geometry1 = MagicMock()
         mock_geometry2 = MagicMock()
         mock_combined = MagicMock()
-        
+
         # Mock validate_boundary_key to return valid for all
         def mock_validate(key):
             return {"valid": True}
-        
+
         # Mock _get_boundary_geometry to return geometries
         def mock_get_geometry(key):
             if key == "CA":
                 return mock_geometry1
             elif key == "OR":
                 return mock_geometry2
-        
-        with patch.object(self.clip_processor, "validate_boundary_key", side_effect=mock_validate), \
-             patch.object(self.clip_processor, "_get_boundary_geometry", side_effect=mock_get_geometry) as mock_get, \
-             patch.object(self.clip_processor, "_combine_geometries", return_value=mock_combined) as mock_combine:
-            
+
+        with patch.object(
+            self.clip_processor, "validate_boundary_key", side_effect=mock_validate
+        ), patch.object(
+            self.clip_processor, "_get_boundary_geometry", side_effect=mock_get_geometry
+        ) as mock_get, patch.object(
+            self.clip_processor, "_combine_geometries", return_value=mock_combined
+        ) as mock_combine:
+
             result = self.clip_processor._get_multi_boundary_geometry(["CA", "OR"])
-        
+
         # Verify geometries were retrieved
         assert mock_get.call_count == 2
-        
+
         # Verify combine was called with correct geometries
         mock_combine.assert_called_once()
         call_args = mock_combine.call_args
         assert mock_geometry1 in call_args[0][0]
         assert mock_geometry2 in call_args[0][0]
         assert call_args[1]["operation"] == "union"
-        
+
         assert result == mock_combined
 
     def test_some_invalid_boundaries_raises_error(self):
         """Test when some boundaries are invalid - outcome: raises ValueError with suggestions."""
+
         # Mock validate_boundary_key to return valid for some, invalid for others
         def mock_validate(key):
             if key in ["CA", "OR"]:
                 return {"valid": True}
             else:
                 return {"valid": False, "suggestions": ["Washington", "Wyoming"]}
-        
+
         # Mock _get_boundary_geometry to succeed for valid keys
         def mock_get_geometry(key):
             if key in ["CA", "OR"]:
                 return MagicMock()
             else:
                 raise ValueError(f"Invalid key: {key}")
-        
-        with patch.object(self.clip_processor, "validate_boundary_key", side_effect=mock_validate), \
-             patch.object(self.clip_processor, "_get_boundary_geometry", side_effect=mock_get_geometry):
-            
-            with pytest.raises(ValueError, match="Invalid boundary keys: \\['INVALID'\\]"):
-                self.clip_processor._get_multi_boundary_geometry(["CA", "OR", "INVALID"])
+
+        with patch.object(
+            self.clip_processor, "validate_boundary_key", side_effect=mock_validate
+        ), patch.object(
+            self.clip_processor, "_get_boundary_geometry", side_effect=mock_get_geometry
+        ):
+
+            with pytest.raises(
+                ValueError, match="Invalid boundary keys: \\['INVALID'\\]"
+            ):
+                self.clip_processor._get_multi_boundary_geometry(
+                    ["CA", "OR", "INVALID"]
+                )
 
     def test_geometry_retrieval_failure(self):
         """Test when validation passes but geometry retrieval fails - outcome: raises ValueError."""
+
         # Mock validate_boundary_key to return valid
         def mock_validate(key):
             return {"valid": True}
-        
+
         # Mock _get_boundary_geometry to raise exception
         def mock_get_geometry(key):
             raise Exception("Failed to retrieve geometry")
-        
-        with patch.object(self.clip_processor, "validate_boundary_key", side_effect=mock_validate), \
-             patch.object(self.clip_processor, "_get_boundary_geometry", side_effect=mock_get_geometry):
-            
+
+        with patch.object(
+            self.clip_processor, "validate_boundary_key", side_effect=mock_validate
+        ), patch.object(
+            self.clip_processor, "_get_boundary_geometry", side_effect=mock_get_geometry
+        ):
+
             with pytest.raises(ValueError, match="Invalid boundary keys"):
                 self.clip_processor._get_multi_boundary_geometry(["CA", "OR"])
 
     def test_all_boundaries_invalid(self):
         """Test when all boundaries are invalid - outcome: raises ValueError."""
+
         # Mock validate_boundary_key to return invalid for all
         def mock_validate(key):
             return {"valid": False, "suggestions": ["California", "Oregon"]}
-        
-        with patch.object(self.clip_processor, "validate_boundary_key", side_effect=mock_validate):
-            
-            with pytest.raises(ValueError, match="Invalid boundary keys: \\['BAD1', 'BAD2'\\]"):
+
+        with patch.object(
+            self.clip_processor, "validate_boundary_key", side_effect=mock_validate
+        ):
+
+            with pytest.raises(
+                ValueError, match="Invalid boundary keys: \\['BAD1', 'BAD2'\\]"
+            ):
                 self.clip_processor._get_multi_boundary_geometry(["BAD1", "BAD2"])
 
 
 class TestClipErrorHandlingPaths:
     """Test class for error handling paths in Clip processor.
-    
+
     Tests various error conditions and edge cases to ensure proper
     error handling and user feedback.
     """
-    
+
     def setup_method(self):
         """Set up test fixtures."""
         # Create sample dataset
@@ -1787,70 +1853,89 @@ class TestClipErrorHandlingPaths:
                 "y": np.linspace(32, 42, 10),
                 "x": np.linspace(-124, -114, 10),
                 "lat": (["y", "x"], np.tile(np.linspace(32, 42, 10)[:, None], (1, 10))),
-                "lon": (["y", "x"], np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1))),
+                "lon": (
+                    ["y", "x"],
+                    np.tile(np.linspace(-124, -114, 10)[None, :], (10, 1)),
+                ),
             },
         )
         self.dataset.attrs["resolution"] = "3 km"
         self.dataset = self.dataset.rio.write_crs("EPSG:4326")
-        
+
         self.context = {}
 
     def test_execute_invalid_result_type(self):
         """Test execute() with invalid result type - outcome: raises ValueError."""
         clip_processor = Clip((37.0, -119.0))
-        
+
         # Pass an invalid type (int instead of Dataset/DataArray/dict/Iterable)
         invalid_result = 12345
-        
+
         with pytest.raises(ValueError, match="Invalid result type for clipping"):
             clip_processor.execute(invalid_result, self.context)
 
     def test_execute_clipping_returns_none(self):
         """Test execute() when clipping returns None - outcome: raises ValueError."""
         clip_processor = Clip((37.0, -119.0))
-        
+
         # Mock _clip_data_to_point to return None
-        with patch.object(Clip, "_clip_data_to_point", return_value=None), \
-             patch("builtins.print"):
-            
-            with pytest.raises(ValueError, match="Clipping operation failed to produce valid results"):
+        with patch.object(Clip, "_clip_data_to_point", return_value=None), patch(
+            "builtins.print"
+        ):
+
+            with pytest.raises(
+                ValueError, match="Clipping operation failed to produce valid results"
+            ):
                 clip_processor.execute(self.dataset, self.context)
 
     def test_multi_point_no_valid_gridcells(self):
         """Test _clip_data_to_multiple_points when get_closest_gridcells returns None - outcome: returns None."""
         point_list = [(37.0, -119.0), (35.0, -121.0)]
-        
+
         # Mock get_closest_gridcells to return None
-        with patch("climakitae.new_core.processors.clip.get_closest_gridcells", return_value=None), \
-             patch("builtins.print") as mock_print:
-            
+        with patch(
+            "climakitae.new_core.processors.clip.get_closest_gridcells",
+            return_value=None,
+        ), patch("builtins.print") as mock_print:
+
             result = Clip._clip_data_to_multiple_points(self.dataset, point_list)
-        
+
         # Verify result is None
         assert result is None
-        
+
         # Verify appropriate message was printed
-        printed_output = " ".join([str(call[0][0]) for call in mock_print.call_args_list])
+        printed_output = " ".join(
+            [str(call[0][0]) for call in mock_print.call_args_list]
+        )
         assert "No valid gridcells found" in printed_output
 
     def test_multi_point_exception_triggers_fallback(self):
         """Test _clip_data_to_multiple_points exception triggers fallback - outcome: calls fallback method."""
         point_list = [(37.0, -119.0), (35.0, -121.0)]
         mock_fallback_result = MagicMock()
-        
+
         # Mock get_closest_gridcells to raise an exception
-        with patch("climakitae.new_core.processors.clip.get_closest_gridcells", side_effect=Exception("Vectorized clipping failed")), \
-             patch.object(Clip, "_clip_data_to_multiple_points_fallback", return_value=mock_fallback_result) as mock_fallback, \
-             patch("builtins.print") as mock_print:
-            
+        with patch(
+            "climakitae.new_core.processors.clip.get_closest_gridcells",
+            side_effect=Exception("Vectorized clipping failed"),
+        ), patch.object(
+            Clip,
+            "_clip_data_to_multiple_points_fallback",
+            return_value=mock_fallback_result,
+        ) as mock_fallback, patch(
+            "builtins.print"
+        ) as mock_print:
+
             result = Clip._clip_data_to_multiple_points(self.dataset, point_list)
-        
+
         # Verify fallback method was called
         mock_fallback.assert_called_once_with(self.dataset, point_list)
         assert result == mock_fallback_result
-        
+
         # Verify error and fallback messages were printed
-        printed_output = " ".join([str(call[0][0]) for call in mock_print.call_args_list])
+        printed_output = " ".join(
+            [str(call[0][0]) for call in mock_print.call_args_list]
+        )
         assert "Error in vectorized multi-point clipping" in printed_output
         assert "Falling back" in printed_output
 
@@ -1861,13 +1946,13 @@ class TestClipErrorHandlingPaths:
         gdf = gpd.GeoDataFrame(geometry=geometry)
         # Explicitly set CRS to None
         gdf.crs = None
-        
+
         # Verify dataset has CRS
         assert self.dataset.rio.crs is not None
-        
+
         with pytest.warns(UserWarning, match="does not have a CRS set"):
             result = Clip._clip_data_with_geom(self.dataset, gdf)
-        
+
         # Verify clipping still works
         assert result is not None
         assert isinstance(result, xr.Dataset)
@@ -1877,25 +1962,25 @@ class TestClipErrorHandlingPaths:
         # Create a temporary shapefile
         import tempfile
         import os
-        
+
         # Create GeoDataFrame
         geometry = [box(-120, 35, -118, 38)]
         gdf = gpd.GeoDataFrame(geometry=geometry, crs="EPSG:4326")
-        
+
         # Write to temporary shapefile
         with tempfile.TemporaryDirectory() as tmpdir:
             shapefile_path = os.path.join(tmpdir, "test.shp")
             gdf.to_file(shapefile_path)
-            
+
             # Verify file exists
             assert os.path.exists(shapefile_path)
-            
+
             # Create Clip processor with shapefile path
             clip_processor = Clip(shapefile_path)
-            
+
             # Execute clipping
             result = clip_processor.execute(self.dataset, self.context)
-            
+
             # Verify result
             assert result is not None
             assert isinstance(result, xr.Dataset)
@@ -1903,28 +1988,25 @@ class TestClipErrorHandlingPaths:
 
 class TestCombineGeometries:
     """Test class for _combine_geometries method.
-    
+
     Tests the geometry combination logic used for multi-boundary clipping.
     This covers lines 959-992 in clip.py.
     """
-    
+
     def setup_method(self):
         """Set up test fixtures."""
         # Create Clip instance
         self.clip_processor = Clip("CA")
-        
+
         # Create sample geometries
         self.geom1 = gpd.GeoDataFrame(
-            geometry=[box(-120, 35, -118, 37)], 
-            crs="EPSG:4326"
+            geometry=[box(-120, 35, -118, 37)], crs="EPSG:4326"
         )
         self.geom2 = gpd.GeoDataFrame(
-            geometry=[box(-122, 37, -120, 39)], 
-            crs="EPSG:4326"
+            geometry=[box(-122, 37, -120, 39)], crs="EPSG:4326"
         )
         self.geom3 = gpd.GeoDataFrame(
-            geometry=[box(-124, 39, -122, 41)], 
-            crs="EPSG:4326"
+            geometry=[box(-124, 39, -122, 41)], crs="EPSG:4326"
         )
 
     def test_combine_geometries_empty_list(self):
@@ -1935,7 +2017,7 @@ class TestCombineGeometries:
     def test_combine_geometries_single_geometry(self):
         """Test _combine_geometries with single geometry - outcome: returns geometry as-is."""
         result = self.clip_processor._combine_geometries([self.geom1])
-        
+
         # Should return the same geometry without modification
         assert result is not None
         assert isinstance(result, gpd.GeoDataFrame)
@@ -1948,6 +2030,19 @@ class TestCombineGeometries:
         """Test _combine_geometries with invalid operation - outcome: raises ValueError."""
         with pytest.raises(ValueError, match="Operation 'intersection' not supported"):
             self.clip_processor._combine_geometries(
-                [self.geom1, self.geom2], 
-                operation="intersection"
+                [self.geom1, self.geom2], operation="intersection"
             )
+
+    def test_combine_geometries_successful_union(self):
+        """Test _combine_geometries with successful union of multiple geometries - outcome: returns combined geometry."""
+        result = self.clip_processor._combine_geometries([self.geom1, self.geom2, self.geom3])
+        
+        # Verify result
+        assert result is not None
+        assert isinstance(result, gpd.GeoDataFrame)
+        # Should have single combined geometry
+        assert len(result) == 1
+        # Verify CRS is preserved
+        assert result.crs == self.geom1.crs
+        # Verify the geometry is a union (single geometry that covers all input areas)
+        assert result.geometry[0] is not None
