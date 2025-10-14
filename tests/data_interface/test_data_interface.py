@@ -32,11 +32,13 @@ class TestDataInterface:
         data_interface2 = DataInterface()
         assert data_interface1 is data_interface2
 
-    @staticmethod
-    def test_init_data_loading():
+    def test_init_data_loading(self):
         """
         Test that all data sources are loaded correctly during initialization.
         """
+        
+        # Import the module to access the global variable
+        import climakitae.core.data_interface as di_module
 
         with (
             patch("climakitae.core.data_interface.read_csv_file") as mock_read_csv,
@@ -78,6 +80,11 @@ class TestDataInterface:
             mock_intake.open_catalog.return_value = "mock_boundary_catalog"
             mock_boundaries_instance = Mock()
             mock_boundaries.return_value = mock_boundaries_instance
+
+            # Reset the singleton instance and global flag to force re-initialization
+            if hasattr(DataInterface, 'instance'):
+                delattr(DataInterface, 'instance')
+            di_module._data_interface_initialized = False
 
             # Call the init method
             data_interface = DataInterface()
