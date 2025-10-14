@@ -1689,6 +1689,92 @@ class TestClipDataToPointNaNSearch:
         )
 
 
+class TestClipDataToPointNaNSearchExpansion:
+    """Test class for NaN search expansion radius logic in _clip_data_to_point.
+    
+    Tests the expanding radius search (lines 453-509) that searches outward
+    from the target point when the closest gridcell contains NaN values.
+    Tests various radii and successful find scenarios.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures for NaN search expansion tests."""
+        # Create a dataset with a pattern: center NaN, valid data in rings around it
+        # This allows testing different search radii
+        data = np.random.rand(3, 20, 20) + 20
+        
+        # Make the center region (around index 10,10) NaN
+        # This will force the search to expand outward
+        data[:, 9:11, 9:11] = np.nan  # Center 2x2 cells are NaN
+        
+        # Create coordinate arrays
+        lats_1d = np.linspace(35, 39, 20)  # ~0.2 degree spacing
+        lons_1d = np.linspace(-122, -118, 20)  # ~0.2 degree spacing
+        
+        # Create 2D lat/lon grids
+        lons_2d, lats_2d = np.meshgrid(lons_1d, lats_1d)
+        
+        self.dataset = xr.Dataset(
+            {"temp": (["time", "y", "x"], data)},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=3),
+                "y": lats_1d,
+                "x": lons_1d,
+                "lat": (["y", "x"], lats_2d),
+                "lon": (["y", "x"], lons_2d),
+            },
+        )
+        self.dataset = self.dataset.rio.write_crs("EPSG:4326")
+        
+        # Target point that maps to NaN center region
+        self.target_lat = 37.0  # Center of domain
+        self.target_lon = -120.0  # Center of domain
+
+    def test_nan_search_finds_valid_at_first_radius(self):
+        """Test finding valid gridcell at 0.01° radius - outcome: returns valid gridcell."""
+        # Create a dataset where closest cell is NaN but valid data exists at 0.01° radius
+        data = np.random.rand(3, 15, 15) + 20
+        
+        # Make a small NaN region at center
+        center_idx = 7
+        data[:, center_idx, center_idx] = np.nan
+        
+        # Very fine grid spacing to test 0.01 degree radius
+        # Use 1D lat/lon coordinates (not 2D) as expected by the search logic
+        lats_1d = np.linspace(36.95, 37.05, 15)  # ~0.007 degree spacing
+        lons_1d = np.linspace(-120.05, -119.95, 15)
+        
+        dataset = xr.Dataset(
+            {"temp": (["time", "lat", "lon"], data)},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=3),
+                "lat": lats_1d,
+                "lon": lons_1d,
+            },
+        )
+        dataset = dataset.rio.write_crs("EPSG:4326")
+        
+        # Mock get_closest_gridcell to return gridcell with all NaN data (triggering search)
+        nan_result = dataset.isel(lon=center_idx, lat=center_idx)
+        # Verify it's actually NaN
+        assert np.isnan(nan_result["temp"].isel(time=0).values)
+        
+        with patch(
+            "climakitae.new_core.processors.clip.get_closest_gridcell",
+            return_value=nan_result,
+        ), patch("builtins.print") as mock_print:
+            result = Clip._clip_data_to_point(dataset, 37.0, -120.0)
+        
+        # Verify a valid result was found
+        assert result is not None
+        # Verify the result has valid (non-NaN) data
+        assert not np.isnan(result["temp"].isel(time=0).values)
+        
+        # Verify search messages were printed
+        printed_output = " ".join([str(call[0][0]) for call in mock_print.call_args_list])
+        assert "searching for nearest valid gridcell" in printed_output.lower() or "found valid" in printed_output.lower()
+
+
 class TestGetMultiBoundaryGeometry:
     """Test class for _get_multi_boundary_geometry method.
 
@@ -2035,8 +2121,10 @@ class TestCombineGeometries:
 
     def test_combine_geometries_successful_union(self):
         """Test _combine_geometries with successful union of multiple geometries - outcome: returns combined geometry."""
-        result = self.clip_processor._combine_geometries([self.geom1, self.geom2, self.geom3])
-        
+        result = self.clip_processor._combine_geometries(
+            [self.geom1, self.geom2, self.geom3]
+        )
+
         # Verify result
         assert result is not None
         assert isinstance(result, gpd.GeoDataFrame)
@@ -2056,19 +2144,23 @@ class TestCombineGeometries:
 
     def test_combine_geometries_crs_consistency(self):
         """Test _combine_geometries with CRS consistency handling - outcome: converts to common CRS.
-        
+
         The method should handle geometries with different CRS by converting them all
         to the reference CRS (from first geometry) before concatenation.
         """
         # Create geometry with different CRS (Web Mercator)
         geom_different_crs = gpd.GeoDataFrame(
-            geometry=[box(-13358338, 4470057, -13135699, 4721671)],  # Approximate Web Mercator coords
-            crs="EPSG:3857"  # Web Mercator instead of WGS84
+            geometry=[
+                box(-13358338, 4470057, -13135699, 4721671)
+            ],  # Approximate Web Mercator coords
+            crs="EPSG:3857",  # Web Mercator instead of WGS84
         )
-        
+
         # Should successfully combine and convert to reference CRS (EPSG:4326)
-        result = self.clip_processor._combine_geometries([self.geom1, geom_different_crs])
-        
+        result = self.clip_processor._combine_geometries(
+            [self.geom1, geom_different_crs]
+        )
+
         # Verify result is a GeoDataFrame with consistent CRS
         assert isinstance(result, gpd.GeoDataFrame)
         assert result.crs == self.geom1.crs  # Should use first geometry's CRS
@@ -2079,9 +2171,13 @@ class TestCombineGeometries:
         # Create geometries that will successfully concatenate but fail during union
         # Patch the unary_union property on GeoDataFrame to raise an exception
         with patch.object(
-            gpd.GeoDataFrame, 
-            'unary_union', 
-            new_callable=lambda: property(lambda self: (_ for _ in ()).throw(Exception("Union operation failed")))
+            gpd.GeoDataFrame,
+            "unary_union",
+            new_callable=lambda: property(
+                lambda self: (_ for _ in ()).throw(Exception("Union operation failed"))
+            ),
         ):
-            with pytest.raises(ValueError, match="Failed to perform union operation on geometries"):
+            with pytest.raises(
+                ValueError, match="Failed to perform union operation on geometries"
+            ):
                 self.clip_processor._combine_geometries([self.geom1, self.geom2])

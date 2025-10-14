@@ -982,7 +982,9 @@ class Clip(DataProcessor):
 
         # Concatenate all geometries
         try:
-            combined_df = gpd.GeoDataFrame(pd.concat(normalized_geometries, ignore_index=True))
+            combined_df = gpd.GeoDataFrame(
+                pd.concat(normalized_geometries, ignore_index=True)
+            )
         except Exception as e:
             raise ValueError(f"Failed to concatenate geometries: {e}")
 
