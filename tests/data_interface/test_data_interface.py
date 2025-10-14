@@ -36,7 +36,7 @@ class TestDataInterface:
         """
         Test that all data sources are loaded correctly during initialization.
         """
-        
+
         # Import the module to access the global variable
         import climakitae.core.data_interface as di_module
 
@@ -82,8 +82,8 @@ class TestDataInterface:
             mock_boundaries.return_value = mock_boundaries_instance
 
             # Reset the singleton instance and global flag to force re-initialization
-            if hasattr(DataInterface, 'instance'):
-                delattr(DataInterface, 'instance')
+            if hasattr(DataInterface, "instance"):
+                delattr(DataInterface, "instance")
             di_module._data_interface_initialized = False
 
             # Call the init method
