@@ -103,12 +103,16 @@ def _validate_string_param(value: str) -> bool:
     if not value or not value.strip():
         warnings.warn(
             "\n\nEmpty or whitespace-only strings are not valid clip parameters. "
-            "\nPlease provide a valid boundary key (e.g., 'CA'), file path, or coordinate bounds."
+            "\nPlease provide a valid boundary key (e.g., 'CA'), file path, station code (e.g., 'KSAC'), or coordinate bounds."
         )
         return False
 
     # Clean the string
     cleaned_value = value.strip()
+
+    # Check if it looks like a station identifier
+    if _is_station_identifier(cleaned_value):
+        return _validate_station_identifier(cleaned_value)
 
     # Check if it looks like a file path
     if _is_file_path_like(cleaned_value):
@@ -161,6 +165,19 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
             f"\nExample of valid list: ['CA', 'OR', 'WA'] or [(32.0, 42.0), (-125.0, -114.0)]"
         )
         return False
+
+    # Check if all items are station identifiers
+    all_stations = all(
+        _is_station_identifier(item) if isinstance(item, str) else False
+        for item in value
+    )
+
+    if all_stations:
+        # Validate all station identifiers
+        for item in value:
+            if not _validate_station_identifier(item):
+                return False
+        return True
 
     # Filter out empty/whitespace strings and validate each item
     valid_items = []
@@ -329,6 +346,113 @@ def _validate_tuple_param(
             return False
 
     return True
+
+
+def _is_station_identifier(value: str) -> bool:
+    """
+    Check if a string looks like a station identifier.
+
+    Parameters
+    ----------
+    value : str
+        String to check
+
+    Returns
+    -------
+    bool
+        True if the value looks like a station code or station name
+    """
+    # Check if it's a 4-character code starting with 'K' (common US airport codes)
+    if len(value) == 4 and value[0].upper() == "K" and value.isalnum():
+        return True
+
+    # Check if it contains parentheses with a code (e.g., "Sacramento (KSAC)")
+    if "(" in value and ")" in value and "K" in value.upper():
+        return True
+
+    return False
+
+
+def _validate_station_identifier(value: str) -> bool:
+    """
+    Validate a station identifier string.
+
+    Parameters
+    ----------
+    value : str
+        Station identifier to validate
+
+    Returns
+    -------
+    bool
+        True if the station identifier is valid
+    """
+    try:
+        from climakitae.new_core.data_access.data_access import DataCatalog
+
+        catalog = DataCatalog()
+        stations_df = catalog.get("stations")
+
+        if stations_df is None or len(stations_df) == 0:
+            warnings.warn(
+                "\n\nStation data is not available. "
+                "\nCannot validate station identifier."
+            )
+            return False
+
+        # Normalize the input
+        station_id_upper = value.upper().strip()
+
+        # Try exact match on ID column
+        match = stations_df[stations_df["ID"].str.upper() == station_id_upper]
+
+        if len(match) == 0:
+            # Try matching on station name (full station column)
+            match = stations_df[stations_df["station"].str.upper() == station_id_upper]
+
+        if len(match) == 0:
+            # Try partial match on station name
+            match = stations_df[
+                stations_df["station"]
+                .str.upper()
+                .str.contains(station_id_upper, na=False)
+            ]
+
+        if len(match) == 0:
+            # Station not found - provide suggestions
+            all_stations = stations_df["ID"].tolist() + stations_df["station"].tolist()
+            suggestions = _get_closest_options(value, all_stations, cutoff=0.5)
+
+            error_msg = f"\n\nStation '{value}' not found in station database."
+            if suggestions:
+                error_msg += f"\n\nDid you mean one of these?\n  - " + "\n  - ".join(
+                    suggestions[:5]
+                )
+            error_msg += (
+                "\n\nTo see all available stations, use: cd.show_station_options()"
+            )
+
+            warnings.warn(error_msg)
+            return False
+
+        if len(match) > 1:
+            # Multiple matches found - show options
+            station_list = (
+                match[["ID", "station", "city", "state"]].head(5).to_string(index=False)
+            )
+            warnings.warn(
+                f"\n\nMultiple stations match '{value}':\n{station_list}\n"
+                f"{'... and more' if len(match) > 5 else ''}\n\n"
+                f"Please use a more specific identifier (4-character code like 'KSAC')."
+            )
+            return False
+
+        # Valid station found
+        return True
+
+    except Exception as e:
+        warnings.warn(f"\n\nError validating station identifier: {str(e)}")
+        return False
 
 
 def _is_file_path_like(value: str) -> bool:

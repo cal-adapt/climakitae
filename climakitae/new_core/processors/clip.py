@@ -22,12 +22,17 @@ Clipping Modes
    - Multiple boundaries: `Clip(["CA", "OR", "WA"])` (combined using union)
    - Supports states, counties, watersheds, utilities, and forecast zones
 
-2. **Coordinate Clipping**: Clip data using lat/lon coordinate bounds
+2. **Station Clipping**: Clip data to weather station locations
+   - Single station by code: `Clip("KSAC")` - Sacramento station
+   - Single station by name: `Clip("Sacramento (KSAC)")`
+   - Multiple stations: `Clip(["KSAC", "KBFL", "KSFO"])` - returns closest gridcells
+
+3. **Coordinate Clipping**: Clip data using lat/lon coordinate bounds
    - Bounding box: `Clip(((lat_min, lat_max), (lon_min, lon_max)))`
    - Single point: `Clip((lat, lon))` - returns closest gridcell
    - Multiple points: `Clip([(lat1, lon1), (lat2, lon2)])` - returns closest gridcells
 
-3. **Custom Geometry**: Clip using custom shapefiles
+4. **Custom Geometry**: Clip using custom shapefiles
    - Shapefile path: `Clip("/path/to/shapefile.shp")`
 
 Key Features
@@ -67,6 +72,14 @@ Examples
 
 >>> # Multiple state boundaries (union)
 >>> processor = Clip(["CA", "OR", "WA"])
+>>> clipped_data = processor.execute(dataset, context)
+
+>>> # Single station by code
+>>> processor = Clip("KSAC")  # Sacramento station
+>>> clipped_data = processor.execute(dataset, context)
+
+>>> # Multiple stations
+>>> processor = Clip(["KSAC", "KBFL", "KSFO"])  # Sacramento, Bakersfield, San Francisco
 >>> clipped_data = processor.execute(dataset, context)
 
 >>> # Coordinate bounding box
@@ -163,14 +176,19 @@ class Clip(DataProcessor):
         ----------
         value : str | list | tuple
             The value(s) to clip the data by. Can be:
-            - str: Single boundary key, file path, or coordinate specification
-            - list: Multiple boundary keys of the same category (Phase 1) OR list of (lat, lon) tuples for multiple points
+            - str: Single boundary key, file path, station code/name, or coordinate specification
+            - list: Multiple boundary keys, station codes/names, or (lat, lon) tuples for multiple points
             - tuple: Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max)) or single (lat, lon) point
         """
         self.value = value
         self.name = "clip"
         self.catalog: Union[DataCatalog, object] = UNSET
         self.needs_catalog = True
+
+        # Station-related attributes
+        self.is_station = False
+        self.is_multi_station = False
+        self.station_info = None  # Will store station metadata
 
         # Check if this is a list of lat/lon tuples
         self.is_multi_point = (
@@ -213,15 +231,41 @@ class Clip(DataProcessor):
         geom = UNSET
         match self.value:
             case str():
+                # Check if this is a station identifier
+                if self._is_station_identifier(self.value):
+                    try:
+                        self.lat, self.lon, self.station_info = (
+                            self._get_station_coordinates(self.value)
+                        )
+                        self.is_station = True
+                        self.is_single_point = True
+                        geom = None  # Will be handled as single point
+                    except (ValueError, RuntimeError) as e:
+                        raise ValueError(f"Station clipping failed: {str(e)}")
                 # check if string is path-like
-                if os.path.exists(self.value):
+                elif os.path.exists(self.value):
                     geom = gpd.read_file(self.value)
                 else:
                     # try to find corresponding boundary key
                     geom = self._get_boundary_geometry(self.value)
             case list():
+                # Check if this is a list of station identifiers
+                if all(
+                    isinstance(item, str) and self._is_station_identifier(item)
+                    for item in self.value
+                ):
+                    try:
+                        self.point_list, station_metadata_list = (
+                            self._convert_stations_to_points(self.value)
+                        )
+                        self.is_multi_station = True
+                        self.is_multi_point = True
+                        self.station_info = station_metadata_list
+                        geom = None  # Will be handled as multi-point
+                    except (ValueError, RuntimeError) as e:
+                        raise ValueError(f"Multi-station clipping failed: {str(e)}")
                 # Handle multiple boundary keys (Phase 1) OR multiple lat/lon points
-                if self.is_multi_point:
+                elif self.is_multi_point:
                     geom = None  # Will be handled differently for multi-point
                 else:
                     geom = self._get_multi_boundary_geometry(self.value)
@@ -334,7 +378,19 @@ class Clip(DataProcessor):
             context[_NEW_ATTRS_KEY] = {}
 
         # Add clipping information to the context
-        if self.is_single_point:
+        if self.is_station and self.station_info:
+            station_desc = f"{self.station_info['station_id']} - {self.station_info['station_name']}, {self.station_info['city']}, {self.station_info['state']}"
+            context[_NEW_ATTRS_KEY][
+                self.name
+            ] = f"""Process '{self.name}' applied to the data. Station clipping was done using closest gridcell to station: {station_desc} at coordinates: ({self.lat:.4f}, {self.lon:.4f})."""
+        elif self.is_multi_station and self.station_info:
+            station_list = [
+                f"{s['station_id']} - {s['station_name']}" for s in self.station_info
+            ]
+            context[_NEW_ATTRS_KEY][
+                self.name
+            ] = f"""Process '{self.name}' applied to the data. Multi-station clipping was done using closest gridcells to {len(self.station_info)} stations: {station_list}."""
+        elif self.is_single_point:
             context[_NEW_ATTRS_KEY][
                 self.name
             ] = f"""Process '{self.name}' applied to the data. Single point clipping was done using closest gridcell to coordinates: ({self.lat}, {self.lon})."""
@@ -354,6 +410,157 @@ class Clip(DataProcessor):
     def set_data_accessor(self, catalog: DataCatalog):
         """Set the data catalog for accessing boundary data."""
         self.catalog = catalog
+
+    def _is_station_identifier(self, value: str) -> bool:
+        """
+        Check if a string value looks like a station identifier.
+
+        Parameters
+        ----------
+        value : str
+            String to check
+
+        Returns
+        -------
+        bool
+            True if the value looks like a station code (4 chars, starts with K)
+            or matches a station name pattern
+        """
+        # Check if it's a 4-character code starting with 'K' (common US airport codes)
+        if len(value) == 4 and value[0].upper() == "K" and value.isalnum():
+            return True
+
+        # Check if it contains parentheses with a code (e.g., "Sacramento (KSAC)")
+        if "(" in value and ")" in value:
+            return True
+
+        return False
+
+    def _get_station_coordinates(
+        self, station_identifier: str
+    ) -> tuple[float, float, dict]:
+        """
+        Get lat/lon coordinates for a station identifier.
+
+        Parameters
+        ----------
+        station_identifier : str
+            Station code (e.g., "KSAC") or full station name
+
+        Returns
+        -------
+        tuple[float, float, dict]
+            Latitude, longitude, and station metadata dictionary
+
+        Raises
+        ------
+        ValueError
+            If station is not found or catalog is not available
+        """
+        if self.catalog is UNSET or not isinstance(self.catalog, DataCatalog):
+            raise RuntimeError(
+                "DataCatalog is not set. Cannot access station data for clipping."
+            )
+
+        stations_df = self.catalog["stations"]
+
+        if stations_df is None or len(stations_df) == 0:
+            raise RuntimeError("Station data is not available in the catalog.")
+
+        # Normalize the input
+        station_id_upper = station_identifier.upper().strip()
+
+        # Try exact match on ID column
+        match = stations_df[stations_df["ID"].str.upper() == station_id_upper]
+
+        if len(match) == 0:
+            # Try matching on station name (full station column)
+            match = stations_df[stations_df["station"].str.upper() == station_id_upper]
+
+        if len(match) == 0:
+            # Try partial match on station name
+            match = stations_df[
+                stations_df["station"]
+                .str.upper()
+                .str.contains(station_id_upper, na=False)
+            ]
+
+        if len(match) == 0:
+            # Station not found - provide suggestions
+            all_stations = stations_df["ID"].tolist() + stations_df["station"].tolist()
+            from climakitae.new_core.param_validation.param_validation_tools import (
+                _get_closest_options,
+            )
+
+            suggestions = _get_closest_options(
+                station_identifier, all_stations, cutoff=0.5
+            )
+
+            error_msg = f"Station '{station_identifier}' not found in station database."
+            if suggestions:
+                error_msg += f"\n\nDid you mean one of these?\n  - " + "\n  - ".join(
+                    suggestions[:5]
+                )
+            error_msg += (
+                "\n\nTo see all available stations, use: cd.show_station_options()"
+            )
+
+            raise ValueError(error_msg)
+
+        if len(match) > 1:
+            # Multiple matches found - show options
+            station_list = match[["ID", "station", "city", "state"]].to_string(
+                index=False
+            )
+            raise ValueError(
+                f"Multiple stations match '{station_identifier}':\n{station_list}\n\n"
+                f"Please use a more specific identifier."
+            )
+
+        # Extract coordinates and metadata
+        station_row = match.iloc[0]
+        lat = float(station_row["LAT_Y"])
+        lon = float(station_row["LON_X"])
+
+        metadata = {
+            "station_id": station_row["ID"],
+            "station_name": station_row["station"],
+            "city": station_row["city"],
+            "state": station_row["state"],
+            "elevation": station_row.get("elevation", None),
+        }
+
+        return lat, lon, metadata
+
+    def _convert_stations_to_points(
+        self, station_identifiers: list[str]
+    ) -> tuple[list[tuple[float, float]], list[dict]]:
+        """
+        Convert a list of station identifiers to lat/lon coordinates.
+
+        Parameters
+        ----------
+        station_identifiers : list[str]
+            List of station codes or names
+
+        Returns
+        -------
+        tuple[list[tuple[float, float]], list[dict]]
+            List of (lat, lon) tuples and list of metadata dictionaries
+        """
+        points = []
+        metadata_list = []
+
+        for station_id in station_identifiers:
+            try:
+                lat, lon, metadata = self._get_station_coordinates(station_id)
+                points.append((lat, lon))
+                metadata_list.append(metadata)
+            except ValueError as e:
+                # Re-raise with context about which station failed
+                raise ValueError(f"Error processing station '{station_id}': {str(e)}")
+
+        return points, metadata_list
 
     @staticmethod
     def _clip_data_with_geom(data: xr.DataArray | xr.Dataset, gdf: gpd.GeoDataFrame):
