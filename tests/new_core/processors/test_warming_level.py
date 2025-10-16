@@ -12,8 +12,7 @@ The tests cover:
 - Error handling: Confirming that appropriate exceptions are raised for invalid inputs.
 """
 
-import os
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -334,36 +333,16 @@ class TestWarmingLevelGetCenterYears:
 class TestWarmingLevelExecute:
     """Tests for the execute method of WarmingLevel DataProcessor."""
 
-    # @patch("climakitae.new_core.processors.warming_level.read_csv_file")
-    # def test_empty_warming_level_times_error(self, mock_read_csv_file, processor):
-    #     """Test that execute raises error if warming_level_times is empty and cannot be found."""
-    #     processor.warming_level_times = None
-    #     mock_read_csv_file.side_effect = FileNotFoundError("File not found")
+    @patch("climakitae.new_core.processors.warming_level.read_csv_file")
+    def test_empty_warming_level_times_error(self, mock_read_csv_file, processor):
+        """Test that execute raises error if warming_level_times is empty and cannot be found."""
+        processor.warming_level_times = None
+        mock_read_csv_file.side_effect = FileNotFoundError("File not found")
 
-    #     with pytest.raises(
-    #         RuntimeError, match="Failed to load warming level times table"
-    #     ):
-    #         processor.execute(result=None, context={})
-
-    # def test_(self, processor):
-    #     """Test that execute successfully reads warming level times if not already loaded."""
-    #     processor.warming_level_times = None
-
-    #     with patch(
-    #         "climakitae.new_core.processors.warming_level.read_csv_file"
-    #     ) as mock_read_csv_file:
-    #         mock_data = pd.DataFrame(
-    #             {
-    #                 "time": [1, 2],
-    #                 "GCM": ["ACCESS-CM2", "ACCESS-CM2"],
-    #             }
-    #         )
-    #         mock_read_csv_file.return_value = mock_data
-
-    #         # Execute should now load the mock data without error
-    #         processor.execute(result=None, context={})
-    #         assert processor.warming_level_times.equals(mock_data)
-    #         mock_read_csv_file.assert_called_once()  # Ensure the mock was called
+        with pytest.raises(
+            RuntimeError, match="Failed to load warming level times table"
+        ):
+            processor.execute(result=None, context={})
 
     def test_execute_updates_context(self, request, full_processor):
         """Test that execute updates context with warming level information."""
@@ -373,6 +352,36 @@ class TestWarmingLevelExecute:
         assert full_processor.name in context[_NEW_ATTRS_KEY][full_processor.name]
         assert str(full_processor.value) in context[_NEW_ATTRS_KEY][full_processor.name]
 
+    def test_execute_skips_missing_center_years(self, request, full_processor):
+        """Test that execute skips keys with no valid center years and warns."""
+        data = request.getfixturevalue("test_dataarray_dict")
+        key = "WRF.UCLA.MIROC6.ssp370.day.d03.r1i1p1f1"
+
+        with (
+            patch.object(
+                full_processor, "get_center_years", return_value={key: [np.nan]}
+            ),
+            pytest.warns(UserWarning, match=f"No warming level data found for {key}"),
+            pytest.warns(UserWarning, match=f"No valid slices found for {key}."),
+        ):
+            assert full_processor.execute(data, context={}) == {}
+
+    def test_execute_skips_warming_level(self, request, full_processor):
+        """Test that execute skips warming levels if there is no warming level found for a certain key."""
+        data = request.getfixturevalue("test_dataarray_dict")
+        # Editing warming levels to include one that will be skipped
+        full_processor.warming_levels = [1.5, 5.8, 2.0]
+        with (
+            pytest.warns(
+                UserWarning,
+                match=f"No warming level data found",
+            ),
+        ):
+            ret = full_processor.execute(data, context={})
+            for key in ret:
+                assert len(ret[key].warming_level) == 2
+                assert 5.8 not in ret[key].warming_level.values
+
     def test_execute_dims_correct(self, request, full_processor):
         """Test that execute returns a dict with expected keys and types."""
         test_result = request.getfixturevalue("test_dataarray_dict")
@@ -381,5 +390,22 @@ class TestWarmingLevelExecute:
             assert isinstance(ret[key], xr.Dataset)
             assert "warming_level" in ret[key].dims
             assert "time_delta" in ret[key].dims
+            assert "centered_year" in ret[key].coords
 
-    def test_execute_
+    def test_execute_years_correct(self, request, full_processor):
+        """Test that execute manipulates the data to have correct dims and years."""
+        test_result = request.getfixturevalue("test_dataarray_dict")
+        ret = full_processor.execute(result=test_result, context={})
+        for key in ret:
+            # Check that the warming_level coordinate matches the processor's warming_levels
+            assert (
+                ret[key].warming_level.values == full_processor.warming_levels
+            ).all()
+            # Check the length of the time_delta dimension
+            assert (
+                len(ret[key].time_delta)
+                == 365 * full_processor.warming_level_window * 2
+            )
+            assert isinstance(ret[key].centered_year.item(), int)
+            # Check that the centered_year is within expected range
+            assert 1981 <= ret[key].centered_year.item() <= 2100

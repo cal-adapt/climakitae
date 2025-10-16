@@ -122,16 +122,16 @@ class WarmingLevel(DataProcessor):
             - simulation: Combined simulation identifiers
             - time_delta: Time steps relative to warming level center year
         """
-        # # Load warming level times table if not already loaded
-        # if self.warming_level_times is None:
-        #     try:
-        #         self.warming_level_times = read_csv_file(
-        #             GWL_1981_2010_TIMEIDX_FILE, index_col="time", parse_dates=True
-        #         )
-        #     except (FileNotFoundError, pd.errors.ParserError) as e:
-        #         raise RuntimeError(
-        #             f"Failed to load warming level times table: {e}"
-        #         ) from e
+        # Load warming level times table if not already loaded
+        if self.warming_level_times is None:
+            try:
+                self.warming_level_times = read_csv_file(
+                    GWL_1981_2010_TIMEIDX_FILE, index_col="time", parse_dates=True
+                )
+            except (FileNotFoundError, pd.errors.ParserError) as e:
+                raise RuntimeError(
+                    f"Failed to load warming level times table: {e}"
+                ) from e
 
         # add member id as a suffix to the keys
         # and split the data by member_id
@@ -173,7 +173,7 @@ class WarmingLevel(DataProcessor):
                     continue
                 start_year = year - self.warming_level_window
                 start_year = max(start_year, 1981)
-                end_year = year + self.warming_level_window
+                end_year = year + self.warming_level_window - 1
                 end_year = min(end_year, 2100)
 
                 da_slice = ret[key].sel(time=slice(f"{start_year}", f"{end_year}"))
