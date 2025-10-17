@@ -523,15 +523,15 @@ class TestClimateDataAdditionalShowMethods:
             self.climate_data.show_variable_options()
             mock_show.assert_called_once_with("variable_id", "Variables")
 
-    def test_show_stations(self):
-        """Test show_stations method."""
+    def test_show_station_options(self):
+        """Test show_station_options method."""
         with patch.object(
             self.climate_data._factory,
             "get_stations",
             return_value=["station1", "station2"],
         ) as mock_get_stations:
             with patch("builtins.print") as mock_print:
-                self.climate_data.show_stations()
+                self.climate_data.show_station_options()
 
             mock_get_stations.assert_called_once()
             mock_print.assert_called()
