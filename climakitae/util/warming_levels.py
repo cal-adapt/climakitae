@@ -453,7 +453,7 @@ def get_gwl_at_year(year: int, ssp: str = "all") -> pd.DataFrame:
                 print(f"Year {year} not found in {scenario}")
                 wl_timing_df.loc[scenario] = [np.nan, np.nan, np.nan]
             else:
-                wl_timing_df.loc[scenario] = data.loc[year]
+                wl_timing_df.loc[scenario] = round(data.loc[year], 2)
 
     else:
         # Finding the data from the historical period
@@ -465,7 +465,7 @@ def get_gwl_at_year(year: int, ssp: str = "all") -> pd.DataFrame:
             print(f"Year {year} not found in Historical")
             wl_timing_df.loc["Historical"] = [np.nan, np.nan, np.nan]
         else:
-            wl_timing_df.loc["Historical"] = hist_data.loc[year]
+            wl_timing_df.loc["Historical"] = round(hist_data.loc[year], 2)
 
     return wl_timing_df
 
@@ -489,6 +489,7 @@ def get_year_at_gwl(gwl: Union[float, int], ssp: str = "all") -> pd.DataFrame:
 
     """
     ssp_dict = generate_ssp_dict()
+
     wl_timing_df = pd.DataFrame(columns=["5%", "Mean", "95%"])
 
     ssp_list = (
@@ -506,17 +507,33 @@ def get_year_at_gwl(gwl: Union[float, int], ssp: str = "all") -> pd.DataFrame:
 
         def first_wl_year(one_ssp: pd.Series, mask: pd.Series) -> Union[int, float]:
             """Return the first year where the pd.Series mask is True, or NaN if none."""
-            return one_ssp.index[mask][0] if mask.any() else np.nan
+            if mask.any():
+                year = round(one_ssp.index[mask][0], 0)
+            else:
+                year = np.nan
+            return year
 
         # Only add data for a scenario if the mean and upper bound of uncertainty reach the gwl
-        if mean_mask.any() and upper_mask.any():
-            x_5 = first_wl_year(ssp_selected, upper_mask)
-            x_95 = first_wl_year(ssp_selected, lower_mask)
+        if mean_mask.any() and upper_mask.any() and (not mean_mask.all()):
             year_gwl_reached = first_wl_year(ssp_selected, mean_mask)
+            x_95 = first_wl_year(ssp_selected, lower_mask)
+
+            # If the lower bound is outside the range of the ssp, use the historical data
+            if upper_mask.all():
+                x_5 = first_wl_year(
+                    ssp_dict["Historical"], (ssp_dict["Historical"]["95%"] > gwl)
+                )
+            else:
+                x_5 = first_wl_year(ssp_selected, upper_mask)
 
         else:
             x_5 = x_95 = year_gwl_reached = np.nan
 
         wl_timing_df.loc[ssp] = [x_5, year_gwl_reached, x_95]
+
+    try:
+        wl_timing_df = wl_timing_df.astype("Int64")
+    except Exception:
+        pass
 
     return wl_timing_df
