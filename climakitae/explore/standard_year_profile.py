@@ -1,5 +1,5 @@
 """
-Calculates the Quantiled Climate Profiles using a warming level approach. The historical
+Calculates the Quantiled Standard Year Climate Profiles using a warming level approach. The historical
 baseline for relative profile computation is a warming level of 1.2 C. User specified
 warming level will be calculated relative to this baseline unless the "no_delta" option
 is set to True, in which case the raw profile(s) for the requested warming level(s) will
@@ -213,11 +213,11 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
 
 def get_climate_profile(**kwargs) -> pd.DataFrame:
     """
-    High-level function to compute climate profiles using warming level data.
+    High-level function to compute standard year climate profiles using warming level data.
 
-    This function retrieves climate data and computes average meteorological year
-    profiles using the 8760 analysis approach. It combines data retrieval and
-    profile computation in a single call.
+    This function retrieves climate data and computes standard year
+    profiles using the 8760 analysis approach. It combines data retrieval
+    and profile computation in a single call.
 
     Parameters
     ----------
@@ -238,7 +238,7 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
     Returns
     -------
     pd.DataFrame
-        Average meteorological year table for each warming level, with days of year as
+        Standard year table for each warming level, with days of year as
         the index and hour of day as the columns. If multiple warming levels exist,
         they will be included as additional column levels. Units and metadata are
         preserved in the DataFrame's attrs dictionary.
@@ -763,7 +763,7 @@ def _find_matching_historic_value(
 
 def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.DataFrame:
     """
-    Calculates the average meteorological year profile for warming level data using 8760
+    Calculates the standard year climate profile for warming level data using 8760
     analysis.
 
     This function handles global warming levels approach using time_delta coordinate.
@@ -791,7 +791,7 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
     Returns
     -------
     pd.DataFrame
-        Average meteorological year table for each warming level and simulation,
+        Standard year table for each warming level and simulation,
         with days of year as the index and hour of day as the columns.
         Multi-index columns include Hour, Warming_Level, and Simulation dimensions.
 
@@ -1378,7 +1378,7 @@ def _format_meteo_yr_df(df: pd.DataFrame) -> pd.DataFrame:
     """
     Format meteorological yearly dataframe for display with readable time labels.
 
-    This function reformats a dataframe output from compute_amy and compute_severe_yr
+    This function reformats a dataframe output from compute_profile
     by reordering columns to PST time format, converting numeric hour columns to
     12-hour AM/PM format, and converting Julian day indices to Month-Day format.
 

@@ -1,8 +1,8 @@
 """
-Unit tests for climakitae/explore/amy.py
+Unit tests for climakitae/explore/standard_year_profile.py
 
-This module contains comprehensive unit tests for the AMY (Average Meteorological Year)
-and climate profile computation functions that provide climate profile analysis.
+This module contains comprehensive unit tests for the Standard Year and climate
+profile computation functions that provide climate profile analysis.
 """
 
 import pytest
@@ -12,7 +12,7 @@ import xarray as xr
 from unittest.mock import MagicMock, patch
 
 
-from climakitae.explore.amy import (
+from climakitae.explore.standard_year_profile import (
     retrieve_profile_data,
     get_climate_profile,
     compute_profile,
@@ -53,7 +53,9 @@ class TestRetrieveProfileData:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.mock_get_data_patcher = patch("climakitae.explore.amy.get_data")
+        self.mock_get_data_patcher = patch(
+            "climakitae.explore.standard_year_profile.get_data"
+        )
         self.mock_get_data = self.mock_get_data_patcher.start()
 
     def teardown_method(self):
@@ -156,9 +158,11 @@ class TestGetClimateProfile:
     def setup_method(self):
         """Set up test fixtures."""
         self.mock_retrieve_patcher = patch(
-            "climakitae.explore.amy.retrieve_profile_data"
+            "climakitae.explore.standard_year_profile.retrieve_profile_data"
         )
-        self.mock_compute_patcher = patch("climakitae.explore.amy.compute_profile")
+        self.mock_compute_patcher = patch(
+            "climakitae.explore.standard_year_profile.compute_profile"
+        )
         self.mock_print_patcher = patch("builtins.print")
 
         self.mock_retrieve_profile_data = self.mock_retrieve_patcher.start()
