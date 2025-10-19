@@ -4378,9 +4378,7 @@ class TestGetStationCoordinates:
     def test_get_station_coordinates_returns_tuple(self):
         """Test that _get_station_coordinates returns a tuple of coordinates."""
         # Setup mock DataInterface
-        with patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class:
+        with patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class:
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
             mock_data_interface_class.return_value = mock_instance
@@ -4394,7 +4392,9 @@ class TestGetStationCoordinates:
             assert isinstance(result, tuple), "Should return a tuple"
             assert len(result) == 2, "Tuple should contain exactly 2 elements"
             lat, lon = result
-            assert isinstance(lat, (int, float, np.number)), "Latitude should be numeric"
+            assert isinstance(
+                lat, (int, float, np.number)
+            ), "Latitude should be numeric"
             assert isinstance(
                 lon, (int, float, np.number)
             ), "Longitude should be numeric"
@@ -4402,9 +4402,7 @@ class TestGetStationCoordinates:
     def test_get_station_coordinates_returns_correct_values(self):
         """Test that _get_station_coordinates returns correct coordinate values."""
         # Setup mock DataInterface
-        with patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class:
+        with patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class:
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
             mock_data_interface_class.return_value = mock_instance
@@ -4421,9 +4419,7 @@ class TestGetStationCoordinates:
     def test_get_station_coordinates_with_different_stations(self):
         """Test _get_station_coordinates with multiple different stations."""
         # Setup mock DataInterface
-        with patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class:
+        with patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class:
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
             mock_data_interface_class.return_value = mock_instance
@@ -4447,9 +4443,7 @@ class TestGetStationCoordinates:
     def test_get_station_coordinates_raises_error_for_invalid_station(self):
         """Test that _get_station_coordinates raises ValueError for invalid station name."""
         # Setup mock DataInterface
-        with patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class:
+        with patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class:
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
             mock_data_interface_class.return_value = mock_instance
@@ -4465,9 +4459,7 @@ class TestGetStationCoordinates:
     def test_get_station_coordinates_raises_error_for_empty_string(self):
         """Test that _get_station_coordinates raises ValueError for empty station name."""
         # Setup mock DataInterface
-        with patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class:
+        with patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class:
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
             mock_data_interface_class.return_value = mock_instance
@@ -4511,9 +4503,7 @@ class TestConvertStationsToLatLon:
     def test_convert_stations_to_lat_lon_returns_tuple_of_tuples(self):
         """Test that _convert_stations_to_lat_lon returns tuple of (lat_bounds, lon_bounds)."""
         # Setup mock
-        with patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class:
+        with patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class:
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
             mock_data_interface_class.return_value = mock_instance
@@ -4527,7 +4517,9 @@ class TestConvertStationsToLatLon:
 
             # Verify outcome: returns tuple of two tuples
             assert isinstance(result, tuple), "Should return a tuple"
-            assert len(result) == 2, "Should contain 2 elements (lat_bounds, lon_bounds)"
+            assert (
+                len(result) == 2
+            ), "Should contain 2 elements (lat_bounds, lon_bounds)"
             lat_bounds, lon_bounds = result
             assert isinstance(lat_bounds, tuple), "lat_bounds should be a tuple"
             assert isinstance(lon_bounds, tuple), "lon_bounds should be a tuple"
@@ -4537,9 +4529,7 @@ class TestConvertStationsToLatLon:
     def test_convert_stations_to_lat_lon_single_station_with_buffer(self):
         """Test _convert_stations_to_lat_lon with single station applies buffer correctly."""
         # Setup mock
-        with patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class:
+        with patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class:
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
             mock_data_interface_class.return_value = mock_instance
@@ -4574,9 +4564,7 @@ class TestConvertStationsToLatLon:
     def test_convert_stations_to_lat_lon_multiple_stations(self):
         """Test _convert_stations_to_lat_lon with multiple stations creates bounding box."""
         # Setup mock
-        with patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class:
+        with patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class:
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
             mock_data_interface_class.return_value = mock_instance
@@ -4616,9 +4604,7 @@ class TestConvertStationsToLatLon:
     def test_convert_stations_to_lat_lon_with_custom_buffer(self):
         """Test _convert_stations_to_lat_lon with custom buffer value."""
         # Setup mock
-        with patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class:
+        with patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class:
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
             mock_data_interface_class.return_value = mock_instance
@@ -4653,9 +4639,7 @@ class TestConvertStationsToLatLon:
     def test_convert_stations_to_lat_lon_raises_error_for_empty_list(self):
         """Test that _convert_stations_to_lat_lon raises ValueError for empty station list."""
         # Setup mock
-        with patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class:
+        with patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class:
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
             mock_data_interface_class.return_value = mock_instance
@@ -4671,9 +4655,7 @@ class TestConvertStationsToLatLon:
     def test_convert_stations_to_lat_lon_raises_error_for_invalid_station(self):
         """Test that _convert_stations_to_lat_lon raises ValueError when station not found."""
         # Setup mock
-        with patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class:
+        with patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class:
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
             mock_data_interface_class.return_value = mock_instance
@@ -4691,9 +4673,7 @@ class TestConvertStationsToLatLon:
     def test_convert_stations_to_lat_lon_with_three_stations(self):
         """Test _convert_stations_to_lat_lon creates correct bounding box for three stations."""
         # Setup mock
-        with patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class:
+        with patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class:
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
             mock_data_interface_class.return_value = mock_instance
