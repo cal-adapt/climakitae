@@ -36,6 +36,8 @@ from climakitae.explore.standard_year_profile import (
     _create_multi_wl_multi_sim_dataframe,
     _stack_profile_data,
     _format_meteo_yr_df,
+    _get_station_coordinates,
+    _convert_stations_to_lat_lon,
 )
 
 
@@ -4342,3 +4344,582 @@ class TestFormatMeteoYrDf:
         assert all(
             "-" in str(idx) for idx in result.index
         ), "All indices should be in Month-Day format"
+
+
+class TestGetStationCoordinates:
+    """Test class for _get_station_coordinates function.
+
+    Tests the function that looks up latitude and longitude coordinates
+    for a given weather station name from the DataInterface.
+
+    Attributes
+    ----------
+    mock_data_interface : MagicMock
+        Mock DataInterface instance.
+    mock_stations_gdf : MagicMock
+        Mock GeoDataFrame with station data.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create mock stations GeoDataFrame
+        self.mock_stations_gdf = pd.DataFrame(
+            {
+                "station": [
+                    "San Diego Lindbergh Field (KSAN)",
+                    "Los Angeles International Airport (KLAX)",
+                    "San Francisco International Airport (KSFO)",
+                ],
+                "LAT_Y": [32.7336, 33.9416, 37.6213],
+                "LON_X": [-117.1831, -118.4085, -122.3790],
+            }
+        )
+
+    def test_get_station_coordinates_returns_tuple(self):
+        """Test that _get_station_coordinates returns a tuple of coordinates."""
+        # Setup mock DataInterface
+        with patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class:
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            # Execute function
+            from climakitae.explore.amy import _get_station_coordinates
+
+            result = _get_station_coordinates("San Diego Lindbergh Field (KSAN)")
+
+            # Verify outcome: returns tuple of (lat, lon)
+            assert isinstance(result, tuple), "Should return a tuple"
+            assert len(result) == 2, "Tuple should contain exactly 2 elements"
+            lat, lon = result
+            assert isinstance(lat, (int, float, np.number)), "Latitude should be numeric"
+            assert isinstance(
+                lon, (int, float, np.number)
+            ), "Longitude should be numeric"
+
+    def test_get_station_coordinates_returns_correct_values(self):
+        """Test that _get_station_coordinates returns correct coordinate values."""
+        # Setup mock DataInterface
+        with patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class:
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            # Execute function
+            from climakitae.explore.amy import _get_station_coordinates
+
+            lat, lon = _get_station_coordinates("San Diego Lindbergh Field (KSAN)")
+
+            # Verify outcome: returns correct coordinates
+            assert lat == 32.7336, "Should return correct latitude"
+            assert lon == -117.1831, "Should return correct longitude"
+
+    def test_get_station_coordinates_with_different_stations(self):
+        """Test _get_station_coordinates with multiple different stations."""
+        # Setup mock DataInterface
+        with patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class:
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            from climakitae.explore.amy import _get_station_coordinates
+
+            # Test LAX station
+            lat_lax, lon_lax = _get_station_coordinates(
+                "Los Angeles International Airport (KLAX)"
+            )
+            assert lat_lax == 33.9416, "Should return correct LAX latitude"
+            assert lon_lax == -118.4085, "Should return correct LAX longitude"
+
+            # Test SFO station
+            lat_sfo, lon_sfo = _get_station_coordinates(
+                "San Francisco International Airport (KSFO)"
+            )
+            assert lat_sfo == 37.6213, "Should return correct SFO latitude"
+            assert lon_sfo == -122.3790, "Should return correct SFO longitude"
+
+    def test_get_station_coordinates_raises_error_for_invalid_station(self):
+        """Test that _get_station_coordinates raises ValueError for invalid station name."""
+        # Setup mock DataInterface
+        with patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class:
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            # Execute and verify outcome: should raise ValueError
+            from climakitae.explore.amy import _get_station_coordinates
+
+            with pytest.raises(
+                ValueError, match="Station .* not found in the DataInterface"
+            ):
+                _get_station_coordinates("Invalid Station Name (XXX)")
+
+    def test_get_station_coordinates_raises_error_for_empty_string(self):
+        """Test that _get_station_coordinates raises ValueError for empty station name."""
+        # Setup mock DataInterface
+        with patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class:
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            # Execute and verify outcome: should raise ValueError
+            from climakitae.explore.amy import _get_station_coordinates
+
+            with pytest.raises(
+                ValueError, match="Station .* not found in the DataInterface"
+            ):
+                _get_station_coordinates("")
+
+
+class TestConvertStationsToLatLon:
+    """Test class for _convert_stations_to_lat_lon function.
+
+    Tests the function that converts a list of station names to lat/lon
+    bounds with a specified buffer for spatial subsetting.
+
+    Attributes
+    ----------
+    mock_stations_gdf : pd.DataFrame
+        Mock GeoDataFrame with station data.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create mock stations GeoDataFrame
+        self.mock_stations_gdf = pd.DataFrame(
+            {
+                "station": [
+                    "San Diego Lindbergh Field (KSAN)",
+                    "Los Angeles International Airport (KLAX)",
+                    "San Francisco International Airport (KSFO)",
+                ],
+                "LAT_Y": [32.7336, 33.9416, 37.6213],
+                "LON_X": [-117.1831, -118.4085, -122.3790],
+            }
+        )
+
+    def test_convert_stations_to_lat_lon_returns_tuple_of_tuples(self):
+        """Test that _convert_stations_to_lat_lon returns tuple of (lat_bounds, lon_bounds)."""
+        # Setup mock
+        with patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class:
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            from climakitae.explore.amy import _convert_stations_to_lat_lon
+
+            # Execute function
+            result = _convert_stations_to_lat_lon(
+                ["San Diego Lindbergh Field (KSAN)"], buffer=0.02
+            )
+
+            # Verify outcome: returns tuple of two tuples
+            assert isinstance(result, tuple), "Should return a tuple"
+            assert len(result) == 2, "Should contain 2 elements (lat_bounds, lon_bounds)"
+            lat_bounds, lon_bounds = result
+            assert isinstance(lat_bounds, tuple), "lat_bounds should be a tuple"
+            assert isinstance(lon_bounds, tuple), "lon_bounds should be a tuple"
+            assert len(lat_bounds) == 2, "lat_bounds should have min and max"
+            assert len(lon_bounds) == 2, "lon_bounds should have min and max"
+
+    def test_convert_stations_to_lat_lon_single_station_with_buffer(self):
+        """Test _convert_stations_to_lat_lon with single station applies buffer correctly."""
+        # Setup mock
+        with patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class:
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            from climakitae.explore.amy import _convert_stations_to_lat_lon
+
+            # Execute function with default buffer (0.02)
+            lat_bounds, lon_bounds = _convert_stations_to_lat_lon(
+                ["San Diego Lindbergh Field (KSAN)"], buffer=0.02
+            )
+
+            # Verify outcome: bounds are station coordinates +/- buffer
+            # San Diego: lat=32.7336, lon=-117.1831
+            expected_lat_min = 32.7336 - 0.02
+            expected_lat_max = 32.7336 + 0.02
+            expected_lon_min = -117.1831 - 0.02
+            expected_lon_max = -117.1831 + 0.02
+
+            assert (
+                abs(lat_bounds[0] - expected_lat_min) < 1e-6
+            ), "Should apply buffer to min latitude"
+            assert (
+                abs(lat_bounds[1] - expected_lat_max) < 1e-6
+            ), "Should apply buffer to max latitude"
+            assert (
+                abs(lon_bounds[0] - expected_lon_min) < 1e-6
+            ), "Should apply buffer to min longitude"
+            assert (
+                abs(lon_bounds[1] - expected_lon_max) < 1e-6
+            ), "Should apply buffer to max longitude"
+
+    def test_convert_stations_to_lat_lon_multiple_stations(self):
+        """Test _convert_stations_to_lat_lon with multiple stations creates bounding box."""
+        # Setup mock
+        with patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class:
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            from climakitae.explore.amy import _convert_stations_to_lat_lon
+
+            # Execute function with two stations
+            lat_bounds, lon_bounds = _convert_stations_to_lat_lon(
+                [
+                    "San Diego Lindbergh Field (KSAN)",
+                    "Los Angeles International Airport (KLAX)",
+                ],
+                buffer=0.02,
+            )
+
+            # Verify outcome: bounds encompass both stations with buffer
+            # San Diego: lat=32.7336, lon=-117.1831
+            # LAX: lat=33.9416, lon=-118.4085
+            expected_lat_min = 32.7336 - 0.02  # Min from San Diego
+            expected_lat_max = 33.9416 + 0.02  # Max from LAX
+            expected_lon_min = -118.4085 - 0.02  # Min (most negative) from LAX
+            expected_lon_max = -117.1831 + 0.02  # Max (least negative) from San Diego
+
+            assert (
+                abs(lat_bounds[0] - expected_lat_min) < 1e-6
+            ), "Should use minimum latitude with buffer"
+            assert (
+                abs(lat_bounds[1] - expected_lat_max) < 1e-6
+            ), "Should use maximum latitude with buffer"
+            assert (
+                abs(lon_bounds[0] - expected_lon_min) < 1e-6
+            ), "Should use minimum longitude with buffer"
+            assert (
+                abs(lon_bounds[1] - expected_lon_max) < 1e-6
+            ), "Should use maximum longitude with buffer"
+
+    def test_convert_stations_to_lat_lon_with_custom_buffer(self):
+        """Test _convert_stations_to_lat_lon with custom buffer value."""
+        # Setup mock
+        with patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class:
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            from climakitae.explore.amy import _convert_stations_to_lat_lon
+
+            # Execute function with custom buffer
+            custom_buffer = 0.05
+            lat_bounds, lon_bounds = _convert_stations_to_lat_lon(
+                ["San Diego Lindbergh Field (KSAN)"], buffer=custom_buffer
+            )
+
+            # Verify outcome: uses custom buffer value
+            expected_lat_min = 32.7336 - custom_buffer
+            expected_lat_max = 32.7336 + custom_buffer
+            expected_lon_min = -117.1831 - custom_buffer
+            expected_lon_max = -117.1831 + custom_buffer
+
+            assert (
+                abs(lat_bounds[0] - expected_lat_min) < 1e-6
+            ), "Should apply custom buffer to min latitude"
+            assert (
+                abs(lat_bounds[1] - expected_lat_max) < 1e-6
+            ), "Should apply custom buffer to max latitude"
+            assert (
+                abs(lon_bounds[0] - expected_lon_min) < 1e-6
+            ), "Should apply custom buffer to min longitude"
+            assert (
+                abs(lon_bounds[1] - expected_lon_max) < 1e-6
+            ), "Should apply custom buffer to max longitude"
+
+    def test_convert_stations_to_lat_lon_raises_error_for_empty_list(self):
+        """Test that _convert_stations_to_lat_lon raises ValueError for empty station list."""
+        # Setup mock
+        with patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class:
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            from climakitae.explore.amy import _convert_stations_to_lat_lon
+
+            # Execute and verify outcome: should raise ValueError
+            with pytest.raises(
+                ValueError, match="No stations provided for coordinate conversion"
+            ):
+                _convert_stations_to_lat_lon([], buffer=0.02)
+
+    def test_convert_stations_to_lat_lon_raises_error_for_invalid_station(self):
+        """Test that _convert_stations_to_lat_lon raises ValueError when station not found."""
+        # Setup mock
+        with patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class:
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            from climakitae.explore.amy import _convert_stations_to_lat_lon
+
+            # Execute and verify outcome: should raise ValueError
+            with pytest.raises(
+                ValueError, match="Station .* not found in the DataInterface"
+            ):
+                _convert_stations_to_lat_lon(
+                    ["Invalid Station Name (XXX)"], buffer=0.02
+                )
+
+    def test_convert_stations_to_lat_lon_with_three_stations(self):
+        """Test _convert_stations_to_lat_lon creates correct bounding box for three stations."""
+        # Setup mock
+        with patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class:
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            from climakitae.explore.amy import _convert_stations_to_lat_lon
+
+            # Execute function with all three stations
+            lat_bounds, lon_bounds = _convert_stations_to_lat_lon(
+                [
+                    "San Diego Lindbergh Field (KSAN)",
+                    "Los Angeles International Airport (KLAX)",
+                    "San Francisco International Airport (KSFO)",
+                ],
+                buffer=0.02,
+            )
+
+            # Verify outcome: bounds encompass all three stations
+            # San Diego: lat=32.7336 (min), lon=-117.1831 (max/least negative)
+            # LAX: lat=33.9416, lon=-118.4085
+            # SFO: lat=37.6213 (max), lon=-122.3790 (min/most negative)
+            expected_lat_min = 32.7336 - 0.02
+            expected_lat_max = 37.6213 + 0.02
+            expected_lon_min = -122.3790 - 0.02
+            expected_lon_max = -117.1831 + 0.02
+
+            assert (
+                abs(lat_bounds[0] - expected_lat_min) < 1e-6
+            ), "Should use minimum latitude from all stations"
+            assert (
+                abs(lat_bounds[1] - expected_lat_max) < 1e-6
+            ), "Should use maximum latitude from all stations"
+            assert (
+                abs(lon_bounds[0] - expected_lon_min) < 1e-6
+            ), "Should use minimum longitude from all stations"
+            assert (
+                abs(lon_bounds[1] - expected_lon_max) < 1e-6
+            ), "Should use maximum longitude from all stations"
+
+
+class TestRetrieveProfileDataWithStations:
+    """Test class for retrieve_profile_data with stations parameter.
+
+    Tests that the stations parameter is correctly intercepted and converted
+    to lat/lon coordinates with buffer before calling get_data.
+
+    Attributes
+    ----------
+    mock_get_data : MagicMock
+        Mock for get_data function.
+    mock_stations_gdf : pd.DataFrame
+        Mock GeoDataFrame with station data.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create mock stations GeoDataFrame
+        self.mock_stations_gdf = pd.DataFrame(
+            {
+                "station": [
+                    "San Diego Lindbergh Field (KSAN)",
+                    "Los Angeles International Airport (KLAX)",
+                ],
+                "LAT_Y": [32.7336, 33.9416],
+                "LON_X": [-117.1831, -118.4085],
+            }
+        )
+
+    def test_retrieve_profile_data_converts_stations_to_lat_lon(self):
+        """Test that stations parameter is converted to lat/lon before calling get_data."""
+        # Setup mocks
+        with patch("climakitae.explore.amy.get_data") as mock_get_data, patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class, patch("builtins.print"):
+            # Setup DataInterface mock
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            # Setup get_data mock
+            mock_dataset = MagicMock(spec=xr.Dataset)
+            mock_get_data.return_value = mock_dataset
+
+            # Execute function with stations parameter
+            retrieve_profile_data(
+                stations=["San Diego Lindbergh Field (KSAN)"], warming_level=[2.0]
+            )
+
+            # Verify outcome: get_data should be called with lat/lon, not stations
+            assert mock_get_data.call_count >= 1, "Should call get_data"
+
+            # Check that lat/lon were passed in at least one call
+            found_lat_lon = False
+            for call in mock_get_data.call_args_list:
+                kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
+                if "latitude" in kwargs and "longitude" in kwargs:
+                    found_lat_lon = True
+                    # Verify stations was NOT passed
+                    assert (
+                        "stations" not in kwargs
+                    ), "stations parameter should not be passed to get_data"
+                    # Verify lat/lon are tuples with min/max
+                    assert isinstance(
+                        kwargs["latitude"], tuple
+                    ), "latitude should be a tuple"
+                    assert isinstance(
+                        kwargs["longitude"], tuple
+                    ), "longitude should be a tuple"
+                    assert (
+                        len(kwargs["latitude"]) == 2
+                    ), "latitude should have min and max"
+                    assert (
+                        len(kwargs["longitude"]) == 2
+                    ), "longitude should have min and max"
+
+            assert found_lat_lon, "At least one call should include lat/lon parameters"
+
+    def test_retrieve_profile_data_applies_correct_buffer_to_stations(self):
+        """Test that stations are converted with correct 0.02 degree buffer."""
+        # Setup mocks
+        with patch("climakitae.explore.amy.get_data") as mock_get_data, patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class, patch("builtins.print"):
+            # Setup DataInterface mock
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            # Setup get_data mock
+            mock_dataset = MagicMock(spec=xr.Dataset)
+            mock_get_data.return_value = mock_dataset
+
+            # Execute function with stations parameter
+            retrieve_profile_data(
+                stations=["San Diego Lindbergh Field (KSAN)"], warming_level=[2.0]
+            )
+
+            # Verify outcome: lat/lon should have 0.02 buffer applied
+            # San Diego: lat=32.7336, lon=-117.1831
+            expected_lat_min = 32.7336 - 0.02
+            expected_lat_max = 32.7336 + 0.02
+            expected_lon_min = -117.1831 - 0.02
+            expected_lon_max = -117.1831 + 0.02
+
+            # Find the call with lat/lon
+            for call in mock_get_data.call_args_list:
+                kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
+                if "latitude" in kwargs:
+                    lat_bounds = kwargs["latitude"]
+                    lon_bounds = kwargs["longitude"]
+
+                    assert (
+                        abs(lat_bounds[0] - expected_lat_min) < 1e-6
+                    ), "Should apply 0.02 buffer to min latitude"
+                    assert (
+                        abs(lat_bounds[1] - expected_lat_max) < 1e-6
+                    ), "Should apply 0.02 buffer to max latitude"
+                    assert (
+                        abs(lon_bounds[0] - expected_lon_min) < 1e-6
+                    ), "Should apply 0.02 buffer to min longitude"
+                    assert (
+                        abs(lon_bounds[1] - expected_lon_max) < 1e-6
+                    ), "Should apply 0.02 buffer to max longitude"
+
+    def test_retrieve_profile_data_cached_area_takes_priority_over_stations(self):
+        """Test that cached_area parameter takes priority over stations."""
+        # Setup mocks
+        with patch("climakitae.explore.amy.get_data") as mock_get_data, patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class, patch("builtins.print"):
+            # Setup DataInterface mock
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            # Setup get_data mock
+            mock_dataset = MagicMock(spec=xr.Dataset)
+            mock_get_data.return_value = mock_dataset
+
+            # Execute function with both cached_area and stations
+            retrieve_profile_data(
+                cached_area="Los Angeles",
+                stations=["San Diego Lindbergh Field (KSAN)"],
+                warming_level=[2.0],
+            )
+
+            # Verify outcome: cached_area should be used, stations should be ignored
+            for call in mock_get_data.call_args_list:
+                kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
+                assert (
+                    kwargs.get("cached_area") == "Los Angeles"
+                ), "Should use cached_area"
+                # Stations should not be converted to lat/lon when cached_area is present
+                # (cached_area takes priority)
+
+    def test_retrieve_profile_data_explicit_lat_lon_takes_priority_over_stations(self):
+        """Test that explicit lat/lon parameters take priority over stations."""
+        # Setup mocks
+        with patch("climakitae.explore.amy.get_data") as mock_get_data, patch(
+            "climakitae.explore.amy.DataInterface"
+        ) as mock_data_interface_class, patch("builtins.print"):
+            # Setup DataInterface mock
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
+
+            # Setup get_data mock
+            mock_dataset = MagicMock(spec=xr.Dataset)
+            mock_get_data.return_value = mock_dataset
+
+            # Execute function with both explicit lat/lon and stations
+            explicit_lat = (32.0, 34.0)
+            explicit_lon = (-118.0, -116.0)
+            retrieve_profile_data(
+                latitude=explicit_lat,
+                longitude=explicit_lon,
+                stations=["San Diego Lindbergh Field (KSAN)"],
+                warming_level=[2.0],
+            )
+
+            # Verify outcome: explicit lat/lon should be used, stations should be ignored
+            for call in mock_get_data.call_args_list:
+                kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
+                if "latitude" in kwargs:
+                    assert (
+                        kwargs["latitude"] == explicit_lat
+                    ), "Should use explicit latitude"
+                    assert (
+                        kwargs["longitude"] == explicit_lon
+                    ), "Should use explicit longitude"

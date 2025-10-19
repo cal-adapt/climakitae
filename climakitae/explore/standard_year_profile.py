@@ -13,10 +13,102 @@ import pandas as pd
 import xarray as xr
 from tqdm.auto import tqdm  # Progress bar
 
-from climakitae.core.data_interface import get_data
+from climakitae.core.data_interface import DataInterface, get_data
 from climakitae.util.utils import julianDay_to_date
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
+
+
+def _get_station_coordinates(station_name: str) -> Tuple[float, float]:
+    """
+    Look up the latitude and longitude coordinates for a given station name.
+
+    Parameters
+    ----------
+    station_name : str
+        Name of the weather station to look up.
+
+    Returns
+    -------
+    Tuple[float, float]
+        (latitude, longitude) coordinates of the station.
+
+    Raises
+    ------
+    ValueError
+        If the station name is not found in the DataInterface.
+
+    Examples
+    --------
+    >>> lat, lon = _get_station_coordinates("San Diego Lindbergh Field (KSAN)")
+    >>> print(f"Latitude: {lat}, Longitude: {lon}")
+    """
+    data_interface = DataInterface()
+    stations_gdf = data_interface.stations_gdf
+
+    # Look up the station in the GeoDataFrame
+    station_row = stations_gdf[stations_gdf["station"] == station_name]
+
+    if station_row.empty:
+        raise ValueError(
+            f"Station '{station_name}' not found in the DataInterface. "
+            f"Please check the station name and try again."
+        )
+
+    # Extract coordinates
+    lat = station_row["LAT_Y"].iloc[0]
+    lon = station_row["LON_X"].iloc[0]
+
+    return lat, lon
+
+
+def _convert_stations_to_lat_lon(
+    stations: list[str], buffer: float = 0.02
+) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+    """
+    Convert a list of station names to lat/lon bounds with a buffer.
+
+    Parameters
+    ----------
+    stations : list[str]
+        List of weather station names to convert.
+    buffer : float, optional
+        Buffer to add around station coordinates in degrees (default: 0.02).
+
+    Returns
+    -------
+    Tuple[Tuple[float, float], Tuple[float, float]]
+        (latitude_bounds, longitude_bounds) where each bounds is a tuple of (min, max).
+
+    Raises
+    ------
+    ValueError
+        If any station name is not found in the DataInterface.
+
+    Examples
+    --------
+    >>> stations = ["San Diego Lindbergh Field (KSAN)"]
+    >>> lat_bounds, lon_bounds = _convert_stations_to_lat_lon(stations)
+    >>> print(f"Latitude: {lat_bounds}, Longitude: {lon_bounds}")
+    """
+    if not stations:
+        raise ValueError("No stations provided for coordinate conversion.")
+
+    # Get coordinates for all stations
+    lats = []
+    lons = []
+    for station in stations:
+        lat, lon = _get_station_coordinates(station)
+        lats.append(lat)
+        lons.append(lon)
+
+    # Calculate bounds with buffer
+    min_lat = min(lats) - buffer
+    max_lat = max(lats) + buffer
+    min_lon = min(lons) - buffer
+    max_lon = max(lons) + buffer
+
+    return (min_lat, max_lat), (min_lon, max_lon)
 
 
 def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
@@ -161,8 +253,19 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
             kwargs.pop("stations", None)
             print("   ⚠️  Note: Using latitude/longitude, ignoring provided stations")
     elif "stations" in provided_location_params:
-        # Stations provided, no action needed
-        pass
+        # Stations provided - convert to lat/lon with buffer
+        stations = kwargs.pop("stations")
+        print(
+            f"   📍 Converting {len(stations)} station(s) to lat/lon coordinates with ±0.02° buffer"
+        )
+        try:
+            lat_bounds, lon_bounds = _convert_stations_to_lat_lon(stations, buffer=0.02)
+            kwargs["latitude"] = lat_bounds
+            kwargs["longitude"] = lon_bounds
+            print(f"      Latitude range: {lat_bounds[0]:.4f} to {lat_bounds[1]:.4f}")
+            print(f"      Longitude range: {lon_bounds[0]:.4f} to {lon_bounds[1]:.4f}")
+        except ValueError as e:
+            raise ValueError(f"Error converting stations to coordinates: {e}")
     else:
         # No location parameters provided - warn about entire CA dataset
         print(
@@ -176,6 +279,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         )
 
     # Set default parameters for data retrieval
+    # Note: if stations were provided, they've been converted to lat/lon above
     get_data_params = {
         "variable": kwargs.get("variable", "Air Temperature at 2m"),
         "resolution": kwargs.get("resolution", "3 km"),
@@ -196,7 +300,6 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         "cached_area": kwargs.get("cached_area", None),
         "latitude": kwargs.get("latitude", None),
         "longitude": kwargs.get("longitude", None),
-        "stations": kwargs.get("stations", None),
     }
 
     historic_data = None
