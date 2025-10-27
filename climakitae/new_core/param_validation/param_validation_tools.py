@@ -57,29 +57,45 @@ def _validate_experimental_id_param(
     value: list[str] | None,
     valid_experiment_ids: list[str],
 ) -> bool:
-    """Validate the experiment_id parameter.
+    """Validate the experiment_id parameter against a list of valid experiment IDs.
 
-    This function checks if the provided value is valid for the experiment_id parameter.
-    It performs a greedy match against a predefined list of valid experiment IDs,
-    replacing partial matches with the full valid ID.
+    This function checks if the provided experiment_id value(s) are valid by comparing
+    them against a predefined list of valid experiment IDs. It supports partial matching
+    for convenience and provides helpful error messages with suggestions for invalid inputs.
 
     Parameters
     ----------
-    value : str | list[str] | None
-        The experiment_id parameter to validate.
+    value : list[str] | None
+        The experiment_id parameter to validate. Can be None, a single string converted
+        to a list internally, or a list of strings representing experiment IDs.
+    valid_experiment_ids : list[str]
+        A list of valid experiment ID strings to validate against.
 
     Returns
     -------
-    bool
-        True if valid, False otherwise.
+    bool :
+        True if all provided experiment IDs are valid or can be matched, False otherwise.
+        Returns False for None or empty inputs.
+
+    Warnings
+    --------
+    UserWarning
+        Issued when an experiment ID is not found, either with suggestions for
+        the closest matches or a general message to check available IDs.
 
     Notes
     -----
-    Modifies input value in place if it contains a single string that matches
-    multiple valid experiment IDs. If the value is a single string that does not
-    match any valid experiment ID, it will attempt to find the closest match
-    from the valid_experiment_ids list and issue a warning.
+    This function modifies the input value list in place under certain conditions:
 
+    - For single string inputs that partially match multiple valid experiment IDs,
+      the function performs a greedy match, replacing the partial string with all
+      matching full experiment IDs (e.g., "ssp" might expand to ["ssp126", "ssp245", "ssp585"]).
+
+    - For invalid experiment IDs, the function attempts to find the closest match
+      using fuzzy matching and issues warnings with suggestions.
+
+    - For multiple values, each is validated individually, and warnings are issued
+      for any invalid entries.
     """
 
     if value is None:
@@ -144,28 +160,75 @@ def _coerce_to_dates(value: Iterable[Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
 
     Parameters
     ----------
-    value : tuple
-        The value to coerce.
+    value : Iterable[Any]
+        An iterable containing exactly 2 date-like objects to coerce.
+        Each element can be a string, int, float, datetime.date,
+        datetime.datetime, pd.Timestamp, or pd.DatetimeIndex.
+
+        For integer/float values in the range 1900-2200, they are treated as years:
+        - First position: Start of year (January 1st)
+        - Second position: End of year (December 31st)
+
+        Other numeric values are treated as Unix timestamps.
 
     Returns
     -------
-    tuple
-        The coerced values.
+    tuple[pd.Timestamp, pd.Timestamp]
+        A tuple containing exactly 2 pd.Timestamp objects.
+
+    Raises
+    ------
+    ValueError
+        If the iterable doesn't contain exactly 2 elements or if any
+        element cannot be coerced to a date-like object.
+
+    Examples
+    --------
+    >>> _coerce_to_dates([2020, 2021])
+    (Timestamp('2020-01-01 00:00:00'), Timestamp('2021-12-31 00:00:00'))
+
+    >>> _coerce_to_dates(["2020-01-01", "2021-06-15"])
+    (Timestamp('2020-01-01 00:00:00'), Timestamp('2021-06-15 00:00:00'))
 
     """
+    # Convert to list to check length and iterate
+    value_list = list(value)
+
+    if len(value_list) != 2:
+        raise ValueError(f"Expected exactly 2 date-like values, got {len(value_list)}")
+
     ret = []
-    for x in value:
-        match x:
-            case str() | int() | float() | datetime.date() | datetime.datetime():
-                ret.append(pd.to_datetime(x))
-            case pd.Timestamp():
-                ret.append(x)
-            case pd.DatetimeIndex():
-                ret.append(x[0])
-            case _:
-                warnings.warn(
-                    f"\n\nValue '{x}' is not a date-like object. "
-                    "\nExpected a string, int, float, datetime.date, datetime.datetime, or pd.Timestamp."
-                )
-                return None
+    for i, x in enumerate(value_list):
+        try:
+            match x:
+                case str() | datetime.date() | datetime.datetime():
+                    ret.append(pd.to_datetime(x))
+                case int() | float() if 1900 <= x <= 2200:
+                    # Handle year integers/floats - interpret as year ranges
+                    if i == 0:
+                        # First position: start of year (Jan 1st)
+                        ret.append(pd.Timestamp(year=int(x), month=1, day=1))
+                    else:
+                        # Second position: end of year (Dec 31st)
+                        ret.append(pd.Timestamp(year=int(x), month=12, day=31))
+                case int() | float():
+                    # Handle other numeric values (Unix timestamps, etc.)
+                    ret.append(pd.to_datetime(x))
+                case pd.Timestamp():
+                    ret.append(x)
+                case pd.DatetimeIndex():
+                    if len(x) == 0:
+                        raise ValueError(f"Empty DatetimeIndex at position {i}")
+                    ret.append(x[0])
+                case _:
+                    raise ValueError(
+                        f"Value '{x}' at position {i} is not a date-like object. "
+                        f"Expected a string, int, float, datetime.date, datetime.datetime, "
+                        f"pd.Timestamp, or pd.DatetimeIndex."
+                    )
+        except (ValueError, TypeError, pd.errors.OutOfBoundsDatetime) as e:
+            raise ValueError(
+                f"Cannot coerce value '{x}' at position {i} to datetime: {e}"
+            ) from e
+
     return tuple(ret)
