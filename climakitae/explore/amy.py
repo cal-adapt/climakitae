@@ -14,7 +14,10 @@ import xarray as xr
 from tqdm.auto import tqdm  # Progress bar
 
 from climakitae.core.data_interface import DataInterface, get_data
-from climakitae.util.utils import julianDay_to_date
+from climakitae.core.paths import VARIABLE_DESCRIPTIONS_CSV_PATH
+from climakitae.util.utils import julianDay_to_date, read_csv_file
+from climakitae.explore.typical_meteorological_year import TMY
+from climakitae.core.constants import UNSET
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
@@ -109,6 +112,96 @@ def _convert_stations_to_lat_lon(
     max_lon = max(lons) + buffer
 
     return (min_lat, max_lat), (min_lon, max_lon)
+
+
+def get_clean_standardyr_filename(var, q, location_str, gwl, no_delta):
+    """
+    Standardizes filename export for standard year files
+
+    Parameters
+    ----------
+    var : str
+        Name of variable used in profile
+    q : float
+        Percentile used in profile
+    gwl : float
+        Single gwl for csv file name
+    no_delta (optional) : bool
+        no_delta value used to generate profile
+
+    """
+
+    # clean arguments for filenaming
+    clean_stn_name = station.replace(" ", "_").replace("(", "").replace(")", "")
+    clean_q_name = f"{q:.2f}".split(".")[1]
+    clean_var_name = var
+    clean_gwl_name = TMY._match_str_to_wl(gwl)
+    if no_delta:
+        delta_str = ""
+    else:
+        delta_str = "_delta_from_historical"
+
+    filename = (
+        f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_stn_name}{clean_gwl_name}{delta_str}.csv"
+    ).lower()
+    return filename
+
+
+def export_profile_to_csv(
+    profile,
+    variable="Air Temperature at 2m",
+    q=0.5,
+    global_warming_levels=[1.2],
+    station_name=UNSET,
+    cached_area=UNSET,
+    latitude=UNSET,
+    longitude=UNSET,
+    no_delta=False,
+):
+    """Export profile to csv with a descriptive file name.
+
+    Parameters
+    ----------
+    profile : pd.DataFrame
+        Standard year profile with MultiIndex columns
+    variable : str
+        Name of variable used in profile
+    q : float
+        Percentile used in profile
+    global_warming_levels : list[float]
+        List of global warming levels in profile
+    station_name : str
+        Name of station used in profile
+    cached_areas : str
+        Name of cached area used in profile
+    latitude : float
+        Latitude coordinate from profile location
+    longitude : float
+        Longitude coordinate from profile location
+
+    """
+
+    # Get variable id string
+    variable_descriptions = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
+    var_id = variable_descriptions[
+        (variable_descriptions["display_name"] == variable)
+        & (variable_descriptions["timescale"] == "hourly")
+    ]["variable_id"].item()
+    # Get location string
+    if (station_name is not UNSET) or (cached_area is not UNSET):
+        location_str = station_name.replace(" ", "-")
+    elif (latitude is not UNSET) and (longitude is not UNSET):
+        location_str = f"{latitude}N_{longitude}E"
+    elif cached_area is not UNSET:
+        location_str = cached_area
+    else:
+        location_str = "unknown-location"
+
+    for gwl in global_warming_levels:  # Single file per WL
+        filename = get_clean_standardyr_filename(var_id, q, location_str, gwl, no_delta)
+        difference_profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(
+            filename
+        )
 
 
 def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
@@ -425,6 +518,7 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
     print(
         f"   (Days: {difference_profile.shape[0]}, Hours/Columns: {difference_profile.shape[1]})"
     )
+
     return difference_profile
 
 
