@@ -507,10 +507,10 @@ def get_ks_stat(
 def _calculate_return(
     fitted_distr: scipy.stats._distn_infrastructure.rv_continuous_frozen,
     data_variable: str,
-    arg_value: float,
+    arg_value: np.ndarray,
     block_size: int = 1,
     extremes_type: str = "max",
-) -> float:
+) -> np.ndarray:
     """Function to perform extreme value calculation on fitted distribution.
 
     Parameters
@@ -519,7 +519,7 @@ def _calculate_return(
         Fitted distribution from block maxima/minima.
     data_variable : str
         One of 'return_value', 'return_prob', or 'return_period'.
-    arg_value : float
+    arg_value : np.ndarray
         Input value for the calculation.
     block_size : int, optional
         Block size (in years) used to construct the dataset, by default 1.
@@ -528,7 +528,7 @@ def _calculate_return(
 
     Returns
     -------
-    float
+    np.ndarray
         Computed extreme value metric.
 
     """
@@ -568,6 +568,9 @@ def _calculate_return(
                     )
     except (ValueError, ZeroDivisionError, AttributeError):
         result = np.nan
+    # NaNs and other results need to match arg_value type
+    if not isinstance(result, np.ndarray):
+        result = np.array([result])
     return result
 
 
@@ -575,10 +578,10 @@ def _bootstrap(
     bms: xr.DataArray,
     distr: str = "gev",
     data_variable: str = "return_value",
-    arg_value: float = 10,
+    arg_value: np.ndarray = np.array([10]),
     block_size: int = 1,
     extremes_type: str = "max",
-) -> float:
+) -> np.ndarray:
     """Function for making a bootstrap-calculated value from input array
 
     Determines a bootstrap-calculated value for relevant parameters from an
@@ -592,14 +595,14 @@ def _bootstrap(
         name of distribution to use
     data_variable : str
         can be return_value, return_prob, return_period
-    arg_value : float
+    arg_value : np.ndarray
         value to do the calculation to
     block_size : int
         block size, in years, of the provided block maximum series
 
     Returns
     -------
-    float
+    np.ndarray
 
     """
     data_variables = ["return_value", "return_prob", "return_period"]
@@ -633,7 +636,7 @@ def _conf_int(
     bms: xr.DataArray,
     distr: str,
     data_variable: str,
-    arg_value: float,
+    arg_value: np.ndarray,
     bootstrap_runs: int,
     conf_int_lower_bound: float,
     conf_int_upper_bound: float,
@@ -652,8 +655,8 @@ def _conf_int(
         name of distribution to use
     data_variable : str
         can be return_value, return_prob, return_period
-    arg_value : float
-        value to do the calucation to
+    arg_value : np.ndarray
+        value to do the calculation to
     bootstrap_runs : int
         Number of bootstrap samples
     conf_int_lower_bound : float
@@ -717,7 +720,7 @@ def _get_return_variable(
     data_variable : str
         can be return_value, return_prob, return_period
     arg_value : float
-        value to do the calucation to
+        value to do the calculation to
     distr : str
         name of distribution to use
     bootstrap_runs : int

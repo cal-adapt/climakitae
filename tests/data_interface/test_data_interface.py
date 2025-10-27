@@ -32,80 +32,99 @@ class TestDataInterface:
         data_interface2 = DataInterface()
         assert data_interface1 is data_interface2
 
-    @staticmethod
-    def test_init_data_loading():
+    def test_init_data_loading(self):
         """
         Test that all data sources are loaded correctly during initialization.
         """
 
-        with (
-            patch("climakitae.core.data_interface.read_csv_file") as mock_read_csv,
-            patch("climakitae.core.data_interface.gpd") as mock_gpd,
-            patch("climakitae.core.data_interface.intake") as mock_intake,
-            patch("climakitae.core.data_interface.Boundaries") as mock_boundaries,
-            patch(
-                "climakitae.core.data_interface.VariableDescriptions"
-            ) as mock_var_desc,
-            patch(
-                "climakitae.core.data_interface.STATIONS_CSV_PATH",
-                "data/hadisd_stations.csv",
-            ),
-            patch(
-                "climakitae.core.data_interface.GWL_1850_1900_FILE",
-                "data/gwl_1850-1900ref.csv",
-            ),
-            patch(
-                "climakitae.core.data_interface.DATA_CATALOG_URL",
-                "https://cadcat.s3.amazonaws.com/cae-collection.json",
-            ),
-            patch(
-                "climakitae.core.data_interface.BOUNDARY_CATALOG_URL",
-                "boundary_catalog_url_value",
-            ),
-        ):
+        # Import the module to access the global variable
+        import climakitae.core.data_interface as di_module
 
-            # Configure mocks
-            mock_var_desc_instance = mock_var_desc.return_value
-            mock_var_desc_instance.variable_descriptions = "mock_var_desc"
+        # Save the original singleton state
+        original_instance = getattr(DataInterface, "instance", None)
+        original_initialized = di_module._data_interface_initialized
 
-            # Create a mock DataFrame with the needed properties
-            mock_stations_df = Mock()
-            mock_stations_df.LON_X = [1, 2, 3]  # Example values
-            mock_stations_df.LAT_Y = [4, 5, 6]  # Example values
+        try:
+            with (
+                patch("climakitae.core.data_interface.read_csv_file") as mock_read_csv,
+                patch("climakitae.core.data_interface.gpd") as mock_gpd,
+                patch("climakitae.core.data_interface.intake") as mock_intake,
+                patch("climakitae.core.data_interface.Boundaries") as mock_boundaries,
+                patch(
+                    "climakitae.core.data_interface.VariableDescriptions"
+                ) as mock_var_desc,
+                patch(
+                    "climakitae.core.data_interface.STATIONS_CSV_PATH",
+                    "data/hadisd_stations.csv",
+                ),
+                patch(
+                    "climakitae.core.data_interface.GWL_1850_1900_FILE",
+                    "data/gwl_1850-1900ref.csv",
+                ),
+                patch(
+                    "climakitae.core.data_interface.DATA_CATALOG_URL",
+                    "https://cadcat.s3.amazonaws.com/cae-collection.json",
+                ),
+                patch(
+                    "climakitae.core.data_interface.BOUNDARY_CATALOG_URL",
+                    "boundary_catalog_url_value",
+                ),
+            ):
 
-            mock_read_csv.side_effect = [mock_stations_df, "mock_warming_levels"]
-            mock_intake.open_esm_datastore.return_value = "mock_data_catalog"
-            mock_intake.open_catalog.return_value = "mock_boundary_catalog"
-            mock_boundaries_instance = Mock()
-            mock_boundaries.return_value = mock_boundaries_instance
+                # Configure mocks
+                mock_var_desc_instance = mock_var_desc.return_value
+                mock_var_desc_instance.variable_descriptions = "mock_var_desc"
 
-            # Call the init method
-            data_interface = DataInterface()
+                # Create a mock DataFrame with the needed properties
+                mock_stations_df = Mock()
+                mock_stations_df.LON_X = [1, 2, 3]  # Example values
+                mock_stations_df.LAT_Y = [4, 5, 6]  # Example values
 
-            # Verify all the necessary functions were called
-            mock_var_desc.assert_called_once()
-            mock_var_desc_instance.load.assert_called_once()
-            mock_read_csv.assert_any_call("data/hadisd_stations.csv")
-            mock_gpd.GeoDataFrame.assert_called_once()
-            mock_intake.open_esm_datastore.assert_called_once_with(
-                "https://cadcat.s3.amazonaws.com/cae-collection.json"
-            )
-            mock_read_csv.assert_any_call(
-                "data/gwl_1850-1900ref.csv", index_col=[0, 1, 2]
-            )
-            mock_intake.open_catalog.assert_called_once_with(
-                "boundary_catalog_url_value"
-            )
-            mock_boundaries.assert_called_once_with("mock_boundary_catalog")
-            mock_boundaries_instance.load.assert_called_once()
+                mock_read_csv.side_effect = [mock_stations_df, "mock_warming_levels"]
+                mock_intake.open_esm_datastore.return_value = "mock_data_catalog"
+                mock_intake.open_catalog.return_value = "mock_boundary_catalog"
+                mock_boundaries_instance = Mock()
+                mock_boundaries.return_value = mock_boundaries_instance
 
-            # Verify all attributes are set correctly
-            assert data_interface._variable_descriptions == "mock_var_desc"
-            assert data_interface._stations == mock_stations_df
-            assert data_interface._data_catalog == "mock_data_catalog"
-            assert data_interface._warming_level_times == "mock_warming_levels"
-            assert data_interface._boundary_catalog == "mock_boundary_catalog"
-            assert data_interface._geographies == mock_boundaries_instance
+                # Reset the singleton instance and global flag to force re-initialization
+                if hasattr(DataInterface, "instance"):
+                    delattr(DataInterface, "instance")
+                di_module._data_interface_initialized = False
+
+                # Call the init method
+                data_interface = DataInterface()
+
+                # Verify all the necessary functions were called
+                mock_var_desc.assert_called_once()
+                mock_var_desc_instance.load.assert_called_once()
+                mock_read_csv.assert_any_call("data/hadisd_stations.csv")
+                mock_gpd.GeoDataFrame.assert_called_once()
+                mock_intake.open_esm_datastore.assert_called_once_with(
+                    "https://cadcat.s3.amazonaws.com/cae-collection.json"
+                )
+                mock_read_csv.assert_any_call(
+                    "data/gwl_1850-1900ref.csv", index_col=[0, 1, 2]
+                )
+                mock_intake.open_catalog.assert_called_once_with(
+                    "boundary_catalog_url_value"
+                )
+                mock_boundaries.assert_called_once_with("mock_boundary_catalog")
+                mock_boundaries_instance.load.assert_called_once()
+
+                # Verify all attributes are set correctly
+                assert data_interface._variable_descriptions == "mock_var_desc"
+                assert data_interface._stations == mock_stations_df
+                assert data_interface._data_catalog == "mock_data_catalog"
+                assert data_interface._warming_level_times == "mock_warming_levels"
+                assert data_interface._boundary_catalog == "mock_boundary_catalog"
+                assert data_interface._geographies == mock_boundaries_instance
+        finally:
+            # Restore the original singleton state
+            if original_instance is not None:
+                DataInterface.instance = original_instance
+            elif hasattr(DataInterface, "instance"):
+                delattr(DataInterface, "instance")
+            di_module._data_interface_initialized = original_initialized
 
     def test_properties(self):
         """
