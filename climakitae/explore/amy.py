@@ -222,7 +222,7 @@ def export_profile_to_csv(
             profile.to_csv(filename)
         case 3:  # Multiple WL (WL included in MultiIndex)
             for gwl in global_warming_levels:  # Single file per WL
-                filename = get_clean_standardyr_filename(
+                filename = _get_clean_standardyr_filename(
                     var_id, q, location_str, gwl, no_delta
                 )
                 profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(filename)
