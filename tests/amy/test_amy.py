@@ -9,10 +9,12 @@ import pytest
 import pandas as pd
 import numpy as np
 import xarray as xr
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 
 
 from climakitae.explore.amy import (
+    get_clean_standardyr_filename,
+    export_profile_to_csv,
     retrieve_profile_data,
     get_climate_profile,
     compute_profile,
@@ -4899,3 +4901,153 @@ class TestRetrieveProfileDataWithStations:
                     assert (
                         kwargs["longitude"] == explicit_lon
                     ), "Should use explicit longitude"
+
+
+class TestExportProfile:
+    """Test class for file export functions.
+
+    This set of tests mainly checks that file names are correctly
+    generated and that separate files are saved for each warming level.
+
+    Attributes
+    ----------
+    multi_df : pd.DataFrame
+        DataFrame with MultiIndex columns.
+    multi_df_gwl : pd.DataFrame
+        DataFrame with MultiIndex columns.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create DataFrame with MultiIndex columns
+        hours = list(range(1, 25))
+        simulations = ["sim1", "sim2"]
+        multi_cols = pd.MultiIndex.from_product(
+            [hours, simulations], names=["Hour", "Simulation"]
+        )
+        self.multi_df = pd.DataFrame(
+            np.random.rand(365, len(multi_cols)),
+            index=range(1, 366),
+            columns=multi_cols,
+        )
+
+        # Create DataFrame with MultiIndex columns and warming levels
+        hours = list(range(1, 25))
+        simulations = ["sim1", "sim2"]
+        global_warming_levels = ["WL_1.5", "WL_2.0"]
+        multi_cols = pd.MultiIndex.from_product(
+            [hours, global_warming_levels, simulations],
+            names=["Hour", "Warming_Level", "Simulation"],
+        )
+        self.multi_df_gwl = pd.DataFrame(
+            np.random.rand(365, len(multi_cols)),
+            index=range(1, 366),
+            columns=multi_cols,
+        )
+
+    def test_export_profile_to_csv(self):
+        with patch("pandas.DataFrame.to_csv") as to_csv_mock:
+            variable = "Air Temperature at 2m"
+            q = 0.5
+            gwl = [1.5]
+            cached_area = "Sacramento County"
+            no_delta = False
+            export_profile_to_csv(
+                self.multi_df,
+                variable,
+                q,
+                gwl,
+                cached_area=cached_area,
+                no_delta=no_delta,
+            )
+            expected_filename = "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical.csv"
+            to_csv_mock.assert_called_with(expected_filename)
+
+        with patch("pandas.DataFrame.to_csv") as to_csv_mock:
+            gwls = [1.5, 2.0]
+            export_profile_to_csv(
+                self.multi_df_gwl,
+                variable,
+                q,
+                gwls,
+                cached_area=cached_area,
+                no_delta=no_delta,
+            )
+            expected_filenames = [
+                call(
+                    "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical.csv"
+                ),
+                call(
+                    "stdyr_t2_50ptile_sacramento_county_mid-century_delta_from_historical.csv"
+                ),
+            ]
+            to_csv_mock.assert_has_calls(expected_filenames)
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 1.2,
+                    "location": "Sacramento County",
+                    "no_delta": False,
+                },
+                "stdyr_t2_50ptile_sacramento_county_present-day_delta_from_historical.csv",
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 1.2,
+                    "location": "Sacramento County",
+                    "no_delta": True,
+                },
+                "stdyr_t2_50ptile_sacramento_county_present-day.csv",
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 1.2,
+                    "location": "35.5N_-122.5E",
+                    "no_delta": True,
+                },
+                "stdyr_t2_50ptile_35.5n_-122.5e_present-day.csv",
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 3.0,
+                    "location": "San Diego Lindbergh Field (KSAN)",
+                    "no_delta": True,
+                },
+                "stdyr_t2_50ptile_san_diego_lindbergh_field_ksan_late-century.csv",
+            ),
+            (
+                {
+                    "var_id": "prec",
+                    "q": 0.5,
+                    "gwl": 2.5,
+                    "location": "35.5N_-122.5E",
+                    "no_delta": True,
+                },
+                "stdyr_prec_50ptile_35.5n_-122.5e_mid-late-century.csv",
+            ),
+            (
+                {
+                    "var_id": "prec",
+                    "q": 0.75,
+                    "gwl": 3.0,
+                    "location": "35.5N_-122.5E",
+                    "no_delta": False,
+                },
+                "stdyr_prec_75ptile_35.5n_-122.5e_late-century_delta_from_historical.csv",
+            ),
+        ],
+    )
+    def test_get_clean_standardyr_filename(self, value, expected):
+        """Test that file name is correctly formatted based on given inputs."""
+        assert get_clean_standardyr_filename(**value) == expected
