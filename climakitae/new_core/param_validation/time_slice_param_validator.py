@@ -35,11 +35,11 @@ def validate_time_slice_param(value: tuple[Any, Any], **kwargs) -> bool:
             "\nPlease check the configuration."
         )
         return False
-
-    value = _coerce_to_dates(value)
-    if value is None:
+    try:
+        value = _coerce_to_dates(value)
+    except ValueError as e:
         warnings.warn(
-            "\n\nInvalid date-like values provided. "
+            f"\n\nInvalid date-like values provided: {e}. "
             "\nExpected a tuple of two date-like values."
         )
         return False
