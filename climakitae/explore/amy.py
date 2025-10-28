@@ -150,7 +150,7 @@ def get_clean_standardyr_filename(
         delta_str = "delta_from_historical"
 
     filename = (
-        f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_stn_name}_{clean_gwl_name}_{delta_str}.csv"
+        f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}_{clean_gwl_name}_{delta_str}.csv"
     ).lower()
     return filename
 
@@ -180,15 +180,15 @@ def export_profile_to_csv(
         Percentile used in profile
     global_warming_levels : list[float]
         List of global warming levels in profile
-    station_name : str
+    station_name : str, optional
         Name of station used in profile
-    cached_areas : str
+    cached_areas : str, optional
         Name of cached area used in profile
     latitude : float
         Latitude coordinate from profile location
     longitude : float
         Longitude coordinate from profile location
-    no_delta : bool
+    no_delta : bool, optional
         True if no_delta=True when generating profile
 
     """
@@ -208,13 +208,26 @@ def export_profile_to_csv(
     elif cached_area is not UNSET:
         location_str = cached_area
     else:
-        raise ValueError(
+        raise TypeError(
             "Location must be provided as either `station_name` or `cached_area` or `latitude` plus `longitude`."
         )
 
-    for gwl in global_warming_levels:  # Single file per WL
-        filename = get_clean_standardyr_filename(var_id, q, location_str, gwl, no_delta)
-        profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(filename)
+    # Check profile MultiIndex to pull out data by Global Warming Level
+    match profile.keys().nlevels:
+        case 2:  # Single WL
+            gwl = global_warming_levels[0]
+            filename = get_clean_standardyr_filename(
+                var_id, q, location_str, gwl, no_delta
+            )
+            profile.to_csv(filename)
+        case 3:  # Multiple WL (WL included in MultiIndex)
+            for gwl in global_warming_levels:  # Single file per WL
+                filename = get_clean_standardyr_filename(
+                    var_id, q, location_str, gwl, no_delta
+                )
+                profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(filename)
+        case _:
+            raise ValueError("Could not determine number of warming levels in profile.")
 
 
 def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
