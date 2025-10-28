@@ -9,8 +9,10 @@ import warnings
 
 import pytest
 
+from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.warming_param_validator import (
     _check_input_types,
+    _check_query,
     validate_warming_level_param,
 )
 
@@ -83,45 +85,58 @@ class TestCheckInputTypes:
             assert "Invalid 'warming_level_window' parameter." in str(w[0].message)
 
 
-# class TestCheckQuery:
-#     """Test class for _check_query function."""
+class TestCheckQuery:
+    """Test class for _check_query function."""
 
-#     def test_check_query_invalid_activity_id(self):
-#         """Test _check_query with a invalid activity_id."""
-#         value = {
-#             "activity_id": "other thing",
-#         }
-#         result = validate_warming_level_param(value)
-#         assert result is False
+    @pytest.mark.parametrize("wrong_type", [[], (), "invalid", 123, None])
+    def test_invalid_type(self, wrong_type):
+        """Test _check_query with an invalid data type."""
+        result = _check_query(wrong_type)
+        assert result is False
 
-#     def test_check_query_valid_activity_id(self):
-#         """Test _check_query with a valid activity_id."""
-#         value = {
-#             "activity_id": "WRF",
-#         }
-#         result = validate_warming_level_param(value)
-#         assert result is True
+    def test_experiment_id_not_set(self):
+        """Test that experiment_id is not set."""
+        value = {"experiment_id": "i am something"}
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = _check_query(value)
+            assert result is False
+            assert len(w) == 1
+            assert (
+                "Warming level approach requires 'experiment_id' to be UNSET."
+                in str(w[0].message)
+            )
 
-#     def test_check_query_no_activity_id(self):
-#         """Test _check_query with no activity_id."""
-#         value = {}
-#         result = validate_warming_level_param(value)
-#         assert result is True
+    def test_time_slice_not_set(self):
+        """Test that time_slice is not set."""
+        value = {"processes": {"time_slice": "do not set me"}}
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = _check_query(value)
+            assert len(w) == 1
+            assert (
+                "Warming level approach does not support 'time_slice' in the query."
+                in str(w[0].message)
+            )
+            assert value["processes"] == {}
+            assert result is True
 
-#     def test_check_query_invalid_experiment_id(self):
-#         """Test _check_query with a invalid experiment_id."""
-#         value = {
-#             "experiment_id": "other thing",
-#         }
-#         result = validate_warming_level_param(value)
-#         with warnings.catch_warnings(record=True) as w:
-#             warnings.simplefilter("always")
-#             assert result is False
-#             assert len(w) == 1
-#             assert (
-#                 "Warming level approach requires 'experiment_id' to be UNSET."
-#                 in str(w[0].message)
-#             )
+    @pytest.mark.parametrize("correct_activity_id", [UNSET, "WRF", "LOCA2"])
+    def test_activity_id_is_valid(self, correct_activity_id):
+        """Test that activity_id is valid."""
+        value = {"activity_id": correct_activity_id}
+        result = _check_query(value)
+        assert result is True
+
+    def test_activity_id_is_invalid(self):
+        """Test that activity_id is False and throws a warning for incorrect parameters."""
+        value = {"activity_id": "this is a wrong parameter type"}
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = _check_query(value)
+            assert len(w) == 1
+            assert "Invalid 'activity_id' parameter." in str(w[0].message)
+            assert result is False
 
 
 # class TestValidateWarmingLevelParam:
