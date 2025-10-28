@@ -13,11 +13,11 @@ import pandas as pd
 import xarray as xr
 from tqdm.auto import tqdm  # Progress bar
 
+from climakitae.core.constants import UNSET
 from climakitae.core.data_interface import DataInterface, get_data
 from climakitae.core.paths import VARIABLE_DESCRIPTIONS_CSV_PATH
-from climakitae.util.utils import julianDay_to_date, read_csv_file
 from climakitae.explore.typical_meteorological_year import match_str_to_wl
-from climakitae.core.constants import UNSET
+from climakitae.util.utils import julianDay_to_date, read_csv_file
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
@@ -114,7 +114,7 @@ def _convert_stations_to_lat_lon(
     return (min_lat, max_lat), (min_lon, max_lon)
 
 
-def get_clean_standardyr_filename(
+def _get_clean_standardyr_filename(
     var_id: str, q: float, location: str, gwl: float, no_delta: bool
 ) -> str:
     """
@@ -216,7 +216,7 @@ def export_profile_to_csv(
     match profile.keys().nlevels:
         case 2:  # Single WL
             gwl = global_warming_levels[0]
-            filename = get_clean_standardyr_filename(
+            filename = _get_clean_standardyr_filename(
                 var_id, q, location_str, gwl, no_delta
             )
             profile.to_csv(filename)

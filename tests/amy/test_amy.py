@@ -5,41 +5,41 @@ This module contains comprehensive unit tests for the AMY (Average Meteorologica
 and climate profile computation functions that provide climate profile analysis.
 """
 
-import pytest
-import pandas as pd
-import numpy as np
-import xarray as xr
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, call, patch
 
+import numpy as np
+import pandas as pd
+import pytest
+import xarray as xr
 
 from climakitae.explore.amy import (
-    get_clean_standardyr_filename,
-    export_profile_to_csv,
-    retrieve_profile_data,
-    get_climate_profile,
-    compute_profile,
-    get_profile_units,
-    get_profile_metadata,
-    set_profile_metadata,
     _compute_difference_profile,
+    _compute_mixed_index_difference,
     _compute_multiindex_difference,
+    _compute_simple_difference,
     _compute_simulation_paired_difference,
     _compute_warming_level_difference,
-    _compute_mixed_index_difference,
-    _compute_simple_difference,
-    _find_matching_historic_column,
-    _get_historic_hour_mean,
-    _find_matching_historic_value,
-    _format_based_on_structure,
     _construct_profile_dataframe,
+    _convert_stations_to_lat_lon,
+    _create_multi_wl_multi_sim_dataframe,
+    _create_multi_wl_single_sim_dataframe,
     _create_simple_dataframe,
     _create_single_wl_multi_sim_dataframe,
-    _create_multi_wl_single_sim_dataframe,
-    _create_multi_wl_multi_sim_dataframe,
-    _stack_profile_data,
+    _find_matching_historic_column,
+    _find_matching_historic_value,
+    _format_based_on_structure,
     _format_meteo_yr_df,
+    _get_clean_standardyr_filename,
+    _get_historic_hour_mean,
     _get_station_coordinates,
-    _convert_stations_to_lat_lon,
+    _stack_profile_data,
+    compute_profile,
+    export_profile_to_csv,
+    get_climate_profile,
+    get_profile_metadata,
+    get_profile_units,
+    retrieve_profile_data,
+    set_profile_metadata,
 )
 
 
@@ -5090,6 +5090,6 @@ class TestExportProfile:
             ),
         ],
     )
-    def test_get_clean_standardyr_filename(self, value, expected):
+    def test__get_clean_standardyr_filename(self, value, expected):
         """Test that file name is correctly formatted based on given inputs."""
-        assert get_clean_standardyr_filename(**value) == expected
+        assert _get_clean_standardyr_filename(**value) == expected
