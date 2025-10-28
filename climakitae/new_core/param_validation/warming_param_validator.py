@@ -55,18 +55,12 @@ def validate_warming_level_param(
             "\nPlease check the configuration."
         )
         return False
+
     # validate query
-    if not _check_query(kwargs["query"]):
-        warnings.warn(
-            "\n\nInvalid 'query' parameter. " "\nPlease check the configuration."
-        )
+    if not _check_query(query):
         return False
 
-    if not _check_wl_values(query):
-        warnings.warn(
-            "\n\nInvalid 'warming_levels' parameter. "
-            "\nPlease check the configuration."
-        )
+    if not _check_wl_values(value, query):
         return False
 
     return True
@@ -182,7 +176,7 @@ def _check_query(query: Any) -> bool:
     return True
 
 
-def _check_wl_values(query: dict[str, Any]) -> bool:
+def _check_wl_values(value, query: dict[str, Any] = {}) -> bool:
     """
     Validates that requested warming levels are within the available ranges in climate model trajectories.
     This function checks if the warming levels specified in the query are within the
@@ -231,10 +225,10 @@ def _check_wl_values(query: dict[str, Any]) -> bool:
     max_trajectory = round(trajectories.max().max(), 2)
     min_trajectory = round(trajectories.min().min(), 2)
 
-    for wl in query.get("warming_levels", []):
+    for wl in value.get("warming_levels", []):
         if not (min_trajectory <= wl <= max_trajectory):
             warnings.warn(
-                f"\n\nWarming level {wl} is outside the range of available trajectories "
+                f"\n\nWarming level {wl} is outside the range of available trajectories."
                 f"({min_trajectory} to {max_trajectory}). "
                 "\nPlease check the configuration."
             )
