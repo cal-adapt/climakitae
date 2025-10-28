@@ -263,6 +263,7 @@ class TestWarmingLevelExtendTimeDomain:
 
 
 class TestWarmingLevelGetCenterYears:
+    """Tests for the get_center_years method of WarmingLevel DataProcessor."""
 
     def test_no_valid_member_id(self, processor):
         """Test that get_center_years returns empty dict if all member_ids are None."""
@@ -270,11 +271,6 @@ class TestWarmingLevelGetCenterYears:
         keys = ["key1", "key2"]
         ret = processor.get_center_years(member_ids, keys)
         assert ret == {}
-
-    # timeidx: GCM name _ member id _ ssp
-
-    # member_ids = 'r1i1p1f1', 'r3i1p1f1', 'r1i1p1f1', 'r1i1p1f1', 'r1i1p1f1']
-    # keys = dict_keys(['WRF.UCLA.MIROC6.ssp370.mon.d01.r1i1p1f1', 'WRF.UCLA.MPI-ESM1-2-HR.ssp370.mon.d01.r3i1p1f1', 'WRF.UCLA.EC-Earth3-Veg.ssp370.mon.d01.r1i1p1f1', 'WRF.UCLA.EC-Earth3.ssp370.mon.d01.r1i1p1f1', 'WRF.UCLA.TaiESM1.ssp370.mon.d01.r1i1p1f1'])
 
     def test_valid_member_id_and_keys(self, processor):
         """Test that get_center_years returns np.nan for keys not in warming level table at a common WL."""

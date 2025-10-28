@@ -74,7 +74,31 @@ def validate_warming_level_param(
 
 def _check_input_types(
     value: dict[str, Any],
-):
+) -> bool:
+    """
+    Validates the input dictionary for warming level parameters.
+
+    This function checks the types and values of the keys in the input dictionary
+    to ensure they conform to the expected structure and constraints for warming
+    level processing.
+
+    Parameters:
+        value (dict[str, Any]): A dictionary containing the parameters to validate.
+
+    Returns:
+        bool: True if the input dictionary is valid, False otherwise.
+
+    Validation Rules:
+        - The input must be a dictionary.
+        - The "warming_levels" key, if present, must be a list of integers or floats.
+        - The "warming_level_months" key, if present, must be a list of integers
+          representing months (1-12).
+        - The "warming_level_window" key, if present, must be a non-negative integer.
+
+    Warnings:
+        - Issues a warning if the input dictionary or any of its keys do not meet
+          the expected criteria.
+    """
     if not isinstance(value, dict):
         warnings.warn(
             "\n\nWarming Level Processor expects a dictionary of parameters. "
@@ -164,17 +188,20 @@ def _check_wl_values(query: dict[str, Any]) -> bool:
     This function checks if the warming levels specified in the query are within the
     minimum and maximum values of the available climate model trajectories, after filtering
     based on activity_id if provided.
+
     Parameters
     ----------
     query : dict[str, Any]
         A dictionary containing query parameters. Expected keys include:
         - 'warming_levels': list of warming level values to check
         - 'activity_id': (optional) activity ID to filter the climate model catalog
+
     Returns
     -------
     bool
         True if all requested warming levels are within the range of available trajectories,
         False otherwise. Issues a warning if any warming level is outside the valid range.
+
     Notes
     -----
     The function reads trajectory data from a global warming level file and the model

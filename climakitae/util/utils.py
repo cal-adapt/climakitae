@@ -929,6 +929,8 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray, freq_name="daily") -> xr.DataArray
     wl_da : xr.DataArray
         The input Warming Levels DataArray. It is expected to have a time-based dimension which typically includes "from_center"
         in its name or `time_delta` indicating the time dimension in relation to the year that the given warming level is reached per simulation.
+    freq_name : str, optional
+        The frequency name to use when `time_delta` is the time dimension. Options are "hourly", "daily", or "monthly". Default is "daily".
 
     Returns
     -------
@@ -943,7 +945,8 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray, freq_name="daily") -> xr.DataArray
     - The dummy time series starts from "2000-01-01".
 
     """
-    # Adjusting the time index into dummy time-series for counting
+    ### Adjusting the time index into a dummy time-series for counting
+
     # Finding time-based dimension
     wl_time_dim = ""
 
