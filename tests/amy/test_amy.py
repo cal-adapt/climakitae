@@ -4742,9 +4742,11 @@ class TestRetrieveProfileDataWithStations:
     def test_retrieve_profile_data_converts_stations_to_lat_lon(self):
         """Test that stations parameter is converted to lat/lon before calling get_data."""
         # Setup mocks
-        with patch("climakitae.explore.amy.get_data") as mock_get_data, patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class, patch("builtins.print"):
+        with (
+            patch("climakitae.explore.amy.get_data") as mock_get_data,
+            patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class,
+            patch("builtins.print"),
+        ):
             # Setup DataInterface mock
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
@@ -4791,9 +4793,11 @@ class TestRetrieveProfileDataWithStations:
     def test_retrieve_profile_data_applies_correct_buffer_to_stations(self):
         """Test that stations are converted with correct 0.02 degree buffer."""
         # Setup mocks
-        with patch("climakitae.explore.amy.get_data") as mock_get_data, patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class, patch("builtins.print"):
+        with (
+            patch("climakitae.explore.amy.get_data") as mock_get_data,
+            patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class,
+            patch("builtins.print"),
+        ):
             # Setup DataInterface mock
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
@@ -4838,9 +4842,11 @@ class TestRetrieveProfileDataWithStations:
     def test_retrieve_profile_data_cached_area_takes_priority_over_stations(self):
         """Test that cached_area parameter takes priority over stations."""
         # Setup mocks
-        with patch("climakitae.explore.amy.get_data") as mock_get_data, patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class, patch("builtins.print"):
+        with (
+            patch("climakitae.explore.amy.get_data") as mock_get_data,
+            patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class,
+            patch("builtins.print"),
+        ):
             # Setup DataInterface mock
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
@@ -4869,9 +4875,11 @@ class TestRetrieveProfileDataWithStations:
     def test_retrieve_profile_data_explicit_lat_lon_takes_priority_over_stations(self):
         """Test that explicit lat/lon parameters take priority over stations."""
         # Setup mocks
-        with patch("climakitae.explore.amy.get_data") as mock_get_data, patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class, patch("builtins.print"):
+        with (
+            patch("climakitae.explore.amy.get_data") as mock_get_data,
+            patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class,
+            patch("builtins.print"),
+        ):
             # Setup DataInterface mock
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
@@ -4915,6 +4923,8 @@ class TestExportProfile:
         DataFrame with MultiIndex columns.
     multi_df_gwl : pd.DataFrame
         DataFrame with MultiIndex columns.
+    multi_df_invalid : pd.DataFrame
+        DataFrame with MultiIndex columns.
     """
 
     def setup_method(self):
@@ -4940,6 +4950,21 @@ class TestExportProfile:
             names=["Hour", "Warming_Level", "Simulation"],
         )
         self.multi_df_gwl = pd.DataFrame(
+            np.random.rand(365, len(multi_cols)),
+            index=range(1, 366),
+            columns=multi_cols,
+        )
+
+        # Create DataFrame with invalid MultiIndex
+        hours = list(range(1, 25))
+        simulations = ["sim1", "sim2"]
+        global_warming_levels = ["WL_1.5", "WL_2.0"]
+        extra_dim = ["val1", "val2"]
+        multi_cols = pd.MultiIndex.from_product(
+            [hours, global_warming_levels, simulations, extra_dim],
+            names=["Hour", "Warming_Level", "Simulation", "Extra_dim"],
+        )
+        self.multi_df_invalid = pd.DataFrame(
             np.random.rand(365, len(multi_cols)),
             index=range(1, 366),
             columns=multi_cols,
@@ -4982,6 +5007,23 @@ class TestExportProfile:
                 ),
             ]
             to_csv_mock.assert_has_calls(expected_filenames)
+
+    def test_export_profile_to_csv_invalid_profile(self):
+        """Test that error is raised by profile with invalid index format."""
+        with patch("pandas.DataFrame.to_csv") as to_csv_mock, pytest.raises(ValueError):
+            variable = "Air Temperature at 2m"
+            q = 0.5
+            gwl = [1.5]
+            cached_area = "Sacramento County"
+            no_delta = False
+            export_profile_to_csv(
+                self.multi_df_invalid,
+                variable,
+                q,
+                gwl,
+                cached_area=cached_area,
+                no_delta=no_delta,
+            )
 
     @pytest.mark.parametrize(
         "value,expected",
