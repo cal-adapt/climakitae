@@ -227,7 +227,9 @@ def export_profile_to_csv(
                 )
                 profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(filename)
         case _:
-            raise ValueError("Could not determine number of warming levels in profile.")
+            raise ValueError(
+                f"Profile MultiIndex should have two or three levels. Found {profile.keys().nlevels} levels."
+            )
 
 
 def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
