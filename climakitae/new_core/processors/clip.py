@@ -625,9 +625,13 @@ class Clip(DataProcessor):
             first_var = next(iter(closest_gridcell.data_vars))
             test_data = closest_gridcell[first_var]
 
+            # Identify spatial dimensions
+            spatial_dims = [d for d in test_data.dims if d in ["x", "y", "lat", "lon"]]
+
             # Get a sample data point (first time step, first sim if available)
+            # Reduce all non-spatial dimensions to a single point
             for dim in test_data.dims:
-                if dim not in ["x", "y"]:
+                if dim not in spatial_dims:
                     test_data = test_data.isel({dim: 0})
 
             if not test_data.isnull().all():
@@ -657,9 +661,15 @@ class Clip(DataProcessor):
                     lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)
                 )
 
-                if (
-                    larger_region.sizes.get("x", 0) == 0
-                    or larger_region.sizes.get("y", 0) == 0
+                # Determine spatial dimensions dynamically
+                spatial_dims = []
+                for dim in larger_region.dims:
+                    if dim in ["x", "y", "lat", "lon"]:
+                        spatial_dims.append(dim)
+
+                # Check if we have any spatial data
+                if len(spatial_dims) == 0 or any(
+                    larger_region.sizes.get(dim, 0) == 0 for dim in spatial_dims
                 ):
                     continue
 
@@ -667,9 +677,9 @@ class Clip(DataProcessor):
                 first_var = next(iter(larger_region.data_vars))
                 test_data = larger_region[first_var]
 
-                # Reduce to 2D by taking first element of other dimensions
+                # Reduce to spatial dimensions only by taking first element of other dimensions
                 for dim in test_data.dims:
-                    if dim not in ["x", "y"]:
+                    if dim not in spatial_dims:
                         test_data = test_data.isel({dim: 0})
 
                 # Find coordinates of valid (non-NaN) points
@@ -684,11 +694,21 @@ class Clip(DataProcessor):
                     distances = []
                     valid_coords = []
 
-                    for i in range(valid_lats.sizes["x"]):
-                        for j in range(valid_lats.sizes["y"]):
-                            if valid_mask.isel(x=i, y=j):
-                                point_lat = valid_lats.isel(x=i, y=j).values
-                                point_lon = valid_lons.isel(x=i, y=j).values
+                    # Iterate over all spatial dimensions
+                    spatial_indices = {}
+                    for dim in spatial_dims:
+                        spatial_indices[dim] = range(valid_lats.sizes[dim])
+
+                    # Use the first two spatial dimensions for iteration
+                    dim_names = list(spatial_indices.keys())
+                    if len(dim_names) >= 2:
+                        dim1, dim2 = dim_names[0], dim_names[1]
+                        for i in spatial_indices[dim1]:
+                            for j in spatial_indices[dim2]:
+                                isel_dict = {dim1: i, dim2: j}
+                                if valid_mask.isel(**isel_dict):
+                                    point_lat = valid_lats.isel(**isel_dict).values
+                                    point_lon = valid_lons.isel(**isel_dict).values
 
                                 if not (np.isnan(point_lat) or np.isnan(point_lon)):
                                     dist = geodesic(
@@ -696,14 +716,16 @@ class Clip(DataProcessor):
                                     ).kilometers
 
                                     distances.append(dist)
-                                    valid_coords.append((i, j, point_lat, point_lon))
+                                    valid_coords.append(
+                                        (i, j, point_lat, point_lon, dim1, dim2)
+                                    )
 
                     if valid_coords:
                         # Find closest valid point
                         min_idx = np.argmin(distances)
-                        closest_i, closest_j, closest_lat, closest_lon = valid_coords[
-                            min_idx
-                        ]
+                        closest_i, closest_j, closest_lat, closest_lon, dim1, dim2 = (
+                            valid_coords[min_idx]
+                        )
 
                         print(
                             f"Found valid gridcell at distance {distances[min_idx]:.2f} km"
@@ -713,7 +735,7 @@ class Clip(DataProcessor):
                         )
 
                         # Return the closest valid gridcell from the larger region
-                        return larger_region.isel(x=closest_i, y=closest_j)
+                        return larger_region.isel({dim1: closest_i, dim2: closest_j})
 
             except Exception as e:
                 print(f"Error searching radius {radius}: {e}")
