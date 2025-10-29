@@ -578,15 +578,27 @@ class Clip(DataProcessor):
         xr.Dataset | Iterable[xr.Dataset]
             The clipped data.
         """
-        # Ensure data has CRS set (climate data uses WGS84/EPSG:4326)
+        # Ensure data has CRS set
         if data.rio.crs is None:
-            data = data.rio.write_crs("epsg:4326", inplace=True)
+            # Check if this is WRF data with Lambert Conformal projection
+            if "Lambert_Conformal" in data.coords:
+                # WRF data: use Lambert Conformal projection from spatial_ref attribute
+                spatial_ref = data["Lambert_Conformal"].attrs.get("spatial_ref")
+                if spatial_ref:
+                    data = data.rio.write_crs(spatial_ref, inplace=True)
+                else:
+                    raise ValueError(
+                        "Lambert_Conformal coordinate found but missing spatial_ref attribute"
+                    )
+            else:
+                # LOCA2 or other lat/lon data: use WGS84/EPSG:4326
+                data = data.rio.write_crs("epsg:4326", inplace=True)
 
-        # Ensure GeoDataFrame has CRS set
+        # Ensure GeoDataFrame has CRS set (boundaries are always in EPSG:4326)
         if gdf.crs is None:
             gdf.set_crs("epsg:4326", inplace=True)
 
-        # If GeoDataFrame CRS differs from data CRS, reproject it
+        # If GeoDataFrame CRS differs from data CRS, reproject it to match data
         elif gdf.crs != data.rio.crs:
             gdf = gdf.to_crs(data.rio.crs)
 
