@@ -110,7 +110,6 @@ Notes
 """
 
 import os
-import warnings
 from typing import Any, Dict, Iterable, Union
 
 import geopandas as gpd
@@ -579,12 +578,17 @@ class Clip(DataProcessor):
         xr.Dataset | Iterable[xr.Dataset]
             The clipped data.
         """
-        # check crs of geom and data
-        if gdf.crs is None and data.rio.crs is not None:
-            warnings.warn(
-                "The GeoDataFrame does not have a CRS set. Setting the CRS to the data's CRS."
-            )
-            gdf.set_crs(data.rio.crs, inplace=True)
+        # Ensure data has CRS set (climate data uses WGS84/EPSG:4326)
+        if data.rio.crs is None:
+            data = data.rio.write_crs("epsg:4326", inplace=True)
+
+        # Ensure GeoDataFrame has CRS set
+        if gdf.crs is None:
+            gdf.set_crs("epsg:4326", inplace=True)
+
+        # If GeoDataFrame CRS differs from data CRS, reproject it
+        elif gdf.crs != data.rio.crs:
+            gdf = gdf.to_crs(data.rio.crs)
 
         return data.rio.clip(
             gdf.geometry.apply(mapping),
