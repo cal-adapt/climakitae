@@ -1,7 +1,7 @@
 """
-Calculates the Quantiled Standard Year Climate Profiles using a warming level approach. The historical
-baseline for relative profile computation is a warming level of 1.2 C. User specified
-warming level will be calculated relative to this baseline unless the "no_delta" option
+Calculates the Standard Year Climate Profiles using a warming level approach and designated
+quantiles. The historical baseline for relative profile computation is a warming level of 1.2 C.
+User specified warming level will be calculated relative to this baseline unless the "no_delta" option
 is set to True, in which case the raw profile(s) for the requested warming level(s) will
 be returned.
 """

@@ -3,6 +3,7 @@ Unit tests for climakitae/explore/standard_year_profile.py
 
 This module contains comprehensive unit tests for the Standard Year and climate
 profile computation functions that provide climate profile analysis.
+
 """
 
 import pytest
