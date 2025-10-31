@@ -140,7 +140,9 @@ def _get_clean_standardyr_filename(
     """
 
     # clean arguments for filenaming
-    clean_loc_name = location.replace(" ", "_").replace("(", "").replace(")", "")
+    clean_loc_name = (
+        location.replace(".", "pt").replace(" ", "_").replace("(", "").replace(")", "")
+    )
     clean_q_name = f"{q:.2f}".split(".")[1]
     clean_var_name = var_id
     clean_gwl_name = match_str_to_wl(gwl)
