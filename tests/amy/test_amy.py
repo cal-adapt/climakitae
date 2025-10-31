@@ -5,39 +5,41 @@ This module contains comprehensive unit tests for the AMY (Average Meteorologica
 and climate profile computation functions that provide climate profile analysis.
 """
 
-import pytest
-import pandas as pd
-import numpy as np
-import xarray as xr
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
+import numpy as np
+import pandas as pd
+import pytest
+import xarray as xr
 
 from climakitae.explore.amy import (
-    retrieve_profile_data,
-    get_climate_profile,
-    compute_profile,
-    get_profile_units,
-    get_profile_metadata,
-    set_profile_metadata,
     _compute_difference_profile,
+    _compute_mixed_index_difference,
     _compute_multiindex_difference,
+    _compute_simple_difference,
     _compute_simulation_paired_difference,
     _compute_warming_level_difference,
-    _compute_mixed_index_difference,
-    _compute_simple_difference,
-    _find_matching_historic_column,
-    _get_historic_hour_mean,
-    _find_matching_historic_value,
-    _format_based_on_structure,
     _construct_profile_dataframe,
+    _convert_stations_to_lat_lon,
+    _create_multi_wl_multi_sim_dataframe,
+    _create_multi_wl_single_sim_dataframe,
     _create_simple_dataframe,
     _create_single_wl_multi_sim_dataframe,
-    _create_multi_wl_single_sim_dataframe,
-    _create_multi_wl_multi_sim_dataframe,
-    _stack_profile_data,
+    _find_matching_historic_column,
+    _find_matching_historic_value,
+    _format_based_on_structure,
     _format_meteo_yr_df,
+    _get_clean_standardyr_filename,
+    _get_historic_hour_mean,
     _get_station_coordinates,
-    _convert_stations_to_lat_lon,
+    _stack_profile_data,
+    compute_profile,
+    export_profile_to_csv,
+    get_climate_profile,
+    get_profile_metadata,
+    get_profile_units,
+    retrieve_profile_data,
+    set_profile_metadata,
 )
 
 
@@ -4740,9 +4742,11 @@ class TestRetrieveProfileDataWithStations:
     def test_retrieve_profile_data_converts_stations_to_lat_lon(self):
         """Test that stations parameter is converted to lat/lon before calling get_data."""
         # Setup mocks
-        with patch("climakitae.explore.amy.get_data") as mock_get_data, patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class, patch("builtins.print"):
+        with (
+            patch("climakitae.explore.amy.get_data") as mock_get_data,
+            patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class,
+            patch("builtins.print"),
+        ):
             # Setup DataInterface mock
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
@@ -4789,9 +4793,11 @@ class TestRetrieveProfileDataWithStations:
     def test_retrieve_profile_data_applies_correct_buffer_to_stations(self):
         """Test that stations are converted with correct 0.02 degree buffer."""
         # Setup mocks
-        with patch("climakitae.explore.amy.get_data") as mock_get_data, patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class, patch("builtins.print"):
+        with (
+            patch("climakitae.explore.amy.get_data") as mock_get_data,
+            patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class,
+            patch("builtins.print"),
+        ):
             # Setup DataInterface mock
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
@@ -4836,9 +4842,11 @@ class TestRetrieveProfileDataWithStations:
     def test_retrieve_profile_data_cached_area_takes_priority_over_stations(self):
         """Test that cached_area parameter takes priority over stations."""
         # Setup mocks
-        with patch("climakitae.explore.amy.get_data") as mock_get_data, patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class, patch("builtins.print"):
+        with (
+            patch("climakitae.explore.amy.get_data") as mock_get_data,
+            patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class,
+            patch("builtins.print"),
+        ):
             # Setup DataInterface mock
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
@@ -4867,9 +4875,11 @@ class TestRetrieveProfileDataWithStations:
     def test_retrieve_profile_data_explicit_lat_lon_takes_priority_over_stations(self):
         """Test that explicit lat/lon parameters take priority over stations."""
         # Setup mocks
-        with patch("climakitae.explore.amy.get_data") as mock_get_data, patch(
-            "climakitae.explore.amy.DataInterface"
-        ) as mock_data_interface_class, patch("builtins.print"):
+        with (
+            patch("climakitae.explore.amy.get_data") as mock_get_data,
+            patch("climakitae.explore.amy.DataInterface") as mock_data_interface_class,
+            patch("builtins.print"),
+        ):
             # Setup DataInterface mock
             mock_instance = MagicMock()
             mock_instance.stations_gdf = self.mock_stations_gdf
@@ -4899,3 +4909,187 @@ class TestRetrieveProfileDataWithStations:
                     assert (
                         kwargs["longitude"] == explicit_lon
                     ), "Should use explicit longitude"
+
+
+class TestExportProfile:
+    """Test class for file export functions.
+
+    This set of tests mainly checks that file names are correctly
+    generated and that separate files are saved for each warming level.
+
+    Attributes
+    ----------
+    multi_df : pd.DataFrame
+        DataFrame with MultiIndex columns.
+    multi_df_gwl : pd.DataFrame
+        DataFrame with MultiIndex columns.
+    multi_df_invalid : pd.DataFrame
+        DataFrame with MultiIndex columns.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create DataFrame with MultiIndex columns
+        hours = list(range(1, 25))
+        simulations = ["sim1", "sim2"]
+        multi_cols = pd.MultiIndex.from_product(
+            [hours, simulations], names=["Hour", "Simulation"]
+        )
+        self.multi_df = pd.DataFrame(
+            np.random.rand(365, len(multi_cols)),
+            index=range(1, 366),
+            columns=multi_cols,
+        )
+
+        # Create DataFrame with MultiIndex columns and warming levels
+        hours = list(range(1, 25))
+        simulations = ["sim1", "sim2"]
+        global_warming_levels = ["WL_1.5", "WL_2.0"]
+        multi_cols = pd.MultiIndex.from_product(
+            [hours, global_warming_levels, simulations],
+            names=["Hour", "Warming_Level", "Simulation"],
+        )
+        self.multi_df_gwl = pd.DataFrame(
+            np.random.rand(365, len(multi_cols)),
+            index=range(1, 366),
+            columns=multi_cols,
+        )
+
+        # Create DataFrame with invalid MultiIndex
+        hours = list(range(1, 25))
+        simulations = ["sim1", "sim2"]
+        global_warming_levels = ["WL_1.5", "WL_2.0"]
+        extra_dim = ["val1", "val2"]
+        multi_cols = pd.MultiIndex.from_product(
+            [hours, global_warming_levels, simulations, extra_dim],
+            names=["Hour", "Warming_Level", "Simulation", "Extra_dim"],
+        )
+        self.multi_df_invalid = pd.DataFrame(
+            np.random.rand(365, len(multi_cols)),
+            index=range(1, 366),
+            columns=multi_cols,
+        )
+
+    def test_export_profile_to_csv(self):
+        with patch("pandas.DataFrame.to_csv") as to_csv_mock:
+            variable = "Air Temperature at 2m"
+            q = 0.5
+            gwl = [1.5]
+            cached_area = "Sacramento County"
+            no_delta = False
+            export_profile_to_csv(
+                self.multi_df,
+                variable,
+                q,
+                gwl,
+                cached_area=cached_area,
+                no_delta=no_delta,
+            )
+            expected_filename = "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical.csv"
+            to_csv_mock.assert_called_with(expected_filename)
+
+        with patch("pandas.DataFrame.to_csv") as to_csv_mock:
+            gwls = [1.5, 2.0]
+            export_profile_to_csv(
+                self.multi_df_gwl,
+                variable,
+                q,
+                gwls,
+                cached_area=cached_area,
+                no_delta=no_delta,
+            )
+            expected_filenames = [
+                call(
+                    "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical.csv"
+                ),
+                call(
+                    "stdyr_t2_50ptile_sacramento_county_mid-century_delta_from_historical.csv"
+                ),
+            ]
+            to_csv_mock.assert_has_calls(expected_filenames)
+
+    def test_export_profile_to_csv_invalid_profile(self):
+        """Test that error is raised by profile with invalid index format."""
+        with patch("pandas.DataFrame.to_csv") as to_csv_mock, pytest.raises(ValueError):
+            variable = "Air Temperature at 2m"
+            q = 0.5
+            gwl = [1.5]
+            cached_area = "Sacramento County"
+            no_delta = False
+            export_profile_to_csv(
+                self.multi_df_invalid,
+                variable,
+                q,
+                gwl,
+                cached_area=cached_area,
+                no_delta=no_delta,
+            )
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 1.2,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                },
+                "stdyr_t2_50ptile_sacramento_county_present-day_delta_from_historical.csv",
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 1.2,
+                    "location": "sacramento county",
+                    "no_delta": True,
+                },
+                "stdyr_t2_50ptile_sacramento_county_present-day.csv",
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 1.2,
+                    "location": "35-5N_122-5W",
+                    "no_delta": True,
+                },
+                "stdyr_t2_50ptile_35-5N_122-5W_present-day.csv",
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 3.0,
+                    "location": "san diego lindbergh field ksan",
+                    "no_delta": True,
+                },
+                "stdyr_t2_50ptile_san_diego_lindbergh_field_ksan_late-century.csv",
+            ),
+            (
+                {
+                    "var_id": "prec",
+                    "q": 0.5,
+                    "gwl": 2.5,
+                    "location": "35-5N_122-5W",
+                    "no_delta": True,
+                },
+                "stdyr_prec_50ptile_35-5N_122-5W_mid-late-century.csv",
+            ),
+            (
+                {
+                    "var_id": "prec",
+                    "q": 0.75,
+                    "gwl": 3.0,
+                    "location": "35-5N_122-5W",
+                    "no_delta": False,
+                },
+                "stdyr_prec_75ptile_35-5N_122-5W_late-century_delta_from_historical.csv",
+            ),
+        ],
+    )
+    def test__get_clean_standardyr_filename(self, value, expected):
+        """Test that file name is correctly formatted based on given inputs."""
+        assert _get_clean_standardyr_filename(**value) == expected
