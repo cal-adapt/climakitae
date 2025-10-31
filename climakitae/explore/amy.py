@@ -16,7 +16,7 @@ from tqdm.auto import tqdm  # Progress bar
 from climakitae.core.constants import UNSET
 from climakitae.core.data_interface import DataInterface, get_data
 from climakitae.core.paths import VARIABLE_DESCRIPTIONS_CSV_PATH
-from climakitae.explore.typical_meteorological_year import match_str_to_wl
+from climakitae.explore.typical_meteorological_year import match_str_to_wl, is_HadISD
 from climakitae.util.utils import julianDay_to_date, read_csv_file
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
@@ -160,8 +160,8 @@ def export_profile_to_csv(
     global_warming_levels: list[float],
     station_name: str = UNSET,
     cached_area: str = UNSET,
-    latitude: float = UNSET,
-    longitude: float = UNSET,
+    latitude: float | int = UNSET,
+    longitude: float | int = UNSET,
     no_delta: bool = False,
 ):
     """Export profile to csv file with a descriptive file name.
@@ -178,16 +178,26 @@ def export_profile_to_csv(
         Percentile used in profile
     global_warming_levels : list[float]
         List of global warming levels in profile
-    station_name : str, optional
-        Name of station used in profile
-    cached_areas : str, optional
-        Name of cached area used in profile
-    latitude : float
+    latitude : float | int, optional
         Latitude coordinate from profile location
-    longitude : float
+    longitude : float | int, optional
         Longitude coordinate from profile location
+    station_name : str, optional
+        Name of HadISD station or custom location used in profile
+    cached_area : str, optional
+        Name of cached area used in profile
+    coord_name : str, optional
+        Name of location, used with latitude and longitude
     no_delta : bool, optional
         True if no_delta=True when generating profile
+
+    Notes
+    -----
+    `station_name` can be used with `latitude` and `longitude` as long as
+    `station_name` is not set to a HadISD station.
+
+    If `cached_area` is set along with `latitude` and `longitude`,
+    `latitude` and `longitude` take priority and `cached_area` will be dropped.
 
     """
 
@@ -198,19 +208,35 @@ def export_profile_to_csv(
         & (variable_descriptions["timescale"] == "hourly")
     ]["variable_id"].item()
 
-    # Get location string
-    if station_name is not UNSET:
-        location_str = station_name.lower()
-    elif (latitude is not UNSET) and (longitude is not UNSET):
-        lat_str = str(round(latitude, 6)).replace(".", "-")
-        lon_str = str(abs(longitude, 6)).replace(".", "-")
-        location_str = f"{lat_str}N_{lon_str}W"
-    elif cached_area is not UNSET:
-        location_str = cached_area.lower()
-    else:
-        raise TypeError(
-            "Location must be provided as either `station_name` or `cached_area` or `latitude` plus `longitude`."
-        )
+    # Get location string based on combination of
+    # location variables
+    location_str = ""
+    match station_name, cached_area, latitude, longitude:
+        # Station name and lat/lon
+        case str(), object(), float() | int(), float() | int():
+            if is_HadISD(station_name):
+                raise ValueError(
+                    "Do not set `latitude` and `longitude` when using a HadISD station for `station_name`. Change `station_name` value if using custom location."
+                )
+            lat_str = str(round(latitude, 6)).replace(".", "-")
+            lon_str = str(round(abs(longitude), 6)).replace(".", "-")
+            location_str = f"{station_name.lower()}_{lat_str}N_{lon_str}W"
+        # Lat lon only
+        case object(), object(), float() | int(), float() | int():
+            lat_str = str(round(latitude, 6)).replace(".", "-")
+            lon_str = str(round(abs(longitude), 6)).replace(".", "-")
+            location_str = f"{lat_str}N_{lon_str}W"
+        # Only station name
+        case str(), object(), object(), object():
+            location_str = station_name.lower()
+        # Only cached area
+        case object(), str(), object(), object():
+            location_str = cached_area.lower()
+        # Something else
+        case _:
+            raise TypeError(
+                "Location must be provided as either `station_name` or `cached_area` or `latitude` plus `longitude`."
+            )
 
     # Check profile MultiIndex to pull out data by Global Warming Level
     match profile.keys().nlevels:
