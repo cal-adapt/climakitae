@@ -140,20 +140,16 @@ def _get_clean_standardyr_filename(
     """
 
     # clean arguments for filenaming
-    clean_loc_name = (
-        location.replace(".", "pt").replace(" ", "_").replace("(", "").replace(")", "")
-    )
-    clean_q_name = f"{q:.2f}".split(".")[1]
-    clean_var_name = var_id
-    clean_gwl_name = match_str_to_wl(gwl)
+    clean_loc_name = location.replace(" ", "_").replace("(", "").replace(")", "")
+    clean_q_name = f"{q:.2f}".split(".")[1].lower()
+    clean_var_name = var_id.lower()
+    clean_gwl_name = match_str_to_wl(gwl).lower().replace(".", "pt")
     if no_delta:
         delta_str = ""
     else:
         delta_str = "_delta_from_historical"
 
-    filename = (
-        f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}_{clean_gwl_name}{delta_str}.csv"
-    ).lower()
+    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}_{clean_gwl_name}{delta_str}.csv"
     return filename
 
 
@@ -204,11 +200,13 @@ def export_profile_to_csv(
 
     # Get location string
     if station_name is not UNSET:
-        location_str = station_name
+        location_str = station_name.lower()
     elif (latitude is not UNSET) and (longitude is not UNSET):
-        location_str = f"{latitude}N_{longitude}E"
+        lat_str = str(round(latitude, 6)).replace(".", "-")
+        lon_str = str(abs(longitude, 6)).replace(".", "-")
+        location_str = f"{lat_str}N_{lon_str}W"
     elif cached_area is not UNSET:
-        location_str = cached_area
+        location_str = cached_area.lower()
     else:
         raise TypeError(
             "Location must be provided as either `station_name` or `cached_area` or `latitude` plus `longitude`."
