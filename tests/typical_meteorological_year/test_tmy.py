@@ -25,13 +25,33 @@ from climakitae.explore.typical_meteorological_year import (
     get_cdf,
     get_cdf_monthly,
     get_top_months,
-    remove_pinatubo_years,
+    is_HadISD,
     match_str_to_wl,
+    remove_pinatubo_years,
 )
 
 
 class TestFunctionsForTMY:
     """Test the general functions that are not part of the TMY class."""
+
+    def test_match_str_to_wl(self):
+        """Check the string returned for multiple warming levels."""
+        test_levels = [1.0, 1.5, 2.0, 2.5, 3.0, 2.4]
+        expected = [
+            "present-day",
+            "near-future",
+            "mid-century",
+            "mid-late-century",
+            "late-century",
+            "warming-level-2.4",
+        ]
+        for test_val, exp_val in zip(test_levels, expected):
+            assert match_str_to_wl(test_val) == exp_val
+
+    def test_is_HadISD(self):
+        """Check whether station is correctly ID'd as HadISD station."""
+        assert is_HadISD("San Diego Lindbergh Field (KSAN)")
+        assert not is_HadISD("San Diego")
 
     def test__compute_cdf(self):
         """Test cdf function applied to single array."""
@@ -804,20 +824,6 @@ class TestTMYClass:
             assert pytest.approx(df[varname][720], 1e-6) == pytest.approx(
                 result[varname][720], 1e-6
             )
-
-    def test_match_str_to_wl(self):
-        """Check the string returned for multiple warming levels."""
-        test_levels = [1.0, 1.5, 2.0, 2.5, 3.0, 2.4]
-        expected = [
-            "present-day",
-            "near-future",
-            "mid-century",
-            "mid-late-century",
-            "late-century",
-            "warming-level-2.4",
-        ]
-        for test_val, exp_val in zip(test_levels, expected):
-            assert match_str_to_wl(test_val) == exp_val
 
     @patch("climakitae.explore.typical_meteorological_year.get_top_months")
     def test_set_top_months(self, mock_top_months):
