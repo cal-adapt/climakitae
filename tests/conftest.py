@@ -2,6 +2,8 @@
 
 import os
 
+import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 
@@ -131,16 +133,34 @@ def test_dataarray_time_2010_2015_histrecon_wrf_3km_hourly_temp_gridded_area(roo
 
 
 @pytest.fixture
-def test_dataarray_dict(rootdir):
-    """Read in test datasets using xarray for warming_level.py tests."""
+def test_dataarray_dict():
+    """Create test datasets using xarray for warming_level.py tests."""
     xr_dict = {}
-    abs_path = os.path.join(rootdir, "test_data/warming_level_test_data")
-    files = os.listdir(abs_path)
-    for file in files:
-        try:
-            xr_dict[file] = xr.open_dataset(
-                os.path.join(abs_path, file), engine="netcdf4"
-            )
-        except Exception as e:
-            print(f"Failed to load {file}: {e}")
+    member_id = ["r1i1p1f1"]
+    hist_periods, ssp_periods = 35, 86
+    hist_time = pd.date_range(
+        "1980-01-01", periods=hist_periods, freq="YS"
+    )  # yearly start
+    ssp_time = pd.date_range(
+        "2015-01-01", periods=ssp_periods, freq="YS"
+    )  # yearly start
+    y = [0]
+    x = [0]
+
+    for pair in zip([hist_periods, ssp_periods], [hist_time, ssp_time]):
+        periods, timestamps = pair
+        ds = xr.Dataset(
+            {"t2": (("member_id", "y", "x", "time"), np.zeros((1, 1, 1, periods)))},
+            coords={
+                "member_id": member_id,
+                "y": y,
+                "x": x,
+                "time": timestamps,
+            },
+        )
+        if periods == hist_periods:
+            xr_dict["WRF.UCLA.EC-Earth3.historical.day.d03"] = ds
+        else:
+            xr_dict["WRF.UCLA.EC-Earth3.ssp370.day.d03"] = ds
+
     return xr_dict

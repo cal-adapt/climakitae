@@ -351,14 +351,19 @@ class TestWarmingLevelExecute:
     def test_execute_skips_missing_center_years(self, request, full_processor):
         """Test that execute skips keys with no valid center years and warns."""
         data = request.getfixturevalue("test_dataarray_dict")
-        key = "WRF.UCLA.MIROC6.ssp370.day.d03.r1i1p1f1"
+        ssp_key = "WRF.UCLA.EC-Earth3.ssp370.day.d03.r1i1p1f1"
 
         with (
             patch.object(
-                full_processor, "get_center_years", return_value={key: [np.nan]}
+                full_processor,
+                "get_center_years",
+                # return_value={hist_key: [np.nan], ssp_key: [np.nan]},
+                return_value={ssp_key: [np.nan]},
             ),
-            pytest.warns(UserWarning, match=f"No warming level data found for {key}"),
-            pytest.warns(UserWarning, match=f"No valid slices found for {key}."),
+            pytest.warns(
+                UserWarning, match=f"No warming level data found for {ssp_key}"
+            ),
+            pytest.warns(UserWarning, match=f"No valid slices found for {ssp_key}."),
         ):
             assert full_processor.execute(data, context={}) == {}
 
@@ -391,17 +396,24 @@ class TestWarmingLevelExecute:
     def test_execute_years_correct(self, request, full_processor):
         """Test that execute manipulates the data to have correct dims and years."""
         test_result = request.getfixturevalue("test_dataarray_dict")
+        test_key = "WRF.UCLA.EC-Earth3.ssp370.day.d03"
         ret = full_processor.execute(result=test_result, context={})
-        for key in ret:
-            # Check that the warming_level coordinate matches the processor's warming_levels
-            assert (
-                ret[key].warming_level.values == full_processor.warming_levels
-            ).all()
-            # Check the length of the time_delta dimension
-            assert (
-                len(ret[key].time_delta)
-                == 365 * full_processor.warming_level_window * 2
-            )
-            assert isinstance(ret[key].centered_year.item(), int)
-            # Check that the centered_year is within expected range
-            assert 1981 <= ret[key].centered_year.item() <= 2100
+        ret_key = "WRF.UCLA.EC-Earth3.ssp370.day.d03.r1i1p1f1"
+
+        # Check that the warming_level coordinate matches the processor's warming_levels
+        assert (
+            ret[ret_key].warming_level.values == full_processor.warming_levels
+        ).all()
+        # Check the length of the time_delta dimension
+        first_year = str(test_result[test_key].isel(time=0).time.dt.year.item())
+        # Find the number of elements in the first year of `ret[key]`
+        timesteps_per_year = (
+            test_result[test_key].sel(time=slice(first_year, first_year)).time.size
+        )
+        assert (
+            len(ret[ret_key].time_delta)
+            == timesteps_per_year * full_processor.warming_level_window * 2
+        )
+        assert isinstance(ret[ret_key].centered_year.item(), int)
+        # Check that the centered_year is within expected range
+        assert 1981 <= ret[ret_key].centered_year.item() <= 2100
