@@ -2,12 +2,9 @@
 Subset data on time
 """
 
-import datetime
 import warnings
-from collections.abc import Sized
 from typing import Any, Dict, Iterable, Union
 
-import pandas as pd
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY
@@ -99,7 +96,7 @@ class TimeSlice(DataProcessor):
                 self.update_context(context)
                 return type(result)(subset_data)
             case _:
-                warnings.warn(  # TODO warning not error
+                warnings.warn(
                     f"""Invalid data type for subsetting. 
                     Expected xr.Dataset, dict, list, or tuple but got {type(result)}."""
                 )

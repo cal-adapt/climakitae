@@ -16,9 +16,6 @@ import xarray as xr
 from climakitae.core.constants import _NEW_ATTRS_KEY
 from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1981_2010_TIMEIDX_FILE
 from climakitae.new_core.data_access.data_access import DataCatalog
-from climakitae.new_core.param_validation.param_validation_tools import (
-    _get_closest_options,
-)
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
