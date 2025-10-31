@@ -13,8 +13,11 @@ import pandas as pd
 import xarray as xr
 from tqdm.auto import tqdm  # Progress bar
 
+from climakitae.core.constants import UNSET
 from climakitae.core.data_interface import DataInterface, get_data
-from climakitae.util.utils import julianDay_to_date
+from climakitae.core.paths import VARIABLE_DESCRIPTIONS_CSV_PATH
+from climakitae.explore.typical_meteorological_year import match_str_to_wl, is_HadISD
+from climakitae.util.utils import julianDay_to_date, read_csv_file
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
@@ -109,6 +112,150 @@ def _convert_stations_to_lat_lon(
     max_lon = max(lons) + buffer
 
     return (min_lat, max_lat), (min_lon, max_lon)
+
+
+def _get_clean_standardyr_filename(
+    var_id: str, q: float, location: str, gwl: float, no_delta: bool
+) -> str:
+    """
+    Standardizes filename export for standard year files
+
+    Parameters
+    ----------
+    var_id : str
+        Name of variable used in profile
+    q : float
+        Percentile used in profile
+    location: str
+        String describing profile location
+    gwl : float
+        Single gwl for csv file name
+    no_delta : bool
+        no_delta value used to generate profile
+
+    Returns
+    -------
+    str
+        A cleaned up file name
+    """
+
+    # clean arguments for filenaming
+    clean_loc_name = location.replace(" ", "_").replace("(", "").replace(")", "")
+    clean_q_name = f"{q:.2f}".split(".")[1].lower()
+    clean_var_name = var_id.lower()
+    clean_gwl_name = match_str_to_wl(gwl).lower().replace(".", "pt")
+    if no_delta:
+        delta_str = ""
+    else:
+        delta_str = "_delta_from_historical"
+
+    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}_{clean_gwl_name}{delta_str}.csv"
+    return filename
+
+
+def export_profile_to_csv(
+    profile: pd.DataFrame,
+    variable: str,
+    q: float,
+    global_warming_levels: list[float],
+    station_name: str = UNSET,
+    cached_area: str = UNSET,
+    latitude: float | int = UNSET,
+    longitude: float | int = UNSET,
+    no_delta: bool = False,
+):
+    """Export profile to csv file with a descriptive file name.
+
+    Each warming level is saved in a separate file.
+
+    Parameters
+    ----------
+    profile : pd.DataFrame
+        Standard year profile with MultiIndex columns
+    variable : str
+        Name of variable used in profile
+    q : float
+        Percentile used in profile
+    global_warming_levels : list[float]
+        List of global warming levels in profile
+    latitude : float | int, optional
+        Latitude coordinate from profile location
+    longitude : float | int, optional
+        Longitude coordinate from profile location
+    station_name : str, optional
+        Name of HadISD station or custom location used in profile
+    cached_area : str, optional
+        Name of cached area used in profile
+    coord_name : str, optional
+        Name of location, used with latitude and longitude
+    no_delta : bool, optional
+        True if no_delta=True when generating profile
+
+    Notes
+    -----
+    `station_name` can be used with `latitude` and `longitude` as long as
+    `station_name` is not set to a HadISD station.
+
+    If `cached_area` is set along with `latitude` and `longitude`,
+    `latitude` and `longitude` take priority and `cached_area` will be dropped.
+
+    """
+
+    # Get variable id string to use in file name
+    variable_descriptions = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
+    var_id = variable_descriptions[
+        (variable_descriptions["display_name"] == variable)
+        & (variable_descriptions["timescale"] == "hourly")
+    ]["variable_id"].item()
+
+    # Get location string based on combination of
+    # location variables
+    location_str = ""
+    match station_name, cached_area, latitude, longitude:
+        # Station name and lat/lon
+        case str(), object(), float() | int(), float() | int():
+            if is_HadISD(station_name):
+                raise ValueError(
+                    "Do not set `latitude` and `longitude` when using a HadISD station for `station_name`. Change `station_name` value if using custom location."
+                )
+            lat_str = str(round(latitude, 6)).replace(".", "-")
+            lon_str = str(round(abs(longitude), 6)).replace(".", "-")
+            location_str = f"{station_name.lower()}_{lat_str}N_{lon_str}W"
+        # Lat lon only
+        case object(), object(), float() | int(), float() | int():
+            lat_str = str(round(latitude, 6)).replace(".", "-")
+            lon_str = str(round(abs(longitude), 6)).replace(".", "-")
+            location_str = f"{lat_str}N_{lon_str}W"
+        # Only station name
+        case str(), object(), object(), object():
+            location_str = station_name.lower()
+        # Only cached area
+        case object(), str(), object(), object():
+            location_str = cached_area.lower()
+        # Something else
+        case _:
+            raise TypeError(
+                "Location must be provided as either `station_name` or `cached_area` or `latitude` plus `longitude`."
+            )
+
+    # Check profile MultiIndex to pull out data by Global Warming Level
+    match profile.keys().nlevels:
+        case 2:  # Single WL
+            gwl = global_warming_levels[0]
+            filename = _get_clean_standardyr_filename(
+                var_id, q, location_str, gwl, no_delta
+            )
+            profile.to_csv(filename)
+        case 3:  # Multiple WL (WL included in MultiIndex)
+            for gwl in global_warming_levels:  # Single file per WL
+                filename = _get_clean_standardyr_filename(
+                    var_id, q, location_str, gwl, no_delta
+                )
+                profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(filename)
+        case _:
+            raise ValueError(
+                f"Profile MultiIndex should have two or three levels. Found {profile.keys().nlevels} levels."
+            )
 
 
 def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
@@ -425,6 +572,7 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
     print(
         f"   (Days: {difference_profile.shape[0]}, Hours/Columns: {difference_profile.shape[1]})"
     )
+
     return difference_profile
 
 
