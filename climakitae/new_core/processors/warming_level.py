@@ -96,11 +96,11 @@ class WarmingLevel(DataProcessor):
         """
         Transform time-series data to warming level approach.
 
-        1. find (from precomputed values) when a given warming level is reached by a
-            simulation (GCM, run, scenario)
-            a. some fancy handling of values between precomputed values happens?
-        2. slice in a window of X years around that date
-            a. if the slice has a start date earlier than the simulation data, splice
+        The transformation process involves the following steps for each simulation:
+        1. find the first year (from precomputed values) when a given warming level
+            is reached by a simulation (GCM, run, scenario)
+        2. slice in a window of `self.warming_level_window` years around that year
+            a. if the slice has a start year earlier than the simulation data, splice
                 historical onto the slice for the requested variable
         3. return the data
 
