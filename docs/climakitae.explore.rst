@@ -12,10 +12,10 @@ climakitae.explore.agnostic module
    :undoc-members:
    :show-inheritance:
 
-climakitae.explore.amy module
+climakitae.explore.standard_year_profile module
 -----------------------------
 
-.. automodule:: climakitae.explore.amy
+.. automodule:: climakitae.explore.standard_year_profile
    :members:
    :undoc-members:
    :show-inheritance:
