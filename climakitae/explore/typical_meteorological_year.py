@@ -37,6 +37,49 @@ WEIGHTS_PER_VAR = {
 }
 
 
+def match_str_to_wl(warming_level: str) -> str:
+    """Return warming level description string.
+
+    Parameters
+    ----------
+    warming_level: float
+        A standard warming level
+
+    Returns
+    -------
+    str
+        A string translating warming level to period in century
+    """
+    match warming_level:
+        case _ if warming_level < 1.5:
+            return "present-day"
+        case 1.5:
+            return "near-future"
+        case 2.0:
+            return "mid-century"
+        case 2.5:
+            return "mid-late-century"
+        case 3.0:
+            return "late-century"
+        case _:
+            return f"warming-level-{warming_level}"
+
+
+def is_HadISD(station_name: str) -> bool:
+    """Return true if station_name matches a HadISD station name.
+
+    Parameters
+    ----------
+    station_name: str
+        Name of station
+    """
+    stn_file = pkg_resources.resource_filename("climakitae", "data/hadisd_stations.csv")
+    stn_file = pd.read_csv(stn_file, index_col=[0])
+    if station_name in list(stn_file["station"]):
+        return True
+    return False
+
+
 def _compute_cdf(da: xr.DataArray) -> xr.DataArray:
     """Compute the cumulative density function for an input DataArray.
 
@@ -356,7 +399,7 @@ class TMY:
             # UNSET will match to object type
             # Case 1: All variables set
             case float() | int(), float() | int(), str():
-                if self._is_HadISD(station_name):
+                if is_HadISD(station_name):
                     raise ValueError(
                         "Do not set `latitude` and `longitude` when using a HadISD station for `station_name`. Change `station_name` value if using custom location."
                     )
@@ -434,23 +477,6 @@ class TMY:
         self.top_months = UNSET
         self.all_vars = UNSET
         self.tmy_data_to_export = UNSET
-
-    @staticmethod
-    def _is_HadISD(station_name: str) -> bool:
-        """Return true if station_name matches a HadISD station name.
-
-        Parameters
-        ----------
-        station_name: str
-            Name of station
-        """
-        stn_file = pkg_resources.resource_filename(
-            "climakitae", "data/hadisd_stations.csv"
-        )
-        stn_file = pd.read_csv(stn_file, index_col=[0])
-        if station_name in list(stn_file["station"]):
-            return True
-        return False
 
     def _set_loc_from_stn_name(self, station_name: str):
         """Get coordinates and other station metadata from station
@@ -767,29 +793,6 @@ class TMY:
             tmy_df_all[sim] = tmy_df_by_sim
         return tmy_df_all
 
-    @staticmethod
-    def _match_str_to_wl(warming_level: str) -> str:
-        """Return warming level description string
-
-        Parameters
-        ----------
-        warming_level: float
-            A standard warming level
-        """
-        match warming_level:
-            case _ if warming_level < 1.5:
-                return "_present-day"
-            case 1.5:
-                return "_near-future"
-            case 2.0:
-                return "_mid-century"
-            case 2.5:
-                return "_mid-late-century"
-            case 3.0:
-                return "_late-century"
-            case _:
-                return f"_warming-level-{warming_level}"
-
     def load_all_variables(self):
         """Load the datasets needed to create TMY."""
         print("Loading data from catalog. Expected runtime: 7 minutes")
@@ -1006,7 +1009,7 @@ class TMY:
             )
             # replace scenario with descriptive name if present for gwl case
             clean_sim = sim.replace(
-                "_historical+ssp370", self._match_str_to_wl(self.warming_level)
+                "_historical+ssp370", f"_{match_str_to_wl(self.warming_level)}"
             )
             filename = f"TMY_{clean_stn_name}_{clean_sim}".lower()
             # Get right year range
