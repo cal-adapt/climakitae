@@ -600,7 +600,7 @@ class Clip(DataProcessor):
             warnings.warn(
                 "GeoDataFrame does not have a CRS set. Assuming EPSG:4326 (WGS84).",
                 UserWarning,
-                stacklevel=2
+                stacklevel=2,
             )
             gdf.set_crs("epsg:4326", inplace=True)
 
