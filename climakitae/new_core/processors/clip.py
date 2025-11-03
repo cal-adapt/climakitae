@@ -110,6 +110,7 @@ Notes
 """
 
 import os
+import warnings
 from typing import Any, Dict, Iterable, Union
 
 import geopandas as gpd
@@ -596,6 +597,11 @@ class Clip(DataProcessor):
 
         # Ensure GeoDataFrame has CRS set (boundaries are always in EPSG:4326)
         if gdf.crs is None:
+            warnings.warn(
+                "GeoDataFrame does not have a CRS set. Assuming EPSG:4326 (WGS84).",
+                UserWarning,
+                stacklevel=2
+            )
             gdf.set_crs("epsg:4326", inplace=True)
 
         # If GeoDataFrame CRS differs from data CRS, reproject it to match data
