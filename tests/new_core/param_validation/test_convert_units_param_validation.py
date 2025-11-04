@@ -6,10 +6,9 @@ validation functionality that validates unit conversion parameters for the
 Convert Units Processor.
 """
 
-import warnings
-
 import pytest
 
+from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.convert_units_param_validator import (
     _check_input_types,
     _check_unit_validity,
@@ -18,24 +17,35 @@ from climakitae.new_core.param_validation.convert_units_param_validator import (
 
 
 class TestCheckInputTypes:
-    """Test class for checking the input types of validate_convert_units_param using the _check_input_types function."""
+    """Tests for _check_input_types in validate_convert_units_param."""
 
     @pytest.mark.parametrize(
-        "value,expected",
+        "value,expected,warning_match",
         [
-            ("K", True),
-            (["K", "degC"], True),
-            (123, False),
-            (None, False),
-            ({"unit": "K"}, False),
+            ("K", True, None),
+            (["K", "degC"], True, None),
+            (123, False, "expects a string or iterable of strings"),
+            (None, False, "expects a string or iterable of strings"),
+            (
+                {"weird string that would be caught in _check_unit_validity": "K"},
+                True,
+                None,
+            ),
+            (
+                ["one string", 123],
+                False,
+                "expects all items in the iterable to be strings",
+            ),
         ],
     )
-    def test_check_input_types(self, value, expected):
-        """Test _check_input_types with various input types.
+    def test_check_input_types(self, value, expected, warning_match):
+        """Test _check_input_types with various input types."""
+        if warning_match:
+            with pytest.warns(UserWarning, match=warning_match):
+                result = _check_input_types(value)
+        else:
+            result = _check_input_types(value)
 
-        Tests validation with different types of inputs to ensure correct type checking.
-        """
-        result = _check_input_types(value)
         assert result == expected
 
 
@@ -77,31 +87,47 @@ class TestCheckUnitValidity:
 
         Tests validation with different unit strings and lists to ensure correct unit validity checking.
         """
-        result = _check_unit_validity(value)
+        if expected is False:
+            with pytest.warns(
+                UserWarning,
+                match="Unsupported unit:",
+            ):
+                result = _check_unit_validity(value)
+        else:
+            result = _check_unit_validity(value)
         assert result == expected
 
 
-class TestValidateConvertUnitsValidateConvertUnitsParam:
+class TestValidateConvertUnitsParam:
     """Test class for validate_convert_units_param function."""
 
     @pytest.mark.parametrize(
-        "value,expected",
+        "value,expected,warning_match",
         [
-            ("K", True),
-            (["K", "degC"], True),
-            ("invalid_unit", False),
-            (["K", "invalid_unit"], False),
-            (123, False),
-            (None, False),
-            ({"unit": "K"}, False),
+            ("K", True, None),
+            (["K", "degC"], True, None),
+            ("invalid_unit", False, "Unsupported unit:"),
+            (["K", "invalid_unit"], False, "Unsupported unit:"),
+            (123, False, "expects a string or iterable of strings"),
+            (None, False, "expects a string or iterable of strings"),
+            ({"unit": "K"}, False, "Unsupported unit:"),
+            (
+                ["one string", 123],
+                False,
+                "expects all items in the iterable to be strings",
+            ),
         ],
     )
-    def test_validate_convert_units_param(self, value, expected):
+    def test_validate_convert_units_param(self, value, expected, warning_match):
         """Test validate_convert_units_param with various inputs.
 
         Tests validation with different types of inputs to ensure correct overall validation.
         """
-        result = validate_convert_units_param(value)
+        if warning_match:
+            with pytest.warns(UserWarning, match=warning_match):
+                result = validate_convert_units_param(value)
+        else:
+            result = validate_convert_units_param(value)
         assert result == expected
 
     def test_validate_convert_units_param_unset(self):
@@ -109,23 +135,5 @@ class TestValidateConvertUnitsValidateConvertUnitsParam:
 
         Tests validation when the value is UNSET, which should return True.
         """
-        from climakitae.new_core.param_validation.base_param_validator import UNSET
-
         result = validate_convert_units_param(UNSET)
         assert result is True
-
-    @pytest.mark.parametrize(
-        "value",
-        ["invalid_unit", ["K", "invalid_unit"], 123, None, {"unit": "K"}],
-    )
-    def test_validate_convert_units_param_warnings(self, value):
-        """Test validate_convert_units_param to ensure warnings are raised for invalid inputs.
-
-        Tests that a UserWarning is raised when invalid inputs are provided.
-        """
-        with pytest.warns(
-            UserWarning,
-            match="Convert Units Processor",
-        ):
-            result = validate_convert_units_param(value)
-            assert result is False
