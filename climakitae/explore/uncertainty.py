@@ -718,51 +718,86 @@ def get_warm_level(
         gwl_times = read_csv_file(gwl_file, index_col=[0, 1, 2])
     else:
         gwl_file_all = GWL_1981_2010_FILE
-        gwl_times_all = read_csv_file(gwl_file_all)
+        gwl_times_all = read_csv_file(gwl_file_all, index_col=[0, 1, 2])
         # TODO Add information on a more complete list of ensemble members of
         # EC-Earth3 to cover internal variability notebook needs
         gwl_file_ece3 = "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv"
-        gwl_times_ece3 = read_csv_file(gwl_file_ece3)
-        gwl_times = (
-            pd.concat([gwl_times_all, gwl_times_ece3])
-            .drop_duplicates()
-            .set_index(["GCM", "run", "scenario"])
-        )
+        gwl_times_ece3 = read_csv_file(gwl_file_ece3, index_col=[0, 1, 2])
+        gwl_times = pd.concat([gwl_times_all, gwl_times_ece3]).drop_duplicates()
 
     # grab the ensemble members specific to our needs here
-    sim_idx = []
     scenario = "ssp370"
     model = str(ds.simulation.values)
-    if model in gwl_times.index:
-        if multi_ens:
-            member_id = str(ds["member_id"].values)
-        else:
-            match model:
-                case "CESM2":
-                    member_id = "r11i1p1f1"
-                case "CNRM-ESM2-1":
-                    member_id = "r1i1p1f2"
-                case _:
-                    member_id = "r1i1p1f1"
-        sim_idx = (model, member_id, scenario)
 
-        # identify the year that the selected warming level is reached for each ensemble member
-        year_warmlevel_reached = str(gwl_times[str(warm_level)].loc[sim_idx])[:4]
-        if len(year_warmlevel_reached) != 4:
-            print(
-                "{}°C warming level not reached for ensemble member {} of model {}".format(
-                    warm_level, member_id, model
-                )
+    # Check if model exists in the warming level data
+    if model not in gwl_times.index.get_level_values(0):
+        print(f"Model {model} not found in warming level data")
+        return None
+
+    if multi_ens:
+        member_id = str(ds["member_id"].values)
+    else:
+        match model:
+            case "CESM2":
+                member_id = "r11i1p1f1"
+            case "CNRM-ESM2-1":
+                member_id = "r1i1p1f2"
+            case _:
+                member_id = "r1i1p1f1"
+
+    sim_idx = (model, member_id, scenario)
+
+    # Check if the specific combination exists in the index
+    if sim_idx not in gwl_times.index:
+        print(f"Combination {sim_idx} not found in warming level data")
+        return None
+
+    # Get the warming level column as string
+    warm_level_col = str(warm_level)
+
+    # Check if warming level column exists
+    if warm_level_col not in gwl_times.columns:
+        print(f"Warming level {warm_level}°C column not found in data")
+        return None
+
+    # Get the datetime string for this warming level
+    warming_level_value = gwl_times.loc[sim_idx, warm_level_col]
+
+    # Check for NaN or empty values (warming level not reached)
+    if (
+        pd.isna(warming_level_value)
+        or warming_level_value == ""
+        or warming_level_value is None
+    ):
+        print(
+            "{}°C warming level not reached for ensemble member {} of model {}".format(
+                warm_level, member_id, model
             )
-        else:
-            if (int(year_warmlevel_reached) + 15) > 2100:
-                print(
-                    "End year for SSP time slice occurs after 2100;"
-                    + " skipping ensemble member {} of model {}".format(
-                        member_id, model
-                    )
-                )
-            else:
-                year0 = str(int(year_warmlevel_reached) - 14)
-                year1 = str(int(year_warmlevel_reached) + 15)
-                return ds.sel(time=slice(year0, year1))
+        )
+        return None
+
+    # Extract year from datetime string (format: "YYYY-MM-DD HH:MM:SS")
+    # The datetime string should be in the format "YYYY-MM-DD HH:MM:SS"
+    # We extract the first 4 characters to get the year
+    year_warmlevel_reached = str(warming_level_value)[:4]
+
+    # Validate that we got a proper year
+    if not year_warmlevel_reached.isdigit() or len(year_warmlevel_reached) != 4:
+        print(
+            f"Invalid year format extracted: '{year_warmlevel_reached}' for {warm_level}°C warming level, "
+            f"ensemble member {member_id} of model {model}"
+        )
+        return None
+
+    year_warmlevel_reached_int = int(year_warmlevel_reached)
+
+    if (year_warmlevel_reached_int + 15) > 2100:
+        print(
+            "End year for SSP time slice occurs after 2100; "
+            + "skipping ensemble member {} of model {}".format(member_id, model)
+        )
+        return None
+    else:
+        year0 = str(year_warmlevel_reached_int - 14)
+        year1 = str(year_warmlevel_reached_int + 15)
+        return ds.sel(time=slice(year0, year1))
