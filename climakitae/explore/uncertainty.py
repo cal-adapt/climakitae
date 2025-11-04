@@ -680,7 +680,7 @@ def get_ks_pval_df(
 
 def get_warm_level(
     warm_level: float | int, ds: xr.Dataset, multi_ens: bool = False, ipcc: bool = True
-) -> xr.Dataset:
+) -> xr.Dataset | None:
     """Subsets projected data centered to the year
     that the selected warming level is reached
     for a particular simulation/member_id
@@ -760,8 +760,41 @@ def get_warm_level(
         print(f"Warming level {warm_level}°C column not found in data")
         return None
 
-    # Get the datetime string for this warming level
+    # Get the warming-level value for this index. `.loc` may return a scalar,
+    # a one-element Series/ndarray, or (unexpectedly) a multi-element object if
+    # the GWL data contains duplicate rows for the same index. Normalize to a
+    # single scalar value or raise a clear error when ambiguous.
     warming_level_value = gwl_times.loc[sim_idx, warm_level_col]
+
+    # If we got a pandas Series or an array-like, ensure it contains exactly
+    # one element and extract that element. If there are multiple entries,
+    # surface an explicit error so the user can fix the GWL source data.
+    if isinstance(warming_level_value, pd.Series):
+        if warming_level_value.size == 1:
+            warming_level_value = warming_level_value.iloc[0]
+        else:
+            raise ValueError(
+                f"Multiple warming-level entries found for index {sim_idx} "
+                f"and level {warm_level_col}. Expected a single entry per ensemble member."
+            )
+    elif isinstance(warming_level_value, (list, tuple, np.ndarray)):
+        arr = np.asarray(warming_level_value)
+        if arr.size == 1:
+            warming_level_value = arr.item()
+        else:
+            raise ValueError(
+                f"Multiple warming-level entries found for index {sim_idx} "
+                f"and level {warm_level_col}. Expected a single entry per ensemble member."
+            )
+
+    # At this point `warming_level_value` should be a scalar. Reject numeric
+    # types outright — the project expects datetime strings in the GWL files
+    # (e.g. 'YYYY-MM-DD HH:MM:SS'). Do not silently accept floats.
+    if isinstance(warming_level_value, (int, float, np.integer, np.floating)):
+        raise ValueError(
+            f"Numeric warming-level value found for index {sim_idx}: {warming_level_value!r}. "
+            "GWL files must store datetimes as strings in 'YYYY-MM-DD HH:MM:SS' format."
+        )
 
     # Check for NaN or empty values (warming level not reached)
     if (
