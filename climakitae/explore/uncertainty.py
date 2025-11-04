@@ -760,48 +760,26 @@ def get_warm_level(
         print(f"Warming level {warm_level}°C column not found in data")
         return None
 
-    # Get the warming-level value for this index. `.loc` may return a scalar,
-    # a one-element Series/ndarray, or (unexpectedly) a multi-element object if
-    # the GWL data contains duplicate rows for the same index. Normalize to a
-    # single scalar value or raise a clear error when ambiguous.
+    # Get the warming-level value(s) for this index. `.loc` may return a scalar,
+    # a one-element Series/ndarray, or a multi-element object if the GWL data
+    # contains duplicate rows. For duplicates we deterministically choose the
+    # earliest parseable datetime across entries for the requested warming level.
     warming_level_value = gwl_times.loc[sim_idx, warm_level_col]
 
-    # If we got a pandas Series or an array-like, ensure it contains exactly
-    # one element and extract that element. If there are multiple entries,
-    # surface an explicit error so the user can fix the GWL source data.
-    if isinstance(warming_level_value, pd.Series):
-        if warming_level_value.size == 1:
-            warming_level_value = warming_level_value.iloc[0]
-        else:
-            raise ValueError(
-                f"Multiple warming-level entries found for index {sim_idx} "
-                f"and level {warm_level_col}. Expected a single entry per ensemble member."
-            )
-    elif isinstance(warming_level_value, (list, tuple, np.ndarray)):
-        arr = np.asarray(warming_level_value)
-        if arr.size == 1:
-            warming_level_value = arr.item()
-        else:
-            raise ValueError(
-                f"Multiple warming-level entries found for index {sim_idx} "
-                f"and level {warm_level_col}. Expected a single entry per ensemble member."
-            )
+    # Coerce the result to a pandas Series of candidates for uniform handling
+    def _as_series(val):
+        if isinstance(val, pd.Series):
+            return val.astype(object)
+        if isinstance(val, (list, tuple, np.ndarray)):
+            return pd.Series(list(val)).astype(object)
+        return pd.Series([val]).astype(object)
 
-    # At this point `warming_level_value` should be a scalar. Reject numeric
-    # types outright — the project expects datetime strings in the GWL files
-    # (e.g. 'YYYY-MM-DD HH:MM:SS'). Do not silently accept floats.
-    if isinstance(warming_level_value, (int, float, np.integer, np.floating)):
-        raise ValueError(
-            f"Numeric warming-level value found for index {sim_idx}: {warming_level_value!r}. "
-            "GWL files must store datetimes as strings in 'YYYY-MM-DD HH:MM:SS' format."
-        )
+    candidates = _as_series(warming_level_value)
 
-    # Check for NaN or empty values (warming level not reached)
-    if (
-        pd.isna(warming_level_value)
-        or warming_level_value == ""
-        or warming_level_value is None
-    ):
+    # Drop clear null-like values
+    candidates = candidates[~candidates.isin([None, "", np.nan])]
+
+    if candidates.empty:
         print(
             "{}°C warming level not reached for ensemble member {} of model {}".format(
                 warm_level, member_id, model
@@ -809,20 +787,41 @@ def get_warm_level(
         )
         return None
 
-    # Extract year from datetime string (format: "YYYY-MM-DD HH:MM:SS")
-    # The datetime string should be in the format "YYYY-MM-DD HH:MM:SS"
-    # We extract the first 4 characters to get the year
-    year_warmlevel_reached = str(warming_level_value)[:4]
+    # Reject numeric types explicitly: GWL values must be datetimes as strings
+    if any(isinstance(x, (int, float, np.integer, np.floating)) for x in candidates):
+        raise ValueError(
+            f"Numeric warming-level value(s) found for index {sim_idx}: {candidates.tolist()!r}. "
+            "GWL files must store datetimes as strings in 'YYYY-MM-DD HH:MM:SS' format."
+        )
 
-    # Validate that we got a proper year
-    if not year_warmlevel_reached.isdigit() or len(year_warmlevel_reached) != 4:
+    # Try to parse candidates to datetimes and pick the earliest valid one
+    parsed = pd.to_datetime(candidates.astype(str), errors="coerce")
+    parsed = parsed.dropna()
+    if parsed.empty:
+        # No parseable datetime values among candidates. If we only had a
+        # single candidate, preserve the previous behavior and print the
+        # 'Invalid year format extracted' message expected by tests/notebooks.
+        if len(candidates) == 1:
+            cand = str(candidates.iloc[0])
+            year_warmlevel_reached = cand[:4]
+            print(
+                f"Invalid year format extracted: '{year_warmlevel_reached}' for {warm_level}°C warming level, "
+                f"ensemble member {member_id} of model {model}"
+            )
+            return None
+
+        # Otherwise, report we couldn't parse any valid datetimes
         print(
-            f"Invalid year format extracted: '{year_warmlevel_reached}' for {warm_level}°C warming level, "
-            f"ensemble member {member_id} of model {model}"
+            f"Could not parse any datetime values for warming level {warm_level_col} "
+            f"for ensemble member {member_id} of model {model}: {candidates.tolist()}"
         )
         return None
 
-    year_warmlevel_reached_int = int(year_warmlevel_reached)
+    # Deterministic resolution: choose earliest datetime among valid candidates
+    earliest_ts = parsed.min()
+
+    # Extract the year from the chosen datetime
+    year_warmlevel_reached_int = int(earliest_ts.year)
 
     if (year_warmlevel_reached_int + 15) > 2100:
         print(
