@@ -405,14 +405,14 @@ class TMY:
                     )
                 else:
                     print(
-                        f"Initializing TMY object for custom location: {latitude} N, {longitude} E with name '{station_name}'."
+                        f"Initializing TMY object for custom location: {latitude} N, {longitude} W with name '{station_name}'."
                     )
                     self._set_loc_from_lat_lon(latitude, longitude)
                     self.stn_name = station_name
             # Case 2: lat/lon provided, no station_name string
             case float() | int(), float() | int(), object():
                 print(
-                    f"Initializing TMY object for custom location: {latitude} N, {longitude} E."
+                    f"Initializing TMY object for custom location: {latitude} N, {longitude} W."
                 )
                 self._set_loc_from_lat_lon(latitude, longitude)
             # Case 3: station name provided, lat/lon not numeric
