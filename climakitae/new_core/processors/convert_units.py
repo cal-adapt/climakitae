@@ -223,7 +223,9 @@ class ConvertUnits(DataProcessor):
         """
         try:
             var = list(data.data_vars.keys())[0]
-            units_from = data.data_vars[var].attrs.get("units", None)
+            units_from = data.data_vars[var].attrs[
+                "units"
+            ]  # Trying to get an error if the units attribute does not exist
         except (KeyError, IndexError):
             warnings.warn(
                 (
