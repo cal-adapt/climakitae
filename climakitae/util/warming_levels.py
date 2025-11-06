@@ -1,14 +1,20 @@
 """Helper functions related to applying a warming levels approach to a data object"""
 
 import calendar
+import warnings
 from typing import Union
 
 import intake
 import numpy as np
 import pandas as pd
 import xarray as xr
-import warnings
 
+from climakitae.core.constants import (
+    LOCA_END_YEAR,
+    LOCA_START_YEAR,
+    WRF_END_YEAR,
+    WRF_START_YEAR,
+)
 from climakitae.core.paths import (
     DATA_CATALOG_URL,
     GWL_1850_1900_FILE,
@@ -118,23 +124,18 @@ def _get_sliced_data(
     # Dropping leap days before slicing time dimension because the window size can affect number of leap days per slice
     y = y.loc[~((y.time.dt.month == 2) & (y.time.dt.day == 29))]
 
+    # Getting start and end years for slicing if `center_time` is not NaN
     if not pd.isna(center_time):
         centered_year = pd.to_datetime(center_time).year
         start_year = centered_year - window
         end_year = centered_year + (window - 1)
 
-    # import pdb; pdb.set_trace()
+    # If the centered year is not NaN and a complete warming level slice can be created, proceed with slicing
+    if not pd.isna(center_time) and _determine_complete_wl(
+        start_year, end_year, y, level
+    ):
 
-    # if y.simulation.item() == 'LOCA2_EC-Earth3_r3i1p1f1' and y.scenario.item() == 'Historical + SSP 5-8.5':
-    #     import pdb; pdb.set_trace()
-
-    if not pd.isna(center_time) and _determine_complete_wl(start_year, end_year, y, level):
-
-        # # Find the centered year
-        # centered_year = pd.to_datetime(center_time).year
-        # start_year = centered_year - window
-        # end_year = centered_year + (window - 1)
-
+        # Slicing data around the centered year
         sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
         # Creating a mask for timestamps that are within the desired months
@@ -194,15 +195,36 @@ def _get_sliced_data(
     return sliced
 
 
-def _determine_complete_wl(start_year, end_year, y, level):
-    
+def _determine_complete_wl(
+    start_year: int, end_year: int, y: xr.DataArray, level: float
+) -> bool:
+    """
+    Determine if a complete warming level slice can be created for the given start and end years.
+    This checks if the years fall within valid ranges based on the downscaling method.
+
+    Parameters
+    ----------
+    start_year : int
+        The starting year of the warming level slice.
+    end_year : int
+        The ending year of the warming level slice.
+    y : xr.DataArray
+        The data array containing the simulation information.
+    level : float
+        The warming level being evaluated.
+
+    Returns
+    -------
+    bool
+        True if a complete warming level slice can be created, False otherwise.
+    """
     valid_years = {
-        "Statistical": (1950, 2101),
-        "Dynamical": (1981, 2100),
+        "Statistical": (LOCA_START_YEAR, LOCA_END_YEAR),
+        "Dynamical": (WRF_START_YEAR, WRF_END_YEAR),
     }
-    
+
     min_year, max_year = valid_years.get(y.downscaling_method, (None, None))
-    
+
     if min_year and (start_year < min_year or end_year >= max_year):
         warnings.warn(
             f"\n\nIncomplete warming level for {y.simulation.item()} at {level}C. "
@@ -211,7 +233,6 @@ def _determine_complete_wl(start_year, end_year, y, level):
         return False
 
     return True
-        
 
 
 def _extract_string_identifiers(da: xr.DataArray) -> tuple[str, str, str]:

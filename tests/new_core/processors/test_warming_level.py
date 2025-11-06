@@ -343,7 +343,7 @@ class TestWarmingLevelExecute:
     def test_execute_updates_context(self, request, full_processor):
         """Test that execute updates context with warming level information."""
         test_result = request.getfixturevalue("test_dataarray_dict")
-        context = {}
+        context = {"activity_id": "WRF"}
         _ = full_processor.execute(result=test_result, context=context)
         assert full_processor.name in context[_NEW_ATTRS_KEY][full_processor.name]
         assert str(full_processor.value) in context[_NEW_ATTRS_KEY][full_processor.name]
@@ -378,7 +378,7 @@ class TestWarmingLevelExecute:
                 match=f"No warming level data found",
             ),
         ):
-            ret = full_processor.execute(data, context={})
+            ret = full_processor.execute(data, context={"activity_id": "WRF"})
             for key in ret:
                 assert len(ret[key].warming_level) == 2
                 assert 5.8 not in ret[key].warming_level.values
@@ -386,7 +386,7 @@ class TestWarmingLevelExecute:
     def test_execute_dims_correct(self, request, full_processor):
         """Test that execute returns a dict with expected keys and types."""
         test_result = request.getfixturevalue("test_dataarray_dict")
-        ret = full_processor.execute(result=test_result, context={})
+        ret = full_processor.execute(result=test_result, context={"activity_id": "WRF"})
         for key in ret:
             assert isinstance(ret[key], xr.Dataset)
             assert "warming_level" in ret[key].dims
@@ -397,7 +397,7 @@ class TestWarmingLevelExecute:
         """Test that execute manipulates the data to have correct dims and years."""
         test_result = request.getfixturevalue("test_dataarray_dict")
         test_key = "WRF.UCLA.EC-Earth3.ssp370.day.d03"
-        ret = full_processor.execute(result=test_result, context={})
+        ret = full_processor.execute(result=test_result, context={"activity_id": "WRF"})
         ret_key = "WRF.UCLA.EC-Earth3.ssp370.day.d03.r1i1p1f1"
 
         # Check that the warming_level coordinate matches the processor's warming_levels
