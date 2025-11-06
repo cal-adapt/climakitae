@@ -7,6 +7,7 @@ import intake
 import numpy as np
 import pandas as pd
 import xarray as xr
+import warnings
 
 from climakitae.core.paths import (
     DATA_CATALOG_URL,
@@ -448,12 +449,12 @@ def get_gwl_at_year(year: int, ssp: str = "all") -> pd.DataFrame:
         )
         # Find the data for the given year and different scenarios
         for scenario in ssp_list:
-            data = ssp_dict.get(scenario)
-            if year not in data.index:
+            wl_by_year_for_scenario = ssp_dict.get(scenario)
+            if year not in wl_by_year_for_scenario.index:
                 print(f"Year {year} not found in {scenario}")
                 wl_timing_df.loc[scenario] = [np.nan, np.nan, np.nan]
             else:
-                wl_timing_df.loc[scenario] = round(data.loc[year], 2)
+                wl_timing_df.loc[scenario] = round(wl_by_year_for_scenario.loc[year], 2)
 
     else:
         # Finding the data from the historical period
@@ -505,13 +506,12 @@ def get_year_at_gwl(gwl: Union[float, int], ssp: str = "all") -> pd.DataFrame:
         upper_mask = ssp_selected["95%"] > gwl
         lower_mask = ssp_selected["5%"] > gwl
 
-        def first_wl_year(one_ssp: pd.Series, mask: pd.Series) -> Union[int, float]:
+        def first_wl_year(one_ssp: pd.Series, mask: pd.Series) -> Union[int, np.nan]:
             """Return the first year where the pd.Series mask is True, or NaN if none."""
             if mask.any():
-                year = round(one_ssp.index[mask][0], 0)
+                return round(one_ssp.index[mask][0], 0)
             else:
-                year = np.nan
-            return year
+                return np.nan
 
         # Only add data for a scenario if the mean and upper bound of uncertainty reach the gwl
         if mean_mask.any() and upper_mask.any() and (not mean_mask.all()):
@@ -534,6 +534,10 @@ def get_year_at_gwl(gwl: Union[float, int], ssp: str = "all") -> pd.DataFrame:
     try:
         wl_timing_df = wl_timing_df.astype("Int64")
     except Exception:
+        warnings.warn(
+            "Error converting years to int, data may have unexpected issues.",
+            UserWarning,
+        )
         pass
 
     return wl_timing_df
