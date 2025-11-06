@@ -151,6 +151,9 @@ class WarmingLevel(DataProcessor):
         # get center years for each key for each warming level
         center_years = self.get_center_years(member_ids, ret.keys())
         retkeys = list(ret.keys())
+
+        dropped_slices_count = 0
+        
         for key in retkeys:
             if key not in center_years:
                 del ret[key]
@@ -169,9 +172,25 @@ class WarmingLevel(DataProcessor):
                     )
                     continue
                 start_year = year - self.warming_level_window
-                start_year = max(start_year, 1981)
+                # start_year = max(start_year, 1981)
                 end_year = year + self.warming_level_window - 1
-                end_year = min(end_year, 2100)
+                # end_year = min(end_year, 2100)
+                
+                valid_years = {
+                    "LOCA2": (1950, 2101),
+                    "WRF": (1981, 2100),
+                }
+                
+                min_year, max_year = valid_years.get(context["activity_id"], (None, None))
+                
+                if min_year and (start_year < min_year or end_year >= max_year):
+                    print(key)
+                    dropped_slices_count += 1
+                    warnings.warn(
+                        f"\n\nIncomplete warming level for {key} at {wl}C. "
+                        "\nSkipping this warming level."
+                    )
+                    continue
 
                 da_slice = ret[key].sel(time=slice(f"{start_year}", f"{end_year}"))
 
@@ -211,6 +230,8 @@ class WarmingLevel(DataProcessor):
                 slices, dim="warming_level", join="outer", fill_value=np.nan
             )
         self.update_context(context)
+
+        print(f"Dropped slices count: {dropped_slices_count}")
         return ret
 
     def update_context(self, context: Dict[str, Any]) -> Dict[str, Any]:

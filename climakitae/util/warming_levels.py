@@ -7,6 +7,7 @@ import intake
 import numpy as np
 import pandas as pd
 import xarray as xr
+import warnings
 
 from climakitae.core.paths import (
     DATA_CATALOG_URL,
@@ -118,14 +119,21 @@ def _get_sliced_data(
     y = y.loc[~((y.time.dt.month == 2) & (y.time.dt.day == 29))]
 
     if not pd.isna(center_time):
-
-        # Find the centered year
         centered_year = pd.to_datetime(center_time).year
         start_year = centered_year - window
         end_year = centered_year + (window - 1)
 
-        if start_year < 1981:
-            start_year = 1981
+    # import pdb; pdb.set_trace()
+
+    # if y.simulation.item() == 'LOCA2_EC-Earth3_r3i1p1f1' and y.scenario.item() == 'Historical + SSP 5-8.5':
+    #     import pdb; pdb.set_trace()
+
+    if not pd.isna(center_time) and _determine_complete_wl(start_year, end_year, y, level):
+
+        # # Find the centered year
+        # centered_year = pd.to_datetime(center_time).year
+        # start_year = centered_year - window
+        # end_year = centered_year + (window - 1)
 
         sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
@@ -184,6 +192,26 @@ def _get_sliced_data(
         sliced = xr.full_like(y, np.nan)
 
     return sliced
+
+
+def _determine_complete_wl(start_year, end_year, y, level):
+    
+    valid_years = {
+        "Statistical": (1950, 2101),
+        "Dynamical": (1981, 2100),
+    }
+    
+    min_year, max_year = valid_years.get(y.downscaling_method, (None, None))
+    
+    if min_year and (start_year < min_year or end_year >= max_year):
+        warnings.warn(
+            f"\n\nIncomplete warming level for {y.simulation.item()} at {level}C. "
+            "\nSkipping this warming level."
+        )
+        return False
+
+    return True
+        
 
 
 def _extract_string_identifiers(da: xr.DataArray) -> tuple[str, str, str]:
