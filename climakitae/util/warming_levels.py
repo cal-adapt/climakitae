@@ -225,7 +225,7 @@ def _determine_complete_wl(
 
     min_year, max_year = valid_years.get(y.downscaling_method, (None, None))
 
-    if min_year and (start_year < min_year or end_year >= max_year):
+    if min_year and (start_year < min_year or end_year > max_year):
         warnings.warn(
             f"\n\nIncomplete warming level for {y.simulation.item()} at {level}C. "
             "\nSkipping this warming level."

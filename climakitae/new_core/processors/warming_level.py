@@ -190,7 +190,7 @@ class WarmingLevel(DataProcessor):
                     context["activity_id"], (None, None)
                 )
 
-                if min_year and (start_year < min_year or end_year >= max_year):
+                if min_year and (start_year < min_year or end_year > max_year):
                     print(key)
                     dropped_slices_count += 1
                     warnings.warn(
