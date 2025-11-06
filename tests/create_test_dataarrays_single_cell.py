@@ -10,6 +10,7 @@ Notes:
 """
 
 import numpy as np
+
 from climakitae.core.data_interface import get_data
 from climakitae.util.utils import get_closest_gridcell
 

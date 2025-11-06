@@ -47,8 +47,8 @@ from climakitae.util.utils import (
 )
 from climakitae.util.warming_levels import (
     calculate_warming_level,
-    drop_invalid_sims,
     create_new_warming_level_table,
+    drop_invalid_sims,
 )
 
 if TYPE_CHECKING:
@@ -95,7 +95,15 @@ def load(xr_da: xr.DataArray, progress_bar: bool = False) -> xr.DataArray:
     if avail_mem - xr_data_nbytes < 268435456:
         print("Available memory: {0}".format(readable_bytes(avail_mem)))
         print("Total memory of input data: {0}".format(readable_bytes(xr_data_nbytes)))
-        raise MemoryError("Your input dataset is too large to read into memory!")
+        warnings.warn(
+            "Your input dataset may be too large to read into memory!", UserWarning
+        )
+        # take user input on continuing
+        proceed = input(
+            "If you continue, your system may become unresponsive. Do you want to proceed? (y/n): "
+        )
+        if proceed.lower() != "y":
+            raise MemoryError("Process aborted by user.")
     else:
         print(
             "Processing data to read {0} of data into memory... ".format(
@@ -647,6 +655,12 @@ def _merge_all(
             one_key = reconstruction[0]
             all_ssps = _process_dset(one_key, data_dict[one_key], selections)
             all_ssps = _add_scenario_dim(all_ssps, "Historical Reconstruction")
+        else:
+            # Handle case where no scenarios, no historical, and no reconstruction data
+            raise ValueError(
+                "No data available for the selected combination. "
+                "Please check that data exists for your selected parameters (variable, resolution, timescale, approach, etc.)"
+            )
 
     # Rename expanded dimension:
     all_ssps = all_ssps.rename({"member_id": "simulation"})

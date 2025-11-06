@@ -10,7 +10,7 @@ import pandas as pd
 import pyproj
 import rioxarray as rio
 import xarray as xr
-from shapely.geometry import mapping, Point
+from shapely.geometry import Point, mapping
 from timezonefinder import TimezoneFinder
 
 from climakitae.core.constants import SSPS, UNSET
@@ -921,7 +921,7 @@ def convert_to_local_time(
     return data
 
 
-def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
+def add_dummy_time_to_wl(wl_da: xr.DataArray, freq_name="daily") -> xr.DataArray:
     """Replace the `[hours/days/months]_from_center` or `time_delta` dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a `time` dimension.
 
     Parameters
@@ -929,6 +929,8 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
     wl_da : xr.DataArray
         The input Warming Levels DataArray. It is expected to have a time-based dimension which typically includes "from_center"
         in its name or `time_delta` indicating the time dimension in relation to the year that the given warming level is reached per simulation.
+    freq_name : str, optional
+        The frequency name to use when `time_delta` is the time dimension. Options are "hourly", "daily", or "monthly". Default is "daily".
 
     Returns
     -------
@@ -943,7 +945,8 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
     - The dummy time series starts from "2000-01-01".
 
     """
-    # Adjusting the time index into dummy time-series for counting
+    ### Adjusting the time index into a dummy time-series for counting
+
     # Finding time-based dimension
     wl_time_dim = ""
 
@@ -960,8 +963,14 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray) -> xr.DataArray:
 
     # Determine time frequency name and pandas freq string mapping
     if wl_time_dim == "time_delta":
-        time_freq_name = wl_da.frequency
+
+        try:
+            time_freq_name = wl_da.frequency
+        except AttributeError:
+            time_freq_name = freq_name
+
         name_to_freq = {"hourly": "h", "daily": "D", "monthly": "MS"}
+
     else:
         time_freq_name = wl_time_dim.split("_")[0]
         name_to_freq = {"hours": "h", "days": "D", "months": "MS"}
