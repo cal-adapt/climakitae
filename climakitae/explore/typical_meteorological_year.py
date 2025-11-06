@@ -37,12 +37,12 @@ WEIGHTS_PER_VAR = {
 }
 
 
-def match_str_to_wl(warming_level: str) -> str:
+def match_str_to_wl(warming_level: float | int) -> str:
     """Return warming level description string.
 
     Parameters
     ----------
-    warming_level: float
+    warming_level: float | int
         A standard warming level
 
     Returns
@@ -404,17 +404,15 @@ class TMY:
                         "Do not set `latitude` and `longitude` when using a HadISD station for `station_name`. Change `station_name` value if using custom location."
                     )
                 else:
-                    # assumed longitude will always be western hemisphere
                     print(
-                        f"Initializing TMY object for custom location: {latitude} N, {abs(longitude)} W with name '{station_name}'."
+                        f"Initializing TMY object for custom location: {latitude} N, {longitude} E with name '{station_name}'."
                     )
                     self._set_loc_from_lat_lon(latitude, longitude)
                     self.stn_name = station_name
             # Case 2: lat/lon provided, no station_name string
             case float() | int(), float() | int(), object():
-                # assumed longitude will always be western hemisphere
                 print(
-                    f"Initializing TMY object for custom location: {latitude} N, {abs(longitude)} W."
+                    f"Initializing TMY object for custom location: {latitude} N, {longitude} E."
                 )
                 self._set_loc_from_lat_lon(latitude, longitude)
             # Case 3: station name provided, lat/lon not numeric
@@ -1006,22 +1004,23 @@ class TMY:
         """
         print("Exporting TMY to file.")
         for sim, _ in self.tmy_data_to_export.items():
-            clean_stn_name = (
-                self.stn_name.replace(" ", "_").replace("(", "").replace(")", "")
-            )
-            # replace scenario with descriptive name if present for gwl case
-            clean_sim = sim.replace(
-                "_historical+ssp370", f"_{match_str_to_wl(self.warming_level)}"
-            )
-            filename = f"TMY_{clean_stn_name}_{clean_sim}".lower()
             # Get right year range
             if self.warming_level is UNSET:
                 years = (self.start_year, self.end_year)
+                clean_sim = sim
             else:
                 centered_year = self.all_vars.sel(simulation=sim).centered_year.data
                 year1 = centered_year - 15
                 year2 = centered_year + 14
                 years = (year1, year2)
+                # replace scenario with descriptive name if present for gwl case
+                clean_sim = sim.replace(
+                    "_historical+ssp370", f"_{match_str_to_wl(self.warming_level)}"
+                )
+            clean_stn_name = (
+                self.stn_name.replace(" ", "_").replace("(", "").replace(")", "")
+            )
+            filename = f"TMY_{clean_stn_name}_{clean_sim}".lower()
             write_tmy_file(
                 filename,
                 self.tmy_data_to_export[sim],
