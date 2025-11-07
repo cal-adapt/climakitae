@@ -20,7 +20,7 @@ from tests.uncertainty.fixtures import (
     mock_data_for_warm_level,
     mock_multi_ens_dataset,
     wrf_dataset,
-)
+)  # noqa: F401
 
 
 def test_get_warm_level_input_validation():
@@ -43,20 +43,41 @@ def test_get_warm_level_input_validation():
 def test_get_warm_level_file_loading(mock_read_csv, mock_data_for_warm_level):
     """Test file loading logic in get_warm_level for both IPCC and non-IPCC paths"""
 
-    # Create mock DataFrames for the CSV files
+    # Create mock DataFrames for the CSV files with datetime strings (matching actual format)
     mock_ipcc_df = pd.DataFrame(
-        {"1.5": [2030.5], "2.0": [2045.2], "3.0": [2070.1], "4.0": [2090.3]}
+        {
+            "1.5": ["2030-06-15 12:00:00"],
+            "2.0": ["2045-03-15 00:00:00"],
+            "3.0": ["2070-01-16 12:00:00"],
+            "4.0": ["2090-04-16 00:00:00"],
+        }
     )
     mock_ipcc_df.index = pd.MultiIndex.from_tuples(
         [("CESM2", "r11i1p1f1", "ssp370")], names=["GCM", "run", "scenario"]
     )
 
     mock_non_ipcc_df = pd.DataFrame(
-        {"1.5": [2025.3], "2.0": [2040.7], "3.0": [2065.8], "4.0": [2085.9]}
+        {
+            "1.5": ["2025-04-16 00:00:00"],
+            "2.0": ["2040-08-16 12:00:00"],
+            "3.0": ["2065-09-16 00:00:00"],
+            "4.0": ["2085-11-16 00:00:00"],
+        }
+    )
+    mock_non_ipcc_df.index = pd.MultiIndex.from_tuples(
+        [("CESM2", "r11i1p1f1", "ssp370")], names=["GCM", "run", "scenario"]
     )
 
     mock_ece3_df = pd.DataFrame(
-        {"1.5": [2026.1], "2.0": [2041.2], "3.0": [2066.4], "4.0": [2086.3]}
+        {
+            "1.5": ["2026-01-16 12:00:00"],
+            "2.0": ["2041-03-16 12:00:00"],
+            "3.0": ["2066-05-16 12:00:00"],
+            "4.0": ["2086-04-16 00:00:00"],
+        }
+    )
+    mock_ece3_df.index = pd.MultiIndex.from_tuples(
+        [("EC-Earth3", "r1i1p1f1", "ssp370")], names=["GCM", "run", "scenario"]
     )
 
     # Set up the mock to return different DataFrames based on input file path
@@ -84,8 +105,8 @@ def test_get_warm_level_file_loading(mock_read_csv, mock_data_for_warm_level):
             ) as mock_concat:
                 # Call the function with ipcc=True
                 try:
-                    result = get_warm_level(2.0, mock_data_for_warm_level, ipcc=True)
-                except:
+                    get_warm_level(2.0, mock_data_for_warm_level, ipcc=True)
+                except Exception:
                     # We expect the function to potentially fail after file loading,
                     # since we're not mocking everything, but we only care about file loading
                     pass
@@ -94,7 +115,7 @@ def test_get_warm_level_file_loading(mock_read_csv, mock_data_for_warm_level):
                 mock_read_csv.assert_called_with(
                     GWL_1850_1900_FILE, index_col=[0, 1, 2]
                 )
-                # Verify concat was not called
+                # Verify concat was not called (IPCC path uses single file)
                 mock_concat.assert_not_called()
 
     # Test non-IPCC path (ipcc=False)
@@ -108,15 +129,15 @@ def test_get_warm_level_file_loading(mock_read_csv, mock_data_for_warm_level):
             ) as mock_concat:
                 # Call the function with ipcc=False
                 try:
-                    result = get_warm_level(2.0, mock_data_for_warm_level, ipcc=False)
-                except:
+                    get_warm_level(2.0, mock_data_for_warm_level, ipcc=False)
+                except Exception:
                     pass
 
                 # Verify read_csv_file was called with both files
                 assert mock_read_csv.call_count == 2
-                mock_read_csv.assert_any_call(GWL_1981_2010_FILE)
+                mock_read_csv.assert_any_call(GWL_1981_2010_FILE, index_col=[0, 1, 2])
                 mock_read_csv.assert_any_call(
-                    "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv"
+                    "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv", index_col=[0, 1, 2]
                 )
 
                 # Verify concat was called with the two DataFrames
@@ -129,12 +150,29 @@ def test_get_warm_level_member_id_selection(
 ):
     """Test member_id selection logic."""
     # Setup mock dataframe with warming data - create a DataFrame with one row per model
+    # Use realistic datetime string format for warming-level reach times
     mock_df = pd.DataFrame(
         {
-            "1.5": [2030.5, 2030.6, 2030.7],
-            "2.0": [2045.2, 2045.3, 2045.4],
-            "3.0": [2070.1, 2070.2, 2070.3],
-            "4.0": [2090.3, 2090.4, 2090.5],
+            "1.5": [
+                "2030-06-15 12:00:00",
+                "2030-06-16 12:00:00",
+                "2030-06-17 12:00:00",
+            ],
+            "2.0": [
+                "2045-03-15 00:00:00",
+                "2045-03-16 00:00:00",
+                "2045-03-17 00:00:00",
+            ],
+            "3.0": [
+                "2070-01-15 12:00:00",
+                "2070-01-16 12:00:00",
+                "2070-01-17 12:00:00",
+            ],
+            "4.0": [
+                "2090-04-15 00:00:00",
+                "2090-04-16 00:00:00",
+                "2090-04-17 00:00:00",
+            ],
         }
     )
     mock_df.index = pd.MultiIndex.from_tuples(
@@ -148,24 +186,33 @@ def test_get_warm_level_member_id_selection(
     mock_read_csv.return_value = mock_df
 
     # Test default member_id selection for CESM2
-    with patch("xarray.Dataset.sel", return_value=mock_data_for_clipping) as mock_sel:
+    with patch("xarray.Dataset.sel", return_value=mock_data_for_clipping):
         get_warm_level(2.0, mock_data_for_clipping)
         # For CESM2, should use r11i1p1f1
-        assert mock_df.loc[("CESM2", "r11i1p1f1", "ssp370")]["2.0"] == 2045.2
+        assert (
+            mock_df.loc[("CESM2", "r11i1p1f1", "ssp370")]["2.0"]
+            == "2045-03-15 00:00:00"
+        )
 
     # Test default member_id selection for CNRM-ESM2-1
     cnrm_ds = mock_data_for_clipping.copy()
     cnrm_ds = cnrm_ds.assign_coords({"simulation": "CNRM-ESM2-1"})
-    with patch("xarray.Dataset.sel", return_value=cnrm_ds) as mock_sel:
+    with patch("xarray.Dataset.sel", return_value=cnrm_ds):
         get_warm_level(2.0, cnrm_ds)
         # For CNRM-ESM2-1, should use r1i1p1f2
-        assert mock_df.loc[("CNRM-ESM2-1", "r1i1p1f2", "ssp370")]["2.0"] == 2045.4
+        assert (
+            mock_df.loc[("CNRM-ESM2-1", "r1i1p1f2", "ssp370")]["2.0"]
+            == "2045-03-17 00:00:00"
+        )
 
     # Test multi_ens=True (should use the member_id from the dataset)
-    with patch("xarray.Dataset.sel", return_value=mock_multi_ens_dataset) as mock_sel:
+    with patch("xarray.Dataset.sel", return_value=mock_multi_ens_dataset):
         get_warm_level(2.0, mock_multi_ens_dataset, multi_ens=True)
         # Should use the member_id from the dataset
-        assert mock_df.loc[("EC-Earth3", "r1i1p1f1", "ssp370")]["2.0"] == 2045.3
+        assert (
+            mock_df.loc[("EC-Earth3", "r1i1p1f1", "ssp370")]["2.0"]
+            == "2045-03-16 00:00:00"
+        )
 
 
 @patch("climakitae.explore.uncertainty.read_csv_file")
@@ -174,7 +221,7 @@ def test_get_warm_level_time_slice(mock_read_csv, mock_data_for_warm_level):
     # Setup mock dataframe with warming data
     mock_df = pd.DataFrame(
         {
-            "3.0": [2070.0],  # Warming level reached in 2070
+            "3.0": ["2070-01-01 00:00:00"],  # Warming level reached in 2070
         }
     )
     mock_df.index = pd.MultiIndex.from_tuples(
@@ -194,11 +241,11 @@ def test_get_warm_level_time_slice(mock_read_csv, mock_data_for_warm_level):
         result = get_warm_level(3.0, mock_data_for_warm_level)
         assert result is None
         mock_print.assert_called_with(
-            "3.0°C warming level not reached for ensemble member r11i1p1f1 of model CESM2"
+            "Invalid year format extracted: 'N/A' for 3.0°C warming level, ensemble member r11i1p1f1 of model CESM2"
         )
 
     # Test case where end year exceeds 2100
-    mock_df["3.0"] = [2090.0]  # 2090 + 15 > 2100
+    mock_df["3.0"] = ["2090-01-01 00:00:00"]  # 2090 + 15 > 2100
     with patch("builtins.print") as mock_print:
         result = get_warm_level(3.0, mock_data_for_warm_level)
         assert result is None
@@ -218,7 +265,7 @@ def test_get_warm_level_integration(wrf_dataset):
     with patch("climakitae.explore.uncertainty.read_csv_file") as mock_read_csv:
         mock_df = pd.DataFrame(
             {
-                "3.0": [2070.0],  # Warming level reached in 2070
+                "3.0": ["2070-01-01 00:00:00"],  # Warming level reached in 2070
             }
         )
         mock_df.index = pd.MultiIndex.from_tuples(
