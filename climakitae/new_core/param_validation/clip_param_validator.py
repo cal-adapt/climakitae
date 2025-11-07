@@ -17,6 +17,7 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 from climakitae.new_core.param_validation.param_validation_tools import (
     _get_closest_options,
 )
+from climakitae.new_core.processors.processor_utils import is_station_identifier
 
 
 @register_processor_validator("clip")
@@ -58,7 +59,9 @@ def validate_clip_param(
     # Handle None values early
     if value is None or value is UNSET:
         warnings.warn(
-            "Clip parameter cannot be None. Please provide a valid boundary key, list of keys, file path, or coordinate bounds."
+            "Clip parameter cannot be None. Please provide a valid boundary key, list of keys, file path, or coordinate bounds.",
+            UserWarning,
+            stacklevel=999,
         )
         return False
 
@@ -75,6 +78,7 @@ def validate_clip_param(
                 f"\nExpected str, list, or tuple, but got {type(value).__name__}. "
                 f"\nValid examples: 'CA', ['CA', 'OR'], or ((32.0, 42.0), (-125.0, -114.0))",
                 UserWarning,
+                stacklevel=999,
             )
 
     return False
@@ -84,6 +88,14 @@ def _validate_string_param(value: str) -> bool:
     """
     Validate a string parameter for the Clip processor.
 
+    This function tries multiple validation paths to provide helpful feedback:
+    1. Check if it's a file path (highest priority - most specific)
+    2. Check if it's a station identifier (specific format)
+    3. Check if it's a boundary key (most general)
+
+    If a value fails one validation but might match another type, we provide
+    helpful suggestions across all categories.
+
     Parameters
     ----------
     value : str
@@ -91,8 +103,8 @@ def _validate_string_param(value: str) -> bool:
 
     Returns
     -------
-    Union[str, None]
-        Validated string or None if invalid
+    bool
+        True if the parameter is valid, False otherwise
 
     Raises
     ------
@@ -103,29 +115,63 @@ def _validate_string_param(value: str) -> bool:
     if not value or not value.strip():
         warnings.warn(
             "\n\nEmpty or whitespace-only strings are not valid clip parameters. "
-            "\nPlease provide a valid boundary key (e.g., 'CA'), file path, station code (e.g., 'KSAC'), or coordinate bounds."
+            "\nPlease provide a valid boundary key (e.g., 'CA'), file path, station code (e.g., 'KSAC'), or coordinate bounds.",
+            UserWarning,
+            stacklevel=999,
         )
         return False
 
     # Clean the string
     cleaned_value = value.strip()
 
-    # Check if it looks like a station identifier
-    if _is_station_identifier(cleaned_value):
-        return _validate_station_identifier(cleaned_value)
-
-    # Check if it looks like a file path
+    # Priority 1: Check if it looks like a file path (most specific check)
     if _is_file_path_like(cleaned_value):
         if os.path.exists(cleaned_value):
             return True
         else:
             warnings.warn(
                 f"\n\nFile path '{cleaned_value}' does not exist. "
-                f"\nPlease provide a valid file path to a shapefile or other geospatial data."
+                f"\nPlease provide a valid file path to a shapefile or other geospatial data.",
+                UserWarning,
+                stacklevel=999,
             )
             return False
 
-    # For boundary keys, provide basic validation and case sensitivity warnings
+    # Priority 2: Check if it strongly looks like a station identifier
+    # Only consider it a station if it matches the strict format
+    is_station_like = is_station_identifier(cleaned_value)
+
+    # If it looks like a station, validate it as such first
+    if is_station_like:
+        station_result = _validate_station_identifier(cleaned_value)
+        if station_result:
+            return True
+
+        # Station validation failed - check if it might be a boundary instead
+        # Suppress warnings from boundary validation since we already warned about station
+        import contextlib
+
+        with contextlib.redirect_stderr(None):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                boundary_result = _validate_boundary_key_string(cleaned_value)
+
+        if boundary_result:
+            # Provide helpful message that it's not a station but could be a boundary
+            warnings.warn(
+                f"\n\n'{cleaned_value}' looks like a station identifier but was not found in the station database. "
+                f"\nHowever, it appears to match a boundary key. "
+                f"\nIf you intended to clip to a station, please check the station code. "
+                f"\nIf you intended to clip to a boundary, the value will be accepted.",
+                UserWarning,
+                stacklevel=999,
+            )
+            return True
+
+        # Failed both validations - station warning already issued
+        return False
+
+    # Priority 3: Not station-like, validate as boundary key (most common case)
     return _validate_boundary_key_string(cleaned_value)
 
 
@@ -151,7 +197,9 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
     if not value or value is UNSET:
         warnings.warn(
             "Empty list is not valid for clip parameters. "
-            "Please provide a list of boundary keys (e.g., ['CA', 'OR', 'WA'])."
+            "Please provide a list of boundary keys (e.g., ['CA', 'OR', 'WA']).",
+            UserWarning,
+            stacklevel=999,
         )
         return False
 
@@ -162,13 +210,15 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
         warnings.warn(
             f"\n\nAll items in clip parameter list must be the same type. "
             f"\nFound {len(unique_types)} different types: {', '.join(set(unique_types))}. "
-            f"\nExample of valid list: ['CA', 'OR', 'WA'] or [(32.0, 42.0), (-125.0, -114.0)]"
+            f"\nExample of valid list: ['CA', 'OR', 'WA'] or [(32.0, 42.0), (-125.0, -114.0)]",
+            UserWarning,
+            stacklevel=999,
         )
         return False
 
     # Check if all items are station identifiers
     all_stations = all(
-        _is_station_identifier(item) if isinstance(item, str) else False
+        is_station_identifier(item) if isinstance(item, str) else False
         for item in value
     )
 
@@ -206,7 +256,9 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
             # Report invalid items as warnings rather than errors
             if invalid_items:
                 warnings.warn(
-                    f"\n\nFound {len(invalid_items)} invalid items in clip parameter list: {', '.join(invalid_items)}. "
+                    f"\n\nFound {len(invalid_items)} invalid items in clip parameter list: {', '.join(invalid_items)}. ",
+                    UserWarning,
+                    stacklevel=999,
                 )
                 return False
 
@@ -214,7 +266,9 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
                 warnings.warn(
                     "\n\nNo valid boundary keys found in the provided list. "
                     "\nPlease provide valid boundary keys such as ['CA', 'OR', 'WA'] or "
-                    "\n['Los Angeles County', 'Orange County']."
+                    "\n['Los Angeles County', 'Orange County'].",
+                    UserWarning,
+                    stacklevel=999,
                 )
                 return False
         case tuple():
@@ -229,7 +283,9 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
 
             if invalid_items:
                 warnings.warn(
-                    f"\n\nFound {len(invalid_items)} invalid items in clip parameter list: {', '.join(invalid_items)}. "
+                    f"\n\nFound {len(invalid_items)} invalid items in clip parameter list: {', '.join(invalid_items)}. ",
+                    UserWarning,
+                    stacklevel=999,
                 )
                 return False
 
@@ -241,7 +297,9 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
             f"\n\nDuplicate boundary keys found in the list. "
             f"\nOriginal list: {value} "
             f"\nUnique list: {unique} "
-            f"\n\nPlease remove duplicates."
+            f"\n\nPlease remove duplicates.",
+            UserWarning,
+            stacklevel=999,
         )
         return False
 
@@ -273,7 +331,9 @@ def _validate_tuple_param(
     if len(value) != 2:
         warnings.warn(
             f"Coordinate bounds tuple must have exactly 2 elements: ((lat_min, lat_max), (lon_min, lon_max)). "
-            f"Got {len(value)} elements. Example: ((32.0, 42.0), (-125.0, -114.0))"
+            f"Got {len(value)} elements. Example: ((32.0, 42.0), (-125.0, -114.0))",
+            UserWarning,
+            stacklevel=999,
         )
         return False
 
@@ -289,7 +349,9 @@ def _validate_tuple_param(
                     f"\nor a tuple of tuples/lists with two numeric values each. "
                     f"\nPoint Example: (35.0, -120.0) "
                     f"\nBounds Example: ((32.0, 42.0), (-125.0, -114.0))"
-                    f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})"
+                    f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})",
+                    UserWarning,
+                    stacklevel=999,
                 )
             else:
                 warnings.warn(
@@ -297,7 +359,9 @@ def _validate_tuple_param(
                     f"or a tuple of tuples/lists with two numeric values each. "
                     f"\nPoint Example: (35.0, -120.0) "
                     f"\nBounds Example: ((32.0, 42.0), (-125.0, -114.0))"
-                    f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})"
+                    f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})",
+                    UserWarning,
+                    stacklevel=999,
                 )
             return False
 
@@ -310,14 +374,18 @@ def _validate_tuple_param(
         except (ValueError, TypeError):
             warnings.warn(
                 f"\n\nCoordinate bounds must be numeric. Invalid {name} bounds: {bounds}. "
-                f"\nBoth values must be convertible to float."
+                f"\nBoth values must be convertible to float.",
+                UserWarning,
+                stacklevel=999,
             )
             return False
         finally:
             if min_val is None or max_val is None:
                 warnings.warn(
                     f"\n\nCoordinate bounds must be numeric. Invalid {name} bounds: {bounds}. "
-                    f"\nBoth values must be provided."
+                    f"\nBoth values must be provided.",
+                    UserWarning,
+                    stacklevel=999,
                 )
                 return False
 
@@ -326,14 +394,18 @@ def _validate_tuple_param(
             if not (-90.0 <= min_val <= 90.0) or not (-90.0 <= max_val <= 90.0):
                 warnings.warn(
                     f"\n\nLatitude values must be between -90 and 90 degrees. "
-                    f"\nGot latitude bounds: ({min_val}, {max_val})"
+                    f"\nGot latitude bounds: ({min_val}, {max_val})",
+                    UserWarning,
+                    stacklevel=999,
                 )
                 return False
         else:  # longitude
             if not (-180.0 <= min_val <= 180.0) or not (-180.0 <= max_val <= 180.0):
                 warnings.warn(
                     f"\n\nLongitude values must be between -180 and 180 degrees. "
-                    f"\nGot longitude bounds: ({min_val}, {max_val})"
+                    f"\nGot longitude bounds: ({min_val}, {max_val})",
+                    UserWarning,
+                    stacklevel=999,
                 )
                 return False
 
@@ -341,36 +413,13 @@ def _validate_tuple_param(
         if min_val > max_val:
             warnings.warn(
                 f"\n\nMinimum {name} must be less than or equal to maximum {name}. "
-                f"\nGot {name} bounds: ({min_val}, {max_val})"
+                f"\nGot {name} bounds: ({min_val}, {max_val})",
+                UserWarning,
+                stacklevel=999,
             )
             return False
 
     return True
-
-
-def _is_station_identifier(value: str) -> bool:
-    """
-    Check if a string looks like a station identifier.
-
-    Parameters
-    ----------
-    value : str
-        String to check
-
-    Returns
-    -------
-    bool
-        True if the value looks like a station code or station name
-    """
-    # Check if it's a 4-character code starting with 'K' (common US airport codes)
-    if len(value) == 4 and value[0].upper() == "K" and value.isalnum():
-        return True
-
-    # Check if it contains parentheses with a code (e.g., "Sacramento (KSAC)")
-    if "(" in value and ")" in value and "K" in value.upper():
-        return True
-
-    return False
 
 
 def _validate_station_identifier(value: str) -> bool:
@@ -388,15 +437,15 @@ def _validate_station_identifier(value: str) -> bool:
         True if the station identifier is valid
     """
     try:
-        from climakitae.new_core.data_access.data_access import DataCatalog
-
         catalog = DataCatalog()
         stations_df = catalog.get("stations")
 
         if stations_df is None or len(stations_df) == 0:
             warnings.warn(
                 "\n\nStation data is not available. "
-                "\nCannot validate station identifier."
+                "\nCannot validate station identifier.",
+                UserWarning,
+                stacklevel=999,
             )
             return False
 
@@ -419,20 +468,38 @@ def _validate_station_identifier(value: str) -> bool:
             ]
 
         if len(match) == 0:
-            # Station not found - provide suggestions
+            # Station not found - provide suggestions from both stations and boundaries
             all_stations = stations_df["ID"].tolist() + stations_df["station"].tolist()
-            suggestions = _get_closest_options(value, all_stations, cutoff=0.5)
+            station_suggestions = _get_closest_options(value, all_stations, cutoff=0.5)
+
+            # Also check if this might be a boundary key
+            boundary_dict = DataCatalog().list_clip_boundaries()
+            boundary_list = []
+            for _, v in boundary_dict.items():
+                boundary_list.extend(v)
+            boundary_suggestions = _get_closest_options(
+                value, boundary_list, cutoff=0.6
+            )
 
             error_msg = f"\n\nStation '{value}' not found in station database."
-            if suggestions:
-                error_msg += f"\n\nDid you mean one of these?\n  - " + "\n  - ".join(
-                    suggestions[:5]
+
+            if station_suggestions:
+                error_msg += (
+                    "\n\nDid you mean one of these stations?\n  - "
+                    + "\n  - ".join(station_suggestions[:5])
                 )
+
+            if boundary_suggestions:
+                error_msg += (
+                    "\n\nOr did you mean one of these boundaries?\n  - "
+                    + "\n  - ".join(boundary_suggestions[:5])
+                )
+
             error_msg += (
                 "\n\nTo see all available stations, use: cd.show_station_options()"
             )
 
-            warnings.warn(error_msg)
+            warnings.warn(error_msg, UserWarning, stacklevel=999)
             return False
 
         if len(match) > 1:
@@ -443,7 +510,9 @@ def _validate_station_identifier(value: str) -> bool:
             warnings.warn(
                 f"\n\nMultiple stations match '{value}':\n{station_list}\n"
                 f"{'... and more' if len(match) > 5 else ''}\n\n"
-                f"Please use a more specific identifier (4-character code like 'KSAC')."
+                f"Please use a more specific identifier (4-character code like 'KSAC').",
+                UserWarning,
+                stacklevel=999,
             )
             return False
 
@@ -451,7 +520,11 @@ def _validate_station_identifier(value: str) -> bool:
         return True
 
     except Exception as e:
-        warnings.warn(f"\n\nError validating station identifier: {str(e)}")
+        warnings.warn(
+            f"\n\nError validating station identifier: {str(e)}",
+            UserWarning,
+            stacklevel=999,
+        )
         return False
 
 
@@ -506,7 +579,9 @@ def _validate_boundary_key_string(value: str, raise_on_invalid: bool = True) -> 
     if len(value) > 200:  # Unreasonably long boundary key
         warnings.warn(
             f"\n\nBoundary key is too long ({len(value)} characters). "
-            f"\nExpected keys like 'CA', 'Los Angeles County', etc."
+            f"\nExpected keys like 'CA', 'Los Angeles County', etc.",
+            UserWarning,
+            stacklevel=999,
         )
         return False
 
@@ -515,7 +590,9 @@ def _validate_boundary_key_string(value: str, raise_on_invalid: bool = True) -> 
     if any(char in value for char in invalid_chars):
         warnings.warn(
             f"\n\nBoundary key contains invalid characters: '{value}'. "
-            f"\nExpected keys like 'CA', 'Los Angeles County', 'PG&E', etc."
+            f"\nExpected keys like 'CA', 'Los Angeles County', 'PG&E', etc.",
+            UserWarning,
+            stacklevel=999,
         )
         return False
 
@@ -529,8 +606,13 @@ def _warn_about_case_sensitivity(value: str) -> bool:
 
     Parameters
     ----------
-    bool :
-        true if the value is valid, otherwise raises a warning
+    value : str
+        The boundary key value to check
+
+    Returns
+    -------
+    bool
+        True if the value is valid, False otherwise with warning
     """
     # Common case variations that users might try
     boundary_dict = DataCatalog().list_clip_boundaries()
@@ -538,6 +620,10 @@ def _warn_about_case_sensitivity(value: str) -> bool:
     for _, v in boundary_dict.items():
         boundary_list.extend(v)
     suggestions = _get_closest_options(value, boundary_list)
+
+    # Handle case where suggestions is None
+    if suggestions is None:
+        suggestions = []
 
     if value in suggestions:
         # If the value is already in the suggestions, it is valid
@@ -549,7 +635,10 @@ def _warn_about_case_sensitivity(value: str) -> bool:
             f"\nPlease check the spelling or case of the boundary key. "
             f"\nBoundary keys are typically case-sensitive."
             f"\n\n{pprint.pformat(boundary_list, indent=4, width=80)}",
+            UserWarning,
+            stacklevel=999,
         )
+        return False
 
     if suggestions:
         warnings.warn(
@@ -558,15 +647,18 @@ def _warn_about_case_sensitivity(value: str) -> bool:
             f"\n{suggestions}"
             f"\nBoundary keys are typically case-sensitive.",
             UserWarning,
+            stacklevel=999,
         )
+        return False
 
     # General case warnings for patterns that look like they might have case issues
-    elif value.islower() and len(value) <= 3:  # Probably a state abbreviation
+    if value.islower() and len(value) <= 3:  # Probably a state abbreviation
         warnings.warn(
             f"Boundary key '{value}' is all lowercase. "
             f"If this is a state abbreviation, it should probably be uppercase (e.g., '{value.upper()}'). "
             f"Boundary keys are typically case-sensitive.",
             UserWarning,
+            stacklevel=999,
         )
     elif "county" in value.lower() and not value.endswith("County"):
         warnings.warn(
@@ -574,6 +666,7 @@ def _warn_about_case_sensitivity(value: str) -> bool:
             f"\nCounty names typically end with 'County' (e.g., 'Los Angeles County'). "
             f"\nBoundary keys are typically case-sensitive.",
             UserWarning,
+            stacklevel=999,
         )
 
     return False

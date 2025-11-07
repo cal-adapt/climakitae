@@ -127,6 +127,7 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
+from climakitae.new_core.processors.processor_utils import is_station_identifier
 from climakitae.util.utils import get_closest_gridcell, get_closest_gridcells
 
 
@@ -232,7 +233,7 @@ class Clip(DataProcessor):
         match self.value:
             case str():
                 # Check if this is a station identifier
-                if self._is_station_identifier(self.value):
+                if is_station_identifier(self.value):
                     try:
                         self.lat, self.lon, self.station_info = (
                             self._get_station_coordinates(self.value)
@@ -251,7 +252,7 @@ class Clip(DataProcessor):
             case list():
                 # Check if this is a list of station identifiers
                 if all(
-                    isinstance(item, str) and self._is_station_identifier(item)
+                    isinstance(item, str) and is_station_identifier(item)
                     for item in self.value
                 ):
                     try:
@@ -410,31 +411,6 @@ class Clip(DataProcessor):
     def set_data_accessor(self, catalog: DataCatalog):
         """Set the data catalog for accessing boundary data."""
         self.catalog = catalog
-
-    def _is_station_identifier(self, value: str) -> bool:
-        """
-        Check if a string value looks like a station identifier.
-
-        Parameters
-        ----------
-        value : str
-            String to check
-
-        Returns
-        -------
-        bool
-            True if the value looks like a station code (4 chars, starts with K)
-            or matches a station name pattern
-        """
-        # Check if it's a 4-character code starting with 'K' (common US airport codes)
-        if len(value) == 4 and value[0].upper() == "K" and value.isalnum():
-            return True
-
-        # Check if it contains parentheses with a code (e.g., "Sacramento (KSAC)")
-        if "(" in value and ")" in value:
-            return True
-
-        return False
 
     def _get_station_coordinates(
         self, station_identifier: str
@@ -600,7 +576,7 @@ class Clip(DataProcessor):
             warnings.warn(
                 "GeoDataFrame does not have a CRS set. Assuming EPSG:4326 (WGS84).",
                 UserWarning,
-                stacklevel=2,
+                stacklevel=999,
             )
             gdf.set_crs("epsg:4326", inplace=True)
 

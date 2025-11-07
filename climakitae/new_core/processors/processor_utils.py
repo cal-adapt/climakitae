@@ -10,6 +10,7 @@ import xarray as xr
 from climakitae.core.constants import UNSET
 from climakitae.explore.threshold_tools import calculate_ess
 
+
 # Constants for effective sample size calculations
 MIN_ESS_THRESHOLD = 25  # Minimum effective sample size for reliable statistics
 FALLBACK_ESS_VALUE = 25.0  # Default ESS value when calculation fails
@@ -36,6 +37,53 @@ DASK_SPATIAL_SAMPLE_STEP = 20  # Spatial sampling step for Dask arrays
 DASK_MAX_SPATIAL_SAMPLES = 100  # Maximum spatial samples for Dask arrays
 MEMORY_SPATIAL_SAMPLE_STEP = 10  # Spatial sampling step for in-memory arrays
 MEMORY_MAX_SPATIAL_SAMPLES = 50  # Maximum spatial samples for in-memory arrays
+
+
+def is_station_identifier(value: str) -> bool:
+    """
+    Check if a string looks like a station identifier.
+
+    This function uses heuristics to determine if a string appears to be
+    a weather station identifier based on common patterns.
+
+    Parameters
+    ----------
+    value : str
+        String to check
+
+    Returns
+    -------
+    bool
+        True if the value looks like a station code or station name
+
+    Notes
+    -----
+    Recognizes two patterns:
+    1. 4-character codes starting with 'K' (common US airport weather stations)
+       Examples: KSAC (Sacramento), KBFL (Bakersfield), KSFO (San Francisco)
+    2. Strings with parentheses containing a code with 'K'
+       Examples: "Sacramento (KSAC)", "San Francisco International (KSFO)"
+
+    Examples
+    --------
+    >>> is_station_identifier("KSAC")
+    True
+    >>> is_station_identifier("Sacramento (KSAC)")
+    True
+    >>> is_station_identifier("CA")
+    False
+    >>> is_station_identifier("Kern County")
+    False
+    """
+    # Check if it's a 4-character code starting with 'K' (common US airport codes)
+    if len(value) == 4 and value[0].upper() == "K" and value.isalnum():
+        return True
+
+    # Check if it contains parentheses with a code (e.g., "Sacramento (KSAC)")
+    if "(" in value and ")" in value and "K" in value.upper():
+        return True
+
+    return False
 
 
 def _get_block_maxima_optimized(
@@ -786,7 +834,7 @@ def extend_time_domain(
     print(
         "\n\nINFO: Prepending historical data to SSP scenarios."
         "\n      This is the default concatenation strategy for retrieved data in climakitae."
-        '\n      To change this behavior, set `"concat": "sim"` in your processes dictionary.'
+        '\n      To change this behavior, set `"concat": "sim"` in your processes dictionary.\n\n'
     )
 
     # Process SSP scenarios by finding and prepending historical data
@@ -802,7 +850,9 @@ def extend_time_domain(
             warnings.warn(
                 f"\n\nNo historical data found for {key} with key {hist_key}. "
                 f"\nHistorical data is required for time domain extension. "
-                f"\nKeeping original SSP data without historical extension."
+                f"\nKeeping original SSP data without historical extension.",
+                UserWarning,
+                stacklevel=999,
             )
             ret[key] = data
             continue
@@ -835,7 +885,9 @@ def extend_time_domain(
         except (ValueError, TypeError, KeyError, AttributeError) as e:
             warnings.warn(
                 f"\n\nFailed to concatenate historical and SSP data for {key}: {e}"
-                f"\nSince no historical data is available, this data is dropped."
+                f"\nSince no historical data is available, this data is dropped.",
+                UserWarning,
+                stacklevel=999,
             )
 
     return ret

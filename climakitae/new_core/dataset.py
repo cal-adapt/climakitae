@@ -211,7 +211,9 @@ class Dataset:
                 if current_result is None:
                     warnings.warn(
                         f"\n\nProcessing step {step.name} returned None. "
-                        "\nEnsure that the step is implemented correctly."
+                        "\nEnsure that the step is implemented correctly.",
+                        UserWarning,
+                        stacklevel=999,
                     )
 
             return current_result
@@ -247,7 +249,8 @@ class Dataset:
         """
         if not parameter_validator:
             warnings.warn(
-                "No parameter validator provided. This may lead to unvalidated queries."
+                "No parameter validator provided. This may lead to unvalidated queries.",
+                stacklevel=999,
             )
         if not isinstance(parameter_validator, ParameterValidator):
             raise TypeError(

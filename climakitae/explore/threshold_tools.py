@@ -231,7 +231,8 @@ def get_block_maxima(
                 warnings.warn(
                     f"\n\nWARNING: Found NaN values in block maxima but unable to determine appropriate dropping strategy for dimensions {bms.dims}"
                     "\nNo NaN values will be dropped from the block maxima DataArray."
-                    "\nPlease inspect the data and handle NaN values appropriately before proceeding."
+                    "\nPlease inspect the data and handle NaN values appropriately before proceeding.",
+                    stacklevel=999,
                 )
 
     return bms

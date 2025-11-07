@@ -96,7 +96,9 @@ def load(xr_da: xr.DataArray, progress_bar: bool = False) -> xr.DataArray:
         print("Available memory: {0}".format(readable_bytes(avail_mem)))
         print("Total memory of input data: {0}".format(readable_bytes(xr_data_nbytes)))
         warnings.warn(
-            "Your input dataset may be too large to read into memory!", UserWarning
+            "Your input dataset may be too large to read into memory!",
+            UserWarning,
+            stacklevel=999,
         )
         # take user input on continuing
         proceed = input(
