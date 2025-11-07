@@ -127,7 +127,10 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
-from climakitae.new_core.processors.processor_utils import is_station_identifier
+from climakitae.new_core.processors.processor_utils import (
+    find_station_match,
+    is_station_identifier,
+)
 from climakitae.util.utils import get_closest_gridcell, get_closest_gridcells
 
 
@@ -443,23 +446,8 @@ class Clip(DataProcessor):
         if stations_df is None or len(stations_df) == 0:
             raise RuntimeError("Station data is not available in the catalog.")
 
-        # Normalize the input
-        station_id_upper = station_identifier.upper().strip()
-
-        # Try exact match on ID column
-        match = stations_df[stations_df["ID"].str.upper() == station_id_upper]
-
-        if len(match) == 0:
-            # Try matching on station name (full station column)
-            match = stations_df[stations_df["station"].str.upper() == station_id_upper]
-
-        if len(match) == 0:
-            # Try partial match on station name
-            match = stations_df[
-                stations_df["station"]
-                .str.upper()
-                .str.contains(station_id_upper, na=False)
-            ]
+        # Use the generalized matching logic
+        match = find_station_match(station_identifier, stations_df)
 
         if len(match) == 0:
             # Station not found - provide suggestions
@@ -474,7 +462,7 @@ class Clip(DataProcessor):
 
             error_msg = f"Station '{station_identifier}' not found in station database."
             if suggestions:
-                error_msg += f"\n\nDid you mean one of these?\n  - " + "\n  - ".join(
+                error_msg += "\n\nDid you mean one of these?\n  - " + "\n  - ".join(
                     suggestions[:5]
                 )
             error_msg += (

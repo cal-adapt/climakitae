@@ -344,7 +344,9 @@ class TestValidateListParam:
         # Mock returns None for invalid items (the code checks `if validated_item is not None`)
         mock_validate.return_value = None
 
-        with pytest.warns(UserWarning, match="Found \\d+ invalid items in clip parameter list"):
+        with pytest.warns(
+            UserWarning, match="Found \\d+ invalid items in clip parameter list"
+        ):
             result = _validate_list_param(["INVALID1", "INVALID2"])
             assert result is False
 
@@ -651,9 +653,7 @@ class TestWarnAboutCaseSensitivity:
             assert result is False
 
     @patch("climakitae.new_core.param_validation.clip_param_validator.DataCatalog")
-    def test_warn_lowercase_state_abbreviation_adds_hint(
-        self, mock_data_catalog_class
-    ):
+    def test_warn_lowercase_state_abbreviation_adds_hint(self, mock_data_catalog_class):
         """Test _warn_about_case_sensitivity with lowercase state abbreviation adds hint to suggestion warning."""
         mock_catalog = MagicMock()
         mock_data_catalog_class.return_value = mock_catalog

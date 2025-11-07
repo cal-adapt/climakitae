@@ -17,7 +17,10 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 from climakitae.new_core.param_validation.param_validation_tools import (
     _get_closest_options,
 )
-from climakitae.new_core.processors.processor_utils import is_station_identifier
+from climakitae.new_core.processors.processor_utils import (
+    find_station_match,
+    is_station_identifier,
+)
 
 
 @register_processor_validator("clip")
@@ -450,23 +453,8 @@ def _validate_station_identifier(value: str) -> bool:
             )
             return False
 
-        # Normalize the input
-        station_id_upper = value.upper().strip()
-
-        # Try exact match on ID column
-        match = stations_df[stations_df["ID"].str.upper() == station_id_upper]
-
-        if len(match) == 0:
-            # Try matching on station name (full station column)
-            match = stations_df[stations_df["station"].str.upper() == station_id_upper]
-
-        if len(match) == 0:
-            # Try partial match on station name
-            match = stations_df[
-                stations_df["station"]
-                .str.upper()
-                .str.contains(station_id_upper, na=False)
-            ]
+        # Use the generalized matching logic
+        match = find_station_match(value, stations_df)
 
         if len(match) == 0:
             # Station not found - provide suggestions from both stations and boundaries
@@ -648,7 +636,7 @@ def _warn_about_case_sensitivity(value: str) -> bool:
             hint = f"\nNote: '{value}' is all lowercase. If this is a state abbreviation, it should probably be uppercase (e.g., '{value.upper()}')."
         elif "county" in value.lower() and not value.endswith("County"):
             hint = "\nNote: County names typically end with 'County' (e.g., 'Los Angeles County')."
-        
+
         warnings.warn(
             f"\n\nBoundary key '{value}' may have case sensitivity issues. "
             f"\nDid you mean any of the following options: "

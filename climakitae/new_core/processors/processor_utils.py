@@ -86,6 +86,86 @@ def is_station_identifier(value: str) -> bool:
     return False
 
 
+def find_station_match(station_identifier: str, stations_df):
+    """
+    Find matching station(s) in the stations DataFrame.
+
+    This function centralizes the station matching logic used by both the Clip
+    processor and the clip parameter validator. It tries multiple matching strategies
+    in order of specificity:
+    1. Exact match on station ID column
+    2. Exact match on station name column
+    3. Partial match on station name column
+
+    Parameters
+    ----------
+    station_identifier : str
+        Station identifier to search for (e.g., "KSAC", "Sacramento (KSAC)", "Sacramento")
+    stations_df : pd.DataFrame
+        DataFrame containing station data with columns: ID, station, city, state, LAT_Y, LON_X
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing matching station(s). May have 0, 1, or multiple rows:
+        - Empty (len=0): No matches found
+        - Single row (len=1): Exact match found
+        - Multiple rows (len>1): Multiple stations match the identifier
+
+    Notes
+    -----
+    The caller is responsible for:
+    - Checking if stations_df is None or empty before calling
+    - Handling the different match scenarios (no match, single match, multiple matches)
+    - Providing appropriate error messages or warnings based on context
+
+    Examples
+    --------
+    >>> # For validation (clip_param_validator.py)
+    >>> match = find_station_match("KSAC", stations_df)
+    >>> if len(match) == 0:
+    ...     # Handle no match - provide suggestions
+    >>> elif len(match) > 1:
+    ...     # Handle multiple matches - ask user to be more specific
+    >>> else:
+    ...     # Valid single match
+    ...     return True
+
+    >>> # For coordinate extraction (clip.py)
+    >>> match = find_station_match("KSAC", stations_df)
+    >>> if len(match) == 0:
+    ...     # Raise ValueError with suggestions
+    >>> elif len(match) > 1:
+    ...     # Raise ValueError asking for more specific identifier
+    >>> else:
+    ...     # Extract coordinates and metadata
+    ...     lat = float(match.iloc[0]["LAT_Y"])
+    ...     lon = float(match.iloc[0]["LON_X"])
+    """
+    # Normalize the input
+    station_id_upper = station_identifier.upper().strip()
+
+    # Handle empty string after normalization
+    if not station_id_upper:
+        # Return empty DataFrame with same structure
+        return stations_df.iloc[0:0]
+
+    # Try exact match on ID column
+    match = stations_df[stations_df["ID"].str.upper() == station_id_upper]
+
+    if len(match) == 0:
+        # Try matching on station name (full station column)
+        match = stations_df[stations_df["station"].str.upper() == station_id_upper]
+
+    if len(match) == 0:
+        # Try partial match on station name
+        match = stations_df[
+            stations_df["station"].str.upper().str.contains(station_id_upper, na=False)
+        ]
+
+    return match
+
+
 def _get_block_maxima_optimized(
     da_series: xr.DataArray,
     extremes_type: str = "max",
