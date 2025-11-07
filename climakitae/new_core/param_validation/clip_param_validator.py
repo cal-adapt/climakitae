@@ -22,7 +22,7 @@ from climakitae.new_core.processors.processor_utils import is_station_identifier
 
 @register_processor_validator("clip")
 def validate_clip_param(
-    value,
+    value: Any,
     **kwargs: Any,
 ) -> bool:
     """
@@ -341,28 +341,29 @@ def _validate_tuple_param(
 
     # Validate that each bound is a tuple/list with 2 numeric values
     for bounds, name in [(lat_bounds, "latitude"), (lon_bounds, "longitude")]:
-        if not isinstance(bounds, (tuple, list, float, int)):
-            if isinstance(bounds, (tuple, list)) and len(bounds) != 2:
-                # user tried to pass a tuple/list with 2 numeric values
-                warnings.warn(
-                    f"\n\nLat/Lon clipping must either be a tuple of two numeric values"
-                    f"\nor a tuple of tuples/lists with two numeric values each. "
-                    f"\nPoint Example: (35.0, -120.0) "
-                    f"\nBounds Example: ((32.0, 42.0), (-125.0, -114.0))"
-                    f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})",
-                    UserWarning,
-                    stacklevel=999,
-                )
-            else:
-                warnings.warn(
-                    f"\n\nLat/Lon clipping must be a tuple of two numeric values "
-                    f"or a tuple of tuples/lists with two numeric values each. "
-                    f"\nPoint Example: (35.0, -120.0) "
-                    f"\nBounds Example: ((32.0, 42.0), (-125.0, -114.0))"
-                    f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})",
-                    UserWarning,
-                    stacklevel=999,
-                )
+        # Check if bounds is a tuple/list with wrong length
+        if isinstance(bounds, (tuple, list)) and len(bounds) != 2:
+            warnings.warn(
+                f"\n\nLat/Lon clipping must either be a tuple of two numeric values"
+                f"\nor a tuple of tuples/lists with two numeric values each. "
+                f"\nPoint Example: (35.0, -120.0) "
+                f"\nBounds Example: ((32.0, 42.0), (-125.0, -114.0))"
+                f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})",
+                UserWarning,
+                stacklevel=999,
+            )
+            return False
+        # Check if bounds is an invalid type (not tuple, list, float, or int)
+        elif not isinstance(bounds, (tuple, list, float, int)):
+            warnings.warn(
+                f"\n\nLat/Lon clipping must be a tuple of two numeric values "
+                f"or a tuple of tuples/lists with two numeric values each. "
+                f"\nPoint Example: (35.0, -120.0) "
+                f"\nBounds Example: ((32.0, 42.0), (-125.0, -114.0))"
+                f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})",
+                UserWarning,
+                stacklevel=999,
+            )
             return False
 
         try:
@@ -641,32 +642,22 @@ def _warn_about_case_sensitivity(value: str) -> bool:
         return False
 
     if suggestions:
+        # Provide additional hints for common case issues
+        hint = ""
+        if value.islower() and len(value) <= 3:  # Probably a state abbreviation
+            hint = f"\nNote: '{value}' is all lowercase. If this is a state abbreviation, it should probably be uppercase (e.g., '{value.upper()}')."
+        elif "county" in value.lower() and not value.endswith("County"):
+            hint = "\nNote: County names typically end with 'County' (e.g., 'Los Angeles County')."
+        
         warnings.warn(
             f"\n\nBoundary key '{value}' may have case sensitivity issues. "
             f"\nDid you mean any of the following options: "
             f"\n{suggestions}"
-            f"\nBoundary keys are typically case-sensitive.",
+            f"\nBoundary keys are typically case-sensitive."
+            f"{hint}",
             UserWarning,
             stacklevel=999,
         )
         return False
-
-    # General case warnings for patterns that look like they might have case issues
-    if value.islower() and len(value) <= 3:  # Probably a state abbreviation
-        warnings.warn(
-            f"Boundary key '{value}' is all lowercase. "
-            f"If this is a state abbreviation, it should probably be uppercase (e.g., '{value.upper()}'). "
-            f"Boundary keys are typically case-sensitive.",
-            UserWarning,
-            stacklevel=999,
-        )
-    elif "county" in value.lower() and not value.endswith("County"):
-        warnings.warn(
-            f"\n\nCounty name '{value}' may have incorrect capitalization. "
-            f"\nCounty names typically end with 'County' (e.g., 'Los Angeles County'). "
-            f"\nBoundary keys are typically case-sensitive.",
-            UserWarning,
-            stacklevel=999,
-        )
 
     return False
