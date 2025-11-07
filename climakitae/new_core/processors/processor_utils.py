@@ -10,6 +10,7 @@ import xarray as xr
 from climakitae.core.constants import UNSET
 from climakitae.explore.threshold_tools import calculate_ess
 
+
 # Constants for effective sample size calculations
 MIN_ESS_THRESHOLD = 25  # Minimum effective sample size for reliable statistics
 FALLBACK_ESS_VALUE = 25.0  # Default ESS value when calculation fails
@@ -36,6 +37,133 @@ DASK_SPATIAL_SAMPLE_STEP = 20  # Spatial sampling step for Dask arrays
 DASK_MAX_SPATIAL_SAMPLES = 100  # Maximum spatial samples for Dask arrays
 MEMORY_SPATIAL_SAMPLE_STEP = 10  # Spatial sampling step for in-memory arrays
 MEMORY_MAX_SPATIAL_SAMPLES = 50  # Maximum spatial samples for in-memory arrays
+
+
+def is_station_identifier(value: str) -> bool:
+    """
+    Check if a string looks like a station identifier.
+
+    This function uses heuristics to determine if a string appears to be
+    a weather station identifier based on common patterns.
+
+    Parameters
+    ----------
+    value : str
+        String to check
+
+    Returns
+    -------
+    bool
+        True if the value looks like a station code or station name
+
+    Notes
+    -----
+    Recognizes two patterns:
+    1. 4-character codes starting with 'K' (common US airport weather stations)
+       Examples: KSAC (Sacramento), KBFL (Bakersfield), KSFO (San Francisco)
+    2. Strings with parentheses containing a code with 'K'
+       Examples: "Sacramento (KSAC)", "San Francisco International (KSFO)"
+
+    Examples
+    --------
+    >>> is_station_identifier("KSAC")
+    True
+    >>> is_station_identifier("Sacramento (KSAC)")
+    True
+    >>> is_station_identifier("CA")
+    False
+    >>> is_station_identifier("Kern County")
+    False
+    """
+    # Check if it's a 4-character code starting with 'K' (common US airport codes)
+    if len(value) == 4 and value[0].upper() == "K" and value.isalnum():
+        return True
+
+    # Check if it contains parentheses with a code (e.g., "Sacramento (KSAC)")
+    if "(" in value and ")" in value and "K" in value.upper():
+        return True
+
+    return False
+
+
+def find_station_match(station_identifier: str, stations_df):
+    """
+    Find matching station(s) in the stations DataFrame.
+
+    This function centralizes the station matching logic used by both the Clip
+    processor and the clip parameter validator. It tries multiple matching strategies
+    in order of specificity:
+    1. Exact match on station ID column
+    2. Exact match on station name column
+    3. Partial match on station name column
+
+    Parameters
+    ----------
+    station_identifier : str
+        Station identifier to search for (e.g., "KSAC", "Sacramento (KSAC)", "Sacramento")
+    stations_df : pd.DataFrame
+        DataFrame containing station data with columns: ID, station, city, state, LAT_Y, LON_X
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing matching station(s). May have 0, 1, or multiple rows:
+        - Empty (len=0): No matches found
+        - Single row (len=1): Exact match found
+        - Multiple rows (len>1): Multiple stations match the identifier
+
+    Notes
+    -----
+    The caller is responsible for:
+    - Checking if stations_df is None or empty before calling
+    - Handling the different match scenarios (no match, single match, multiple matches)
+    - Providing appropriate error messages or warnings based on context
+
+    Examples
+    --------
+    >>> # For validation (clip_param_validator.py)
+    >>> match = find_station_match("KSAC", stations_df)
+    >>> if len(match) == 0:
+    ...     # Handle no match - provide suggestions
+    >>> elif len(match) > 1:
+    ...     # Handle multiple matches - ask user to be more specific
+    >>> else:
+    ...     # Valid single match
+    ...     return True
+
+    >>> # For coordinate extraction (clip.py)
+    >>> match = find_station_match("KSAC", stations_df)
+    >>> if len(match) == 0:
+    ...     # Raise ValueError with suggestions
+    >>> elif len(match) > 1:
+    ...     # Raise ValueError asking for more specific identifier
+    >>> else:
+    ...     # Extract coordinates and metadata
+    ...     lat = float(match.iloc[0]["LAT_Y"])
+    ...     lon = float(match.iloc[0]["LON_X"])
+    """
+    # Normalize the input
+    station_id_upper = station_identifier.upper().strip()
+
+    # Handle empty string after normalization
+    if not station_id_upper:
+        # Return empty DataFrame with same structure
+        return stations_df.iloc[0:0]
+
+    # Try exact match on ID column
+    match = stations_df[stations_df["ID"].str.upper() == station_id_upper]
+
+    if len(match) == 0:
+        # Try matching on station name (full station column)
+        match = stations_df[stations_df["station"].str.upper() == station_id_upper]
+
+    if len(match) == 0:
+        # Try partial match on station name
+        match = stations_df[
+            stations_df["station"].str.upper().str.contains(station_id_upper, na=False)
+        ]
+
+    return match
 
 
 def _get_block_maxima_optimized(
@@ -786,7 +914,7 @@ def extend_time_domain(
     print(
         "\n\nINFO: Prepending historical data to SSP scenarios."
         "\n      This is the default concatenation strategy for retrieved data in climakitae."
-        '\n      To change this behavior, set `"concat": "sim"` in your processes dictionary.'
+        '\n      To change this behavior, set `"concat": "sim"` in your processes dictionary.\n\n'
     )
 
     # Process SSP scenarios by finding and prepending historical data
@@ -802,7 +930,9 @@ def extend_time_domain(
             warnings.warn(
                 f"\n\nNo historical data found for {key} with key {hist_key}. "
                 f"\nHistorical data is required for time domain extension. "
-                f"\nKeeping original SSP data without historical extension."
+                f"\nKeeping original SSP data without historical extension.",
+                UserWarning,
+                stacklevel=999,
             )
             ret[key] = data
             continue
@@ -835,7 +965,9 @@ def extend_time_domain(
         except (ValueError, TypeError, KeyError, AttributeError) as e:
             warnings.warn(
                 f"\n\nFailed to concatenate historical and SSP data for {key}: {e}"
-                f"\nSince no historical data is available, this data is dropped."
+                f"\nSince no historical data is available, this data is dropped.",
+                UserWarning,
+                stacklevel=999,
             )
 
     return ret

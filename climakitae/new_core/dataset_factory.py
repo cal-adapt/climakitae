@@ -294,7 +294,8 @@ class DatasetFactory:
         for key, value in query[PROC_KEY].items():
             if key not in self._processing_step_registry:
                 warnings.warn(
-                    f"Processing step '{key}' not found in registry. Skipping."
+                    f"Processing step '{key}' not found in registry. Skipping.",
+                    stacklevel=999,
                 )
                 continue
 
@@ -408,7 +409,8 @@ class DatasetFactory:
         if not closest:
             warnings.warn(
                 f"No validator registered for '{val_reg_key}'. "
-                "Available options: {list(self._validator_registry.keys())}"
+                "Available options: {list(self._validator_registry.keys())}",
+                stacklevel=999,
             )
             return None
 
@@ -416,18 +418,21 @@ class DatasetFactory:
             case 0:
                 warnings.warn(
                     f"No validator registered for '{val_reg_key}'. "
-                    "Available options: {list(self._validator_registry.keys())}"
+                    "Available options: {list(self._validator_registry.keys())}",
+                    stacklevel=999,
                 )
                 return None  # type: ignore[return-value]
             case 1:
                 warnings.warn(
-                    f"\n\nUsing closest match '{closest[0]}' for validator '{val_reg_key}'."
+                    f"\n\nUsing closest match '{closest[0]}' for validator '{val_reg_key}'.",
+                    stacklevel=999,
                 )
                 return self._validator_registry[closest[0]](self._catalog)
             case _:
                 warnings.warn(
                     f"Multiple closest matches found for '{val_reg_key}': {closest}. "
-                    "Please specify a more precise key."
+                    "Please specify a more precise key.",
+                    stacklevel=999,
                 )
                 return None  # type: ignore[return-value]
 
@@ -462,12 +467,13 @@ class DatasetFactory:
         ]  # filter rows with matching keys
         match len(subset):
             case 0:
-                warnings.warn("No matching catalogs found initially.")
+                warnings.warn("No matching catalogs found initially.", stacklevel=999)
             case 1:
                 return subset.iloc[0]["catalog"]
             case _:
                 warnings.warn(
-                    "Multiple matching datasets found. Please refine your query."
+                    "Multiple matching datasets found. Please refine your query.",
+                    stacklevel=999,
                 )
 
         return None

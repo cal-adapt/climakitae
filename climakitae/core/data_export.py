@@ -756,7 +756,8 @@ def _export_to_csv(data: xr.DataArray | xr.Dataset, save_name: str):
     if csv_nrows > excel_row_limit or csv_ncolumns > excel_column_limit:
         warnings.warn(
             f"Dataset exceeds Excel limits of {excel_row_limit} rows "
-            f"and {excel_column_limit} columns."
+            f"and {excel_column_limit} columns.",
+            stacklevel=999,
         )
 
     def _metadata_to_file(ds: xr.Dataset, output_name: str):

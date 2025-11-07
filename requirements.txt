@@ -37,6 +37,7 @@ frozenlist==1.6.0
 fsspec==2025.5.1
 future==1.0.0
 geopandas==1.0.1
+geopy==2.4.1
 h3==4.2.2
 idna==3.10
 intake==2.0.8

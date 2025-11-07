@@ -633,7 +633,7 @@ class Boundaries:
             "The load() method is deprecated. Data now loads automatically when accessed. "
             "Use preload_all() for explicit preloading.",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=999,
         )
         self.preload_all()
 

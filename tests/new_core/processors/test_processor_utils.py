@@ -31,6 +31,7 @@ from climakitae.new_core.processors.processor_utils import (
     _optimize_chunking_for_block_maxima,
     _set_block_maxima_attributes,
     extend_time_domain,
+    find_station_match,
 )
 
 
@@ -1455,3 +1456,103 @@ class TestAdvancedScenarios:
         assert isinstance(result, xr.DataArray)
         # Should preserve data type characteristics
         assert result.dtype.kind in ["i", "f"]  # integer or float
+
+
+class TestFindStationMatch:
+    """Test class for find_station_match utility function."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create a mock stations DataFrame matching the structure of real station data
+        self.stations_df = pd.DataFrame(
+            {
+                "ID": ["KSAC", "KBFL", "KSFO", "KSAN", "KOAK"],
+                "station": [
+                    "Sacramento (KSAC)",
+                    "Bakersfield (KBFL)",
+                    "San Francisco International (KSFO)",
+                    "San Diego International (KSAN)",
+                    "Oakland International (KOAK)",
+                ],
+                "city": [
+                    "Sacramento",
+                    "Bakersfield",
+                    "San Francisco",
+                    "San Diego",
+                    "Oakland",
+                ],
+                "state": ["CA", "CA", "CA", "CA", "CA"],
+                "LAT_Y": [38.5, 35.4, 37.6, 32.7, 37.7],
+                "LON_X": [-121.5, -119.1, -122.4, -117.2, -122.2],
+            }
+        )
+
+    def test_exact_match_on_id(self):
+        """Test exact match on station ID."""
+        match = find_station_match("KSAC", self.stations_df)
+
+        assert len(match) == 1
+        assert match.iloc[0]["ID"] == "KSAC"
+        assert match.iloc[0]["city"] == "Sacramento"
+
+    def test_exact_match_case_insensitive(self):
+        """Test exact match is case-insensitive."""
+        match = find_station_match("ksac", self.stations_df)
+
+        assert len(match) == 1
+        assert match.iloc[0]["ID"] == "KSAC"
+
+    def test_exact_match_with_whitespace(self):
+        """Test exact match handles leading/trailing whitespace."""
+        match = find_station_match("  KSAC  ", self.stations_df)
+
+        assert len(match) == 1
+        assert match.iloc[0]["ID"] == "KSAC"
+
+    def test_exact_match_on_station_name(self):
+        """Test exact match on station name column."""
+        match = find_station_match("Sacramento (KSAC)", self.stations_df)
+
+        assert len(match) == 1
+        assert match.iloc[0]["ID"] == "KSAC"
+
+    def test_partial_match_on_station_name(self):
+        """Test partial match on station name."""
+        match = find_station_match("Sacramento", self.stations_df)
+
+        assert len(match) == 1
+        assert match.iloc[0]["ID"] == "KSAC"
+
+    def test_partial_match_multiple_results(self):
+        """Test partial match returning multiple results."""
+        # Add another station with "International" in the name
+        match = find_station_match("International", self.stations_df)
+
+        # Should match San Francisco International, San Diego International, Oakland International
+        assert len(match) == 3
+        assert all("International" in name for name in match["station"].values)
+
+    def test_no_match(self):
+        """Test when no match is found."""
+        match = find_station_match("KZZZ", self.stations_df)
+
+        assert len(match) == 0
+
+    def test_no_match_invalid_name(self):
+        """Test when station name doesn't match anything."""
+        match = find_station_match("Nonexistent City", self.stations_df)
+
+        assert len(match) == 0
+
+    def test_empty_identifier(self):
+        """Test with empty string identifier."""
+        # After strip(), empty string won't match anything
+        match = find_station_match("", self.stations_df)
+
+        assert len(match) == 0
+
+    def test_whitespace_only_identifier(self):
+        """Test with whitespace-only identifier."""
+        match = find_station_match("   ", self.stations_df)
+
+        assert len(match) == 0
