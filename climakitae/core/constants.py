@@ -68,3 +68,22 @@ PRIORITY_UTILITIES = [
 ]
 
 CALISO_AREA_THRESHOLD = 100
+
+# Valid unit conversion options
+UNIT_OPTIONS = {
+    "K": ["K", "degC", "degF"],
+    "degF": ["K", "degC", "degF"],
+    "degC": ["K", "degC", "degF"],
+    "hPa": ["Pa", "hPa", "mb", "inHg"],
+    "Pa": ["Pa", "hPa", "mb", "inHg"],
+    "m/s": ["m/s", "mph", "knots"],
+    "m s-1": ["m s-1", "mph", "knots"],
+    "[0 to 100]": ["[0 to 100]", "fraction"],
+    "mm": ["mm", "inches"],
+    "mm/d": ["mm/d", "inches/d"],
+    "mm/h": ["mm/h", "inches/h"],
+    "kg/kg": ["kg/kg", "g/kg"],
+    "kg kg-1": ["kg kg-1", "g kg-1"],
+    "kg m-2 s-1": ["kg m-2 s-1", "mm", "inches"],
+    "g/kg": ["g/kg", "kg/kg"],
+}

@@ -7,29 +7,10 @@ from __future__ import annotations
 import warnings
 from typing import Any, Iterable
 
-from climakitae.core.constants import UNSET
+from climakitae.core.constants import UNIT_OPTIONS, UNSET
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
 )
-
-# Valid unit options (from convert_units.py)
-UNIT_OPTIONS = {
-    "K": ["K", "degC", "degF"],
-    "degF": ["K", "degC", "degF"],
-    "degC": ["K", "degC", "degF"],
-    "hPa": ["Pa", "hPa", "mb", "inHg"],
-    "Pa": ["Pa", "hPa", "mb", "inHg"],
-    "m/s": ["m/s", "mph", "knots"],
-    "m s-1": ["m s-1", "mph", "knots"],
-    "[0 to 100]": ["[0 to 100]", "fraction"],
-    "mm": ["mm", "inches"],
-    "mm/d": ["mm/d", "inches/d"],
-    "mm/h": ["mm/h", "inches/h"],
-    "kg/kg": ["kg/kg", "g/kg"],
-    "kg kg-1": ["kg kg-1", "g kg-1"],
-    "kg m-2 s-1": ["kg m-2 s-1", "mm", "inches"],
-    "g/kg": ["g/kg", "kg/kg"],
-}
 
 # All supported units (flattened from UNIT_OPTIONS)
 ALL_SUPPORTED_UNITS = set()

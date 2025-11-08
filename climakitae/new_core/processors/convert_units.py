@@ -7,30 +7,12 @@ from typing import Any, Dict, Iterable, Union
 
 import xarray as xr
 
-from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
+from climakitae.core.constants import _NEW_ATTRS_KEY, UNIT_OPTIONS, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
-
-UNIT_OPTIONS = {
-    "K": ["K", "degC", "degF"],
-    "degF": ["K", "degC", "degF"],
-    "degC": ["K", "degC", "degF"],
-    "hPa": ["Pa", "hPa", "mb", "inHg"],
-    "Pa": ["Pa", "hPa", "mb", "inHg"],
-    "m/s": ["m/s", "mph", "knots"],
-    "m s-1": ["m s-1", "mph", "knots"],
-    "[0 to 100]": ["[0 to 100]", "fraction"],
-    "mm": ["mm", "inches"],
-    "mm/d": ["mm/d", "inches/d"],
-    "mm/h": ["mm/h", "inches/h"],
-    "kg/kg": ["kg/kg", "g/kg"],
-    "kg kg-1": ["kg kg-1", "g kg-1"],
-    "kg m-2 s-1": ["kg m-2 s-1", "mm", "inches"],
-    "g/kg": ["g/kg", "kg/kg"],
-}
 
 UNIT_CONVERSIONS = {
     # Identity conversion
@@ -278,7 +260,7 @@ class ConvertUnits(DataProcessor):
                 # if any of the units conversions are valid, convert them
                 # if not, raise a warning
                 valid_mask = [val in valid_units for val in value]
-                if not any(val in valid_units for val in value):
+                if not any(valid_mask):
                     warnings.warn(
                         (
                             f"WARNING ::: The selected units {value} are not valid for {units_from}."
