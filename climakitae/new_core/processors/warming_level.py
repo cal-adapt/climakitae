@@ -13,20 +13,16 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from climakitae.core.constants import (
-    _NEW_ATTRS_KEY,
-    LOCA_END_YEAR,
-    LOCA_START_YEAR,
-    WRF_END_YEAR,
-    WRF_START_YEAR,
-)
+from climakitae.core.constants import _NEW_ATTRS_KEY
 from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1981_2010_TIMEIDX_FILE
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
-from climakitae.util.utils import read_csv_file
+
+# from climakitae.new_core.processors.processor_utils import _determine_is_complete_wl
+from climakitae.util.utils import _determine_is_complete_wl, read_csv_file
 
 
 @register_processor("warming_level", priority=10)
@@ -180,19 +176,11 @@ class WarmingLevel(DataProcessor):
                 start_year = year - self.warming_level_window
                 end_year = year + self.warming_level_window - 1
 
-                # Validate that the slice is within valid years for the `activity_id`
-                valid_years = {
-                    "LOCA2": (LOCA_START_YEAR, LOCA_END_YEAR),
-                    "WRF": (WRF_START_YEAR, WRF_END_YEAR),
-                }
-
-                min_year, max_year = valid_years.get(
-                    context["activity_id"], (None, None)
+                is_full_wl = _determine_is_complete_wl(
+                    start_year, end_year, key, context["activity_id"], wl
                 )
 
-                if min_year and (start_year < min_year or end_year > max_year):
-                    print(key)
-                    dropped_slices_count += 1
+                if not is_full_wl:
                     warnings.warn(
                         f"\n\nIncomplete warming level for {key} at {wl}C. "
                         "\nSkipping this warming level."

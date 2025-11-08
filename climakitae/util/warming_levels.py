@@ -9,12 +9,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from climakitae.core.constants import (
-    LOCA_END_YEAR,
-    LOCA_START_YEAR,
-    WRF_END_YEAR,
-    WRF_START_YEAR,
-)
 from climakitae.core.paths import (
     DATA_CATALOG_URL,
     GWL_1850_1900_FILE,
@@ -27,6 +21,7 @@ from climakitae.core.paths import (
     SSP585_FILE,
 )
 from climakitae.util.utils import (
+    _determine_is_complete_wl,
     _get_cat_subset,
     read_csv_file,
     resolution_to_gridlabel,
@@ -131,8 +126,8 @@ def _get_sliced_data(
         end_year = centered_year + (window - 1)
 
     # If the centered year is not NaN and a complete warming level slice can be created, proceed with slicing
-    if not pd.isna(center_time) and _determine_complete_wl(
-        start_year, end_year, y, level
+    if not pd.isna(center_time) and _determine_is_complete_wl(
+        start_year, end_year, y.simulation.item(), y.downscaling_method, level
     ):
 
         # Slicing data around the centered year
@@ -193,46 +188,6 @@ def _get_sliced_data(
         sliced = xr.full_like(y, np.nan)
 
     return sliced
-
-
-def _determine_complete_wl(
-    start_year: int, end_year: int, y: xr.DataArray, level: float
-) -> bool:
-    """
-    Determine if a complete warming level slice can be created for the given start and end years.
-    This checks if the years fall within valid ranges based on the downscaling method.
-
-    Parameters
-    ----------
-    start_year : int
-        The starting year of the warming level slice.
-    end_year : int
-        The ending year of the warming level slice.
-    y : xr.DataArray
-        The data array containing the simulation information.
-    level : float
-        The warming level being evaluated.
-
-    Returns
-    -------
-    bool
-        True if a complete warming level slice can be created, False otherwise.
-    """
-    valid_years = {
-        "Statistical": (LOCA_START_YEAR, LOCA_END_YEAR),
-        "Dynamical": (WRF_START_YEAR, WRF_END_YEAR),
-    }
-
-    min_year, max_year = valid_years.get(y.downscaling_method, (None, None))
-
-    if min_year and (start_year < min_year or end_year > max_year):
-        warnings.warn(
-            f"\n\nIncomplete warming level for {y.simulation.item()} at {level}C. "
-            "\nSkipping this warming level."
-        )
-        return False
-
-    return True
 
 
 def _extract_string_identifiers(da: xr.DataArray) -> tuple[str, str, str]:
