@@ -32,7 +32,9 @@ def validate_filter_unadjusted_models_param(
     if not isinstance(value, str):
         warnings.warn(
             "\n\nFilterunadjustedModels Processor expects a string value. "
-            "\nPlease check the configuration."
+            "\nPlease check the configuration.",
+            UserWarning,
+            stacklevel=999,
         )
         return False
 
@@ -41,7 +43,9 @@ def validate_filter_unadjusted_models_param(
     if value not in valid_values:
         warnings.warn(
             f"\n\nInvalid value '{value}' for FilterUnadjustedModels Processor. "
-            f"\nSupported values are: {valid_values}"
+            f"\nSupported values are: {valid_values}",
+            UserWarning,
+            stacklevel=999,
         )
         return False
 

@@ -241,6 +241,8 @@ class Concat(DataProcessor):
         except ValueError as e:
             warnings.warn(
                 f"Failed to concatenate datasets along '{self.dim_name}' dimension: {e}",
+                UserWarning,
+                stacklevel=999,
             )
             # Print dimensions of each dataset for debugging
             for i, dataset in enumerate(datasets_to_concat):

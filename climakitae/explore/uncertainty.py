@@ -680,7 +680,7 @@ def get_ks_pval_df(
 
 def get_warm_level(
     warm_level: float | int, ds: xr.Dataset, multi_ens: bool = False, ipcc: bool = True
-) -> xr.Dataset:
+) -> xr.Dataset | None:
     """Subsets projected data centered to the year
     that the selected warming level is reached
     for a particular simulation/member_id
@@ -718,51 +718,118 @@ def get_warm_level(
         gwl_times = read_csv_file(gwl_file, index_col=[0, 1, 2])
     else:
         gwl_file_all = GWL_1981_2010_FILE
-        gwl_times_all = read_csv_file(gwl_file_all)
+        gwl_times_all = read_csv_file(gwl_file_all, index_col=[0, 1, 2])
         # TODO Add information on a more complete list of ensemble members of
         # EC-Earth3 to cover internal variability notebook needs
         gwl_file_ece3 = "data/gwl_1981-2010ref_EC-Earth3_ssp370.csv"
-        gwl_times_ece3 = read_csv_file(gwl_file_ece3)
-        gwl_times = (
-            pd.concat([gwl_times_all, gwl_times_ece3])
-            .drop_duplicates()
-            .set_index(["GCM", "run", "scenario"])
-        )
+        gwl_times_ece3 = read_csv_file(gwl_file_ece3, index_col=[0, 1, 2])
+        gwl_times = pd.concat([gwl_times_all, gwl_times_ece3]).drop_duplicates()
 
     # grab the ensemble members specific to our needs here
-    sim_idx = []
     scenario = "ssp370"
     model = str(ds.simulation.values)
-    if model in gwl_times.index:
-        if multi_ens:
-            member_id = str(ds["member_id"].values)
-        else:
-            match model:
-                case "CESM2":
-                    member_id = "r11i1p1f1"
-                case "CNRM-ESM2-1":
-                    member_id = "r1i1p1f2"
-                case _:
-                    member_id = "r1i1p1f1"
-        sim_idx = (model, member_id, scenario)
 
-        # identify the year that the selected warming level is reached for each ensemble member
-        year_warmlevel_reached = str(gwl_times[str(warm_level)].loc[sim_idx])[:4]
-        if len(year_warmlevel_reached) != 4:
-            print(
-                "{}°C warming level not reached for ensemble member {} of model {}".format(
-                    warm_level, member_id, model
-                )
+    # Check if model exists in the warming level data
+    if model not in gwl_times.index.get_level_values(0):
+        print(f"Model {model} not found in warming level data")
+        return None
+
+    if multi_ens:
+        member_id = str(ds["member_id"].values)
+    else:
+        match model:
+            case "CESM2":
+                member_id = "r11i1p1f1"
+            case "CNRM-ESM2-1":
+                member_id = "r1i1p1f2"
+            case _:
+                member_id = "r1i1p1f1"
+
+    sim_idx = (model, member_id, scenario)
+
+    # Check if the specific combination exists in the index
+    if sim_idx not in gwl_times.index:
+        print(f"Combination {sim_idx} not found in warming level data")
+        return None
+
+    # Get the warming level column as string
+    warm_level_col = str(warm_level)
+
+    # Check if warming level column exists
+    if warm_level_col not in gwl_times.columns:
+        print(f"Warming level {warm_level}°C column not found in data")
+        return None
+
+    # Get the warming-level value(s) for this index. `.loc` may return a scalar,
+    # a one-element Series/ndarray, or a multi-element object if the GWL data
+    # contains duplicate rows. For duplicates we deterministically choose the
+    # earliest parseable datetime across entries for the requested warming level.
+    warming_level_value = gwl_times.loc[sim_idx, warm_level_col]
+
+    # Coerce the result to a pandas Series of candidates for uniform handling
+    def _as_series(val):
+        if isinstance(val, pd.Series):
+            return val.astype(object)
+        if isinstance(val, (list, tuple, np.ndarray)):
+            return pd.Series(list(val)).astype(object)
+        return pd.Series([val]).astype(object)
+
+    candidates = _as_series(warming_level_value)
+
+    # Drop clear null-like values
+    candidates = candidates[~candidates.isin([None, "", np.nan])]
+
+    if candidates.empty:
+        print(
+            "{}°C warming level not reached for ensemble member {} of model {}".format(
+                warm_level, member_id, model
             )
-        else:
-            if (int(year_warmlevel_reached) + 15) > 2100:
-                print(
-                    "End year for SSP time slice occurs after 2100;"
-                    + " skipping ensemble member {} of model {}".format(
-                        member_id, model
-                    )
-                )
-            else:
-                year0 = str(int(year_warmlevel_reached) - 14)
-                year1 = str(int(year_warmlevel_reached) + 15)
-                return ds.sel(time=slice(year0, year1))
+        )
+        return None
+
+    # Reject numeric types explicitly: GWL values must be datetimes as strings
+    if any(isinstance(x, (int, float, np.integer, np.floating)) for x in candidates):
+        raise ValueError(
+            f"Numeric warming-level value(s) found for index {sim_idx}: {candidates.tolist()!r}. "
+            "GWL files must store datetimes as strings in 'YYYY-MM-DD HH:MM:SS' format."
+        )
+
+    # Try to parse candidates to datetimes and pick the earliest valid one
+    parsed = pd.to_datetime(candidates.astype(str), errors="coerce")
+    parsed = parsed.dropna()
+    if parsed.empty:
+        # No parseable datetime values among candidates. If we only had a
+        # single candidate, preserve the previous behavior and print the
+        # 'Invalid year format extracted' message expected by tests/notebooks.
+        if len(candidates) == 1:
+            cand = str(candidates.iloc[0])
+            year_warmlevel_reached = cand[:4]
+            print(
+                f"Invalid year format extracted: '{year_warmlevel_reached}' for {warm_level}°C warming level, "
+                f"ensemble member {member_id} of model {model}"
+            )
+            return None
+
+        # Otherwise, report we couldn't parse any valid datetimes
+        print(
+            f"Could not parse any datetime values for warming level {warm_level_col} "
+            f"for ensemble member {member_id} of model {model}: {candidates.tolist()}"
+        )
+        return None
+
+    # Deterministic resolution: choose earliest datetime among valid candidates
+    earliest_ts = parsed.min()
+
+    # Extract the year from the chosen datetime
+    year_warmlevel_reached_int = int(earliest_ts.year)
+
+    if (year_warmlevel_reached_int + 15) > 2100:
+        print(
+            "End year for SSP time slice occurs after 2100; "
+            + "skipping ensemble member {} of model {}".format(member_id, model)
+        )
+        return None
+    else:
+        year0 = str(year_warmlevel_reached_int - 14)
+        year1 = str(year_warmlevel_reached_int + 15)
+        return ds.sel(time=slice(year0, year1))

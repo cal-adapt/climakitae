@@ -94,13 +94,17 @@ class DataValidator(ParameterValidator):
             if "WRF" not in query.get("activity_id", ""):
                 warnings.warn(
                     "\n\nLocalize processor is not supported for LOCA2 datasets."
-                    "\nPlease specify '.activity_id(WRF)' in your query."
+                    "\nPlease specify '.activity_id(WRF)' in your query.",
+                    UserWarning,
+                    stacklevel=999,
                 )
                 return False
             if query.get("variable_id", "") != "t2":
                 warnings.warn(
                     f"\n\nLocalize processor is not supported for any variable other than 't2' (Air Temperature at 2m)."
-                    f"\nPlease specify '.variable_id('t2')' in your query."
+                    f"\nPlease specify '.variable_id('t2')' in your query.",
+                    UserWarning,
+                    stacklevel=999,
                 )
                 return False
         return True
