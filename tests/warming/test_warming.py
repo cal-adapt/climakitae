@@ -128,13 +128,11 @@ class TestWarmingLevels:
         wl.wl_params.anom = "No"
 
         # Mock helper functions
-        with patch(
-            "climakitae.explore.warming.get_sliced_data"
-        ) as mock_get_sliced_data, patch(
-            "climakitae.explore.warming.clean_warm_data"
-        ) as mock_clean_warm_data, patch(
-            "climakitae.explore.warming.relabel_axis"
-        ) as mock_relabel_axis:
+        with (
+            patch("climakitae.explore.warming.get_sliced_data") as mock_get_sliced_data,
+            patch("climakitae.explore.warming.clean_warm_data") as mock_clean_warm_data,
+            patch("climakitae.explore.warming.relabel_axis") as mock_relabel_axis,
+        ):
 
             # Mock return values
             mock_get_sliced_data.side_effect = (
@@ -204,17 +202,17 @@ class TestWarmingLevels:
         )
 
         # Mock helper functions
-        with patch(
-            "climakitae.explore.warming._drop_invalid_sims"
-        ) as mock_drop_invalid_sims, patch(
-            "climakitae.explore.warming.read_csv_file"
-        ) as mock_read_csv_file, patch(
-            "climakitae.explore.warming.clean_list"
-        ) as mock_clean_list, patch(
-            "climakitae.explore.warming.WarmingLevels.find_warming_slice"
-        ) as mock_find_warming_slice, patch(
-            "climakitae.explore.warming.xr.concat"
-        ) as mock_xr_concat:
+        with (
+            patch(
+                "climakitae.explore.warming._drop_invalid_sims"
+            ) as mock_drop_invalid_sims,
+            patch("climakitae.explore.warming.read_csv_file") as mock_read_csv_file,
+            patch("climakitae.explore.warming.clean_list") as mock_clean_list,
+            patch(
+                "climakitae.explore.warming.WarmingLevels.find_warming_slice"
+            ) as mock_find_warming_slice,
+            patch("climakitae.explore.warming.xr.concat") as mock_xr_concat,
+        ):
 
             # Mock return values
             mock_drop_invalid_sims.side_effect = lambda x, y: x
