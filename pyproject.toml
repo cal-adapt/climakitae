@@ -69,6 +69,7 @@ dev = [
     "cftime",
     "pytest",
     "pytest-cov",
+    "pytest-xdist",
 ]
 
 [project.urls]
