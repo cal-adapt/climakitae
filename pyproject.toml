@@ -65,7 +65,7 @@ docs = [
     "sphinx-design",
     "nbsphinx",
 ]
-test = [
+dev = [
     "cftime",
     "pytest",
     "pytest-cov",
