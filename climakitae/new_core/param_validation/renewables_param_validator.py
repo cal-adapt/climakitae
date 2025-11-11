@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict
 
 from climakitae.core.constants import CATALOG_REN_ENERGY_GEN, UNSET
@@ -10,6 +11,9 @@ from climakitae.new_core.param_validation.abc_param_validation import (
     ParameterValidator,
     register_catalog_validator,
 )
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 @register_catalog_validator(CATALOG_REN_ENERGY_GEN)
@@ -48,5 +52,10 @@ class RenewablesValidator(ParameterValidator):
         }
         self.catalog = catalog.renewables
 
+    logger.debug("RenewablesValidator initialized for renewables catalog")
+
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
-        return super()._is_valid_query(query)
+        logger.debug("Validating renewables query: %s", query)
+        result = super()._is_valid_query(query)
+        logger.info("Renewables query validation result: %s", bool(result))
+        return result
