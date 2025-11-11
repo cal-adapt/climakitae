@@ -1,0 +1,104 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "climakitae"
+dynamic = ["version"]
+description = "Climate data analysis toolkit"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "BSD-3-Clause"}
+authors = [
+    {name = "Cal-Adapt Analytics Engine Team", email = "analytics@cal-adapt.org"}
+]
+keywords = ["climate", "data", "analysis", "california", "cal-adapt"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+]
+
+dependencies = [
+    "aiobotocore<=2.22.0",
+    "boto3<=1.37.3",
+    "dask",
+    "dask-gateway",
+    "dask-geopandas",
+    "fsspec",
+    "geopandas",
+    "geopy",
+    "intake",
+    "intake-esm<=2023.11.10",
+    "intake-geopandas",
+    "intake-xarray",
+    "matplotlib",
+    "numcodecs<=0.14.1",
+    "numpy",
+    "pandas",
+    "param",
+    "psutil",
+    "pyproj",
+    "pytz",
+    "rioxarray",
+    "s3fs",
+    "scipy",
+    "setuptools<81",
+    "shapely",
+    "statsmodels",
+    "timezonefinder",
+    "tqdm",
+    "xarray",
+    "xclim>0.56.0",
+    "xsdba",
+    "xmip",
+]
+
+[project.optional-dependencies]
+docs = [
+    "Sphinx",
+    "sphinx-book-theme",
+    "sphinx-design",
+    "nbsphinx",
+]
+test = [
+    "cftime",
+    "pytest",
+    "pytest-cov",
+]
+
+[project.urls]
+Homepage = "https://github.com/cal-adapt/climakitae"
+Documentation = "https://climakitae.readthedocs.io"
+Repository = "https://github.com/cal-adapt/climakitae"
+Issues = "https://github.com/cal-adapt/climakitae/issues"
+"Cal-Adapt" = "https://analytics.cal-adapt.org"
+
+[tool.setuptools]
+packages = ["climakitae"]
+
+[tool.setuptools.package-data]
+"*" = ["data/*.csv", "data/cmaps/*.txt"]
+
+[tool.setuptools_scm]
+write_to = "climakitae/_version.py"
+
+[tool.pytest.ini_options]
+markers = [
+    "advanced: marks tests as advanced (deselect with '-m \"not advanced\"')",
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:pkg_resources",
+    "ignore::DeprecationWarning:intake_esm",
+    "ignore:The `validate_arguments` method is deprecated:DeprecationWarning:intake_esm",
+    "ignore::RuntimeWarning:importlib._bootstrap",
+    "ignore::DeprecationWarning:argopy",
+    "ignore:numpy.ndarray size changed:RuntimeWarning",
+    "ignore::DeprecationWarning:shapely.geos",
+    "ignore:pkg_resources is deprecated:DeprecationWarning:pkg_resources",
+]
