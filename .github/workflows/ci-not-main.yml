@@ -4,10 +4,9 @@
 # Runs on all branches except main (see ci-main.yml)
 # Runs basic tests on push event and advanced tests on label assignment
 
-
 name: ci-not-main
 
-on: 
+on:
   push:
     branches-ignore:
       - main
@@ -28,21 +27,19 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-    - name: Checkout project
-      uses: actions/checkout@v4
-    - name: Setup Python 3.12
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest cftime pytest-xdist
-    - name: Install climakitae
-      run: pip install . --no-deps
-    - name: Test with pytest (Basic)
-      run: pytest -n auto --no-header -vv -m "not advanced"
-    - name: Test with pytest (Advanced)
-      if: github.event.label.name == 'Advanced Testing'
-      run: pytest -n auto --no-header -vv -m "advanced"
+      - name: Checkout project
+        uses: actions/checkout@v4
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          uv pip install -e ".[dev]"
+      - name: Install climakitae
+        run: pip install . --no-deps
+      - name: Test with pytest (Basic)
+        run: uv run python -m pytest -n auto --no-header -vv -m "not advanced"
+      - name: Test with pytest (Advanced)
+        if: github.event.label.name == 'Advanced Testing'
+        run: uv run python -m pytest -n auto --no-header -vv -m "advanced"
