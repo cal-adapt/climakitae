@@ -175,11 +175,14 @@ class TestClipExecuteWithSingleBoundary:
 
     def test_execute_single_boundary_dataset(self):
         """Test execute with single boundary and xr.Dataset - outcome: data clipped correctly."""
-        with patch.object(
-            self.clip, "_get_boundary_geometry", return_value=self.mock_geometry
-        ), patch.object(
-            self.clip, "_clip_data_with_geom", return_value=self.sample_dataset
-        ) as mock_clip:
+        with (
+            patch.object(
+                self.clip, "_get_boundary_geometry", return_value=self.mock_geometry
+            ),
+            patch.object(
+                self.clip, "_clip_data_with_geom", return_value=self.sample_dataset
+            ) as mock_clip,
+        ):
 
             context = {}
             result = self.clip.execute(self.sample_dataset, context)
@@ -199,11 +202,14 @@ class TestClipExecuteWithSingleBoundary:
         """Test execute with single boundary and dict of datasets - outcome: all datasets clipped."""
         data_dict = {"sim1": self.sample_dataset, "sim2": self.sample_dataset}
 
-        with patch.object(
-            self.clip, "_get_boundary_geometry", return_value=self.mock_geometry
-        ), patch.object(
-            self.clip, "_clip_data_with_geom", return_value=self.sample_dataset
-        ) as mock_clip:
+        with (
+            patch.object(
+                self.clip, "_get_boundary_geometry", return_value=self.mock_geometry
+            ),
+            patch.object(
+                self.clip, "_clip_data_with_geom", return_value=self.sample_dataset
+            ) as mock_clip,
+        ):
 
             context = {}
             result = self.clip.execute(data_dict, context)
@@ -223,11 +229,14 @@ class TestClipExecuteWithSingleBoundary:
         """Test execute with single boundary and list of datasets - outcome: all datasets clipped."""
         data_list = [self.sample_dataset, self.sample_dataset]
 
-        with patch.object(
-            self.clip, "_get_boundary_geometry", return_value=self.mock_geometry
-        ), patch.object(
-            self.clip, "_clip_data_with_geom", return_value=self.sample_dataset
-        ) as mock_clip:
+        with (
+            patch.object(
+                self.clip, "_get_boundary_geometry", return_value=self.mock_geometry
+            ),
+            patch.object(
+                self.clip, "_clip_data_with_geom", return_value=self.sample_dataset
+            ) as mock_clip,
+        ):
 
             context = {}
             result = self.clip.execute(data_list, context)
@@ -482,11 +491,16 @@ class TestClipExecuteWithMultipleBoundaries:
 
     def test_execute_multiple_boundaries_dataset(self):
         """Test execute with multiple boundaries and xr.Dataset - outcome: union of boundaries applied."""
-        with patch.object(
-            self.clip, "_get_multi_boundary_geometry", return_value=self.mock_geometry
-        ), patch.object(
-            self.clip, "_clip_data_with_geom", return_value=self.sample_dataset
-        ) as mock_clip:
+        with (
+            patch.object(
+                self.clip,
+                "_get_multi_boundary_geometry",
+                return_value=self.mock_geometry,
+            ),
+            patch.object(
+                self.clip, "_clip_data_with_geom", return_value=self.sample_dataset
+            ) as mock_clip,
+        ):
 
             context = {}
             result = self.clip.execute(self.sample_dataset, context)
@@ -507,10 +521,15 @@ class TestClipExecuteWithMultipleBoundaries:
         """Test execute with multiple boundaries and list - outcome: all datasets clipped with union."""
         data_list = [self.sample_dataset, self.sample_dataset]
 
-        with patch.object(
-            self.clip, "_get_multi_boundary_geometry", return_value=self.mock_geometry
-        ), patch.object(
-            self.clip, "_clip_data_with_geom", return_value=self.sample_dataset
+        with (
+            patch.object(
+                self.clip,
+                "_get_multi_boundary_geometry",
+                return_value=self.mock_geometry,
+            ),
+            patch.object(
+                self.clip, "_clip_data_with_geom", return_value=self.sample_dataset
+            ),
         ):
 
             context = {}
@@ -1563,8 +1582,9 @@ class TestClipDataToMultiplePointsFallback:
     def test_fallback_all_points_invalid(self):
         """Test _clip_data_to_multiple_points_fallback when all points return None - outcome: returns None."""
         # Mock _clip_data_to_point to always return None
-        with patch.object(Clip, "_clip_data_to_point", return_value=None), patch(
-            "builtins.print"
+        with (
+            patch.object(Clip, "_clip_data_to_point", return_value=None),
+            patch("builtins.print"),
         ):
 
             point_list = [(37.0, -119.0), (35.0, -121.0)]
@@ -1588,9 +1608,10 @@ class TestClipDataToMultiplePointsFallback:
                 # Call the original method for other points
                 return original_method(dataset, lat, lon)
 
-        with patch.object(
-            Clip, "_clip_data_to_point", side_effect=mock_clip_to_point
-        ), patch("builtins.print"):
+        with (
+            patch.object(Clip, "_clip_data_to_point", side_effect=mock_clip_to_point),
+            patch("builtins.print"),
+        ):
 
             point_list = [(37.0, -119.0), (35.0, -121.0), (40.0, -118.0)]
             result = Clip._clip_data_to_multiple_points_fallback(
@@ -1608,9 +1629,10 @@ class TestClipDataToMultiplePointsFallback:
     def test_fallback_concatenation_error(self):
         """Test _clip_data_to_multiple_points_fallback when concatenation fails - outcome: returns None."""
         # Mock xr.concat to raise an exception
-        with patch(
-            "xarray.concat", side_effect=Exception("Concatenation failed")
-        ), patch("builtins.print"):
+        with (
+            patch("xarray.concat", side_effect=Exception("Concatenation failed")),
+            patch("builtins.print"),
+        ):
 
             point_list = [(37.0, -119.0), (35.0, -121.0)]
             result = Clip._clip_data_to_multiple_points_fallback(
@@ -1669,10 +1691,13 @@ class TestClipDataToPointNaNSearch:
         dataset_all_nan = dataset_all_nan.rio.write_crs("EPSG:4326")
 
         # Mock get_closest_gridcell to return None (simulating no closest gridcell found)
-        with patch(
-            "climakitae.new_core.processors.clip.get_closest_gridcell",
-            return_value=None,
-        ), patch("builtins.print") as mock_print:
+        with (
+            patch(
+                "climakitae.new_core.processors.clip.get_closest_gridcell",
+                return_value=None,
+            ),
+            patch("builtins.print") as mock_print,
+        ):
 
             result = Clip._clip_data_to_point(dataset_all_nan, 37.0, -119.0)
 
@@ -1759,10 +1784,13 @@ class TestClipDataToPointNaNSearchExpansion:
         # Verify it's actually NaN
         assert np.isnan(nan_result["temp"].isel(time=0).values)
 
-        with patch(
-            "climakitae.new_core.processors.clip.get_closest_gridcell",
-            return_value=nan_result,
-        ), patch("builtins.print") as mock_print:
+        with (
+            patch(
+                "climakitae.new_core.processors.clip.get_closest_gridcell",
+                return_value=nan_result,
+            ),
+            patch("builtins.print") as mock_print,
+        ):
             result = Clip._clip_data_to_point(dataset, 37.0, -120.0)
 
         # Verify a valid result was found
@@ -1837,13 +1865,19 @@ class TestGetMultiBoundaryGeometry:
             elif key == "OR":
                 return mock_geometry2
 
-        with patch.object(
-            self.clip_processor, "validate_boundary_key", side_effect=mock_validate
-        ), patch.object(
-            self.clip_processor, "_get_boundary_geometry", side_effect=mock_get_geometry
-        ) as mock_get, patch.object(
-            self.clip_processor, "_combine_geometries", return_value=mock_combined
-        ) as mock_combine:
+        with (
+            patch.object(
+                self.clip_processor, "validate_boundary_key", side_effect=mock_validate
+            ),
+            patch.object(
+                self.clip_processor,
+                "_get_boundary_geometry",
+                side_effect=mock_get_geometry,
+            ) as mock_get,
+            patch.object(
+                self.clip_processor, "_combine_geometries", return_value=mock_combined
+            ) as mock_combine,
+        ):
 
             result = self.clip_processor._get_multi_boundary_geometry(["CA", "OR"])
 
@@ -1876,10 +1910,15 @@ class TestGetMultiBoundaryGeometry:
             else:
                 raise ValueError(f"Invalid key: {key}")
 
-        with patch.object(
-            self.clip_processor, "validate_boundary_key", side_effect=mock_validate
-        ), patch.object(
-            self.clip_processor, "_get_boundary_geometry", side_effect=mock_get_geometry
+        with (
+            patch.object(
+                self.clip_processor, "validate_boundary_key", side_effect=mock_validate
+            ),
+            patch.object(
+                self.clip_processor,
+                "_get_boundary_geometry",
+                side_effect=mock_get_geometry,
+            ),
         ):
 
             with pytest.raises(
@@ -1900,10 +1939,15 @@ class TestGetMultiBoundaryGeometry:
         def mock_get_geometry(key):
             raise Exception("Failed to retrieve geometry")
 
-        with patch.object(
-            self.clip_processor, "validate_boundary_key", side_effect=mock_validate
-        ), patch.object(
-            self.clip_processor, "_get_boundary_geometry", side_effect=mock_get_geometry
+        with (
+            patch.object(
+                self.clip_processor, "validate_boundary_key", side_effect=mock_validate
+            ),
+            patch.object(
+                self.clip_processor,
+                "_get_boundary_geometry",
+                side_effect=mock_get_geometry,
+            ),
         ):
 
             with pytest.raises(ValueError, match="Invalid boundary keys"):
@@ -1970,8 +2014,9 @@ class TestClipErrorHandlingPaths:
         clip_processor = Clip((37.0, -119.0))
 
         # Mock _clip_data_to_point to return None
-        with patch.object(Clip, "_clip_data_to_point", return_value=None), patch(
-            "builtins.print"
+        with (
+            patch.object(Clip, "_clip_data_to_point", return_value=None),
+            patch("builtins.print"),
         ):
 
             with pytest.raises(
@@ -1984,10 +2029,13 @@ class TestClipErrorHandlingPaths:
         point_list = [(37.0, -119.0), (35.0, -121.0)]
 
         # Mock get_closest_gridcells to return None
-        with patch(
-            "climakitae.new_core.processors.clip.get_closest_gridcells",
-            return_value=None,
-        ), patch("builtins.print") as mock_print:
+        with (
+            patch(
+                "climakitae.new_core.processors.clip.get_closest_gridcells",
+                return_value=None,
+            ),
+            patch("builtins.print") as mock_print,
+        ):
 
             result = Clip._clip_data_to_multiple_points(self.dataset, point_list)
 
@@ -2006,16 +2054,18 @@ class TestClipErrorHandlingPaths:
         mock_fallback_result = MagicMock()
 
         # Mock get_closest_gridcells to raise an exception
-        with patch(
-            "climakitae.new_core.processors.clip.get_closest_gridcells",
-            side_effect=Exception("Vectorized clipping failed"),
-        ), patch.object(
-            Clip,
-            "_clip_data_to_multiple_points_fallback",
-            return_value=mock_fallback_result,
-        ) as mock_fallback, patch(
-            "builtins.print"
-        ) as mock_print:
+        with (
+            patch(
+                "climakitae.new_core.processors.clip.get_closest_gridcells",
+                side_effect=Exception("Vectorized clipping failed"),
+            ),
+            patch.object(
+                Clip,
+                "_clip_data_to_multiple_points_fallback",
+                return_value=mock_fallback_result,
+            ) as mock_fallback,
+            patch("builtins.print") as mock_print,
+        ):
 
             result = Clip._clip_data_to_multiple_points(self.dataset, point_list)
 

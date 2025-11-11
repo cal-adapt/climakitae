@@ -38,9 +38,12 @@ class TestClimateDataInit:
         """Test initialization when DatasetFactory raises an exception."""
         mock_factory.side_effect = Exception("Factory error")
 
-        with patch("builtins.print") as mock_print, patch(
-            "climakitae.new_core.user_interface.traceback.format_exc",
-            return_value="Traceback info",
+        with (
+            patch("builtins.print") as mock_print,
+            patch(
+                "climakitae.new_core.user_interface.traceback.format_exc",
+                return_value="Traceback info",
+            ),
         ):
             climate_data = ClimateData()
 
@@ -55,14 +58,16 @@ class TestClimateDataParameterSetters:
     def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
-        with patch(
-            "climakitae.new_core.user_interface.DatasetFactory",
-            return_value=mock_factory_instance,
-        ), patch(
-            "climakitae.new_core.user_interface.read_csv_file",
-            return_value=pd.DataFrame(),
-        ), patch(
-            "builtins.print"
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                return_value=mock_factory_instance,
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
         ):
             self.climate_data = ClimateData()
 
@@ -222,14 +227,16 @@ class TestClimateDataGet:
     def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
-        with patch(
-            "climakitae.new_core.user_interface.DatasetFactory",
-            return_value=mock_factory_instance,
-        ), patch(
-            "climakitae.new_core.user_interface.read_csv_file",
-            return_value=pd.DataFrame(),
-        ), patch(
-            "builtins.print"
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                return_value=mock_factory_instance,
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
         ):
             self.climate_data = ClimateData()
             self.climate_data._factory = mock_factory_instance
@@ -284,14 +291,16 @@ class TestClimateDataValidation:
     def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
-        with patch(
-            "climakitae.new_core.user_interface.DatasetFactory",
-            return_value=mock_factory_instance,
-        ), patch(
-            "climakitae.new_core.user_interface.read_csv_file",
-            return_value=pd.DataFrame(),
-        ), patch(
-            "builtins.print"
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                return_value=mock_factory_instance,
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
         ):
             self.climate_data = ClimateData()
 
@@ -320,14 +329,16 @@ class TestClimateDataOptionMethods:
     def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
-        with patch(
-            "climakitae.new_core.user_interface.DatasetFactory",
-            return_value=mock_factory_instance,
-        ), patch(
-            "climakitae.new_core.user_interface.read_csv_file",
-            return_value=pd.DataFrame(),
-        ), patch(
-            "builtins.print"
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                return_value=mock_factory_instance,
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
         ):
             self.climate_data = ClimateData()
             self.climate_data._factory = mock_factory_instance
@@ -362,14 +373,16 @@ class TestClimateDataConvenienceMethods:
     def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
-        with patch(
-            "climakitae.new_core.user_interface.DatasetFactory",
-            return_value=mock_factory_instance,
-        ), patch(
-            "climakitae.new_core.user_interface.read_csv_file",
-            return_value=pd.DataFrame(),
-        ), patch(
-            "builtins.print"
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                return_value=mock_factory_instance,
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
         ):
             self.climate_data = ClimateData()
 
@@ -401,14 +414,16 @@ class TestClimateDataChaining:
     def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
-        with patch(
-            "climakitae.new_core.user_interface.DatasetFactory",
-            return_value=mock_factory_instance,
-        ), patch(
-            "climakitae.new_core.user_interface.read_csv_file",
-            return_value=pd.DataFrame(),
-        ), patch(
-            "builtins.print"
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                return_value=mock_factory_instance,
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
         ):
             self.climate_data = ClimateData()
 
@@ -437,14 +452,16 @@ class TestClimateDataAdditionalShowMethods:
     def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
-        with patch(
-            "climakitae.new_core.user_interface.DatasetFactory",
-            return_value=mock_factory_instance,
-        ), patch(
-            "climakitae.new_core.user_interface.read_csv_file",
-            return_value=pd.DataFrame(),
-        ), patch(
-            "builtins.print"
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                return_value=mock_factory_instance,
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
         ):
             self.climate_data = ClimateData()
 
@@ -549,25 +566,25 @@ class TestClimateDataAdditionalShowMethods:
 
     def test_show_all_options(self):
         """Test show_all_options method."""
-        with patch.object(
-            self.climate_data, "show_catalog_options"
-        ) as mock_catalog, patch.object(
-            self.climate_data, "show_installation_options"
-        ) as mock_installation, patch.object(
-            self.climate_data, "show_activity_id_options"
-        ) as mock_activity, patch.object(
-            self.climate_data, "show_institution_id_options"
-        ) as mock_institution, patch.object(
-            self.climate_data, "show_source_id_options"
-        ) as mock_source, patch.object(
-            self.climate_data, "show_experiment_id_options"
-        ) as mock_experiment, patch.object(
-            self.climate_data, "show_table_id_options"
-        ) as mock_table, patch.object(
-            self.climate_data, "show_grid_label_options"
-        ) as mock_grid, patch.object(
-            self.climate_data, "show_variable_options"
-        ) as mock_variable:
+        with (
+            patch.object(self.climate_data, "show_catalog_options") as mock_catalog,
+            patch.object(
+                self.climate_data, "show_installation_options"
+            ) as mock_installation,
+            patch.object(
+                self.climate_data, "show_activity_id_options"
+            ) as mock_activity,
+            patch.object(
+                self.climate_data, "show_institution_id_options"
+            ) as mock_institution,
+            patch.object(self.climate_data, "show_source_id_options") as mock_source,
+            patch.object(
+                self.climate_data, "show_experiment_id_options"
+            ) as mock_experiment,
+            patch.object(self.climate_data, "show_table_id_options") as mock_table,
+            patch.object(self.climate_data, "show_grid_label_options") as mock_grid,
+            patch.object(self.climate_data, "show_variable_options") as mock_variable,
+        ):
 
             self.climate_data.show_all_options()
 
@@ -617,14 +634,16 @@ class TestClimateDataAdditionalMethods:
     def setup_method(self):
         """Set up test fixtures."""
         mock_factory_instance = MagicMock()
-        with patch(
-            "climakitae.new_core.user_interface.DatasetFactory",
-            return_value=mock_factory_instance,
-        ), patch(
-            "climakitae.new_core.user_interface.read_csv_file",
-            return_value=pd.DataFrame(),
-        ), patch(
-            "builtins.print"
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                return_value=mock_factory_instance,
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
         ):
             self.climate_data = ClimateData()
 
