@@ -35,6 +35,7 @@ components based on user queries from the ClimateData UI.
 
 from __future__ import annotations
 
+import logging
 import warnings
 from typing import Any, Dict, List, Type
 
@@ -49,6 +50,9 @@ from climakitae.new_core.param_validation.param_validation_tools import (
     _get_closest_options,
 )
 from climakitae.new_core.processors.abc_data_processor import _PROCESSOR_REGISTRY
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 class DatasetFactory:
@@ -146,10 +150,16 @@ class DatasetFactory:
             If the catalog file cannot be loaded or parsed.
 
         """
+        logger.debug("Initializing DatasetFactory")
         self._catalog = None
         self._catalog_df = DataCatalog().catalog_df
         self._validator_registry = _CATALOG_VALIDATOR_REGISTRY
         self._processing_step_registry = _PROCESSOR_REGISTRY
+        logger.info(
+            "DatasetFactory initialized with %d validators and %d processors",
+            len(self._validator_registry),
+            len(self._processing_step_registry),
+        )
 
     def create_dataset(self, ui_query: Dict[str, Any]) -> Dataset:
         """Create a Dataset based on a UI query from ClimateData.
@@ -194,25 +204,36 @@ class DatasetFactory:
         create_validator : Method for creating parameter validators
 
         """
+        logger.debug("Creating dataset from query: %s", ui_query)
         dataset = Dataset()
 
         # Create and configure parameter validator
         catalog_key = self._get_catalog_key_from_query(ui_query)
+        logger.info("Determined catalog key: %s", catalog_key)
         self._catalog = DataCatalog()
         self._catalog.set_catalog_key(catalog_key)
+        logger.debug("Creating validator for catalog: %s", catalog_key)
         dataset.with_param_validator(self.create_validator(catalog_key))
 
         # Configure the appropriate catalog based on query parameters
+        logger.debug("Configuring dataset with data catalog")
         dataset.with_catalog(self._catalog)
 
         # Add processing steps based on query parameters
         if _NEW_ATTRS_KEY not in ui_query:
             ui_query[_NEW_ATTRS_KEY] = {}
 
+        logger.debug("Determining processing steps for query")
         proc_steps = self._get_list_of_processing_steps(ui_query)
+        logger.info("Adding %d processing steps to dataset", len(proc_steps))
         for proc in proc_steps:
+            logger.debug(
+                "Adding processing step: %s",
+                proc[0] if isinstance(proc, tuple) else proc,
+            )
             dataset.with_processing_step(proc)
 
+        logger.info("Dataset created successfully")
         return dataset
 
     def _get_list_of_processing_steps(
