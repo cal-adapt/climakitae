@@ -109,6 +109,7 @@ Notes
 - Results include metadata about the clipping operation in the dataset attributes
 """
 
+import logging
 import os
 import warnings
 from typing import Any, Dict, Iterable, Union
@@ -132,6 +133,10 @@ from climakitae.new_core.processors.processor_utils import (
     is_station_identifier,
 )
 from climakitae.util.utils import get_closest_gridcell, get_closest_gridcells
+
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 @register_processor("clip", priority=200)
@@ -223,6 +228,14 @@ class Clip(DataProcessor):
         )
         if self.is_single_point:
             self.lat, self.lon = float(value[0]), float(value[1])
+        # log initialization
+        logger.debug(
+            "Clip processor initialized value=%s multi_mode=%s is_multi_point=%s is_single_point=%s",
+            self.value,
+            self.multi_mode,
+            self.is_multi_point,
+            getattr(self, "is_single_point", False),
+        )
 
     def execute(
         self,
@@ -303,6 +316,11 @@ class Clip(DataProcessor):
             raise ValueError("Failed to create geometry for clipping operation.")
 
         ret = None
+        logger.debug(
+            "Clip.execute called with value=%s result_type=%s",
+            self.value,
+            type(result).__name__,
+        )
         match result:
             case dict():
                 # Clip each dataset in the dictionary
@@ -621,21 +639,39 @@ class Clip(DataProcessor):
                     test_data = test_data.isel({dim: 0})
 
             if not test_data.isnull().all():
-                print(
-                    f"Found valid data at closest gridcell: lat={closest_gridcell.lat.values:.4f}, lon={closest_gridcell.lon.values:.4f}"
+                logger.info(
+                    "Found valid data at closest gridcell: lat=%0.4f, lon=%0.4f",
+                    float(closest_gridcell.lat.values),
+                    float(closest_gridcell.lon.values),
                 )
+                try:
+                    print(
+                        f"Found valid data at closest gridcell: lat={float(closest_gridcell.lat.values):0.4f}, lon={float(closest_gridcell.lon.values):0.4f}"
+                    )
+                except Exception:
+                    pass
                 return closest_gridcell
 
         # If no valid data found at closest point, search in expanding radius
-        print(
-            f"Closest gridcell contains NaN values, searching for nearest valid gridcell..."
+        logger.info(
+            "Closest gridcell contains NaN values, searching for nearest valid gridcell..."
         )
+        try:
+            print(
+                "Closest gridcell contains NaN values, searching for nearest valid gridcell..."
+            )
+        except Exception:
+            pass
 
         # Define search radii (in degrees)
         search_radii = [0.01, 0.05, 0.1, 0.2, 0.5]
 
         for radius in search_radii:
-            print(f"Searching within {radius}° radius...")
+            logger.debug("Searching within %s° radius...", radius)
+            try:
+                print(f"Searching within {radius}° radius...")
+            except Exception:
+                pass
 
             # Create a larger bounding box
             lat_min, lat_max = lat - radius, lat + radius
@@ -713,21 +749,41 @@ class Clip(DataProcessor):
                             valid_coords[min_idx]
                         )
 
-                        print(
-                            f"Found valid gridcell at distance {distances[min_idx]:.2f} km"
+                        logger.info(
+                            "Found valid gridcell at distance %0.2f km",
+                            distances[min_idx],
                         )
-                        print(
-                            f"Valid gridcell coordinates: lat={closest_lat:.4f}, lon={closest_lon:.4f}"
+                        logger.debug(
+                            "Valid gridcell coordinates: lat=%0.4f, lon=%0.4f",
+                            closest_lat,
+                            closest_lon,
                         )
+                        try:
+                            print(
+                                f"Found valid gridcell at distance {distances[min_idx]:0.2f} km"
+                            )
+                            print(
+                                f"Valid gridcell coordinates: lat={closest_lat:0.4f}, lon={closest_lon:0.4f}"
+                            )
+                        except Exception:
+                            pass
 
                         # Return the closest valid gridcell from the larger region
                         return larger_region.isel({dim1: closest_i, dim2: closest_j})
 
             except Exception as e:
-                print(f"Error searching radius {radius}: {e}")
+                logger.error("Error searching radius %s: %s", radius, e, exc_info=True)
+                try:
+                    print(f"Error searching radius {radius}: {e}")
+                except Exception:
+                    pass
                 continue
 
-        print("No valid gridcells found within search radius")
+        logger.warning("No valid gridcells found within search radius")
+        try:
+            print("No valid gridcells found within search radius")
+        except Exception:
+            pass
         return None
 
     @staticmethod
@@ -754,9 +810,16 @@ class Clip(DataProcessor):
             Dataset with a 'closest_cell' dimension containing closest gridcells for all points,
             or None if no valid gridcells found for any points
         """
-        print(
-            f"Processing {len(point_list)} points using efficient vectorized approach..."
+        logger.info(
+            "Processing %d points using efficient vectorized approach...",
+            len(point_list),
         )
+        try:
+            print(
+                f"Processing {len(point_list)} points using efficient vectorized approach..."
+            )
+        except Exception:
+            pass
 
         # Extract lat/lon arrays from point_list
         lats = [lat for lat, lon in point_list]
@@ -773,7 +836,13 @@ class Clip(DataProcessor):
             closest_gridcells = get_closest_gridcells(dataset_for_clipping, lats, lons)
 
             if closest_gridcells is None:
-                print("No valid gridcells found for any of the provided points")
+                logger.warning(
+                    "No valid gridcells found for any of the provided points"
+                )
+                try:
+                    print("No valid gridcells found for any of the provided points")
+                except Exception:
+                    pass
                 return None
 
             # Rename the 'points' dimension to 'closest_cell' for API consistency
@@ -796,12 +865,27 @@ class Clip(DataProcessor):
                     var_name = list(closest_gridcells.data_vars)[0]
                     closest_gridcells = closest_gridcells[var_name]
 
-            print(f"Successfully found closest gridcells for {len(point_list)} points")
+            logger.info(
+                "Successfully found closest gridcells for %d points", len(point_list)
+            )
+            try:
+                print(
+                    f"Successfully found closest gridcells for {len(point_list)} points"
+                )
+            except Exception:
+                pass
             return closest_gridcells
 
         except Exception as e:
-            print(f"Error in vectorized multi-point clipping: {e}")
-            print("Falling back to individual point processing...")
+            logger.error(
+                "Error in vectorized multi-point clipping: %s", e, exc_info=True
+            )
+            try:
+                print(f"Error in vectorized multi-point clipping: {e}")
+                print("Falling back to individual point processing...")
+            except Exception:
+                pass
+            logger.info("Falling back to individual point processing...")
 
             # Fallback to the original approach if vectorized fails
             return Clip._clip_data_to_multiple_points_fallback(dataset, point_list)
@@ -820,7 +904,19 @@ class Clip(DataProcessor):
         valid_indices = []
 
         for i, (lat, lon) in enumerate(point_list):
-            print(f"Processing point {i+1}/{len(point_list)}: ({lat:.4f}, {lon:.4f})")
+            logger.debug(
+                "Processing point %d/%d: (%0.4f, %0.4f)",
+                i + 1,
+                len(point_list),
+                lat,
+                lon,
+            )
+            try:
+                print(
+                    f"Processing point {i+1}/{len(point_list)}: ({lat:0.4f}, {lon:0.4f})"
+                )
+            except Exception:
+                pass
 
             # Clip to single point
             clipped_data = Clip._clip_data_to_point(dataset, lat, lon)
@@ -833,10 +929,18 @@ class Clip(DataProcessor):
                 clipped_results.append(clipped_data)
                 valid_indices.append(i)
             else:
-                print(f"Warning: No valid data found for point ({lat:.4f}, {lon:.4f})")
+                logger.warning("No valid data found for point (%0.4f, %0.4f)", lat, lon)
+                try:
+                    print(f"No valid data found for point ({lat:0.4f}, {lon:0.4f})")
+                except Exception:
+                    pass
 
         if not clipped_results:
-            print("No valid gridcells found for any of the provided points")
+            logger.warning("No valid gridcells found for any of the provided points")
+            try:
+                print("No valid gridcells found for any of the provided points")
+            except Exception:
+                pass
             return None
 
         # Filter by unique grid cells before concatenating
@@ -859,18 +963,33 @@ class Clip(DataProcessor):
             else:
                 target_lat = point_list[orig_idx][0]
                 target_lon = point_list[orig_idx][1]
-                print(
-                    f"Skipping duplicate grid cell at ({actual_lat:.4f}, {actual_lon:.4f}) "
-                    f"for target point ({target_lat:.4f}, {target_lon:.4f})"
+                logger.debug(
+                    "Skipping duplicate grid cell at (%0.4f, %0.4f) for target point (%0.4f, %0.4f)",
+                    actual_lat,
+                    actual_lon,
+                    target_lat,
+                    target_lon,
                 )
 
         if not unique_results:
-            print("No unique gridcells found after filtering")
+            logger.warning("No unique gridcells found after filtering")
+            try:
+                print("No unique gridcells found after filtering")
+            except Exception:
+                pass
             return None
 
-        print(
-            f"Filtered from {len(clipped_results)} to {len(unique_results)} unique gridcells"
-        )
+            logger.info(
+                "Filtered from %d to %d unique gridcells",
+                len(clipped_results),
+                len(unique_results),
+            )
+            try:
+                print(
+                    f"Filtered from {len(clipped_results)} to {len(unique_results)} unique gridcells"
+                )
+            except Exception:
+                pass
 
         try:
             # Concatenate all unique results along a new dimension
@@ -889,13 +1008,20 @@ class Clip(DataProcessor):
                 ),
             )
 
-            print(
-                f"Successfully concatenated {len(unique_results)} unique closest gridcells"
+            logger.info(
+                "Successfully concatenated %d unique closest gridcells",
+                len(unique_results),
             )
+            try:
+                print(
+                    f"Successfully concatenated {len(unique_results)} unique closest gridcells"
+                )
+            except Exception:
+                pass
             return concatenated
 
         except Exception as e:
-            print(f"Error concatenating results: {e}")
+            logger.error("Error concatenating results: %s", e, exc_info=True)
             return None
 
     def _get_boundary_geometry(self, boundary_key: str) -> gpd.GeoDataFrame:
