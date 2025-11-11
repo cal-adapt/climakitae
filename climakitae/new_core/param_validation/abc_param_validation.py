@@ -43,6 +43,7 @@ Examples
 """
 
 import warnings
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
@@ -55,6 +56,9 @@ from climakitae.new_core.param_validation.param_validation_tools import (
 
 _CATALOG_VALIDATOR_REGISTRY = {}
 _PROCESSOR_VALIDATOR_REGISTRY = {}
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 def register_catalog_validator(name: str):
@@ -306,15 +310,20 @@ class ParameterValidator(ABC):
                 UserWarning,
                 stacklevel=999,
             )
-
         if len(subset) != 0:
-            print(f"Found {len(subset)} datasets matching your query.")
-            print("Checking processes ...")
+            # Backwards-compatible print for tests and CLI users
+            try:
+                print(f"Found {len(subset)} datasets matching your query.")
+            except Exception:
+                # If print is mocked or fails, continue silently
+                pass
+            logger.info("Found %d datasets matching your query.", len(subset))
+            logger.info("Checking processes ...")
             return self.all_catalog_keys if self._has_valid_processes(query) else None
 
         # dataset not found
         # find closest match to each provided key
-        print("Checking for valid options...")
+        logger.info("Checking for valid options...")
         df = self.catalog.df.copy()
         last_key = None
         for key, value in self.all_catalog_keys.items():
@@ -356,7 +365,14 @@ class ParameterValidator(ABC):
                 # start by checking if the value is in the catalog
                 if value not in self.catalog.df[key].unique():
                     # the value is not in the catalog, check for closest options
-                    print(f"Could not find any datasets with {key} = {value}.")
+                    # Preserve original user-facing print for compatibility with tests
+                    try:
+                        print(f"Could not find any datasets with {key} = {value}.")
+                    except Exception:
+                        pass
+                    logger.warning(
+                        "Could not find any datasets with %s = %s", key, value
+                    )
                     closest_options = _get_closest_options(
                         value, self.catalog.df[key].unique()
                     )
@@ -396,8 +412,12 @@ class ParameterValidator(ABC):
             last_key = key
             # check if the value is in the catalog
         if not df.empty:
-            print(f"Found up to {len(df)} datasets matching your query.")
-            print("Checking processes ...")
+            try:
+                print(f"Found up to {len(df)} datasets matching your query.")
+            except Exception:
+                pass
+            logger.info("Found up to %d datasets matching your query.", len(df))
+            logger.info("Checking processes ...")
             return self.all_catalog_keys if self._has_valid_processes(query) else None
         return None
 
