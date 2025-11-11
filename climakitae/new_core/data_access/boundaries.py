@@ -40,6 +40,7 @@ Examples
 
 """
 
+import logging
 import warnings
 from typing import Dict, Optional, Union
 
@@ -51,6 +52,9 @@ from climakitae.core.constants import (
     PRIORITY_UTILITIES,
     WESTERN_STATES_LIST,
 )
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 class Boundaries:
