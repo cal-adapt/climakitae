@@ -23,9 +23,11 @@ jobs:
   test:
     name: test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         python-version: ["3.12", "3.13", "3.14"]
+      fail-fast: false
     defaults:
       run:
         shell: bash -l {0}
@@ -41,13 +43,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install uv
       - name: Create uv virtual environment
-        run: |
-          uv venv --python ${{ matrix.python-version }}
+        run: uv venv --python ${{ matrix.python-version }}
       - name: Install dependencies
+        run: uv pip install -e ".[dev]"
+      - name: Verify installation
         run: |
-          uv pip install -e ".[dev]"
+          uv run python --version
+          uv run python -c "import climakitae; print(f'climakitae version: {climakitae.__version__}')"
       - name: Test with pytest (Basic)
-        run: uv run python -m pytest -n auto --no-header -vv -m "not advanced"
+        run: uv run python -m pytest --no-header -vv -m "not advanced"
       - name: Test with pytest (Advanced)
         if: github.event.label.name == 'Advanced Testing'
-        run: uv run python -m pytest -n auto --no-header -vv -m "advanced"
+        run: uv run python -m pytest --no-header -vv -m "advanced"
