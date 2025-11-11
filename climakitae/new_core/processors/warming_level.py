@@ -5,6 +5,7 @@ A simplified warming level processor that transforms time-series climate data
 to a warming level centered approach following the established template pattern.
 """
 
+import logging
 import re
 import warnings
 from typing import Any, Dict, Iterable, Union
@@ -21,6 +22,10 @@ from climakitae.new_core.processors.abc_data_processor import (
     register_processor,
 )
 from climakitae.util.utils import read_csv_file
+
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 @register_processor("warming_level", priority=10)
@@ -85,6 +90,11 @@ class WarmingLevel(DataProcessor):
             "warming_levels": self.warming_levels,
             "warming_level_window": self.warming_level_window,
         }
+        logger.debug(
+            "WarmingLevel initialized with warming_levels=%s window=%s",
+            self.warming_levels,
+            self.warming_level_window,
+        )
 
     def execute(
         self,
@@ -126,6 +136,9 @@ class WarmingLevel(DataProcessor):
                     GWL_1981_2010_TIMEIDX_FILE, index_col="time", parse_dates=True
                 )
             except (FileNotFoundError, pd.errors.ParserError) as e:
+                logger.error(
+                    "Failed to load warming level times table: %s", e, exc_info=True
+                )
                 raise RuntimeError(
                     f"Failed to load warming level times table: {e}"
                 ) from e
@@ -139,9 +152,12 @@ class WarmingLevel(DataProcessor):
 
         # first, extract the member IDs from the data
         member_ids = []
+        logger.debug(
+            "Preparing warming level transformation for %d keys", len(ret.keys())
+        )
         for k in ret.keys():
             mem_id = k.split(".")[-1]  # Get the last part as member_id
-            if mem_id[0] == "r":
+            if mem_id and mem_id[0] == "r":
                 # If it starts with 'r', it's a member_id
                 member_ids.append(mem_id)
             else:
@@ -163,10 +179,9 @@ class WarmingLevel(DataProcessor):
 
             for year, wl in zip(years, self.warming_levels):
                 if year is None or pd.isna(year):
-                    warnings.warn(
-                        f"\n\nNo warming level data found for {key} at {wl}C. "
-                        "\nSkipping this warming level."
-                    )
+                    msg = f"No warming level data found for {key} at {wl}C. Skipping this warming level."
+                    logger.warning(msg)
+                    warnings.warn(msg)
                     continue
                 start_year = year - self.warming_level_window
                 start_year = max(start_year, 1981)
@@ -199,14 +214,16 @@ class WarmingLevel(DataProcessor):
                 )
 
                 slices.append(da_slice)
-
+            # After processing all warming levels, check if we have any valid slices.
             if not slices:
-                warnings.warn(
-                    f"\n\nNo valid slices found for {key}. "
-                    "Ensure the warming level times table is correctly configured."
-                )
-                del ret[key]  # Remove key if no valid slices found
+                msg = f"No valid slices found for {key}. Ensure the warming level times table is correctly configured."
+                logger.warning(msg)
+                warnings.warn(msg)
+                # Remove key if no valid slices found and continue
+                if key in ret:
+                    del ret[key]
                 continue
+
             ret[key] = xr.concat(
                 slices, dim="warming_level", join="outer", fill_value=np.nan
             )
@@ -277,10 +294,9 @@ class WarmingLevel(DataProcessor):
             else:
                 # If no member_id, keep the original key
                 ret[key] = data
-                warnings.warn(
-                    f"\n\nNo member_id found in data for key {key}. "
-                    "\nAssuming no member_id is present for this dataset."
-                )
+                msg = f"No member_id found in data for key {key}. Assuming no member_id is present for this dataset."
+                logger.warning(msg)
+                warnings.warn(msg)
         return ret
 
     def extend_time_domain(
