@@ -4,6 +4,7 @@ Validator for parameters provided to Warming Level Processor.
 
 from __future__ import annotations
 
+import logging
 import warnings
 from typing import Any
 
@@ -11,6 +12,10 @@ from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
 )
 from climakitae.new_core.param_validation.param_validation_tools import _coerce_to_dates
+
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 @register_processor_validator("time_slice")
@@ -29,19 +34,21 @@ def validate_time_slice_param(value: tuple[Any, Any], **kwargs) -> bool:
     bool
         True if all parameters are valid, False otherwise
     """
+    logger.debug(
+        "validate_time_slice_param called with value=%s kwargs=%s", value, kwargs
+    )
+
     if not isinstance(value, tuple) or len(value) != 2:
-        warnings.warn(
-            "\n\nTime Slice Processor expects a tuple of two date-like values. "
-            "\nPlease check the configuration."
-        )
+        msg = "Time Slice Processor expects a tuple of two date-like values. Please check the configuration."
+        logger.warning(msg)
+        warnings.warn(msg)
         return False
     try:
         value = _coerce_to_dates(value)
     except ValueError as e:
-        warnings.warn(
-            f"\n\nInvalid date-like values provided: {e}. "
-            "\nExpected a tuple of two date-like values."
-        )
+        msg = f"Invalid date-like values provided: {e}. Expected a tuple of two date-like values."
+        logger.warning(msg)
+        warnings.warn(msg)
         return False
 
     return True  # All parameters are valid
