@@ -2,6 +2,7 @@
 Subset data on time
 """
 
+import logging
 import warnings
 from typing import Any, Dict, Iterable, Union
 
@@ -14,6 +15,10 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
+
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 @register_processor("time_slice", priority=100)
@@ -44,6 +49,7 @@ class TimeSlice(DataProcessor):
             The value to subset the data by.
         """
         self.value = _coerce_to_dates(value)
+        logger.debug("TimeSlice initialized with value=%s", self.value)
         self.name = "time_slice"
 
     def execute(
@@ -72,6 +78,11 @@ class TimeSlice(DataProcessor):
             The sliced data. This can be a single Dataset/DataArray or
             an iterable of them.
         """
+        logger.debug(
+            "TimeSlice.execute called with value=%s result_type=%s",
+            self.value,
+            type(result).__name__,
+        )
         match result:
             case dict():  # most likely case at top
                 subset_data = {}
@@ -96,10 +107,9 @@ class TimeSlice(DataProcessor):
                 self.update_context(context)
                 return type(result)(subset_data)
             case _:
-                warnings.warn(
-                    f"""Invalid data type for subsetting. 
-                    Expected xr.Dataset, dict, list, or tuple but got {type(result)}."""
-                )
+                msg = f"Invalid data type for subsetting. Expected xr.Dataset, dict, list, or tuple but got {type(result)}."
+                logger.warning(msg)
+                warnings.warn(msg)
 
     def update_context(self, context: Dict[str, Any]):
         """
