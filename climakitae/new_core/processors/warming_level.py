@@ -326,14 +326,14 @@ class WarmingLevel(DataProcessor):
 
             hist_key = re.sub(r"ssp.{3}", "historical", key)
             if hist_key not in result:
-                warnings.warn(
+                logger.warning(
                     f"\n\nNo historical data found for {key} with key {hist_key}. "
                     f"\nHistorical data is required for warming level calculations."
                 )
                 continue
 
             if "time" not in data.dims or "time" not in result[hist_key].dims:
-                warnings.warn(
+                logger.warning(
                     f"\n\nNo time dimension found in data for key {key} or {hist_key}. "
                     f"\nCannot extend time domain without time dimension."
                 )
@@ -397,7 +397,7 @@ class WarmingLevel(DataProcessor):
                     # the first year that the simulation crosses the given warming level
                     wl_table_key = f"{key_list[2]}_{member_id}_{key_list[3]}"
                     if wl_table_key not in self.warming_level_times_idx.columns:
-                        warnings.warn(
+                        logger.warning(
                             f"\n\nWarming level table does not contain data for {wl_table_key}. "
                             "\nEnsure the warming level times table is correctly configured."
                         )
@@ -418,7 +418,7 @@ class WarmingLevel(DataProcessor):
                             .dropna()
                             .index.max()
                         )
-                        warnings.warn(
+                        logger.warning(
                             f"\n\nNo warming level data found for {wl_table_key} at {wl}C. "
                             f"\nPlease pick a warming level less than {max_valid_wl}C."
                         )
