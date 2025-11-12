@@ -1,6 +1,7 @@
 """Helper functions related to applying a warming levels approach to a data object"""
 
 import calendar
+import warnings
 from typing import Union
 
 import intake
@@ -21,6 +22,7 @@ from climakitae.core.paths import (
     SSP585_FILE,
 )
 from climakitae.util.utils import (
+    _determine_is_complete_wl,
     _get_cat_subset,
     read_csv_file,
     resolution_to_gridlabel,
@@ -118,16 +120,18 @@ def _get_sliced_data(
     # Dropping leap days before slicing time dimension because the window size can affect number of leap days per slice
     y = y.loc[~((y.time.dt.month == 2) & (y.time.dt.day == 29))]
 
+    # Getting start and end years for slicing if `center_time` is not NaN
     if not pd.isna(center_time):
-
-        # Find the centered year
         centered_year = pd.to_datetime(center_time).year
         start_year = centered_year - window
         end_year = centered_year + (window - 1)
 
-        if start_year < 1981:
-            start_year = 1981
+    # If the centered year is not NaN and a complete warming level slice can be created, proceed with slicing
+    if not pd.isna(center_time) and _determine_is_complete_wl(
+        start_year, end_year, y.simulation.item(), y.downscaling_method, level
+    ):
 
+        # Slicing data around the centered year
         sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
         # Creating a mask for timestamps that are within the desired months

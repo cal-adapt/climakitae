@@ -87,3 +87,9 @@ UNIT_OPTIONS = {
     "kg m-2 s-1": ["kg m-2 s-1", "mm", "inches"],
     "g/kg": ["g/kg", "kg/kg"],
 }
+# Start and end years for LOCA and WRF data
+LOCA_START_YEAR = 1950
+LOCA_END_YEAR = 2100
+
+WRF_START_YEAR = 1981
+WRF_END_YEAR = 2099
