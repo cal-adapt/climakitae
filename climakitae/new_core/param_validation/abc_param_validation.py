@@ -309,12 +309,6 @@ class ParameterValidator(ABC):
                 stacklevel=999,
             )
         if len(subset) != 0:
-            # Backwards-compatible print for tests and CLI users
-            try:
-                print(f"Found {len(subset)} datasets matching your query.")
-            except Exception:
-                # If print is mocked or fails, continue silently
-                pass
             logger.info("Found %d datasets matching your query.", len(subset))
             logger.info("Checking processes ...")
             return self.all_catalog_keys if self._has_valid_processes(query) else None

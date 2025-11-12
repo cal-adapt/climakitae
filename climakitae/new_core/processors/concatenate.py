@@ -256,7 +256,16 @@ class Concat(DataProcessor):
 
         # Concatenate all datasets along the sim dimension
         try:
-            concatenated = xr.concat(datasets_to_concat, dim=self.dim_name)
+            # Explicitly set `join`, `coords`, and `compat` to the current xarray defaults
+            # to silence FutureWarning about upcoming default changes and to
+            # preserve current behavior. See xarray deprecation notes.
+            concatenated = xr.concat(
+                datasets_to_concat,
+                dim=self.dim_name,
+                join="outer",
+                coords="different",
+                compat="equals",
+            )
         except ValueError as e:
             # Log dimensions of each dataset for debugging
             for i, dataset in enumerate(datasets_to_concat):
