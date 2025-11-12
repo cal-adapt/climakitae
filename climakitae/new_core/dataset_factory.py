@@ -36,7 +36,6 @@ components based on user queries from the ClimateData UI.
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import Any, Dict, List, Type
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, PROC_KEY, UNSET
@@ -314,7 +313,7 @@ class DatasetFactory:
 
         for key, value in query[PROC_KEY].items():
             if key not in self._processing_step_registry:
-                warnings.warn(
+                logger.warning(
                     f"Processing step '{key}' not found in registry. Skipping.",
                     stacklevel=999,
                 )
@@ -428,7 +427,7 @@ class DatasetFactory:
         # check for typo or close matches
         closest = _get_closest_options(val_reg_key, self._validator_registry.keys())
         if not closest:
-            warnings.warn(
+            logger.warning(
                 f"No validator registered for '{val_reg_key}'. "
                 "Available options: {list(self._validator_registry.keys())}",
                 stacklevel=999,
@@ -437,20 +436,20 @@ class DatasetFactory:
 
         match len(closest):
             case 0:
-                warnings.warn(
+                logger.warning(
                     f"No validator registered for '{val_reg_key}'. "
                     "Available options: {list(self._validator_registry.keys())}",
                     stacklevel=999,
                 )
                 return None  # type: ignore[return-value]
             case 1:
-                warnings.warn(
+                logger.warning(
                     f"\n\nUsing closest match '{closest[0]}' for validator '{val_reg_key}'.",
                     stacklevel=999,
                 )
                 return self._validator_registry[closest[0]](self._catalog)
             case _:
-                warnings.warn(
+                logger.warning(
                     f"Multiple closest matches found for '{val_reg_key}': {closest}. "
                     "Please specify a more precise key.",
                     stacklevel=999,
@@ -488,11 +487,11 @@ class DatasetFactory:
         ]  # filter rows with matching keys
         match len(subset):
             case 0:
-                warnings.warn("No matching catalogs found initially.", stacklevel=999)
+                logger.warning("No matching catalogs found initially.", stacklevel=999)
             case 1:
                 return subset.iloc[0]["catalog"]
             case _:
-                warnings.warn(
+                logger.warning(
                     "Multiple matching datasets found. Please refine your query.",
                     stacklevel=999,
                 )
