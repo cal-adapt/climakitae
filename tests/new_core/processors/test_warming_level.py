@@ -464,7 +464,9 @@ class TestWarmingLevelExecute:
         ret_key = "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03.r1i1p1f1"
 
         # Check that the warming_level coordinate matches the processor's warming_levels
-        assert (ret[ret_key].warming_level.values == full_processor.warming_levels).all()
+        assert (
+            ret[ret_key].warming_level.values == full_processor.warming_levels
+        ).all()
         # Check the length of the time_delta dimension
         first_year = str(test_result[test_key].isel(time=0).time.dt.year.item())
         # Find the number of elements in the first year of `ret[key]`
