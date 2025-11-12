@@ -101,10 +101,10 @@ class FilterUnAdjustedModels(DataProcessor):
                 # check if there are any unadjusted models in the dataset
                 if self._contains_unadjusted_models(result):
                     msg = (
-                        f"Your query selected models that do not have a-priori bias adjustment. "
-                        f"These models have been removed from the returned query. "
-                        f"To include them, please add the following processor to your query: "
-                        f"ClimateData().processes('{self.name}': 'no')"
+                        f"\nYour query selected models that do not have a-priori bias adjustment. "
+                        f"\nThese models have been removed from the returned query. "
+                        f"\nTo include them, please add the following processor to your query: "
+                        f"\nClimateData().processes('{self.name}': 'no')"
                     )
                     logger.warning(msg)
                     warnings.warn(msg, stacklevel=999)
@@ -116,9 +116,9 @@ class FilterUnAdjustedModels(DataProcessor):
                 # check if there are any biased models in the dataset
                 if self._contains_unadjusted_models(result):
                     msg = (
-                        "Your query selected models that do not have a-priori bias adjustment. "
-                        "These models HAVE NOT been removed from the returned query. "
-                        "Proceed with caution as these models may not be suitable for your analysis."
+                        "\nYour query selected models that do not have a-priori bias adjustment. "
+                        "\nThese models HAVE NOT been removed from the returned query. "
+                        "\nProceed with caution as these models may not be suitable for your analysis."
                     )
                     logger.warning(msg)
                     warnings.warn(msg, stacklevel=999)
