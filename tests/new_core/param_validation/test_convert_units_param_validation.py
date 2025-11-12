@@ -23,18 +23,18 @@ class TestCheckInputTypes:
         "value,expected,warning_match",
         [
             ("K", True, None),
-            (["K", "degC"], True, None),
-            (123, False, "expects a string or iterable of strings"),
-            (None, False, "expects a string or iterable of strings"),
+            (["K", "degC"], False, "expects a string"),
+            (123, False, "expects a string"),
+            (None, False, "expects a string"),
             (
                 {"weird string that would be caught in _check_unit_validity": "K"},
-                True,
-                None,
+                False,
+                "expects a string",
             ),
             (
                 ["one string", 123],
                 False,
-                "expects all items in the iterable to be strings",
+                "expects a string",
             ),
         ],
     )
@@ -76,16 +76,13 @@ class TestCheckUnitValidity:
             ("inches/h", True),
             ("kg/kg", True),
             ("g/kg", True),
-            (["K", "degC"], True),
-            (["Pa", "hPa"], True),
             ("invalid_unit", False),
-            (["K", "invalid_unit"], False),
         ],
     )
     def test_check_unit_validity(self, value, expected):
         """Test _check_unit_validity with various unit inputs.
 
-        Tests validation with different unit strings and lists to ensure correct unit validity checking.
+        Tests validation with different unit strings to ensure correct unit validity checking.
         """
         if expected is False:
             with pytest.warns(
@@ -105,16 +102,16 @@ class TestValidateConvertUnitsParam:
         "value,expected,warning_match",
         [
             ("K", True, None),
-            (["K", "degC"], True, None),
+            (["K", "degC"], False, "expects a string"),
             ("invalid_unit", False, "Unsupported unit:"),
-            (["K", "invalid_unit"], False, "Unsupported unit:"),
-            (123, False, "expects a string or iterable of strings"),
-            (None, False, "expects a string or iterable of strings"),
-            ({"unit": "K"}, False, "Unsupported unit:"),
+            (["K", "invalid_unit"], False, "expects a string"),
+            (123, False, "expects a string"),
+            (None, False, "expects a string"),
+            ({"unit": "K"}, False, "expects a string"),
             (
                 ["one string", 123],
                 False,
-                "expects all items in the iterable to be strings",
+                "expects a string",
             ),
         ],
     )

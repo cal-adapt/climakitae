@@ -101,39 +101,33 @@ class TestConvertUnitsConvertUnitsHelper:
     @pytest.mark.parametrize(
         "target_units,warning_match",
         [
-            (["K", "degF"], None),
-            (("degF", "this should not be reached"), None),
+            (["K", "degF"], "The provided value is not the correct type"),
+            (("degF", "this should not be reached"), "The provided value is not the correct type"),
             (
                 ("invalid_units", "also invalid here"),
-                "The selected units .* are not valid for degC.",
+                "The provided value is not the correct type",
             ),
         ],
     )
-    def test_valid_conversion_list_tuple(
+    def test_invalid_conversion_list_tuple(
         self,
         sample_dataset,
         processor,
         target_units,
         warning_match,
     ):
-        """Test unit conversion when target units are provided as a list or tuple."""
-        if warning_match:
-            with pytest.warns(UserWarning, match=warning_match):
-
-                converted_dataset = processor._convert_units(
-                    sample_dataset, target_units
-                )
-                assert processor.success is False
-        else:
-            converted_dataset = processor._convert_units(sample_dataset, target_units)
-            var = list(converted_dataset.data_vars.keys())[0]
-
-            np.testing.assert_allclose(
-                converted_dataset[var].data,
-                converted_dataset[var].data,
-                rtol=1e-5,
+        """Test unit conversion when target units are provided as a list or tuple (not supported)."""
+        with pytest.warns(UserWarning, match=warning_match):
+            converted_dataset = processor._convert_units(
+                sample_dataset, target_units
             )
-            assert converted_dataset[var].attrs["units"] == target_units[0]
+            assert processor.success is False
+            var = list(converted_dataset.data_vars.keys())[0]
+            # Data should be unchanged when conversion fails
+            np.testing.assert_array_equal(
+                converted_dataset[var].data,
+                sample_dataset[var].data,
+            )
 
     def test_no_conversion_needed(
         self,
