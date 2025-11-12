@@ -109,7 +109,7 @@ class TimeSlice(DataProcessor):
             case _:
                 msg = f"Invalid data type for subsetting. Expected xr.Dataset, dict, list, or tuple but got {type(result)}."
                 logger.warning(msg)
-                warnings.warn(msg)
+                logger.warning(msg)
 
     def update_context(self, context: Dict[str, Any]):
         """
