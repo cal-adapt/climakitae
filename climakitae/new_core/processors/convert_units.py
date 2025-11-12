@@ -254,33 +254,6 @@ class ConvertUnits(DataProcessor):
                 converted_var.attrs["units"] = value
                 # Assign back to the dataset
                 data = data.assign({var: converted_var})
-
-            case list() | tuple():
-                # look through the list of valid units
-                # if any of the units conversions are valid, convert them
-                # if not, raise a warning
-                valid_mask = [val in valid_units for val in value]
-                if not any(valid_mask):
-                    warnings.warn(
-                        (
-                            f"WARNING ::: The selected units {value} are not valid for {units_from}."
-                        )
-                    )
-                    self.success = False
-                    return data
-
-                for i, val in enumerate(value):
-                    if not valid_mask[i]:
-                        continue
-                    # convert the data
-                    converted_var = UNIT_CONVERSIONS.get(
-                        (units_from, val), lambda da: da
-                    )(data.data_vars[var])
-                    # update the units attribute
-                    converted_var.attrs["units"] = val
-                    # Assign back to the dataset
-                    data = data.assign({var: converted_var})
-                    break  # exit the loop after the first valid conversion
             case _:
                 warnings.warn(
                     (

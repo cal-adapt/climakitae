@@ -77,24 +77,8 @@ def _check_input_types(value: str | Iterable[str]) -> bool:
     if isinstance(value, str):
         return True
 
-    if hasattr(value, "__iter__") and not isinstance(value, (bytes, str)):
-        # Check if it's an iterable (list, tuple, etc.) but not string/bytes
-        try:
-            # Try to iterate and check if all elements are strings
-            for item in value:
-                if not isinstance(item, str):
-                    warnings.warn(
-                        "\n\nConvert Units Processor expects all items in the iterable to be strings. "
-                        f"\nFound item of type {type(item)}: {item}"
-                    )
-                    return False
-            return True
-        except TypeError:
-            # Not actually iterable
-            pass
-
     warnings.warn(
-        "\n\nConvert Units Processor expects a string or iterable of strings. "
+        "\n\nConvert Units Processor expects a string. "
         f"\nReceived type: {type(value)}"
     )
     return False
