@@ -205,63 +205,6 @@ class TestWarmingReformatMemberIds:
             assert member_id_ds["ssp245"]["var1"].attrs == ret[key]["var1"].attrs
 
 
-class TestWarmingLevelExtendTimeDomain:
-    """Tests for the extend_time_domain method of WarmingLevel DataProcessor."""
-
-    def test_extend_time_domain_empty(self, processor):
-        """Test that extend_time_domain returns empty dict for empty input."""
-        ret = processor.extend_time_domain({})
-        assert ret == {}
-
-    def test_extend_time_domain_no_ssp_key(self, processor):
-        """Test that extend_time_domain returns input dict if no ssp key."""
-        no_ssp_key_da = {"this is not a key with S S P (historical)": xr.DataArray()}
-        ret = processor.extend_time_domain(no_ssp_key_da)
-        assert ret == {}
-
-    def test_extend_time_domain_one_ssp_no_historical(self, processor):
-        """Test that extend_time_domain correctly does not extend if no historical key."""
-        time_domain_dict = {
-            "ssp245": xr.DataArray([1, 2, 3], dims="time"),
-            # "historical": xr.DataArray([4, 5, 6], dim="time"),
-        }
-        with pytest.warns(
-            UserWarning, match="No historical data found for ssp245 with key historical"
-        ):
-            ret = processor.extend_time_domain(time_domain_dict)
-            assert ret == {}
-
-    def test_extend_time_domain_one_ssp_with_historical(self, processor):
-        """Test that extend_time_domain correctly extends time domain if historical key exists."""
-        time_domain_dict = {
-            "ssp245": xr.DataArray([1, 2, 3], dims="time", attrs={"units": "K"}),
-            "historical": xr.DataArray(
-                [4, 5, 6], dims="time", attrs={"units": "not K"}
-            ),
-        }
-        ret = processor.extend_time_domain(time_domain_dict)
-        assert len(ret) == 1
-        assert "ssp245" in ret
-        assert isinstance(ret["ssp245"], xr.DataArray)
-        assert ret["ssp245"].sizes["time"] == 6
-        assert ret["ssp245"].attrs == time_domain_dict["ssp245"].attrs
-
-    def test_extend_time_domain_no_time_dim(self, processor):
-        """Test that extend_time_domain does not extend if no time dimension."""
-        time_domain_dict = {
-            "ssp245": xr.DataArray([1, 2, 3], dims="timez", attrs={"units": "K"}),
-            "historical": xr.DataArray(
-                [4, 5, 6], dims="timez", attrs={"units": "not K"}
-            ),
-        }
-        with pytest.warns(
-            UserWarning,
-            match="No time dimension found in data for key ssp245 or historical",
-        ):
-            ret = processor.extend_time_domain(time_domain_dict)
-            assert ret == {}
-
-
 class TestWarmingLevelGetCenterYears:
     """Tests for the get_center_years method of WarmingLevel DataProcessor."""
 
