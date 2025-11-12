@@ -258,29 +258,29 @@ class Concat(DataProcessor):
         try:
             concatenated = xr.concat(datasets_to_concat, dim=self.dim_name)
         except ValueError as e:
+            # Log dimensions of each dataset for debugging
+            for i, dataset in enumerate(datasets_to_concat):
+                logger.debug("Dataset %d dimensions: %s", i, list(dataset.dims.keys()))
+                intake_key = dataset.attrs.get("intake_esm_dataset_key", "<unknown>")
+                logger.debug("Dataset:\n%s", intake_key)
+            msg = (
+                f"\nFailed to concatenate datasets along '{self.dim_name}' dimension: {e}"
+                "\nThis can happen when mixing datasets with different projections"
+                "\nsuch as WRF and LOCA2 or WRF.UCLA and WRF.UCSD."
+                "\nIf you're trying to pull dynamically downscaled data, please specify"
+                "\n    an institution_id that matches the downscaling method (e.g., "
+                "\n'UCLA' or 'UCSD' are two of several options for WRF datasets)."
+            )
+            logger.warning(msg)
             logger.error(
                 "Failed to concatenate datasets along '%s' dimension: %s",
                 self.dim_name,
                 e,
                 exc_info=True,
             )
-            warnings.warn(
-                f"Failed to concatenate datasets along '{self.dim_name}' dimension: {e}",
-                UserWarning,
-                stacklevel=999,
-            )
-            # Log dimensions of each dataset for debugging
-            for i, dataset in enumerate(datasets_to_concat):
-                logger.debug("Dataset %d dimensions: %s", i, list(dataset.dims.keys()))
             raise
 
         logger.info("Concatenated datasets along '%s' dimension.", self.dim_name)
-        # Preserve a user-visible print for backward compatibility / tests
-        try:
-            print(f"Concatenated datasets along '{self.dim_name}' dimension.")
-        except Exception:
-            # defensively ignore failures to print (e.g., when print is patched)
-            pass
 
         self.update_context(context, attr_ids)
 
