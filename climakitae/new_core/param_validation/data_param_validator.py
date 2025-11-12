@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 import logging
 from typing import Any, Dict
 
@@ -113,7 +112,7 @@ class DataValidator(ParameterValidator):
                     " Please specify '.activity_id(WRF)' in your query."
                 )
                 logger.warning(msg)
-                warnings.warn(msg, UserWarning, stacklevel=999)
+                logger.warning(msg, stacklevel=999)
                 return False
             if query.get("variable_id", "") != "t2":
                 msg = (
@@ -121,6 +120,6 @@ class DataValidator(ParameterValidator):
                     " Please specify '.variable_id('t2')' in your query."
                 )
                 logger.warning(msg)
-                warnings.warn(msg, UserWarning, stacklevel=999)
+                logger.warning(msg, stacklevel=999)
                 return False
         return True
