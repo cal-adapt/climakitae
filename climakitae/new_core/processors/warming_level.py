@@ -22,6 +22,7 @@ from climakitae.new_core.processors.abc_data_processor import (
     register_processor,
 )
 from climakitae.util.utils import read_csv_file
+from climakitae.new_core.processors.processor_utils import extend_time_domain
 
 
 # Module logger
@@ -148,7 +149,7 @@ class WarmingLevel(DataProcessor):
         ret = self.reformat_member_ids(result)
 
         # extend the time domain of all ssp scenarios to 1980-2100
-        ret = self.extend_time_domain(ret)
+        ret = extend_time_domain(ret)
 
         # first, extract the member IDs from the data
         member_ids = []
@@ -294,57 +295,6 @@ class WarmingLevel(DataProcessor):
                 ret[key] = data
                 msg = f"No member_id found in data for key {key}. Assuming no member_id is present for this dataset."
                 logger.warning(msg)
-        return ret
-
-    def extend_time_domain(
-        self, result: Dict[str, Union[xr.Dataset, xr.DataArray]]
-    ) -> Dict[str, Union[xr.Dataset, xr.DataArray]]:
-        """
-        Extend the time domain of the input data to cover 1980-2100.
-
-        This method ensures that all SSP scenarios have historical data
-        included in the time series, allowing for proper warming level calculations.
-        This is handled by concatenating historical data with SSP data and updating
-        the attributes to that of the SSP data. Historical data is expected to be
-        available in the input dictionary with keys formatted the same as SSP keys
-        but with "historical" instead of r"ssp.{3}" (e.g., "ssp245" becomes "historical").
-
-        Parameters
-        ----------
-        result : Dict[str, Union[xr.Dataset | xr.DataArray]]
-            A dictionary containing time-series data with keys representing different scenarios.
-
-        Returns
-        -------
-        Union[xr.Dataset, xr.DataArray]
-            The extended time-series data.
-        """
-        ret = {}
-        for key, data in result.items():
-            if "ssp" not in key:
-                continue  # Skip historical and reanalysis data
-
-            hist_key = re.sub(r"ssp.{3}", "historical", key)
-            if hist_key not in result:
-                logger.warning(
-                    f"\n\nNo historical data found for {key} with key {hist_key}. "
-                    f"\nHistorical data is required for warming level calculations."
-                )
-                continue
-
-            if "time" not in data.dims or "time" not in result[hist_key].dims:
-                logger.warning(
-                    f"\n\nNo time dimension found in data for key {key} or {hist_key}. "
-                    f"\nCannot extend time domain without time dimension."
-                )
-                continue
-
-            ret[key] = xr.concat(
-                [result[hist_key], data],
-                dim="time",
-            )
-            ret[key].attrs.update(data.attrs)  # Preserve attributes
-
         return ret
 
     def get_center_years(
