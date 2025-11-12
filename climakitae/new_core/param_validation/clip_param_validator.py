@@ -69,7 +69,7 @@ def validate_clip_param(
     if value is None or value is UNSET:
         msg = "Clip parameter cannot be None. Please provide a valid boundary key, list of keys, file path, or coordinate bounds."
         logger.warning(msg)
-        warnings.warn(msg, UserWarning, stacklevel=999)
+        logger.warning(msg, stacklevel=999)
         return False
 
     match value:
@@ -80,11 +80,10 @@ def validate_clip_param(
         case tuple():
             return _validate_tuple_param(value)
         case _:
-            warnings.warn(
+            logger.warning(
                 f"\n\nInvalid parameter type for Clip processor. "
                 f"\nExpected str, list, or tuple, but got {type(value).__name__}. "
                 f"\nValid examples: 'CA', ['CA', 'OR'], or ((32.0, 42.0), (-125.0, -114.0))",
-                UserWarning,
                 stacklevel=999,
             )
 
@@ -127,7 +126,7 @@ def _validate_string_param(value: str) -> bool:
             "Please provide a valid boundary key (e.g., 'CA'), file path, station code (e.g., 'KSAC'), or coordinate bounds."
         )
         logger.warning(msg)
-        warnings.warn(msg, UserWarning, stacklevel=999)
+        logger.warning(msg, stacklevel=999)
         return False
 
     # Clean the string
@@ -141,7 +140,7 @@ def _validate_string_param(value: str) -> bool:
         else:
             msg = f"File path '{cleaned_value}' does not exist. Please provide a valid file path to a shapefile or other geospatial data."
             logger.warning(msg)
-            warnings.warn(msg, UserWarning, stacklevel=999)
+            logger.warning(msg, stacklevel=999)
             return False
 
     # Priority 2: Check if it strongly looks like a station identifier
@@ -175,7 +174,7 @@ def _validate_string_param(value: str) -> bool:
             logger.info(
                 "String matches a boundary key instead of station: %s", cleaned_value
             )
-            warnings.warn(msg, UserWarning, stacklevel=999)
+            logger.warning(msg, stacklevel=999)
             return True
 
         # Failed both validations - station warning already issued
@@ -211,7 +210,7 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
     if not value or value is UNSET:
         msg = "Empty list is not valid for clip parameters. Please provide a list of boundary keys (e.g., ['CA', 'OR', 'WA'])."
         logger.warning(msg)
-        warnings.warn(msg, UserWarning, stacklevel=999)
+        logger.warning(msg, stacklevel=999)
         return False
 
     # Check for mixed types (should all be the same type)
@@ -220,7 +219,7 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
         unique_types = set([type(item).__name__ for item in mixed_types])
         msg = f"All items in clip parameter list must be the same type. Found {len(unique_types)} different types: {', '.join(set(unique_types))}."
         logger.warning(msg)
-        warnings.warn(msg, UserWarning, stacklevel=999)
+        logger.warning(msg, stacklevel=999)
         return False
 
     # Check if all items are station identifiers
@@ -264,15 +263,14 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
             if invalid_items:
                 msg = f"Found {len(invalid_items)} invalid items in clip parameter list: {', '.join(invalid_items)}."
                 logger.warning(msg)
-                warnings.warn(msg, UserWarning, stacklevel=999)
+                logger.warning(msg, stacklevel=999)
                 return False
 
             if not valid_items:
-                warnings.warn(
+                logger.warning(
                     "\n\nNo valid boundary keys found in the provided list. "
                     "\nPlease provide valid boundary keys such as ['CA', 'OR', 'WA'] or "
                     "\n['Los Angeles County', 'Orange County'].",
-                    UserWarning,
                     stacklevel=999,
                 )
                 return False
@@ -289,7 +287,7 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
             if invalid_items:
                 msg = f"Found {len(invalid_items)} invalid items in clip parameter list: {', '.join(invalid_items)}."
                 logger.warning(msg)
-                warnings.warn(msg, UserWarning, stacklevel=999)
+                logger.warning(msg, stacklevel=999)
                 return False
 
     # Check for duplicates
@@ -298,7 +296,7 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
     if len(unique) != len(value):
         msg = f"Duplicate boundary keys found in the list. Original list: {value} Unique list: {unique}. Please remove duplicates."
         logger.warning(msg)
-        warnings.warn(msg, UserWarning, stacklevel=999)
+        logger.warning(msg, stacklevel=999)
         return False
 
     return True
@@ -331,7 +329,7 @@ def _validate_tuple_param(
     if len(value) != 2:
         msg = f"Coordinate bounds tuple must have exactly 2 elements: ((lat_min, lat_max), (lon_min, lon_max)). Got {len(value)} elements."
         logger.warning(msg)
-        warnings.warn(msg, UserWarning, stacklevel=999)
+        logger.warning(msg, stacklevel=999)
         return False
 
     lat_bounds, lon_bounds = value
@@ -340,25 +338,23 @@ def _validate_tuple_param(
     for bounds, name in [(lat_bounds, "latitude"), (lon_bounds, "longitude")]:
         # Check if bounds is a tuple/list with wrong length
         if isinstance(bounds, (tuple, list)) and len(bounds) != 2:
-            warnings.warn(
+            logger.warning(
                 f"\n\nLat/Lon clipping must either be a tuple of two numeric values"
                 f"\nor a tuple of tuples/lists with two numeric values each. "
                 f"\nPoint Example: (35.0, -120.0) "
                 f"\nBounds Example: ((32.0, 42.0), (-125.0, -114.0))"
                 f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})",
-                UserWarning,
                 stacklevel=999,
             )
             return False
         # Check if bounds is an invalid type (not tuple, list, float, or int)
         elif not isinstance(bounds, (tuple, list, float, int)):
-            warnings.warn(
+            logger.warning(
                 f"\n\nLat/Lon clipping must be a tuple of two numeric values "
                 f"or a tuple of tuples/lists with two numeric values each. "
                 f"\nPoint Example: (35.0, -120.0) "
                 f"\nBounds Example: ((32.0, 42.0), (-125.0, -114.0))"
                 f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})",
-                UserWarning,
                 stacklevel=999,
             )
             return False
@@ -370,19 +366,17 @@ def _validate_tuple_param(
             elif isinstance(bounds, (float, int)):
                 min_val, max_val = float(bounds), float(bounds)
         except (ValueError, TypeError):
-            warnings.warn(
+            logger.warning(
                 f"\n\nCoordinate bounds must be numeric. Invalid {name} bounds: {bounds}. "
                 f"\nBoth values must be convertible to float.",
-                UserWarning,
                 stacklevel=999,
             )
             return False
         finally:
             if min_val is None or max_val is None:
-                warnings.warn(
+                logger.warning(
                     f"\n\nCoordinate bounds must be numeric. Invalid {name} bounds: {bounds}. "
                     f"\nBoth values must be provided.",
-                    UserWarning,
                     stacklevel=999,
                 )
                 return False
@@ -390,29 +384,26 @@ def _validate_tuple_param(
         # Validate coordinate ranges
         if name == "latitude":
             if not (-90.0 <= min_val <= 90.0) or not (-90.0 <= max_val <= 90.0):
-                warnings.warn(
+                logger.warning(
                     f"\n\nLatitude values must be between -90 and 90 degrees. "
                     f"\nGot latitude bounds: ({min_val}, {max_val})",
-                    UserWarning,
                     stacklevel=999,
                 )
                 return False
         else:  # longitude
             if not (-180.0 <= min_val <= 180.0) or not (-180.0 <= max_val <= 180.0):
-                warnings.warn(
+                logger.warning(
                     f"\n\nLongitude values must be between -180 and 180 degrees. "
                     f"\nGot longitude bounds: ({min_val}, {max_val})",
-                    UserWarning,
                     stacklevel=999,
                 )
                 return False
 
         # Validate that min < max
         if min_val > max_val:
-            warnings.warn(
+            logger.warning(
                 f"\n\nMinimum {name} must be less than or equal to maximum {name}. "
                 f"\nGot {name} bounds: ({min_val}, {max_val})",
-                UserWarning,
                 stacklevel=999,
             )
             return False
@@ -442,7 +433,7 @@ def _validate_station_identifier(value: str) -> bool:
         if stations_df is None or len(stations_df) == 0:
             msg = "Station data is not available. Cannot validate station identifier."
             logger.warning(msg)
-            warnings.warn(msg, UserWarning, stacklevel=999)
+            logger.warning(msg, stacklevel=999)
             return False
 
         # Use the generalized matching logic
@@ -481,7 +472,7 @@ def _validate_station_identifier(value: str) -> bool:
                 "\n\nTo see all available stations, use: cd.show_station_options()"
             )
 
-            warnings.warn(error_msg, UserWarning, stacklevel=999)
+            logger.warning(error_msg, stacklevel=999)
             return False
 
         if len(match) > 1:
@@ -494,7 +485,7 @@ def _validate_station_identifier(value: str) -> bool:
                 f"{'... and more' if len(match) > 5 else ''}\n\nPlease use a more specific identifier (4-character code like 'KSAC')."
             )
             logger.warning(msg)
-            warnings.warn(msg, UserWarning, stacklevel=999)
+            logger.warning(msg, stacklevel=999)
             return False
 
         # Valid station found
@@ -503,9 +494,8 @@ def _validate_station_identifier(value: str) -> bool:
 
     except Exception as e:
         logger.error("Error validating station identifier: %s", str(e), exc_info=True)
-        warnings.warn(
+        logger.warning(
             f"Error validating station identifier: {str(e)}",
-            UserWarning,
             stacklevel=999,
         )
         return False
