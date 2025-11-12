@@ -34,12 +34,12 @@ def validate_concat_param(value: str, **kwargs: Any) -> bool:  # noqa: ARG001
 
     if not isinstance(value, str):
         msg = "Concat Processor expects a string value for dimension name. Please check the configuration."
-        logger.warning(msg, stacklevel=999)
+        logger.warning(msg)
         return False
 
     if not value.strip():
         msg = "Concat Processor dimension name cannot be empty. Please provide a valid dimension name."
-        logger.warning(msg, stacklevel=999)
+        logger.warning(msg)
         return False
 
     return True  # All parameters are valid

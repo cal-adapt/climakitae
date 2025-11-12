@@ -487,7 +487,7 @@ class DatasetFactory:
         ]  # filter rows with matching keys
         match len(subset):
             case 0:
-                logger.warning("No matching catalogs found initially.", stacklevel=999)
+                logger.warning("No matching catalogs found initially.")
             case 1:
                 return subset.iloc[0]["catalog"]
             case _:

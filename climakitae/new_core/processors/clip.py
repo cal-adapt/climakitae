@@ -580,9 +580,7 @@ class Clip(DataProcessor):
         # Ensure GeoDataFrame has CRS set (boundaries are always in EPSG:4326)
         if gdf.crs is None:
             logger.warning(
-                "GeoDataFrame does not have a CRS set. Assuming EPSG:4326 (WGS84).",
-                UserWarning,
-                stacklevel=999,
+                "GeoDataFrame does not have a CRS set. Assuming EPSG:4326 (WGS84)."
             )
             gdf.set_crs("epsg:4326", inplace=True)
 

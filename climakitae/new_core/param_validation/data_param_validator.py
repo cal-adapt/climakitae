@@ -112,7 +112,7 @@ class DataValidator(ParameterValidator):
                     " Please specify '.activity_id(WRF)' in your query."
                 )
                 logger.warning(msg)
-                logger.warning(msg, stacklevel=999)
+                logger.warning(msg)
                 return False
             if query.get("variable_id", "") != "t2":
                 msg = (
@@ -120,6 +120,6 @@ class DataValidator(ParameterValidator):
                     " Please specify '.variable_id('t2')' in your query."
                 )
                 logger.warning(msg)
-                logger.warning(msg, stacklevel=999)
+                logger.warning(msg)
                 return False
         return True

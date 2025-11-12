@@ -37,7 +37,7 @@ def validate_filter_unadjusted_models_param(
             "\n\nFilterunadjustedModels Processor expects a string value. "
             "\nPlease check the configuration."
         )
-        logger.warning(msg, stacklevel=999)
+        logger.warning(msg)
         return False
 
     valid_values = ["yes", "no"]
@@ -47,7 +47,7 @@ def validate_filter_unadjusted_models_param(
             f"\n\nInvalid value '{value}' for FilterUnadjustedModels Processor. "
             f"\nSupported values are: {valid_values}"
         )
-        logger.warning(msg, stacklevel=999)
+        logger.warning(msg)
         return False
 
     return True  # All parameters are valid
