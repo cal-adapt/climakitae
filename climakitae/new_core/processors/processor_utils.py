@@ -900,12 +900,6 @@ def _handle_nan_values_optimized(bms: xr.DataArray) -> xr.DataArray:
             dropped_count,
             name_str,
         )
-        try:
-            print(
-                f"Dropping {dropped_count} block maxima NaNs across entire{name_str} DataArray. Please see guidance for more information."
-            )
-        except Exception:
-            pass
 
     return dropped_bms
 
@@ -948,13 +942,6 @@ def extend_time_domain(
         "Prepending historical data to SSP scenarios. This is the default concatenation strategy for retrieved data in climakitae. "
         "To change this behavior, set 'concat': 'sim' in your processes dictionary."
     )
-    try:
-        print(
-            "Prepending historical data to SSP scenarios. This is the default concatenation strategy for retrieved data in climakitae. "
-            "To change this behavior, set 'concat': 'sim' in your processes dictionary."
-        )
-    except Exception:
-        pass
 
     # Process SSP scenarios by finding and prepending historical data
     for key, data in result.items():
