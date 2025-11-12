@@ -164,3 +164,37 @@ def test_dataarray_dict():
             xr_dict["WRF.UCLA.EC-Earth3.ssp370.day.d03"] = ds
 
     return xr_dict
+
+
+@pytest.fixture
+def test_dataarray_dict_loca():
+    """Create test datasets using xarray for warming_level.py tests."""
+    xr_dict = {}
+    member_id = ["r1i1p1f1"]
+    hist_periods, ssp_periods = 65, 86
+    hist_time = pd.date_range(
+        "1950-01-01", periods=hist_periods, freq="YS"
+    )  # yearly start
+    ssp_time = pd.date_range(
+        "2015-01-01", periods=ssp_periods, freq="YS"
+    )  # yearly start
+    y = [0]
+    x = [0]
+
+    for pair in zip([hist_periods, ssp_periods], [hist_time, ssp_time]):
+        periods, timestamps = pair
+        ds = xr.Dataset(
+            {"t2": (("member_id", "y", "x", "time"), np.zeros((1, 1, 1, periods)))},
+            coords={
+                "member_id": member_id,
+                "y": y,
+                "x": x,
+                "time": timestamps,
+            },
+        )
+        if periods == hist_periods:
+            xr_dict["LOCA2.UCLA.ACCESS-CM2.historical.day.d03"] = ds
+        else:
+            xr_dict["LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03"] = ds
+
+    return xr_dict
