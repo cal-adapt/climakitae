@@ -181,7 +181,6 @@ class WarmingLevel(DataProcessor):
                 if year is None or pd.isna(year):
                     msg = f"No warming level data found for {key} at {wl}C. Skipping this warming level."
                     logger.warning(msg)
-                    warnings.warn(msg)
                     continue
                 start_year = year - self.warming_level_window
                 start_year = max(start_year, 1981)
@@ -218,7 +217,6 @@ class WarmingLevel(DataProcessor):
             if not slices:
                 msg = f"No valid slices found for {key}. Ensure the warming level times table is correctly configured."
                 logger.warning(msg)
-                warnings.warn(msg)
                 # Remove key if no valid slices found and continue
                 if key in ret:
                     del ret[key]
@@ -296,7 +294,6 @@ class WarmingLevel(DataProcessor):
                 ret[key] = data
                 msg = f"No member_id found in data for key {key}. Assuming no member_id is present for this dataset."
                 logger.warning(msg)
-                warnings.warn(msg)
         return ret
 
     def extend_time_domain(
