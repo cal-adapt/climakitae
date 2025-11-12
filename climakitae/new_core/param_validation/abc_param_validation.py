@@ -42,7 +42,6 @@ Examples
 
 """
 
-import warnings
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict
@@ -305,9 +304,8 @@ class ParameterValidator(ABC):
             subset = self.catalog.search(**self.all_catalog_keys)
         except ValueError as e:
             # no datasets found or invalid query
-            warnings.warn(
+            logger.warning(
                 f"Query did not match any datasets: {e}\n\nSearching for close matches...",
-                UserWarning,
                 stacklevel=999,
             )
         if len(subset) != 0:
@@ -333,7 +331,7 @@ class ParameterValidator(ABC):
 
             # check if the key is in the catalog
             if key not in df.columns:
-                warnings.warn(
+                logger.warning(
                     f"Key {key} not found in catalog. Did you specify the correct catalog?",
                     stacklevel=999,
                 )
@@ -344,7 +342,7 @@ class ParameterValidator(ABC):
                 if not _validate_experimental_id_param(
                     value, df[key].unique().tolist()
                 ):
-                    warnings.warn(
+                    logger.warning(
                         f"Experiment ID {value} is not valid. "
                         "Please check the available options using `show_experiment_id_options()`.",
                         stacklevel=999,
@@ -366,10 +364,6 @@ class ParameterValidator(ABC):
                 if value not in self.catalog.df[key].unique():
                     # the value is not in the catalog, check for closest options
                     # Preserve original user-facing print for compatibility with tests
-                    try:
-                        print(f"Could not find any datasets with {key} = {value}.")
-                    except Exception:
-                        pass
                     logger.warning(
                         "Could not find any datasets with %s = %s", key, value
                     )
@@ -378,13 +372,13 @@ class ParameterValidator(ABC):
                     )
                     if closest_options is not None:
                         # probably a typo in the value
-                        warnings.warn(
+                        logger.warning(
                             f"\n\nDid you mean one of these options for {key}: {closest_options}?",
                             stacklevel=999,
                         )
                     else:
                         # no close matches found
-                        warnings.warn(
+                        logger.warning(
                             f"\n\nNo close matches found for {key} = {value}. "
                             "\nBased on your query, the available options for this key are: "
                             f"{remaining_key_values}.",
@@ -392,7 +386,7 @@ class ParameterValidator(ABC):
                         )
                 else:
                     # the value is in the catalog, but no datasets were found
-                    warnings.warn(
+                    logger.warning(
                         f"\n\nNo datasets found for {key} = {value}. "
                         f"\n\nMost likely, this is because the dataset you requested "
                         f"\n    does not exist in the catalog. "
@@ -412,10 +406,6 @@ class ParameterValidator(ABC):
             last_key = key
             # check if the value is in the catalog
         if not df.empty:
-            try:
-                print(f"Found up to {len(df)} datasets matching your query.")
-            except Exception:
-                pass
             logger.info("Found up to %d datasets matching your query.", len(df))
             logger.info("Checking processes ...")
             return self.all_catalog_keys if self._has_valid_processes(query) else None
@@ -463,14 +453,14 @@ class ParameterValidator(ABC):
                     value, query=query
                 )  #! this call is allowed to modify the query in place
                 if not valid_value_for_processor:
-                    warnings.warn(
+                    logger.warning(
                         f"\n\nProcessor {key} with value {value} is not valid. "
                         "\nPlease check the processor documentation for valid options.",
                         stacklevel=999,
                     )
                     return False
             else:
-                warnings.warn(
+                logger.warning(
                     f"\n\nProcessor {key} is not registered. "
                     "\nThis processor input has not been validated.",
                     stacklevel=999,
