@@ -953,7 +953,7 @@ def extend_time_domain(
         hist_key = re.sub(r"ssp.{3}", "historical", key)
 
         if hist_key not in result:
-            warnings.warn(
+            logger.warning(
                 f"\n\nNo historical data found for {key} with key {hist_key}. "
                 f"\nHistorical data is required for time domain extension. "
                 f"\nKeeping original SSP data without historical extension.",
@@ -989,7 +989,7 @@ def extend_time_domain(
             ret[key] = extended_data
 
         except (ValueError, TypeError, KeyError, AttributeError) as e:
-            warnings.warn(
+            logger.warning(
                 f"\n\nFailed to concatenate historical and SSP data for {key}: {e}"
                 f"\nSince no historical data is available, this data is dropped.",
                 UserWarning,
