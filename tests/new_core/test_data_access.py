@@ -93,15 +93,19 @@ def mock_data_catalog_and_objs() -> Generator:
         make_mock_objects()
     )
 
-    with patch(
-        "climakitae.new_core.data_access.data_access.intake.open_esm_datastore",
-        return_value=mock_esm_catalog,
-    ) as mock_open_esm, patch(
-        "climakitae.new_core.data_access.data_access.intake.open_catalog",
-        return_value=mock_boundary_catalog,
-    ) as mock_open_catalog, patch(
-        "climakitae.new_core.data_access.data_access.read_csv_file",
-        return_value=mock_stations_df,
+    with (
+        patch(
+            "climakitae.new_core.data_access.data_access.intake.open_esm_datastore",
+            return_value=mock_esm_catalog,
+        ) as mock_open_esm,
+        patch(
+            "climakitae.new_core.data_access.data_access.intake.open_catalog",
+            return_value=mock_boundary_catalog,
+        ) as mock_open_catalog,
+        patch(
+            "climakitae.new_core.data_access.data_access.read_csv_file",
+            return_value=mock_stations_df,
+        ),
     ):
         # Reset singleton for clean test state
         DataCatalog._instance = UNSET

@@ -228,14 +228,16 @@ class DataCatalog(dict):
         if key not in self:
             warnings.warn(
                 f"\n\nCatalog key '{key}' not found."
-                f"\nAttempting to find intended catalog key.\n\n"
+                f"\nAttempting to find intended catalog key.\n\n",
+                stacklevel=999,
             )
             print(f"Available catalog keys: {list(self.keys())}")
             closest = _get_closest_options(key, list(self.keys()))
             if not closest:
                 warnings.warn(
                     f"No validator registered for '{key}'. "
-                    f"Available options: {list(self.keys())}"
+                    f"Available options: {list(self.keys())}",
+                    stacklevel=999,
                 )
                 return None
 
@@ -243,18 +245,21 @@ class DataCatalog(dict):
                 case 0:
                     warnings.warn(
                         f"No validator registered for '{key}'. "
-                        "Available options: {list(self._validator_registry.keys())}"
+                        "Available options: {list(self._validator_registry.keys())}",
+                        stacklevel=999,
                     )
                     return None  # type: ignore[return-value]
                 case 1:
                     warnings.warn(
-                        f"\n\nUsing closest match '{closest[0]}' for validator '{key}'."
+                        f"\n\nUsing closest match '{closest[0]}' for validator '{key}'.",
+                        stacklevel=999,
                     )
                     key = closest[0]
                 case _:
                     warnings.warn(
                         f"Multiple closest matches found for '{key}': {closest}. "
-                        "Please specify a more precise key."
+                        "Please specify a more precise key.",
+                        stacklevel=999,
                     )
                     key = None  # type: ignore[return-value]
         self.catalog_key = key

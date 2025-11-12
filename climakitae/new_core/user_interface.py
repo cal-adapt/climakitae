@@ -524,7 +524,7 @@ class ClimateData:
         except Exception as e:
             print(f"Error retrieving processors: {e}")
 
-    def show_stations(self) -> None:
+    def show_station_options(self) -> None:
         """Display available station options for data retrieval."""
         msg = "Stations (Available weather stations for localization):"
         print(msg)
@@ -577,7 +577,7 @@ class ClimateData:
             ("show_variable_options", "Variables"),
             ("show_installation_options", "Installations"),
             ("show_processors", "Processors"),
-            # ("show_stations", "Stations"),
+            ("show_station_options", "Stations"),
         ]
 
         for method_name, section_title in option_methods:

@@ -4801,12 +4801,12 @@ class TestRetrieveProfileDataWithStations:
     def test_retrieve_profile_data_converts_stations_to_lat_lon(self):
         """Test that stations parameter is converted to lat/lon before calling get_data."""
         # Setup mocks
-        with patch(
-            "climakitae.explore.standard_year_profile.get_data"
-        ) as mock_get_data, patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class, patch(
-            "builtins.print"
+        with (
+            patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
+            patch(
+                "climakitae.explore.standard_year_profile.DataInterface"
+            ) as mock_data_interface_class,
+            patch("builtins.print"),
         ):
             # Setup DataInterface mock
             mock_instance = MagicMock()
@@ -4854,12 +4854,12 @@ class TestRetrieveProfileDataWithStations:
     def test_retrieve_profile_data_applies_correct_buffer_to_stations(self):
         """Test that stations are converted with correct 0.02 degree buffer."""
         # Setup mocks
-        with patch(
-            "climakitae.explore.standard_year_profile.get_data"
-        ) as mock_get_data, patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class, patch(
-            "builtins.print"
+        with (
+            patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
+            patch(
+                "climakitae.explore.standard_year_profile.DataInterface"
+            ) as mock_data_interface_class,
+            patch("builtins.print"),
         ):
             # Setup DataInterface mock
             mock_instance = MagicMock()
@@ -4905,12 +4905,12 @@ class TestRetrieveProfileDataWithStations:
     def test_retrieve_profile_data_cached_area_takes_priority_over_stations(self):
         """Test that cached_area parameter takes priority over stations."""
         # Setup mocks
-        with patch(
-            "climakitae.explore.standard_year_profile.get_data"
-        ) as mock_get_data, patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class, patch(
-            "builtins.print"
+        with (
+            patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
+            patch(
+                "climakitae.explore.standard_year_profile.DataInterface"
+            ) as mock_data_interface_class,
+            patch("builtins.print"),
         ):
             # Setup DataInterface mock
             mock_instance = MagicMock()
@@ -4940,12 +4940,12 @@ class TestRetrieveProfileDataWithStations:
     def test_retrieve_profile_data_explicit_lat_lon_takes_priority_over_stations(self):
         """Test that explicit lat/lon parameters take priority over stations."""
         # Setup mocks
-        with patch(
-            "climakitae.explore.standard_year_profile.get_data"
-        ) as mock_get_data, patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class, patch(
-            "builtins.print"
+        with (
+            patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
+            patch(
+                "climakitae.explore.standard_year_profile.DataInterface"
+            ) as mock_data_interface_class,
+            patch("builtins.print"),
         ):
             # Setup DataInterface mock
             mock_instance = MagicMock()
