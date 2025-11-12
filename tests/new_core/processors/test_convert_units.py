@@ -102,7 +102,10 @@ class TestConvertUnitsConvertUnitsHelper:
         "target_units,warning_match",
         [
             (["K", "degF"], "The provided value is not the correct type"),
-            (("degF", "this should not be reached"), "The provided value is not the correct type"),
+            (
+                ("degF", "this should not be reached"),
+                "The provided value is not the correct type",
+            ),
             (
                 ("invalid_units", "also invalid here"),
                 "The provided value is not the correct type",
@@ -118,9 +121,7 @@ class TestConvertUnitsConvertUnitsHelper:
     ):
         """Test unit conversion when target units are provided as a list or tuple (not supported)."""
         with pytest.warns(UserWarning, match=warning_match):
-            converted_dataset = processor._convert_units(
-                sample_dataset, target_units
-            )
+            converted_dataset = processor._convert_units(sample_dataset, target_units)
             assert processor.success is False
             var = list(converted_dataset.data_vars.keys())[0]
             # Data should be unchanged when conversion fails
