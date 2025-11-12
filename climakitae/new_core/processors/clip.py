@@ -644,34 +644,18 @@ class Clip(DataProcessor):
                     float(closest_gridcell.lat.values),
                     float(closest_gridcell.lon.values),
                 )
-                try:
-                    print(
-                        f"Found valid data at closest gridcell: lat={float(closest_gridcell.lat.values):0.4f}, lon={float(closest_gridcell.lon.values):0.4f}"
-                    )
-                except Exception:
-                    pass
                 return closest_gridcell
 
         # If no valid data found at closest point, search in expanding radius
         logger.info(
             "Closest gridcell contains NaN values, searching for nearest valid gridcell..."
         )
-        try:
-            print(
-                "Closest gridcell contains NaN values, searching for nearest valid gridcell..."
-            )
-        except Exception:
-            pass
 
         # Define search radii (in degrees)
         search_radii = [0.01, 0.05, 0.1, 0.2, 0.5]
 
         for radius in search_radii:
             logger.debug("Searching within %s° radius...", radius)
-            try:
-                print(f"Searching within {radius}° radius...")
-            except Exception:
-                pass
 
             # Create a larger bounding box
             lat_min, lat_max = lat - radius, lat + radius
@@ -758,32 +742,15 @@ class Clip(DataProcessor):
                             closest_lat,
                             closest_lon,
                         )
-                        try:
-                            print(
-                                f"Found valid gridcell at distance {distances[min_idx]:0.2f} km"
-                            )
-                            print(
-                                f"Valid gridcell coordinates: lat={closest_lat:0.4f}, lon={closest_lon:0.4f}"
-                            )
-                        except Exception:
-                            pass
 
                         # Return the closest valid gridcell from the larger region
                         return larger_region.isel({dim1: closest_i, dim2: closest_j})
 
             except Exception as e:
                 logger.error("Error searching radius %s: %s", radius, e, exc_info=True)
-                try:
-                    print(f"Error searching radius {radius}: {e}")
-                except Exception:
-                    pass
                 continue
 
         logger.warning("No valid gridcells found within search radius")
-        try:
-            print("No valid gridcells found within search radius")
-        except Exception:
-            pass
         return None
 
     @staticmethod
@@ -814,12 +781,6 @@ class Clip(DataProcessor):
             "Processing %d points using efficient vectorized approach...",
             len(point_list),
         )
-        try:
-            print(
-                f"Processing {len(point_list)} points using efficient vectorized approach..."
-            )
-        except Exception:
-            pass
 
         # Extract lat/lon arrays from point_list
         lats = [lat for lat, lon in point_list]
@@ -839,10 +800,6 @@ class Clip(DataProcessor):
                 logger.warning(
                     "No valid gridcells found for any of the provided points"
                 )
-                try:
-                    print("No valid gridcells found for any of the provided points")
-                except Exception:
-                    pass
                 return None
 
             # Rename the 'points' dimension to 'closest_cell' for API consistency
@@ -868,23 +825,12 @@ class Clip(DataProcessor):
             logger.info(
                 "Successfully found closest gridcells for %d points", len(point_list)
             )
-            try:
-                print(
-                    f"Successfully found closest gridcells for {len(point_list)} points"
-                )
-            except Exception:
-                pass
             return closest_gridcells
 
         except Exception as e:
             logger.error(
                 "Error in vectorized multi-point clipping: %s", e, exc_info=True
             )
-            try:
-                print(f"Error in vectorized multi-point clipping: {e}")
-                print("Falling back to individual point processing...")
-            except Exception:
-                pass
             logger.info("Falling back to individual point processing...")
 
             # Fallback to the original approach if vectorized fails
@@ -911,12 +857,6 @@ class Clip(DataProcessor):
                 lat,
                 lon,
             )
-            try:
-                print(
-                    f"Processing point {i+1}/{len(point_list)}: ({lat:0.4f}, {lon:0.4f})"
-                )
-            except Exception:
-                pass
 
             # Clip to single point
             clipped_data = Clip._clip_data_to_point(dataset, lat, lon)
@@ -930,17 +870,9 @@ class Clip(DataProcessor):
                 valid_indices.append(i)
             else:
                 logger.warning("No valid data found for point (%0.4f, %0.4f)", lat, lon)
-                try:
-                    print(f"No valid data found for point ({lat:0.4f}, {lon:0.4f})")
-                except Exception:
-                    pass
 
         if not clipped_results:
             logger.warning("No valid gridcells found for any of the provided points")
-            try:
-                print("No valid gridcells found for any of the provided points")
-            except Exception:
-                pass
             return None
 
         # Filter by unique grid cells before concatenating
@@ -973,23 +905,7 @@ class Clip(DataProcessor):
 
         if not unique_results:
             logger.warning("No unique gridcells found after filtering")
-            try:
-                print("No unique gridcells found after filtering")
-            except Exception:
-                pass
             return None
-
-            logger.info(
-                "Filtered from %d to %d unique gridcells",
-                len(clipped_results),
-                len(unique_results),
-            )
-            try:
-                print(
-                    f"Filtered from {len(clipped_results)} to {len(unique_results)} unique gridcells"
-                )
-            except Exception:
-                pass
 
         try:
             # Concatenate all unique results along a new dimension
@@ -1012,12 +928,6 @@ class Clip(DataProcessor):
                 "Successfully concatenated %d unique closest gridcells",
                 len(unique_results),
             )
-            try:
-                print(
-                    f"Successfully concatenated {len(unique_results)} unique closest gridcells"
-                )
-            except Exception:
-                pass
             return concatenated
 
         except Exception as e:
