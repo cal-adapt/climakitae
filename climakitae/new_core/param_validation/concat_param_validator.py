@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import Any
 
 from climakitae.new_core.param_validation.abc_param_validation import (
@@ -35,14 +34,12 @@ def validate_concat_param(value: str, **kwargs: Any) -> bool:  # noqa: ARG001
 
     if not isinstance(value, str):
         msg = "Concat Processor expects a string value for dimension name. Please check the configuration."
-        logger.warning(msg)
-        warnings.warn(msg, UserWarning, stacklevel=999)
+        logger.warning(msg, stacklevel=999)
         return False
 
     if not value.strip():
         msg = "Concat Processor dimension name cannot be empty. Please provide a valid dimension name."
-        logger.warning(msg)
-        warnings.warn(msg, UserWarning, stacklevel=999)
+        logger.warning(msg, stacklevel=999)
         return False
 
     return True  # All parameters are valid
