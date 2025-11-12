@@ -230,7 +230,7 @@ class DataCatalog(dict):
 
         """
         if key not in self:
-            warnings.warn(
+            logger.warning(
                 f"\n\nCatalog key '{key}' not found."
                 f"\nAttempting to find intended catalog key.\n\n",
                 stacklevel=999,
@@ -238,7 +238,7 @@ class DataCatalog(dict):
             logger.info("Available catalog keys: %s", list(self.keys()))
             closest = _get_closest_options(key, list(self.keys()))
             if not closest:
-                warnings.warn(
+                logger.warning(
                     f"No validator registered for '{key}'. "
                     f"Available options: {list(self.keys())}",
                     stacklevel=999,
@@ -247,20 +247,20 @@ class DataCatalog(dict):
 
             match len(closest):
                 case 0:
-                    warnings.warn(
+                    logger.warning(
                         f"No validator registered for '{key}'. "
                         "Available options: {list(self._validator_registry.keys())}",
                         stacklevel=999,
                     )
                     return None  # type: ignore[return-value]
                 case 1:
-                    warnings.warn(
+                    logger.warning(
                         f"\n\nUsing closest match '{closest[0]}' for validator '{key}'.",
                         stacklevel=999,
                     )
                     key = closest[0]
                 case _:
-                    warnings.warn(
+                    logger.warning(
                         f"Multiple closest matches found for '{key}': {closest}. "
                         "Please specify a more precise key.",
                         stacklevel=999,
