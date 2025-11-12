@@ -650,7 +650,9 @@ class ClimateData:
             # Maintain backward-compatible printed error for tests and
             # user-facing scripts that expect a printed ERROR: prefix.
             try:
-                print(f"ERROR: Missing required parameters: {', '.join(missing_params)}")
+                print(
+                    f"ERROR: Missing required parameters: {', '.join(missing_params)}"
+                )
             except Exception:
                 pass
             return False
