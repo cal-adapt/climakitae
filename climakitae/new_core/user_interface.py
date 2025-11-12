@@ -270,7 +270,7 @@ class ClimateData:
             # so its own messages are emitted consistently.
             logger.setLevel(log_level)
 
-            # Route Python warnings (warnings.warn) into the logging
+            # Route Python warnings (logger.warning) into the logging
             # system so they obey the same handler/level configuration.
             logging.captureWarnings(True)
         else:
