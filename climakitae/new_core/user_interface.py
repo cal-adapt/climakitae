@@ -48,6 +48,8 @@ class ClimateData:
     instance itself to enable method chaining.
 
     Parameters supported in queries:
+    - verbosity: The logging verbosity level (e.g., -2, -1, 0, 1)
+    - log_file: Path to log file (if None, logs to stdout)
     - catalog: The data catalog to use (e.g., "renewable energy generation", "cadcat")
     - installation: The installation type (e.g., "pv_utility", "wind_offshore")
     - activity_id: The activity identifier (e.g., "WRF", "LOCA2")
@@ -61,6 +63,8 @@ class ClimateData:
 
     Methods
     -------
+    verbosity(level: int) -> ClimateData
+        Set the logging verbosity level.
     catalog(catalog: str) -> ClimateData
         Set the data catalog to use.
     installation(installation: str) -> ClimateData
@@ -166,19 +170,13 @@ class ClimateData:
             self.var_desc = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
             logger.info("ClimateData initialization successful")
             logger.info("✅ Ready to query!")
-            try:
-                print("✅ Ready to query! ")
-            except Exception:
-                pass
         except Exception as e:
             logger.error("Setup failed: %s", str(e), exc_info=True)
             logger.error("❌ Setup failed: %s", str(e))
-            logger.debug("Error details: %s", traceback.format_exc())
-            try:
-                print(f"❌ Setup failed: {str(e)}")
-                print("Error details: " + traceback.format_exc())
-            except Exception:
-                pass
+            # Emit the traceback at ERROR level so user-facing callers and
+            # test harnesses that bridge logging->warnings/print capture it
+            # as part of the failure output.
+            logger.error("Error details: %s", traceback.format_exc())
             return
 
     def _reset_query(self) -> "ClimateData":
@@ -212,23 +210,42 @@ class ClimateData:
         and log level based on verbosity setting.
 
         """
-        # Map verbosity to logging levels
-        level_map = {
-            0: logging.CRITICAL + 1,  # Effectively disable logging
-            1: logging.WARNING,
-            2: logging.INFO,
-            3: logging.DEBUG,
-        }
+        # Map verbosity to logging levels:
+        # <= -2 : effectively silent (no handlers; set to CRITICAL+1)
+        # -1    : WARNING
+        #  0    : INFO (default)
+        # >0    : DEBUG (user must specify >0 to get debug)
+        if not isinstance(self._verbosity, int):
+            # Fallback to INFO for unexpected types
+            log_level = logging.INFO
+        elif self._verbosity <= -2:
+            log_level = logging.CRITICAL + 1
+        elif self._verbosity == -1:
+            log_level = logging.WARNING
+        elif self._verbosity == 0:
+            log_level = logging.INFO
+        else:
+            # verbosity > 0
+            log_level = logging.DEBUG
 
-        # Set log level
-        log_level = level_map.get(self._verbosity, logging.CRITICAL + 1)
-        logger.setLevel(log_level)
+        # Configure a package-level logger so all child modules under
+        # 'climakitae' inherit the same handler and level. This ensures
+        # debug messages from processors (e.g. concatenate) are visible
+        # when verbosity is set to DEBUG.
+        pkg_logger = logging.getLogger("climakitae")
+        pkg_logger.setLevel(log_level)
 
-        # Remove existing handlers
-        logger.handlers.clear()
+        # Remove existing handlers on the package logger to avoid dupes
+        for h in list(pkg_logger.handlers):
+            pkg_logger.removeHandler(h)
 
-        # Only add handler if verbosity > 0
-        if self._verbosity > 0:
+        # Also clear any handlers that might have been added directly to
+        # this module's logger in earlier runs to keep behavior deterministic.
+        for h in list(logger.handlers):
+            logger.removeHandler(h)
+
+        # Add handler only when logging is not intentionally silenced
+        if log_level != logging.CRITICAL + 1:
             # Create handler (file or stdout)
             if self._log_file:
                 handler = logging.FileHandler(self._log_file, mode="a")
@@ -243,9 +260,24 @@ class ClimateData:
             handler.setFormatter(formatter)
             handler.setLevel(log_level)
 
-            # Add handler to logger
-            logger.addHandler(handler)
-            logger.propagate = False  # Don't propagate to root logger
+            # Add handler to package logger so all climakitae.* loggers
+            # will propagate to it and be printed according to the
+            # configured verbosity.
+            pkg_logger.addHandler(handler)
+            pkg_logger.propagate = False  # Don't propagate to root logger
+
+            # Ensure this module-level logger at least has the same level
+            # so its own messages are emitted consistently.
+            logger.setLevel(log_level)
+
+            # Route Python warnings (warnings.warn) into the logging
+            # system so they obey the same handler/level configuration.
+            logging.captureWarnings(True)
+        else:
+            # Intentionally silent: disable package logger handlers and
+            # stop capturing warnings
+            pkg_logger.setLevel(logging.CRITICAL + 1)
+            logging.captureWarnings(False)
 
     def verbosity(self, level: int) -> "ClimateData":
         """Set the logging verbosity level.
@@ -256,11 +288,11 @@ class ClimateData:
         Parameters
         ----------
         level : int
-            Logging verbosity level:
-            - 0: No logging
-            - 1: WARNING level
-            - 2: INFO level
-            - 3: DEBUG level
+            Logging verbosity mapping:
+            - <= -2: effectively silent (no logs)
+            - -1: WARNING level
+            - 0: INFO level (default)
+            - >0: DEBUG level (user must specify >0 to get debug)
 
         Returns
         -------
@@ -270,14 +302,13 @@ class ClimateData:
         Examples
         --------
         >>> cd = ClimateData()
-        >>> data = (cd.verbosity(2)
-        ...           .catalog("cadcat")
-        ...           .variable("tas")
-        ...           .get())
+        >>> cd.verbosity(-1)  # warnings only
+        >>> cd.verbosity(0)   # info (default)
+        >>> cd.verbosity(1)   # debug
 
         """
-        if not isinstance(level, int) or level < 0 or level > 3:
-            raise ValueError("Verbosity level must be an integer between 0 and 3")
+        if not isinstance(level, int):
+            raise ValueError("Verbosity level must be an integer")
 
         logger.debug("Setting verbosity level to %d", level)
         self._verbosity = level
@@ -580,19 +611,11 @@ class ClimateData:
             ):
                 logger.warning("Retrieved dataset is empty")
                 logger.warning("⚠️ Warning: Retrieved dataset is empty.")
-                try:
-                    # preserve legacy printed warning for tests/users
-                    print("⚠️ Warning: Retrieved dataset is empty.")
-                except Exception:
-                    pass
+
             else:
                 logger.info("Data retrieval successful")
                 logger.info("✅ Data retrieval successful!")
-                try:
-                    # keep an explicit printed success message for backward compatibility
-                    print("✅ Data retrieval successful!")
-                except Exception:
-                    pass
+
         except (ValueError, KeyError, IOError, RuntimeError) as e:
             logger.error("Error during data retrieval: %s", str(e), exc_info=True)
             logger.error("Error during data retrieval: %s", str(e))
@@ -622,16 +645,14 @@ class ClimateData:
                 missing_params.append(param)
 
         if missing_params:
-            # Preserve user-visible prints for backward compatibility / tests
-            try:
-                print(
-                    f"ERROR: Missing required parameters: {', '.join(missing_params)}"
-                )
-                print("Use the show_*_options() methods to see available values")
-            except Exception:
-                pass
             logger.error("Missing required parameters: %s", ", ".join(missing_params))
             logger.info("Use the show_*_options() methods to see available values")
+            # Maintain backward-compatible printed error for tests and
+            # user-facing scripts that expect a printed ERROR: prefix.
+            try:
+                print(f"ERROR: Missing required parameters: {', '.join(missing_params)}")
+            except Exception:
+                pass
             return False
 
         return True
@@ -714,10 +735,7 @@ class ClimateData:
         try:
             for processor in self._factory.get_processors():
                 logger.info("%s", processor)
-                try:
-                    print(str(processor))
-                except Exception:
-                    pass
+
             logger.info("\n")
         except Exception as e:
             logger.error("Error retrieving processors: %s", e, exc_info=True)
@@ -736,17 +754,11 @@ class ClimateData:
             stations = self._factory.get_stations()
             if not stations:
                 logger.info("No stations available with current parameters")
-                try:
-                    print("No stations available with current parameters")
-                except Exception:
-                    pass
+
             else:
                 for station in sorted(stations):
                     logger.info("%s", station)
-                    try:
-                        print(station)
-                    except Exception:
-                        pass
+
                 logger.info("\n")
         except Exception as e:
             logger.error("Error retrieving stations: %s", e, exc_info=True)
@@ -761,26 +773,16 @@ class ClimateData:
             )
         logger.info(msg)
         logger.info("%s", "-" * len(msg))
-        try:
-            print(msg)
-            print("%s" % ("-" * len(msg)))
-        except Exception:
-            pass
+
         try:
             boundaries = self._factory.get_boundaries(type)
             if not boundaries:
                 logger.info("No boundaries available with current parameters")
-                try:
-                    print("No boundaries available with current parameters")
-                except Exception:
-                    pass
+
             else:
                 for boundary in sorted(boundaries):
                     logger.info("%s", boundary)
-                    try:
-                        print(boundary)
-                    except Exception:
-                        pass
+
                 logger.info("\n")
         except Exception as e:
             logger.error("Error retrieving boundaries: %s", e, exc_info=True)
@@ -843,10 +845,7 @@ class ClimateData:
             options = self._factory.get_catalog_options(option_type, current_query)
             if not options:
                 logger.info("No options available with current parameters")
-                try:
-                    print("No options available with current parameters")
-                except Exception:
-                    pass
+
             else:
                 max_len = max(len(option) for option in options)
                 for option in sorted(options):
@@ -854,10 +853,7 @@ class ClimateData:
                         option, option_type, spacing=4 + max_len - len(option)
                     )
                     logger.info("%s", formatted)
-                    try:
-                        print(formatted)
-                    except Exception:
-                        pass
+
                 logger.info("\n")
         except Exception as e:
             logger.error("Error retrieving options: %s", e, exc_info=True)
