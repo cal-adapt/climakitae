@@ -94,7 +94,7 @@ class ConvertUnits(DataProcessor):
 
     Parameters
     ----------
-    value : Any
+    value : string
         The value to convert the units to. If not specified, the processor will
         not perform any conversion.
 
@@ -115,13 +115,13 @@ class ConvertUnits(DataProcessor):
         Convert the units of the data based on the specified value.
     """
 
-    def __init__(self, value: Union[str, Iterable, object] = UNSET):
+    def __init__(self, value: Union[str, object] = UNSET):
         """
         Initialize the ConvertUnits processor.
 
         Parameters
         ----------
-        value : Any
+        value : string
             The value to convert the units to.
         """
         self.value = value
@@ -186,7 +186,7 @@ class ConvertUnits(DataProcessor):
         pass
 
     def _convert_units(
-        self, data: Union[xr.Dataset, xr.DataArray], value: str | Iterable[str]
+        self, data: Union[xr.Dataset, xr.DataArray], value: str
     ) -> Union[xr.Dataset, xr.DataArray]:
         """
         Convert the units of the data.
@@ -195,8 +195,8 @@ class ConvertUnits(DataProcessor):
         ----------
         data : xr.Dataset | xr.DataArray
             The data to convert.
-        value : str | Iterable[str]
-            The value(s) to convert the units to.
+        value : str
+            The value to convert the units to.
 
         Returns
         -------
