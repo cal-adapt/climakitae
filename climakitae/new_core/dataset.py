@@ -70,7 +70,6 @@ Notes
 
 import logging
 import traceback
-import warnings
 from typing import Any, Dict
 
 import xarray as xr
@@ -237,10 +236,10 @@ class Dataset:
                         "Processing step %s returned None",
                         getattr(step, "name", type(step).__name__),
                     )
-                    warnings.warn(
+                    # Keep logging warning for visibility
+                    logger.warning(
                         f"\n\nProcessing step {step.name} returned None. "
                         "\nEnsure that the step is implemented correctly.",
-                        UserWarning,
                         stacklevel=999,
                     )
                 logger.debug("Processing step %d completed successfully", i)
@@ -249,7 +248,6 @@ class Dataset:
             return current_result
 
         except Exception as e:
-            # Consider implementing proper error handling/logging here
             # Get detailed traceback information
             tb_info = traceback.format_exc()
             # Log the traceback for debugging
@@ -281,9 +279,8 @@ class Dataset:
 
         """
         if not parameter_validator:
-            warnings.warn(
+            logger.warning(
                 "No parameter validator provided. This may lead to unvalidated queries.",
-                stacklevel=999,
             )
         if not isinstance(parameter_validator, ParameterValidator):
             raise TypeError(
