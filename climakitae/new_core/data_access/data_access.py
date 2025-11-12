@@ -236,10 +236,6 @@ class DataCatalog(dict):
                 stacklevel=999,
             )
             logger.info("Available catalog keys: %s", list(self.keys()))
-            try:
-                print("Available catalog keys: %s" % (list(self.keys())))
-            except Exception:
-                pass
             closest = _get_closest_options(key, list(self.keys()))
             if not closest:
                 warnings.warn(
@@ -407,19 +403,9 @@ class DataCatalog(dict):
         logger.info("Available Boundary Options for Clipping:")
         logger.info("%s", "=" * 40)
         logger.info("")
-        try:
-            print("Available Boundary Options for Clipping:")
-            print("%s" % ("=" * 40))
-            print("")
-        except Exception:
-            pass
 
         for category, boundary_list in self.available_boundaries.items():
             logger.info("%s:", category)
-            try:
-                print(f"{category}:")
-            except Exception:
-                pass
 
             # Format the list nicely - wrap long lists
             if len(boundary_list) <= 5:
@@ -432,15 +418,6 @@ class DataCatalog(dict):
                 logger.info("  - %s", ", ".join(displayed))
                 if remaining > 0:
                     logger.info("    ... and %d more options", remaining)
-                    try:
-                        print(f"    ... and {remaining} more options")
-                    except Exception:
-                        pass
-            logger.info("")
-            try:
-                print("")
-            except Exception:
-                pass
 
     def reset(self) -> None:
         """Reset the DataCatalog instance to its initial state.
