@@ -633,7 +633,7 @@ class Boundaries:
         lazy loading.
 
         """
-        warnings.warn(
+        logger.warning(
             "The load() method is deprecated. Data now loads automatically when accessed. "
             "Use preload_all() for explicit preloading.",
             DeprecationWarning,
