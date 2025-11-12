@@ -1297,7 +1297,7 @@ def read_catalog_from_select(selections: "DataParameters") -> xr.DataArray:
     """
 
     if selections.approach == "Warming Level":
-        selections.time_slice = (1980, 2100)  # Retrieve entire time period
+        selections.time_slice = (1950, 2100)  # Retrieve entire time period
 
     # Raise appropriate errors for time-based retrieval
     if selections.approach == "Time":
