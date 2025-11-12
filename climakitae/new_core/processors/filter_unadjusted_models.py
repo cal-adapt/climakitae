@@ -107,7 +107,7 @@ class FilterUnAdjustedModels(DataProcessor):
                         f"\nClimateData().processes('{self.name}': 'no')"
                     )
                     logger.warning(msg)
-                    warnings.warn(msg, stacklevel=999)
+                    logger.warning(msg, stacklevel=999)
                     return self._remove_unadjusted_models(result)
 
                 # If no unadjusted models are found, return the result as is
@@ -121,7 +121,7 @@ class FilterUnAdjustedModels(DataProcessor):
                         "\nProceed with caution as these models may not be suitable for your analysis."
                     )
                     logger.warning(msg)
-                    warnings.warn(msg, stacklevel=999)
+                    logger.warning(msg, stacklevel=999)
 
                 return result
             case _:
