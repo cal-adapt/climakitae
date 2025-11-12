@@ -5,7 +5,6 @@ Validator for parameters provided to Warming Level Processor.
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import Any
 
 from climakitae.core.constants import UNSET
@@ -61,7 +60,6 @@ def validate_warming_level_param(
     if query is UNSET:
         msg = "Warming Level Processor requires a 'query' parameter. Please check the configuration."
         logger.warning(msg)
-        warnings.warn(msg)
         return False
 
     # validate query
@@ -106,7 +104,6 @@ def _check_input_types(
     if not isinstance(value, dict):
         msg = "Warming Level Processor expects a dictionary of parameters. Please check the configuration."
         logger.warning(msg)
-        warnings.warn(msg)
         return False
 
     wl = value.get("warming_levels", UNSET)
@@ -117,7 +114,6 @@ def _check_input_types(
     ):
         msg = "Invalid 'warming_levels' parameter. Expected a list of global warming levels (e.g., [1.5, 2.0])."
         logger.warning(msg)
-        warnings.warn(msg)
         return False
 
     wl_months = value.get("warming_level_months", UNSET)
@@ -127,7 +123,6 @@ def _check_input_types(
         ):
             msg = "Invalid 'warming_level_months' parameter. Expected a list of months (1-12). Default: all months."
             logger.warning(msg)
-            warnings.warn(msg)
             return False
 
     wl_window = value.get("warming_level_window", UNSET)
@@ -135,7 +130,6 @@ def _check_input_types(
         if not isinstance(wl_window, int) or wl_window < 0:
             msg = "Invalid 'warming_level_window' parameter. Expected a non-negative integer (default: 15)."
             logger.warning(msg)
-            warnings.warn(msg)
             return False
 
     return True
@@ -161,21 +155,18 @@ def _check_query(query: Any) -> bool:
     if activity_id not in ["WRF", "LOCA2", UNSET]:
         msg = "Invalid 'activity_id' parameter. Expected 'WRF', 'LOCA2', or not passed (UNSET)."
         logger.warning(msg)
-        warnings.warn(msg)
         # force the user to fix this. Cannot assume intention here
         return False
 
     if experiment_id is not UNSET:
         msg = "Warming level approach requires 'experiment_id' to be UNSET. Modify the query accordingly."
         logger.warning(msg)
-        warnings.warn(msg)
         return False
 
     time_slice = query.get("processes", {}).get("time_slice", UNSET)
     if time_slice is not UNSET:
         msg = "Warming level approach does not support 'time_slice' in the query. It will be ignored."
-        logger.info(msg)
-        warnings.warn(msg)
+        logger.warning(msg)
         del query["processes"]["time_slice"]
 
     return True
@@ -237,7 +228,6 @@ def _check_wl_values(value, query: dict[str, Any] = {}) -> bool:
         if not (min_trajectory <= wl <= max_trajectory):
             msg = f"Warming level {wl} is outside the range of available trajectories. ({min_trajectory} to {max_trajectory}). Please check the configuration."
             logger.warning(msg)
-            warnings.warn(msg)
             return False
 
     return True
