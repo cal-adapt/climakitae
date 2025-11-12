@@ -456,15 +456,15 @@ class TestWarmingLevelExecute:
     def test_execute_loca_correct(self, request, full_processor):
         """Test that execute works correctly for LOCA data."""
         test_result = request.getfixturevalue("test_dataarray_dict_loca")
-        # Adding a LOCA key to the test data
-        test_key = "LOCA2.UCLA.EC-Earth3.ssp370.day.d03"
+        # The test fixture creates data for ACCESS-CM2 model
+        test_key = "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03"
         ret = full_processor.execute(
             result=test_result, context={"activity_id": "LOCA2"}
         )
-        ret_key = "LOCA2.UCLA.EC-Earth3.ssp370.day.d03.r1i1p1f1"
+        ret_key = "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03.r1i1p1f1"
 
         # Check that the warming_level coordinate matches the processor's warming_levels
-        assert (ret[ret_key].warming_level.values == full_processor.warming_le).all()
+        assert (ret[ret_key].warming_level.values == full_processor.warming_levels).all()
         # Check the length of the time_delta dimension
         first_year = str(test_result[test_key].isel(time=0).time.dt.year.item())
         # Find the number of elements in the first year of `ret[key]`
