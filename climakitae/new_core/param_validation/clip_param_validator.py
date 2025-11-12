@@ -551,7 +551,7 @@ def _validate_boundary_key_string(value: str, raise_on_invalid: bool = True) -> 
     logger.debug("Validating boundary key string: %s", value)
     # Basic validation - check for obviously invalid patterns
     if len(value) > 200:  # Unreasonably long boundary key
-        warnings.warn(
+        logger.warning(
             f"\n\nBoundary key is too long ({len(value)} characters). "
             f"\nExpected keys like 'CA', 'Los Angeles County', etc.",
             UserWarning,
@@ -562,7 +562,7 @@ def _validate_boundary_key_string(value: str, raise_on_invalid: bool = True) -> 
     # Check for invalid characters that would never be in boundary names
     invalid_chars = ["<", ">", "|", '"', "?", "*", "\n", "\r", "\t"]
     if any(char in value for char in invalid_chars):
-        warnings.warn(
+        logger.warning(
             f"\n\nBoundary key contains invalid characters: '{value}'. "
             f"\nExpected keys like 'CA', 'Los Angeles County', 'PG&E', etc.",
             UserWarning,
@@ -611,7 +611,7 @@ def _warn_about_case_sensitivity(value: str) -> bool:
             f"\n\n{pprint.pformat(boundary_list, indent=4, width=80)}"
         )
         logger.warning(msg)
-        warnings.warn(msg, UserWarning, stacklevel=999)
+        logger.warning(msg, UserWarning, stacklevel=999)
         return False
 
     if suggestions:
@@ -624,7 +624,7 @@ def _warn_about_case_sensitivity(value: str) -> bool:
 
         msg = f"Boundary key '{value}' may have case sensitivity issues. Did you mean any of the following options: {suggestions}. Boundary keys are typically case-sensitive. {hint}"
         logger.warning(msg)
-        warnings.warn(msg, UserWarning, stacklevel=999)
+        logger.warning(msg, UserWarning, stacklevel=999)
         return False
 
     return False
