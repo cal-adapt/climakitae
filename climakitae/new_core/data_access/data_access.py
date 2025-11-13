@@ -16,6 +16,7 @@ DataCatalog
 """
 
 import difflib
+import logging
 import warnings
 from typing import Any, Dict
 
@@ -31,6 +32,9 @@ from climakitae.core.constants import (
     CATALOG_REN_ENERGY_GEN,
     UNSET,
 )
+
+# Module logger
+logger = logging.getLogger(__name__)
 from climakitae.core.paths import (
     BOUNDARY_CATALOG_URL,
     DATA_CATALOG_URL,
@@ -226,15 +230,15 @@ class DataCatalog(dict):
 
         """
         if key not in self:
-            warnings.warn(
+            logger.warning(
                 f"\n\nCatalog key '{key}' not found."
                 f"\nAttempting to find intended catalog key.\n\n",
                 stacklevel=999,
             )
-            print(f"Available catalog keys: {list(self.keys())}")
+            logger.info("Available catalog keys: %s", list(self.keys()))
             closest = _get_closest_options(key, list(self.keys()))
             if not closest:
-                warnings.warn(
+                logger.warning(
                     f"No validator registered for '{key}'. "
                     f"Available options: {list(self.keys())}",
                     stacklevel=999,
@@ -243,20 +247,20 @@ class DataCatalog(dict):
 
             match len(closest):
                 case 0:
-                    warnings.warn(
+                    logger.warning(
                         f"No validator registered for '{key}'. "
                         "Available options: {list(self._validator_registry.keys())}",
                         stacklevel=999,
                     )
                     return None  # type: ignore[return-value]
                 case 1:
-                    warnings.warn(
+                    logger.warning(
                         f"\n\nUsing closest match '{closest[0]}' for validator '{key}'.",
                         stacklevel=999,
                     )
                     key = closest[0]
                 case _:
-                    warnings.warn(
+                    logger.warning(
                         f"Multiple closest matches found for '{key}': {closest}. "
                         "Please specify a more precise key.",
                         stacklevel=999,
@@ -308,14 +312,20 @@ class DataCatalog(dict):
         this will raise an error.
 
         """
-        print(f"Querying {self.catalog_key} catalog with query: {query}")
+        logger.info("Querying %s catalog", self.catalog_key)
+        logger.debug("Query parameters: %s", query)
+        logger.debug("Querying %s catalog with query: %s", self.catalog_key, query)
         # if any(isinstance(v, list) for v in query.values()):
         #     # query contains a list, which is not supported by intake
         #     for key, value in query.items():
         #         if isinstance(value, list):
         #             # Convert list to a comma-separated string
         #             query[key] = ",".join(value)
-        return (
+
+        logger.debug("Executing catalog search")
+        # Detailed query log (was printed previously)
+        logger.debug("Querying %s catalog with query: %s", self.catalog_key, query)
+        result = (
             self[self.catalog_key]
             .search(**query)
             .to_dataset_dict(
@@ -324,6 +334,8 @@ class DataCatalog(dict):
                 progressbar=False,
             )
         )
+        logger.info("Retrieved %d dataset(s) from catalog", len(result))
+        return result
 
     def list_clip_boundaries(self) -> dict[str, list[str]]:
         """List all available boundary options for clipping operations.
@@ -385,28 +397,27 @@ class DataCatalog(dict):
         try:
             self.list_clip_boundaries()
         except Exception as e:
-            print(f"Error accessing boundary data: {e}")
+            logger.error("Error accessing boundary data: %s", e, exc_info=True)
             return
 
-        print("Available Boundary Options for Clipping:")
-        print("=" * 40)
-        print()
+        logger.info("Available Boundary Options for Clipping:")
+        logger.info("%s", "=" * 40)
+        logger.info("")
 
         for category, boundary_list in self.available_boundaries.items():
-            print(f"{category}:")
+            logger.info("%s:", category)
 
             # Format the list nicely - wrap long lists
             if len(boundary_list) <= 5:
                 # For short lists, show all on one line
-                print(f"  - {', '.join(boundary_list)}")
+                logger.info("  - %s", ", ".join(boundary_list))
             else:
                 # For longer lists, show first few and count
                 displayed = boundary_list[:5]
                 remaining = len(boundary_list) - 5
-                print(f"  - {', '.join(displayed)}")
+                logger.info("  - %s", ", ".join(displayed))
                 if remaining > 0:
-                    print(f"    ... and {remaining} more options")
-            print()
+                    logger.info("    ... and %d more options", remaining)
 
     def reset(self) -> None:
         """Reset the DataCatalog instance to its initial state.

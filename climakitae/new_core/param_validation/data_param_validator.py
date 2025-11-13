@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import warnings
+import logging
 from typing import Any, Dict
 
 from climakitae.core.constants import CATALOG_CADCAT, UNSET
@@ -11,6 +11,9 @@ from climakitae.new_core.param_validation.abc_param_validation import (
     ParameterValidator,
     register_catalog_validator,
 )
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 @register_catalog_validator(CATALOG_CADCAT)
@@ -47,6 +50,10 @@ class DataValidator(ParameterValidator):
             "variable_id": UNSET,
         }
         self.catalog = catalog.data
+        logger.debug(
+            "DataValidator initialized for catalog with keys: %s",
+            list(self.catalog.keys()) if hasattr(self.catalog, "keys") else "unknown",
+        )
 
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         """Catalog specific validation for the query.
@@ -69,10 +76,14 @@ class DataValidator(ParameterValidator):
             Localize is not supported for LOCA2 datasets.
 
         """
+        logger.debug("Validating query: %s", query)
         initial_checks = [self._check_query_for_wrf_and_localize(query)]
         if not all(initial_checks):
+            logger.warning("Initial validation checks failed: %s", initial_checks)
             return None
-        return super()._is_valid_query(query)
+        result = super()._is_valid_query(query)
+        logger.info("Query validation result: %s", bool(result))
+        return result
 
     def _check_query_for_wrf_and_localize(self, query: Dict[str, Any]) -> bool:
         """Check if the query contains the localize processor.
@@ -90,21 +101,25 @@ class DataValidator(ParameterValidator):
             True if the query does not contain localize processor, False otherwise.
 
         """
+        logger.debug(
+            "Checking WRF/localize constraints for query processes: %s",
+            query.get("processes"),
+        )
         if "localize" in query.get("processes", {}).keys():
             if "WRF" not in query.get("activity_id", ""):
-                warnings.warn(
-                    "\n\nLocalize processor is not supported for LOCA2 datasets."
-                    "\nPlease specify '.activity_id(WRF)' in your query.",
-                    UserWarning,
-                    stacklevel=999,
+                msg = (
+                    "Localize processor is not supported for LOCA2 datasets."
+                    " Please specify '.activity_id(WRF)' in your query."
                 )
+                logger.warning(msg)
+                logger.warning(msg)
                 return False
             if query.get("variable_id", "") != "t2":
-                warnings.warn(
-                    f"\n\nLocalize processor is not supported for any variable other than 't2' (Air Temperature at 2m)."
-                    f"\nPlease specify '.variable_id('t2')' in your query.",
-                    UserWarning,
-                    stacklevel=999,
+                msg = (
+                    "Localize processor is not supported for any variable other than 't2' (Air Temperature at 2m)."
+                    " Please specify '.variable_id('t2')' in your query."
                 )
+                logger.warning(msg)
+                logger.warning(msg)
                 return False
         return True

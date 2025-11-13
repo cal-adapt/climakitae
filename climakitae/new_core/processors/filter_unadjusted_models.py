@@ -1,5 +1,6 @@
 """Filter Unadjusted Models Processor"""
 
+import logging
 import warnings
 from typing import Any, Dict, Iterable, Union
 
@@ -11,6 +12,10 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
+
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 @register_processor("filter_unadjusted_models", priority=0)
@@ -57,6 +62,7 @@ class FilterUnAdjustedModels(DataProcessor):
         self.valid_values = ["yes", "no"]
         self.value = value.lower()
         self.name = "filter_unadjusted_models"
+        logger.debug("FilterUnAdjustedModels initialized with value=%s", self.value)
 
     def execute(
         self,
@@ -89,17 +95,19 @@ class FilterUnAdjustedModels(DataProcessor):
             If the value is not one of the valid values.
 
         """
+        logger.debug("FilterUnAdjustedModels.execute called with value=%s", self.value)
         match self.value:
             case "yes":
                 # check if there are any unadjusted models in the dataset
                 if self._contains_unadjusted_models(result):
-                    warnings.warn(
+                    msg = (
                         f"\n\nYour query selected models that do not have a-priori bias adjustment. "
-                        f"\nThese models have been removed from the returned query."
+                        f"\nThese models have been removed from the returned query. "
                         f"\nTo include them, please add the following processor to your query: "
-                        f"\nClimateData().processes('{self.name}': 'no')",
-                        stacklevel=999,
+                        f"\nClimateData().processes('{self.name}': 'no')\n"
                     )
+                    logger.warning(msg)
+                    logger.warning(msg)
                     return self._remove_unadjusted_models(result)
 
                 # If no unadjusted models are found, return the result as is
@@ -107,12 +115,13 @@ class FilterUnAdjustedModels(DataProcessor):
             case "no":
                 # check if there are any biased models in the dataset
                 if self._contains_unadjusted_models(result):
-                    warnings.warn(
+                    msg = (
                         "\n\nYour query selected models that do not have a-priori bias adjustment. "
-                        "\nThese models HAVE NOT been removed from the returned query."
-                        "\nProceed with caution as these models may not be suitable for your analysis.\n\n",
-                        stacklevel=999,
+                        "\nThese models HAVE NOT been removed from the returned query. "
+                        "\nProceed with caution as these models may not be suitable for your analysis.\n"
                     )
+                    logger.warning(msg)
+                    logger.warning(msg)
 
                 return result
             case _:
@@ -151,6 +160,7 @@ class FilterUnAdjustedModels(DataProcessor):
                 source_id = result.attrs.get("intake_esm_attrs:source_id", UNSET)
                 member_id = result.attrs.get("intake_esm_attrs:member_id", UNSET)
                 model_id = f"{activity_id}_{source_id}_{member_id}"
+                logger.debug("Checking model_id=%s against unadjusted list", model_id)
                 return model_id in NON_WRF_BA_MODELS
             case dict():
                 return any(
@@ -194,11 +204,16 @@ class FilterUnAdjustedModels(DataProcessor):
             case xr.Dataset() | xr.DataArray():
                 return result if not self._contains_unadjusted_models(result) else None
             case dict():
-                return {
+                filtered = {
                     key: value
                     for key, value in result.items()
                     if not self._contains_unadjusted_models(value)
                 }
+                logger.info(
+                    "Filtered out %d unadjusted model entries",
+                    len(result) - len(filtered),
+                )
+                return filtered
             case list() | tuple():
                 return type(result)(
                     [

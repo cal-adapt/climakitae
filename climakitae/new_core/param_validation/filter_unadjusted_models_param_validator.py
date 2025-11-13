@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import warnings
+import logging
 from typing import Any
 
 from climakitae.new_core.param_validation.abc_param_validation import (
@@ -29,24 +29,25 @@ def validate_filter_unadjusted_models_param(
         True if all parameters are valid, False otherwise
 
     """
+    # Module logger
+    logger = logging.getLogger(__name__)
+
     if not isinstance(value, str):
-        warnings.warn(
+        msg = (
             "\n\nFilterunadjustedModels Processor expects a string value. "
-            "\nPlease check the configuration.",
-            UserWarning,
-            stacklevel=999,
+            "\nPlease check the configuration."
         )
+        logger.warning(msg)
         return False
 
     valid_values = ["yes", "no"]
 
     if value not in valid_values:
-        warnings.warn(
+        msg = (
             f"\n\nInvalid value '{value}' for FilterUnadjustedModels Processor. "
-            f"\nSupported values are: {valid_values}",
-            UserWarning,
-            stacklevel=999,
+            f"\nSupported values are: {valid_values}"
         )
+        logger.warning(msg)
         return False
 
     return True  # All parameters are valid

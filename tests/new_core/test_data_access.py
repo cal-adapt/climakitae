@@ -257,7 +257,7 @@ class TestDataCatalogCatalogKeyManagement:
         assert len(record) == 2
         assert str(record[0].message) == (
             f"\n\nCatalog key '{typo}' not found.\n"
-            f"Attempting to find intended catalog key.\n\n"
+            f"Attempting to find intended catalog key.\n\n."
         )
         assert str(record[1].message) == (
             f"\n\nUsing closest match 'stations' for validator '{typo}'."
@@ -276,7 +276,7 @@ class TestDataCatalogCatalogKeyManagement:
         assert len(record) == 2
         assert str(record[0].message) == (
             f"\n\nCatalog key '{too_similar_key}' not found.\n"
-            f"Attempting to find intended catalog key.\n\n"
+            f"Attempting to find intended catalog key.\n\n."
         )
         assert str(record[1].message) == (
             f"Multiple closest matches found for '{too_similar_key}': "

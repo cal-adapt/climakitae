@@ -6,6 +6,10 @@ from typing import Dict, Union
 
 import numpy as np
 import xarray as xr
+import logging
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from climakitae.core.constants import UNSET
 from climakitae.explore.threshold_tools import calculate_ess
@@ -558,21 +562,43 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
             # For timeseries data
             average_ess = _calc_average_ess_timeseries_optimized(da, block_size)
         else:
-            print(
-                f"WARNING: the effective sample size can only be checked for timeseries or spatial data. "
-                f"You provided data with the following dimensions: {da.dims}."
+            logger.warning(
+                "The effective sample size can only be checked for timeseries or spatial data. "
+                "You provided data with the following dimensions: %s.",
+                da.dims,
             )
+            try:
+                print(
+                    "WARNING: The effective sample size can only be checked for timeseries or spatial data. "
+                    f"You provided data with the following dimensions: {da.dims}."
+                )
+            except Exception:
+                pass
             return
 
         if average_ess < MIN_ESS_THRESHOLD:
-            print(
-                f"WARNING: The average effective sample size in your data is {round(average_ess, 2)} per block, "
-                f"which is lower than a standard target of around {MIN_ESS_THRESHOLD}. This may result in biased estimates of "
-                f"extreme value distributions when calculating return values, periods, and probabilities from this data. "
-                f"Consider using a longer block size to increase the effective sample size in each block of data."
+            logger.warning(
+                "The average effective sample size in your data is %s per block, which is lower than the recommended threshold of %s. "
+                "This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities. "
+                "Consider using a longer block size to increase the effective sample size.",
+                round(average_ess, 2),
+                MIN_ESS_THRESHOLD,
             )
+            try:
+                print(
+                    "WARNING: The average effective sample size in your data is "
+                    f"{round(average_ess,2)} per block, which is lower than the recommended threshold of {MIN_ESS_THRESHOLD}."
+                )
+            except Exception:
+                pass
     except (ValueError, RuntimeError) as e:
-        print(f"WARNING: Could not calculate effective sample size: {e}")
+        logger.warning("Could not calculate effective sample size: %s", e)
+        try:
+            # Keep the legacy printed WARNING prefix so unit tests that capture stdout
+            # continue to see the expected message.
+            print(f"WARNING: Could not calculate effective sample size: {e}")
+        except Exception:
+            pass
 
 
 def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> float:
@@ -869,9 +895,10 @@ def _handle_nan_values_optimized(bms: xr.DataArray) -> xr.DataArray:
 
     if dropped_count > 0:
         name_str = f" {bms.name}" if bms.name else ""
-        print(
-            f"Dropping {dropped_count} block maxima NaNs across entire{name_str} DataArray. "
-            f"Please see guidance for more information."
+        logger.info(
+            "Dropping %d block maxima NaNs across entire%s DataArray. Please see guidance for more information.",
+            dropped_count,
+            name_str,
         )
 
     return dropped_bms
@@ -911,10 +938,9 @@ def extend_time_domain(
     if any(v.attrs.get("historical_prepended", False) for v in result.values()):
         return result  # type: ignore
 
-    print(
-        "\n\nINFO: Prepending historical data to SSP scenarios."
-        "\n      This is the default concatenation strategy for retrieved data in climakitae."
-        '\n      To change this behavior, set `"concat": "sim"` in your processes dictionary.\n\n'
+    logger.info(
+        "Prepending historical data to SSP scenarios. This is the default concatenation strategy for retrieved data in climakitae. "
+        "To change this behavior, set 'concat': 'sim' in your processes dictionary."
     )
 
     # Process SSP scenarios by finding and prepending historical data
@@ -927,12 +953,10 @@ def extend_time_domain(
         hist_key = re.sub(r"ssp.{3}", "historical", key)
 
         if hist_key not in result:
-            warnings.warn(
+            logger.warning(
                 f"\n\nNo historical data found for {key} with key {hist_key}. "
                 f"\nHistorical data is required for time domain extension. "
-                f"\nKeeping original SSP data without historical extension.",
-                UserWarning,
-                stacklevel=999,
+                f"\nKeeping original SSP data without historical extension.\n"
             )
             ret[key] = data
             continue
@@ -963,11 +987,9 @@ def extend_time_domain(
             ret[key] = extended_data
 
         except (ValueError, TypeError, KeyError, AttributeError) as e:
-            warnings.warn(
+            logger.warning(
                 f"\n\nFailed to concatenate historical and SSP data for {key}: {e}"
-                f"\nSince no historical data is available, this data is dropped.",
-                UserWarning,
-                stacklevel=999,
+                f"\nSince no historical data is available, this data is dropped.\n"
             )
 
     return ret

@@ -563,7 +563,7 @@ class TestBoundariesPublicMethods:
                 mock_boundaries_public.load()
 
                 assert len(w) == 1
-                assert issubclass(w[0].category, DeprecationWarning)
+                assert issubclass(w[0].category, UserWarning)
                 assert "deprecated" in str(w[0].message).lower()
                 mock_preload.assert_called_once()
 

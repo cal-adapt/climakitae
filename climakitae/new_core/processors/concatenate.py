@@ -1,5 +1,6 @@
 """Concat DataProcessor"""
 
+import logging
 import warnings
 from typing import Any, Dict, Iterable, List, Union
 
@@ -12,6 +13,10 @@ from climakitae.new_core.processors.abc_data_processor import (
     register_processor,
 )
 from climakitae.new_core.processors.processor_utils import extend_time_domain
+
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 # concatenation processor in the pre-processing chain
@@ -57,6 +62,8 @@ class Concat(DataProcessor):
         self.name = "concat"
         self.catalog = None
         self.needs_catalog = True
+        # Log initialization
+        logger.debug("Concat processor initialized with dim_name=%s", self.dim_name)
 
     def execute(
         self,
@@ -89,8 +96,17 @@ class Concat(DataProcessor):
             A single dataset with concatenated data.
 
         """
+        logger.debug(
+            "Concat.execute called with dim_name=%s result_type=%s",
+            self.dim_name,
+            type(result).__name__,
+        )
+
         if isinstance(result, (xr.Dataset, xr.DataArray)):
             # If we receive a single dataset, just return it
+            logger.debug(
+                "Concat.execute received single dataset/dataarray, returning as-is"
+            )
             return result
 
         # Special handling for time dimension concatenation
@@ -99,6 +115,7 @@ class Concat(DataProcessor):
             result = extend_time_domain(result)  # type: ignore
             # After extending time domain, switch to standard sim concatenation
             self.dim_name = "sim"
+            logger.info("Time-domain extension applied; switching concat dim to 'sim'")
 
         datasets_to_concat = []
         concat_attr = (
@@ -232,24 +249,47 @@ class Concat(DataProcessor):
                     if isinstance(dataset, (xr.Dataset, xr.DataArray)):
                         return dataset
             # If still no valid dataset found, raise an error
-            print(result)
+            logger.debug(
+                "No valid datasets found for concatenation. Sample result: %s", result
+            )
             raise ValueError("No valid datasets found for concatenation")
 
         # Concatenate all datasets along the sim dimension
         try:
-            concatenated = xr.concat(datasets_to_concat, dim=self.dim_name)
-        except ValueError as e:
-            warnings.warn(
-                f"Failed to concatenate datasets along '{self.dim_name}' dimension: {e}",
-                UserWarning,
-                stacklevel=999,
+            # Explicitly set `join`, `coords`, and `compat` to the current xarray defaults
+            # to silence FutureWarning about upcoming default changes and to
+            # preserve current behavior. See xarray deprecation notes.
+            concatenated = xr.concat(
+                datasets_to_concat,
+                dim=self.dim_name,
+                join="outer",
+                coords="different",
+                compat="equals",
             )
-            # Print dimensions of each dataset for debugging
+        except ValueError as e:
+            # Log dimensions of each dataset for debugging
             for i, dataset in enumerate(datasets_to_concat):
-                print(f"Dataset {i} dimensions: {list(dataset.dims.keys())}")
+                logger.debug("Dataset %d dimensions: %s", i, list(dataset.dims.keys()))
+                intake_key = dataset.attrs.get("intake_esm_dataset_key", "<unknown>")
+                logger.debug("Dataset:\n%s", intake_key)
+            msg = (
+                f"\nFailed to concatenate datasets along '{self.dim_name}' dimension: {e}"
+                "\nThis can happen when mixing datasets with different projections"
+                "\nsuch as WRF and LOCA2 or WRF.UCLA and WRF.UCSD."
+                "\nIf you're trying to pull dynamically downscaled data, please specify"
+                "\n    an institution_id that matches the downscaling method (e.g., "
+                "\n'UCLA' or 'UCSD' are two of several options for WRF datasets)."
+            )
+            logger.warning(msg)
+            logger.error(
+                "Failed to concatenate datasets along '%s' dimension: %s",
+                self.dim_name,
+                e,
+                exc_info=True,
+            )
             raise
 
-        print(f"Concatenated datasets along '{self.dim_name}' dimension.")
+        logger.info("Concatenated datasets along '%s' dimension.", self.dim_name)
 
         self.update_context(context, attr_ids)
 
