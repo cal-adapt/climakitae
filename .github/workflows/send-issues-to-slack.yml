@@ -15,7 +15,7 @@ jobs:
               id: notify
               with:
                   slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-                  slack-channel: C01234ABCD # Replace with your actual channel ID
+                  slack-channel: C02HEPJL8P5 # Replace with your actual channel ID
                   slack-text: |
                       🚨 New Issue Opened!
                       *Issue #${{ github.event.issue.number }}*: ${{ github.event.issue.title }}
