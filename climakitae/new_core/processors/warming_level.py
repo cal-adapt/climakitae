@@ -20,7 +20,9 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
-from climakitae.util.utils import read_csv_file
+
+# from climakitae.new_core.processors.processor_utils import _determine_is_complete_wl
+from climakitae.util.utils import _determine_is_complete_wl, read_csv_file
 
 
 @register_processor("warming_level", priority=10)
@@ -50,9 +52,9 @@ class WarmingLevel(DataProcessor):
 
     Notes
     -----
-    The input data must span from 1980-2100 and include historical climate data
-    for proper warming level calculations. Data should have simulation and scenario
-    dimensions or be properly configured for stacking.
+    The input data must span from 1950-2100 or 1981-2100, depending on the downscaling method,
+    and include historical climate data for proper warming level calculations. Data should
+    have simulation and scenario dimensions or be properly configured for stacking.
     """
 
     def __init__(self, value: Dict[str, Any]):
@@ -134,7 +136,7 @@ class WarmingLevel(DataProcessor):
         # and split the data by member_id
         ret = self.reformat_member_ids(result)
 
-        # extend the time domain of all ssp scenarios to 1980-2100
+        # extend the time domain of all ssp scenarios to cover historical period
         ret = self.extend_time_domain(ret)
 
         # first, extract the member IDs from the data
@@ -151,6 +153,9 @@ class WarmingLevel(DataProcessor):
         # get center years for each key for each warming level
         center_years = self.get_center_years(member_ids, ret.keys())
         retkeys = list(ret.keys())
+
+        dropped_slices_count = 0
+
         for key in retkeys:
             if key not in center_years:
                 del ret[key]
@@ -169,9 +174,18 @@ class WarmingLevel(DataProcessor):
                     )
                     continue
                 start_year = year - self.warming_level_window
-                start_year = max(start_year, 1981)
                 end_year = year + self.warming_level_window - 1
-                end_year = min(end_year, 2100)
+
+                is_full_wl = _determine_is_complete_wl(
+                    start_year, end_year, key, context["activity_id"], wl
+                )
+
+                if not is_full_wl:
+                    warnings.warn(
+                        f"\n\nIncomplete warming level for {key} at {wl}C. "
+                        "\nSkipping this warming level."
+                    )
+                    continue
 
                 da_slice = ret[key].sel(time=slice(f"{start_year}", f"{end_year}"))
 
@@ -211,6 +225,8 @@ class WarmingLevel(DataProcessor):
                 slices, dim="warming_level", join="outer", fill_value=np.nan
             )
         self.update_context(context)
+
+        print(f"Dropped slices count: {dropped_slices_count}")
         return ret
 
     def update_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
@@ -287,7 +303,8 @@ class WarmingLevel(DataProcessor):
         self, result: Dict[str, Union[xr.Dataset, xr.DataArray]]
     ) -> Dict[str, Union[xr.Dataset, xr.DataArray]]:
         """
-        Extend the time domain of the input data to cover 1980-2100.
+        Extend the time domain of the input data to cover the historical period,
+        either 1950-2100 for LOCA or 1981-2100 for WRF.
 
         This method ensures that all SSP scenarios have historical data
         included in the time series, allowing for proper warming level calculations.

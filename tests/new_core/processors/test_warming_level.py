@@ -79,6 +79,41 @@ def processor():
 
 
 @pytest.fixture
+def edge_case_processor():
+    """Fixture for a WarmingLevel processor with edge case warming level time DataFrames."""
+    wl_processor = WarmingLevel(value={"warming_levels": [0.5, 4.5]})
+    wl_time_data = [
+        [
+            "GCM",
+            "run",
+            "scenario",
+            "0.5",
+            "4.5",
+        ],
+        [
+            "ACCESS-CM2",
+            "r1i1p1f1",
+            "ssp585",
+            "1955-01-01 00:00:00",
+            "2095-01-01 00:00:00",
+        ],
+    ]
+    wl_processor.warming_level_times = pd.DataFrame(
+        wl_time_data[1:], columns=wl_time_data[0]
+    ).set_index(["GCM", "run", "scenario"])
+
+    wl_time_idx_data = [
+        ["time", "ACCESS-CM2_r3i1p1f1_ssp585"],
+        ["2005-1", 1.0],
+    ]
+    wl_processor.warming_level_times_idx = pd.DataFrame(
+        wl_time_idx_data[1:], columns=wl_time_idx_data[0]
+    ).set_index("time")
+
+    yield wl_processor
+
+
+@pytest.fixture
 def full_processor():
     """Fixture for a full WarmingLevel processor with default warming level time DataFrames."""
     wl_processor = WarmingLevel(value={})
@@ -343,7 +378,7 @@ class TestWarmingLevelExecute:
     def test_execute_updates_context(self, request, full_processor):
         """Test that execute updates context with warming level information."""
         test_result = request.getfixturevalue("test_dataarray_dict")
-        context = {}
+        context = {"activity_id": "WRF"}
         _ = full_processor.execute(result=test_result, context=context)
         assert full_processor.name in context[_NEW_ATTRS_KEY][full_processor.name]
         assert str(full_processor.value) in context[_NEW_ATTRS_KEY][full_processor.name]
@@ -378,7 +413,7 @@ class TestWarmingLevelExecute:
                 match=f"No warming level data found",
             ),
         ):
-            ret = full_processor.execute(data, context={})
+            ret = full_processor.execute(data, context={"activity_id": "WRF"})
             for key in ret:
                 assert len(ret[key].warming_level) == 2
                 assert 5.8 not in ret[key].warming_level.values
@@ -386,7 +421,7 @@ class TestWarmingLevelExecute:
     def test_execute_dims_correct(self, request, full_processor):
         """Test that execute returns a dict with expected keys and types."""
         test_result = request.getfixturevalue("test_dataarray_dict")
-        ret = full_processor.execute(result=test_result, context={})
+        ret = full_processor.execute(result=test_result, context={"activity_id": "WRF"})
         for key in ret:
             assert isinstance(ret[key], xr.Dataset)
             assert "warming_level" in ret[key].dims
@@ -397,7 +432,7 @@ class TestWarmingLevelExecute:
         """Test that execute manipulates the data to have correct dims and years."""
         test_result = request.getfixturevalue("test_dataarray_dict")
         test_key = "WRF.UCLA.EC-Earth3.ssp370.day.d03"
-        ret = full_processor.execute(result=test_result, context={})
+        ret = full_processor.execute(result=test_result, context={"activity_id": "WRF"})
         ret_key = "WRF.UCLA.EC-Earth3.ssp370.day.d03.r1i1p1f1"
 
         # Check that the warming_level coordinate matches the processor's warming_levels
@@ -417,3 +452,50 @@ class TestWarmingLevelExecute:
         assert isinstance(ret[ret_key].centered_year.item(), int)
         # Check that the centered_year is within expected range
         assert 1981 <= ret[ret_key].centered_year.item() <= 2100
+
+    def test_execute_loca_correct(self, request, full_processor):
+        """Test that execute works correctly for LOCA data."""
+        test_result = request.getfixturevalue("test_dataarray_dict_loca")
+        # The test fixture creates data for ACCESS-CM2 model
+        test_key = "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03"
+        ret = full_processor.execute(
+            result=test_result, context={"activity_id": "LOCA2"}
+        )
+        ret_key = "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03.r1i1p1f1"
+
+        # Check that the warming_level coordinate matches the processor's warming_levels
+        assert (
+            ret[ret_key].warming_level.values == full_processor.warming_levels
+        ).all()
+        # Check the length of the time_delta dimension
+        first_year = str(test_result[test_key].isel(time=0).time.dt.year.item())
+        # Find the number of elements in the first year of `ret[key]`
+        timesteps_per_year = (
+            test_result[test_key].sel(time=slice(first_year, first_year)).time.size
+        )
+        assert (
+            len(ret[ret_key].time_delta)
+            == timesteps_per_year * full_processor.warming_level_window * 2
+        )
+        assert isinstance(ret[ret_key].centered_year.item(), int)
+        # Check that the centered_year is within expected range
+        assert 1981 <= ret[ret_key].centered_year.item() <= 2100
+
+    def test_execute_edge_case_years(self, request, edge_case_processor):
+        """Test that execute handles edge case warming levels and years correctly."""
+        test_result = request.getfixturevalue("test_dataarray_dict_loca")
+        with pytest.warns(
+            UserWarning,
+        ) as record:
+            ret = edge_case_processor.execute(
+                result=test_result, context={"activity_id": "LOCA2"}
+            )
+            assert len(record) == 5
+            assert ret == {}
+            messages = [str(w.message) for w in record]
+            expected_substrings = [
+                "Incomplete warming level for LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03.r1i1p1f1 at 0.5C",
+                "Incomplete warming level for LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03.r1i1p1f1 at 4.5C",
+            ]
+            for substr in expected_substrings:
+                assert any(substr in msg for msg in messages), f"Missing: {substr}"

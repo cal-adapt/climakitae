@@ -23,11 +23,14 @@ from climakitae.new_core.param_validation.warming_param_validator import (
 @pytest.fixture
 def patched_data():
     """Fixture to patch DataCatalog and read_csv_file for tests."""
-    with patch(
-        "climakitae.new_core.param_validation.warming_param_validator.DataCatalog"
-    ) as mock_catalog, patch(
-        "climakitae.new_core.param_validation.warming_param_validator.read_csv_file"
-    ) as mock_read_csv:
+    with (
+        patch(
+            "climakitae.new_core.param_validation.warming_param_validator.DataCatalog"
+        ) as mock_catalog,
+        patch(
+            "climakitae.new_core.param_validation.warming_param_validator.read_csv_file"
+        ) as mock_read_csv,
+    ):
         mock_catalog.return_value.catalog_df = pd.DataFrame(
             {
                 "activity_id": ["WRF", "LOCA2"],

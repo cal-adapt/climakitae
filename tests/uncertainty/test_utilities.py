@@ -369,8 +369,9 @@ def test_standardize_cmip6_data_integration():
 
     # We'll need to patch the imported functions since they likely
     # depend on external resources
-    with patch("climakitae.explore.uncertainty.rename_cmip6", return_value=ds), patch(
-        "climakitae.explore.uncertainty._cf_to_dt", return_value=ds
+    with (
+        patch("climakitae.explore.uncertainty.rename_cmip6", return_value=ds),
+        patch("climakitae.explore.uncertainty._cf_to_dt", return_value=ds),
     ):
 
         result = _standardize_cmip6_data(ds)

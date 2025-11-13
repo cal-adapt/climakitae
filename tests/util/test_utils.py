@@ -237,9 +237,15 @@ class TestUtils:
         lat, lon = 37.7749, -122.4194  # San Francisco coordinates
 
         # Apply patches for the test
-        with patch.object(
-            xr.Dataset, "rio", new_callable=PropertyMock, return_value=mock_rio_accessor
-        ), patch("pyproj.Transformer.from_crs", return_value=mock_transformer):
+        with (
+            patch.object(
+                xr.Dataset,
+                "rio",
+                new_callable=PropertyMock,
+                return_value=mock_rio_accessor,
+            ),
+            patch("pyproj.Transformer.from_crs", return_value=mock_transformer),
+        ):
 
             result = get_closest_gridcell(ds, lat, lon)
 
@@ -1034,12 +1040,15 @@ class TestUtils:
         mock_selections.variable_id = ["tas"]  # Non-derived
         mock_selections.downscaling_method = "Dynamical+Statistical"
 
-        with patch(
-            "climakitae.util.utils._get_scenario_from_selections",
-            return_value=(["SSP 2-4.5"], ["Historical Climate"]),
-        ), patch(
-            "climakitae.util.utils.downscaling_method_as_list",
-            return_value=["Dynamical", "Statistical"],
+        with (
+            patch(
+                "climakitae.util.utils._get_scenario_from_selections",
+                return_value=(["SSP 2-4.5"], ["Historical Climate"]),
+            ),
+            patch(
+                "climakitae.util.utils.downscaling_method_as_list",
+                return_value=["Dynamical", "Statistical"],
+            ),
         ):
             result = _get_cat_subset(mock_selections)
 
@@ -1110,12 +1119,16 @@ class TestReprojectData:
         mock_rio_accessor.reproject.return_value = mock_reprojected
 
         # Patch the actual accessor property to return our mock
-        with patch("rioxarray.open_rasterio", autospec=True), patch.object(
-            xr.DataArray,
-            "rio",
-            new_callable=PropertyMock,
-            return_value=mock_rio_accessor,
-        ), patch.object(xr.DataArray.rio, "write_crs", return_value=None):
+        with (
+            patch("rioxarray.open_rasterio", autospec=True),
+            patch.object(
+                xr.DataArray,
+                "rio",
+                new_callable=PropertyMock,
+                return_value=mock_rio_accessor,
+            ),
+            patch.object(xr.DataArray.rio, "write_crs", return_value=None),
+        ):
 
             data_2d = xr.DataArray([[1, 2], [3, 4]], coords={"x": [1, 2], "y": [3, 4]})
             result_2d = reproject_data(data_2d)
@@ -1134,12 +1147,16 @@ class TestReprojectData:
         mock_rio_accessor.reproject.return_value = mock_reprojected
 
         # Patch the actual accessor property to return our mock
-        with patch("rioxarray.open_rasterio", autospec=True), patch.object(
-            xr.DataArray,
-            "rio",
-            new_callable=PropertyMock,
-            return_value=mock_rio_accessor,
-        ), patch.object(xr.DataArray.rio, "write_crs", return_value=None):
+        with (
+            patch("rioxarray.open_rasterio", autospec=True),
+            patch.object(
+                xr.DataArray,
+                "rio",
+                new_callable=PropertyMock,
+                return_value=mock_rio_accessor,
+            ),
+            patch.object(xr.DataArray.rio, "write_crs", return_value=None),
+        ):
             data_3d = xr.DataArray(
                 np.zeros((3, 2, 2)),
                 coords={
@@ -1180,13 +1197,16 @@ class TestReprojectData:
         )
 
         # Test 4D case
-        with patch("rioxarray.open_rasterio", autospec=True), patch.object(
-            xr.DataArray,
-            "rio",
-            new_callable=PropertyMock,
-            return_value=mock_rio_accessor,
-        ), patch.object(xr.DataArray.rio, "write_crs", return_value=None), patch(
-            "xarray.concat", return_value=mock_4d
+        with (
+            patch("rioxarray.open_rasterio", autospec=True),
+            patch.object(
+                xr.DataArray,
+                "rio",
+                new_callable=PropertyMock,
+                return_value=mock_rio_accessor,
+            ),
+            patch.object(xr.DataArray.rio, "write_crs", return_value=None),
+            patch("xarray.concat", return_value=mock_4d),
         ):
 
             data_4d = xr.DataArray(
@@ -1202,13 +1222,16 @@ class TestReprojectData:
             assert result_4d.attrs["grid_mapping"] == "EPSG:4326"
 
         # Test 5D case
-        with patch("rioxarray.open_rasterio", autospec=True), patch.object(
-            xr.DataArray,
-            "rio",
-            new_callable=PropertyMock,
-            return_value=mock_rio_accessor,
-        ), patch.object(xr.DataArray.rio, "write_crs", return_value=None), patch(
-            "xarray.concat", return_value=mock_5d
+        with (
+            patch("rioxarray.open_rasterio", autospec=True),
+            patch.object(
+                xr.DataArray,
+                "rio",
+                new_callable=PropertyMock,
+                return_value=mock_rio_accessor,
+            ),
+            patch.object(xr.DataArray.rio, "write_crs", return_value=None),
+            patch("xarray.concat", return_value=mock_5d),
         ):
 
             data_5d = xr.DataArray(
@@ -1299,15 +1322,17 @@ class TestConvertToLocalTime:
 
         # Test 1: Monthly data (should return original data)
         # Mock the stations dataframe
-        with patch(
-            "climakitae.util.utils.read_csv_file",
-            return_value=mock_stations_df,
-        ), patch(
-            "climakitae.util.utils.TimezoneFinder.timezone_at",
-            return_value="America/Los_Angeles",
-        ), patch(
-            "builtins.print"
-        ) as mock_print:
+        with (
+            patch(
+                "climakitae.util.utils.read_csv_file",
+                return_value=mock_stations_df,
+            ),
+            patch(
+                "climakitae.util.utils.TimezoneFinder.timezone_at",
+                return_value="America/Los_Angeles",
+            ),
+            patch("builtins.print") as mock_print,
+        ):
             result = convert_to_local_time(data)
             assert result.equals(data)
             mock_print.assert_called_once_with(
@@ -1318,15 +1343,17 @@ class TestConvertToLocalTime:
         # Mock the stations dataframe
         data.attrs["frequency"] = "hourly"
         data.name = None
-        with patch(
-            "climakitae.util.utils.read_csv_file",
-            return_value=mock_stations_df,
-        ), patch(
-            "climakitae.util.utils.TimezoneFinder.timezone_at",
-            return_value="America/Los_Angeles",
-        ), patch(
-            "builtins.print"
-        ) as mock_print:
+        with (
+            patch(
+                "climakitae.util.utils.read_csv_file",
+                return_value=mock_stations_df,
+            ),
+            patch(
+                "climakitae.util.utils.TimezoneFinder.timezone_at",
+                return_value="America/Los_Angeles",
+            ),
+            patch("builtins.print") as mock_print,
+        ):
             result = convert_to_local_time(data)
             assert result.equals(data)
             mock_print.assert_called_once_with(
@@ -1336,15 +1363,17 @@ class TestConvertToLocalTime:
         # Test 3: Hourly data with mismatched name
         # Mock the stations dataframe
         data.name = "SAN FRANCISCO"
-        with patch(
-            "climakitae.util.utils.read_csv_file",
-            return_value=mock_stations_df,
-        ), patch(
-            "climakitae.util.utils.TimezoneFinder.timezone_at",
-            return_value="America/Los_Angeles",
-        ), patch(
-            "builtins.print"
-        ) as mock_print:
+        with (
+            patch(
+                "climakitae.util.utils.read_csv_file",
+                return_value=mock_stations_df,
+            ),
+            patch(
+                "climakitae.util.utils.TimezoneFinder.timezone_at",
+                return_value="America/Los_Angeles",
+            ),
+            patch("builtins.print") as mock_print,
+        ):
             result = convert_to_local_time(data)
             assert result.equals(data)
             mock_print.assert_called_once_with(
@@ -1354,15 +1383,17 @@ class TestConvertToLocalTime:
         # Test 4: Station data type with timezone conversion
         # Mock the stations dataframe
         data.name = "SAN FRANCISCO DWTN"
-        with patch(
-            "climakitae.util.utils.read_csv_file",
-            return_value=mock_stations_df,
-        ), patch(
-            "climakitae.util.utils.TimezoneFinder.timezone_at",
-            return_value="America/Los_Angeles",
-        ), patch(
-            "builtins.print"
-        ) as mock_print:
+        with (
+            patch(
+                "climakitae.util.utils.read_csv_file",
+                return_value=mock_stations_df,
+            ),
+            patch(
+                "climakitae.util.utils.TimezoneFinder.timezone_at",
+                return_value="America/Los_Angeles",
+            ),
+            patch("builtins.print") as mock_print,
+        ):
 
             result = convert_to_local_time(data)
 
@@ -1384,15 +1415,17 @@ class TestConvertToLocalTime:
         data.attrs = {"data_type": "Stations", "frequency": "hourly"}
         data.name = "SAN FRANCISCO DWTN"
         data = data.to_dataset()
-        with patch(
-            "climakitae.util.utils.read_csv_file",
-            return_value=mock_stations_df,
-        ), patch(
-            "climakitae.util.utils.TimezoneFinder.timezone_at",
-            return_value="America/Los_Angeles",
-        ), patch(
-            "builtins.print"
-        ) as mock_print:
+        with (
+            patch(
+                "climakitae.util.utils.read_csv_file",
+                return_value=mock_stations_df,
+            ),
+            patch(
+                "climakitae.util.utils.TimezoneFinder.timezone_at",
+                return_value="America/Los_Angeles",
+            ),
+            patch("builtins.print") as mock_print,
+        ):
 
             result = convert_to_local_time(data)
 
@@ -1424,10 +1457,13 @@ class TestConvertToLocalTime:
         )
         data.attrs = {"frequency": "hourly"}
 
-        with patch(
-            "climakitae.util.utils.TimezoneFinder.timezone_at",
-            return_value="America/Los_Angeles",
-        ), patch("builtins.print") as mock_print:
+        with (
+            patch(
+                "climakitae.util.utils.TimezoneFinder.timezone_at",
+                return_value="America/Los_Angeles",
+            ),
+            patch("builtins.print") as mock_print,
+        ):
             _ = convert_to_local_time(data)
             mock_print.assert_called_once_with(
                 "Data Array attribute 'data_type' not found. Please set 'data_type' to 'Stations' or 'Gridded'."
@@ -1453,10 +1489,13 @@ class TestConvertToLocalTime:
         data.attrs = {"data_type": "Gridded", "frequency": "hourly"}
 
         # Test with gridded data and lat/lon area_subset
-        with patch(
-            "climakitae.util.utils.TimezoneFinder.timezone_at",
-            return_value="America/Los_Angeles",
-        ), patch("builtins.print") as mock_print:
+        with (
+            patch(
+                "climakitae.util.utils.TimezoneFinder.timezone_at",
+                return_value="America/Los_Angeles",
+            ),
+            patch("builtins.print") as mock_print,
+        ):
 
             result = convert_to_local_time(data)
 
@@ -1497,10 +1536,13 @@ class TestConvertToLocalTime:
         )
         data.attrs = {"data_type": "Gridded"}
 
-        with patch(
-            "climakitae.util.utils.TimezoneFinder.timezone_at",
-            return_value="America/Los_Angeles",
-        ), patch("builtins.print") as mock_print:
+        with (
+            patch(
+                "climakitae.util.utils.TimezoneFinder.timezone_at",
+                return_value="America/Los_Angeles",
+            ),
+            patch("builtins.print") as mock_print,
+        ):
 
             result = convert_to_local_time(data)
 
@@ -1520,10 +1562,13 @@ class TestConvertToLocalTime:
         )
         data.attrs = {"data_type": "Gridded", "frequency": "hourly"}
 
-        with patch(
-            "climakitae.util.utils.TimezoneFinder.timezone_at",
-            return_value="America/Los_Angeles",
-        ), patch("builtins.print") as mock_print:
+        with (
+            patch(
+                "climakitae.util.utils.TimezoneFinder.timezone_at",
+                return_value="America/Los_Angeles",
+            ),
+            patch("builtins.print") as mock_print,
+        ):
 
             result = convert_to_local_time(data, -118.0, 34.0)
 

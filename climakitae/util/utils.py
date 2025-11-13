@@ -1,6 +1,7 @@
 import calendar
 import datetime
 import os
+import warnings
 from typing import Any, Iterable, Union
 
 import geopandas as gpd
@@ -13,7 +14,14 @@ import xarray as xr
 from shapely.geometry import Point, mapping
 from timezonefinder import TimezoneFinder
 
-from climakitae.core.constants import SSPS, UNSET
+from climakitae.core.constants import (
+    LOCA_END_YEAR,
+    LOCA_START_YEAR,
+    SSPS,
+    UNSET,
+    WRF_END_YEAR,
+    WRF_START_YEAR,
+)
 
 # from climakitae.core.data_interface import DataParameters
 from climakitae.core.paths import DATA_CATALOG_URL, STATIONS_CSV_PATH
@@ -1370,3 +1378,51 @@ def clip_gpd_to_shapefile(
     print(f"Number of stations within area: {len(clipped)}")
 
     return clipped
+
+
+def _determine_is_complete_wl(
+    start_year: int,
+    end_year: int,
+    simulation_name: str,
+    downscaling_method: str,
+    level: float,
+) -> bool:
+    """
+    Determine if a complete warming level slice can be created for the given start and end years.
+    This checks if the years fall within valid ranges based on the downscaling method.
+
+    Parameters
+    ----------
+    start_year : int
+        The starting year of the warming level slice.
+    end_year : int
+        The ending year of the warming level slice.
+    simulation_name : str
+        The name of the simulation being evaluated.
+    downscaling_method : str
+        The downscaling method used ("Statistical" or "Dynamical").
+    level : float
+        The warming level being evaluated.
+
+    Returns
+    -------
+    bool
+        True if a complete warming level slice can be created, False otherwise.
+    """
+    valid_years = {
+        "LOCA2": (LOCA_START_YEAR, LOCA_END_YEAR),
+        "Statistical": (LOCA_START_YEAR, LOCA_END_YEAR),
+        "WRF": (WRF_START_YEAR, WRF_END_YEAR),
+        "Dynamical": (WRF_START_YEAR, WRF_END_YEAR),
+    }
+
+    min_year, max_year = valid_years.get(downscaling_method, (None, None))
+
+    if min_year and (start_year < min_year or end_year > max_year):
+        warnings.warn(
+            f"\n\nIncomplete warming level for {simulation_name} at {level}C. "
+            "\nSkipping this warming level."
+        )
+        return False
+
+    return True
