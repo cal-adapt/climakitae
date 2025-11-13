@@ -29,6 +29,7 @@ from climakitae.core.constants import (
     CATALOG_BOUNDARY,
     CATALOG_CADCAT,
     CATALOG_REN_ENERGY_GEN,
+    CATALOG_HDP,
     UNSET,
 )
 from climakitae.core.paths import (
@@ -36,6 +37,7 @@ from climakitae.core.paths import (
     DATA_CATALOG_URL,
     RENEWABLES_CATALOG_URL,
     STATIONS_CSV_PATH,
+    HDP_CATALOG_URL,
 )
 from climakitae.new_core.data_access.boundaries import Boundaries
 from climakitae.util.utils import read_csv_file
@@ -46,9 +48,9 @@ class DataCatalog(dict):
 
     This class implements the singleton pattern and inherits from dict to provide
     a unified interface for accessing multiple climate data catalogs. It manages
-    connections to boundary, renewables, and general climate datasets through
-    intake and intake-esm catalogs, offering convenient properties and methods
-    for data querying and retrieval.
+    connections to boundary, renewables, and other climate datasets in the AE
+    through intake and intake-esm catalogs, offering convenient properties and
+    methods for data querying and retrieval.
 
     The class automatically initializes connections to predefined catalogs and
     supports dynamic addition of new catalogs. Method chaining is supported for
@@ -121,6 +123,8 @@ class DataCatalog(dict):
             self[CATALOG_REN_ENERGY_GEN] = intake.open_esm_datastore(
                 RENEWABLES_CATALOG_URL
             )
+            self[CATALOG_HDP] = intake.open_esm_datastore(HDP_CATALOG_URL)
+
             self.catalog_df = self.merge_catalogs()
             stations_df = read_csv_file(STATIONS_CSV_PATH)
             self["stations"] = gpd.GeoDataFrame(
@@ -172,6 +176,18 @@ class DataCatalog(dict):
         return self[CATALOG_REN_ENERGY_GEN]
 
     @property
+    def hdp(self) -> intake_esm.core.esm_datastore:
+        """Access historical data platform (histwxstns) catalog.
+
+        Returns
+        -------
+        intake_esm.core.esm_datastore
+            The histwxstns data catalog.
+
+        """
+        return self[CATALOG_HDP]
+
+    @property
     def boundaries(self) -> Boundaries:
         """Access boundaries data with lazy loading.
 
@@ -186,23 +202,28 @@ class DataCatalog(dict):
         return self._boundaries
 
     def merge_catalogs(self) -> pd.DataFrame:
-        """Merge the intake catalogs for data and renewables into a single DataFrame.
+        """Merge the AE intake catalogs into a single DataFrame.
 
-        This method combines the data and renewables catalogs into a unified
+        This method combines the AE data catalogs into a unified
         DataFrame for easier searching and querying across all available datasets.
 
         Returns
         -------
         pd.DataFrame
-            A DataFrame containing the merged data from both catalogs with an
+            A DataFrame containing the merged data from AE catalogs with an
             additional 'catalog' column identifying the source catalog.
 
         """
         ren_df = self.renewables.df
         data_df = self.data.df
+        hdp_df = self.hdp.df
+
         ren_df["catalog"] = CATALOG_REN_ENERGY_GEN
         data_df["catalog"] = CATALOG_CADCAT
-        ret = pd.concat([ren_df, data_df], ignore_index=True)
+        hdp_df["catalog"] = CATALOG_HDP
+
+        ret = pd.concat([ren_df, data_df, hdp_df], ignore_index=True)
+
         return ret
 
     def set_catalog_key(self, key: str) -> "DataCatalog":
