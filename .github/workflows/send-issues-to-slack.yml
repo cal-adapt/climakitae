@@ -1,0 +1,28 @@
+name: Slack Notification on Issue
+
+on:
+    issues:
+        types: [opened] # Trigger only when an issue is opened
+
+jobs:
+    notify-slack:
+        runs-on: ubuntu-latest
+        name: Send Slack notification when issue is opened
+
+        steps:
+            - name: Send message to Slack
+              uses: archive/github-actions-slack@v2.0.0
+              id: notify
+              with:
+                  slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
+                  slack-channel: C01234ABCD # Replace with your actual channel ID
+                  slack-text: |
+                      🚨 New Issue Opened!
+                      *Issue #${{ github.event.issue.number }}*: ${{ github.event.issue.title }}
+                      👤 Opened by: @${{ github.event.issue.user.login }}
+                      🔗 Link: ${{ github.event.issue.html_url }}
+                  slack-optional-icon_emoji: ":github:"
+                  slack-optional-username: "GitHub Bot"
+
+            - name: Result from "Send Message"
+              run: echo "The result was ${{ steps.notify.outputs.slack-result }}"
