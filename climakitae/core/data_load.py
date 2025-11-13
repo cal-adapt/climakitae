@@ -398,7 +398,7 @@ def _spatial_subset(dset: xr.Dataset, selections: "DataParameters") -> xr.Datase
         dset = dset.rename({"lon": "x", "lat": "y"})
         dset = dset.rio.write_crs("epsg:4326", inplace=True)
         dset = _clip_to_geometry(dset, ds_region, all_touched)
-        dset = dset.rename({"x": "lon", "y": "lat"}).drop("spatial_ref")
+        dset = dset.rename({"x": "lon", "y": "lat"}).drop_vars("spatial_ref")
         return dset
 
     ds_region = area_subset_geometry(selections)
