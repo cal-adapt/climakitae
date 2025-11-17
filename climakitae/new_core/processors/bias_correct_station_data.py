@@ -350,9 +350,11 @@ class StationBiasCorrection(DataProcessor):
         # Bias correct the data
         da_adj = QDM.adjust(data_sliced)
         da_adj.name = gridded_da.name  # Rename to get back to original name
-        da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()
+        # Convert time index back to standard datetime
+        if hasattr(da_adj.indexes["time"], "to_datetimeindex"):
+            da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()  # type: ignore
 
-        return da_adj
+        return da_adj  # type: ignore[return-value]
 
     def _get_bias_corrected_closest_gridcell(
         self,
@@ -389,13 +391,20 @@ class StationBiasCorrection(DataProcessor):
             gridded_da, station_lat, station_lon, print_coords=False
         )
 
+        # Validate we got a result
+        if gridded_da_closest_gridcell is None:
+            raise ValueError(
+                f"Could not find closest gridcell for station at "
+                f"({station_lat}, {station_lon})"
+            )
+
         # Drop any coordinates in the output dataset that are not also dimensions
         # This makes merging all the stations together easier and drops superfluous coordinates
-        gridded_da_closest_gridcell = gridded_da_closest_gridcell.drop_vars(
+        gridded_da_closest_gridcell = gridded_da_closest_gridcell.drop_vars(  # type: ignore[union-attr]
             [
                 i
-                for i in gridded_da_closest_gridcell.coords
-                if i not in gridded_da_closest_gridcell.dims
+                for i in gridded_da_closest_gridcell.coords  # type: ignore[union-attr]
+                if i not in gridded_da_closest_gridcell.dims  # type: ignore[union-attr]
             ]
         )
 
