@@ -493,38 +493,49 @@ class StationBiasCorrection(DataProcessor):
         return apply_output
 
     def update_context(self, context: Dict[str, Any]):
-        """Update the context with information about the transformation.
+        """Update the context with information about the bias correction operation.
+
+        This method adds metadata about the bias correction to the processing context,
+        documenting the stations processed, time slice, and QDM parameters used.
 
         Parameters
         ----------
         context : dict[str, Any]
-            Parameters for processing the data. The context is updated in place.
+            Processing context dictionary. Updated in place with bias correction metadata.
 
         Returns
         -------
         None
-
         """
-
         if _NEW_ATTRS_KEY not in context:
             context[_NEW_ATTRS_KEY] = {}
 
-        context[_NEW_ATTRS_KEY][
-            self.name
-        ] = f"""Process '{self.name}' applied to the data. Transformation was done using the following value: {self.value}."""
+        # Build informative context message
+        station_list = ", ".join(self.stations)
+        context[_NEW_ATTRS_KEY][self.name] = (
+            f"Station bias correction applied using Quantile Delta Mapping (QDM). "
+            f"Stations: {station_list}. "
+            f"Time slice: {self.time_slice[0]}-{self.time_slice[1]}. "
+            f"QDM parameters: window={self.window} days, "
+            f"nquantiles={self.nquantiles}, group='{self.group}', kind='{self.kind}'. "
+            f"Historical training period: 1980-2014 using HadISD observations."
+        )
 
     def set_data_accessor(self, catalog: DataCatalog):
         """Set the data accessor for the processor.
 
+        This processor loads station data directly from S3 and does not require
+        the DataCatalog for its operations. This method is included for consistency
+        with the DataProcessor interface but is not used.
+
         Parameters
         ----------
         catalog : DataCatalog
-            Data catalog for accessing datasets.
+            Data catalog for accessing datasets (not used by this processor).
 
         Returns
         -------
         None
-
         """
-        # Placeholder for setting data accessor
+        # Station data is loaded directly from S3, no catalog access needed
         pass
