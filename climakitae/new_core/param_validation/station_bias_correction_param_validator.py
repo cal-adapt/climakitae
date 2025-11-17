@@ -74,7 +74,7 @@ def _get_station_metadata() -> pd.DataFrame:
     return _STATION_METADATA
 
 
-@register_processor_validator("station_bias_correction")
+@register_processor_validator("bias_correct_station_data")
 def validate_station_bias_correction_param(
     value: Any,
     query: Dict[str, Any] | None = None,

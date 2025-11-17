@@ -171,7 +171,7 @@ class StationBiasCorrection(DataProcessor):
         self.nquantiles = nquantiles
         self.group = group
         self.kind = kind
-        self.name = "station_bias_correction"
+        self.name = "bias_correct_station_data"
         self.catalog: Union[DataCatalog, object] = UNSET
         self.needs_catalog = True
 
@@ -460,8 +460,10 @@ class StationBiasCorrection(DataProcessor):
         Parameters
         ----------
         result : xr.Dataset or xr.DataArray or Iterable of these
-            Gridded climate model data to be bias-corrected. Must be an xr.DataArray
-            with time dimension covering at least the historical period (1980-2014)
+            Gridded climate model data to be bias-corrected. Can be either:
+            - xr.DataArray with the climate variable
+            - xr.Dataset (will extract first data variable)
+            Must have time dimension covering at least the historical period (1980-2014)
             for training the bias correction.
         context : dict
             Processing context dictionary. Updated with information about the
@@ -469,17 +471,17 @@ class StationBiasCorrection(DataProcessor):
 
         Returns
         -------
-        xr.DataArray
-            Bias-corrected data at station locations. The returned DataArray will
+        xr.Dataset
+            Bias-corrected data at station locations. The returned Dataset will
             have stations as data variables, with station metadata preserved in
             attributes.
 
         Raises
         ------
         TypeError
-            If input data is not an xr.DataArray
+            If input data is not an xr.DataArray or xr.Dataset
         ValueError
-            If input data doesn't contain required time dimension or historical period
+            If input Dataset has no data variables or doesn't contain required time dimension
 
         Notes
         -----
@@ -488,10 +490,27 @@ class StationBiasCorrection(DataProcessor):
         - All data is converted to noleap calendar for consistency
         - Final output is time-sliced to the user's requested period
         """
-        # Validate input type
-        if not isinstance(result, xr.DataArray):
+        # Convert Dataset to DataArray if needed
+        result_da: xr.DataArray
+        if isinstance(result, xr.Dataset):
+            # Get the data variable (should only be one for climate data)
+            data_vars = list(result.data_vars)
+            if len(data_vars) == 0:
+                raise ValueError("Input Dataset has no data variables")
+            if len(data_vars) > 1:
+                logger.warning(
+                    "Input Dataset has multiple data variables: %s. Using first: %s",
+                    data_vars,
+                    data_vars[0],
+                )
+            result_da = result[data_vars[0]]
+            logger.info("Converted Dataset to DataArray: %s", result_da.name)
+        elif isinstance(result, xr.DataArray):
+            result_da = result
+        else:
             raise TypeError(
-                f"StationBiasCorrection requires xr.DataArray input, got {type(result)}"
+                f"StationBiasCorrection requires xr.DataArray or xr.Dataset input, "
+                f"got {type(result)}"
             )
 
         logger.info(
@@ -503,7 +522,7 @@ class StationBiasCorrection(DataProcessor):
 
         # Extract time range from input data for output
         # The TimeSlice processor (if used) will have already sliced the data
-        time_values = result.time.values
+        time_values = result_da.time.values
         output_start_year = int(str(time_values[0])[:4])
         output_end_year = int(str(time_values[-1])[:4])
 
@@ -512,7 +531,7 @@ class StationBiasCorrection(DataProcessor):
         apply_output = station_ds.map(
             self._get_bias_corrected_closest_gridcell,
             keep_attrs=False,
-            gridded_da=result,
+            gridded_da=result_da,
             output_slice=(output_start_year, output_end_year),
         )
 
