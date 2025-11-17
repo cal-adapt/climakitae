@@ -126,9 +126,7 @@ def validate_station_bias_correction_param(
     >>> validate_station_bias_correction_param(params)
     True
     """
-    logger.debug(
-        "validate_station_bias_correction_param called with value: %s", value
-    )
+    logger.debug("validate_station_bias_correction_param called with value: %s", value)
 
     # Handle None or UNSET values
     if value is None or value is UNSET:
@@ -249,7 +247,8 @@ def _validate_stations(stations: Any) -> bool:
             close_matches = [
                 s
                 for s in available_stations
-                if station_name.lower() in s.lower() or s.lower() in station_name.lower()
+                if station_name.lower() in s.lower()
+                or s.lower() in station_name.lower()
             ]
             if close_matches:
                 suggestions = ", ".join(close_matches[:5])
