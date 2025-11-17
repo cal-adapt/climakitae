@@ -20,16 +20,14 @@ Examples
 >>> # Create processor for single station
 >>> processor = StationBiasCorrection(
 ...     stations=["Sacramento (KSAC)"],
-...     station_metadata=stations_gdf,
-...     time_slice=(2030, 2060)
+...     historical_slice=(1980, 2014)
 ... )
 >>> result = processor.execute(gridded_data, context)
 
 >>> # Multiple stations with custom bias correction parameters
 >>> processor = StationBiasCorrection(
 ...     stations=["Sacramento (KSAC)", "San Francisco (KSFO)"],
-...     station_metadata=stations_gdf,
-...     time_slice=(2030, 2060),
+...     historical_slice=(1980, 2014),
 ...     window=60,  # 60-day window instead of default 90
 ...     nquantiles=30  # 30 quantiles instead of default 20
 ... )
@@ -49,11 +47,12 @@ from functools import partial
 from typing import Any, Dict, Iterable, Union
 
 import geopandas as gpd
+import pandas as pd
 import xarray as xr
 from xsdba import Grouper
 from xsdba.adjustment import QuantileDeltaMapping
 
-from climakitae.core.constants import _NEW_ATTRS_KEY
+from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
@@ -88,11 +87,8 @@ class StationBiasCorrection(DataProcessor):
     ----------
     stations : list[str]
         List of station names to process (e.g., ["Sacramento (KSAC)", "San Francisco (KSFO)"])
-    station_metadata : gpd.GeoDataFrame
-        GeoDataFrame with station information including 'station', 'station id',
-        'latitude', 'longitude', and 'elevation' columns
-    time_slice : tuple[int, int]
-        Start and end years for final output time slice (e.g., (2030, 2060))
+    historical_slice : tuple[int, int], optional
+        Start and end years for historical training period (default: (1980, 2014))
     window : int, optional
         Window size in days for seasonal grouping (default: 90, representing +/- 45 days)
     nquantiles : int, optional
@@ -107,10 +103,8 @@ class StationBiasCorrection(DataProcessor):
     ----------
     stations : list[str]
         Station names to process
-    station_metadata : gpd.GeoDataFrame
-        Station metadata including coordinates and IDs
-    time_slice : tuple[int, int]
-        Final output time slice
+    historical_slice : tuple[int, int]
+        Historical training period (default: 1980-2014)
     window : int
         Seasonal grouping window in days
     nquantiles : int
@@ -121,6 +115,8 @@ class StationBiasCorrection(DataProcessor):
         Adjustment kind (additive or multiplicative)
     name : str
         Processor name for context tracking
+    catalog : DataCatalog
+        Data catalog for accessing station metadata
 
     Methods
     -------
@@ -146,8 +142,7 @@ class StationBiasCorrection(DataProcessor):
     def __init__(
         self,
         stations: list[str],
-        station_metadata: gpd.GeoDataFrame,
-        time_slice: tuple[int, int],
+        historical_slice: tuple[int, int] = (1980, 2014),
         window: int = 90,
         nquantiles: int = 20,
         group: str = "time.dayofyear",
@@ -159,10 +154,8 @@ class StationBiasCorrection(DataProcessor):
         ----------
         stations : list[str]
             List of station names to process
-        station_metadata : gpd.GeoDataFrame
-            GeoDataFrame containing station information
-        time_slice : tuple[int, int]
-            Start and end years for final output
+        historical_slice : tuple[int, int], optional
+            Start and end years for historical training period (default: (1980, 2014))
         window : int, optional
             Window size in days for seasonal grouping (default: 90)
         nquantiles : int, optional
@@ -173,13 +166,14 @@ class StationBiasCorrection(DataProcessor):
             Adjustment kind: "+" or "*" (default: "+")
         """
         self.stations = stations
-        self.station_metadata = station_metadata
-        self.time_slice = time_slice
+        self.historical_slice = historical_slice
         self.window = window
         self.nquantiles = nquantiles
         self.group = group
         self.kind = kind
         self.name = "station_bias_correction"
+        self.catalog: Union[DataCatalog, object] = UNSET
+        self.needs_catalog = True
 
     def _preprocess_hadisd(
         self, ds: xr.Dataset, stations_gdf: gpd.GeoDataFrame
@@ -249,10 +243,26 @@ class StationBiasCorrection(DataProcessor):
         -------
         xr.Dataset
             Combined dataset with each station as a separate data variable
+
+        Raises
+        ------
+        RuntimeError
+            If station data cannot be loaded or catalog is not available.
         """
+        # Get station metadata from catalog
+        if self.catalog is UNSET or not isinstance(self.catalog, DataCatalog):
+            raise RuntimeError(
+                "DataCatalog is not set. Cannot access station metadata."
+            )
+
+        station_metadata = self.catalog["stations"]
+
+        if station_metadata is None or len(station_metadata) == 0:
+            raise RuntimeError("Station metadata is not available in the catalog.")
+
         # Get subset of station metadata for selected stations
-        station_subset = self.station_metadata.loc[
-            self.station_metadata["station"].isin(self.stations)
+        station_subset = station_metadata.loc[
+            station_metadata["station"].isin(self.stations)
         ]
 
         # Construct S3 zarr paths for each station
@@ -263,7 +273,7 @@ class StationBiasCorrection(DataProcessor):
 
         # Create partial function for preprocessing with station metadata
         preprocess_func = partial(
-            self._preprocess_hadisd, stations_gdf=self.station_metadata
+            self._preprocess_hadisd, stations_gdf=station_metadata
         )
 
         # Load all station data with preprocessing
@@ -282,7 +292,7 @@ class StationBiasCorrection(DataProcessor):
         self,
         obs_da: xr.DataArray,
         gridded_da: xr.DataArray,
-        time_slice: tuple[int, int],
+        output_slice: tuple[int, int],
     ) -> xr.DataArray:
         """Apply Quantile Delta Mapping bias correction to model data.
 
@@ -290,8 +300,8 @@ class StationBiasCorrection(DataProcessor):
         1. Converting units to match gridded data
         2. Rechunking data (QDM requires unchunked time dimension)
         3. Converting calendars to noleap for consistency
-        4. Training QDM on historical overlap period
-        5. Applying correction to requested time slice
+        4. Training QDM on historical overlap period (1980-2014)
+        5. Applying correction to requested output slice
 
         Parameters
         ----------
@@ -299,13 +309,13 @@ class StationBiasCorrection(DataProcessor):
             Observational station data (preprocessed)
         gridded_da : xr.DataArray
             Climate model gridded data
-        time_slice : tuple[int, int]
-            Start and end years for output
+        output_slice : tuple[int, int]
+            Start and end years for output (extracted from input data time range)
 
         Returns
         -------
         xr.DataArray
-            Bias-corrected data for the requested time slice
+            Bias-corrected data for the requested output slice
         """
         # Create grouper for seasonal window
         # Use 90 day window (+/- 45 days) to account for seasonality
@@ -325,23 +335,28 @@ class StationBiasCorrection(DataProcessor):
         obs_da = obs_da.convert_calendar("noleap")
         gridded_da = gridded_da.convert_calendar("noleap")
 
-        # Data at the desired time slice (final output period)
-        data_sliced = gridded_da.sel(time=slice(str(time_slice[0]), str(time_slice[1])))
-
-        # Input data, sliced to time period of observational data
-        gridded_da = gridded_da.sel(
-            time=slice(str(obs_da.time.values[0]), str(obs_da.time.values[-1]))
+        # Data at the desired output slice (final output period)
+        data_sliced = gridded_da.sel(
+            time=slice(str(output_slice[0]), str(output_slice[1]))
         )
 
-        # Observational data sliced to time period of input data
+        # Input data, sliced to historical training period
+        gridded_da_historical = gridded_da.sel(
+            time=slice(str(self.historical_slice[0]), str(self.historical_slice[1]))
+        )
+
+        # Observational data sliced to overlap with historical period
         obs_da = obs_da.sel(
-            time=slice(str(gridded_da.time.values[0]), str(gridded_da.time.values[-1]))
+            time=slice(
+                str(gridded_da_historical.time.values[0]),
+                str(gridded_da_historical.time.values[-1]),
+            )
         )
 
-        # Train Quantile Delta Mapping
+        # Train Quantile Delta Mapping on historical overlap period
         QDM = QuantileDeltaMapping.train(
             obs_da,
-            gridded_da,
+            gridded_da_historical,
             nquantiles=self.nquantiles,
             group=grouper,
             kind=self.kind,
@@ -349,7 +364,7 @@ class StationBiasCorrection(DataProcessor):
 
         # Bias correct the data
         da_adj = QDM.adjust(data_sliced)
-        da_adj.name = gridded_da.name  # Rename to get back to original name
+        da_adj.name = gridded_da_historical.name  # Rename to get back to original name
         # Convert time index back to standard datetime
         if hasattr(da_adj.indexes["time"], "to_datetimeindex"):
             da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()  # type: ignore
@@ -360,7 +375,7 @@ class StationBiasCorrection(DataProcessor):
         self,
         station_da: xr.DataArray,
         gridded_da: xr.DataArray,
-        time_slice: tuple[int, int],
+        output_slice: tuple[int, int],
     ) -> xr.DataArray:
         """Get closest gridcell to station and apply bias correction.
 
@@ -377,8 +392,8 @@ class StationBiasCorrection(DataProcessor):
             Observational station data
         gridded_da : xr.DataArray
             Climate model gridded data
-        time_slice : tuple[int, int]
-            Start and end years for output
+        output_slice : tuple[int, int]
+            Start and end years for output (extracted from input data time range)
 
         Returns
         -------
@@ -409,9 +424,9 @@ class StationBiasCorrection(DataProcessor):
         )
 
         # Bias correct the model data using the station data
-        # Cut the output data back to the user's selected time slice
+        # Output data will be cut to the requested output slice
         bias_corrected = self._bias_correct_model_data(
-            station_da, gridded_da_closest_gridcell, time_slice
+            station_da, gridded_da_closest_gridcell, output_slice
         )
 
         # Add descriptive coordinates to the bias corrected data
@@ -486,13 +501,19 @@ class StationBiasCorrection(DataProcessor):
         # Load station observational data from HadISD
         station_ds = self._load_station_data()
 
+        # Extract time range from input data for output
+        # The TimeSlice processor (if used) will have already sliced the data
+        time_values = result.time.values
+        output_start_year = int(str(time_values[0])[:4])
+        output_end_year = int(str(time_values[-1])[:4])
+
         # Apply bias correction to each station using xarray map
         # This processes all stations and combines results
         apply_output = station_ds.map(
             self._get_bias_corrected_closest_gridcell,
             keep_attrs=False,
             gridded_da=result,
-            time_slice=self.time_slice,
+            output_slice=(output_start_year, output_end_year),
         )
 
         logger.info(
@@ -505,7 +526,7 @@ class StationBiasCorrection(DataProcessor):
         """Update the context with information about the bias correction operation.
 
         This method adds metadata about the bias correction to the processing context,
-        documenting the stations processed, time slice, and QDM parameters used.
+        documenting the stations processed, historical training period, and QDM parameters used.
 
         Parameters
         ----------
@@ -524,26 +545,25 @@ class StationBiasCorrection(DataProcessor):
         context[_NEW_ATTRS_KEY][self.name] = (
             f"Station bias correction applied using Quantile Delta Mapping (QDM). "
             f"Stations: {station_list}. "
-            f"Time slice: {self.time_slice[0]}-{self.time_slice[1]}. "
+            f"Historical training period: {self.historical_slice[0]}-{self.historical_slice[1]}. "
             f"QDM parameters: window={self.window} days, "
             f"nquantiles={self.nquantiles}, group='{self.group}', kind='{self.kind}'. "
-            f"Historical training period: 1980-2014 using HadISD observations."
+            f"Observational data from HadISD weather stations."
         )
 
     def set_data_accessor(self, catalog: DataCatalog):
-        """Set the data accessor for the processor.
+        """Set the data catalog accessor for the processor.
 
-        This processor loads station data directly from S3 and does not require
-        the DataCatalog for its operations. This method is included for consistency
-        with the DataProcessor interface but is not used.
+        The processor requires access to station metadata through the DataCatalog.
+        Station observational data is loaded directly from S3 zarr stores.
 
         Parameters
         ----------
         catalog : DataCatalog
-            Data catalog for accessing datasets (not used by this processor).
+            Data catalog for accessing station metadata.
 
         Returns
         -------
         None
         """
-        # Station data is loaded directly from S3, no catalog access needed
+        self.catalog = catalog

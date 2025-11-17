@@ -84,7 +84,7 @@ def validate_station_bias_correction_param(
 
     This function validates all parameters required for station bias correction:
     - Station selection (must exist in HadISD dataset)
-    - Time slice (must be valid years, properly ordered)
+    - Historical slice (optional, must be valid years if provided)
     - QDM parameters (window, nquantiles, group, kind)
     - Variable compatibility (currently only temperature variables supported)
 
@@ -92,8 +92,8 @@ def validate_station_bias_correction_param(
     ----------
     value : Any
         Dictionary containing station bias correction parameters. Expected keys:
-        - stations: list[str] - Station names or codes
-        - time_slice: tuple[int, int] - Start and end years
+        - stations: list[str] - Station names or codes (REQUIRED)
+        - historical_slice: tuple[int, int], optional - Historical training period (default: (1980, 2014))
         - window: int, optional - Seasonal grouping window (default: 90)
         - nquantiles: int, optional - Number of quantiles (default: 20)
         - group: str, optional - Temporal grouping (default: "time.dayofyear")
@@ -120,7 +120,6 @@ def validate_station_bias_correction_param(
     --------
     >>> params = {
     ...     "stations": ["Sacramento (KSAC)"],
-    ...     "time_slice": (2030, 2060),
     ...     "window": 90
     ... }
     >>> validate_station_bias_correction_param(params)
@@ -132,7 +131,7 @@ def validate_station_bias_correction_param(
     if value is None or value is UNSET:
         msg = (
             "Station bias correction parameters cannot be None. "
-            "Please provide a dictionary with 'stations' and 'time_slice' keys."
+            "Please provide a dictionary with 'stations' key."
         )
         logger.warning(msg)
         return False
@@ -142,19 +141,18 @@ def validate_station_bias_correction_param(
         msg = (
             f"Station bias correction parameters must be a dictionary, "
             f"got {type(value).__name__}. "
-            f"Example: {{'stations': ['Sacramento (KSAC)'], 'time_slice': (2030, 2060)}}"
+            f"Example: {{'stations': ['Sacramento (KSAC)']}}"
         )
         logger.warning(msg)
         return False
 
     # Validate required keys
-    required_keys = ["stations", "time_slice"]
+    required_keys = ["stations"]
     missing_keys = [key for key in required_keys if key not in value]
     if missing_keys:
         msg = (
             f"Missing required parameter(s): {', '.join(missing_keys)}. "
-            f"Station bias correction requires 'stations' (list) and "
-            f"'time_slice' (tuple of years)."
+            f"Station bias correction requires 'stations' (list of station names)."
         )
         logger.warning(msg)
         return False
@@ -163,8 +161,10 @@ def validate_station_bias_correction_param(
     if not _validate_stations(value["stations"]):
         return False
 
-    # Validate time_slice parameter
-    if not _validate_time_slice(value["time_slice"]):
+    # Validate historical_slice parameter if provided
+    if "historical_slice" in value and not _validate_historical_slice(
+        value["historical_slice"]
+    ):
         return False
 
     # Validate optional QDM parameters if provided
@@ -260,44 +260,44 @@ def _validate_stations(stations: Any) -> bool:
     return True
 
 
-def _validate_time_slice(time_slice: Any) -> bool:
-    """Validate time slice parameter.
+def _validate_historical_slice(historical_slice: Any) -> bool:
+    """Validate historical slice parameter for bias correction training period.
 
     Parameters
     ----------
-    time_slice : Any
-        Time slice tuple to validate.
+    historical_slice : Any
+        Historical training period tuple to validate.
 
     Returns
     -------
     bool
-        True if time slice is valid, False otherwise.
+        True if historical slice is valid, False otherwise.
     """
     # Check type
-    if not isinstance(time_slice, tuple):
+    if not isinstance(historical_slice, tuple):
         msg = (
-            f"'time_slice' must be a tuple of (start_year, end_year), "
-            f"got {type(time_slice).__name__}. "
-            f"Example: (2030, 2060)"
+            f"'historical_slice' must be a tuple of (start_year, end_year), "
+            f"got {type(historical_slice).__name__}. "
+            f"Example: (1980, 2014)"
         )
         logger.warning(msg)
         return False
 
     # Check length
-    if len(time_slice) != 2:
+    if len(historical_slice) != 2:
         msg = (
-            f"'time_slice' must contain exactly 2 elements (start_year, end_year), "
-            f"got {len(time_slice)} elements."
+            f"'historical_slice' must contain exactly 2 elements (start_year, end_year), "
+            f"got {len(historical_slice)} elements."
         )
         logger.warning(msg)
         return False
 
-    start_year, end_year = time_slice
+    start_year, end_year = historical_slice
 
     # Check both are integers
     if not isinstance(start_year, int) or not isinstance(end_year, int):
         msg = (
-            f"Time slice years must be integers, "
+            f"Historical slice years must be integers, "
             f"got start_year={type(start_year).__name__}, "
             f"end_year={type(end_year).__name__}"
         )
@@ -313,25 +313,24 @@ def _validate_time_slice(time_slice: Any) -> bool:
         logger.warning(msg)
         return False
 
-    # Check reasonable year range (HadISD data available through 2014)
-    if end_year < 1980:
+    # Check reasonable year range (HadISD data available 1980-2014)
+    if start_year < 1980:
         msg = (
-            f"End year ({end_year}) is before HadISD observational period starts (1980). "
-            f"Station bias correction requires overlap with historical observations."
+            f"Start year ({start_year}) is before HadISD observational period starts (1980). "
+            f"Please use a start year >= 1980."
         )
         logger.warning(msg)
         return False
 
-    # Warn if start year is in historical period (but don't fail)
-    if start_year < 2015:
-        logger.info(
-            "Note: Time slice includes historical period (%d-%d). "
-            "Bias correction will be applied to all years in the range.",
-            start_year,
-            end_year,
+    if end_year > 2014:
+        msg = (
+            f"End year ({end_year}) is after HadISD observational period ends (2014). "
+            f"Please use an end year <= 2014."
         )
+        logger.warning(msg)
+        return False
 
-    logger.debug("Time slice validation passed: %s", time_slice)
+    logger.debug("Historical slice validation passed: %s", historical_slice)
     return True
 
 
