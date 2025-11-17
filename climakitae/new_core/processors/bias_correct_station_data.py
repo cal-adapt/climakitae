@@ -181,6 +181,103 @@ class StationBiasCorrection(DataProcessor):
         self.kind = kind
         self.name = "station_bias_correction"
 
+    def _preprocess_hadisd(
+        self, ds: xr.Dataset, stations_gdf: gpd.GeoDataFrame
+    ) -> xr.Dataset:
+        """Preprocess HadISD station data for bias correction.
+
+        This method prepares raw station data by:
+        - Extracting station ID from file path
+        - Looking up station name from metadata
+        - Renaming data variable to station name
+        - Converting temperature from Celsius to Kelvin
+        - Adding descriptive attributes (coordinates, elevation)
+        - Dropping non-time coordinates
+
+        Parameters
+        ----------
+        ds : xr.Dataset
+            Raw HadISD station dataset with 'tas' variable
+        stations_gdf : gpd.GeoDataFrame
+            Station metadata GeoDataFrame
+
+        Returns
+        -------
+        xr.Dataset
+            Preprocessed station dataset with station name as variable
+        """
+        # Get station ID from file name
+        station_id = ds.encoding["source"].split("HadISD_")[1].split(".zarr")[0]
+
+        # Get name of station from station_id
+        station_name = stations_gdf.loc[stations_gdf["station id"] == int(station_id)][
+            "station"
+        ].item()
+
+        # Rename data variable to station name
+        ds = ds.rename({"tas": station_name})
+
+        # Convert Celsius to Kelvin
+        ds[station_name] = ds[station_name] + 273.15
+
+        # Assign descriptive attributes to the data variable
+        ds[station_name] = ds[station_name].assign_attrs(
+            {
+                "coordinates": (
+                    ds.latitude.values.item(),
+                    ds.longitude.values.item(),
+                ),
+                "elevation": "{0} {1}".format(
+                    ds.elevation.item(), ds.elevation.attrs["units"]
+                ),
+                "units": "K",
+            }
+        )
+
+        # Drop all coordinates except time
+        ds = ds.drop_vars(["elevation", "latitude", "longitude"])
+
+        return ds
+
+    def _load_station_data(self) -> xr.Dataset:
+        """Load HadISD station data from S3 zarr stores.
+
+        Constructs file paths for selected stations and loads them using
+        xarray's open_mfdataset with preprocessing for seamless integration.
+
+        Returns
+        -------
+        xr.Dataset
+            Combined dataset with each station as a separate data variable
+        """
+        # Get subset of station metadata for selected stations
+        station_subset = self.station_metadata.loc[
+            self.station_metadata["station"].isin(self.stations)
+        ]
+
+        # Construct S3 zarr paths for each station
+        filepaths = [
+            "s3://cadcat/hadisd/HadISD_{}.zarr".format(s_id)
+            for s_id in station_subset["station id"]
+        ]
+
+        # Create partial function for preprocessing with station metadata
+        preprocess_func = partial(
+            self._preprocess_hadisd, stations_gdf=self.station_metadata
+        )
+
+        # Load all station data with preprocessing
+        station_ds = xr.open_mfdataset(
+            filepaths,
+            preprocess=preprocess_func,
+            engine="zarr",
+            consolidated=False,
+            parallel=True,
+            backend_kwargs=dict(storage_options={"anon": True}),
+        )
+
+        return station_ds
+
     def execute(
         self,
         result: Union[
