@@ -278,6 +278,147 @@ class StationBiasCorrection(DataProcessor):
 
         return station_ds
 
+    def _bias_correct_model_data(
+        self,
+        obs_da: xr.DataArray,
+        gridded_da: xr.DataArray,
+        time_slice: tuple[int, int],
+    ) -> xr.DataArray:
+        """Apply Quantile Delta Mapping bias correction to model data.
+
+        This method performs the core bias correction by:
+        1. Converting units to match gridded data
+        2. Rechunking data (QDM requires unchunked time dimension)
+        3. Converting calendars to noleap for consistency
+        4. Training QDM on historical overlap period
+        5. Applying correction to requested time slice
+
+        Parameters
+        ----------
+        obs_da : xr.DataArray
+            Observational station data (preprocessed)
+        gridded_da : xr.DataArray
+            Climate model gridded data
+        time_slice : tuple[int, int]
+            Start and end years for output
+
+        Returns
+        -------
+        xr.DataArray
+            Bias-corrected data for the requested time slice
+        """
+        # Create grouper for seasonal window
+        # Use 90 day window (+/- 45 days) to account for seasonality
+        grouper = Grouper(self.group, window=self.window)
+
+        # Convert units to match gridded data
+        obs_da = convert_units(obs_da, gridded_da.units)
+        
+        # Rechunk data - cannot be chunked along time dimension
+        # Error raised by xclim: ValueError: Multiple chunks along the main
+        # adjustment dimension time is not supported.
+        gridded_da = gridded_da.chunk(chunks=dict(time=-1))
+        obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
+        obs_da = obs_da.chunk(chunks=dict(time=-1))
+        
+        # Convert calendar to no leap year
+        obs_da = obs_da.convert_calendar("noleap")
+        gridded_da = gridded_da.convert_calendar("noleap")
+        
+        # Data at the desired time slice (final output period)
+        data_sliced = gridded_da.sel(
+            time=slice(str(time_slice[0]), str(time_slice[1]))
+        )
+        
+        # Input data, sliced to time period of observational data
+        gridded_da = gridded_da.sel(
+            time=slice(str(obs_da.time.values[0]), str(obs_da.time.values[-1]))
+        )
+        
+        # Observational data sliced to time period of input data
+        obs_da = obs_da.sel(
+            time=slice(
+                str(gridded_da.time.values[0]), str(gridded_da.time.values[-1])
+            )
+        )
+        
+        # Train Quantile Delta Mapping
+        QDM = QuantileDeltaMapping.train(
+            obs_da,
+            gridded_da,
+            nquantiles=self.nquantiles,
+            group=grouper,
+            kind=self.kind,
+        )
+        
+        # Bias correct the data
+        da_adj = QDM.adjust(data_sliced)
+        da_adj.name = gridded_da.name  # Rename to get back to original name
+        da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()
+
+        return da_adj
+
+    def _get_bias_corrected_closest_gridcell(
+        self,
+        station_da: xr.DataArray,
+        gridded_da: xr.DataArray,
+        time_slice: tuple[int, int],
+    ) -> xr.DataArray:
+        """Get closest gridcell to station and apply bias correction.
+
+        This method:
+        1. Extracts station coordinates from attributes
+        2. Finds closest gridcell in climate model data
+        3. Drops unnecessary coordinates for cleaner merging
+        4. Applies bias correction
+        5. Adds station metadata to output
+
+        Parameters
+        ----------
+        station_da : xr.DataArray
+            Observational station data
+        gridded_da : xr.DataArray
+            Climate model gridded data
+        time_slice : tuple[int, int]
+            Start and end years for output
+
+        Returns
+        -------
+        xr.DataArray
+            Bias-corrected data with station metadata
+        """
+        # Get the closest gridcell to the station
+        station_lat, station_lon = station_da.attrs["coordinates"]
+        gridded_da_closest_gridcell = get_closest_gridcell(
+            gridded_da, station_lat, station_lon, print_coords=False
+        )
+
+        # Drop any coordinates in the output dataset that are not also dimensions
+        # This makes merging all the stations together easier and drops superfluous coordinates
+        gridded_da_closest_gridcell = gridded_da_closest_gridcell.drop_vars(
+            [
+                i
+                for i in gridded_da_closest_gridcell.coords
+                if i not in gridded_da_closest_gridcell.dims
+            ]
+        )
+
+        # Bias correct the model data using the station data
+        # Cut the output data back to the user's selected time slice
+        bias_corrected = self._bias_correct_model_data(
+            station_da, gridded_da_closest_gridcell, time_slice
+        )
+
+        # Add descriptive coordinates to the bias corrected data
+        bias_corrected.attrs["station_coordinates"] = station_da.attrs[
+            "coordinates"
+        ]  # Coordinates of station
+        bias_corrected.attrs["station_elevation"] = station_da.attrs[
+            "elevation"
+        ]  # Elevation of station
+        
+        return bias_corrected
+
     def execute(
         self,
         result: Union[
