@@ -53,7 +53,7 @@ import xarray as xr
 from xsdba import Grouper
 from xsdba.adjustment import QuantileDeltaMapping
 
-from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
+from climakitae.core.constants import _NEW_ATTRS_KEY
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
@@ -471,7 +471,7 @@ class StationBiasCorrection(DataProcessor):
             )
 
         logger.info(
-            f"Applying station bias correction for {len(self.stations)} station(s)"
+            "Applying station bias correction for %d station(s)", len(self.stations)
         )
 
         # Load station observational data from HadISD
@@ -487,7 +487,7 @@ class StationBiasCorrection(DataProcessor):
         )
 
         logger.info(
-            f"Station bias correction complete. Output shape: {apply_output.dims}"
+            "Station bias correction complete. Output shape: %s", apply_output.dims
         )
 
         return apply_output
@@ -538,4 +538,3 @@ class StationBiasCorrection(DataProcessor):
         None
         """
         # Station data is loaded directly from S3, no catalog access needed
-        pass
