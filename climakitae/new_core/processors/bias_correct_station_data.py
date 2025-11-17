@@ -313,35 +313,31 @@ class StationBiasCorrection(DataProcessor):
 
         # Convert units to match gridded data
         obs_da = convert_units(obs_da, gridded_da.units)
-        
+
         # Rechunk data - cannot be chunked along time dimension
         # Error raised by xclim: ValueError: Multiple chunks along the main
         # adjustment dimension time is not supported.
         gridded_da = gridded_da.chunk(chunks=dict(time=-1))
         obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
         obs_da = obs_da.chunk(chunks=dict(time=-1))
-        
+
         # Convert calendar to no leap year
         obs_da = obs_da.convert_calendar("noleap")
         gridded_da = gridded_da.convert_calendar("noleap")
-        
+
         # Data at the desired time slice (final output period)
-        data_sliced = gridded_da.sel(
-            time=slice(str(time_slice[0]), str(time_slice[1]))
-        )
-        
+        data_sliced = gridded_da.sel(time=slice(str(time_slice[0]), str(time_slice[1])))
+
         # Input data, sliced to time period of observational data
         gridded_da = gridded_da.sel(
             time=slice(str(obs_da.time.values[0]), str(obs_da.time.values[-1]))
         )
-        
+
         # Observational data sliced to time period of input data
         obs_da = obs_da.sel(
-            time=slice(
-                str(gridded_da.time.values[0]), str(gridded_da.time.values[-1])
-            )
+            time=slice(str(gridded_da.time.values[0]), str(gridded_da.time.values[-1]))
         )
-        
+
         # Train Quantile Delta Mapping
         QDM = QuantileDeltaMapping.train(
             obs_da,
@@ -350,7 +346,7 @@ class StationBiasCorrection(DataProcessor):
             group=grouper,
             kind=self.kind,
         )
-        
+
         # Bias correct the data
         da_adj = QDM.adjust(data_sliced)
         da_adj.name = gridded_da.name  # Rename to get back to original name
@@ -416,7 +412,7 @@ class StationBiasCorrection(DataProcessor):
         bias_corrected.attrs["station_elevation"] = station_da.attrs[
             "elevation"
         ]  # Elevation of station
-        
+
         return bias_corrected
 
     def execute(
@@ -426,21 +422,75 @@ class StationBiasCorrection(DataProcessor):
         ],
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
-        """Run the processor on the provided data.
+        """Apply station bias correction to gridded climate data.
+
+        This method orchestrates the complete bias correction workflow:
+        1. Validates input data type (must be DataArray)
+        2. Loads HadISD station observational data
+        3. Applies bias correction to each station using xarray.map
+        4. Returns dataset with bias-corrected data at station locations
+
+        The output will have stations as data variables in the returned dataset,
+        with each variable containing bias-corrected time series for that location.
 
         Parameters
         ----------
         result : xr.Dataset or xr.DataArray or Iterable of these
-            The data to be processed or sliced.
+            Gridded climate model data to be bias-corrected. Must be an xr.DataArray
+            with time dimension covering at least the historical period (1980-2014)
+            for training the bias correction.
         context : dict
-            The context for the processor. This is not used in this implementation but is included for consistency with the DataProcessor interface.
+            Processing context dictionary. Updated with information about the
+            bias correction operation.
 
         Returns
         -------
-        xr.Dataset, xr.DataArray, or Iterable of these
-            The processed or sliced data. This can be a single Dataset/DataArray or an iterable of them.
+        xr.DataArray
+            Bias-corrected data at station locations. The returned DataArray will
+            have stations as data variables, with station metadata preserved in
+            attributes.
 
+        Raises
+        ------
+        TypeError
+            If input data is not an xr.DataArray
+        ValueError
+            If input data doesn't contain required time dimension or historical period
+
+        Notes
+        -----
+        - Input data must include historical period (1980-2014) for bias correction training
+        - Station observational data is available through 2014-08-31
+        - All data is converted to noleap calendar for consistency
+        - Final output is time-sliced to the user's requested period
         """
+        # Validate input type
+        if not isinstance(result, xr.DataArray):
+            raise TypeError(
+                f"StationBiasCorrection requires xr.DataArray input, got {type(result)}"
+            )
+
+        logger.info(
+            f"Applying station bias correction for {len(self.stations)} station(s)"
+        )
+
+        # Load station observational data from HadISD
+        station_ds = self._load_station_data()
+
+        # Apply bias correction to each station using xarray map
+        # This processes all stations and combines results
+        apply_output = station_ds.map(
+            self._get_bias_corrected_closest_gridcell,
+            keep_attrs=False,
+            gridded_da=result,
+            time_slice=self.time_slice,
+        )
+
+        logger.info(
+            f"Station bias correction complete. Output shape: {apply_output.dims}"
+        )
+
+        return apply_output
 
     def update_context(self, context: Dict[str, Any]):
         """Update the context with information about the transformation.
