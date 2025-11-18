@@ -336,11 +336,13 @@ class StationBiasCorrection(DataProcessor):
         # Convert units to match gridded data
         obs_da = convert_units(obs_da, gridded_da.units)
 
+        # Slice observational data to available period (through 2014-08-31)
+        obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
+
         # Rechunk data - cannot be chunked along time dimension
         # Error raised by xclim: ValueError: Multiple chunks along the main
         # adjustment dimension time is not supported.
         gridded_da = gridded_da.chunk(chunks=dict(time=-1))
-        obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
         obs_da = obs_da.chunk(chunks=dict(time=-1))
 
         # Convert calendar to no leap year

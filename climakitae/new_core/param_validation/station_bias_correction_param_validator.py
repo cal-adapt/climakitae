@@ -184,6 +184,12 @@ def validate_station_bias_correction_param(
     if query is not None:
         if not _validate_variable_compatibility(query):
             return False
+        if not _validate_timescale_requirement(query):
+            return False
+        if not _validate_downscaling_method_requirement(query):
+            return False
+        if not _validate_resolution_requirement(query):
+            return False
 
     logger.info(
         "Station bias correction parameters validated successfully for %d station(s)",
@@ -507,4 +513,116 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
         return False
 
     logger.debug("Variable compatibility check passed")
+    return True
+
+
+def _validate_timescale_requirement(query: Dict[str, Any]) -> bool:
+    """Validate that timescale is set to hourly for station bias correction.
+
+    Station bias correction requires hourly data to match HadISD observational
+    data resolution. This is a legacy constraint from the original implementation.
+
+    Parameters
+    ----------
+    query : Dict[str, Any]
+        Full query dictionary containing timescale selection.
+
+    Returns
+    -------
+    bool
+        True if timescale is valid, False otherwise.
+    """
+    table_id = query.get("table_id", None)
+
+    if table_id is None:
+        # Can't validate without table_id info, assume OK
+        return True
+
+    # Check if table_id is hourly (1hr or hr)
+    if table_id not in ["1hr", "hr"]:
+        msg = (
+            f"Station bias correction requires hourly data (table_id='1hr'), "
+            f"but got table_id='{table_id}'. HadISD observations are hourly and cannot "
+            f"be resampled to match other temporal resolutions. Please set "
+            f"table_id='1hr' or use .table_id('1hr') in your query."
+        )
+        logger.warning(msg)
+        return False
+
+    logger.debug("Timescale requirement validation passed: hourly data")
+    return True
+
+
+def _validate_downscaling_method_requirement(query: Dict[str, Any]) -> bool:
+    """Validate that downscaling method is Dynamical (WRF) for station bias correction.
+
+    Station bias correction only supports WRF dynamical downscaling because bias
+    correction parameters were calibrated specifically for WRF data. This is a
+    legacy constraint from the original implementation.
+
+    Parameters
+    ----------
+    query : Dict[str, Any]
+        Full query dictionary containing downscaling method selection.
+
+    Returns
+    -------
+    bool
+        True if downscaling method is valid, False otherwise.
+    """
+    activity_id = query.get("activity_id", None)
+
+    if activity_id is None:
+        # Can't validate without activity_id info, assume OK
+        return True
+
+    # Check if activity_id is WRF (Dynamical downscaling)
+    if activity_id != "WRF":
+        msg = (
+            f"Station bias correction only supports WRF dynamical downscaling "
+            f"(activity_id='WRF'), but got activity_id='{activity_id}'. Bias correction "
+            f"parameters are calibrated for WRF data only. Please set activity_id='WRF' "
+            f"or use .activity_id('WRF') in your query."
+        )
+        logger.warning(msg)
+        return False
+
+    logger.debug("Downscaling method requirement validation passed: WRF")
+    return True
+
+
+def _validate_resolution_requirement(query: Dict[str, Any]) -> bool:
+    """Validate that resolution is not 3km for station bias correction.
+
+    Station bias correction does not support 3km resolution due to limitations
+    in the original calibration. Only 9km and 45km resolutions are supported.
+    This is a legacy constraint from the original implementation.
+
+    Parameters
+    ----------
+    query : Dict[str, Any]
+        Full query dictionary containing resolution selection.
+
+    Returns
+    -------
+    bool
+        True if resolution is valid, False otherwise.
+    """
+    grid_label = query.get("grid_label", None)
+
+    if grid_label is None:
+        # Can't validate without grid_label info, assume OK
+        return True
+
+    # Check if grid_label is 3km (d03)
+    if grid_label == "d03":
+        msg = (
+            "Station bias correction does not support 3km resolution (grid_label='d03'). "
+            "Only 9km (grid_label='d02') and 45km (grid_label='d01') resolutions are "
+            "supported. Please use grid_label='d02' (9km) or grid_label='d01' (45km)."
+        )
+        logger.warning(msg)
+        return False
+
+    logger.debug("Resolution requirement validation passed: %s", grid_label)
     return True
