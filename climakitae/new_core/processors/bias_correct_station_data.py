@@ -523,6 +523,12 @@ class StationBiasCorrection(DataProcessor):
         logger.debug("da_adj time index type: %s", type(da_adj.indexes["time"]))
         logger.debug("First few time values: %s", da_adj.time.values[:3])
 
+        # Ensure time coordinate is datetime64[ns] for plotting compatibility
+        if da_adj.time.dtype == "object":
+            logger.debug("Converting time from object to datetime64[ns]")
+            da_adj["time"] = pd.DatetimeIndex(da_adj.time.values)
+            logger.debug("Time conversion complete, new dtype: %s", da_adj.time.dtype)
+
         # Rechunk to convert back to dask array for downstream processing
         # This maintains lazy evaluation for subsequent operations
         logger.debug("Rechunking to create dask array for downstream processing")
