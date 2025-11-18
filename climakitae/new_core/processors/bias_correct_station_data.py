@@ -589,15 +589,27 @@ class StationBiasCorrection(DataProcessor):
                 f"({station_lat}, {station_lon})"
             )
 
-        # Drop any coordinates in the output dataset that are not also dimensions
-        # This makes merging all the stations together easier and drops superfluous coordinates
-        gridded_da_closest_gridcell = gridded_da_closest_gridcell.drop_vars(  # type: ignore[union-attr]
-            [
-                i
-                for i in gridded_da_closest_gridcell.coords  # type: ignore[union-attr]
-                if i not in gridded_da_closest_gridcell.dims  # type: ignore[union-attr]
-            ]
-        )
+        # Drop spatial dimensions (x, y) - they become scalar after .sel() and are no longer meaningful
+        # We want only time-series data at the station point
+        dims_to_drop = [dim for dim in ["x", "y"] if dim in gridded_da_closest_gridcell.dims]
+        if dims_to_drop:
+            logger.debug(
+                "Dropping spatial dimensions from closest_gridcell: %s", dims_to_drop
+            )
+            gridded_da_closest_gridcell = gridded_da_closest_gridcell.squeeze(dims_to_drop, drop=True)  # type: ignore[union-attr]
+        
+        # Also drop any remaining non-dimension coordinates
+        coords_to_drop = [
+            i
+            for i in gridded_da_closest_gridcell.coords  # type: ignore[union-attr]
+            if i not in gridded_da_closest_gridcell.dims  # type: ignore[union-attr]
+        ]
+        if coords_to_drop:
+            logger.debug(
+                "Dropping non-dimension coordinates from closest_gridcell: %s",
+                coords_to_drop,
+            )
+            gridded_da_closest_gridcell = gridded_da_closest_gridcell.drop_vars(coords_to_drop)  # type: ignore[union-attr]
 
         # Bias correct the model data using the station data
         # Output data will be cut to the requested output slice
