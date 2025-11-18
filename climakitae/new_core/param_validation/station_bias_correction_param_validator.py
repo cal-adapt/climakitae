@@ -46,7 +46,7 @@ from typing import Any, Dict
 import pandas as pd
 
 from climakitae.core.constants import UNSET
-from climakitae.core.paths import STATIONS_CSV_PATH
+from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
 )
@@ -54,17 +54,16 @@ from climakitae.new_core.processors.processor_utils import (
     find_station_match,
     is_station_identifier,
 )
-from climakitae.util.utils import read_csv_file
 
 # Module logger
 logger = logging.getLogger(__name__)
 
-# Load station metadata once at module level
-_STATION_METADATA = None
-
 
 def _get_station_metadata() -> pd.DataFrame:
-    """Load and cache HadISD station metadata.
+    """Get HadISD station metadata from DataCatalog singleton.
+
+    Uses the DataCatalog singleton to access the stations GeoDataFrame,
+    avoiding the need for module-level globals.
 
     Returns
     -------
@@ -72,10 +71,8 @@ def _get_station_metadata() -> pd.DataFrame:
         DataFrame with station information including 'station', 'station id',
         'latitude', 'longitude', and 'elevation' columns.
     """
-    global _STATION_METADATA  # noqa: PLW0603
-    if _STATION_METADATA is None:
-        _STATION_METADATA = read_csv_file(STATIONS_CSV_PATH)
-    return _STATION_METADATA
+    catalog = DataCatalog()
+    return catalog["stations"]
 
 
 @register_processor_validator("bias_correct_station_data")
