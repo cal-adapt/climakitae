@@ -449,35 +449,25 @@ class StationBiasCorrection(DataProcessor):
 
         logger.debug("QDM adjustment complete (lazy)")
         logger.debug(
-            "da_adj time dtype after QDM (before compute): %s", da_adj.time.dtype
+            "da_adj time dtype after QDM (before calendar conversion): %s",
+            da_adj.time.dtype,
         )
         logger.debug("da_adj time index type: %s", type(da_adj.indexes["time"]))
         logger.debug("da_adj is dask array: %s", hasattr(da_adj.data, "dask"))
         logger.debug("da_adj shape: %s", da_adj.shape)
 
-        # QDM.adjust() returns a dask array with map_blocks that have cftime coordinates
-        # embedded in their internal operations. We must compute() first to execute those
-        # blocks with their original coordinate system, then convert the result.
-        logger.debug("Computing da_adj to execute dask graph...")
-        da_adj = da_adj.compute()
+        # Convert from noleap calendar back to standard calendar with datetime64 coordinates
+        # This must be done BEFORE compute() to avoid issues with map_blocks operations
+        # that expect proper time coordinate access for groupby operations
+        logger.debug("Converting calendar from noleap to standard (datetime64)")
+        da_adj = da_adj.convert_calendar("standard", use_cftime=False)
 
-        logger.debug("Compute complete")
-        logger.debug("da_adj time dtype after compute: %s", da_adj.time.dtype)
-        logger.debug(
-            "da_adj time index type after compute: %s", type(da_adj.indexes["time"])
-        )
-        logger.debug("First few time values: %s", da_adj.time.values[:3])
-
-        # Now safely convert to standard calendar with datetime64 coordinates
-        logger.debug("Converting time coordinate to datetimeindex")
-        da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()  # type: ignore[attr-defined]
-
-        logger.debug("Calendar conversion complete")
+        logger.debug("Calendar conversion complete (still lazy)")
         logger.debug("da_adj time dtype after conversion: %s", da_adj.time.dtype)
-        logger.debug(
-            "First few time values after conversion: %s", da_adj.time.values[:3]
-        )
-        logger.debug("=== Bias correction complete for %s ===", da_adj.name)
+        logger.debug("da_adj time index type: %s", type(da_adj.indexes["time"]))
+        logger.debug("da_adj is still dask array: %s", hasattr(da_adj.data, "dask"))
+        logger.debug("First few time values (lazy): %s", da_adj.time.values[:3])
+        logger.debug("=== Bias correction complete for %s (lazy) ===", da_adj.name)
 
         return da_adj  # type: ignore[return-value]
 
