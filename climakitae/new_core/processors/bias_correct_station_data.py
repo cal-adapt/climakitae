@@ -334,35 +334,81 @@ class StationBiasCorrection(DataProcessor):
         xr.DataArray
             Bias-corrected data for the requested output slice
         """
+        logger.debug("=== Starting bias correction for station: %s ===", obs_da.name)
+        logger.debug(
+            "Input gridded_da time range: %s to %s",
+            gridded_da.time.values[0],
+            gridded_da.time.values[-1],
+        )
+        logger.debug(
+            "Input obs_da time range: %s to %s",
+            obs_da.time.values[0],
+            obs_da.time.values[-1],
+        )
+        logger.debug(
+            "Output slice requested: %s to %s", output_slice[0], output_slice[1]
+        )
+
         # Create grouper for seasonal window
         # Use 90 day window (+/- 45 days) to account for seasonality
         grouper = Grouper(self.group, window=self.window)
+        logger.debug("Created grouper: group=%s, window=%s", self.group, self.window)
 
         # Convert units to match gridded data
+        logger.debug(
+            "Converting obs units from %s to %s", obs_da.units, gridded_da.units
+        )
         obs_da = convert_units(obs_da, gridded_da.units)
 
         # Slice observational data to available period (through 2014-08-31)
         obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
+        logger.debug(
+            "Sliced obs_da to available period: %s to %s",
+            obs_da.time.values[0],
+            obs_da.time.values[-1],
+        )
 
         # Rechunk data - cannot be chunked along time dimension
         # Error raised by xclim: ValueError: Multiple chunks along the main
         # adjustment dimension time is not supported.
+        logger.debug("Rechunking data along time dimension")
         gridded_da = gridded_da.chunk(chunks=dict(time=-1))
         obs_da = obs_da.chunk(chunks=dict(time=-1))
 
         # Convert calendar to no leap year
+        logger.debug("Converting calendars to noleap")
+        logger.debug("Before conversion - obs_da time dtype: %s", obs_da.time.dtype)
+        logger.debug(
+            "Before conversion - gridded_da time dtype: %s", gridded_da.time.dtype
+        )
         obs_da = obs_da.convert_calendar("noleap")
         gridded_da = gridded_da.convert_calendar("noleap")
+        logger.debug("After conversion - obs_da time dtype: %s", obs_da.time.dtype)
+        logger.debug(
+            "After conversion - gridded_da time dtype: %s", gridded_da.time.dtype
+        )
 
         # Data at the desired output slice (final output period)
         data_sliced = gridded_da.sel(
             time=slice(str(output_slice[0]), str(output_slice[1]))
+        )
+        logger.debug(
+            "Data sliced for output: %s to %s (shape: %s)",
+            data_sliced.time.values[0],
+            data_sliced.time.values[-1],
+            data_sliced.shape,
         )
 
         # Slice gridded data to match obs data period (legacy approach)
         # This ensures we only use the overlapping historical period
         gridded_da_historical = gridded_da.sel(
             time=slice(str(obs_da.time.values[0]), str(obs_da.time.values[-1]))
+        )
+        logger.debug(
+            "Gridded historical period: %s to %s (shape: %s)",
+            gridded_da_historical.time.values[0],
+            gridded_da_historical.time.values[-1],
+            gridded_da_historical.shape,
         )
 
         # Now slice obs data to match the gridded historical data exactly
@@ -373,8 +419,17 @@ class StationBiasCorrection(DataProcessor):
                 str(gridded_da_historical.time.values[-1]),
             )
         )
+        logger.debug(
+            "Final obs period after alignment: %s to %s (shape: %s)",
+            obs_da.time.values[0],
+            obs_da.time.values[-1],
+            obs_da.shape,
+        )
 
         # Train Quantile Delta Mapping on historical overlap period
+        logger.debug(
+            "Training QDM with nquantiles=%s, kind=%s", self.nquantiles, self.kind
+        )
         QDM = QuantileDeltaMapping.train(
             obs_da,
             gridded_da_historical,
@@ -382,18 +437,47 @@ class StationBiasCorrection(DataProcessor):
             group=grouper,
             kind=self.kind,
         )
+        logger.debug("QDM training complete")
 
         # Bias correct the data
+        logger.debug("Applying QDM adjustment to data_sliced")
+        logger.debug("data_sliced time dtype before QDM: %s", data_sliced.time.dtype)
+        logger.debug("data_sliced is dask array: %s", hasattr(data_sliced.data, "dask"))
+
         da_adj = QDM.adjust(data_sliced)
         da_adj.name = gridded_da_historical.name  # Rename to get back to original name
+
+        logger.debug("QDM adjustment complete (lazy)")
+        logger.debug(
+            "da_adj time dtype after QDM (before compute): %s", da_adj.time.dtype
+        )
+        logger.debug("da_adj time index type: %s", type(da_adj.indexes["time"]))
+        logger.debug("da_adj is dask array: %s", hasattr(da_adj.data, "dask"))
+        logger.debug("da_adj shape: %s", da_adj.shape)
 
         # QDM.adjust() returns a dask array with map_blocks that have cftime coordinates
         # embedded in their internal operations. We must compute() first to execute those
         # blocks with their original coordinate system, then convert the result.
+        logger.debug("Computing da_adj to execute dask graph...")
         da_adj = da_adj.compute()
 
+        logger.debug("Compute complete")
+        logger.debug("da_adj time dtype after compute: %s", da_adj.time.dtype)
+        logger.debug(
+            "da_adj time index type after compute: %s", type(da_adj.indexes["time"])
+        )
+        logger.debug("First few time values: %s", da_adj.time.values[:3])
+
         # Now safely convert to standard calendar with datetime64 coordinates
-        da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()
+        logger.debug("Converting time coordinate to datetimeindex")
+        da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()  # type: ignore[attr-defined]
+
+        logger.debug("Calendar conversion complete")
+        logger.debug("da_adj time dtype after conversion: %s", da_adj.time.dtype)
+        logger.debug(
+            "First few time values after conversion: %s", da_adj.time.values[:3]
+        )
+        logger.debug("=== Bias correction complete for %s ===", da_adj.name)
 
         return da_adj  # type: ignore[return-value]
 
@@ -546,18 +630,27 @@ class StationBiasCorrection(DataProcessor):
         logger.info(
             "Applying station bias correction for %d station(s)", len(self.stations)
         )
+        logger.debug("Input result_da name: %s", result_da.name)
+        logger.debug("Input result_da shape: %s", result_da.shape)
+        logger.debug("Input result_da dims: %s", result_da.dims)
+        logger.debug("Input result_da time dtype: %s", result_da.time.dtype)
+        logger.debug("Input result_da is dask: %s", hasattr(result_da.data, "dask"))
 
         # Load station observational data from HadISD
+        logger.debug("Loading station data from HadISD...")
         station_ds = self._load_station_data()
+        logger.debug("Station data loaded. Variables: %s", list(station_ds.data_vars))
 
         # Extract time range from input data for output
         # The TimeSlice processor (if used) will have already sliced the data
         time_values = result_da.time.values
         output_start_year = int(str(time_values[0])[:4])
         output_end_year = int(str(time_values[-1])[:4])
+        logger.debug("Output time range: %s to %s", output_start_year, output_end_year)
 
         # Apply bias correction to each station using xarray map
         # This processes all stations and combines results
+        logger.debug("Applying bias correction via xarray.map...")
         apply_output = station_ds.map(
             self._get_bias_corrected_closest_gridcell,
             keep_attrs=False,
@@ -567,6 +660,15 @@ class StationBiasCorrection(DataProcessor):
 
         logger.info(
             "Station bias correction complete. Output shape: %s", apply_output.dims
+        )
+        logger.debug("Output variables: %s", list(apply_output.data_vars))
+        logger.debug("Output time dtype: %s", apply_output.time.dtype)
+        logger.debug(
+            "Output is dask: %s",
+            any(
+                hasattr(apply_output[var].data, "dask")
+                for var in apply_output.data_vars
+            ),
         )
 
         return apply_output
