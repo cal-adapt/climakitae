@@ -47,10 +47,13 @@ import pandas as pd
 
 from climakitae.core.constants import UNSET
 from climakitae.core.paths import STATIONS_CSV_PATH
-from climakitae.new_core.param_validation.abc_param_validation import \
-    register_processor_validator
+from climakitae.new_core.param_validation.abc_param_validation import (
+    register_processor_validator,
+)
 from climakitae.new_core.processors.processor_utils import (
-    find_station_match, is_station_identifier)
+    find_station_match,
+    is_station_identifier,
+)
 from climakitae.util.utils import read_csv_file
 
 # Module logger
