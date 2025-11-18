@@ -1,6 +1,6 @@
 """Initialize the processors, ensuring they get registered."""
 
-from .bias_correct_station_data import StationBiasCorrection
+from .bias_correct_station_data import BiasCorrectStationData
 from .concatenate import Concat
 from .convert_units import ConvertUnits
 from .clip import Clip
@@ -14,7 +14,7 @@ __all__ = [
     "ConvertUnits",
     "Clip",
     "FilterUnAdjustedModels",
-    "StationBiasCorrection",
+    "BiasCorrectStationData",
     "TimeSlice",
     "UpdateAttributes",
     "WarmingLevel",

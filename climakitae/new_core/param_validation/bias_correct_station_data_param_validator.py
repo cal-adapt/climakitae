@@ -52,7 +52,6 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 )
 from climakitae.new_core.processors.processor_utils import (
     find_station_match,
-    is_station_identifier,
 )
 
 # Module logger
@@ -76,7 +75,7 @@ def _get_station_metadata() -> pd.DataFrame:
 
 
 @register_processor_validator("bias_correct_station_data")
-def validate_station_bias_correction_param(
+def validate_bias_correction_station_data_param(
     value: Any,
     query: Dict[str, Any] | None = None,
     **kwargs: Any,  # noqa: ARG001
