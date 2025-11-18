@@ -449,7 +449,14 @@ class StationBiasCorrection(DataProcessor):
 
             for sim_name in data_sliced.sim.values:
                 logger.debug(f"Processing simulation: {sim_name}")
-                sim_data = data_sliced.sel(sim=sim_name)
+                # Select and DROP the sim coordinate to get a pure time-series
+                sim_data = data_sliced.sel(sim=sim_name, drop=True)
+                logger.debug(
+                    "Selected sim=%s, shape=%s, dims=%s",
+                    sim_name,
+                    sim_data.shape,
+                    sim_data.dims,
+                )
 
                 # Apply QDM to this simulation
                 logger.debug("Applying QDM adjustment to %s", sim_name)
