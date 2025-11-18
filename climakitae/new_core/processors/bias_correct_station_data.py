@@ -55,7 +55,9 @@ from xsdba.adjustment import QuantileDeltaMapping
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
-    DataProcessor, register_processor)
+    DataProcessor,
+    register_processor,
+)
 from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import get_closest_gridcell
 
@@ -256,8 +258,9 @@ class StationBiasCorrection(DataProcessor):
         ValueError
             If any station identifier is invalid or not found.
         """
-        from climakitae.new_core.processors.processor_utils import \
-            convert_stations_to_points
+        from climakitae.new_core.processors.processor_utils import (
+            convert_stations_to_points,
+        )
 
         # Validate all stations and get their metadata using the shared utility
         # This will raise ValueError with suggestions if any station is invalid
@@ -384,14 +387,14 @@ class StationBiasCorrection(DataProcessor):
         da_adj = QDM.adjust(data_sliced)
         da_adj.name = gridded_da_historical.name  # Rename to get back to original name
 
-        # Convert calendar back to standard with datetime64 coordinates
-        # Use convert_calendar instead of to_datetimeindex to properly handle
-        # the internal dask map_blocks operations. This ensures the time coordinate
-        # is correctly converted throughout the lazy computation graph.
-        da_adj = da_adj.convert_calendar("standard", use_cftime=False)
+        # QDM.adjust() returns a dask array with map_blocks that have cftime coordinates
+        # embedded in their internal operations. We must compute() first to execute those
+        # blocks with their original coordinate system, then convert the result.
+        da_adj = da_adj.compute()
 
-        # Return lazy result (matching legacy behavior)
-        # Users should call .compute() when ready to load data into memory
+        # Now safely convert to standard calendar with datetime64 coordinates
+        da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()
+
         return da_adj  # type: ignore[return-value]
 
     def _get_bias_corrected_closest_gridcell(
