@@ -55,9 +55,7 @@ from xsdba.adjustment import QuantileDeltaMapping
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
-    DataProcessor,
-    register_processor,
-)
+    DataProcessor, register_processor)
 from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import get_closest_gridcell
 
@@ -253,9 +251,8 @@ class StationBiasCorrection(DataProcessor):
         ValueError
             If any station identifier is invalid or not found.
         """
-        from climakitae.new_core.processors.processor_utils import (
-            convert_stations_to_points,
-        )
+        from climakitae.new_core.processors.processor_utils import \
+            convert_stations_to_points
 
         # Validate all stations and get their metadata using the shared utility
         # This will raise ValueError with suggestions if any station is invalid
@@ -354,12 +351,14 @@ class StationBiasCorrection(DataProcessor):
             time=slice(str(output_slice[0]), str(output_slice[1]))
         )
 
-        # Input data, sliced to historical training period
+        # Slice gridded data to match obs data period (legacy approach)
+        # This ensures we only use the overlapping historical period
         gridded_da_historical = gridded_da.sel(
-            time=slice(str(self.historical_slice[0]), str(self.historical_slice[1]))
+            time=slice(str(obs_da.time.values[0]), str(obs_da.time.values[-1]))
         )
 
-        # Observational data sliced to overlap with historical period
+        # Now slice obs data to match the gridded historical data exactly
+        # This handles any edge cases where times don't align perfectly
         obs_da = obs_da.sel(
             time=slice(
                 str(gridded_da_historical.time.values[0]),
