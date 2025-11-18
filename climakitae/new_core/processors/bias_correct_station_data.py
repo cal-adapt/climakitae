@@ -526,12 +526,14 @@ class StationBiasCorrection(DataProcessor):
         # Ensure time coordinate is datetime64[ns] for plotting compatibility
         # Check if time is not already datetime64 (check dtype string representation)
         time_dtype_str = str(da_adj.time.dtype)
-        if 'datetime64' not in time_dtype_str:
+        if "datetime64" not in time_dtype_str:
             logger.debug("Converting time from %s to datetime64[ns]", da_adj.time.dtype)
             try:
                 # Convert using pandas DatetimeIndex
                 da_adj["time"] = pd.DatetimeIndex(da_adj.time.values)
-                logger.debug("Time conversion complete, new dtype: %s", da_adj.time.dtype)
+                logger.debug(
+                    "Time conversion complete, new dtype: %s", da_adj.time.dtype
+                )
             except Exception as e:
                 logger.error("Failed to convert time coordinate: %s", e)
                 raise
@@ -602,6 +604,19 @@ class StationBiasCorrection(DataProcessor):
         bias_corrected = self._bias_correct_model_data(
             station_da, gridded_da_closest_gridcell, output_slice
         )
+
+        # Drop any remaining spatial coordinates (x, y) from bias corrected result
+        # These are no longer meaningful after localizing to station point
+        # Keep only dimensions (time, sim if present)
+        coords_to_drop = [
+            coord for coord in bias_corrected.coords if coord not in bias_corrected.dims
+        ]
+        if coords_to_drop:
+            logger.debug(
+                "Dropping non-dimension coordinates from bias_corrected: %s",
+                coords_to_drop,
+            )
+            bias_corrected = bias_corrected.drop_vars(coords_to_drop)
 
         # Add descriptive coordinates to the bias corrected data
         bias_corrected.attrs["station_coordinates"] = station_da.attrs[
@@ -737,8 +752,11 @@ class StationBiasCorrection(DataProcessor):
 
         # Final check: Ensure time coordinate is datetime64[ns] for plotting
         time_dtype_str = str(apply_output.time.dtype)
-        if 'datetime64' not in time_dtype_str:
-            logger.debug("Final conversion: time from %s to datetime64[ns]", apply_output.time.dtype)
+        if "datetime64" not in time_dtype_str:
+            logger.debug(
+                "Final conversion: time from %s to datetime64[ns]",
+                apply_output.time.dtype,
+            )
             apply_output["time"] = pd.DatetimeIndex(apply_output.time.values)
             logger.debug("Final time dtype: %s", apply_output.time.dtype)
 
