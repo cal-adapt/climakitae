@@ -111,7 +111,6 @@ Notes
 
 import logging
 import os
-import warnings
 from typing import Any, Dict, Iterable, Union
 
 import geopandas as gpd
@@ -125,15 +124,10 @@ from shapely.geometry import box, mapping
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
-    DataProcessor,
-    register_processor,
-)
-from climakitae.new_core.processors.processor_utils import (
-    find_station_match,
-    is_station_identifier,
-)
+    DataProcessor, register_processor)
+from climakitae.new_core.processors.processor_utils import \
+    is_station_identifier
 from climakitae.util.utils import get_closest_gridcell, get_closest_gridcells
-
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -439,6 +433,8 @@ class Clip(DataProcessor):
         """
         Get lat/lon coordinates for a station identifier.
 
+        This is a wrapper around the shared utility function in processor_utils.
+
         Parameters
         ----------
         station_identifier : str
@@ -454,71 +450,18 @@ class Clip(DataProcessor):
         ValueError
             If station is not found or catalog is not available
         """
-        if self.catalog is UNSET or not isinstance(self.catalog, DataCatalog):
-            raise RuntimeError(
-                "DataCatalog is not set. Cannot access station data for clipping."
-            )
+        from climakitae.new_core.processors.processor_utils import \
+            get_station_coordinates
 
-        stations_df = self.catalog["stations"]
-
-        if stations_df is None or len(stations_df) == 0:
-            raise RuntimeError("Station data is not available in the catalog.")
-
-        # Use the generalized matching logic
-        match = find_station_match(station_identifier, stations_df)
-
-        if len(match) == 0:
-            # Station not found - provide suggestions
-            all_stations = stations_df["ID"].tolist() + stations_df["station"].tolist()
-            from climakitae.new_core.param_validation.param_validation_tools import (
-                _get_closest_options,
-            )
-
-            suggestions = _get_closest_options(
-                station_identifier, all_stations, cutoff=0.5
-            )
-
-            error_msg = f"Station '{station_identifier}' not found in station database."
-            if suggestions:
-                error_msg += "\n\nDid you mean one of these?\n  - " + "\n  - ".join(
-                    suggestions[:5]
-                )
-            error_msg += (
-                "\n\nTo see all available stations, use: cd.show_station_options()"
-            )
-
-            raise ValueError(error_msg)
-
-        if len(match) > 1:
-            # Multiple matches found - show options
-            station_list = match[["ID", "station", "city", "state"]].to_string(
-                index=False
-            )
-            raise ValueError(
-                f"Multiple stations match '{station_identifier}':\n{station_list}\n\n"
-                f"Please use a more specific identifier."
-            )
-
-        # Extract coordinates and metadata
-        station_row = match.iloc[0]
-        lat = float(station_row["LAT_Y"])
-        lon = float(station_row["LON_X"])
-
-        metadata = {
-            "station_id": station_row["ID"],
-            "station_name": station_row["station"],
-            "city": station_row["city"],
-            "state": station_row["state"],
-            "elevation": station_row.get("elevation", None),
-        }
-
-        return lat, lon, metadata
+        return get_station_coordinates(station_identifier, self.catalog)
 
     def _convert_stations_to_points(
         self, station_identifiers: list[str]
     ) -> tuple[list[tuple[float, float]], list[dict]]:
         """
         Convert a list of station identifiers to lat/lon coordinates.
+
+        This is a wrapper around the shared utility function in processor_utils.
 
         Parameters
         ----------
@@ -530,19 +473,10 @@ class Clip(DataProcessor):
         tuple[list[tuple[float, float]], list[dict]]
             List of (lat, lon) tuples and list of metadata dictionaries
         """
-        points = []
-        metadata_list = []
+        from climakitae.new_core.processors.processor_utils import \
+            convert_stations_to_points
 
-        for station_id in station_identifiers:
-            try:
-                lat, lon, metadata = self._get_station_coordinates(station_id)
-                points.append((lat, lon))
-                metadata_list.append(metadata)
-            except ValueError as e:
-                # Re-raise with context about which station failed
-                raise ValueError(f"Error processing station '{station_id}': {str(e)}")
-
-        return points, metadata_list
+        return convert_stations_to_points(station_identifiers, self.catalog)
 
     @staticmethod
     def _clip_data_with_geom(data: xr.DataArray | xr.Dataset, gdf: gpd.GeoDataFrame):

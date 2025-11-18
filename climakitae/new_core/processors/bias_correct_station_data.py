@@ -238,6 +238,7 @@ class StationBiasCorrection(DataProcessor):
 
         Constructs file paths for selected stations and loads them using
         xarray's open_mfdataset with preprocessing for seamless integration.
+        Uses get_station_coordinates for robust station validation.
 
         Returns
         -------
@@ -248,28 +249,33 @@ class StationBiasCorrection(DataProcessor):
         ------
         RuntimeError
             If station data cannot be loaded or catalog is not available.
+        ValueError
+            If any station identifier is invalid or not found.
         """
-        # Get station metadata from catalog
-        if self.catalog is UNSET or not isinstance(self.catalog, DataCatalog):
-            raise RuntimeError(
-                "DataCatalog is not set. Cannot access station metadata."
-            )
+        from climakitae.new_core.processors.processor_utils import (
+            convert_stations_to_points,
+        )
 
+        # Validate all stations and get their metadata using the shared utility
+        # This will raise ValueError with suggestions if any station is invalid
+        _, metadata_list = convert_stations_to_points(self.stations, self.catalog)
+
+        # Get full station metadata DataFrame for preprocessing
         station_metadata = self.catalog["stations"]
 
-        if station_metadata is None or len(station_metadata) == 0:
-            raise RuntimeError("Station metadata is not available in the catalog.")
-
-        # Get subset of station metadata for selected stations
-        station_subset = station_metadata.loc[
-            station_metadata["station"].isin(self.stations)
-        ]
+        # Extract station IDs from validated metadata
+        station_ids = [meta["station_id"] for meta in metadata_list]
 
         # Construct S3 zarr paths for each station
         filepaths = [
-            "s3://cadcat/hadisd/HadISD_{}.zarr".format(s_id)
-            for s_id in station_subset["station id"]
+            f"s3://cadcat/hadisd/HadISD_{station_id}.zarr" for station_id in station_ids
         ]
+
+        logger.info(
+            "Loading station data for %d validated station(s): %s",
+            len(station_ids),
+            ", ".join(station_ids),
+        )
 
         # Create partial function for preprocessing with station metadata
         preprocess_func = partial(
