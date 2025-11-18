@@ -49,6 +49,8 @@ from climakitae.core.constants import UNSET
 from climakitae.core.paths import STATIONS_CSV_PATH
 from climakitae.new_core.param_validation.abc_param_validation import \
     register_processor_validator
+from climakitae.new_core.processors.processor_utils import (
+    find_station_match, is_station_identifier)
 from climakitae.util.utils import read_csv_file
 
 # Module logger
@@ -200,6 +202,9 @@ def validate_station_bias_correction_param(
 def _validate_stations(stations: Any) -> bool:
     """Validate station selection parameter.
 
+    Accepts both full station names (e.g., "Sacramento Executive Airport (KSAC)")
+    and 4-letter airport codes (e.g., "KSAC"). Uses fuzzy matching to find stations.
+
     Parameters
     ----------
     stations : Any
@@ -214,7 +219,7 @@ def _validate_stations(stations: Any) -> bool:
     if not isinstance(stations, list):
         msg = (
             f"'stations' must be a list of station names, got {type(stations).__name__}. "
-            f"Example: ['Sacramento (KSAC)', 'San Francisco (KSFO)']"
+            f"Example: ['Sacramento (KSAC)', 'KSAC']"
         )
         logger.warning(msg)
         return False
@@ -233,10 +238,19 @@ def _validate_stations(stations: Any) -> bool:
 
     # Load station metadata
     station_metadata = _get_station_metadata()
-    available_stations = set(station_metadata["station"].values)
 
-    # Validate each station exists
-    invalid_stations = [s for s in stations if s not in available_stations]
+    # Validate each station using fuzzy matching (supports 4-letter codes)
+    invalid_stations = []
+    for station in stations:
+        try:
+            # Use find_station_match which handles both full names and 4-letter codes
+            matched_station = find_station_match(station, station_metadata)
+            if matched_station is None:
+                invalid_stations.append(station)
+        except Exception as e:
+            logger.debug("Error validating station '%s': %s", station, str(e))
+            invalid_stations.append(station)
+
     if invalid_stations:
         msg = (
             f"Invalid station(s): {', '.join(invalid_stations)}. "
@@ -248,7 +262,8 @@ def _validate_stations(stations: Any) -> bool:
         # Provide helpful suggestions for close matches
         if len(invalid_stations) == 1:
             station_name = invalid_stations[0]
-            # Try to find close matches
+            # Try to find close matches using substring matching
+            available_stations = station_metadata["station"].values
             close_matches = [
                 s
                 for s in available_stations
