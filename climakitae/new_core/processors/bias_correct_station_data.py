@@ -426,41 +426,46 @@ class StationBiasCorrection(DataProcessor):
             obs_da.shape,
         )
 
-        # Train Quantile Delta Mapping on historical overlap period
-        logger.debug(
-            "Training QDM with nquantiles=%s, kind=%s", self.nquantiles, self.kind
-        )
-        QDM = QuantileDeltaMapping.train(
-            obs_da,
-            gridded_da_historical,
-            nquantiles=self.nquantiles,
-            group=grouper,
-            kind=self.kind,
-        )
-        logger.debug("QDM training complete")
-
         # Check if data has a 'sim' dimension from concatenation
-        # QDM must be applied to each simulation separately
+        # QDM must be trained and applied separately for each simulation
         if "sim" in data_sliced.dims:
             logger.debug(
-                "Data has 'sim' dimension, processing each simulation separately"
+                "Data has 'sim' dimension, training and applying QDM for each simulation separately"
             )
             sim_results = []
 
             for sim_name in data_sliced.sim.values:
                 logger.debug(f"Processing simulation: {sim_name}")
-                # Select and DROP the sim coordinate to get a pure time-series
-                sim_data = data_sliced.sel(sim=sim_name, drop=True)
+
+                # Select and DROP the sim coordinate to get pure time-series
+                sim_data_full = data_sliced.sel(sim=sim_name, drop=True)
+                sim_hist = gridded_da_historical.sel(sim=sim_name, drop=True)
+
                 logger.debug(
-                    "Selected sim=%s, shape=%s, dims=%s",
+                    "Selected sim=%s, full_shape=%s, hist_shape=%s",
                     sim_name,
-                    sim_data.shape,
-                    sim_data.dims,
+                    sim_data_full.shape,
+                    sim_hist.shape,
+                )
+
+                # Train QDM for this simulation
+                logger.debug(
+                    "Training QDM for %s with nquantiles=%s, kind=%s",
+                    sim_name,
+                    self.nquantiles,
+                    self.kind,
+                )
+                sim_QDM = QuantileDeltaMapping.train(
+                    obs_da,
+                    sim_hist,
+                    nquantiles=self.nquantiles,
+                    group=grouper,
+                    kind=self.kind,
                 )
 
                 # Apply QDM to this simulation
                 logger.debug("Applying QDM adjustment to %s", sim_name)
-                sim_adj = QDM.adjust(sim_data)
+                sim_adj = sim_QDM.adjust(sim_data_full)
 
                 # Compute immediately with cftime coordinates
                 logger.debug("Computing QDM result for %s", sim_name)
@@ -481,6 +486,18 @@ class StationBiasCorrection(DataProcessor):
             da_adj.name = gridded_da_historical.name
 
         else:
+            # No sim dimension - train and apply QDM once
+            logger.debug(
+                "Training QDM with nquantiles=%s, kind=%s", self.nquantiles, self.kind
+            )
+            QDM = QuantileDeltaMapping.train(
+                obs_da,
+                gridded_da_historical,
+                nquantiles=self.nquantiles,
+                group=grouper,
+                kind=self.kind,
+            )
+            logger.debug("QDM training complete")
             # No sim dimension, process as single array
             logger.debug("Applying QDM adjustment to data_sliced")
             logger.debug(
