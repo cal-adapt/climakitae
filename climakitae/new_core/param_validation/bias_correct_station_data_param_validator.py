@@ -47,10 +47,13 @@ import pandas as pd
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
-from climakitae.new_core.param_validation.abc_param_validation import \
-    register_processor_validator
+from climakitae.new_core.param_validation.abc_param_validation import (
+    register_processor_validator,
+)
 from climakitae.new_core.processors.processor_utils import (
-    find_station_match, is_station_identifier)
+    find_station_match,
+    is_station_identifier,
+)
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -187,6 +190,8 @@ def validate_station_bias_correction_param(
         if not _validate_downscaling_method_requirement(query):
             return False
         if not _validate_resolution_requirement(query):
+            return False
+        if not _validate_scenario_resolution_compatibility(query):
             return False
 
     logger.info(
@@ -636,4 +641,59 @@ def _validate_resolution_requirement(query: Dict[str, Any]) -> bool:
         return False
 
     logger.debug("Resolution requirement validation passed: %s", grid_label)
+    return True
+
+
+def _validate_scenario_resolution_compatibility(query: Dict[str, Any]) -> bool:
+    """Validate that 3km resolution is not used with SSP 2-4.5 or SSP 5-8.5 scenarios.
+
+    This is a legacy constraint from the original implementation. While station
+    bias correction already rejects 3km resolution entirely, this function provides
+    more specific error messages when the incompatible combination is detected.
+
+    Parameters
+    ----------
+    query : Dict[str, Any]
+        Full query dictionary containing resolution and scenario selections.
+
+    Returns
+    -------
+    bool
+        True if combination is valid, False otherwise.
+    """
+    grid_label = query.get("grid_label", None)
+    experiment_id = query.get("experiment_id", None)
+
+    # Only validate if both parameters are present
+    if grid_label is None or experiment_id is None:
+        return True
+
+    # Check if 3km resolution is combined with restricted SSP scenarios
+    if grid_label == "d03":
+        # Handle both string and list inputs for experiment_id
+        if isinstance(experiment_id, str):
+            experiment_ids = [experiment_id]
+        elif isinstance(experiment_id, list):
+            experiment_ids = experiment_id
+        else:
+            return True  # Unknown format, skip validation
+
+        # SSP 2-4.5 and SSP 5-8.5 are not valid with 3km resolution
+        restricted_scenarios = ["ssp245", "ssp585"]
+        invalid_scenarios = [
+            exp for exp in experiment_ids if exp in restricted_scenarios
+        ]
+
+        if invalid_scenarios:
+            scenario_names = {"ssp245": "SSP 2-4.5", "ssp585": "SSP 5-8.5"}
+            invalid_names = [scenario_names.get(s, s) for s in invalid_scenarios]
+            msg = (
+                f"3km resolution (grid_label='d03') is not compatible with "
+                f"{', '.join(invalid_names)} scenario(s). Please use 9km (grid_label='d02') "
+                f"or 45km (grid_label='d01') resolution for these scenarios."
+            )
+            logger.warning(msg)
+            return False
+
+    logger.debug("Scenario-resolution compatibility validation passed")
     return True
