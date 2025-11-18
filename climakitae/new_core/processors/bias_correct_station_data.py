@@ -261,18 +261,23 @@ class StationBiasCorrection(DataProcessor):
         # Get full station metadata DataFrame for preprocessing
         station_metadata = self.catalog["stations"]
 
-        # Extract station IDs from validated metadata
-        station_ids = [meta["station_id"] for meta in metadata_list]
+        # Extract numeric station IDs from validated metadata for HadISD file paths
+        # The numeric ID is required for the HadISD zarr file naming convention
+        station_ids = [meta["station_id_numeric"] for meta in metadata_list]
 
-        # Construct S3 zarr paths for each station
+        # Construct S3 zarr paths for each station using numeric IDs
         filepaths = [
             f"s3://cadcat/hadisd/HadISD_{station_id}.zarr" for station_id in station_ids
         ]
 
+        # Create informative log message with station codes and names
+        station_info = [
+            f"{meta['station_id']} ({meta['station_name']})" for meta in metadata_list
+        ]
         logger.info(
             "Loading station data for %d validated station(s): %s",
             len(station_ids),
-            ", ".join(station_ids),
+            ", ".join(station_info),
         )
 
         # Create partial function for preprocessing with station metadata

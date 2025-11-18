@@ -1055,9 +1055,8 @@ def get_station_coordinates(
     if len(match) == 0:
         # Station not found - provide suggestions
         all_stations = stations_df["ID"].tolist() + stations_df["station"].tolist()
-        from climakitae.new_core.param_validation.param_validation_tools import (
-            _get_closest_options,
-        )
+        from climakitae.new_core.param_validation.param_validation_tools import \
+            _get_closest_options
 
         suggestions = _get_closest_options(station_identifier, all_stations, cutoff=0.5)
 
@@ -1084,7 +1083,10 @@ def get_station_coordinates(
     lon = float(station_row["LON_X"])
 
     metadata = {
-        "station_id": station_row["ID"],
+        "station_id": station_row["ID"],  # 4-letter airport code (e.g., "KSAC")
+        "station_id_numeric": station_row.get(
+            "station id", None
+        ),  # Numeric ID for HadISD files
         "station_name": station_row["station"],
         "city": station_row["city"],
         "state": station_row["state"],
