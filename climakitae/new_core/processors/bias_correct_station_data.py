@@ -524,10 +524,17 @@ class StationBiasCorrection(DataProcessor):
         logger.debug("First few time values: %s", da_adj.time.values[:3])
 
         # Ensure time coordinate is datetime64[ns] for plotting compatibility
-        if da_adj.time.dtype == "object":
-            logger.debug("Converting time from object to datetime64[ns]")
-            da_adj["time"] = pd.DatetimeIndex(da_adj.time.values)
-            logger.debug("Time conversion complete, new dtype: %s", da_adj.time.dtype)
+        # Check if time is not already datetime64 (check dtype string representation)
+        time_dtype_str = str(da_adj.time.dtype)
+        if 'datetime64' not in time_dtype_str:
+            logger.debug("Converting time from %s to datetime64[ns]", da_adj.time.dtype)
+            try:
+                # Convert using pandas DatetimeIndex
+                da_adj["time"] = pd.DatetimeIndex(da_adj.time.values)
+                logger.debug("Time conversion complete, new dtype: %s", da_adj.time.dtype)
+            except Exception as e:
+                logger.error("Failed to convert time coordinate: %s", e)
+                raise
 
         # Rechunk to convert back to dask array for downstream processing
         # This maintains lazy evaluation for subsequent operations
@@ -727,6 +734,13 @@ class StationBiasCorrection(DataProcessor):
                 for var in apply_output.data_vars
             ),
         )
+
+        # Final check: Ensure time coordinate is datetime64[ns] for plotting
+        time_dtype_str = str(apply_output.time.dtype)
+        if 'datetime64' not in time_dtype_str:
+            logger.debug("Final conversion: time from %s to datetime64[ns]", apply_output.time.dtype)
+            apply_output["time"] = pd.DatetimeIndex(apply_output.time.values)
+            logger.debug("Final time dtype: %s", apply_output.time.dtype)
 
         return apply_output
 
