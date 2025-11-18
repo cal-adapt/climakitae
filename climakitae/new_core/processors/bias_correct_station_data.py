@@ -55,9 +55,7 @@ from xsdba.adjustment import QuantileDeltaMapping
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
-    DataProcessor,
-    register_processor,
-)
+    DataProcessor, register_processor)
 from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import get_closest_gridcell
 
@@ -139,38 +137,39 @@ class StationBiasCorrection(DataProcessor):
        in quantiles and extremes? Journal of Climate, 28(17), 6938-6959.
     """
 
-    def __init__(
-        self,
-        stations: list[str],
-        historical_slice: tuple[int, int] = (1980, 2014),
-        window: int = 90,
-        nquantiles: int = 20,
-        group: str = "time.dayofyear",
-        kind: str = "+",
-    ):
+    def __init__(self, value: Dict[str, Any]):
         """Initialize the station bias correction processor.
 
         Parameters
         ----------
-        stations : list[str]
-            List of station names to process
-        historical_slice : tuple[int, int], optional
-            Start and end years for historical training period (default: (1980, 2014))
-        window : int, optional
-            Window size in days for seasonal grouping (default: 90)
-        nquantiles : int, optional
-            Number of quantiles for QDM (default: 20)
-        group : str, optional
-            Temporal grouping strategy (default: "time.dayofyear")
-        kind : str, optional
-            Adjustment kind: "+" or "*" (default: "+")
+        value : Dict[str, Any]
+            Configuration dictionary containing:
+            - stations : list[str]
+                List of station names to process
+            - historical_slice : tuple[int, int], optional
+                Start and end years for historical training period (default: (1980, 2014))
+            - window : int, optional
+                Window size in days for seasonal grouping (default: 90)
+            - nquantiles : int, optional
+                Number of quantiles for QDM (default: 20)
+            - group : str, optional
+                Temporal grouping strategy (default: "time.dayofyear")
+            - kind : str, optional
+                Adjustment kind: "+" or "*" (default: "+")
         """
-        self.stations = stations
-        self.historical_slice = historical_slice
-        self.window = window
-        self.nquantiles = nquantiles
-        self.group = group
-        self.kind = kind
+        # Validate input
+        if not isinstance(value, dict):
+            raise TypeError(
+                "Expected dictionary for station bias correction configuration"
+            )
+
+        # Extract configuration parameters with defaults
+        self.stations = value.get("stations", [])
+        self.historical_slice = value.get("historical_slice", (1980, 2014))
+        self.window = value.get("window", 90)
+        self.nquantiles = value.get("nquantiles", 20)
+        self.group = value.get("group", "time.dayofyear")
+        self.kind = value.get("kind", "+")
         self.name = "bias_correct_station_data"
         self.catalog: Union[DataCatalog, object] = UNSET
         self.needs_catalog = True
@@ -252,9 +251,8 @@ class StationBiasCorrection(DataProcessor):
         ValueError
             If any station identifier is invalid or not found.
         """
-        from climakitae.new_core.processors.processor_utils import (
-            convert_stations_to_points,
-        )
+        from climakitae.new_core.processors.processor_utils import \
+            convert_stations_to_points
 
         # Validate all stations and get their metadata using the shared utility
         # This will raise ValueError with suggestions if any station is invalid
