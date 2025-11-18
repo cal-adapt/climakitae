@@ -384,10 +384,11 @@ class StationBiasCorrection(DataProcessor):
         da_adj = QDM.adjust(data_sliced)
         da_adj.name = gridded_da_historical.name  # Rename to get back to original name
 
-        # Convert time index back to standard datetime
-        # This is done after QDM.adjust() to convert cftime back to datetime64
-        # The coordinate conversion works correctly with lazy dask arrays
-        da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()  # type: ignore
+        # Convert calendar back to standard with datetime64 coordinates
+        # Use convert_calendar instead of to_datetimeindex to properly handle
+        # the internal dask map_blocks operations. This ensures the time coordinate
+        # is correctly converted throughout the lazy computation graph.
+        da_adj = da_adj.convert_calendar("standard", use_cftime=False)
 
         # Return lazy result (matching legacy behavior)
         # Users should call .compute() when ready to load data into memory
