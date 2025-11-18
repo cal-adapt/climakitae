@@ -55,9 +55,7 @@ from xsdba.adjustment import QuantileDeltaMapping
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
-    DataProcessor,
-    register_processor,
-)
+    DataProcessor, register_processor)
 from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import get_closest_gridcell
 
@@ -253,9 +251,8 @@ class StationBiasCorrection(DataProcessor):
         ValueError
             If any station identifier is invalid or not found.
         """
-        from climakitae.new_core.processors.processor_utils import (
-            convert_stations_to_points,
-        )
+        from climakitae.new_core.processors.processor_utils import \
+            convert_stations_to_points
 
         # Validate all stations and get their metadata using the shared utility
         # This will raise ValueError with suggestions if any station is invalid
@@ -380,19 +377,11 @@ class StationBiasCorrection(DataProcessor):
 
         # Bias correct the data
         da_adj = QDM.adjust(data_sliced)
-
         da_adj.name = gridded_da_historical.name  # Rename to get back to original name
 
-        # Convert time index back to standard datetime BEFORE computing
-        # This must happen before .compute() to ensure the coordinate transformation
-        # is part of the dask graph, otherwise the groupby metadata will be invalid
-        if hasattr(da_adj.indexes["time"], "to_datetimeindex"):
-            da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()  # type: ignore
-
-        # Persist to avoid recomputation but keep as dask array
-        # This evaluates the QDM adjustment once and caches the result
-        # while maintaining compatibility with downstream lazy operations
-        da_adj = da_adj.persist()
+        # Convert time index back to standard datetime
+        # This is done after QDM.adjust() to convert cftime back to datetime64
+        da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()  # type: ignore
 
         return da_adj  # type: ignore[return-value]
 
