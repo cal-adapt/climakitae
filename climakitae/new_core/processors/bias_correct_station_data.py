@@ -65,7 +65,7 @@ from climakitae.util.utils import get_closest_gridcell
 logger = logging.getLogger(__name__)
 
 
-@register_processor("bias_correct_station_data", priority=150)
+@register_processor("bias_correct_station_data", priority=90)
 class StationBiasCorrection(DataProcessor):
     """Bias-correct gridded climate data to weather station locations using QDM.
 
