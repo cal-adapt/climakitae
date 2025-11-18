@@ -81,6 +81,11 @@ class StationBiasCorrection(DataProcessor):
     - Applying corrections to user-specified time period
     - Preserving station metadata in output
 
+    **Important**: This processor returns lazy dask arrays to maintain memory
+    efficiency and pipeline composability. Users should call `.compute()` on the
+    result when ready to load data into memory. This matches the behavior of the
+    legacy interface and allows for efficient chaining of operations.
+
     Parameters
     ----------
     stations : list[str]
@@ -381,17 +386,11 @@ class StationBiasCorrection(DataProcessor):
 
         # Convert time index back to standard datetime
         # This is done after QDM.adjust() to convert cftime back to datetime64
+        # The coordinate conversion works correctly with lazy dask arrays
         da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()  # type: ignore
-        
-        # CRITICAL: Compute immediately to avoid dask metadata issues
-        # QDM.adjust() returns lazy dask arrays with map_blocks that use cftime coordinates
-        # internally. The coordinate reassignment above only updates the outer metadata.
-        # When the lazy computation triggers later (e.g., during plotting), the internal
-        # map_blocks operations fail because they still try to use cftime coordinates
-        # with groupby operations that require datetime64. Computing now forces evaluation
-        # with the correct coordinate metadata.
-        da_adj = da_adj.compute()
 
+        # Return lazy result (matching legacy behavior)
+        # Users should call .compute() when ready to load data into memory
         return da_adj  # type: ignore[return-value]
 
     def _get_bias_corrected_closest_gridcell(
