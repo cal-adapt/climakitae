@@ -439,38 +439,60 @@ class StationBiasCorrection(DataProcessor):
         )
         logger.debug("QDM training complete")
 
-        # Bias correct the data
-        logger.debug("Applying QDM adjustment to data_sliced")
-        logger.debug("data_sliced time dtype before QDM: %s", data_sliced.time.dtype)
-        logger.debug("data_sliced is dask array: %s", hasattr(data_sliced.data, "dask"))
+        # Check if data has a 'sim' dimension from concatenation
+        # QDM must be applied to each simulation separately
+        if "sim" in data_sliced.dims:
+            logger.debug(
+                "Data has 'sim' dimension, processing each simulation separately"
+            )
+            sim_results = []
 
-        da_adj = QDM.adjust(data_sliced)
-        da_adj.name = gridded_da_historical.name  # Rename to get back to original name
+            for sim_name in data_sliced.sim.values:
+                logger.debug(f"Processing simulation: {sim_name}")
+                sim_data = data_sliced.sel(sim=sim_name)
 
-        logger.debug("QDM adjustment complete (lazy)")
-        logger.debug(
-            "da_adj time dtype after QDM (before compute): %s",
-            da_adj.time.dtype,
-        )
-        logger.debug("da_adj time index type: %s", type(da_adj.indexes["time"]))
-        logger.debug("da_adj is dask array: %s", hasattr(da_adj.data, "dask"))
-        logger.debug("da_adj shape: %s", da_adj.shape)
+                # Apply QDM to this simulation
+                logger.debug("Applying QDM adjustment to %s", sim_name)
+                sim_adj = QDM.adjust(sim_data)
 
-        # QDM.adjust() returns a dask array with map_blocks that have embedded operations
-        # expecting cftime coordinates. We must compute this graph immediately while the
-        # cftime coordinate structure is intact, then convert the computed result.
-        logger.debug("Computing QDM result with cftime coordinates...")
-        da_adj = da_adj.compute()
+                # Compute immediately with cftime coordinates
+                logger.debug("Computing QDM result for %s", sim_name)
+                sim_adj = sim_adj.compute()
 
-        logger.debug("Compute complete")
-        logger.debug("da_adj time dtype after compute: %s", da_adj.time.dtype)
-        logger.debug(
-            "da_adj time index type after compute: %s", type(da_adj.indexes["time"])
-        )
+                # Convert calendar to standard datetime64
+                logger.debug("Converting calendar for %s", sim_name)
+                sim_adj = sim_adj.convert_calendar("standard", use_cftime=False)
 
-        # Now convert the computed result from noleap calendar to standard datetime64
-        logger.debug("Converting calendar from noleap to standard (datetime64)")
-        da_adj = da_adj.convert_calendar("standard", use_cftime=False)
+                # Expand dims to add sim coordinate back
+                sim_adj = sim_adj.expand_dims(sim=[sim_name])
+                sim_results.append(sim_adj)
+                logger.debug("Completed bias correction for %s", sim_name)
+
+            # Concatenate all simulations back together
+            logger.debug("Concatenating %d simulations", len(sim_results))
+            da_adj = xr.concat(sim_results, dim="sim")
+            da_adj.name = gridded_da_historical.name
+
+        else:
+            # No sim dimension, process as single array
+            logger.debug("Applying QDM adjustment to data_sliced")
+            logger.debug(
+                "data_sliced time dtype before QDM: %s", data_sliced.time.dtype
+            )
+            logger.debug(
+                "data_sliced is dask array: %s", hasattr(data_sliced.data, "dask")
+            )
+
+            da_adj = QDM.adjust(data_sliced)
+            da_adj.name = gridded_da_historical.name
+
+            logger.debug("QDM adjustment complete (lazy)")
+            logger.debug("Computing QDM result with cftime coordinates...")
+            da_adj = da_adj.compute()
+
+            logger.debug("Compute complete")
+            logger.debug("Converting calendar from noleap to standard (datetime64)")
+            da_adj = da_adj.convert_calendar("standard", use_cftime=False)
 
         logger.debug("Calendar conversion complete")
         logger.debug("da_adj time dtype after conversion: %s", da_adj.time.dtype)
