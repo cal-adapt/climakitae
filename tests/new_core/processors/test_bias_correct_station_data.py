@@ -213,3 +213,74 @@ class TestBiasCorrectStationDataBiasCorrection:
         # result should be rechunked (have .data or dask attribute)
         # We accept either a dask-backed or numpy-backed array here
         assert out.name == "tas"
+
+
+class TestBiasCorrectStationDataClosestGridcell:
+    """Tests for closest gridcell selection and bias correction wiring.
+
+    Verifies that `_get_bias_corrected_closest_gridcell` calls
+    `get_closest_gridcell`, removes non-dimension coords from the
+    returned gridcell, and attaches station metadata to the bias-corrected
+    output.
+    """
+
+    def setup_method(self):
+        mod = _import_processor_module_with_dummy_xsdba()
+        self.mod = mod
+        self.ProcClass = getattr(mod, "BiasCorrectStationData")
+
+    def test_get_bias_corrected_closest_gridcell_successful(self):
+        proc = self.ProcClass({"stations": ["KSAC"]})
+
+        # Minimal station observational dataarray (time series) with attrs
+        times = pd.date_range("2000-01-01", periods=3)
+        station_da = xr.DataArray([0.1, 0.2, 0.3], dims=("time",), coords={"time": times})
+        station_da.attrs["coordinates"] = (38.5, -121.5)
+        station_da.attrs["elevation"] = "10 m"
+
+        # Placeholder gridded data (not used by our fake get_closest_gridcell)
+        gridded_da = xr.DataArray([0.0, 0.0, 0.0], dims=("time",), coords={"time": times})
+
+        # Build a fake closest-gridcell dataset with extra non-dimension coords
+        ds_times = pd.date_range("2000-01-01", periods=3)
+        ds_closest = xr.Dataset(
+            {"tas": ("time", [1.0, 2.0, 3.0])},
+            coords={"time": ds_times, "latitude": 38.5, "longitude": -121.5, "elevation": 10.0},
+        )
+
+        captured = {}
+
+        def fake_get_closest(gd, lat, lon, print_coords=False):
+            # Capture inputs for assertions
+            captured["lat"] = lat
+            captured["lon"] = lon
+            captured["gd"] = gd
+            return ds_closest
+
+        # Patch the module-level get_closest_gridcell used by the processor
+        self.mod.get_closest_gridcell = fake_get_closest
+
+        # Patch the bias-correction call to capture the gridded input and return a simple DataArray
+        def fake_bias(obs_da, gridded_da_arg, output_slice):
+            captured["gridded_after_drop"] = gridded_da_arg
+            return xr.DataArray([10, 20, 30], dims=("time",), coords={"time": ds_times}, name="tas")
+
+        proc._bias_correct_model_data = fake_bias
+
+        out = proc._get_bias_corrected_closest_gridcell(station_da, gridded_da, output_slice=(2000, 2002))
+
+        # Basic return type checks and metadata propagation
+        assert isinstance(out, xr.DataArray)
+        assert out.attrs.get("station_coordinates") == station_da.attrs["coordinates"]
+        assert out.attrs.get("station_elevation") == station_da.attrs["elevation"]
+
+        # Ensure get_closest_gridcell received the correct coordinates
+        assert captured.get("lat") == 38.5 and captured.get("lon") == -121.5
+
+        # Confirm the gridded argument passed into bias-correction had non-dimension
+        # coords (latitude/longitude/elevation) removed
+        gr_after = captured.get("gridded_after_drop")
+        # gr_after may be an xarray Dataset; ensure it doesn't contain the removed coords
+        assert "latitude" not in gr_after.coords
+        assert "longitude" not in gr_after.coords
+        assert "elevation" not in gr_after.coords
