@@ -182,6 +182,8 @@ def validate_bias_correction_station_data_param(
 
     # Cross-validate with query if provided
     if query is not None:
+        if not _validate_catalog_requirement(query):
+            return False
         if not _validate_variable_compatibility(query):
             return False
         if not _validate_timescale_requirement(query):
@@ -192,6 +194,11 @@ def validate_bias_correction_station_data_param(
             return False
         if not _validate_scenario_resolution_compatibility(query):
             return False
+        if not _validate_institution_id_requirement(query):
+            return False
+    else:
+        logger.debug("No query provided for cross-validation")
+        return False
 
     logger.info(
         "Station bias correction parameters validated successfully for %d station(s)",
@@ -695,4 +702,74 @@ def _validate_scenario_resolution_compatibility(query: Dict[str, Any]) -> bool:
             return False
 
     logger.debug("Scenario-resolution compatibility validation passed")
+    return True
+
+
+def _validate_institution_id_requirement(query: Dict[str, Any]) -> bool:
+    """Validate that institution_id is set for station bias correction.
+
+    Station bias correction requires institution_id to ensure proper data
+    access and provenance tracking.
+
+    Parameters
+    ----------
+    query : Dict[str, Any]
+        Full query dictionary containing institution_id selection.
+
+    Returns
+    -------
+    bool
+        True if institution_id is set, False otherwise.
+    """
+    institution_id = query.get("institution_id", None)
+
+    if institution_id != "UCLA":
+        msg = (
+            "Station bias correction requires 'institution_id' to be set to 'UCLA' in the query. "
+            "Please specify an institution_id using .institution_id('UCLA') "
+            "in your query."
+        )
+        logger.warning(msg)
+        return False
+
+    logger.debug("Institution ID requirement validation passed: %s", institution_id)
+    return True
+
+
+def _validate_catalog_requirement(query: Dict[str, Any]) -> bool:
+    """Require query['catalog'] == 'cadcat' for station bias correction.
+
+    Accepts a string or list of strings. Returns False if catalog is missing
+    or any value is not 'cadcat'.
+    """
+    catalog = query.get("catalog", None)
+
+    if catalog is None:
+        msg = (
+            "Station bias correction requires 'catalog' to be set to 'cadcat' in the query. "
+            "Please specify .catalog('cadcat') in your query."
+        )
+        logger.warning(msg)
+        return False
+
+    # Normalize to list for uniform checking
+    if isinstance(catalog, str):
+        catalogs = [catalog]
+    elif isinstance(catalog, list):
+        catalogs = catalog
+    else:
+        msg = f"'catalog' must be a string or list of strings, got {type(catalog).__name__}"
+        logger.warning(msg)
+        return False
+
+    invalid = [c for c in catalogs if c != "cadcat"]
+    if invalid:
+        msg = (
+            f"Station bias correction requires 'catalog' == 'cadcat', but got: "
+            f"{', '.join(map(str, set(invalid)))}. Please set .catalog('cadcat')."
+        )
+        logger.warning(msg)
+        return False
+
+    logger.debug("Catalog requirement validation passed: %s", catalogs)
     return True
