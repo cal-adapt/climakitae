@@ -331,3 +331,27 @@ class TestBiasCorrectStationDataExecution:
         finally:
             # Restore original map method
             xr.Dataset.map = original_map
+
+
+class TestBiasCorrectStationDataContext:
+    """Test class for update_context method."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor_module = _import_processor_module_with_dummy_xsdba()
+        self.processor = self.processor_module.BiasCorrectStationData({})
+
+    def test_update_context_creates_new_attrs_key(self):
+        """Test that update_context creates 'new_attrs' key in context.
+
+        The processor should add a 'new_attrs' key to context with attributes
+        to be added to the final dataset.
+        """
+        context = {"catalog": "hadisd"}
+
+        self.processor.update_context(context)
+
+        # Verify 'new_attrs' key was created
+        assert "new_attrs" in context
+        # Verify it's a dictionary
+        assert isinstance(context["new_attrs"], dict)
