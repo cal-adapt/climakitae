@@ -1604,7 +1604,10 @@ def _station_apply(
     )
 
     def _get_bias_corrected_closest_gridcell(
-        station_da: xr.DataArray, gridded_da: xr.DataArray, time_slice: tuple[int, int]
+        station_da: xr.DataArray,
+        gridded_da: xr.DataArray,
+        time_slice: tuple[int, int],
+        location_subset: list[str] = None,
     ) -> xr.DataArray:
         """Get the closest gridcell to a weather station.
         Bias correct the data using historical station data
@@ -1614,6 +1617,8 @@ def _station_apply(
         station_da : xr.DataArray
         gridded_da : xr.DataArray
         time_slice : tuple
+        location_subset : list[str], optional
+            Location subset to add to attributes
 
         Returns
         -------
@@ -1731,11 +1736,9 @@ def _station_apply(
             "elevation"
         ]  # Elevation of station
         bias_corrected.attrs["bias_adjustment"] = "Quantile Delta Mapping"
-        # Copy location_subset from the input gridded data
-        if "location_subset" in gridded_da.attrs:
-            bias_corrected.attrs["location_subset"] = gridded_da.attrs[
-                "location_subset"
-            ]
+        # Set location_subset attribute
+        if location_subset is not None:
+            bias_corrected.attrs["location_subset"] = location_subset
         return bias_corrected
 
     apply_output = station_ds.map(
@@ -1743,5 +1746,6 @@ def _station_apply(
         keep_attrs=False,
         gridded_da=da,
         time_slice=original_time_slice,
+        location_subset=selections.cached_area,
     )
     return apply_output
