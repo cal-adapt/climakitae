@@ -284,3 +284,50 @@ class TestBiasCorrectStationDataClosestGridcell:
         assert "latitude" not in gr_after.coords
         assert "longitude" not in gr_after.coords
         assert "elevation" not in gr_after.coords
+
+
+class TestBiasCorrectStationDataExecution:
+    """Tests for main execute method."""
+
+    def setup_method(self):
+        mod = _import_processor_module_with_dummy_xsdba()
+        self.mod = mod
+        self.ProcClass = getattr(mod, "BiasCorrectStationData")
+
+    def test_execute_with_dataarray_input(self):
+        """Test execute with xr.DataArray input."""
+        proc = self.ProcClass({"stations": ["KSAC"]})
+
+        # Create a minimal input DataArray with time dimension
+        times = pd.date_range("2000-01-01", periods=5)
+        input_da = xr.DataArray([1.0, 2.0, 3.0, 4.0, 5.0], dims=("time",), coords={"time": times})
+        input_da.name = "tas"
+
+        # Mock _load_station_data to return a simple Dataset
+        def fake_load():
+            return xr.Dataset({"KSAC": ("time", [10.0, 20.0, 30.0])}, coords={"time": times[:3]})
+
+        proc._load_station_data = fake_load
+
+        # Mock the Dataset.map call to return a simple result
+        fake_result = xr.Dataset({"KSAC": ("time", [100.0, 200.0, 300.0])}, coords={"time": times[:3]})
+
+        # Patch xarray.Dataset.map at the class level
+        original_map = xr.Dataset.map
+
+        def fake_map(self, func, **kwargs):
+            # Return our fake result
+            return fake_result
+
+        xr.Dataset.map = fake_map
+
+        try:
+            context = {}
+            result = proc.execute(input_da, context)
+
+            # Verify result is a Dataset
+            assert isinstance(result, xr.Dataset)
+            assert "KSAC" in result.data_vars
+        finally:
+            # Restore original map method
+            xr.Dataset.map = original_map
