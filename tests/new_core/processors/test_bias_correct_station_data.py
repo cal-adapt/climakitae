@@ -132,18 +132,22 @@ class TestBiasCorrectStationDataLoading:
         proc = self.ProcClass({"stations": ["KSAC"]})
 
         # Provide a minimal catalog with stations table
-        proc.catalog = {"stations": pd.DataFrame({"station id": [1234], "station": ["KSAC"]})}
+        proc.catalog = {
+            "stations": pd.DataFrame({"station id": [1234], "station": ["KSAC"]})
+        }
 
         # Inject a dummy processor_utils module with convert_stations_to_points
         dummy_utils = types.ModuleType("climakitae.new_core.processors.processor_utils")
 
         def convert_stations_to_points(stations, catalog):
             # Return (points, metadata_list)
-            meta = [{
-                "station_id_numeric": 1234,
-                "station_id": "1234",
-                "station_name": "KSAC",
-            }]
+            meta = [
+                {
+                    "station_id_numeric": 1234,
+                    "station_id": "1234",
+                    "station_name": "KSAC",
+                }
+            ]
             return (None, meta)
 
         dummy_utils.convert_stations_to_points = convert_stations_to_points
@@ -178,11 +182,15 @@ class TestBiasCorrectStationDataBiasCorrection:
         obs_times = pd.date_range("1980-01-01", periods=5)
         gr_times = pd.date_range("1970-01-01", periods=200)
 
-        obs_da = xr.DataArray([1.0, 2.0, 3.0, 4.0, 5.0], dims=("time",), coords={"time": obs_times})
+        obs_da = xr.DataArray(
+            [1.0, 2.0, 3.0, 4.0, 5.0], dims=("time",), coords={"time": obs_times}
+        )
         obs_da.name = "obs"
         obs_da.attrs["units"] = "C"
 
-        gr_da = xr.DataArray(list(range(len(gr_times))), dims=("time",), coords={"time": gr_times})
+        gr_da = xr.DataArray(
+            list(range(len(gr_times))), dims=("time",), coords={"time": gr_times}
+        )
         gr_da.name = "tas"
         gr_da.attrs["units"] = "K"
 
