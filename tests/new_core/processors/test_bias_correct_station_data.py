@@ -378,3 +378,57 @@ class TestBiasCorrectStationDataCatalogSetting:
 
         # Verify the accessor was stored as 'catalog' attribute
         assert self.processor.catalog is mock_accessor
+
+
+class TestBiasCorrectStationDataEdgeCases:
+    """Test class for edge cases and invalid inputs."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor_module = _import_processor_module_with_dummy_xsdba()
+        self.processor = self.processor_module.BiasCorrectStationData({})
+
+    def test_execute_with_dataset_input(self):
+        """Test execute method when input is a Dataset instead of DataArray.
+
+        The processor should handle Dataset inputs by mapping over data
+        variables. This verifies robustness to different input types.
+        """
+        # Create a simple Dataset with a data variable and time coordinate
+        time_values = pd.date_range("2020-01-01", periods=3)
+        ds = xr.Dataset({
+            "tas": xr.DataArray([1.0, 2.0, 3.0], dims=["time"], coords={"time": time_values})
+        })
+
+        # Mock _load_station_data to return a simple station Dataset
+        def fake_load(*args, **kwargs):
+            station_time = pd.date_range("2020-01-01", periods=3)
+            return xr.Dataset({
+                "KSAC": xr.DataArray([10.0, 11.0, 12.0], dims=["time"], coords={"time": station_time})
+            })
+
+        self.processor._load_station_data = fake_load
+
+        # Mock Dataset.map to avoid actual bias correction processing
+        original_map = xr.Dataset.map
+
+        def fake_map(self_ds, func, **kwargs):
+            # Return a simple result dataset
+            result_time = pd.date_range("2020-01-01", periods=3)
+            return xr.Dataset({
+                "KSAC": xr.DataArray([20.0, 21.0, 22.0], dims=["time"], coords={"time": result_time})
+            })
+
+        xr.Dataset.map = fake_map
+
+        try:
+            context = {}
+            result = self.processor.execute(ds, context)
+
+            # Should return a Dataset
+            assert isinstance(result, xr.Dataset)
+            # Should have station data
+            assert "KSAC" in result.data_vars
+        finally:
+            # Restore original map method
+            xr.Dataset.map = original_map
