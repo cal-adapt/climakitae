@@ -1730,6 +1730,12 @@ def _station_apply(
         bias_corrected.attrs["station_elevation"] = station_da.attrs[
             "elevation"
         ]  # Elevation of station
+        bias_corrected.attrs["bias_adjustment"] = "Quantile Delta Mapping"
+        # Copy location_subset from the input gridded data
+        if "location_subset" in gridded_da.attrs:
+            bias_corrected.attrs["location_subset"] = gridded_da.attrs[
+                "location_subset"
+            ]
         return bias_corrected
 
     apply_output = station_ds.map(
