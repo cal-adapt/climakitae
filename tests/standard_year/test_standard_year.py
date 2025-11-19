@@ -254,6 +254,7 @@ class TestGetClimateProfile:
             get_climate_profile(warming_level=[2.0])
 
 
+@pytest.mark.advanced
 class TestComputeProfile:
     """Test class for compute_profile function.
 
@@ -329,6 +330,7 @@ class TestComputeProfile:
         assert result.attrs["units"] == "degC", "Should preserve original units"
 
 
+@pytest.mark.advanced
 class TestGetSimulationLabel:
     """Test class for _get_simulation_label helper function behavior.
 

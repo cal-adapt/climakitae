@@ -142,6 +142,7 @@ class TestBiasCorrectStationDataBiasCorrection:
         """Set up test fixtures."""
         self.ProcClass = BiasCorrectStationData
 
+    @pytest.mark.advanced
     def test_bias_correct_model_data_successful(self):
         """Test _bias_correct_model_data method with observational and gridded data.
 
@@ -206,6 +207,7 @@ class TestBiasCorrectStationDataBiasCorrection:
             1090 <= len(out.time) <= 1100
         )  # Allow some flexibility for calendar conversion
 
+    @pytest.mark.advanced
     def test_bias_correct_model_data_with_sim_dimension(self):
         """Test _bias_correct_model_data with multiple simulations (sim dimension).
 
