@@ -1,6 +1,7 @@
 import importlib
 import sys
 import types
+from unittest.mock import MagicMock
 
 import pandas as pd
 import xarray as xr
@@ -355,3 +356,25 @@ class TestBiasCorrectStationDataContext:
         assert "new_attrs" in context
         # Verify it's a dictionary
         assert isinstance(context["new_attrs"], dict)
+
+
+class TestBiasCorrectStationDataCatalogSetting:
+    """Test class for set_data_accessor method."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor_module = _import_processor_module_with_dummy_xsdba()
+        self.processor = self.processor_module.BiasCorrectStationData({})
+
+    def test_set_data_accessor_successful(self):
+        """Test that set_data_accessor stores the data accessor.
+
+        The processor should store a reference to the data accessor for
+        loading additional data during processing.
+        """
+        mock_accessor = MagicMock()
+
+        self.processor.set_data_accessor(mock_accessor)
+
+        # Verify the accessor was stored as 'catalog' attribute
+        assert self.processor.catalog is mock_accessor
