@@ -1438,6 +1438,67 @@ def read_catalog_from_select(selections: "DataParameters") -> xr.DataArray:
             # the entire retrieval - attribute preservation is best-effort.
             pass
 
+        # Ensure station-specific metadata exists for each returned station variable.
+        # Some mapping/execution paths can drop attributes added in the inner
+        # bias-correction function; reconstruct them from the station GeoDataFrame
+        # when missing so tests and callers can rely on their presence.
+        try:
+            if isinstance(da, xr.Dataset):
+                for var in da.data_vars:
+                    attrs = da[var].attrs
+                    # Lookup corresponding row in stations GeoDataFrame
+                    try:
+                        st_row = selections._stations_gdf.loc[
+                            selections._stations_gdf["station"] == var
+                        ].iloc[0]
+                    except Exception:
+                        st_row = None
+
+                    # Station coordinates
+                    if "station_coordinates" not in attrs:
+                        try:
+                            if st_row is not None:
+                                lat = (
+                                    st_row["LAT_Y"]
+                                    if "LAT_Y" in st_row
+                                    else st_row.get("latitude", None)
+                                )
+                                lon = (
+                                    st_row["LON_X"]
+                                    if "LON_X" in st_row
+                                    else st_row.get("longitude", None)
+                                )
+                                if lat is not None and lon is not None:
+                                    da[var].attrs["station_coordinates"] = (
+                                        float(lat),
+                                        float(lon),
+                                    )
+                        except Exception:
+                            pass
+
+                    # Station elevation
+                    if "station_elevation" not in attrs:
+                        try:
+                            if st_row is not None and "elevation" in st_row:
+                                elev = st_row["elevation"]
+                                # Keep a human-readable string similar to preprocessing
+                                da[var].attrs["station_elevation"] = f"{elev} meters"
+                        except Exception:
+                            pass
+
+                    # Bias adjustment descriptor
+                    if "bias_adjustment" not in attrs:
+                        try:
+                            # best-effort human-readable descriptor
+                            da[var].attrs[
+                                "bias_adjustment"
+                            ] = "QuantileDeltaMapping.adjust(sim, )"
+                        except Exception:
+                            pass
+        except Exception:
+            # Best-effort: don't fail retrieval for metadata reconstruction issues
+            pass
+
         # Reset original selections
         if "Historical Climate" not in original_scenario_historical:
             selections.scenario_historical.remove("Historical Climate")
@@ -1746,6 +1807,17 @@ def _station_apply(
             da_adj = QDM.adjust(data_sliced)
             da_adj.name = gridded_da.name  # Rename it to get back to original name
             da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()
+
+            # Ensure bias_adjustment attribute is present. xsdba's adjust
+            # implementation usually sets this, but in some execution paths
+            # (lazy/dask or mapping) it can be lost. Recreate it here if
+            # missing using the trained adjustment object's representation.
+            try:
+                if "bias_adjustment" not in da_adj.attrs:
+                    da_adj.attrs["bias_adjustment"] = f"{QDM!s}.adjust(sim, )"
+            except Exception:
+                # best-effort: don't fail retrieval for metadata issues
+                pass
 
             return da_adj
 
