@@ -1411,12 +1411,44 @@ def read_catalog_from_select(selections: "DataParameters") -> xr.DataArray:
 
     if selections.data_type == "Stations":
         # Bias-correct the station data
+        # Preserve attributes from the gridded data (e.g. `location_subset`) which
+        # can be lost during the station bias-correction step. Capture them here
+        # and re-attach after `_station_apply`.
+        try:
+            gridded_attrs = dict(da.attrs) if hasattr(da, "attrs") else {}
+        except Exception:
+            gridded_attrs = {}
+
         da = _station_apply(selections, da, original_time_slice)
+
+        # Re-attach gridded attributes onto each station variable if they are missing.
+        # Do not overwrite any existing station-specific attributes.
+        try:
+            if isinstance(da, xr.Dataset):
+                for var in da.data_vars:
+                    for k, v in gridded_attrs.items():
+                        if k not in da[var].attrs:
+                            da[var].attrs[k] = v
+            elif isinstance(da, xr.DataArray):
+                for k, v in gridded_attrs.items():
+                    if k not in da.attrs:
+                        da.attrs[k] = v
+        except Exception:
+            # If anything goes wrong attaching attributes, proceed without failing
+            # the entire retrieval - attribute preservation is best-effort.
+            pass
 
         # Reset original selections
         if "Historical Climate" not in original_scenario_historical:
             selections.scenario_historical.remove("Historical Climate")
-            da["scenario"] = [x.split("Historical + ")[1] for x in da.scenario.values]
+            try:
+                da["scenario"] = [
+                    x.split("Historical + ")[1] for x in da.scenario.values
+                ]
+            except Exception:
+                # best-effort: if the scenario coordinate isn't present or in
+                # unexpected format, ignore and continue
+                pass
         selections.time_slice = original_time_slice
 
     if selections.approach == "Warming Level":
