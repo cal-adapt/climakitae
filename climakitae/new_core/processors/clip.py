@@ -118,7 +118,8 @@ import numpy as np
 import pandas as pd
 import pyproj
 import xarray as xr
-from geopy.distance import geodesic
+
+# geodesic distance not used in immediate-neighborhood search
 from shapely.geometry import box, mapping
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
@@ -574,11 +575,47 @@ class Clip(DataProcessor):
                     test_data = test_data.isel({dim: 0})
 
             if not test_data.isnull().all():
-                logger.info(
-                    "Found valid data at closest gridcell: lat=%0.4f, lon=%0.4f",
-                    float(closest_gridcell.lat.values),
-                    float(closest_gridcell.lon.values),
-                )
+                # Log coordinates safely — not all selections will retain spatial dims
+                try:
+                    if len(spatial_dims) >= 2:
+                        coord0 = float(
+                            closest_gridcell[spatial_dims[0]].values
+                            if hasattr(closest_gridcell[spatial_dims[0]], "values")
+                            else closest_gridcell[spatial_dims[0]]
+                        )
+                        coord1 = float(
+                            closest_gridcell[spatial_dims[1]].values
+                            if hasattr(closest_gridcell[spatial_dims[1]], "values")
+                            else closest_gridcell[spatial_dims[1]]
+                        )
+                        logger.info(
+                            "Found valid data at closest gridcell: %s=%0.4f, %s=%0.4f",
+                            spatial_dims[0],
+                            coord0,
+                            spatial_dims[1],
+                            coord1,
+                        )
+                    elif (
+                        "lat" in closest_gridcell.coords
+                        and "lon" in closest_gridcell.coords
+                    ):
+                        lat_val = float(
+                            closest_gridcell.coords["lat"].to_numpy().item()
+                        )
+                        lon_val = float(
+                            closest_gridcell.coords["lon"].to_numpy().item()
+                        )
+                        logger.info(
+                            "Found valid data at closest gridcell: lat=%0.4f, lon=%0.4f",
+                            lat_val,
+                            lon_val,
+                        )
+                    else:
+                        logger.info(
+                            "Found valid data at closest gridcell (coords unavailable)"
+                        )
+                except Exception:
+                    logger.info("Found valid data at closest gridcell")
                 return closest_gridcell
 
         # If no valid data found at closest point, search neighboring grid cells
@@ -587,20 +624,19 @@ class Clip(DataProcessor):
         # (using x/y or lat/lon coordinates) and expands in cell-space until a
         # valid (non-NaN) cell is found within a reasonable radius.
         logger.info("Closest gridcell contains NaN values, searching nearby indices...")
+        # Some tests assert on printed messages; keep a short printed status as well
+        try:
+            print("Searching for nearest valid gridcell...")
+        except Exception:
+            # If stdout is not available or patched, ignore
+            pass
 
         # Determine spatial dimension names
         if "x" in dataset.dims and "y" in dataset.dims:
             dim1_name, dim2_name = "x", "y"
-            # Transformer to convert model projection (x,y) -> lat/lon
-            try:
-                inv_transformer = pyproj.Transformer.from_crs(
-                    dataset.rio.crs, "epsg:4326", always_xy=True
-                )
-            except Exception:
-                inv_transformer = None
+
         elif "lat" in dataset.dims and "lon" in dataset.dims:
             dim1_name, dim2_name = "lat", "lon"
-            inv_transformer = None
         else:
             # Unknown grid layout; fall back to previous slow search
             logger.debug("Unknown spatial dims, falling back to bounding-box search")
@@ -660,211 +696,90 @@ class Clip(DataProcessor):
             )
             return None
 
-        # Determine grid spacing (in degrees for lat/lon or meters for x/y approximated
-        # by `resolution` attribute). Use this to convert degree radii into cell offsets.
-        try:
-            km_num = int(dataset.resolution.split(" km")[0])
-        except Exception:
-            km_num = None
-
-        # Compute approximate grid step (degrees) if lat/lon dims
-        grid_step_deg = None
-        if dim1_name == "lat" and dim2_name == "lon":
-            try:
-                if dataset["lat"].size > 1:
-                    grid_step_deg = abs(float(dataset["lat"][1] - dataset["lat"][0]))
-                else:
-                    grid_step_deg = 0.01
-            except Exception:
-                grid_step_deg = 0.01
-
-        # Search offsets in cell units derived from radius candidates
-        search_radii = [0.01, 0.05, 0.1, 0.2, 0.5]
+        # Only search the immediate 3x3 neighborhood around the nearest index
         max_i = dataset.sizes[dim1_name]
         max_j = dataset.sizes[dim2_name]
 
-        best_candidate = None
-        best_distance_km = np.inf
+        center_i = int(idx1)
+        center_j = int(idx2)
+        logger.debug(
+            "Searching immediate 3x3 neighborhood around indices (%d, %d)",
+            center_i,
+            center_j,
+        )
 
-        for radius in search_radii:
-            # Convert radius (degrees) to cell offset
-            if grid_step_deg:
-                cell_offset = int(np.ceil(radius / grid_step_deg))
-            elif km_num is not None:
-                # convert degrees->meters approx: 1 deg ~ 111km
-                meters_per_deg = 111000
-                radius_m = radius * meters_per_deg
-                cell_offset = int(np.ceil(radius_m / (km_num * 1000)))
-            else:
-                cell_offset = int(np.ceil(radius / 0.05))  # fallback
+        neighbor_cells = []
 
-            i_min = max(0, idx1 - cell_offset)
-            i_max = min(max_i - 1, idx1 + cell_offset)
-            j_min = max(0, idx2 - cell_offset)
-            j_max = min(max_j - 1, idx2 + cell_offset)
-
-            # Iterate candidate cells in the square window
-            for i_idx in range(i_min, i_max + 1):
-                for j_idx in range(j_min, j_max + 1):
-                    try:
-                        # Reduce other non-spatial dims to single element for checking
-                        sample = dataset.isel({dim1_name: i_idx, dim2_name: j_idx})
-                        # reduce non-spatial dims
-                        for d in list(sample.dims):
-                            if d not in [dim1_name, dim2_name]:
-                                sample = sample.isel({d: 0})
-
-                        # Choose first data variable if dataset
-                        if isinstance(sample, xr.Dataset):
-                            var = next(iter(sample.data_vars))
-                            sample_da = sample[var]
-                        else:
-                            sample_da = sample
-
-                        if sample_da.isnull().all():
-                            continue
-
-                        # Get lat/lon for candidate cell
-                        try:
-                            if dim1_name in ["lat"] and dim2_name in ["lon"]:
-                                cand_lat = float(dataset["lat"][i_idx].values)
-                                cand_lon = float(dataset["lon"][j_idx].values)
-                            else:
-                                # x/y grid: try to get lat/lon coords if present, else transform
-                                try:
-                                    cand_lat = float(
-                                        dataset["lat"]
-                                        .isel({dim1_name: i_idx, dim2_name: j_idx})
-                                        .values
-                                    )
-                                    cand_lon = float(
-                                        dataset["lon"]
-                                        .isel({dim1_name: i_idx, dim2_name: j_idx})
-                                        .values
-                                    )
-                                except Exception:
-                                    # use inverse transformer from model projection
-                                    if inv_transformer is not None:
-                                        x_val = float(
-                                            dataset[dim1_name]
-                                            .isel({dim1_name: i_idx})
-                                            .values
-                                        )
-                                        y_val = float(
-                                            dataset[dim2_name]
-                                            .isel({dim2_name: j_idx})
-                                            .values
-                                        )
-                                        cand_lon, cand_lat = inv_transformer.transform(
-                                            x_val, y_val
-                                        )
-                                    else:
-                                        continue
-                        except Exception:
-                            continue
-
-                        # Compute geodesic distance
-                        try:
-                            dist_km = geodesic(
-                                (lat, lon), (cand_lat, cand_lon)
-                            ).kilometers
-                        except Exception:
-                            continue
-
-                        # Accept candidate if within current radius
-                        if dist_km <= radius * 111.0:
-                            if dist_km < best_distance_km:
-                                best_distance_km = dist_km
-                                best_candidate = (i_idx, j_idx, dim1_name, dim2_name)
-                    except Exception:
-                        # If any unexpected error occurs for this candidate, skip it
-                        continue
-            # If we found a candidate in this radius, break out
-            if best_candidate is not None:
-                break
-
-        if best_candidate is not None:
-            center_i, center_j, d1, d2 = best_candidate
-            logger.info("Found valid gridcell at distance %0.2f km", best_distance_km)
-
-            # Collect up to 9 cells (center + 8 adjacent). Only include cells
-            # whose values are not all-NaN. Then average them along a new
-            # 'nearest_cell' dimension and return the averaged result.
-            neighbor_cells = []
-
-            for di in (-1, 0, 1):
-                for dj in (-1, 0, 1):
-                    ni = int(center_i + di)
-                    nj = int(center_j + dj)
-                    # Skip out-of-bounds indices
-                    if ni < 0 or nj < 0 or ni >= max_i or nj >= max_j:
-                        continue
-                    try:
-                        cell = dataset.isel({d1: ni, d2: nj})
-
-                        # Determine a DataArray to test for NaNs
-                        if isinstance(cell, xr.Dataset):
-                            sample_var = next(iter(cell.data_vars))
-                            sample_da = cell[sample_var]
-                        else:
-                            sample_da = cell
-
-                        if sample_da.isnull().all():
-                            continue
-
-                        neighbor_cells.append(cell)
-                    except Exception:
-                        # Skip any candidate that raises (robust to missing coords)
-                        continue
-
-            if neighbor_cells:
+        for di in (-1, 0, 1):
+            for dj in (-1, 0, 1):
+                ni = center_i + di
+                nj = center_j + dj
+                # Skip out-of-bounds indices
+                if ni < 0 or nj < 0 or ni >= max_i or nj >= max_j:
+                    continue
                 try:
-                    # Concatenate along a new dimension and average across it
-                    concat = xr.concat(neighbor_cells, dim="nearest_cell")
-                    averaged = concat.mean(dim="nearest_cell")
+                    cell = dataset.isel({dim1_name: ni, dim2_name: nj})
 
-                    # Try to set lat/lon to mean of selected cells if available
-                    try:
-                        if "lat" in concat.coords and "lon" in concat.coords:
-                            averaged = averaged.assign_coords(
-                                lat=float(np.nanmean(concat["lat"].values)),
-                                lon=float(np.nanmean(concat["lon"].values)),
-                            )
-                    except Exception:
-                        pass
+                    # Determine a DataArray to test for NaNs
+                    if isinstance(cell, xr.Dataset):
+                        sample_var = next(iter(cell.data_vars))
+                        sample_da = cell[sample_var]
+                    else:
+                        sample_da = cell
 
-                    return averaged
-                except Exception:
-                    # Fallback to returning the center cell if averaging fails
-                    try:
-                        return dataset.isel({d1: int(center_i), d2: int(center_j)})
-                    except Exception:
-                        try:
-                            return dataset.sel(
-                                {
-                                    "lat": dataset["lat"][center_i],
-                                    "lon": dataset["lon"][center_j],
-                                }
-                            )
-                        except Exception:
-                            return None
-            else:
-                # No valid neighbor cells found; fall back to center cell selection
-                try:
-                    return dataset.isel({d1: int(center_i), d2: int(center_j)})
-                except Exception:
-                    try:
-                        return dataset.sel(
-                            {
-                                "lat": dataset["lat"][center_i],
-                                "lon": dataset["lon"][center_j],
-                            }
+                    if sample_da.isnull().all():
+                        logger.debug(
+                            "Skipping all-NaN cell at indices (%d, %d)", ni, nj
                         )
-                    except Exception:
-                        return None
+                        continue
 
-        logger.warning("No valid gridcells found within search radius")
-        return None
+                    neighbor_cells.append(cell)
+                    logger.debug("Including cell at indices (%d, %d)", ni, nj)
+                except Exception:
+                    # Skip any candidate that raises (robust to missing coords)
+                    continue
+
+        logger.debug("Found %d valid neighbor cells", len(neighbor_cells))
+        if not neighbor_cells:
+            logger.warning("No valid gridcells found in immediate 3x3 neighborhood")
+            return None
+
+        try:
+            logger.debug("Averaging all valid neighbor cells")
+            concat = xr.concat(neighbor_cells, dim="nearest_cell")
+            averaged = concat.mean(dim="nearest_cell")
+
+            # Try to set lat/lon to mean of selected cells if available
+            try:
+                if "lat" in concat.coords and "lon" in concat.coords:
+                    averaged = averaged.assign_coords(
+                        lat=float(np.nanmean(concat["lat"].to_numpy())),
+                        lon=float(np.nanmean(concat["lon"].to_numpy())),
+                    )
+            except Exception:
+                pass
+
+            return averaged
+        except Exception:
+            # Fallback to returning the center cell if averaging fails
+            logger.warning("Averaging failed", exc_info=True)
+            try:
+                return dataset.isel({dim1_name: center_i, dim2_name: center_j})
+            except Exception:
+                logger.warning("Returning center cell using isel failed", exc_info=True)
+                try:
+                    logger.debug("Returning center cell using sel with lat/lon")
+                    return dataset.sel(
+                        {
+                            "lat": dataset["lat"][center_i],
+                            "lon": dataset["lon"][center_j],
+                        }
+                    )
+                except Exception:
+                    logger.warning(
+                        "No valid gridcells found in neighborhood", exc_info=True
+                    )
+                    return None
 
     @staticmethod
     def _clip_data_to_multiple_points(
