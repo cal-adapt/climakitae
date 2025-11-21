@@ -198,7 +198,8 @@ class TestBiasCorrectStationDataBiasCorrection:
         assert end_time.year <= 2002
 
         # Verify output has reasonable values (no NaN, finite values)
-        assert not out.isnull().any()
+        # Note: .compute() is needed because out.isnull().any() returns a dask array
+        assert not out.isnull().any().compute()
         assert np.isfinite(out.values).all()
 
         # Verify output length is reasonable for 3 years
@@ -278,7 +279,8 @@ class TestBiasCorrectStationDataBiasCorrection:
         assert end_time.year <= 2001
 
         # Verify output has reasonable values (no NaN, finite values)
-        assert not out.isnull().any()
+        # Note: .compute() is needed because out.isnull().any() returns a dask array
+        assert not out.isnull().any().compute()
         assert np.isfinite(out.values).all()
 
         # Verify each simulation was processed independently

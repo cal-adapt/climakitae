@@ -462,21 +462,32 @@ class BiasCorrectStationData(DataProcessor):
 
             # Convert calendar to standard datetime64
             logger.debug("Converting calendar to standard")
-            try:
-                # FAST PATH: Use legacy approach (convert index directly)
-                # This avoids overhead of convert_calendar and matches legacy behavior
-                # to_datetimeindex() is available on CFTimeIndex
-                if hasattr(da_adj.indexes["time"], "to_datetimeindex"):
-                    da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()
-                else:
-                    # Fallback if to_datetimeindex is unavailable
-                    da_adj = da_adj.convert_calendar("standard", use_cftime=False)
-            except Exception as e:
-                logger.warning(
-                    "Fast calendar conversion failed: %s. Falling back to convert_calendar.",
-                    e,
-                )
-                da_adj = da_adj.convert_calendar("standard", use_cftime=False)
+            if not isinstance(da_adj.indexes["time"], pd.DatetimeIndex):
+                import warnings
+
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    try:
+                        # FAST PATH: Use legacy approach (convert index directly)
+                        # This avoids overhead of convert_calendar and matches legacy behavior
+                        # to_datetimeindex() is available on CFTimeIndex
+                        if hasattr(da_adj.indexes["time"], "to_datetimeindex"):
+                            da_adj["time"] = getattr(
+                                da_adj.indexes["time"], "to_datetimeindex"
+                            )()
+                        else:
+                            # Fallback if to_datetimeindex is unavailable
+                            da_adj = da_adj.convert_calendar(
+                                "standard", use_cftime=False
+                            )
+                    except Exception as e:
+                        logger.warning(
+                            "Fast calendar conversion failed: %s. Falling back to convert_calendar.",
+                            e,
+                        )
+                        da_adj = da_adj.convert_calendar("standard", use_cftime=False)
+            else:
+                logger.debug("Data is already standard calendar. Skipping conversion.")
 
             da_adj.name = gridded_da_historical.name
 
@@ -508,18 +519,29 @@ class BiasCorrectStationData(DataProcessor):
             logger.debug("QDM adjustment complete (lazy)")
 
             logger.debug("Converting calendar from noleap to standard (datetime64)")
-            try:
-                # FAST PATH: Use legacy approach (convert index directly)
-                if hasattr(da_adj.indexes["time"], "to_datetimeindex"):
-                    da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()
-                else:
-                    da_adj = da_adj.convert_calendar("standard", use_cftime=False)
-            except Exception as e:
-                logger.warning(
-                    "Fast calendar conversion failed: %s. Falling back to convert_calendar.",
-                    e,
-                )
-                da_adj = da_adj.convert_calendar("standard", use_cftime=False)
+            if not isinstance(da_adj.indexes["time"], pd.DatetimeIndex):
+                import warnings
+
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    try:
+                        # FAST PATH: Use legacy approach (convert index directly)
+                        if hasattr(da_adj.indexes["time"], "to_datetimeindex"):
+                            da_adj["time"] = getattr(
+                                da_adj.indexes["time"], "to_datetimeindex"
+                            )()
+                        else:
+                            da_adj = da_adj.convert_calendar(
+                                "standard", use_cftime=False
+                            )
+                    except Exception as e:
+                        logger.warning(
+                            "Fast calendar conversion failed: %s. Falling back to convert_calendar.",
+                            e,
+                        )
+                        da_adj = da_adj.convert_calendar("standard", use_cftime=False)
+            else:
+                logger.debug("Data is already standard calendar. Skipping conversion.")
 
         logger.debug("Calendar conversion complete")
         logger.debug("da_adj time dtype after conversion: %s", da_adj.time.dtype)
