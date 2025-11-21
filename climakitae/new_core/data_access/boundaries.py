@@ -40,6 +40,7 @@ Examples
 
 """
 
+import logging
 import warnings
 from typing import Dict, Optional, Union
 
@@ -51,6 +52,9 @@ from climakitae.core.constants import (
     PRIORITY_UTILITIES,
     WESTERN_STATES_LIST,
 )
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 class Boundaries:
@@ -629,11 +633,9 @@ class Boundaries:
         lazy loading.
 
         """
-        warnings.warn(
+        logger.warning(
             "The load() method is deprecated. Data now loads automatically when accessed. "
-            "Use preload_all() for explicit preloading.",
-            DeprecationWarning,
-            stacklevel=999,
+            "Use preload_all() for explicit preloading."
         )
         self.preload_all()
 

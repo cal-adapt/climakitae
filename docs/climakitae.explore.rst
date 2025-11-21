@@ -4,14 +4,6 @@ climakitae.explore package
 Submodules
 ----------
 
-climakitae.explore.agnostic module
-----------------------------------
-
-.. automodule:: climakitae.explore.agnostic
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 climakitae.explore.standard_year_profile module
 -----------------------------
 
@@ -85,3 +77,4 @@ Module contents
    :members:
    :undoc-members:
    :show-inheritance:
+

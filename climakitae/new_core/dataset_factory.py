@@ -35,7 +35,7 @@ components based on user queries from the ClimateData UI.
 
 from __future__ import annotations
 
-import warnings
+import logging
 from typing import Any, Dict, List, Type
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, PROC_KEY, UNSET
@@ -49,6 +49,9 @@ from climakitae.new_core.param_validation.param_validation_tools import (
     _get_closest_options,
 )
 from climakitae.new_core.processors.abc_data_processor import _PROCESSOR_REGISTRY
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 class DatasetFactory:
@@ -146,10 +149,16 @@ class DatasetFactory:
             If the catalog file cannot be loaded or parsed.
 
         """
+        logger.debug("Initializing DatasetFactory")
         self._catalog = None
         self._catalog_df = DataCatalog().catalog_df
         self._validator_registry = _CATALOG_VALIDATOR_REGISTRY
         self._processing_step_registry = _PROCESSOR_REGISTRY
+        logger.info(
+            "DatasetFactory initialized with %d validators and %d processors",
+            len(self._validator_registry),
+            len(self._processing_step_registry),
+        )
 
     def create_dataset(self, ui_query: Dict[str, Any]) -> Dataset:
         """Create a Dataset based on a UI query from ClimateData.
@@ -194,25 +203,36 @@ class DatasetFactory:
         create_validator : Method for creating parameter validators
 
         """
+        logger.debug("Creating dataset from query: %s", ui_query)
         dataset = Dataset()
 
         # Create and configure parameter validator
         catalog_key = self._get_catalog_key_from_query(ui_query)
+        logger.info("Determined catalog key: %s", catalog_key)
         self._catalog = DataCatalog()
         self._catalog.set_catalog_key(catalog_key)
+        logger.debug("Creating validator for catalog: %s", catalog_key)
         dataset.with_param_validator(self.create_validator(catalog_key))
 
         # Configure the appropriate catalog based on query parameters
+        logger.debug("Configuring dataset with data catalog")
         dataset.with_catalog(self._catalog)
 
         # Add processing steps based on query parameters
         if _NEW_ATTRS_KEY not in ui_query:
             ui_query[_NEW_ATTRS_KEY] = {}
 
+        logger.debug("Determining processing steps for query")
         proc_steps = self._get_list_of_processing_steps(ui_query)
+        logger.info("Adding %d processing steps to dataset", len(proc_steps))
         for proc in proc_steps:
+            logger.debug(
+                "Adding processing step: %s",
+                proc[0] if isinstance(proc, tuple) else proc,
+            )
             dataset.with_processing_step(proc)
 
+        logger.info("Dataset created successfully")
         return dataset
 
     def _get_list_of_processing_steps(
@@ -293,7 +313,7 @@ class DatasetFactory:
 
         for key, value in query[PROC_KEY].items():
             if key not in self._processing_step_registry:
-                warnings.warn(
+                logger.warning(
                     f"Processing step '{key}' not found in registry. Skipping.",
                     stacklevel=999,
                 )
@@ -407,7 +427,7 @@ class DatasetFactory:
         # check for typo or close matches
         closest = _get_closest_options(val_reg_key, self._validator_registry.keys())
         if not closest:
-            warnings.warn(
+            logger.warning(
                 f"No validator registered for '{val_reg_key}'. "
                 "Available options: {list(self._validator_registry.keys())}",
                 stacklevel=999,
@@ -416,20 +436,20 @@ class DatasetFactory:
 
         match len(closest):
             case 0:
-                warnings.warn(
+                logger.warning(
                     f"No validator registered for '{val_reg_key}'. "
                     "Available options: {list(self._validator_registry.keys())}",
                     stacklevel=999,
                 )
                 return None  # type: ignore[return-value]
             case 1:
-                warnings.warn(
+                logger.warning(
                     f"\n\nUsing closest match '{closest[0]}' for validator '{val_reg_key}'.",
                     stacklevel=999,
                 )
                 return self._validator_registry[closest[0]](self._catalog)
             case _:
-                warnings.warn(
+                logger.warning(
                     f"Multiple closest matches found for '{val_reg_key}': {closest}. "
                     "Please specify a more precise key.",
                     stacklevel=999,
@@ -467,11 +487,11 @@ class DatasetFactory:
         ]  # filter rows with matching keys
         match len(subset):
             case 0:
-                warnings.warn("No matching catalogs found initially.", stacklevel=999)
+                logger.warning("No matching catalogs found initially.")
             case 1:
                 return subset.iloc[0]["catalog"]
             case _:
-                warnings.warn(
+                logger.warning(
                     "Multiple matching datasets found. Please refine your query.",
                     stacklevel=999,
                 )

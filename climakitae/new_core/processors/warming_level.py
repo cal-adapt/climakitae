@@ -5,6 +5,7 @@ A simplified warming level processor that transforms time-series climate data
 to a warming level centered approach following the established template pattern.
 """
 
+import logging
 import re
 import warnings
 from typing import Any, Dict, Iterable, Union
@@ -23,6 +24,11 @@ from climakitae.new_core.processors.abc_data_processor import (
 
 # from climakitae.new_core.processors.processor_utils import _determine_is_complete_wl
 from climakitae.util.utils import _determine_is_complete_wl, read_csv_file
+from climakitae.new_core.processors.processor_utils import extend_time_domain
+
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 @register_processor("warming_level", priority=10)
@@ -87,6 +93,11 @@ class WarmingLevel(DataProcessor):
             "warming_levels": self.warming_levels,
             "warming_level_window": self.warming_level_window,
         }
+        logger.debug(
+            "WarmingLevel initialized with warming_levels=%s window=%s",
+            self.warming_levels,
+            self.warming_level_window,
+        )
 
     def execute(
         self,
@@ -128,6 +139,9 @@ class WarmingLevel(DataProcessor):
                     GWL_1981_2010_TIMEIDX_FILE, index_col="time", parse_dates=True
                 )
             except (FileNotFoundError, pd.errors.ParserError) as e:
+                logger.error(
+                    "Failed to load warming level times table: %s", e, exc_info=True
+                )
                 raise RuntimeError(
                     f"Failed to load warming level times table: {e}"
                 ) from e
@@ -136,14 +150,17 @@ class WarmingLevel(DataProcessor):
         # and split the data by member_id
         ret = self.reformat_member_ids(result)
 
-        # extend the time domain of all ssp scenarios to cover historical period
-        ret = self.extend_time_domain(ret)
+        # extend the time domain of all ssp scenarios to 1980-2100
+        ret = extend_time_domain(ret)
 
         # first, extract the member IDs from the data
         member_ids = []
+        logger.debug(
+            "Preparing warming level transformation for %d keys", len(ret.keys())
+        )
         for k in ret.keys():
             mem_id = k.split(".")[-1]  # Get the last part as member_id
-            if mem_id[0] == "r":
+            if mem_id and mem_id[0] == "r":
                 # If it starts with 'r', it's a member_id
                 member_ids.append(mem_id)
             else:
@@ -168,10 +185,8 @@ class WarmingLevel(DataProcessor):
 
             for year, wl in zip(years, self.warming_levels):
                 if year is None or pd.isna(year):
-                    warnings.warn(
-                        f"\n\nNo warming level data found for {key} at {wl}C. "
-                        "\nSkipping this warming level."
-                    )
+                    msg = f"No warming level data found for {key} at {wl}C. Skipping this warming level."
+                    logger.warning(msg)
                     continue
                 start_year = year - self.warming_level_window
                 end_year = year + self.warming_level_window - 1
@@ -213,14 +228,15 @@ class WarmingLevel(DataProcessor):
                 )
 
                 slices.append(da_slice)
-
+            # After processing all warming levels, check if we have any valid slices.
             if not slices:
-                warnings.warn(
-                    f"\n\nNo valid slices found for {key}. "
-                    "Ensure the warming level times table is correctly configured."
-                )
-                del ret[key]  # Remove key if no valid slices found
+                msg = f"No valid slices found for {key}. Ensure the warming level times table is correctly configured."
+                logger.warning(msg)
+                # Remove key if no valid slices found and continue
+                if key in ret:
+                    del ret[key]
                 continue
+
             ret[key] = xr.concat(
                 slices, dim="warming_level", join="outer", fill_value=np.nan
             )
@@ -293,62 +309,8 @@ class WarmingLevel(DataProcessor):
             else:
                 # If no member_id, keep the original key
                 ret[key] = data
-                warnings.warn(
-                    f"\n\nNo member_id found in data for key {key}. "
-                    "\nAssuming no member_id is present for this dataset."
-                )
-        return ret
-
-    def extend_time_domain(
-        self, result: Dict[str, Union[xr.Dataset, xr.DataArray]]
-    ) -> Dict[str, Union[xr.Dataset, xr.DataArray]]:
-        """
-        Extend the time domain of the input data to cover the historical period,
-        either 1950-2100 for LOCA or 1981-2100 for WRF.
-
-        This method ensures that all SSP scenarios have historical data
-        included in the time series, allowing for proper warming level calculations.
-        This is handled by concatenating historical data with SSP data and updating
-        the attributes to that of the SSP data. Historical data is expected to be
-        available in the input dictionary with keys formatted the same as SSP keys
-        but with "historical" instead of r"ssp.{3}" (e.g., "ssp245" becomes "historical").
-
-        Parameters
-        ----------
-        result : Dict[str, Union[xr.Dataset | xr.DataArray]]
-            A dictionary containing time-series data with keys representing different scenarios.
-
-        Returns
-        -------
-        Union[xr.Dataset, xr.DataArray]
-            The extended time-series data.
-        """
-        ret = {}
-        for key, data in result.items():
-            if "ssp" not in key:
-                continue  # Skip historical and reanalysis data
-
-            hist_key = re.sub(r"ssp.{3}", "historical", key)
-            if hist_key not in result:
-                warnings.warn(
-                    f"\n\nNo historical data found for {key} with key {hist_key}. "
-                    f"\nHistorical data is required for warming level calculations."
-                )
-                continue
-
-            if "time" not in data.dims or "time" not in result[hist_key].dims:
-                warnings.warn(
-                    f"\n\nNo time dimension found in data for key {key} or {hist_key}. "
-                    f"\nCannot extend time domain without time dimension."
-                )
-                continue
-
-            ret[key] = xr.concat(
-                [result[hist_key], data],
-                dim="time",
-            )
-            ret[key].attrs.update(data.attrs)  # Preserve attributes
-
+                msg = f"No member_id found in data for key {key}. Assuming no member_id is present for this dataset."
+                logger.warning(msg)
         return ret
 
     def get_center_years(
@@ -401,7 +363,7 @@ class WarmingLevel(DataProcessor):
                     # the first year that the simulation crosses the given warming level
                     wl_table_key = f"{key_list[2]}_{member_id}_{key_list[3]}"
                     if wl_table_key not in self.warming_level_times_idx.columns:
-                        warnings.warn(
+                        logger.warning(
                             f"\n\nWarming level table does not contain data for {wl_table_key}. "
                             "\nEnsure the warming level times table is correctly configured."
                         )
@@ -422,7 +384,7 @@ class WarmingLevel(DataProcessor):
                             .dropna()
                             .index.max()
                         )
-                        warnings.warn(
+                        logger.warning(
                             f"\n\nNo warming level data found for {wl_table_key} at {wl}C. "
                             f"\nPlease pick a warming level less than {max_valid_wl}C."
                         )

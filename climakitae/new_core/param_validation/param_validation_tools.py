@@ -2,11 +2,14 @@
 
 import datetime
 import difflib
-import warnings
+import logging
 from collections.abc import Iterable
 from typing import Any
 
 import pandas as pd
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 def _get_closest_options(val, valid_options, cutoff=0.59):
@@ -129,17 +132,15 @@ def _validate_experimental_id_param(
             # If no match, try to find the closest valid experiment ID
             closest = _get_closest_options(v, valid_experiment_ids)
             if closest:
-                warnings.warn(
+                logger.warning(
                     f"\n\nExperiment ID '{v}' not found."
                     f"\nDid you mean any of the following '{closest[0]}'?",
-                    UserWarning,
                     stacklevel=999,
                 )
             else:
-                warnings.warn(
+                logger.warning(
                     f"\n\nExperiment ID '{v}' not found."
                     "\nPlease check the available experiment IDs.",
-                    UserWarning,
                     stacklevel=999,
                 )
             return False
@@ -151,9 +152,8 @@ def _validate_experimental_id_param(
                 if v not in valid_experiment_ids:
                     closest = _get_closest_options(v, valid_experiment_ids)
                     if closest:
-                        warnings.warn(
+                        logger.warning(
                             f"Experiment ID '{v}' not found. Did you mean '{closest[0]}'?",
-                            UserWarning,
                             stacklevel=999,
                         )
 

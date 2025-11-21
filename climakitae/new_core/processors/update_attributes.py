@@ -2,6 +2,7 @@
 
 from typing import Any, Dict, Iterable, Union
 
+import logging
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
@@ -10,6 +11,10 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
+
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 common_attrs = {
     "x": {
@@ -84,6 +89,9 @@ class UpdateAttributes(DataProcessor):
         This method updates the attributes of the data based on the provided value.
 
         """
+        logger.debug(
+            "UpdateAttributes.execute called, ensuring context has new attributes"
+        )
         if self.name not in context:
             self.update_context(context)
 
@@ -107,6 +115,10 @@ class UpdateAttributes(DataProcessor):
                     "Result must be an xarray Dataset, DataArray, or iterable of them."
                 )
 
+        logger.info(
+            "UpdateAttributes applied to result; added %d attributes",
+            len(context.get(_NEW_ATTRS_KEY, {})),
+        )
         return result
 
     def update_context(self, context: Dict[str, Any]):
@@ -130,6 +142,7 @@ class UpdateAttributes(DataProcessor):
         context[_NEW_ATTRS_KEY][
             self.name
         ] = f"""Process '{self.name}' applied to the data."""
+        logger.debug("UpdateAttributes.update_context added entry for %s", self.name)
 
     def set_data_accessor(self, catalog: DataCatalog):
         # Placeholder for setting data accessor

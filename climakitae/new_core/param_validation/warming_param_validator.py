@@ -4,7 +4,7 @@ Validator for parameters provided to Warming Level Processor.
 
 from __future__ import annotations
 
-import warnings
+import logging
 from typing import Any
 
 from climakitae.core.constants import UNSET
@@ -14,6 +14,10 @@ from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
 )
 from climakitae.util.utils import read_csv_file
+
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 @register_processor_validator("warming_level")
@@ -44,16 +48,18 @@ def validate_warming_level_param(
     bool
         True if all parameters are valid, False otherwise
     """
+    logger.debug(
+        "validate_warming_level_param called with value=%s kwargs=%s", value, kwargs
+    )
+
     if not _check_input_types(value):
         return False
 
     # now we have to check some more serious stuff
     query = kwargs.get("query", UNSET)
     if query is UNSET:
-        warnings.warn(
-            "\n\nWarming Level Processor requires a 'query' parameter. "
-            "\nPlease check the configuration."
-        )
+        msg = "Warming Level Processor requires a 'query' parameter. Please check the configuration."
+        logger.warning(msg)
         return False
 
     # validate query
@@ -93,11 +99,11 @@ def _check_input_types(
         - Issues a warning if the input dictionary or any of its keys do not meet
           the expected criteria.
     """
+    logger.debug("_check_input_types called with value: %s", value)
+
     if not isinstance(value, dict):
-        warnings.warn(
-            "\n\nWarming Level Processor expects a dictionary of parameters. "
-            "\nPlease check the configuration."
-        )
+        msg = "Warming Level Processor expects a dictionary of parameters. Please check the configuration."
+        logger.warning(msg)
         return False
 
     wl = value.get("warming_levels", UNSET)
@@ -106,10 +112,8 @@ def _check_input_types(
         or not isinstance(wl, list)
         or not all(isinstance(x, (int, float)) for x in wl)
     ):
-        warnings.warn(
-            "\n\nInvalid 'warming_levels' parameter. "
-            "\nExpected a list of global warming levels (e.g., [1.5, 2.0])."
-        )
+        msg = "Invalid 'warming_levels' parameter. Expected a list of global warming levels (e.g., [1.5, 2.0])."
+        logger.warning(msg)
         return False
 
     wl_months = value.get("warming_level_months", UNSET)
@@ -117,19 +121,15 @@ def _check_input_types(
         if not isinstance(wl_months, list) or not all(
             isinstance(x, int) and 1 <= x <= 12 for x in wl_months
         ):
-            warnings.warn(
-                "\n\nInvalid 'warming_level_months' parameter. "
-                "\nExpected a list of months (1-12). Default: all months."
-            )
+            msg = "Invalid 'warming_level_months' parameter. Expected a list of months (1-12). Default: all months."
+            logger.warning(msg)
             return False
 
     wl_window = value.get("warming_level_window", UNSET)
     if wl_window is not UNSET:
         if not isinstance(wl_window, int) or wl_window < 0:
-            warnings.warn(
-                "\n\nInvalid 'warming_level_window' parameter. "
-                "\nExpected a non-negative integer (default: 15)."
-            )
+            msg = "Invalid 'warming_level_window' parameter. Expected a non-negative integer (default: 15)."
+            logger.warning(msg)
             return False
 
     return True
@@ -144,6 +144,8 @@ def _check_query(query: Any) -> bool:
     experiment_id needs to be "UNSET".
 
     """
+    logger.debug("_check_query called with query: %s", query)
+
     if not isinstance(query, dict):
         return False
 
@@ -151,26 +153,20 @@ def _check_query(query: Any) -> bool:
     experiment_id = query.get("experiment_id", UNSET)
 
     if activity_id not in ["WRF", "LOCA2", UNSET]:
-        warnings.warn(
-            "\n\nInvalid 'activity_id' parameter. "
-            "\nExpected 'WRF', 'LOCA2', or not passed (UNSET)."
-        )
+        msg = "Invalid 'activity_id' parameter. Expected 'WRF', 'LOCA2', or not passed (UNSET)."
+        logger.warning(msg)
         # force the user to fix this. Cannot assume intention here
         return False
 
     if experiment_id is not UNSET:
-        warnings.warn(
-            "\n\nWarming level approach requires 'experiment_id' to be UNSET. "
-            "\nModify the query accordingly."
-        )
+        msg = "Warming level approach requires 'experiment_id' to be UNSET. Modify the query accordingly."
+        logger.warning(msg)
         return False
 
     time_slice = query.get("processes", {}).get("time_slice", UNSET)
     if time_slice is not UNSET:
-        warnings.warn(
-            "\n\nWarming level approach does not support 'time_slice' in the query. "
-            "\nIt will be ignored."
-        )
+        msg = "Warming level approach does not support 'time_slice' in the query. It will be ignored."
+        logger.warning(msg)
         del query["processes"]["time_slice"]
 
     return True
@@ -203,6 +199,8 @@ def _check_wl_values(value, query: dict[str, Any] = {}) -> bool:
     before checking the warming level values.
     """
 
+    logger.debug("_check_wl_values called with value: %s, query: %s", value, query)
+
     catalog_df = DataCatalog().catalog_df.copy()
     trajectories = read_csv_file(
         GWL_1850_1900_TIMEIDX_FILE, index_col="time", parse_dates=True
@@ -224,14 +222,12 @@ def _check_wl_values(value, query: dict[str, Any] = {}) -> bool:
 
     max_trajectory = round(trajectories.max().max(), 2)
     min_trajectory = round(trajectories.min().min(), 2)
+    logger.debug("Available trajectories min=%s max=%s", min_trajectory, max_trajectory)
 
     for wl in value.get("warming_levels", []):
         if not (min_trajectory <= wl <= max_trajectory):
-            warnings.warn(
-                f"\n\nWarming level {wl} is outside the range of available trajectories."
-                f"({min_trajectory} to {max_trajectory}). "
-                "\nPlease check the configuration."
-            )
+            msg = f"Warming level {wl} is outside the range of available trajectories. ({min_trajectory} to {max_trajectory}). Please check the configuration."
+            logger.warning(msg)
             return False
 
     return True

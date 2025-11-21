@@ -68,8 +68,8 @@ Notes
 
 """
 
+import logging
 import traceback
-import warnings
 from typing import Any, Dict
 
 import xarray as xr
@@ -81,6 +81,9 @@ from climakitae.new_core.processors.abc_data_processor import (
     _PROCESSOR_REGISTRY,
     DataProcessor,
 )
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 class Dataset:
@@ -170,60 +173,88 @@ class Dataset:
             Result of the processing pipeline
 
         """
+        logger.info("Executing dataset processing pipeline")
+        logger.debug("Pipeline parameters: %s", parameters)
+
         # Initialize context with parameters
         context = parameters.copy() if parameters is not UNSET else {}
 
         # Validate parameters if validator is set
         valid_query = UNSET
         if self.parameter_validator is not UNSET:
+            logger.debug("Validating parameters")
             if not isinstance(self.parameter_validator, ParameterValidator):
+                logger.error("Invalid parameter validator type")
                 raise TypeError(
                     "Parameter validator must be an instance of ParameterValidator."
                 )
             valid_query = self.parameter_validator.is_valid_query(context)
             if valid_query is None:
+                logger.warning("Parameter validation failed, returning empty dataset")
                 return xr.Dataset()  # return empty dataset if validation fails
+            logger.info("Parameter validation successful")
 
         # Check if data access is properly configured
         if self.data_access is UNSET:
+            logger.error("Data accessor not configured")
             raise ValueError("Data accessor is not configured.")
 
         # Initialize the processing result - will be updated through pipeline steps
+        logger.debug("Retrieving data from data accessor")
         current_result = self.data_access.get_data(valid_query)
+        logger.info("Data retrieved successfully")
 
         # Check if we have a processing pipeline
         if self.processing_pipeline is UNSET or not self.processing_pipeline:
+            logger.info("No processing pipeline defined, returning raw data")
             # If no pipeline is defined, just return the raw data from data_access
             return current_result
 
         # Execute each step in the pipeline in sequence
+        logger.info("Executing %d processing steps", len(self.processing_pipeline))
         try:
-            for step in self.processing_pipeline:
+            for i, step in enumerate(self.processing_pipeline, 1):
+                logger.debug(
+                    "Executing processing step %d/%d: %s",
+                    i,
+                    len(self.processing_pipeline),
+                    getattr(step, "name", type(step).__name__),
+                )
+
                 # Some steps might need access to the data_access component
                 # steps that need it should define and set `needs_catalog = True`
                 # in their __init__ method
                 if getattr(step, "needs_catalog", False):
+                    logger.debug("Step requires data catalog access")
                     step.set_data_accessor(self.data_access)
 
                 # Execute the current step
                 # context is updated in place by the step
                 current_result = step.execute(current_result, context)
                 if current_result is None:
-                    warnings.warn(
+                    logger.warning(
+                        "Processing step %s returned None",
+                        getattr(step, "name", type(step).__name__),
+                    )
+                    # Keep logging warning for visibility
+                    logger.warning(
                         f"\n\nProcessing step {step.name} returned None. "
                         "\nEnsure that the step is implemented correctly.",
-                        UserWarning,
                         stacklevel=999,
                     )
+                logger.debug("Processing step %d completed successfully", i)
 
+            logger.info("All processing steps completed successfully")
             return current_result
 
         except Exception as e:
-            # Consider implementing proper error handling/logging here
             # Get detailed traceback information
             tb_info = traceback.format_exc()
             # Log the traceback for debugging
-            print(f"Exception traceback:\n{tb_info}")
+            logger.error(
+                "Exception during pipeline execution: %s", str(e), exc_info=True
+            )
+            logger.debug("Exception traceback:\n%s", tb_info)
             raise RuntimeError(f"Error in processing pipeline: {str(e)}") from e
 
     def with_param_validator(
@@ -248,9 +279,8 @@ class Dataset:
 
         """
         if not parameter_validator:
-            warnings.warn(
+            logger.warning(
                 "No parameter validator provided. This may lead to unvalidated queries.",
-                stacklevel=999,
             )
         if not isinstance(parameter_validator, ParameterValidator):
             raise TypeError(
