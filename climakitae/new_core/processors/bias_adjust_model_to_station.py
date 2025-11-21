@@ -712,8 +712,8 @@ class BiasCorrectStationData(DataProcessor):
             result_da = result[data_vars[0]]
             # Copy important attributes from Dataset to DataArray
             # These are needed by utility functions like get_closest_gridcell
-            if "resolution" in result.attrs:
-                result_da.attrs["resolution"] = result.attrs["resolution"]
+            # We copy all attributes to be safe, as resolution and others are needed
+            result_da.attrs.update(result.attrs)
             logger.info("Converted Dataset to DataArray: %s", result_da.name)
         elif isinstance(result, xr.DataArray):
             result_da = result
@@ -804,7 +804,12 @@ class BiasCorrectStationData(DataProcessor):
                     historical_da = result[hist_key]
                     # Convert to DataArray if needed
                     if isinstance(historical_da, xr.Dataset):
-                        historical_da = historical_da[list(historical_da.data_vars)[0]]
+                        # Preserve attributes from Dataset when extracting DataArray
+                        historical_da_ds = historical_da
+                        historical_da = historical_da_ds[
+                            list(historical_da_ds.data_vars)[0]
+                        ]
+                        historical_da.attrs.update(historical_da_ds.attrs)
                 else:
                     logger.warning(
                         f"No historical data found for {key} (expected {hist_key}). "
@@ -814,7 +819,12 @@ class BiasCorrectStationData(DataProcessor):
                 # Use itself as historical training data
                 historical_da = data
                 if isinstance(historical_da, xr.Dataset):
-                    historical_da = historical_da[list(historical_da.data_vars)[0]]
+                    # Preserve attributes from Dataset when extracting DataArray
+                    historical_da_ds = historical_da
+                    historical_da = historical_da_ds[
+                        list(historical_da_ds.data_vars)[0]
+                    ]
+                    historical_da.attrs.update(historical_da_ds.attrs)
 
             # Process
             ret[key] = self._process_single_dataset(data, station_ds, historical_da)
