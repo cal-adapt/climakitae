@@ -467,10 +467,6 @@ class BiasCorrectStationData(DataProcessor):
                 logger.debug("Applying QDM adjustment to %s", sim_name)
                 sim_adj = sim_QDM.adjust(sim_data_full)
 
-                # Compute immediately with cftime coordinates
-                logger.debug("Computing QDM result for %s", sim_name)
-                sim_adj = sim_adj.compute()
-
                 # Convert calendar to standard datetime64
                 logger.debug("Converting calendar for %s", sim_name)
                 sim_adj = sim_adj.convert_calendar("standard", use_cftime=False)
@@ -511,10 +507,7 @@ class BiasCorrectStationData(DataProcessor):
             da_adj.name = gridded_da_historical.name
 
             logger.debug("QDM adjustment complete (lazy)")
-            logger.debug("Computing QDM result with cftime coordinates...")
-            da_adj = da_adj.compute()
 
-            logger.debug("Compute complete")
             logger.debug("Converting calendar from noleap to standard (datetime64)")
             da_adj = da_adj.convert_calendar("standard", use_cftime=False)
 
