@@ -279,13 +279,32 @@ def get_closest_gridcell(
                 valid_data.append(gridcell)
 
     if len(valid_data) > 0:
+        # Store the spatial coordinates before averaging (they will be lost during mean)
+        # Use the original closest gridcell coordinates as the representative location
+        coord1_val = (
+            valid_data[0].coords[dim1_name].values.item()
+            if len(valid_data[0].coords[dim1_name].shape) == 0
+            else valid_data[0].coords[dim1_name].values
+        )
+        coord2_val = (
+            valid_data[0].coords[dim2_name].values.item()
+            if len(valid_data[0].coords[dim2_name].shape) == 0
+            else valid_data[0].coords[dim2_name].values
+        )
+
+        # Average the valid gridcells (this removes spatial coords)
         closest_gridcell = xr.concat(valid_data, dim="valid_points").mean(
             dim="valid_points"
         )
 
+        # Add back the spatial coordinates as scalars
+        closest_gridcell = closest_gridcell.assign_coords(
+            {dim1_name: coord1_val, dim2_name: coord2_val}
+        )
+
         if print_coords:
             print(
-                f"Closest gridcell to lat: {lat}, lon: {lon} is at {dim1_name}: {closest_gridcell[dim1_name].item()}, {dim2_name}: {closest_gridcell[dim2_name].item()} (averaged over nearby valid gridcells)"
+                f"Closest gridcell to lat: {lat}, lon: {lon} is at {dim1_name}: {coord1_val}, {dim2_name}: {coord2_val} (averaged over nearby valid gridcells)"
             )
 
         return closest_gridcell

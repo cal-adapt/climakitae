@@ -261,6 +261,71 @@ class TestUtils:
             assert result.x.item() == 50
             assert result.y.item() == 140
 
+    def test_get_closest_gridcell_preserves_dimensions(self):
+        """Test that non-spatial dimensions are preserved when using 3x3 window search.
+
+        This test confirms that when the closest gridcell contains all NaN values
+        and the function falls back to averaging a 3x3 window, non-spatial dimensions
+        like 'simulation' are preserved in the result.
+        """
+        # Create a dataset with lat, lon, and simulation dimensions
+        n_sims = 4
+        n_lat = 7
+        n_lon = 7
+
+        # Create data with some valid values
+        data = np.random.rand(n_lat, n_lon, n_sims)
+
+        # Make the center gridcell (closest to our target point) all NaN to trigger 3x3 search
+        center_lat_idx = n_lat // 2  # Index 3
+        center_lon_idx = n_lon // 2  # Index 3
+        data[center_lat_idx, center_lon_idx, :] = np.nan
+
+        ds = xr.Dataset(
+            {
+                "var": (("lat", "lon", "simulation"), data),
+            },
+            coords={
+                "lat": np.linspace(30, 40, n_lat),
+                "lon": np.linspace(-125, -115, n_lon),
+                "simulation": [f"sim_{i}" for i in range(n_sims)],
+            },
+        )
+
+        # Target point that maps to the center gridcell with NaN values
+        target_lat = 35.0  # Center of lat range
+        target_lon = -120.0  # Center of lon range
+
+        result = get_closest_gridcell(ds, target_lat, target_lon)
+
+        # Verify result is not None
+        assert result is not None, "Result should not be None"
+
+        # CRITICAL: Verify non-spatial dimension (simulation) is preserved
+        assert "simulation" in result.dims, "Simulation dimension should be preserved"
+        assert (
+            result.sizes["simulation"] == n_sims
+        ), f"Simulation dimension should have size {n_sims}, got {result.sizes['simulation']}"
+        assert (
+            "simulation" in result.coords
+        ), "Simulation coordinates should be preserved"
+        assert (
+            len(result.coords["simulation"]) == n_sims
+        ), f"Should have {n_sims} simulation coordinates"
+
+        # Verify spatial dimensions are REMOVED (not dimensions anymore, just scalar coords)
+        assert "lat" not in result.dims, "Lat should not be a dimension in result"
+        assert "lon" not in result.dims, "Lon should not be a dimension in result"
+
+        # Verify lat and lon still exist as scalar coordinates (for reference)
+        assert "lat" in result.coords, "Lat coordinate should exist as scalar"
+        assert "lon" in result.coords, "Lon coordinate should exist as scalar"
+
+        # Verify the data variable has only the simulation dimension
+        assert result["var"].dims == (
+            "simulation",
+        ), f"Data variable should only have simulation dimension, got {result['var'].dims}"
+
     def test_get_closest_gridcells(self):
         """tests the get_closest_gridcells function"""
         # Create a mock dataset
