@@ -1,6 +1,6 @@
 """Initialize the processors, ensuring they get registered."""
 
-from .bias_correct_station_data import BiasCorrectStationData
+from .bias_adjust_model_to_station import BiasCorrectStationData
 from .concatenate import Concat
 from .convert_units import ConvertUnits
 from .clip import Clip

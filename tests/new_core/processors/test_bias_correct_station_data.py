@@ -1,5 +1,5 @@
 """
-Unit tests for climakitae/new_core/processors/bias_correct_station_data.py
+Unit tests for climakitae/new_core/processors/bias_adjust_model_to_station.py
 
 This module contains comprehensive unit tests for the BiasCorrectStationData
 processor that performs bias correction of climate model data to weather station
@@ -12,7 +12,7 @@ import pandas as pd
 import xarray as xr
 import pytest
 
-from climakitae.new_core.processors.bias_correct_station_data import (
+from climakitae.new_core.processors.bias_adjust_model_to_station import (
     BiasCorrectStationData,
 )
 
@@ -35,7 +35,7 @@ class TestBiasCorrectStationDataInit:
         assert proc.nquantiles == 20
         assert proc.group == "time.dayofyear"
         assert proc.kind == "+"
-        assert proc.name == "bias_correct_station_data"
+        assert proc.name == "bias_adjust_model_to_station"
         # Processor declares it needs a catalog to run
         assert getattr(proc, "needs_catalog", False) is True
 
@@ -93,7 +93,7 @@ class TestBiasCorrectStationDataPreprocessing:
         assert "elevation" not in out.variables
 
 
-@patch("climakitae.new_core.processors.bias_correct_station_data.xr.open_mfdataset")
+@patch("climakitae.new_core.processors.bias_adjust_model_to_station.xr.open_mfdataset")
 @patch("climakitae.new_core.processors.processor_utils.convert_stations_to_points")
 class TestBiasCorrectStationDataLoading:
     """Tests for loading station data (_load_station_data)."""
@@ -286,7 +286,9 @@ class TestBiasCorrectStationDataBiasCorrection:
         assert 725 <= len(out.time) <= 735  # Allow flexibility for calendar conversion
 
 
-@patch("climakitae.new_core.processors.bias_correct_station_data.get_closest_gridcell")
+@patch(
+    "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+)
 class TestBiasCorrectStationDataClosestGridcell:
     """Tests for closest gridcell selection and bias correction wiring.
 

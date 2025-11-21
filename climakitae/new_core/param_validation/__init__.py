@@ -11,6 +11,6 @@ from .renewables_param_validator import RenewablesValidator
 from .time_slice_param_validator import validate_time_slice_param
 from .update_attributes_param_validator import validate_update_attributes_param
 from .warming_param_validator import validate_warming_level_param
-from .bias_correct_station_data_param_validator import (
+from .bias_adjust_model_to_station_param_validator import (
     validate_bias_correction_station_data_param,
 )

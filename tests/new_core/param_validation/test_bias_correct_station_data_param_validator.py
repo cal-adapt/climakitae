@@ -1,5 +1,5 @@
 """
-Unit tests for climakitae/new_core/param_validation/bias_correct_station_data_param_validator.py
+Unit tests for climakitae/new_core/param_validation/bias_adjust_model_to_station_param_validator.py
 
 This module contains comprehensive unit tests for the StationBiasCorrection processor
 parameter validation functionality.
@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 from climakitae.core.constants import UNSET
-from climakitae.new_core.param_validation.bias_correct_station_data_param_validator import (
+from climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator import (
     _get_station_metadata,
     _validate_catalog_requirement,
     _validate_downscaling_method_requirement,
@@ -83,10 +83,10 @@ class TestValidateBiasCorrectStationDataParam:
         )
 
     @patch(
-        "climakitae.new_core.param_validation.bias_correct_station_data_param_validator._get_station_metadata"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
     )
     @patch(
-        "climakitae.new_core.param_validation.bias_correct_station_data_param_validator.find_station_match"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.find_station_match"
     )
     def test_valid_minimal_parameters(
         self, mock_find_station, mock_get_metadata, valid_query
@@ -101,10 +101,10 @@ class TestValidateBiasCorrectStationDataParam:
         assert result is True
 
     @patch(
-        "climakitae.new_core.param_validation.bias_correct_station_data_param_validator._get_station_metadata"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
     )
     @patch(
-        "climakitae.new_core.param_validation.bias_correct_station_data_param_validator.find_station_match"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.find_station_match"
     )
     def test_valid_full_parameters(
         self, mock_find_station, mock_get_metadata, valid_query
@@ -171,7 +171,7 @@ class TestValidateBiasCorrectStationDataParam:
         assert result is False
 
     @patch(
-        "climakitae.new_core.param_validation.bias_correct_station_data_param_validator._validate_stations"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._validate_stations"
     )
     def test_invalid_station_validation_fails(
         self, mock_validate_stations, valid_query
@@ -211,10 +211,10 @@ class TestValidateStations:
         )
 
     @patch(
-        "climakitae.new_core.param_validation.bias_correct_station_data_param_validator._get_station_metadata"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
     )
     @patch(
-        "climakitae.new_core.param_validation.bias_correct_station_data_param_validator.find_station_match"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.find_station_match"
     )
     @pytest.mark.parametrize(
         "stations",
@@ -271,10 +271,10 @@ class TestValidateStations:
         assert result is False
 
     @patch(
-        "climakitae.new_core.param_validation.bias_correct_station_data_param_validator._get_station_metadata"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
     )
     @patch(
-        "climakitae.new_core.param_validation.bias_correct_station_data_param_validator.find_station_match"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.find_station_match"
     )
     def test_invalid_station_not_found(self, mock_find_station, mock_get_metadata):
         """Test validation with invalid station name."""
@@ -747,7 +747,7 @@ class TestGetStationMetadata:
     """Test class for _get_station_metadata function."""
 
     @patch(
-        "climakitae.new_core.param_validation.bias_correct_station_data_param_validator.DataCatalog"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.DataCatalog"
     )
     def test_returns_dataframe(self, mock_catalog_class):
         """Test that function returns DataFrame from DataCatalog."""
@@ -771,7 +771,7 @@ class TestGetStationMetadata:
         mock_catalog_class.assert_called_once()
 
     @patch(
-        "climakitae.new_core.param_validation.bias_correct_station_data_param_validator.DataCatalog"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.DataCatalog"
     )
     def test_contains_required_columns(self, mock_catalog_class):
         """Test that returned DataFrame has required columns."""
