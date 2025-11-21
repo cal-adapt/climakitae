@@ -1893,8 +1893,6 @@ class TestGetMultiBoundaryGeometry:
 
         assert result == mock_combined
 
-   
-
     def test_some_invalid_boundaries_raises_error(self):
         """Test when some boundaries are invalid - outcome: raises ValueError with suggestions."""
 
@@ -2246,39 +2244,38 @@ class TestClipDataWithGeomCRS:
     def setup_method(self):
         """Set up test fixtures."""
         # Create a dummy GeoDataFrame for clipping
-        self.gdf = gpd.GeoDataFrame(
-            geometry=[box(-120, 35, -118, 37)], crs="EPSG:4326"
-        )
+        self.gdf = gpd.GeoDataFrame(geometry=[box(-120, 35, -118, 37)], crs="EPSG:4326")
 
     def test_wrf_lambert_conformal_crs_handling(self):
         """Test CRS handling for WRF data with Lambert_Conformal coordinate."""
         # Mock dataset with Lambert_Conformal coordinate and spatial_ref
         mock_data = MagicMock(spec=xr.Dataset)
-        
+
         # Setup rio mock
         rio_mock = MagicMock()
         rio_mock.crs = None
-        
+
         def set_crs(*args, **kwargs):
-            rio_mock.crs = "EPSG:4326" # Simulate setting CRS
+            rio_mock.crs = "EPSG:4326"  # Simulate setting CRS
             return mock_data
-            
+
         rio_mock.write_crs.side_effect = set_crs
         rio_mock.clip.return_value = "clipped_result"
-        
+
         mock_data.rio = rio_mock
-        
+
         # Setup Lambert_Conformal mock
         lambert_mock = MagicMock()
         lambert_mock.attrs = {"spatial_ref": "some_crs_string"}
-        
+
         # Configure __getitem__ to return lambert_mock
         def getitem(key):
             if key == "Lambert_Conformal":
                 return lambert_mock
             return MagicMock()
+
         mock_data.__getitem__.side_effect = getitem
-        
+
         # Also set coords for the "in" check
         mock_data.coords = {"Lambert_Conformal": lambert_mock}
 
@@ -2294,17 +2291,18 @@ class TestClipDataWithGeomCRS:
         rio_mock = MagicMock()
         rio_mock.crs = None
         mock_data.rio = rio_mock
-        
+
         # Setup Lambert_Conformal mock with empty attrs
         lambert_mock = MagicMock()
-        lambert_mock.attrs = {} 
-        
+        lambert_mock.attrs = {}
+
         def getitem(key):
             if key == "Lambert_Conformal":
                 return lambert_mock
             return MagicMock()
+
         mock_data.__getitem__.side_effect = getitem
-        
+
         mock_data.coords = {"Lambert_Conformal": lambert_mock}
 
         with pytest.raises(
@@ -2318,14 +2316,14 @@ class TestClipDataWithGeomCRS:
         mock_data = MagicMock(spec=xr.Dataset)
         rio_mock = MagicMock()
         rio_mock.crs = None
-        
+
         def set_crs(*args, **kwargs):
             rio_mock.crs = "EPSG:4326"
             return mock_data
-            
+
         rio_mock.write_crs.side_effect = set_crs
         rio_mock.clip.return_value = "clipped_result"
-        
+
         mock_data.rio = rio_mock
         mock_data.coords = {}  # No Lambert_Conformal
 
