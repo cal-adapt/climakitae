@@ -371,7 +371,25 @@ def get_closest_gridcells(
         return gridcells[0]
 
     # Concatenate multiple gridcells along 'points' dimension
-    return xr.concat(gridcells, dim="points")
+    # Note: concat adds the new dimension first, so we transpose to preserve
+    # the original dimension order (e.g., time comes before points)
+    result = xr.concat(gridcells, dim="points")
+
+    # Get all dimensions and move 'points' to the end
+    if isinstance(result, xr.Dataset):
+        # For datasets, get dimensions from the first data variable
+        first_var = list(result.data_vars)[0]
+        all_dims = list(result[first_var].dims)
+    else:
+        all_dims = list(result.dims)
+
+    # Move 'points' dimension to the end
+    if "points" in all_dims:
+        all_dims.remove("points")
+        all_dims.append("points")
+        result = result.transpose(*all_dims)
+
+    return result
 
 
 def julianDay_to_date(
