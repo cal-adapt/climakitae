@@ -638,35 +638,8 @@ class Clip(DataProcessor):
         elif "lat" in dataset.dims and "lon" in dataset.dims:
             dim1_name, dim2_name = "lat", "lon"
         else:
-            # Unknown grid layout; fall back to previous slow search
-            logger.debug("Unknown spatial dims, falling back to bounding-box search")
-            search_radii = [0.01, 0.05, 0.1, 0.2, 0.5]
-            for radius in search_radii:
-                try:
-                    larger_region = dataset.sel(
-                        lat=slice(lat - radius, lat + radius),
-                        lon=slice(lon - radius, lon + radius),
-                    )
-                    first_var = next(iter(larger_region.data_vars))
-                    test_da = larger_region[first_var]
-                    spatial_dims = [
-                        d for d in test_da.dims if d in ["x", "y", "lat", "lon"]
-                    ]
-                    for d in test_da.dims:
-                        if d not in spatial_dims:
-                            test_da = test_da.isel({d: 0})
-                    valid_mask = ~test_da.isnull()
-                    if valid_mask.any():
-                        # Return first valid cell encountered
-                        idx = np.where(valid_mask.values)
-                        i_idx = int(idx[0][0])
-                        j_idx = int(idx[1][0])
-                        return larger_region.isel(
-                            {spatial_dims[0]: i_idx, spatial_dims[1]: j_idx}
-                        )
-                except Exception:
-                    continue
-            logger.warning("No valid gridcells found within search radius")
+            # Unknown grid layout;
+            logger.warning("Unknown spatial dims, cannot search for nearest gridcell")
             return None
 
         # Find nearest index along each spatial dim
