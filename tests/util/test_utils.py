@@ -295,12 +295,21 @@ class TestUtils:
             assert point_ds.coords["lon"].item() in ds.coords["lon"].values
 
         # Test with a list of points outside the grid
+        # The function now uses get_closest_gridcell which returns nearest gridcells
         lats = [60, 70]
         lons = [150, 160]
         closest_dss = get_closest_gridcells(ds, lats, lons)
 
-        # Function returns a dataset with a "points" dimension
-        assert closest_dss is None
+        # Function returns a dataset with the nearest gridcells
+        assert isinstance(closest_dss, xr.Dataset)
+        assert "points" in closest_dss.dims
+        assert closest_dss.sizes["points"] == len(lats)
+
+        # Points should snap to the edge of the grid
+        for i in range(len(lats)):
+            point_ds = closest_dss.isel(points=i)
+            assert point_ds.coords["lat"].item() in ds.coords["lat"].values
+            assert point_ds.coords["lon"].item() in ds.coords["lon"].values
 
     def test_julianDay_to_date(self):
         """tests the julianDay_to_date function"""
