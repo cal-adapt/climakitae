@@ -257,7 +257,11 @@ def get_closest_gridcell(
             ):
                 continue
 
-            test_data = data.isel({dim1_name: new_dim1_idx, dim2_name: new_dim2_idx})
+            # Get the gridcell at this location
+            gridcell = data.isel({dim1_name: new_dim1_idx, dim2_name: new_dim2_idx})
+
+            # Check if this gridcell has valid data by testing with non-spatial dims reduced
+            test_data = gridcell.copy()
             for dim in data.dims:
                 if dim not in [dim1_name, dim2_name]:
                     test_data = test_data.isel({dim: 0})
@@ -270,8 +274,9 @@ def get_closest_gridcell(
             else:
                 has_valid = not test_data.isnull().all()
 
+            # Append the full gridcell (with all dimensions) if valid
             if has_valid:
-                valid_data.append(test_data)
+                valid_data.append(gridcell)
 
     if len(valid_data) > 0:
         closest_gridcell = xr.concat(valid_data, dim="valid_points").mean(
