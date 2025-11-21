@@ -338,7 +338,7 @@ class TestBiasCorrectStationDataClosestGridcell:
         captured = {}
 
         # Patch the bias-correction call to capture the gridded input
-        def fake_bias(obs_da, gridded_da_arg, output_slice):
+        def fake_bias(obs_da, gridded_da_arg, output_slice, historical_da=None):
             captured["gridded_after_drop"] = gridded_da_arg
             return xr.DataArray(
                 [10, 20, 30], dims=("time",), coords={"time": ds_times}, name="tas"
@@ -406,6 +406,60 @@ class TestBiasCorrectStationDataExecution:
         # Verify result is a Dataset
         assert isinstance(result, xr.Dataset)
         assert "KSAC" in result.data_vars
+
+    @patch.object(BiasCorrectStationData, "_load_station_data")
+    @patch.object(BiasCorrectStationData, "_process_single_dataset")
+    def test_execute_with_dict_input(self, mock_process, mock_load):
+        """Test execute with dictionary input (pre-concatenation)."""
+        proc = self.ProcClass({"stations": ["KSAC"]})
+
+        # Mock inputs
+        ssp_da = MagicMock(spec=xr.DataArray)
+        hist_da = MagicMock(spec=xr.DataArray)
+
+        input_dict = {"ssp245": ssp_da, "historical": hist_da}
+
+        # Mock return values
+        mock_load.return_value = MagicMock(spec=xr.Dataset)
+        mock_process.return_value = MagicMock(spec=xr.Dataset)
+
+        context = {}
+        result = proc.execute(input_dict, context)
+
+        assert isinstance(result, dict)
+        assert "ssp245" in result
+        assert "historical" in result
+
+        # Verify calls
+        # Should call process for ssp245 with historical data
+        # Should call process for historical with itself
+
+        assert mock_process.call_count == 2
+
+        # Check args for ssp245 call
+        # We don't know order of iteration, so check call_args_list
+
+        calls = mock_process.call_args_list
+
+        # Find call for ssp245
+        ssp_call = None
+        for call in calls:
+            if call[0][0] == ssp_da:
+                ssp_call = call
+                break
+
+        assert ssp_call is not None
+        assert ssp_call[0][2] == hist_da  # historical_da arg
+
+        # Find call for historical
+        hist_call = None
+        for call in calls:
+            if call[0][0] == hist_da:
+                hist_call = call
+                break
+
+        assert hist_call is not None
+        assert hist_call[0][2] == hist_da  # historical_da arg
 
 
 class TestBiasCorrectStationDataContext:
