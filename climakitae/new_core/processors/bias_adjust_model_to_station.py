@@ -429,56 +429,41 @@ class BiasCorrectStationData(DataProcessor):
         # Check if data has a 'sim' dimension from concatenation
         # QDM must be trained and applied separately for each simulation
         if "sim" in data_sliced.dims:
+            logger.debug("Data has 'sim' dimension, using broadcasted QDM")
+
+            # Rename 'sim' to 'simulation' to avoid conflict with xsdba internal naming
+            # xsdba uses 'sim' internally for the simulated dataset
+            data_sliced_renamed = data_sliced.rename({"sim": "simulation"})
+            hist_renamed = gridded_da_historical.rename({"sim": "simulation"})
+
             logger.debug(
-                "Data has 'sim' dimension, training and applying QDM for each simulation separately"
+                "Training QDM with nquantiles=%s, kind=%s (broadcasted)",
+                self.nquantiles,
+                self.kind,
             )
-            sim_results = []
 
-            for sim_name in data_sliced.sim.values:
-                logger.debug(f"Processing simulation: {sim_name}")
+            # Train QDM with broadcasting
+            # obs_da is (time), hist_renamed is (simulation, time)
+            # QDM will learn distributions for each simulation
+            QDM = QuantileDeltaMapping.train(
+                obs_da,
+                hist_renamed,
+                nquantiles=self.nquantiles,
+                group=grouper,
+                kind=self.kind,
+            )
 
-                # Select and DROP the sim coordinate to get pure time-series
-                sim_data_full = data_sliced.sel(sim=sim_name, drop=True)
-                sim_hist = gridded_da_historical.sel(sim=sim_name, drop=True)
+            # Apply QDM
+            logger.debug("Applying QDM adjustment (broadcasted)")
+            da_adj = QDM.adjust(data_sliced_renamed)
 
-                logger.debug(
-                    "Selected sim=%s, full_shape=%s, hist_shape=%s",
-                    sim_name,
-                    sim_data_full.shape,
-                    sim_hist.shape,
-                )
+            # Rename 'simulation' back to 'sim'
+            da_adj = da_adj.rename({"simulation": "sim"})
 
-                # Train QDM for this simulation
-                logger.debug(
-                    "Training QDM for %s with nquantiles=%s, kind=%s",
-                    sim_name,
-                    self.nquantiles,
-                    self.kind,
-                )
-                sim_QDM = QuantileDeltaMapping.train(
-                    obs_da,
-                    sim_hist,
-                    nquantiles=self.nquantiles,
-                    group=grouper,
-                    kind=self.kind,
-                )
+            # Convert calendar to standard datetime64
+            logger.debug("Converting calendar to standard")
+            da_adj = da_adj.convert_calendar("standard", use_cftime=False)
 
-                # Apply QDM to this simulation
-                logger.debug("Applying QDM adjustment to %s", sim_name)
-                sim_adj = sim_QDM.adjust(sim_data_full)
-
-                # Convert calendar to standard datetime64
-                logger.debug("Converting calendar for %s", sim_name)
-                sim_adj = sim_adj.convert_calendar("standard", use_cftime=False)
-
-                # Expand dims to add sim coordinate back
-                sim_adj = sim_adj.expand_dims(sim=[sim_name])
-                sim_results.append(sim_adj)
-                logger.debug("Completed bias correction for %s", sim_name)
-
-            # Concatenate all simulations back together
-            logger.debug("Concatenating %d simulations", len(sim_results))
-            da_adj = xr.concat(sim_results, dim="sim")
             da_adj.name = gridded_da_historical.name
 
         else:
