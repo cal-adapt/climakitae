@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import xarray as xr
 import pytest
+import numpy as np
 
 from climakitae.new_core.processors.bias_adjust_model_to_station import (
     BiasCorrectStationData,
@@ -149,8 +150,6 @@ class TestBiasCorrectStationDataBiasCorrection:
         This test uses realistic multi-year daily data to validate the QDM
         bias correction workflow with proper dayofyear grouping.
         """
-        import numpy as np
-
         proc = self.ProcClass({"stations": ["KSAC"]})
 
         # Create realistic observational data (5 years, daily frequency)
@@ -183,8 +182,8 @@ class TestBiasCorrectStationDataBiasCorrection:
         gr_da.name = "tas"
         gr_da.attrs["units"] = "K"
 
-        # Test bias correction for a 3-year output period
-        out = proc._bias_correct_model_data(obs_da, gr_da, output_slice=(2000, 2002))
+        # Test bias correction
+        out = proc._bias_correct_model_data(obs_da, gr_da)
 
         # Verify output structure
         assert isinstance(out, xr.DataArray)
@@ -194,18 +193,18 @@ class TestBiasCorrectStationDataBiasCorrection:
         # Verify output time range using pandas conversion
         start_time = pd.Timestamp(out.time.values[0])
         end_time = pd.Timestamp(out.time.values[-1])
-        assert start_time.year >= 2000
-        assert end_time.year <= 2002
+        assert start_time.year == 1980
+        assert end_time.year == 2014
 
         # Verify output has reasonable values (no NaN, finite values)
         # Note: .compute() is needed because out.isnull().any() returns a dask array
         assert not out.isnull().any().compute()
         assert np.isfinite(out.values).all()
 
-        # Verify output length is reasonable for 3 years
-        # Should be ~1095 days (3 years × 365 days, after noleap calendar conversion)
+        # Verify output length is reasonable for 35 years (1980-2014)
+        # Should be ~12775 days (35 years × 365 days, after noleap calendar conversion)
         assert (
-            1090 <= len(out.time) <= 1100
+            12700 <= len(out.time) <= 12800
         )  # Allow some flexibility for calendar conversion
 
     @pytest.mark.advanced
@@ -215,8 +214,6 @@ class TestBiasCorrectStationDataBiasCorrection:
         This test covers the code path where data has a 'sim' dimension,
         requiring QDM to be trained and applied separately for each simulation.
         """
-        import numpy as np
-
         proc = self.ProcClass({"stations": ["KSAC"]})
 
         # Create observational data (5 years, daily frequency)
@@ -258,8 +255,8 @@ class TestBiasCorrectStationDataBiasCorrection:
         gr_da.name = "tas"
         gr_da.attrs["units"] = "K"
 
-        # Test bias correction for a 2-year output period
-        out = proc._bias_correct_model_data(obs_da, gr_da, output_slice=(2000, 2001))
+        # Test bias correction
+        out = proc._bias_correct_model_data(obs_da, gr_da)
 
         # Verify output structure includes sim dimension
         assert isinstance(out, xr.DataArray)
@@ -275,8 +272,8 @@ class TestBiasCorrectStationDataBiasCorrection:
         # Verify output time range
         start_time = pd.Timestamp(out.time.values[0])
         end_time = pd.Timestamp(out.time.values[-1])
-        assert start_time.year >= 2000
-        assert end_time.year <= 2001
+        assert start_time.year == 1980
+        assert end_time.year == 2014
 
         # Verify output has reasonable values (no NaN, finite values)
         # Note: .compute() is needed because out.isnull().any() returns a dask array
@@ -284,8 +281,10 @@ class TestBiasCorrectStationDataBiasCorrection:
         assert np.isfinite(out.values).all()
 
         # Verify each simulation was processed independently
-        # Both should have similar length (2 years × 365 days)
-        assert 725 <= len(out.time) <= 735  # Allow flexibility for calendar conversion
+        # Both should have similar length (35 years × 365 days)
+        assert (
+            12700 <= len(out.time) <= 12800
+        )  # Allow flexibility for calendar conversion
 
 
 @patch(
@@ -338,7 +337,7 @@ class TestBiasCorrectStationDataClosestGridcell:
         captured = {}
 
         # Patch the bias-correction call to capture the gridded input
-        def fake_bias(obs_da, gridded_da_arg, output_slice, historical_da=None):
+        def fake_bias(obs_da, gridded_da_arg, historical_da=None):
             captured["gridded_after_drop"] = gridded_da_arg
             return xr.DataArray(
                 [10, 20, 30], dims=("time",), coords={"time": ds_times}, name="tas"
@@ -346,9 +345,7 @@ class TestBiasCorrectStationDataClosestGridcell:
 
         proc._bias_correct_model_data = fake_bias
 
-        out = proc._get_bias_corrected_closest_gridcell(
-            station_da, gridded_da, output_slice=(2000, 2002)
-        )
+        out = proc._get_bias_corrected_closest_gridcell(station_da, gridded_da)
 
         # Basic return type checks and metadata propagation
         assert isinstance(out, xr.DataArray)
@@ -376,9 +373,11 @@ class TestBiasCorrectStationDataExecution:
         """Set up test fixtures."""
         self.ProcClass = BiasCorrectStationData
 
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
     @patch.object(BiasCorrectStationData, "_load_station_data")
-    @patch("xarray.Dataset.map")
-    def test_execute_with_dataarray_input(self, mock_map, mock_load):
+    def test_execute_with_dataarray_input(self, mock_load, mock_get_closest):
         """Test execute with xr.DataArray input."""
         proc = self.ProcClass({"stations": ["KSAC"]})
 
@@ -390,18 +389,25 @@ class TestBiasCorrectStationDataExecution:
         input_da.name = "tas"
 
         # Mock _load_station_data to return a simple Dataset
-        mock_load.return_value = xr.Dataset(
-            {"KSAC": ("time", [10.0, 20.0, 30.0])}, coords={"time": times[:3]}
+        station_da = xr.DataArray(
+            [10.0, 20.0, 30.0],
+            dims="time",
+            coords={"time": times[:3]},
+            attrs={"coordinates": (38.5, -121.5), "elevation": "10 m", "units": "K"},
         )
+        mock_load.return_value = xr.Dataset({"KSAC": station_da})
 
-        # Mock the Dataset.map call to return a simple result
-        fake_result = xr.Dataset(
-            {"KSAC": ("time", [100.0, 200.0, 300.0])}, coords={"time": times[:3]}
-        )
-        mock_map.return_value = fake_result
+        # Mock get_closest_gridcell to return input_da
+        mock_get_closest.return_value = input_da
 
-        context = {}
-        result = proc.execute(input_da, context)
+        # Mock _bias_correct_model_data to avoid QDM complexity
+        with patch.object(proc, "_bias_correct_model_data") as mock_bias_correct:
+            mock_bias_correct.return_value = xr.Dataset({"KSAC": station_da}).to_array(
+                dim="station"
+            )
+
+            context = {}
+            result = proc.execute(input_da, context)
 
         # Verify result is a Dataset
         assert isinstance(result, xr.Dataset)
@@ -515,9 +521,11 @@ class TestBiasCorrectStationDataEdgeCases:
         """Set up test fixtures."""
         self.processor = BiasCorrectStationData({})
 
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
     @patch.object(BiasCorrectStationData, "_load_station_data")
-    @patch("xarray.Dataset.map")
-    def test_execute_with_dataset_input(self, mock_map, mock_load):
+    def test_execute_with_dataset_input(self, mock_load, mock_get_closest):
         """Test execute method when input is a Dataset instead of DataArray.
 
         The processor should handle Dataset inputs by mapping over data
@@ -535,28 +543,146 @@ class TestBiasCorrectStationDataEdgeCases:
 
         # Mock _load_station_data to return a simple station Dataset
         station_time = pd.date_range("2020-01-01", periods=3)
-        mock_load.return_value = xr.Dataset(
-            {
-                "KSAC": xr.DataArray(
-                    [10.0, 11.0, 12.0], dims=["time"], coords={"time": station_time}
-                )
-            }
+        station_da = xr.DataArray(
+            [10.0, 11.0, 12.0],
+            dims=["time"],
+            coords={"time": station_time},
+            attrs={"coordinates": (38.5, -121.5), "elevation": "10 m", "units": "K"},
         )
+        mock_load.return_value = xr.Dataset({"KSAC": station_da})
 
-        # Mock Dataset.map to avoid actual bias correction processing
-        result_time = pd.date_range("2020-01-01", periods=3)
-        mock_map.return_value = xr.Dataset(
-            {
-                "KSAC": xr.DataArray(
-                    [20.0, 21.0, 22.0], dims=["time"], coords={"time": result_time}
-                )
-            }
-        )
+        # Mock get_closest_gridcell
+        mock_get_closest.return_value = ds["tas"]
 
-        context = {}
-        result = self.processor.execute(ds, context)
+        # Mock _bias_correct_model_data
+        with patch.object(
+            self.processor, "_bias_correct_model_data"
+        ) as mock_bias_correct:
+            mock_bias_correct.return_value = xr.Dataset({"KSAC": station_da}).to_array(
+                dim="station"
+            )
+
+            context = {}
+            result = self.processor.execute(ds, context)
 
         # Should return a Dataset
         assert isinstance(result, xr.Dataset)
         # Should have station data
         assert "KSAC" in result.data_vars
+
+
+class TestBiasCorrectConcatIntegration:
+    """Test integration with concatenated data (sim dimension)."""
+
+    def setup_method(self):
+        self.processor = BiasCorrectStationData(
+            {
+                "stations": ["KSAC"],
+                "historical_slice": (2000, 2001),  # Short period for test
+            }
+        )
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
+    @patch.object(BiasCorrectStationData, "_load_station_data")
+    def test_execute_with_concatenated_input(self, mock_load, mock_get_closest):
+        """Test execute with a single DataArray containing 'sim' dimension."""
+
+        # Create concatenated input data (2 simulations, historical + future)
+        # Time range: 2000-2003 (2000-2001 historical, 2002-2003 future)
+        times = pd.date_range("2000-01-01", "2003-12-31", freq="D")
+        # Filter to match simple calendar if needed, but standard is fine for mock
+
+        # Create DataArray with sim, time, y, x
+        da = xr.DataArray(
+            np.random.rand(2, len(times), 5, 5),
+            dims=["sim", "time", "y", "x"],
+            coords={
+                "sim": ["model1", "model2"],
+                "time": times,
+                "y": np.arange(5),
+                "x": np.arange(5),
+            },
+            name="t2",
+            attrs={"resolution": "9 km", "units": "K", "grid_label": "d02"},
+        )
+
+        # Mock station data
+        # Station data should cover historical period
+        station_times = pd.date_range("2000-01-01", "2001-12-31", freq="D")
+        station_da = xr.DataArray(
+            np.random.rand(len(station_times)) + 273.15,
+            dims=["time"],
+            coords={"time": station_times},
+            name="KSAC",
+            attrs={"units": "K", "coordinates": (38.5, -121.5), "elevation": "10 m"},
+        )
+        station_ds = xr.Dataset({"KSAC": station_da})
+        mock_load.return_value = station_ds
+
+        # Mock get_closest_gridcell to return a slice of the input
+        # It needs to return something that looks like the input but spatially subsetted
+        def side_effect(data, lat, lon, print_coords=False):
+            # Return data at index 0,0 spatially, preserving sim and time
+            if "y" in data.dims and "x" in data.dims:
+                return data.isel(y=0, x=0)
+            return data
+
+        mock_get_closest.side_effect = side_effect
+
+        # Context
+        context = {"query": {"grid_label": "d02"}}
+
+        # Execute
+        # We need to mock QuantileDeltaMapping because it does complex stats
+        with patch(
+            "climakitae.new_core.processors.bias_adjust_model_to_station.QuantileDeltaMapping"
+        ) as mock_qdm:
+            # Mock QDM.train and .adjust
+            mock_qdm_instance = MagicMock()
+            mock_qdm.train.return_value = mock_qdm_instance
+
+            # adjust returns the adjusted data
+            # It should have same shape as input (or sliced input)
+            # The processor slices output to input time range (or user requested?)
+            # The processor extracts output slice from input data time range
+
+            def adjust_side_effect(data):
+                # Return data with same dims/coords
+                return data
+
+            mock_qdm_instance.adjust.side_effect = adjust_side_effect
+
+            result = self.processor.execute(da, context)
+
+            # Verification
+            assert isinstance(result, xr.Dataset)
+            assert "KSAC" in result.data_vars
+
+            # Check that QDM.train was called
+            assert mock_qdm.train.called
+
+            # Check arguments to QDM.train
+            # args[0] is obs (station data)
+            # args[1] is hist (historical model data)
+            call_args = mock_qdm.train.call_args
+            obs_arg = call_args[0][0]
+            hist_arg = call_args[0][1]
+
+            # Obs should be 2D (station, time)
+            assert obs_arg.dims == ("station", "time")
+
+            # Hist should have station, simulation, time
+            assert "station" in hist_arg.dims
+            assert "simulation" in hist_arg.dims
+            assert "time" in hist_arg.dims
+
+            # Check that historical data was correctly sliced from input
+            # Should cover 2000-2001
+            assert hist_arg.time.dt.year.min() == 2000
+            assert hist_arg.time.dt.year.max() == 2001
+
+            # Check that result has 'sim' dimension
+            assert "sim" in result["KSAC"].dims
+            assert len(result["KSAC"].sim) == 2

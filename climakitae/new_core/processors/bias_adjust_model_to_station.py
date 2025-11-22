@@ -66,7 +66,7 @@ from climakitae.util.utils import get_closest_gridcell
 logger = logging.getLogger(__name__)
 
 
-@register_processor("bias_adjust_model_to_station", priority=40)
+@register_processor("bias_adjust_model_to_station", priority=60)
 class BiasCorrectStationData(DataProcessor):
     """Bias-correct gridded climate data to weather station locations using QDM.
 
@@ -310,7 +310,6 @@ class BiasCorrectStationData(DataProcessor):
         self,
         obs_da: xr.DataArray,
         gridded_da: xr.DataArray,
-        output_slice: tuple[int, int],
         historical_da: Optional[xr.DataArray] = None,
     ) -> xr.DataArray:
         """Apply Quantile Delta Mapping bias correction to model data.
@@ -318,46 +317,42 @@ class BiasCorrectStationData(DataProcessor):
         This method performs the core bias correction by:
         1. Converting units to match gridded data
         2. Rechunking data (QDM requires unchunked time dimension)
-        3. Converting calendars to noleap for consistency
-        4. Training QDM on historical overlap period (1980-2014)
-        5. Applying correction to requested output slice
+        3. Training QDM on historical overlap period (1980-2014)
+        4. Applying correction to the input data
+
+        Note: Data must be in noleap calendar before calling this method.
+        Calendar conversion is handled by _process_single_dataset.
 
         Parameters
         ----------
         obs_da : xr.DataArray
-            Observational station data (preprocessed)
+            Observational station data (preprocessed, noleap calendar)
         gridded_da : xr.DataArray
-            Climate model gridded data
-        output_slice : tuple[int, int]
-            Start and end years for output (extracted from input data time range)
+            Climate model gridded data (noleap calendar)
         historical_da : xr.DataArray, optional
-            Historical climate model data for training QDM. If None, assumes
-            gridded_da contains the historical period (legacy behavior).
+            Historical climate model data for training QDM (noleap calendar).
+            If None, assumes gridded_da contains the historical period (legacy behavior).
 
         Returns
         -------
         xr.DataArray
-            Bias-corrected data for the requested output slice
+            Bias-corrected data (noleap calendar)
         """
         logger.debug("=== Starting bias correction for station: %s ===", obs_da.name)
+        # Avoid accessing .values for logging as it triggers computation
         logger.debug(
-            "Input gridded_da time range: %s to %s",
-            gridded_da.time.values[0],
-            gridded_da.time.values[-1],
+            "Input gridded_da time size: %s",
+            gridded_da.sizes.get("time"),
         )
         if historical_da is not None:
             logger.debug(
-                "Input historical_da time range: %s to %s",
-                historical_da.time.values[0],
-                historical_da.time.values[-1],
+                "Input historical_da time size: %s",
+                historical_da.sizes.get("time"),
             )
         logger.debug(
             "Input obs_da time range: %s to %s",
             obs_da.time.values[0],
             obs_da.time.values[-1],
-        )
-        logger.debug(
-            "Output slice requested: %s to %s", output_slice[0], output_slice[1]
         )
 
         # Create grouper for seasonal window
@@ -388,33 +383,6 @@ class BiasCorrectStationData(DataProcessor):
         if historical_da is not None:
             historical_da = historical_da.chunk(chunks=dict(time=-1))
 
-        # Convert calendar to no leap year
-        logger.debug("Converting calendars to noleap")
-        logger.debug("Before conversion - obs_da time dtype: %s", obs_da.time.dtype)
-        logger.debug(
-            "Before conversion - gridded_da time dtype: %s", gridded_da.time.dtype
-        )
-        obs_da = obs_da.convert_calendar("noleap")
-        gridded_da = gridded_da.convert_calendar("noleap")
-        if historical_da is not None:
-            historical_da = historical_da.convert_calendar("noleap")
-
-        logger.debug("After conversion - obs_da time dtype: %s", obs_da.time.dtype)
-        logger.debug(
-            "After conversion - gridded_da time dtype: %s", gridded_da.time.dtype
-        )
-
-        # Data at the desired output slice (final output period)
-        data_sliced = gridded_da.sel(
-            time=slice(str(output_slice[0]), str(output_slice[1]))
-        )
-        logger.debug(
-            "Data sliced for output: %s to %s (shape: %s)",
-            data_sliced.time.values[0],
-            data_sliced.time.values[-1],
-            data_sliced.shape,
-        )
-
         if historical_da is not None:
             # Use provided historical data
             # Slice to match obs data period
@@ -428,36 +396,44 @@ class BiasCorrectStationData(DataProcessor):
                 time=slice(str(obs_da.time.values[0]), str(obs_da.time.values[-1]))
             )
 
+        # Avoid accessing .values for logging
         logger.debug(
-            "Gridded historical period: %s to %s (shape: %s)",
-            gridded_da_historical.time.values[0],
-            gridded_da_historical.time.values[-1],
+            "Gridded historical shape: %s",
             gridded_da_historical.shape,
         )
 
         # Now slice obs data to match the gridded historical data exactly
         # This handles any edge cases where times don't align perfectly
-        obs_da = obs_da.sel(
-            time=slice(
-                str(gridded_da_historical.time.values[0]),
-                str(gridded_da_historical.time.values[-1]),
-            )
-        )
+        # We need to access values here for slicing, but we can do it efficiently
+        # obs_da is in memory (loaded from zarr), so accessing values is fast
+        # gridded_da_historical might be lazy.
+        # However, we need the time bounds.
+        # If gridded_da_historical is lazy, accessing time.values triggers computation.
+        # But we need it for the slice.
+        # Let's try to use the time coordinate directly if possible, or accept the cost here.
+        # But we can avoid printing it in the log if we already accessed it.
+
+        # Optimization: Use min/max of time coordinate if available without loading all values?
+        # For now, we assume we need the start/end.
+        # But we can avoid the logger call accessing it AGAIN.
+
+        t_start = str(gridded_da_historical.time.values[0])
+        t_end = str(gridded_da_historical.time.values[-1])
+
+        obs_da = obs_da.sel(time=slice(t_start, t_end))
         logger.debug(
-            "Final obs period after alignment: %s to %s (shape: %s)",
-            obs_da.time.values[0],
-            obs_da.time.values[-1],
+            "Final obs period shape: %s",
             obs_da.shape,
         )
 
         # Check if data has a 'sim' dimension from concatenation
         # QDM must be trained and applied separately for each simulation
-        if "sim" in data_sliced.dims:
+        if "sim" in gridded_da.dims:
             logger.debug("Data has 'sim' dimension, using broadcasted QDM")
 
             # Rename 'sim' to 'simulation' to avoid conflict with xsdba internal naming
             # xsdba uses 'sim' internally for the simulated dataset
-            data_sliced_renamed = data_sliced.rename({"sim": "simulation"})
+            data_sliced_renamed = gridded_da.rename({"sim": "simulation"})
             hist_renamed = gridded_da_historical.rename({"sim": "simulation"})
 
             logger.debug(
@@ -483,36 +459,6 @@ class BiasCorrectStationData(DataProcessor):
 
             # Rename 'simulation' back to 'sim'
             da_adj = da_adj.rename({"simulation": "sim"})
-
-            # Convert calendar to standard datetime64
-            logger.debug("Converting calendar to standard")
-            if not isinstance(da_adj.indexes["time"], pd.DatetimeIndex):
-                import warnings
-
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    try:
-                        # FAST PATH: Use legacy approach (convert index directly)
-                        # This avoids overhead of convert_calendar and matches legacy behavior
-                        # to_datetimeindex() is available on CFTimeIndex
-                        if hasattr(da_adj.indexes["time"], "to_datetimeindex"):
-                            da_adj["time"] = getattr(
-                                da_adj.indexes["time"], "to_datetimeindex"
-                            )()
-                        else:
-                            # Fallback if to_datetimeindex is unavailable
-                            da_adj = da_adj.convert_calendar(
-                                "standard", use_cftime=False
-                            )
-                    except Exception as e:
-                        logger.warning(
-                            "Fast calendar conversion failed: %s. Falling back to convert_calendar.",
-                            e,
-                        )
-                        da_adj = da_adj.convert_calendar("standard", use_cftime=False)
-            else:
-                logger.debug("Data is already standard calendar. Skipping conversion.")
-
             da_adj.name = gridded_da_historical.name
 
         else:
@@ -530,149 +476,36 @@ class BiasCorrectStationData(DataProcessor):
             logger.debug("QDM training complete")
             # No sim dimension, process as single array
             logger.debug("Applying QDM adjustment to data_sliced")
+            logger.debug("data_sliced time dtype before QDM: %s", gridded_da.time.dtype)
             logger.debug(
-                "data_sliced time dtype before QDM: %s", data_sliced.time.dtype
-            )
-            logger.debug(
-                "data_sliced is dask array: %s", hasattr(data_sliced.data, "dask")
+                "data_sliced is dask array: %s", hasattr(gridded_da.data, "dask")
             )
 
-            da_adj = QDM.adjust(data_sliced)
+            da_adj = QDM.adjust(gridded_da)
             da_adj.name = gridded_da_historical.name
 
             logger.debug("QDM adjustment complete (lazy)")
 
-            logger.debug("Converting calendar from noleap to standard (datetime64)")
-            if not isinstance(da_adj.indexes["time"], pd.DatetimeIndex):
-                import warnings
-
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    try:
-                        # FAST PATH: Use legacy approach (convert index directly)
-                        if hasattr(da_adj.indexes["time"], "to_datetimeindex"):
-                            da_adj["time"] = getattr(
-                                da_adj.indexes["time"], "to_datetimeindex"
-                            )()
-                        else:
-                            da_adj = da_adj.convert_calendar(
-                                "standard", use_cftime=False
-                            )
-                    except Exception as e:
-                        logger.warning(
-                            "Fast calendar conversion failed: %s. Falling back to convert_calendar.",
-                            e,
-                        )
-                        da_adj = da_adj.convert_calendar("standard", use_cftime=False)
+        # Convert time back to datetime64 (from CFTime noleap)
+        # This matches legacy behavior and ensures compatibility with downstream operations
+        logger.debug("Converting time coordinate back to datetime64")
+        try:
+            time_index = da_adj.indexes["time"]
+            if hasattr(time_index, "to_datetimeindex"):
+                da_adj["time"] = time_index.to_datetimeindex()
             else:
-                logger.debug("Data is already standard calendar. Skipping conversion.")
-
-        logger.debug("Calendar conversion complete")
-        logger.debug("da_adj time dtype after conversion: %s", da_adj.time.dtype)
-        logger.debug("da_adj time index type: %s", type(da_adj.indexes["time"]))
-        logger.debug("First few time values: %s", da_adj.time.values[:3])
+                # Fallback if to_datetimeindex not available
+                da_adj = da_adj.convert_calendar("standard", use_cftime=False)
+        except Exception as e:
+            logger.warning(
+                "Could not convert time back to datetime64: %s. Leaving as-is.", e
+            )
 
         # Rechunk to convert back to dask array for downstream processing
         # This maintains lazy evaluation for subsequent operations
-        logger.debug("Rechunking to create dask array for downstream processing")
-        da_adj = da_adj.chunk({"time": "auto"})
-        logger.debug("da_adj is dask array: %s", hasattr(da_adj.data, "dask"))
         logger.debug("=== Bias correction complete for %s ===", da_adj.name)
 
         return da_adj  # type: ignore[return-value]
-
-    def _get_bias_corrected_closest_gridcell(
-        self,
-        station_da: xr.DataArray,
-        gridded_da: xr.DataArray,
-        output_slice: tuple[int, int],
-        historical_da: Optional[xr.DataArray] = None,
-    ) -> xr.DataArray:
-        """Get closest gridcell to station and apply bias correction.
-
-        This method:
-        1. Extracts station coordinates from attributes
-        2. Finds closest gridcell in climate model data
-        3. Drops unnecessary coordinates for cleaner merging
-        4. Applies bias correction
-        5. Adds station metadata to output
-
-        Parameters
-        ----------
-        station_da : xr.DataArray
-            Observational station data
-        gridded_da : xr.DataArray
-            Climate model gridded data
-        output_slice : tuple[int, int]
-            Start and end years for output (extracted from input data time range)
-        historical_da : xr.DataArray, optional
-            Historical climate model data for training QDM.
-
-        Returns
-        -------
-        xr.DataArray
-            Bias-corrected data with station metadata
-        """
-        # Get the closest gridcell to the station
-        station_lat, station_lon = station_da.attrs["coordinates"]
-        gridded_da_closest_gridcell = get_closest_gridcell(
-            gridded_da, station_lat, station_lon, print_coords=False
-        )
-
-        # Validate we got a result
-        if gridded_da_closest_gridcell is None:
-            raise ValueError(
-                f"Could not find closest gridcell for station at "
-                f"({station_lat}, {station_lon})"
-            )
-
-        # Drop any coordinates in the output dataset that are not also dimensions
-        # This makes merging all the stations together easier and drops superfluous coordinates
-        gridded_da_closest_gridcell = gridded_da_closest_gridcell.drop_vars(  # type: ignore[union-attr]
-            [
-                i
-                for i in gridded_da_closest_gridcell.coords  # type: ignore[union-attr]
-                if i not in gridded_da_closest_gridcell.dims  # type: ignore[union-attr]
-            ]
-        )
-
-        # Handle historical data if provided
-        historical_da_closest = None
-        if historical_da is not None:
-            historical_da_closest = get_closest_gridcell(
-                historical_da, station_lat, station_lon, print_coords=False
-            )
-            if historical_da_closest is None:
-                raise ValueError(
-                    f"Could not find closest gridcell in historical data for station at "
-                    f"({station_lat}, {station_lon})"
-                )
-            historical_da_closest = historical_da_closest.drop_vars(  # type: ignore[union-attr]
-                [
-                    i
-                    for i in historical_da_closest.coords  # type: ignore[union-attr]
-                    if i not in historical_da_closest.dims  # type: ignore[union-attr]
-                ]
-            )
-
-        # Bias correct the model data using the station data
-        # Output data will be cut to the requested output slice
-        bias_corrected = self._bias_correct_model_data(
-            station_da,
-            gridded_da_closest_gridcell,
-            output_slice,
-            historical_da=historical_da_closest,
-        )
-
-        # Add descriptive coordinates to the bias corrected data
-        bias_corrected.attrs["station_coordinates"] = station_da.attrs[
-            "coordinates"
-        ]  # Coordinates of station
-        bias_corrected.attrs["station_elevation"] = station_da.attrs[
-            "elevation"
-        ]  # Elevation of station
-
-        return bias_corrected
 
     def _process_single_dataset(
         self,
@@ -735,7 +568,7 @@ class BiasCorrectStationData(DataProcessor):
             if not grid_label and context:
                 if "query" in context:
                     grid_label = context["query"].get("grid_label")
-                
+
                 # If still not found, try context directly (flat structure)
                 if not grid_label:
                     grid_label = context.get("grid_label")
@@ -762,6 +595,19 @@ class BiasCorrectStationData(DataProcessor):
                     "Resolution attribute missing and no grid_label found to infer it."
                 )
 
+        # OPTIMIZATION: Load coordinates into memory to speed up get_closest_gridcell
+        # This prevents triggering dask computations for every station search
+        if "lat" in result_da.coords:
+            result_da.coords["lat"].load()
+        if "lon" in result_da.coords:
+            result_da.coords["lon"].load()
+
+        if historical_da is not None:
+            if "lat" in historical_da.coords:
+                historical_da.coords["lat"].load()
+            if "lon" in historical_da.coords:
+                historical_da.coords["lon"].load()
+
         logger.info(
             "Applying QDM bias adjustment on models for %d station(s)",
             len(self.stations),
@@ -772,36 +618,113 @@ class BiasCorrectStationData(DataProcessor):
         logger.debug("Input result_da time dtype: %s", result_da.time.dtype)
         logger.debug("Input result_da is dask: %s", hasattr(result_da.data, "dask"))
 
-        # Extract time range from input data for output
-        # The TimeSlice processor (if used) will have already sliced the data
-        time_values = result_da.time.values
-        output_start_year = int(str(time_values[0])[:4])
-        output_end_year = int(str(time_values[-1])[:4])
-        logger.debug("Output time range: %s to %s", output_start_year, output_end_year)
+        # Vectorized processing: Collect data for all stations first
+        station_names = list(station_ds.data_vars.keys())
+        gridded_list = []
+        historical_list = []
 
-        # Apply bias correction to each station using xarray map
-        # This processes all stations and combines results
-        logger.debug("Applying bias correction via xarray.map...")
-        apply_output = station_ds.map(
-            self._get_bias_corrected_closest_gridcell,
-            keep_attrs=False,
-            gridded_da=result_da,
-            output_slice=(output_start_year, output_end_year),
-            historical_da=historical_da,
+        # Pre-calculate station metadata to restore later
+        station_metadata = {}
+
+        for station_name in station_names:
+            logger.debug("Extracting grid cell for station: %s", station_name)
+            station_da = station_ds[station_name]
+            station_lat, station_lon = station_da.attrs["coordinates"]
+            station_metadata[station_name] = {
+                "coordinates": (station_lat, station_lon),
+                "elevation": station_da.attrs.get("elevation", "N/A"),
+            }
+
+            # Extract model data
+            gridded_da_closest = get_closest_gridcell(
+                result_da, station_lat, station_lon, print_coords=False
+            )
+
+            if gridded_da_closest is None:
+                raise ValueError(
+                    f"Could not find closest gridcell at ({station_lat}, {station_lon})"
+                )
+
+            # Drop extra coords
+            gridded_da_closest = gridded_da_closest.drop_vars(
+                [
+                    c
+                    for c in gridded_da_closest.coords
+                    if c not in gridded_da_closest.dims
+                ]
+            )
+            gridded_list.append(gridded_da_closest)
+
+            # Extract historical data if present
+            if historical_da is not None:
+                historical_da_closest = get_closest_gridcell(
+                    historical_da, station_lat, station_lon, print_coords=False
+                )
+                if historical_da_closest is None:
+                    raise ValueError(
+                        f"Could not find historical gridcell at ({station_lat}, {station_lon})"
+                    )
+                historical_da_closest = historical_da_closest.drop_vars(
+                    [
+                        c
+                        for c in historical_da_closest.coords
+                        if c not in historical_da_closest.dims
+                    ]
+                )
+                historical_list.append(historical_da_closest)
+
+        # Stack data along 'station' dimension
+        station_index = pd.Index(station_names, name="station")
+
+        # Stack gridded data
+        gridded_stacked = xr.concat(gridded_list, dim=station_index)
+
+        # Stack historical data
+        historical_stacked = None
+        if historical_list:
+            historical_stacked = xr.concat(historical_list, dim=station_index)
+
+        # Stack station data
+        # Use to_array to convert Dataset to DataArray with 'station' dim
+        station_stacked = station_ds.to_array(dim="station", name="station_data")
+
+        # Restore units (assuming all stations have same units, which they do: K)
+        if station_names:
+            first_station = station_ds[station_names[0]]
+            if "units" in first_station.attrs:
+                station_stacked.attrs["units"] = first_station.attrs["units"]
+
+        # Convert calendars to noleap (vectorized)
+        gridded_stacked = gridded_stacked.convert_calendar("noleap")
+        if historical_stacked is not None:
+            historical_stacked = historical_stacked.convert_calendar("noleap")
+        station_stacked = station_stacked.convert_calendar("noleap")
+
+        # Apply Bias Correction (Vectorized)
+        # This applies QDM once across all stations (broadcasting over 'station' dim)
+        bias_corrected_stacked = self._bias_correct_model_data(
+            station_stacked,
+            gridded_stacked,
+            historical_da=historical_stacked,
         )
+
+        # Unstack to Dataset
+        apply_output = bias_corrected_stacked.to_dataset(dim="station")
+
+        # Restore attributes
+        for station_name in station_names:
+            if station_name in apply_output:
+                apply_output[station_name].attrs["station_coordinates"] = (
+                    station_metadata[station_name]["coordinates"]
+                )
+                apply_output[station_name].attrs["station_elevation"] = (
+                    station_metadata[station_name]["elevation"]
+                )
 
         logger.info(
             "Station bias correction complete. Output shape: %s", apply_output.dims
         )
         logger.debug("Output variables: %s", list(apply_output.data_vars))
-        logger.debug("Output time dtype: %s", apply_output.time.dtype)
-        logger.debug(
-            "Output is dask: %s",
-            any(
-                hasattr(apply_output[var].data, "dask")
-                for var in apply_output.data_vars
-            ),
-        )
 
         return apply_output
 
@@ -932,10 +855,6 @@ class BiasCorrectStationData(DataProcessor):
         """
         if isinstance(result, dict):
             return self._execute_dict(result, context)
-
-        # Convert Dataset to DataArray if needed
-        # Note: This logic is now inside _process_single_dataset, but we need to load
-        # station data here for the single case.
 
         # Load station observational data from HadISD
         logger.debug("Loading station data from HadISD...")

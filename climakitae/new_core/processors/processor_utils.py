@@ -959,26 +959,33 @@ def extend_time_domain(
             ret[key] = data
             continue
 
-        # Concatenate historical and SSP data along time dimension
+            # Concatenate historical and SSP data along time dimension
         try:
             hist_data = result[hist_key]
-            # Use proper xr.concat with explicit typing
+            # Use proper xr.concat with explicit typing and optimized settings
+            # compat="override" skips expensive coordinate equality checks
+            # coords="minimal" avoids duplicating coordinates
+            concat_kwargs = {
+                "dim": "time",
+                "coords": "minimal",
+                "compat": "override",
+                "join": "outer",
+            }
+
             if isinstance(data, xr.Dataset) and isinstance(hist_data, xr.Dataset):
-                extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
+                extended_data = xr.concat([hist_data, data], **concat_kwargs)  # type: ignore
             elif isinstance(data, xr.DataArray) and isinstance(hist_data, xr.DataArray):
-                extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
+                extended_data = xr.concat([hist_data, data], **concat_kwargs)  # type: ignore
             else:
                 # Handle mixed types by converting to same type
                 if isinstance(data, xr.Dataset):
                     if isinstance(hist_data, xr.DataArray):
                         hist_data = hist_data.to_dataset()
-                    extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
+                    extended_data = xr.concat([hist_data, data], **concat_kwargs)  # type: ignore
                 else:  # data is DataArray
                     if isinstance(hist_data, xr.Dataset):
                         data = data.to_dataset()
-                    extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
-
-            # Preserve SSP attributes
+                    extended_data = xr.concat([hist_data, data], **concat_kwargs)  # type: ignore            # Preserve SSP attributes
             extended_data.attrs.update(data.attrs)
             # add key attr indicating historical data was prepended
             extended_data.attrs["historical_prepended"] = True
