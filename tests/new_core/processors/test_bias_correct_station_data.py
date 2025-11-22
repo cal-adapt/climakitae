@@ -449,7 +449,8 @@ class TestBiasCorrectStationDataExecution:
                 break
 
         assert ssp_call is not None
-        assert ssp_call[0][2] == hist_da  # historical_da arg
+        assert ssp_call[0][2] == context  # context arg
+        assert ssp_call[0][3] == hist_da  # historical_da arg
 
         # Find call for historical
         hist_call = None
@@ -459,7 +460,8 @@ class TestBiasCorrectStationDataExecution:
                 break
 
         assert hist_call is not None
-        assert hist_call[0][2] == hist_da  # historical_da arg
+        assert hist_call[0][2] == context  # context arg
+        assert hist_call[0][3] == hist_da  # historical_da arg
 
 
 class TestBiasCorrectStationDataContext:

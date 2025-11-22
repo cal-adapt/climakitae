@@ -678,6 +678,7 @@ class BiasCorrectStationData(DataProcessor):
         self,
         result: Union[xr.Dataset, xr.DataArray],
         station_ds: xr.Dataset,
+        context: Dict[str, Any],
         historical_da: Optional[xr.DataArray] = None,
     ) -> Union[xr.Dataset, xr.DataArray]:
         """Process a single dataset/dataarray.
@@ -688,6 +689,8 @@ class BiasCorrectStationData(DataProcessor):
             Input data to bias correct
         station_ds : xr.Dataset
             Loaded station data
+        context : Dict[str, Any]
+            Processing context
         historical_da : xr.DataArray, optional
             Historical data for training QDM
 
@@ -722,6 +725,37 @@ class BiasCorrectStationData(DataProcessor):
                 f"StationBiasCorrection requires xr.DataArray or xr.Dataset input, "
                 f"got {type(result)}"
             )
+
+        # Ensure resolution attribute is present for get_closest_gridcell
+        if "resolution" not in result_da.attrs:
+            # Try to get from grid_label in attrs
+            grid_label = result_da.attrs.get("grid_label")
+
+            # If not in attrs, try context
+            if not grid_label and context and "query" in context:
+                grid_label = context["query"].get("grid_label")
+
+            if grid_label:
+                grid_mapping = {
+                    "d01": "45 km",
+                    "d02": "9 km",
+                    "d03": "3 km",
+                }
+                if grid_label in grid_mapping:
+                    result_da.attrs["resolution"] = grid_mapping[grid_label]
+                    logger.debug(
+                        "Inferred resolution %s from grid_label %s",
+                        result_da.attrs["resolution"],
+                        grid_label,
+                    )
+                else:
+                    logger.warning(
+                        "Could not infer resolution from grid_label: %s", grid_label
+                    )
+            else:
+                logger.warning(
+                    "Resolution attribute missing and no grid_label found to infer it."
+                )
 
         logger.info(
             "Applying QDM bias adjustment on models for %d station(s)",
@@ -827,7 +861,9 @@ class BiasCorrectStationData(DataProcessor):
                     historical_da.attrs.update(historical_da_ds.attrs)
 
             # Process
-            ret[key] = self._process_single_dataset(data, station_ds, historical_da)
+            ret[key] = self._process_single_dataset(
+                data, station_ds, context, historical_da
+            )
 
         return ret
 
@@ -902,7 +938,7 @@ class BiasCorrectStationData(DataProcessor):
         logger.debug("Station data loaded. Variables: %s", list(station_ds.data_vars))
 
         if isinstance(result, (xr.Dataset, xr.DataArray)):
-            return self._process_single_dataset(result, station_ds)
+            return self._process_single_dataset(result, station_ds, context)
         else:
             raise TypeError(
                 f"StationBiasCorrection requires xr.DataArray, xr.Dataset, or Dict input, "

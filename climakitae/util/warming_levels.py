@@ -475,7 +475,7 @@ def get_gwl_at_year(year: int, ssp: str = "all") -> pd.DataFrame:
     return wl_timing_df
 
 
-def get_year_at_gwl(gwl: Union[np.nan, int], ssp: str = "all") -> pd.DataFrame:
+def get_year_at_gwl(gwl: Union[float, int], ssp: str = "all") -> pd.DataFrame:
     """Retrieve the year when a given Global Warming Level (GWL) is reached for each SSP scenario.
 
     Parameters
