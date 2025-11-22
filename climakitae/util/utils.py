@@ -156,8 +156,8 @@ def _package_file_path(rel_path: str) -> str:
 
 def get_closest_gridcell(
     data: xr.Dataset | xr.DataArray, lat: float, lon: float, print_coords: bool = True
-) -> xr.DataArray | None:
-    """From input gridded data, get the closest gridcell to a lat, lon coordinate pair.
+) -> xr.Dataset | xr.DataArray | None:
+    """From input gridded data, get the closest VALID gridcell to a lat, lon coordinate pair.
 
     This function first transforms the lat,lon coords to the gridded data’s projection.
     Then, it uses xarray’s built in method .sel to get the nearest gridcell.
@@ -176,22 +176,18 @@ def get_closest_gridcell(
 
     Returns
     -------
-    xr.DataArray | None
-        Grid cell closest to input lat,lon coordinate pair
+    xr.Dataset | xr.DataArray | None
+        Grid cell closest to input lat,lon coordinate pair, returns same type as input
 
     See also
     --------
-    xr.DataArray.sel
+    xr.DataArray.isel
 
     """
+    dim1_name = [x for x in data.dims if x in ["x", "lat"]][0]
+    dim2_name = [x for x in data.dims if x in ["y", "lon"]][0]
 
-    # Use data cellsize as tolerance for selecting nearest
-    # Using this method to guard against single row|col
-    # Assumes data is from climakitae retrieve
-    km_num = int(data.resolution.split(" km")[0])
-    # tolerance = int(data.resolution.split(" km")[0]) * 1000
-
-    if "x" in data.dims and "y" in data.dims:
+    if dim1_name == "x" and dim2_name == "y":
         # Make Transformer object
         lat_lon_to_model_projection = pyproj.Transformer.from_crs(
             crs_from="epsg:4326",  # Lat/lon
@@ -200,45 +196,131 @@ def get_closest_gridcell(
         )
 
         # Convert coordinates to x,y
-        x, y = lat_lon_to_model_projection.transform(lon, lat)
+        # transform returns (x, y) with always_xy=True
+        coords1, coords2 = lat_lon_to_model_projection.transform(lon, lat)
+    else:
+        coords1 = lat
+        coords2 = lon
 
-    # Get closest gridcell using tolerance
-    # If input point outside of dataset by greater than one
-    # grid cell, then None is returned
-    try:
-        if "x" in data.dims and "y" in data.dims:
-            tolerance = km_num * 1000  # Converting km to m
-            closest_gridcell = data.sel(x=x, y=y, method="nearest", tolerance=tolerance)
-        elif "lat" in data.dims and "lon" in data.dims:
-            tolerance = km_num / 111  # Rough translation of km to degrees
-            closest_gridcell = data.sel(
-                lat=lat, lon=lon, method="nearest", tolerance=tolerance
-            )
+    dim1_idx = data[dim1_name].to_index().get_indexer([coords1], method="nearest")[0]
+    dim2_idx = data[dim2_name].to_index().get_indexer([coords2], method="nearest")[0]
 
-    except KeyError:
-        print(
-            f"Input coordinates: ({lat:.2f}, {lon:.2f}) OUTSIDE of data extent by more than one cell. Returning None"
-        )
+    if dim1_idx == -1 or dim2_idx == -1:
+        print("Input coordinate is OUTSIDE of data extent. Returning None.")
         return None
 
-    # Output information
-    if print_coords:
-        print(
-            "Input coordinates: (%.2f, %.2f)" % (lat, lon)
-            + "\nNearest grid cell coordinates: (%.2f, %.2f)"
-            % (closest_gridcell.lat.values.item(), closest_gridcell.lon.values.item())
+    # check for valid data at closest gridcell
+    # isel out all non spatial dimensions
+    test_data = data.isel({dim1_name: dim1_idx, dim2_name: dim2_idx})
+    for dim in data.dims:
+        if dim not in [dim1_name, dim2_name]:
+            test_data = test_data.isel({dim: 0})
+
+    # Check if data is valid (not all null)
+    # For Dataset, check if any data variable has valid data
+    # For DataArray, check if the data itself is valid
+    if isinstance(test_data, xr.Dataset):
+        has_valid_data = any(
+            not test_data[var].isnull().all() for var in test_data.data_vars
         )
-    return closest_gridcell
+    else:
+        has_valid_data = not test_data.isnull().all()
+
+    if has_valid_data:
+        closest_gridcell = data.isel({dim1_name: dim1_idx, dim2_name: dim2_idx})
+
+        if print_coords:
+            print(
+                f"Closest gridcell to lat: {lat}, lon: {lon} is at {dim1_name}: {closest_gridcell[dim1_name].item()}, {dim2_name}: {closest_gridcell[dim2_name].item()}"
+            )
+
+        return closest_gridcell
+
+    # if data at closest gridcell is all Nan
+    # search in 3x3 window around closest gridcell
+    # return average of all valid gridcells in that window
+    valid_data = []
+    dim1_size = data.sizes[dim1_name]
+    dim2_size = data.sizes[dim2_name]
+
+    for i in range(-1, 2):
+        for j in range(-1, 2):
+            new_dim1_idx = dim1_idx + i
+            new_dim2_idx = dim2_idx + j
+
+            # Skip if indices are out of bounds
+            if (
+                new_dim1_idx < 0
+                or new_dim1_idx >= dim1_size
+                or new_dim2_idx < 0
+                or new_dim2_idx >= dim2_size
+            ):
+                continue
+
+            # Get the gridcell at this location
+            gridcell = data.isel({dim1_name: new_dim1_idx, dim2_name: new_dim2_idx})
+
+            # Check if this gridcell has valid data by testing with non-spatial dims reduced
+            test_data = gridcell.copy()
+            for dim in data.dims:
+                if dim not in [dim1_name, dim2_name]:
+                    test_data = test_data.isel({dim: 0})
+
+            # Check if this gridcell has valid data
+            if isinstance(test_data, xr.Dataset):
+                has_valid = any(
+                    not test_data[var].isnull().all() for var in test_data.data_vars
+                )
+            else:
+                has_valid = not test_data.isnull().all()
+
+            # Append the full gridcell (with all dimensions) if valid
+            if has_valid:
+                valid_data.append(gridcell)
+
+    if len(valid_data) > 0:
+        # Store the spatial coordinates before averaging (they will be lost during mean)
+        # Use the original closest gridcell coordinates as the representative location
+        coord1_val = (
+            valid_data[0].coords[dim1_name].values.item()
+            if len(valid_data[0].coords[dim1_name].shape) == 0
+            else valid_data[0].coords[dim1_name].values
+        )
+        coord2_val = (
+            valid_data[0].coords[dim2_name].values.item()
+            if len(valid_data[0].coords[dim2_name].shape) == 0
+            else valid_data[0].coords[dim2_name].values
+        )
+
+        # Average the valid gridcells (this removes spatial coords)
+        closest_gridcell = xr.concat(valid_data, dim="valid_points").mean(
+            dim="valid_points"
+        )
+
+        # Add back the spatial coordinates as scalars
+        closest_gridcell = closest_gridcell.assign_coords(
+            {dim1_name: coord1_val, dim2_name: coord2_val}
+        )
+
+        if print_coords:
+            print(
+                f"Closest gridcell to lat: {lat}, lon: {lon} is at {dim1_name}: {coord1_val}, {dim2_name}: {coord2_val} (averaged over nearby valid gridcells)"
+            )
+
+        return closest_gridcell
+
+    return None
 
 
 def get_closest_gridcells(
-    data: xr.Dataset, lats: Iterable[float] | float, lons: Iterable[float] | float
+    data: xr.Dataset | xr.DataArray,
+    lats: Iterable[float] | float,
+    lons: Iterable[float] | float,
 ) -> xr.Dataset | xr.DataArray | None:
     """Find the nearest grid cell(s) for given latitude and longitude coordinates.
 
-    If the dataset uses (x, y) coordinates, lat/lon values are transformed to match its projection.
-    The function then selects the closest grid cell using `sel()` or `get_indexer()`, ensuring
-    the selection is within an appropriate tolerance.
+    This function calls `get_closest_gridcell` for each lat/lon pair and concatenates
+    the results along a 'points' dimension.
 
     Parameters
     ----------
@@ -253,114 +335,61 @@ def get_closest_gridcells(
     -------
     xr.Dataset | xr.DataArray | None
         Nearest grid cell(s) or `None` if no valid match is found.
-
-    Notes
-    -----
-    - If (x, y) dimensions exist, lat/lon coordinates are projected using `pyproj.Transformer`.
-    - The search tolerance is derived from the dataset resolution.
-    - Returns `None` if no grid cells are within tolerance.
+        If multiple coordinates are provided, results are concatenated along 'points' dimension.
 
     See Also
     --------
-    xr.DataArray.sel, pyproj.Transformer
+    get_closest_gridcell
 
     """
-    # Use data cellsize as tolerance for selecting nearest
-    # Using this method to guard against single row|col
-    # Assumes data is from climakitae retrieve
-    km_num = int(data.resolution.split(" km")[0])
-    # tolerance = int(data.resolution.split(" km")[0]) * 1000
+    # Convert single values to lists for uniform handling
+    if not isinstance(lats, Iterable) or isinstance(lats, str):
+        lats = [lats]
+    if not isinstance(lons, Iterable) or isinstance(lons, str):
+        lons = [lons]
 
-    if "x" and "y" in data.dims:
-        # Make Transformer object
-        lat_lon_to_model_projection = pyproj.Transformer.from_crs(
-            crs_from="epsg:4326",  # Lat/lon
-            crs_to=data.rio.crs,  # Model projection
-            always_xy=True,
+    # Ensure lats and lons have the same length
+    if len(lats) != len(lons):
+        raise ValueError(
+            f"lats and lons must have the same length, got {len(lats)} and {len(lons)}"
         )
 
-        # Convert coordinates to x,y
-        xs, ys = lat_lon_to_model_projection.transform(lons, lats)
+    # Get closest gridcell for each lat/lon pair
+    gridcells = []
+    for lat, lon in zip(lats, lons):
+        gridcell = get_closest_gridcell(data, lat, lon, print_coords=False)
+        if gridcell is not None:
+            gridcells.append(gridcell)
 
-    # Get closest gridcell using tolerance
-    def find_closest_valid_gridcells(
-        data: xr.DataArray | xr.Dataset,
-        dim1_name: str,
-        dim2_name: str,
-        coords1: float | Iterable[float],
-        coords2: float | Iterable[float],
-        tolerance: float,
-    ) -> xr.Dataset | xr.DataArray | None:
-        """Find the nearest valid grid cells within a given tolerance.
+    # If no valid gridcells found, return None
+    if len(gridcells) == 0:
+        print("No valid gridcells found for the provided coordinates.")
+        return None
 
-        Uses `get_indexer()` to find the closest grid cell indices along two spatial dimensions,
-        ensuring they are within the dataset bounds and tolerance.
+    # If only one gridcell, return it directly
+    if len(gridcells) == 1:
+        return gridcells[0]
 
-        Parameters
-        ----------
-        data : xr.DataArray | xr.Dataset
-            Gridded dataset with spatial dimensions.
-        dim1_name : str
-            First spatial dimension (e.g., 'x' or 'lat').
-        dim2_name : str
-            Second spatial dimension (e.g., 'y' or 'lon').
-        coords1 : float | Iterable[float]
-            Coordinates along `dim1_name`.
-        coords2 : float | Iterable[float]
-            Coordinates along `dim2_name`.
-        tolerance : float
-            Maximum allowed distance from the nearest grid cell.
+    # Concatenate multiple gridcells along 'points' dimension
+    # Note: concat adds the new dimension first, so we transpose to preserve
+    # the original dimension order (e.g., time comes before points)
+    result = xr.concat(gridcells, dim="points")
 
-        Returns
-        -------
-        xr.Dataset | xr.DataArray | None
-            Nearest grid cell(s) or `None` if out of bounds.
+    # Get all dimensions and move 'points' to the end
+    if isinstance(result, xr.Dataset):
+        # For datasets, get dimensions from the first data variable
+        first_var = list(result.data_vars)[0]
+        all_dims = list(result[first_var].dims)
+    else:
+        all_dims = list(result.dims)
 
-        See Also
-        --------
-        xr.DataArray.get_indexer, xr.DataArray.isel
+    # Move 'points' dimension to the end
+    if "points" in all_dims:
+        all_dims.remove("points")
+        all_dims.append("points")
+        result = result.transpose(*all_dims)
 
-        """
-        dim1_idx = data[dim1_name].to_index().get_indexer(coords1, method="nearest")
-        dim2_idx = data[dim2_name].to_index().get_indexer(coords2, method="nearest")
-
-        dim1_valid = (dim1_idx != -1) & (
-            np.abs(data[dim1_name][dim1_idx] - coords1) <= tolerance
-        )
-        dim2_valid = (dim2_idx != -1) & (
-            np.abs(data[dim2_name][dim2_idx] - coords2) <= tolerance
-        )
-
-        if not (dim1_valid.all() and dim2_valid.all()):
-            print(
-                "One or more coordinates are OUTSIDE of data extent by more than one cell. Returning None."
-            )
-            closest_gridcells = None
-        else:
-            closest_gridcells = data.isel(
-                {
-                    dim1_name: xr.DataArray(dim1_idx, dims="points"),
-                    dim2_name: xr.DataArray(dim2_idx, dims="points"),
-                }
-            )
-
-        return closest_gridcells
-
-    # If input point outside of dataset by greater than one
-    # grid cell, then None is returned
-    if "x" and "y" in data.dims:
-        tolerance = km_num * 1000  # Converting km to m
-        closest_gridcells = find_closest_valid_gridcells(
-            data, "x", "y", xs, ys, tolerance
-        )
-
-    elif "lat" and "lon" in data.dims:
-        tolerance = km_num / 111  # Rough translation of km to degrees
-        closest_gridcells = find_closest_valid_gridcells(
-            data, "lat", "lon", lats, lons, tolerance
-        )
-
-    return closest_gridcells
+    return result
 
 
 def julianDay_to_date(
