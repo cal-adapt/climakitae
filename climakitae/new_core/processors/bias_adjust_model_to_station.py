@@ -67,7 +67,7 @@ logger = logging.getLogger(__name__)
 
 
 @register_processor("bias_adjust_model_to_station", priority=60)
-class BiasCorrectStationData(DataProcessor):
+class BiasAdjustModelToStation(DataProcessor):
     """Bias-correct gridded climate data to weather station locations using QDM.
 
     This processor applies Quantile Delta Mapping (QDM) bias correction to gridded

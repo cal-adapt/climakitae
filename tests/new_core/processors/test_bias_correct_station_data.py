@@ -14,7 +14,7 @@ import pytest
 import numpy as np
 
 from climakitae.new_core.processors.bias_adjust_model_to_station import (
-    BiasCorrectStationData,
+    BiasAdjustModelToStation,
 )
 
 
@@ -23,7 +23,7 @@ class TestBiasCorrectStationDataInit:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.ProcClass = BiasCorrectStationData
+        self.ProcClass = BiasAdjustModelToStation
 
     def test_init_with_valid_config(self):
         """Test initialization with valid configuration."""
@@ -46,7 +46,7 @@ class TestBiasCorrectStationDataPreprocessing:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.ProcClass = BiasCorrectStationData
+        self.ProcClass = BiasAdjustModelToStation
 
     def test_preprocess_hadisd_successful(self):
         """Test HadISD preprocessing with valid input."""
@@ -101,7 +101,7 @@ class TestBiasCorrectStationDataLoading:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.ProcClass = BiasCorrectStationData
+        self.ProcClass = BiasAdjustModelToStation
 
     def test_load_station_data_single_station(self, mock_convert, mock_open_mf):
         """Test loading single station data."""
@@ -141,7 +141,7 @@ class TestBiasCorrectStationDataBiasCorrection:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.ProcClass = BiasCorrectStationData
+        self.ProcClass = BiasAdjustModelToStation
 
     @pytest.mark.advanced
     def test_bias_correct_model_data_successful(self):
@@ -301,7 +301,7 @@ class TestBiasCorrectStationDataClosestGridcell:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.ProcClass = BiasCorrectStationData
+        self.ProcClass = BiasAdjustModelToStation
 
     def test_get_bias_corrected_closest_gridcell_successful(self, mock_get_closest):
         """Test getting bias-corrected closest gridcell."""
@@ -371,12 +371,12 @@ class TestBiasCorrectStationDataExecution:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.ProcClass = BiasCorrectStationData
+        self.ProcClass = BiasAdjustModelToStation
 
     @patch(
         "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
     )
-    @patch.object(BiasCorrectStationData, "_load_station_data")
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
     def test_execute_with_dataarray_input(self, mock_load, mock_get_closest):
         """Test execute with xr.DataArray input."""
         proc = self.ProcClass({"stations": ["KSAC"]})
@@ -413,8 +413,8 @@ class TestBiasCorrectStationDataExecution:
         assert isinstance(result, xr.Dataset)
         assert "KSAC" in result.data_vars
 
-    @patch.object(BiasCorrectStationData, "_load_station_data")
-    @patch.object(BiasCorrectStationData, "_process_single_dataset")
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    @patch.object(BiasAdjustModelToStation, "_process_single_dataset")
     def test_execute_with_dict_input(self, mock_process, mock_load):
         """Test execute with dictionary input (pre-concatenation)."""
         proc = self.ProcClass({"stations": ["KSAC"]})
@@ -475,7 +475,7 @@ class TestBiasCorrectStationDataContext:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.processor = BiasCorrectStationData({})
+        self.processor = BiasAdjustModelToStation({})
 
     def test_update_context_creates_new_attrs_key(self):
         """Test that update_context creates 'new_attrs' key in context.
@@ -498,7 +498,7 @@ class TestBiasCorrectStationDataCatalogSetting:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.processor = BiasCorrectStationData({})
+        self.processor = BiasAdjustModelToStation({})
 
     def test_set_data_accessor_successful(self):
         """Test that set_data_accessor stores the data accessor.
@@ -519,12 +519,12 @@ class TestBiasCorrectStationDataEdgeCases:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.processor = BiasCorrectStationData({})
+        self.processor = BiasAdjustModelToStation({})
 
     @patch(
         "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
     )
-    @patch.object(BiasCorrectStationData, "_load_station_data")
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
     def test_execute_with_dataset_input(self, mock_load, mock_get_closest):
         """Test execute method when input is a Dataset instead of DataArray.
 
@@ -575,7 +575,7 @@ class TestBiasCorrectConcatIntegration:
     """Test integration with concatenated data (sim dimension)."""
 
     def setup_method(self):
-        self.processor = BiasCorrectStationData(
+        self.processor = BiasAdjustModelToStation(
             {
                 "stations": ["KSAC"],
                 "historical_slice": (2000, 2001),  # Short period for test
@@ -585,7 +585,7 @@ class TestBiasCorrectConcatIntegration:
     @patch(
         "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
     )
-    @patch.object(BiasCorrectStationData, "_load_station_data")
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
     def test_execute_with_concatenated_input(self, mock_load, mock_get_closest):
         """Test execute with a single DataArray containing 'sim' dimension."""
 
