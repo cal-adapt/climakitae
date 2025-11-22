@@ -68,6 +68,7 @@ class TestThresholdTools:
         assert not np.isnan(result)
         assert isinstance(result, float)
 
+    @pytest.mark.advanced
     def test__get_fitted_distr(self):
         """Check that fitted distr returns correct parameter set for gev."""
         test_data = test_data = np.random.rand(10, 10, 365 * 3) * 100

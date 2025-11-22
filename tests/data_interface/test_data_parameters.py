@@ -164,6 +164,7 @@ class TestDataParameters:
                         assert params.scenario_historical == ["Historical Climate"]
                         assert params._data_warning == ""
 
+    @pytest.mark.advanced
     def test_update_methods(self):
         """
         Test that update methods correctly modify parameters based on dependencies.
@@ -241,6 +242,7 @@ class TestDataParameters:
                         params.longitude = (-120, -115)
                         assert params.area_subset == "lat/lon"
 
+    @pytest.mark.advanced
     def test_unit_and_scenario_updates(self):
         """
         Test unit updates and scenario selection behavior.
@@ -318,6 +320,7 @@ class TestDataParameters:
                         )
                         assert params.time_slice[1] == params.ssp_range[1]
 
+    @pytest.mark.advanced
     def test_retrieve_and_warnings(self):
         """
         Test the retrieve method and data warning behavior.

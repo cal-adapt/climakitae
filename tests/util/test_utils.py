@@ -1372,6 +1372,7 @@ class TestConvertToLocalTime:
     Class for testing the convert_to_local_time function.
     """
 
+    @pytest.mark.advanced
     def test_convert_to_local_time(self):
         """Test the convert_to_local_time function with various conditions."""
 
@@ -1543,6 +1544,7 @@ class TestConvertToLocalTime:
                 "Data Array attribute 'data_type' not found. Please set 'data_type' to 'Stations' or 'Gridded'."
             )
 
+    @pytest.mark.advanced
     def test_convert_to_local_time_gridded_data(self):
         """Test convert_to_local_time with gridded data types."""
 
