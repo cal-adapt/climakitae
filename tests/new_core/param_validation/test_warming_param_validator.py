@@ -192,6 +192,7 @@ class TestCheckWLValues:
 class TestValidateWarmingLevelParam:
     """Test class for validate_warming_level_param function."""
 
+    @pytest.mark.advanced
     def test_validate_warming_level_param_valid(self):
         """Test validate_warming_level_param with valid parameters."""
         value = {

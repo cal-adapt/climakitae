@@ -123,6 +123,7 @@ def full_processor():
 class TestWarmingLevelProcessorInitialization:
     """Tests for the initialization of the WarmingLevel DataProcessor."""
 
+    @pytest.mark.advanced
     def test_default_initialization(self, processor):
         """Test default initialization."""
         assert processor.warming_levels == [2.0]
@@ -138,6 +139,7 @@ class TestWarmingLevelProcessorInitialization:
         ):
             WarmingLevel(value=invalid_type)
 
+    @pytest.mark.advanced
     def test_custom_initialization(self):
         """Test custom initialization."""
         processor = WarmingLevel(
