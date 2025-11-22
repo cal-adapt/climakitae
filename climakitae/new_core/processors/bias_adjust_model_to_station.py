@@ -732,8 +732,13 @@ class BiasCorrectStationData(DataProcessor):
             grid_label = result_da.attrs.get("grid_label")
 
             # If not in attrs, try context
-            if not grid_label and context and "query" in context:
-                grid_label = context["query"].get("grid_label")
+            if not grid_label and context:
+                if "query" in context:
+                    grid_label = context["query"].get("grid_label")
+                
+                # If still not found, try context directly (flat structure)
+                if not grid_label:
+                    grid_label = context.get("grid_label")
 
             if grid_label:
                 grid_mapping = {
