@@ -83,6 +83,10 @@ class ClimateData:
         Set the spatial resolution.
     variable(variable: str) -> ClimateData
         Set the climate variable to retrieve.
+    station_id(station_id: str) --> ClimateData
+        Set the station identifier
+    network_id(network_id: str) --> ClimateData
+        Set the network identifier
     processes(processes: Dict[str, Union[str, Iterable]]) -> ClimateData
         Set processing operations to apply to the data.
     get() -> Optional[xr.DataArray]
@@ -198,6 +202,8 @@ class ClimateData:
             "table_id": UNSET,
             "grid_label": UNSET,
             "variable_id": UNSET,
+            "station_id": UNSET,
+            "network_id": UNSET,
             "processes": UNSET,
         }
         self._factory.reset()
@@ -533,6 +539,82 @@ class ClimateData:
         logger.info("Variable set to: %s", variable.strip())
         return self
 
+    def station_id(self, station_id: str | list[str]) -> "ClimateData":
+        """Set the station identifier for the query.
+
+        Parameters
+        ----------
+        station_id : str
+            The station ID (e.g., "ASOSAWOS_72019300117", "ASOSAWOS_72020200118").
+
+        Returns
+        -------
+        ClimateData
+            The current instance for method chaining.
+
+        """
+        logger.debug("Setting station_id to: %s", station_id)
+        stn = []
+        if not isinstance(station_id, (str, list)):
+            logger.error(
+                "Invalid experiment_id parameter: must be string or list of strings"
+            )
+            raise ValueError("Station ID must be a non-empty string or list of strings")
+        if isinstance(station_id, str):
+            if not station_id.strip():
+                logger.error("Invalid station_id parameter: empty string")
+                raise ValueError("Station ID must be a non-empty string")
+            stn.append(station_id.strip())
+        else:
+            for id in station_id:
+                if not isinstance(id, str) or not id.strip():
+                    logger.error(
+                        "Invalid station_id in list: must be non-empty strings"
+                    )
+                    raise ValueError("Each station ID must be a non-empty string")
+                stn.append(id.strip())
+        self._query["station_id"] = stn
+        logger.info("Station ID(s) set to: %s", stn)
+        return self
+
+    def network_id(self, network_id: str | list[str]) -> "ClimateData":
+        """Set the network identifier for the query.
+
+        Parameters
+        ----------
+        network_id : str | list[str]
+            The network ID (e.g., "ASOSAWOS", "CWOP").
+
+        Returns
+        -------
+        ClimateData
+            The current instance for method chaining.
+
+        """
+        logger.debug("Setting network_id to: %s", network_id)
+        net = []
+        if not isinstance(network_id, (str, list)):
+            logger.error(
+                "Invalid network_id parameter: must be string or list of strings"
+            )
+            raise ValueError("Network ID must be a non-empty string or list of strings")
+        if isinstance(network_id, str):
+            if not network_id.strip():
+                logger.error("Invalid network_id parameter: empty string")
+                raise ValueError("Network ID must be a non-empty string")
+            net.append(network_id.strip())
+        else:
+            for id in network_id:
+                if not isinstance(id, str) or not id.strip():
+                    logger.error(
+                        "Invalid network_id in list: must be non-empty strings"
+                    )
+                    raise ValueError("Each network ID must be a non-empty string")
+                net.append(id.strip())
+        self._query["network_id"] = net
+        logger.info("Network ID(s) set to: %s", net)
+        return self
+
     def processes(self, processes: Dict[str, Union[str, Iterable]]) -> "ClimateData":
         """Set processing operations to apply to the retrieved data.
 
@@ -637,7 +719,16 @@ class ClimateData:
             True if all required parameters are present, False otherwise.
 
         """
-        required_params = ["variable_id", "grid_label", "table_id", "catalog"]
+        # Always require catalog
+        required_params = ["catalog"]
+
+        # Only require these params for specific catalogs
+        catalog = self._query.get("catalog", UNSET)
+        if catalog in ["renewables", "data"]:
+            required_params.extend(["variable_id", "grid_label", "table_id"])
+        elif catalog == "hdp":
+            required_params.extend(["station_id", "network_id"])
+
         missing_params = []
 
         for param in required_params:
@@ -704,6 +795,14 @@ class ClimateData:
     def show_experiment_id_options(self) -> None:
         """Display available experiment ID options."""
         self._show_options("experiment_id", "experiment_id options (Simulation runs)")
+
+    def show_station_id_options(self) -> None:
+        """Display available station ID options."""
+        self._show_options("station_id", "station_id options (Weather station names)")
+
+    def show_network_id_options(self) -> None:
+        """Display available network ID options."""
+        self._show_options("network_id", "network_id options (Weather network names)")
 
     def show_table_id_options(self) -> None:
         """Display available table ID options (Temporal resolutions)."""
@@ -806,6 +905,8 @@ class ClimateData:
             ("show_grid_label_options", "Grid Labels (Spatial Resolution)"),
             ("show_variable_options", "Variables"),
             ("show_installation_options", "Installations"),
+            ("show_station_id_options", "Station IDs"),
+            ("show_network_id_options", "Network IDs"),
             ("show_processors", "Processors"),
             ("show_station_options", "Stations"),
         ]
