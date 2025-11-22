@@ -139,7 +139,7 @@ from climakitae.util.utils import get_closest_gridcell, get_closest_gridcells
 logger = logging.getLogger(__name__)
 
 
-@register_processor("clip", priority=200)
+@register_processor("clip", priority=200, catalogs=["data", "renewables"])
 class Clip(DataProcessor):
     """
     Clip data based on spatial boundaries.
