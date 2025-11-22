@@ -84,7 +84,7 @@ def _handle_flux_to_precipitation(da, unit="mm"):
     return result
 
 
-@register_processor("convert_units", priority=750)
+@register_processor("convert_units", priority=750, catalogs=["data", "renewables"])
 class ConvertUnits(DataProcessor):
     """
     Convert units of the data.
