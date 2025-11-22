@@ -279,15 +279,23 @@ class DatasetFactory:
         processing_steps = []
         priorities = []
 
+        # Retrieve user-set value for catalog
+        # This is always set before processors are run
+        catalog = query.get("catalog")
+
         if query[PROC_KEY] is UNSET:
             # create empty processing step key
             query[PROC_KEY] = {}
 
-        if "filter_unadjusted_models" not in query[PROC_KEY]:
-            # add default filtering step if not present
+        ## ===== climate model datasets only ======
+        if "filter_unadjusted_models" not in query[PROC_KEY] and catalog in [
+            "data",
+            "renewables",
+        ]:
+            # add default filtering step if not present for climate model data
             query[PROC_KEY]["filter_unadjusted_models"] = "yes"
 
-        if "concat" not in query[PROC_KEY]:
+        if "concat" not in query[PROC_KEY] and catalog in ["data", "renewables"]:
             # add default concatenation step if not present
             default_concat = "time"
             # now we check if "time" makes sense
@@ -307,6 +315,10 @@ class DatasetFactory:
 
             query[PROC_KEY]["concat"] = default_concat
 
+        ## ===== HDP data only =====
+        if "concat" not in query[PROC_KEY] and catalog == "hdp":
+            query[PROC_KEY]["concat"] = "station_id"
+
         if "update_attributes" not in query[PROC_KEY]:
             # add default attribute update step if not present
             query[PROC_KEY]["update_attributes"] = UNSET
@@ -319,9 +331,21 @@ class DatasetFactory:
                 )
                 continue
 
-            processor_class, priority = self._processing_step_registry[
-                key
-            ]  # get the class and priority
+            # Unpack processor info (class, priority, allowed_catalogs)
+            registry_entry = self._processing_step_registry[key]
+            processor_class, priority = registry_entry[0], registry_entry[1]
+            allowed_catalogs = registry_entry[2] if len(registry_entry) > 2 else None
+
+            # Check if processor is allowed for this catalog
+            current_catalog = query.get("catalog", UNSET)
+            if allowed_catalogs is not None and current_catalog not in allowed_catalogs:
+                error_msg = (
+                    f"Processor '{key}' is not compatible with catalog '{current_catalog}'. "
+                    f"This processor is only available for catalogs: {allowed_catalogs}."
+                )
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+
             index = len(processing_steps)
             if not priorities:
                 priorities.append(priority)
