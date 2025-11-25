@@ -352,7 +352,7 @@ class MetricCalc(DataProcessor):
 
         # Calculate percentiles if requested
         results = []
-        if self.percentiles is not None:
+        if self.percentiles is not UNSET:
             percentile_result = data.quantile(
                 [p / PERCENTILE_TO_QUANTILE_FACTOR for p in self.percentiles],
                 dim=calc_dim,
@@ -659,6 +659,8 @@ class MetricCalc(DataProcessor):
                     if "sim" in block_maxima.dims:
                         block_maxima = block_maxima.squeeze("sim", drop=True)
 
+                    import pdb; pdb.set_trace()
+
                     # Check data quality and filter out locations with insufficient data
                     if hasattr(block_maxima, "dims") and len(block_maxima.dims) > 1:
                         # For multi-dimensional block maxima, we need to check each location
@@ -921,6 +923,7 @@ class MetricCalc(DataProcessor):
         xr.DataArray
             DataArray with return values for each return period
         """
+        import pdb; pdb.set_trace()
         # Check for sufficient valid data before proceeding
         if "year" in block_maxima.dims:
             valid_data = block_maxima.dropna(dim="year", how="all")
@@ -1140,7 +1143,7 @@ class MetricCalc(DataProcessor):
         # Build description based on what was calculated
         description_parts = []
 
-        if self.one_in_x_config is not None:
+        if self.one_in_x_config is not UNSET:
             # 1-in-X calculations
             return_periods_str = ", ".join(map(str, self.return_periods))
             description_parts.append(

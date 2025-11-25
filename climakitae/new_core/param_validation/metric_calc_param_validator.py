@@ -130,9 +130,11 @@ def _validate_basic_metric_parameters(
 
     # Validate percentiles
     if percentiles is not None:
+        if isinstance(percentiles, np.ndarray):
+            percentiles = percentiles.tolist()
         if not isinstance(percentiles, list):
             warnings.warn(
-                f"\n\nPercentiles must be a list, got {type(percentiles)}. "
+                f"\n\nPercentiles must be a list or numpy array, got {type(percentiles)}. "
                 "\nPlease check the configuration."
             )
             return False
