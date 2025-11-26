@@ -310,3 +310,18 @@ class TestExportSingle:
         self.processor.export_method = "skip_existing"
         self.processor.export_single(self.ds)
         mock_export.assert_not_called()
+
+    @patch(
+        "climakitae.new_core.processors.export._export_to_netcdf",
+        side_effect=RuntimeError("Export failed"),
+    )
+    def test_export_single_fail_on_error(self, mock_export):
+        """Test fail on error behavior."""
+        # Default is fail_on_error=True
+        with pytest.raises(RuntimeError, match="Export failed"):
+            self.processor.export_single(self.ds)
+
+        # Test with fail_on_error=False
+        self.processor.fail_on_error = False
+        # Should not raise exception
+        self.processor.export_single(self.ds)
