@@ -325,3 +325,33 @@ class TestExportSingle:
         self.processor.fail_on_error = False
         # Should not raise exception
         self.processor.export_single(self.ds)
+
+class TestExportClassMethods:
+    """Test class for class methods."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.ds = xr.Dataset({"temp": (["time"], [1, 2])})
+
+    @patch("climakitae.new_core.processors.export.Export.export_single")
+    def test_export_no_error(self, mock_export_single):
+        """Test export_no_error class method."""
+        Export.export_no_error(self.ds, filename="test", file_format="CSV")
+
+        # Verify Export was initialized correctly and export_single called
+        mock_export_single.assert_called_once_with(self.ds)
+
+    @patch("climakitae.new_core.processors.export.Export._handle_dict_result")
+    def test_export_raw_calc_data(self, mock_handle_dict):
+        """Test export_raw_calc_data class method."""
+        Export.export_raw_calc_data(
+            raw_data=self.ds,
+            calc_data=self.ds,
+            filename="test",
+            export_method="both",
+        )
+
+        mock_handle_dict.assert_called_once()
+        args, _ = mock_handle_dict.call_args
+        assert args[0] == {"raw_data": self.ds, "calc_data": self.ds}
+        assert args[1] == "both"
