@@ -62,3 +62,26 @@ class TestExportInitialization:
             ValueError, match='To export to AWS S3 you must use file_format="Zarr"'
         ):
             Export({"mode": "s3", "file_format": "NetCDF"})
+
+    def test_init_invalid_types(self):
+        """Test initialization with invalid parameter types."""
+        with pytest.raises(ValueError, match="filename must be a string"):
+            Export({"filename": 123})
+
+        with pytest.raises(ValueError, match="separated must be a boolean"):
+            Export({"separated": "yes"})
+
+        with pytest.raises(ValueError, match="location_based_naming must be a boolean"):
+            Export({"location_based_naming": 1})
+
+        with pytest.raises(ValueError, match="filename_template must be a string"):
+            Export({"filename_template": 123})
+
+        with pytest.raises(ValueError, match="fail_on_error must be a boolean"):
+            Export({"fail_on_error": "true"})
+
+        with pytest.raises(ValueError, match="raw_filename must be a string"):
+            Export({"raw_filename": 123})
+
+        with pytest.raises(ValueError, match="calc_filename must be a string"):
+            Export({"calc_filename": 123})
