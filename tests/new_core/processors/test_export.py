@@ -55,3 +55,10 @@ class TestExportInitialization:
         """Test initialization with invalid mode."""
         with pytest.raises(ValueError, match="mode must be one of"):
             Export({"mode": "invalid_mode"})
+
+    def test_init_s3_requires_zarr(self):
+        """Test that S3 mode requires Zarr format."""
+        with pytest.raises(
+            ValueError, match='To export to AWS S3 you must use file_format="Zarr"'
+        ):
+            Export({"mode": "s3", "file_format": "NetCDF"})
