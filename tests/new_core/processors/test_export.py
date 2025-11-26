@@ -234,3 +234,13 @@ class TestExportExecute:
             result = processor.execute(data_dict, self.context)
             assert result is data_dict
             assert mock_export.call_count == 2
+
+    def test_execute_list_input(self):
+        """Test execute with list input."""
+        processor = Export({"export_method": "data"})
+        data_list = [self.ds, self.ds]
+
+        with patch.object(processor, "export_single") as mock_export:
+            result = processor.execute(data_list, self.context)
+            assert result is data_list
+            assert mock_export.call_count == 2
