@@ -8,6 +8,7 @@ import xarray as xr
 import numpy as np
 from climakitae.new_core.processors.export import Export
 
+
 class TestExportInitialization:
     """Test class for Export processor initialization."""
 
@@ -161,30 +162,29 @@ class TestExportFilenameGeneration:
     def test_generate_filename_latlon_error(self):
         """Test filename generation when lat/lon extraction fails."""
         processor = Export({"filename": "output", "location_based_naming": True})
-        
+
         # Create dataset with multi-dimensional lat/lon that will fail .item()
         ds_error = xr.Dataset(
             {"temp": (["lat", "lon"], np.random.rand(2, 2))},
-            coords={"lat": [34.0, 35.0], "lon": [-118.0, -117.0]}
+            coords={"lat": [34.0, 35.0], "lon": [-118.0, -117.0]},
         )
-        
+
         # Should fall back to base filename without location
         filename = processor._generate_filename(ds_error)
         assert filename == "output"
 
     def test_generate_filename_template_error(self):
         """Test filename generation when template variable extraction fails."""
-        processor = Export({
-            "filename": "output", 
-            "filename_template": "{filename}_{lat}_{lon}"
-        })
-        
+        processor = Export(
+            {"filename": "output", "filename_template": "{filename}_{lat}_{lon}"}
+        )
+
         # Create dataset with multi-dimensional lat/lon
         ds_error = xr.Dataset(
             {"temp": (["lat", "lon"], np.random.rand(2, 2))},
-            coords={"lat": [34.0, 35.0], "lon": [-118.0, -117.0]}
+            coords={"lat": [34.0, 35.0], "lon": [-118.0, -117.0]},
         )
-        
+
         # Should use empty strings for lat/lon in template
         filename = processor._generate_filename(ds_error)
         assert filename == "output__"
@@ -242,12 +242,14 @@ class TestExportAttributeCleaning:
 
     def test_clean_attrs_tolist_failure(self):
         """Test attribute cleaning when tolist fails."""
+
         class FailToList:
             def tolist(self):
                 raise ValueError("Fail")
+
             def __str__(self):
                 return "FailToList"
-        
+
         ds = xr.Dataset({"temp": (["time"], [1, 2])}, attrs={"fail_attr": FailToList()})
         cleaned_ds = self.processor._clean_attrs_for_netcdf(ds)
         assert cleaned_ds.attrs["fail_attr"] == "FailToList"
@@ -329,9 +331,10 @@ class TestExportExecute:
 
         assert _NEW_ATTRS_KEY in context
         assert processor.name in context[_NEW_ATTRS_KEY]
-        assert "Transformation was done using the following value" in context[_NEW_ATTRS_KEY][
-            processor.name
-        ]
+        assert (
+            "Transformation was done using the following value"
+            in context[_NEW_ATTRS_KEY][processor.name]
+        )
 
     def test_determine_data_type_context(self):
         """Test _determine_data_type with context indicators."""
@@ -386,14 +389,14 @@ class TestExportExecute:
     def test_handle_selective_export_mismatch(self):
         """Test _handle_selective_export with mismatched data type."""
         processor = Export({})
-        
+
         # export_method="raw" but data_type="calc"
         # Should fall back to default behavior (export with suffix matching export_method)
         with patch.object(processor, "_determine_data_type", return_value="calc"):
             with patch.object(processor, "_export_with_suffix") as mock_export:
                 processor._handle_selective_export(self.ds, {}, "raw")
                 mock_export.assert_called_once_with(self.ds, "raw")
-                
+
         # export_method="calculate" but data_type="raw"
         # Should fall back to default behavior
         with patch.object(processor, "_determine_data_type", return_value="raw"):
@@ -411,6 +414,7 @@ class TestExportExecute:
             # Verify filename was temporarily modified
             # We can't easily verify the temporary modification here as it's reverted
             # But we can verify it was called
+
     def test_export_with_suffix_dict(self):
         """Test _export_with_suffix with dictionary input."""
         processor = Export({})
@@ -430,9 +434,11 @@ class TestExportExecute:
     def test_export_with_suffix_invalid_type(self):
         """Test _export_with_suffix with invalid input type."""
         processor = Export({})
-        with pytest.raises(TypeError, match="Expected xr.Dataset, xr.DataArray, dict, list, or tuple"):
+        with pytest.raises(
+            TypeError, match="Expected xr.Dataset, xr.DataArray, dict, list, or tuple"
+        ):
             processor._export_with_suffix("invalid", "raw")
-            
+
         with pytest.raises(TypeError, match="Expected xr.Dataset or xr.DataArray"):
             processor._export_with_suffix(["invalid"], "raw")
 

@@ -591,9 +591,7 @@ class Export(DataProcessor):
             If the export operation fails and fail_on_error is True
         """
         if not isinstance(data, (xr.Dataset, xr.DataArray)):
-            raise TypeError(
-                f"Expected xr.Dataset or xr.DataArray, got {type(data)}"
-            )
+            raise TypeError(f"Expected xr.Dataset or xr.DataArray, got {type(data)}")
 
         # Get normalized format for processing
         req_format = self.file_format.lower()
