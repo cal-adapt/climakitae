@@ -727,7 +727,7 @@ class ClimateData:
         if catalog in ["renewables", "data"]:
             required_params.extend(["variable_id", "grid_label", "table_id"])
         elif catalog == "hdp":
-            required_params.extend(["station_id", "network_id"])
+            required_params.extend(["station_id"])
 
         missing_params = []
 
