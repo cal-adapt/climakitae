@@ -316,6 +316,11 @@ def _export_to_netcdf(data: xr.DataArray | xr.Dataset, save_name: str):
 
         if hasattr(obj, "attrs"):
             for key, value in list(obj.attrs.items()):
+                # Explicitly handle boolean values which are subclasses of int but cause issues in NetCDF
+                if isinstance(value, (bool, np.bool_)):
+                    obj.attrs[key] = str(value)
+                    continue
+
                 if value is not None and not isinstance(value, allowed_types):
                     # Convert or remove problematic attributes
                     try:
