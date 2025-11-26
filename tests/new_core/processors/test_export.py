@@ -45,3 +45,8 @@ class TestExportInitialization:
         assert processor.fail_on_error is False
         assert processor.raw_filename == "raw_file"
         assert processor.calc_filename == "calc_file"
+
+    def test_init_invalid_file_format(self):
+        """Test initialization with invalid file format."""
+        with pytest.raises(ValueError, match="file_format must be one of"):
+            Export({"file_format": "InvalidFormat"})
