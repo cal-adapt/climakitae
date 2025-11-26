@@ -244,3 +244,25 @@ class TestExportExecute:
             result = processor.execute(data_list, self.context)
             assert result is data_list
             assert mock_export.call_count == 2
+
+    def test_execute_selective_export(self):
+        """Test execute with selective export methods."""
+        # Test raw export
+        processor = Export({"export_method": "raw"})
+        with patch.object(processor, "_export_with_suffix") as mock_export:
+            processor.execute(self.ds, self.context)
+            mock_export.assert_called_once_with(self.ds, "raw")
+
+        # Test calculate export
+        processor = Export({"export_method": "calculate"})
+        with patch.object(processor, "_export_with_suffix") as mock_export:
+            processor.execute(self.ds, self.context)
+            mock_export.assert_called_once_with(self.ds, "calc")
+
+        # Test both export
+        processor = Export({"export_method": "both"})
+        with patch.object(processor, "_export_with_suffix") as mock_export:
+            processor.execute(self.ds, self.context)
+            assert mock_export.call_count == 2
+            mock_export.assert_any_call(self.ds, "raw")
+            mock_export.assert_any_call(self.ds, "calc")
