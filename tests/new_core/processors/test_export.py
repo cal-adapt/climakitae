@@ -140,3 +140,18 @@ class TestExportFilenameGeneration:
         # Expected format: {base_filename}_{lat}N_{lon}W
         # lat=34.0 -> 340N, lon=-118.0 -> 1180W
         assert filename == "output_340N_1180W"
+
+    def test_generate_filename_template(self):
+        """Test filename generation with custom template."""
+        processor = Export(
+            {
+                "filename": "output",
+                "filename_template": "{name}_{filename}_{lat}N_{lon}W",
+            }
+        )
+
+        ds_point = self.da.isel(lat=0, lon=0)
+        filename = processor._generate_filename(ds_point)
+
+        # name="test_array", filename="output", lat=34.0, lon=-118.0
+        assert filename == "test_array_output_340N_1180W"
