@@ -50,3 +50,8 @@ class TestExportInitialization:
         """Test initialization with invalid file format."""
         with pytest.raises(ValueError, match="file_format must be one of"):
             Export({"file_format": "InvalidFormat"})
+
+    def test_init_invalid_mode(self):
+        """Test initialization with invalid mode."""
+        with pytest.raises(ValueError, match="mode must be one of"):
+            Export({"mode": "invalid_mode"})
