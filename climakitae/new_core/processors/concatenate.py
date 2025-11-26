@@ -155,7 +155,7 @@ class Concat(DataProcessor):
             if not isinstance(dataset, (xr.Dataset, xr.DataArray)):
                 continue
 
-            # Rename "station" to "station_id" for consistency with catalog/intake
+            # Rename "station" coordinate to "station_id" for consistency with catalog/intake
             dataset = dataset.rename({"station": "station_id"})
 
             datasets_to_concat.append(dataset)

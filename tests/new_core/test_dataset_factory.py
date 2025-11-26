@@ -143,7 +143,7 @@ class TestDatasetFactoryProcessingSteps:
 
     def test_get_processing_steps_unset_processes(self):
         """Test _get_list_of_processing_steps when processes is UNSET."""
-        query = {PROC_KEY: UNSET, "experiment_id": "historical", _NEW_ATTRS_KEY: {}}
+        query = {PROC_KEY: UNSET, "experiment_id": "historical", "catalog": "data", _NEW_ATTRS_KEY: {}}
 
         # Mock registry with default processors
         mock_processor_class = MagicMock()
@@ -151,9 +151,9 @@ class TestDatasetFactoryProcessingSteps:
         mock_processor_class.return_value = mock_processor_instance
 
         self.factory._processing_step_registry = {
-            "filter_unadjusted_models": (mock_processor_class, 5),
-            "concat": (mock_processor_class, 25),
-            "update_attributes": (mock_processor_class, 30),
+            "filter_unadjusted_models": (mock_processor_class, 5, None),
+            "concat": (mock_processor_class, 25, None),
+            "update_attributes": (mock_processor_class, 30, None),
         }
 
         result = self.factory._get_list_of_processing_steps(query)
@@ -169,14 +169,15 @@ class TestDatasetFactoryProcessingSteps:
         query = {
             PROC_KEY: UNSET,
             "experiment_id": ["historical", "ssp245"],
+            "catalog": "data",
             _NEW_ATTRS_KEY: {},
         }
 
         mock_processor_class = MagicMock()
         self.factory._processing_step_registry = {
-            "filter_unadjusted_models": (mock_processor_class, 5),
-            "concat": (mock_processor_class, 25),
-            "update_attributes": (mock_processor_class, 30),
+            "filter_unadjusted_models": (mock_processor_class, 5, None),
+            "concat": (mock_processor_class, 25, None),
+            "update_attributes": (mock_processor_class, 30, None),
         }
 
         self.factory._get_list_of_processing_steps(query)
@@ -188,6 +189,7 @@ class TestDatasetFactoryProcessingSteps:
         """Test _get_list_of_processing_steps with custom processes."""
         query = {
             PROC_KEY: {"spatial_avg": "region", "temporal_avg": "monthly"},
+            "catalog": "data",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -196,11 +198,11 @@ class TestDatasetFactoryProcessingSteps:
         mock_processor_class.return_value = mock_processor_instance
 
         self.factory._processing_step_registry = {
-            "spatial_avg": (mock_processor_class, 10),
-            "temporal_avg": (mock_processor_class, 15),
-            "filter_unadjusted_models": (mock_processor_class, 5),
-            "concat": (mock_processor_class, 25),
-            "update_attributes": (mock_processor_class, 30),
+            "spatial_avg": (mock_processor_class, 10, None),
+            "temporal_avg": (mock_processor_class, 15, None),
+            "filter_unadjusted_models": (mock_processor_class, 5, None),
+            "concat": (mock_processor_class, 25, None),
+            "update_attributes": (mock_processor_class, 30, None),
         }
 
         result = self.factory._get_list_of_processing_steps(query)
@@ -215,9 +217,9 @@ class TestDatasetFactoryProcessingSteps:
         query = {PROC_KEY: {"unknown_processor": "value"}, _NEW_ATTRS_KEY: {}}
 
         self.factory._processing_step_registry = {
-            "filter_unadjusted_models": (MagicMock(), 5),
-            "concat": (MagicMock(), 25),
-            "update_attributes": (MagicMock(), 30),
+            "filter_unadjusted_models": (MagicMock(), 5, None),
+            "concat": (MagicMock(), 25, None),
+            "update_attributes": (MagicMock(), 30, None),
         }
 
         with warnings.catch_warnings(record=True) as w:
@@ -231,6 +233,7 @@ class TestDatasetFactoryProcessingSteps:
         """Test that processing steps are ordered by priority."""
         query = {
             PROC_KEY: {"high_priority": "value1", "low_priority": "value2"},
+            "catalog": "data",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -247,11 +250,11 @@ class TestDatasetFactoryProcessingSteps:
         mock_default_class.return_value = mock_default_instance
 
         self.factory._processing_step_registry = {
-            "high_priority": (mock_high_priority_class, 1),
-            "low_priority": (mock_low_priority_class, 20),
-            "filter_unadjusted_models": (mock_default_class, 5),
-            "concat": (mock_default_class, 25),
-            "update_attributes": (mock_default_class, 30),
+            "high_priority": (mock_high_priority_class, 1, None),
+            "low_priority": (mock_low_priority_class, 20, None),
+            "filter_unadjusted_models": (mock_default_class, 5, None),
+            "concat": (mock_default_class, 25, None),
+            "update_attributes": (mock_default_class, 30, None),
         }
 
         result = self.factory._get_list_of_processing_steps(query)
@@ -552,8 +555,8 @@ class TestDatasetFactoryGetMethods:
     def test_get_processors(self):
         """Test get_processors method."""
         self.factory._processing_step_registry = {
-            "spatial_avg": (MagicMock(), 10),
-            "temporal_avg": (MagicMock(), 15),
+            "spatial_avg": (MagicMock(), 10, None),
+            "temporal_avg": (MagicMock(), 15, None),
         }
 
         result = self.factory.get_processors()
@@ -677,13 +680,13 @@ class TestDatasetFactoryEdgeCases:
 
     def test_get_processing_steps_with_empty_experiment_list(self):
         """Test _get_list_of_processing_steps with empty experiment_id list."""
-        query = {PROC_KEY: UNSET, "experiment_id": [], _NEW_ATTRS_KEY: {}}
+        query = {PROC_KEY: UNSET, "experiment_id": [], "catalog": "data", _NEW_ATTRS_KEY: {}}
 
         mock_processor_class = MagicMock()
         self.factory._processing_step_registry = {
-            "filter_unadjusted_models": (mock_processor_class, 5),
-            "concat": (mock_processor_class, 25),
-            "update_attributes": (mock_processor_class, 30),
+            "filter_unadjusted_models": (mock_processor_class, 5, None),
+            "concat": (mock_processor_class, 25, None),
+            "update_attributes": (mock_processor_class, 30, None),
         }
 
         self.factory._get_list_of_processing_steps(query)
