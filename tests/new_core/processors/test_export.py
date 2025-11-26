@@ -302,3 +302,11 @@ class TestExportSingle:
         mock_export.assert_called_once()
         args, _ = mock_export.call_args
         assert args[1] == "test_output.csv.gz"
+
+    @patch("os.path.exists", return_value=True)
+    @patch("climakitae.new_core.processors.export._export_to_netcdf")
+    def test_export_single_skip_existing(self, mock_export, mock_exists):
+        """Test skip existing file."""
+        self.processor.export_method = "skip_existing"
+        self.processor.export_single(self.ds)
+        mock_export.assert_not_called()
