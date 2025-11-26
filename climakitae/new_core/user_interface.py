@@ -279,6 +279,25 @@ class ClimateData:
             pkg_logger.setLevel(logging.CRITICAL + 1)
             logging.captureWarnings(False)
 
+        # Suppress noisy third-party libraries
+        # These libraries can be very verbose at DEBUG level, so we force them
+        # to WARNING level to keep the output clean.
+        noisy_libs = [
+            "botocore",
+            "boto3",
+            "s3fs",
+            "fsspec",
+            "asyncio",
+            "urllib3",
+            "numcodecs",
+            "zarr",
+            "aiobotocore",
+            "distributed",
+            "dask",
+        ]
+        for lib in noisy_libs:
+            logging.getLogger(lib).setLevel(logging.WARNING)
+
     def verbosity(self, level: int) -> "ClimateData":
         """Set the logging verbosity level.
 
