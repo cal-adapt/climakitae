@@ -85,3 +85,8 @@ class TestExportInitialization:
 
         with pytest.raises(ValueError, match="calc_filename must be a string"):
             Export({"calc_filename": 123})
+
+    def test_init_invalid_export_method(self):
+        """Test initialization with invalid export method."""
+        with pytest.raises(ValueError, match="export_method must be one of"):
+            Export({"export_method": "invalid_method"})
