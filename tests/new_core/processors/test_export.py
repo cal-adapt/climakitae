@@ -155,3 +155,47 @@ class TestExportFilenameGeneration:
 
         # name="test_array", filename="output", lat=34.0, lon=-118.0
         assert filename == "test_array_output_340N_1180W"
+
+class TestExportAttributeCleaning:
+    """Test class for attribute cleaning logic."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = Export({})
+        self.ds = xr.Dataset(
+            {"temp": (["time"], [1, 2])},
+            attrs={
+                "string_attr": "value",
+                "int_attr": 1,
+                "float_attr": 1.5,
+                "list_attr": [1, 2],
+                "dict_attr": {"key": "value"},
+                "none_attr": None,
+                "callable_attr": lambda x: x,
+                "numpy_attr": np.array([1, 2]),
+            },
+        )
+
+    def test_clean_attrs_for_netcdf(self):
+        """Test attribute cleaning for NetCDF export."""
+        cleaned_ds = self.processor._clean_attrs_for_netcdf(self.ds)
+
+        # Check that basic types are preserved
+        assert cleaned_ds.attrs["string_attr"] == "value"
+        assert cleaned_ds.attrs["int_attr"] == 1
+        assert cleaned_ds.attrs["float_attr"] == 1.5
+        assert cleaned_ds.attrs["list_attr"] == [1, 2]
+
+        # Check that dicts are converted to string
+        assert isinstance(cleaned_ds.attrs["dict_attr"], str)
+        assert "{'key': 'value'}" in cleaned_ds.attrs["dict_attr"]
+
+        # Check that None values are removed
+        assert "none_attr" not in cleaned_ds.attrs
+
+        # Check that callables are removed
+        assert "callable_attr" not in cleaned_ds.attrs
+
+        # Check that numpy arrays are converted to lists
+        assert isinstance(cleaned_ds.attrs["numpy_attr"], list)
+        assert cleaned_ds.attrs["numpy_attr"] == [1, 2]
