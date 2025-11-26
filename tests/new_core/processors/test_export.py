@@ -3,6 +3,8 @@ Unit tests for climakitae/new_core/processors/export.py.
 """
 
 import pytest
+import xarray as xr
+import numpy as np
 from climakitae.new_core.processors.export import Export
 
 class TestExportInitialization:
@@ -90,3 +92,25 @@ class TestExportInitialization:
         """Test initialization with invalid export method."""
         with pytest.raises(ValueError, match="export_method must be one of"):
             Export({"export_method": "invalid_method"})
+
+class TestExportFilenameGeneration:
+    """Test class for filename generation logic."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.ds = xr.Dataset(
+            {"temp": (["time", "lat", "lon"], np.random.rand(2, 2, 2))},
+            coords={"lat": [34.0, 35.0], "lon": [-118.0, -117.0], "time": [0, 1]},
+        )
+        self.da = xr.DataArray(
+            np.random.rand(2, 2, 2),
+            dims=["time", "lat", "lon"],
+            coords={"lat": [34.0, 35.0], "lon": [-118.0, -117.0], "time": [0, 1]},
+            name="test_array",
+        )
+
+    def test_generate_filename_default(self):
+        """Test default filename generation."""
+        processor = Export({"filename": "output"})
+        filename = processor._generate_filename(self.ds)
+        assert filename == "output"
