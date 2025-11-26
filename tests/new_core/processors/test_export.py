@@ -266,3 +266,39 @@ class TestExportExecute:
             assert mock_export.call_count == 2
             mock_export.assert_any_call(self.ds, "raw")
             mock_export.assert_any_call(self.ds, "calc")
+
+class TestExportSingle:
+    """Test class for export_single method."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.ds = xr.Dataset({"temp": (["time"], [1, 2])})
+        self.processor = Export({"filename": "test_output"})
+
+    @patch("climakitae.new_core.processors.export._export_to_netcdf")
+    def test_export_single_netcdf(self, mock_export):
+        """Test export to NetCDF."""
+        self.processor.file_format = "NetCDF"
+        self.processor.export_single(self.ds)
+        mock_export.assert_called_once()
+        args, _ = mock_export.call_args
+        assert args[1] == "test_output.nc"
+
+    @patch("climakitae.new_core.processors.export._export_to_zarr")
+    def test_export_single_zarr(self, mock_export):
+        """Test export to Zarr."""
+        self.processor.file_format = "Zarr"
+        self.processor.export_single(self.ds)
+        mock_export.assert_called_once()
+        args, _ = mock_export.call_args
+        assert args[1] == "test_output.zarr"
+        assert args[2] == "local"
+
+    @patch("climakitae.new_core.processors.export._export_to_csv")
+    def test_export_single_csv(self, mock_export):
+        """Test export to CSV."""
+        self.processor.file_format = "CSV"
+        self.processor.export_single(self.ds)
+        mock_export.assert_called_once()
+        args, _ = mock_export.call_args
+        assert args[1] == "test_output.csv.gz"
