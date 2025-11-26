@@ -224,3 +224,13 @@ class TestExportExecute:
             result = processor.execute(self.ds, self.context)
             assert result is self.ds
             mock_export.assert_called_once_with(self.ds)
+
+    def test_execute_dict_input(self):
+        """Test execute with dictionary input."""
+        processor = Export({"export_method": "data"})
+        data_dict = {"ds1": self.ds, "ds2": self.ds}
+
+        with patch.object(processor, "export_single") as mock_export:
+            result = processor.execute(data_dict, self.context)
+            assert result is data_dict
+            assert mock_export.call_count == 2
