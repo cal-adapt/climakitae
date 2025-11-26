@@ -3,6 +3,7 @@ Unit tests for climakitae/new_core/processors/export.py.
 """
 
 import pytest
+from unittest.mock import MagicMock, patch
 import xarray as xr
 import numpy as np
 from climakitae.new_core.processors.export import Export
@@ -199,3 +200,27 @@ class TestExportAttributeCleaning:
         # Check that numpy arrays are converted to lists
         assert isinstance(cleaned_ds.attrs["numpy_attr"], list)
         assert cleaned_ds.attrs["numpy_attr"] == [1, 2]
+
+class TestExportExecute:
+    """Test class for execute method routing logic."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.ds = xr.Dataset({"temp": (["time"], [1, 2])})
+        self.context = {}
+
+    def test_execute_none_method(self):
+        """Test execute with export_method='none'."""
+        processor = Export({"export_method": "none"})
+        with patch.object(processor, "export_single") as mock_export:
+            result = processor.execute(self.ds, self.context)
+            assert result is self.ds
+            mock_export.assert_not_called()
+
+    def test_execute_data_method(self):
+        """Test execute with export_method='data'."""
+        processor = Export({"export_method": "data"})
+        with patch.object(processor, "export_single") as mock_export:
+            result = processor.execute(self.ds, self.context)
+            assert result is self.ds
+            mock_export.assert_called_once_with(self.ds)
