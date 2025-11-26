@@ -128,3 +128,15 @@ class TestExportFilenameGeneration:
         # So for Dataset it should just be "output"
         filename_ds = processor._generate_filename(self.ds)
         assert filename_ds == "output"
+
+    def test_generate_filename_location_based(self):
+        """Test filename generation with location_based_naming=True."""
+        processor = Export({"filename": "output", "location_based_naming": True})
+
+        # Create a single point dataset for this test
+        ds_point = self.ds.isel(lat=0, lon=0)
+        filename = processor._generate_filename(ds_point)
+
+        # Expected format: {base_filename}_{lat}N_{lon}W
+        # lat=34.0 -> 340N, lon=-118.0 -> 1180W
+        assert filename == "output_340N_1180W"
