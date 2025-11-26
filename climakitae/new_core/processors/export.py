@@ -590,6 +590,11 @@ class Export(DataProcessor):
         RuntimeError
             If the export operation fails and fail_on_error is True
         """
+        if not isinstance(data, (xr.Dataset, xr.DataArray)):
+            raise TypeError(
+                f"Expected xr.Dataset or xr.DataArray, got {type(data)}"
+            )
+
         # Get normalized format for processing
         req_format = self.file_format.lower()
 
@@ -605,17 +610,19 @@ class Export(DataProcessor):
             print(f"File {save_name} already exists, skipping export.")
             return
 
-        # Export using the appropriate function from data_export.py
-        # Clean up attributes to avoid NetCDF serialization issues
-        data = self._clean_attrs_for_netcdf(data)
-
         try:
             match req_format:
                 case "zarr":
+                    # Clean up attributes to avoid NetCDF serialization issues
+                    data = self._clean_attrs_for_netcdf(data)
                     _export_to_zarr(data, save_name, self.mode)
                 case "netcdf":
+                    # Clean up attributes to avoid NetCDF serialization issues
+                    data = self._clean_attrs_for_netcdf(data)
                     _export_to_netcdf(data, save_name)
                 case "csv":
+                    # Clean up attributes to avoid NetCDF serialization issues
+                    data = self._clean_attrs_for_netcdf(data)
                     _export_to_csv(data, save_name)
                 case _:
                     # This should never happen due to validation in __init__

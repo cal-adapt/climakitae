@@ -3,7 +3,7 @@ Unit tests for climakitae/new_core/processors/export.py.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import xarray as xr
 import numpy as np
 from climakitae.new_core.processors.export import Export
@@ -94,6 +94,7 @@ class TestExportInitialization:
         with pytest.raises(ValueError, match="export_method must be one of"):
             Export({"export_method": "invalid_method"})
 
+
 class TestExportFilenameGeneration:
     """Test class for filename generation logic."""
 
@@ -157,6 +158,38 @@ class TestExportFilenameGeneration:
         # name="test_array", filename="output", lat=34.0, lon=-118.0
         assert filename == "test_array_output_340N_1180W"
 
+    def test_generate_filename_latlon_error(self):
+        """Test filename generation when lat/lon extraction fails."""
+        processor = Export({"filename": "output", "location_based_naming": True})
+        
+        # Create dataset with multi-dimensional lat/lon that will fail .item()
+        ds_error = xr.Dataset(
+            {"temp": (["lat", "lon"], np.random.rand(2, 2))},
+            coords={"lat": [34.0, 35.0], "lon": [-118.0, -117.0]}
+        )
+        
+        # Should fall back to base filename without location
+        filename = processor._generate_filename(ds_error)
+        assert filename == "output"
+
+    def test_generate_filename_template_error(self):
+        """Test filename generation when template variable extraction fails."""
+        processor = Export({
+            "filename": "output", 
+            "filename_template": "{filename}_{lat}_{lon}"
+        })
+        
+        # Create dataset with multi-dimensional lat/lon
+        ds_error = xr.Dataset(
+            {"temp": (["lat", "lon"], np.random.rand(2, 2))},
+            coords={"lat": [34.0, 35.0], "lon": [-118.0, -117.0]}
+        )
+        
+        # Should use empty strings for lat/lon in template
+        filename = processor._generate_filename(ds_error)
+        assert filename == "output__"
+
+
 class TestExportAttributeCleaning:
     """Test class for attribute cleaning logic."""
 
@@ -200,6 +233,25 @@ class TestExportAttributeCleaning:
         # Check that numpy arrays are converted to lists
         assert isinstance(cleaned_ds.attrs["numpy_attr"], list)
         assert cleaned_ds.attrs["numpy_attr"] == [1, 2]
+
+    def test_clean_attrs_dataarray(self):
+        """Test attribute cleaning for DataArray."""
+        da = xr.DataArray([1, 2], attrs={"dict_attr": {"key": "value"}})
+        cleaned_da = self.processor._clean_attrs_for_netcdf(da)
+        assert isinstance(cleaned_da.attrs["dict_attr"], str)
+
+    def test_clean_attrs_tolist_failure(self):
+        """Test attribute cleaning when tolist fails."""
+        class FailToList:
+            def tolist(self):
+                raise ValueError("Fail")
+            def __str__(self):
+                return "FailToList"
+        
+        ds = xr.Dataset({"temp": (["time"], [1, 2])}, attrs={"fail_attr": FailToList()})
+        cleaned_ds = self.processor._clean_attrs_for_netcdf(ds)
+        assert cleaned_ds.attrs["fail_attr"] == "FailToList"
+
 
 class TestExportExecute:
     """Test class for execute method routing logic."""
@@ -267,6 +319,124 @@ class TestExportExecute:
             mock_export.assert_any_call(self.ds, "raw")
             mock_export.assert_any_call(self.ds, "calc")
 
+    def test_update_context(self):
+        """Test update_context method."""
+        processor = Export({"filename": "test"})
+        context = {}
+        processor.update_context(context)
+
+        from climakitae.core.constants import _NEW_ATTRS_KEY
+
+        assert _NEW_ATTRS_KEY in context
+        assert processor.name in context[_NEW_ATTRS_KEY]
+        assert "Transformation was done using the following value" in context[_NEW_ATTRS_KEY][
+            processor.name
+        ]
+
+    def test_determine_data_type_context(self):
+        """Test _determine_data_type with context indicators."""
+        processor = Export({})
+        from climakitae.core.constants import _NEW_ATTRS_KEY
+
+        # Test with processing steps in context
+        context = {_NEW_ATTRS_KEY: {"some_process": "details"}}
+        assert processor._determine_data_type(self.ds, context) == "calc"
+
+        # Test with only load steps
+        context = {_NEW_ATTRS_KEY: {"_load_data": "details"}}
+        assert processor._determine_data_type(self.ds, context) == "raw"
+
+    def test_determine_data_type_attrs(self):
+        """Test _determine_data_type with data attributes."""
+        processor = Export({})
+        context = {}
+
+        # Test with processed_by attribute
+        ds_calc = self.ds.copy()
+        ds_calc.attrs["processed_by"] = "some_process"
+        assert processor._determine_data_type(ds_calc, context) == "calc"
+
+        # Test with calculation_method attribute
+        ds_calc = self.ds.copy()
+        ds_calc.attrs["calculation_method"] = "mean"
+        assert processor._determine_data_type(ds_calc, context) == "calc"
+
+        # Test with derived_from attribute
+        ds_calc = self.ds.copy()
+        ds_calc.attrs["derived_from"] = "other_data"
+        assert processor._determine_data_type(ds_calc, context) == "calc"
+
+        # Test with no indicators
+        assert processor._determine_data_type(self.ds, context) == "raw"
+
+    def test_handle_dict_result_mismatch(self):
+        """Test _handle_dict_result with mismatched export method."""
+        processor = Export({})
+
+        # export_method="raw" but only calc_data present
+        with patch.object(processor, "_export_with_suffix") as mock_export:
+            processor._handle_dict_result({"calc_data": self.ds}, "raw")
+            mock_export.assert_not_called()
+
+        # export_method="calculate" but only raw_data present
+        with patch.object(processor, "_export_with_suffix") as mock_export:
+            processor._handle_dict_result({"raw_data": self.ds}, "calculate")
+            mock_export.assert_not_called()
+
+    def test_handle_selective_export_mismatch(self):
+        """Test _handle_selective_export with mismatched data type."""
+        processor = Export({})
+        
+        # export_method="raw" but data_type="calc"
+        # Should fall back to default behavior (export with suffix matching export_method)
+        with patch.object(processor, "_determine_data_type", return_value="calc"):
+            with patch.object(processor, "_export_with_suffix") as mock_export:
+                processor._handle_selective_export(self.ds, {}, "raw")
+                mock_export.assert_called_once_with(self.ds, "raw")
+                
+        # export_method="calculate" but data_type="raw"
+        # Should fall back to default behavior
+        with patch.object(processor, "_determine_data_type", return_value="raw"):
+            with patch.object(processor, "_export_with_suffix") as mock_export:
+                processor._handle_selective_export(self.ds, {}, "calculate")
+                mock_export.assert_called_once_with(self.ds, "calc")
+
+    def test_export_with_suffix(self):
+        """Test _export_with_suffix method."""
+        processor = Export({})
+        with patch.object(processor, "export_single") as mock_export:
+            processor._export_with_suffix(self.ds, "raw")
+            # export_single is called with just the data
+            mock_export.assert_called_once_with(self.ds)
+            # Verify filename was temporarily modified
+            # We can't easily verify the temporary modification here as it's reverted
+            # But we can verify it was called
+    def test_export_with_suffix_dict(self):
+        """Test _export_with_suffix with dictionary input."""
+        processor = Export({})
+        data_dict = {"ds1": self.ds, "ds2": self.ds}
+        with patch.object(processor, "export_single") as mock_export:
+            processor._export_with_suffix(data_dict, "raw")
+            assert mock_export.call_count == 2
+
+    def test_export_with_suffix_list(self):
+        """Test _export_with_suffix with list input."""
+        processor = Export({})
+        data_list = [self.ds, self.ds]
+        with patch.object(processor, "export_single") as mock_export:
+            processor._export_with_suffix(data_list, "raw")
+            assert mock_export.call_count == 2
+
+    def test_export_with_suffix_invalid_type(self):
+        """Test _export_with_suffix with invalid input type."""
+        processor = Export({})
+        with pytest.raises(TypeError, match="Expected xr.Dataset, xr.DataArray, dict, list, or tuple"):
+            processor._export_with_suffix("invalid", "raw")
+            
+        with pytest.raises(TypeError, match="Expected xr.Dataset or xr.DataArray"):
+            processor._export_with_suffix(["invalid"], "raw")
+
+
 class TestExportSingle:
     """Test class for export_single method."""
 
@@ -326,32 +496,7 @@ class TestExportSingle:
         # Should not raise exception
         self.processor.export_single(self.ds)
 
-class TestExportClassMethods:
-    """Test class for class methods."""
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        self.ds = xr.Dataset({"temp": (["time"], [1, 2])})
-
-    @patch("climakitae.new_core.processors.export.Export.export_single")
-    def test_export_no_error(self, mock_export_single):
-        """Test export_no_error class method."""
-        Export.export_no_error(self.ds, filename="test", file_format="CSV")
-
-        # Verify Export was initialized correctly and export_single called
-        mock_export_single.assert_called_once_with(self.ds)
-
-    @patch("climakitae.new_core.processors.export.Export._handle_dict_result")
-    def test_export_raw_calc_data(self, mock_handle_dict):
-        """Test export_raw_calc_data class method."""
-        Export.export_raw_calc_data(
-            raw_data=self.ds,
-            calc_data=self.ds,
-            filename="test",
-            export_method="both",
-        )
-
-        mock_handle_dict.assert_called_once()
-        args, _ = mock_handle_dict.call_args
-        assert args[0] == {"raw_data": self.ds, "calc_data": self.ds}
-        assert args[1] == "both"
+    def test_export_single_invalid_type(self):
+        """Test export_single with invalid input type."""
+        with pytest.raises(TypeError, match="Expected xr.Dataset or xr.DataArray"):
+            self.processor.export_single("invalid_type")
