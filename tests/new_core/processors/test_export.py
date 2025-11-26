@@ -114,3 +114,17 @@ class TestExportFilenameGeneration:
         processor = Export({"filename": "output"})
         filename = processor._generate_filename(self.ds)
         assert filename == "output"
+
+    def test_generate_filename_separated(self):
+        """Test filename generation with separated=True."""
+        processor = Export({"filename": "output", "separated": True})
+        # DataArray has a name
+        filename = processor._generate_filename(self.da)
+        assert filename == "test_array_output"
+
+        # Dataset usually doesn't have a name attribute that evaluates to True in boolean context unless set?
+        # Actually xr.Dataset doesn't have a 'name' attribute.
+        # The code checks: hasattr(data, "name") and data.name
+        # So for Dataset it should just be "output"
+        filename_ds = processor._generate_filename(self.ds)
+        assert filename_ds == "output"
