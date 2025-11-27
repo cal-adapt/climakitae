@@ -809,7 +809,6 @@ def _get_return_variable(
                 block_size=block_size,
                 extremes_type=extremes_type,
             )
-            import pdb; pdb.set_trace()
         except (ValueError, ZeroDivisionError):
             return_variable = np.nan
 
