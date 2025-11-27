@@ -888,8 +888,6 @@ def _handle_nan_values_optimized(bms: xr.DataArray) -> xr.DataArray:
         )
 
     # Drop NaN values along time dimension
-    return bms
-    
     dropped_bms = bms.dropna(dim="time")
     dropped_count = bms.sizes["time"] - dropped_bms.sizes["time"]
 
