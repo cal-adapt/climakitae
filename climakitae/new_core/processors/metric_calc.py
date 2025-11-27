@@ -195,7 +195,6 @@ class MetricCalc(DataProcessor):
 
         # Filter out dimensions that don't exist
         valid_dims = [dim for dim in dims_to_check if dim in available_dims]
-
         if not valid_dims:
             warnings.warn(
                 f"\n\nNone of the specified dimensions {dims_to_check} exist in the data. "
@@ -282,9 +281,12 @@ class MetricCalc(DataProcessor):
                 # Stack percentile and metric results
                 all_values = []
                 for i in range(len(self.percentiles)):
-                    all_values.append(percentile_result.isel(percentile=i))
+                    all_values.append(
+                        percentile_result.isel(percentile=i).drop_vars(
+                            "percentile", errors="ignore"
+                        )
+                    )
                 all_values.append(metric_result)
-
                 result = xr.concat(all_values, dim="statistic")
                 result = result.assign_coords(statistic=stats_list)
 
