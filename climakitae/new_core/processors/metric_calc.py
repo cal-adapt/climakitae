@@ -659,8 +659,9 @@ class MetricCalc(DataProcessor):
                     if "sim" in block_maxima.dims:
                         block_maxima = block_maxima.squeeze("sim", drop=True)
 
-                    import pdb; pdb.set_trace()
+                    import pdb
 
+                    pdb.set_trace()
                     # Check data quality and filter out locations with insufficient data
                     if hasattr(block_maxima, "dims") and len(block_maxima.dims) > 1:
                         # For multi-dimensional block maxima, we need to check each location
@@ -923,7 +924,9 @@ class MetricCalc(DataProcessor):
         xr.DataArray
             DataArray with return values for each return period
         """
-        import pdb; pdb.set_trace()
+        import pdb
+
+        pdb.set_trace()
         # Check for sufficient valid data before proceeding
         if "year" in block_maxima.dims:
             valid_data = block_maxima.dropna(dim="year", how="all")
@@ -1161,7 +1164,7 @@ class MetricCalc(DataProcessor):
             if not self.percentiles_only:
                 description_parts.append(f"Metric '{self.metric}' was calculated")
 
-        if self.one_in_x_config is not None:
+        if self.one_in_x_config is not UNSET:
             transformation_description = (
                 f"Process '{self.name}' applied to the data. "
                 f"{' and '.join(description_parts)}."
