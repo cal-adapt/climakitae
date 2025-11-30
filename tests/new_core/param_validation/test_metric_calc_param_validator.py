@@ -18,20 +18,20 @@ class TestValidateBasicMetricParameters:
     """Unit tests for the _validate_basic_metric_parameters function."""
 
     @pytest.mark.parametrize(
-        "metric, percentiles, percentiles_only, dim, keepdims, skipna, expected",
+        "metric, percentiles, percentiles_only, dim, skipna, expected",
         [
-            ("mean", None, False, "time", False, True, True),
-            ("median", [10, 50, 90], True, ["time", "lat"], True, False, True),
-            ("max", None, False, "lat", False, True, True),
-            ("min", np.array([0, 100]), False, "lon", True, False, True),
+            ("mean", None, False, "time", True, True),
+            ("median", [10, 50, 90], True, ["time", "lat"], False, True),
+            ("max", None, False, "lat", True, True),
+            ("min", np.array([0, 100]), False, "lon", False, True),
         ],
     )
     def test_valid_cases(
-        self, metric, percentiles, percentiles_only, dim, keepdims, skipna, expected
+        self, metric, percentiles, percentiles_only, dim, skipna, expected
     ):
         """Test _validate_basic_metric_parameters with valid inputs."""
         result = _validate_basic_metric_parameters(
-            metric, percentiles, percentiles_only, dim, keepdims, skipna
+            metric, percentiles, percentiles_only, dim, skipna
         )
         assert result == expected
 
@@ -45,7 +45,7 @@ class TestValidateBasicMetricParameters:
         """Test _validate_basic_metric_parameters with invalid metric."""
         with pytest.warns(UserWarning, match=warning_msg):
             result = _validate_basic_metric_parameters(
-                metric, None, False, "time", False, True
+                metric, None, False, "time", True
             )
         assert result is False
 
@@ -61,7 +61,7 @@ class TestValidateBasicMetricParameters:
         """Test _validate_basic_metric_parameters with invalid percentiles."""
         with pytest.warns(UserWarning, match=warning_msg):
             result = _validate_basic_metric_parameters(
-                "mean", percentiles, False, "time", False, True
+                "mean", percentiles, False, "time", True
             )
         assert result is False
 
@@ -75,7 +75,7 @@ class TestValidateBasicMetricParameters:
         """Test _validate_basic_metric_parameters with invalid percentiles_only."""
         with pytest.warns(UserWarning, match=warning_msg):
             result = _validate_basic_metric_parameters(
-                "mean", [10, 50], percentiles_only, "time", False, True
+                "mean", [10, 50], percentiles_only, "time", True
             )
         assert result is False
 
@@ -89,23 +89,7 @@ class TestValidateBasicMetricParameters:
     def test_invalid_dim(self, dim, warning_msg):
         """Test _validate_basic_metric_parameters with invalid dim."""
         with pytest.warns(UserWarning, match=warning_msg):
-            result = _validate_basic_metric_parameters(
-                "mean", None, False, dim, False, True
-            )
-        assert result is False
-
-    @pytest.mark.parametrize(
-        "keepdims, warning_msg",
-        [
-            ("not_a_bool", "Parameter 'keepdims' must be a boolean"),
-        ],
-    )
-    def test_invalid_keepdims(self, keepdims, warning_msg):
-        """Test _validate_basic_metric_parameters with invalid keepdims."""
-        with pytest.warns(UserWarning, match=warning_msg):
-            result = _validate_basic_metric_parameters(
-                "mean", None, False, "time", keepdims, True
-            )
+            result = _validate_basic_metric_parameters("mean", None, False, dim, True)
         assert result is False
 
     @pytest.mark.parametrize(
@@ -118,7 +102,7 @@ class TestValidateBasicMetricParameters:
         """Test _validate_basic_metric_parameters with invalid skipna."""
         with pytest.warns(UserWarning, match=warning_msg):
             result = _validate_basic_metric_parameters(
-                "mean", None, False, "time", False, skipna
+                "mean", None, False, "time", skipna
             )
         assert result is False
 
@@ -128,9 +112,7 @@ class TestValidateBasicMetricParameters:
             UserWarning,
             match="percentiles_only=True requires percentiles to be specified.",
         ):
-            result = _validate_basic_metric_parameters(
-                "mean", None, True, "time", False, True
-            )
+            result = _validate_basic_metric_parameters("mean", None, True, "time", True)
         assert result is False
 
 
@@ -144,7 +126,6 @@ class TestValidateMetricCalcParam:
             "percentiles": [10, 50, 90],
             "percentiles_only": False,
             "dim": "time",
-            "keepdims": True,
             "skipna": True,
         }
         result = validate_metric_calc_param(param_dict)
@@ -166,7 +147,6 @@ class TestValidateMetricCalcParam:
             "percentiles": [10, 50, 90],
             "percentiles_only": False,
             "dim": "time",
-            "keepdims": True,
             "skipna": True,
         }
         with pytest.warns(UserWarning, match="Invalid metric"):

@@ -35,7 +35,6 @@ def validate_metric_calc_param(
           only calculate percentiles (skip metric). Default: False
         - dim (str or list, optional): Dimension(s) along which to calculate the metric/percentiles.
           Default: "time"
-        - keepdims (bool, optional): Whether to keep the dimensions being reduced. Default: False
         - skipna (bool, optional): Whether to skip NaN values in calculations. Default: True
 
     Returns
@@ -55,11 +54,10 @@ def validate_metric_calc_param(
     percentiles = value.get("percentiles", None)
     percentiles_only = value.get("percentiles_only", False)
     dim = value.get("dim", "time")
-    keepdims = value.get("keepdims", False)
     skipna = value.get("skipna", True)
 
     if not _validate_basic_metric_parameters(
-        metric, percentiles, percentiles_only, dim, keepdims, skipna
+        metric, percentiles, percentiles_only, dim, skipna
     ):
         return False
 
@@ -71,7 +69,6 @@ def _validate_basic_metric_parameters(
     percentiles: list | None,
     percentiles_only: bool,
     dim: str | list,
-    keepdims: bool,
     skipna: bool,
 ) -> bool:
     """Validate parameters for basic metric calculations."""
@@ -124,7 +121,6 @@ def _validate_basic_metric_parameters(
     # Validate boolean parameters
     for param_name, param_value in [
         ("percentiles_only", percentiles_only),
-        ("keepdims", keepdims),
         ("skipna", skipna),
     ]:
         if not isinstance(param_value, bool):

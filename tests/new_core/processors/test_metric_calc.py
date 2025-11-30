@@ -56,7 +56,6 @@ class TestMetricCalcProcessorInit:
         assert processor.percentiles is UNSET
         assert processor.percentiles_only is False
         assert processor.dim == "time"
-        assert processor.keepdims is False
         assert processor.skipna is True
 
     def test_custom_initialization(self):
@@ -66,7 +65,6 @@ class TestMetricCalcProcessorInit:
             "percentiles": [10, 50, 90],
             "percentiles_only": True,
             "dim": ["time", "lat"],
-            "keepdims": True,
             "skipna": False,
         }
         processor = MetricCalc(value=value)
@@ -74,7 +72,6 @@ class TestMetricCalcProcessorInit:
         assert processor.percentiles == value["percentiles"]
         assert processor.percentiles_only == value["percentiles_only"]
         assert processor.dim == value["dim"]
-        assert processor.keepdims == value["keepdims"]
         assert processor.skipna == value["skipna"]
 
 
@@ -258,7 +255,6 @@ class TestMetricUpdateContext:
                 "percentiles": [10, 50, 90],
                 "percentiles_only": False,
                 "dim": ["time", "lat"],
-                "keepdims": True,
                 "skipna": False,
             }
         )
