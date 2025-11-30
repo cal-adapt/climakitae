@@ -40,7 +40,6 @@ class MetricCalc(DataProcessor):
           only calculate percentiles (skip metric). Default: False
         - dim (str or list, optional): Dimension(s) along which to calculate the metric/percentiles.
           Default: "time"
-        - keepdims (bool, optional): Whether to keep the dimensions being reduced. Default: False
         - skipna (bool, optional): Whether to skip NaN values in calculations. Default: True
 
     Examples
@@ -86,7 +85,6 @@ class MetricCalc(DataProcessor):
             - percentiles_only (bool, optional): If True and percentiles are specified,
               only calculate percentiles (skip metric). Default: False
             - dim (str or list, optional): Dimension(s) to reduce. Default: "time"
-            - keepdims (bool, optional): Keep dimensions. Default: False
             - skipna (bool, optional): Skip NaN values. Default: True
 
         Raises
@@ -103,7 +101,6 @@ class MetricCalc(DataProcessor):
         self.percentiles = value.get("percentiles", UNSET)
         self.percentiles_only = value.get("percentiles_only", False)
         self.dim = value.get("dim", "time")
-        self.keepdims = value.get("keepdims", False)
         self.skipna = value.get("skipna", True)
 
     def execute(
