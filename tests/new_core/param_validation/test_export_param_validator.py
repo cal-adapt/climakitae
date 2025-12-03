@@ -299,3 +299,110 @@ class TestValidateExportMethodParam:
         with pytest.raises(ValueError, match="is not valid"):
             _validate_export_method_param(params)
 
+
+class TestValidateBooleanParams:
+    """Test class for _validate_boolean_params function."""
+
+    @pytest.mark.parametrize(
+        "param_name",
+        ["separated", "location_based_naming"],
+        ids=["separated", "location_based_naming"],
+    )
+    def test_valid_boolean_true(self, param_name):
+        """Test that True boolean values pass validation."""
+        params = {param_name: True}
+        # Should not raise
+        _validate_boolean_params(params)
+
+    @pytest.mark.parametrize(
+        "param_name",
+        ["separated", "location_based_naming"],
+        ids=["separated", "location_based_naming"],
+    )
+    def test_valid_boolean_false(self, param_name):
+        """Test that False boolean values pass validation."""
+        params = {param_name: False}
+        # Should not raise
+        _validate_boolean_params(params)
+
+    @pytest.mark.parametrize(
+        "param_name",
+        ["separated", "location_based_naming"],
+        ids=["separated", "location_based_naming"],
+    )
+    def test_none_boolean_is_valid(self, param_name):
+        """Test that None values for boolean params are valid."""
+        params = {param_name: None}
+        # Should not raise (None is accepted)
+        _validate_boolean_params(params)
+
+    @pytest.mark.parametrize(
+        "param_name,invalid_value",
+        [
+            ("separated", "true"),
+            ("separated", 1),
+            ("location_based_naming", "false"),
+            ("location_based_naming", 0),
+        ],
+        ids=["separated_string", "separated_int", "location_string", "location_int"],
+    )
+    def test_non_boolean_raises_value_error(self, param_name, invalid_value):
+        """Test that non-boolean values raise ValueError."""
+        params = {param_name: invalid_value}
+        with pytest.raises(ValueError, match=f"{param_name} must be a boolean"):
+            _validate_boolean_params(params)
+
+
+class TestValidateFilenameTemplateParam:
+    """Test class for _validate_filename_template_param function."""
+
+    def test_valid_template_with_filename_placeholder(self):
+        """Test valid template with {filename} placeholder."""
+        params = {"filename_template": "{filename}_output"}
+        # Should not raise
+        _validate_filename_template_param(params)
+
+    def test_valid_template_with_all_placeholders(self):
+        """Test valid template with all supported placeholders."""
+        params = {"filename_template": "{filename}_{name}_{lat}_{lon}"}
+        # Should not raise
+        _validate_filename_template_param(params)
+
+    def test_none_template_is_valid(self):
+        """Test that None template is valid (optional parameter)."""
+        params = {"filename_template": None}
+        # Should not raise
+        _validate_filename_template_param(params)
+
+    def test_missing_template_is_valid(self):
+        """Test that missing template is valid."""
+        params = {}
+        # Should not raise
+        _validate_filename_template_param(params)
+
+    def test_template_non_string_raises_value_error(self):
+        """Test that non-string template raises ValueError."""
+        params = {"filename_template": 123}
+        with pytest.raises(ValueError, match="filename_template must be a string"):
+            _validate_filename_template_param(params)
+
+    def test_empty_template_raises_value_error(self):
+        """Test that empty template raises ValueError."""
+        params = {"filename_template": ""}
+        with pytest.raises(ValueError, match="filename_template cannot be empty"):
+            _validate_filename_template_param(params)
+
+    def test_whitespace_template_raises_value_error(self):
+        """Test that whitespace-only template raises ValueError."""
+        params = {"filename_template": "   "}
+        with pytest.raises(ValueError, match="filename_template cannot be empty"):
+            _validate_filename_template_param(params)
+
+    def test_invalid_placeholder_logs_warning(self, caplog):
+        """Test that invalid placeholders log a warning."""
+        params = {"filename_template": "{filename}_{invalid_placeholder}"}
+        with caplog.at_level(logging.WARNING):
+            _validate_filename_template_param(params)
+        assert "unrecognized placeholders" in caplog.text
+        assert "{invalid_placeholder}" in caplog.text
+
