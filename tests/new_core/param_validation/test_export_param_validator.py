@@ -145,3 +145,25 @@ class TestValidateFilenameParam:
             _validate_filename_param(params)
         assert "path separators" in caplog.text
 
+
+class TestValidateFileFormatParam:
+    """Test class for _validate_file_format_param function."""
+
+    @pytest.mark.parametrize(
+        "valid_format",
+        ["netcdf", "NetCDF", "NETCDF", "zarr", "Zarr", "ZARR", "csv", "CSV"],
+        ids=["netcdf_lower", "netcdf_title", "netcdf_upper",
+             "zarr_lower", "zarr_title", "zarr_upper", "csv_lower", "csv_upper"],
+    )
+    def test_valid_file_formats(self, valid_format):
+        """Test that valid file formats pass validation."""
+        params = {"file_format": valid_format}
+        # Should not raise
+        _validate_file_format_param(params)
+
+    def test_default_format_when_missing(self):
+        """Test that default file format is used when not provided."""
+        params = {}
+        # Should not raise, uses default "NetCDF"
+        _validate_file_format_param(params)
+
