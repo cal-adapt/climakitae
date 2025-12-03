@@ -167,9 +167,9 @@ def get_closest_gridcell(
     data : xr.DataArray | xr.Dataset
         Gridded data
     lat : float
-        Latitude of coordinate pair
+        Latitude or y value of coordinate pair
     lon : float
-        Longitude of coordinate pair
+        Longitude or x value of coordinate pair
     print_coords : bool, optional
         Print closest coorindates?
         Default to True. Set to False for backend use.
@@ -230,9 +230,29 @@ def get_closest_gridcell(
         closest_gridcell = data.isel({dim1_name: dim1_idx, dim2_name: dim2_idx})
 
         if print_coords:
-            print(
-                f"Closest gridcell to lat: {lat}, lon: {lon} is at {dim1_name}: {closest_gridcell[dim1_name].item()}, {dim2_name}: {closest_gridcell[dim2_name].item()}"
-            )
+            # Detect if user passed lat/lon or x/y projection coordinates
+            # Lat/lon values are always <= 360, projection coords (meters) are much larger
+            user_passed_latlon = abs(lat) <= 360 and abs(lon) <= 360
+
+            if user_passed_latlon:
+                # Report in lat/lon regardless of internal data structure
+                if dim1_name == "x" and dim2_name == "y":
+                    # For projected data, get lat/lon from coordinates
+                    print_lat = closest_gridcell["lat"].item()
+                    print_lon = closest_gridcell["lon"].item()
+                else:
+                    print_lat = closest_gridcell[dim1_name].item()
+                    print_lon = closest_gridcell[dim2_name].item()
+                print(
+                    f"Closest gridcell to lat: {lat}, lon: {lon} is at lat: {print_lat}, lon: {print_lon}"
+                )
+            else:
+                # User passed projection coordinates, report in x/y
+                print_x = closest_gridcell[dim1_name].item()
+                print_y = closest_gridcell[dim2_name].item()
+                print(
+                    f"Closest gridcell to x: {lat}, y: {lon} is at x: {print_x}, y: {print_y}"
+                )
 
         return closest_gridcell
 
@@ -303,9 +323,34 @@ def get_closest_gridcell(
         )
 
         if print_coords:
-            print(
-                f"Closest gridcell to lat: {lat}, lon: {lon} is at {dim1_name}: {coord1_val}, {dim2_name}: {coord2_val} (averaged over nearby valid gridcells)"
-            )
+            # Detect if user passed lat/lon or x/y projection coordinates
+            user_passed_latlon = abs(lat) <= 360 and abs(lon) <= 360
+
+            if user_passed_latlon:
+                # Report in lat/lon regardless of internal data structure
+                if dim1_name == "x" and dim2_name == "y":
+                    # For projected data, get lat/lon from coordinates
+                    print_lat = (
+                        closest_gridcell["lat"].item()
+                        if hasattr(closest_gridcell["lat"], "item")
+                        else closest_gridcell["lat"].values
+                    )
+                    print_lon = (
+                        closest_gridcell["lon"].item()
+                        if hasattr(closest_gridcell["lon"], "item")
+                        else closest_gridcell["lon"].values
+                    )
+                else:
+                    print_lat = coord1_val
+                    print_lon = coord2_val
+                print(
+                    f"Closest gridcell to lat: {lat}, lon: {lon} is at lat: {print_lat}, lon: {print_lon} (averaged over nearby valid gridcells)"
+                )
+            else:
+                # User passed projection coordinates, report in x/y
+                print(
+                    f"Closest gridcell to x: {lat}, y: {lon} is at x: {coord1_val}, y: {coord2_val} (averaged over nearby valid gridcells)"
+                )
 
         return closest_gridcell
 
