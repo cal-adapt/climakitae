@@ -167,3 +167,30 @@ class TestValidateFileFormatParam:
         # Should not raise, uses default "NetCDF"
         _validate_file_format_param(params)
 
+    def test_file_format_non_string_raises_value_error(self):
+        """Test that non-string file_format raises ValueError."""
+        params = {"file_format": 123}
+        with pytest.raises(ValueError, match="file_format must be a string"):
+            _validate_file_format_param(params)
+
+    def test_invalid_format_raises_value_error(self):
+        """Test that completely invalid format raises ValueError."""
+        params = {"file_format": "invalid_format_xyz"}
+        with pytest.raises(ValueError, match="is not valid"):
+            _validate_file_format_param(params)
+
+    @pytest.mark.parametrize(
+        "typo_format,expected_corrected",
+        [("nc", "Netcdf"), ("nc4", "Netcdf"), ("hdf5", "Netcdf"),
+         ("zar", "Zarr"), ("txt", "Csv"), ("comma", "Csv")],
+        ids=["nc", "nc4", "hdf5", "zar", "txt", "comma"],
+    )
+    def test_format_auto_correction(self, typo_format, expected_corrected, caplog):
+        """Test that common typos and variations are auto-corrected."""
+        params = {"file_format": typo_format}
+        with caplog.at_level(logging.INFO):
+            _validate_file_format_param(params)
+        # Check that the params were updated in place
+        assert params["file_format"] == expected_corrected
+        assert "Interpreted" in caplog.text
+
