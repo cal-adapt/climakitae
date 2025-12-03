@@ -90,22 +90,13 @@ def validate_export_param(
     try:
         _check_file_conflicts(value)
     except ValueError as file_error:
-        # Check if user wants to fail on errors (default behavior)
-        fail_on_error = value.get("fail_on_error", True)
-        if fail_on_error:
-            # Raise the error to prevent execution - don't catch this!
-            raise ValueError(
-                f"Export blocked: {str(file_error)}\n\n"
-                f"To proceed, either:\n"
-                f"  - Delete or rename the existing file(s)\n"
-                f"  - Use a different filename in your export configuration\n"
-                f"  - Set fail_on_error=False to allow overwriting (with warnings)"
-            ) from file_error
-        else:
-            # Convert to warning and continue
-            logger.warning(
-                "File conflict warning (overwriting allowed): %s", str(file_error)
-            )
+        # Raise the error to prevent execution
+        raise ValueError(
+            f"Export blocked: {str(file_error)}\n\n"
+            f"To proceed, either:\n"
+            f"  - Delete or rename the existing file(s)\n"
+            f"  - Use a different filename in your export configuration"
+        ) from file_error
 
     return True
 
@@ -259,7 +250,7 @@ def _validate_boolean_params(params: Dict[str, Any]) -> None:
     ValueError
         If boolean parameters are invalid
     """
-    boolean_params = ["separated", "location_based_naming", "fail_on_error"]
+    boolean_params = ["separated", "location_based_naming"]
 
     for param_name in boolean_params:
         value = params.get(param_name)
@@ -396,8 +387,7 @@ def _check_file_conflicts(params: Dict[str, Any]) -> None:
                 f"  1. Use a different filename: '{suggestions['alternative_filename']}'\n"
                 f"  2. Delete the existing file(s)\n"
                 f"  3. {suggestions['skip_existing_method']}\n"
-                f"  4. {suggestions['allow_overwrite']}\n"
-                f"  5. {suggestions.get('alternative_format', 'Try a different format')}"
+                f"  4. {suggestions.get('alternative_format', 'Try a different format')}"
             )
         else:
             # For other methods, provide detailed warnings
@@ -695,11 +685,6 @@ def suggest_export_alternatives(params: Dict[str, Any]) -> Dict[str, str]:
     # Suggest using skip_existing
     suggestions["skip_existing_method"] = (
         "Use export_method='skip_existing' to skip if files exist"
-    )
-
-    # Suggest fail_on_error=False
-    suggestions["allow_overwrite"] = (
-        "Use fail_on_error=False to allow overwriting with warnings"
     )
 
     # Suggest different format
