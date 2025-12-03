@@ -344,12 +344,12 @@ def get_closest_gridcell(
                     print_lat = coord1_val
                     print_lon = coord2_val
                 print(
-                    f"Closest gridcell to lat: {lat}, lon: {lon} is at lat: {print_lat}, lon: {print_lon} (averaged over nearby valid gridcells)"
+                    f"Closest gridcell to lat: {lat}, lon: {lon} is at lat: {print_lat:.4g}, lon: {print_lon:.4g} (averaged over nearby valid gridcells)"
                 )
             else:
                 # User passed projection coordinates, report in x/y
                 print(
-                    f"Closest gridcell to x: {lat}, y: {lon} is at x: {coord1_val}, y: {coord2_val} (averaged over nearby valid gridcells)"
+                    f"Closest gridcell to x: {lat}, y: {lon} is at x: {coord1_val:.4g}, y: {coord2_val:.4g} (averaged over nearby valid gridcells)"
                 )
 
         return closest_gridcell
