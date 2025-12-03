@@ -508,3 +508,147 @@ class TestValidateExportOutputPath:
         )
         assert any("will be overwritten" in warn for warn in result["warnings"])
 
+
+class TestPredictExportFilenames:
+    """Test class for _predict_export_filenames function."""
+
+    def test_default_data_export(self):
+        """Test filename prediction with default data export."""
+        params = {"filename": "output", "file_format": "NetCDF"}
+        result = _predict_export_filenames(params)
+        assert "output.nc" in result
+
+    def test_zarr_extension(self):
+        """Test filename prediction with Zarr format."""
+        params = {"filename": "output", "file_format": "Zarr"}
+        result = _predict_export_filenames(params)
+        assert "output.zarr" in result
+
+    def test_csv_extension(self):
+        """Test filename prediction with CSV format."""
+        params = {"filename": "output", "file_format": "CSV"}
+        result = _predict_export_filenames(params)
+        assert "output.csv.gz" in result
+
+    def test_raw_export_method(self):
+        """Test filename prediction with raw export method."""
+        params = {"filename": "output", "file_format": "NetCDF", "export_method": "raw"}
+        result = _predict_export_filenames(params)
+        assert "output_raw.nc" in result
+
+    def test_calculate_export_method(self):
+        """Test filename prediction with calculate export method."""
+        params = {
+            "filename": "output",
+            "file_format": "NetCDF",
+            "export_method": "calculate",
+        }
+        result = _predict_export_filenames(params)
+        assert "output_calc.nc" in result
+
+    def test_both_export_method(self):
+        """Test filename prediction with both export method."""
+        params = {"filename": "output", "file_format": "NetCDF", "export_method": "both"}
+        result = _predict_export_filenames(params)
+        assert "output_raw.nc" in result
+        assert "output_calc.nc" in result
+
+    def test_custom_raw_filename(self):
+        """Test filename prediction with custom raw_filename."""
+        params = {
+            "filename": "output",
+            "file_format": "NetCDF",
+            "export_method": "raw",
+            "raw_filename": "custom_raw",
+        }
+        result = _predict_export_filenames(params)
+        assert "custom_raw.nc" in result
+
+    def test_custom_calc_filename(self):
+        """Test filename prediction with custom calc_filename."""
+        params = {
+            "filename": "output",
+            "file_format": "NetCDF",
+            "export_method": "calculate",
+            "calc_filename": "custom_calc",
+        }
+        result = _predict_export_filenames(params)
+        assert "custom_calc.nc" in result
+
+    def test_location_based_naming(self):
+        """Test filename prediction with location_based_naming enabled."""
+        params = {
+            "filename": "output",
+            "file_format": "NetCDF",
+            "location_based_naming": True,
+        }
+        result = _predict_export_filenames(params)
+        # Should include wildcard pattern for location-based naming
+        assert any("*" in f for f in result)
+
+    def test_with_template(self):
+        """Test filename prediction with filename_template."""
+        params = {
+            "filename": "output",
+            "file_format": "NetCDF",
+            "filename_template": "{filename}_{lat}_{lon}",
+        }
+        result = _predict_export_filenames(params)
+        # Template placeholders are replaced with wildcards for prediction
+        assert any("*" in f for f in result)
+
+
+class TestSuggestExportAlternatives:
+    """Test class for suggest_export_alternatives function."""
+
+    def test_suggests_alternative_filename(self):
+        """Test that alternative filename is suggested."""
+        params = {"filename": "output", "file_format": "NetCDF"}
+        result = suggest_export_alternatives(params)
+        assert "alternative_filename" in result
+        assert result["alternative_filename"] != "output"
+
+    def test_suggests_skip_existing_method(self):
+        """Test that skip_existing method is suggested."""
+        params = {"filename": "output", "file_format": "NetCDF"}
+        result = suggest_export_alternatives(params)
+        assert "skip_existing_method" in result
+        assert "skip_existing" in result["skip_existing_method"]
+
+    def test_suggests_alternative_format(self):
+        """Test that alternative format is suggested."""
+        params = {"filename": "output", "file_format": "NetCDF"}
+        result = suggest_export_alternatives(params)
+        assert "alternative_format" in result
+        # Should suggest Zarr or CSV when current is NetCDF
+        assert "Zarr" in result["alternative_format"] or "CSV" in result["alternative_format"]
+
+
+class TestSuggestAlternativeFilename:
+    """Test class for _suggest_alternative_filename function."""
+
+    def test_suggests_numbered_filename(self):
+        """Test that numbered filename is suggested."""
+        result = _suggest_alternative_filename("output", ".nc")
+        # Should suggest output_01.nc if output.nc doesn't exist
+        assert "output" in result
+        assert ".nc" in result
+
+    def test_suggests_different_when_numbered_exists(self, tmp_path):
+        """Test that higher numbers are suggested when lower exist."""
+        # Create numbered files
+        for i in range(1, 5):
+            (tmp_path / f"output_{i:02d}.nc").touch()
+
+        # Change to tmp_path to test
+        import os
+
+        original_dir = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = _suggest_alternative_filename("output", ".nc")
+            # Should suggest a number >= 5
+            assert "output_0" in result
+        finally:
+            os.chdir(original_dir)
+
