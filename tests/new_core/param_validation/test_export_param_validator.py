@@ -28,6 +28,8 @@ import pytest
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.export_param_validator import (
+    _check_file_conflicts,
+    _check_wildcard_files,
     _infer_file_format,
     _is_path_safe,
     _predict_export_filenames,
@@ -39,6 +41,7 @@ from climakitae.new_core.param_validation.export_param_validator import (
     _validate_filename_template_param,
     _validate_format_mode_compatibility,
     _validate_mode_param,
+    _warn_about_similar_files,
     suggest_export_alternatives,
     validate_export_output_path,
     validate_export_param,
@@ -178,6 +181,17 @@ class TestValidateFileFormatParam:
         params = {"file_format": "invalid_format_xyz"}
         with pytest.raises(ValueError, match="is not valid"):
             _validate_file_format_param(params)
+
+    def test_invalid_format_with_suggestion(self):
+        """Test that invalid format with close match shows suggestion."""
+        # Mock _infer_file_format to return None so we hit the suggestion branch
+        with patch(
+            "climakitae.new_core.param_validation.export_param_validator._infer_file_format",
+            return_value=None,
+        ):
+            params = {"file_format": "netcdf2"}  # Close to netcdf
+            with pytest.raises(ValueError, match="Did you mean"):
+                _validate_file_format_param(params)
 
     @pytest.mark.parametrize(
         "typo_format,expected_corrected",
