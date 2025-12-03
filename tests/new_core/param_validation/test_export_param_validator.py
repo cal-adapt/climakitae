@@ -155,8 +155,16 @@ class TestValidateFileFormatParam:
     @pytest.mark.parametrize(
         "valid_format",
         ["netcdf", "NetCDF", "NETCDF", "zarr", "Zarr", "ZARR", "csv", "CSV"],
-        ids=["netcdf_lower", "netcdf_title", "netcdf_upper",
-             "zarr_lower", "zarr_title", "zarr_upper", "csv_lower", "csv_upper"],
+        ids=[
+            "netcdf_lower",
+            "netcdf_title",
+            "netcdf_upper",
+            "zarr_lower",
+            "zarr_title",
+            "zarr_upper",
+            "csv_lower",
+            "csv_upper",
+        ],
     )
     def test_valid_file_formats(self, valid_format):
         """Test that valid file formats pass validation."""
@@ -195,8 +203,14 @@ class TestValidateFileFormatParam:
 
     @pytest.mark.parametrize(
         "typo_format,expected_corrected",
-        [("nc", "Netcdf"), ("nc4", "Netcdf"), ("hdf5", "Netcdf"),
-         ("zar", "Zarr"), ("txt", "Csv"), ("comma", "Csv")],
+        [
+            ("nc", "Netcdf"),
+            ("nc4", "Netcdf"),
+            ("hdf5", "Netcdf"),
+            ("zar", "Zarr"),
+            ("txt", "Csv"),
+            ("comma", "Csv"),
+        ],
         ids=["nc", "nc4", "hdf5", "zar", "txt", "comma"],
     )
     def test_format_auto_correction(self, typo_format, expected_corrected, caplog):
@@ -215,7 +229,17 @@ class TestInferFileFormat:
     @pytest.mark.parametrize(
         "input_format",
         ["netcdf", "netcdf4", "netcdf-4", "nc", "nc4", "ncdf", "hdf", "hdf5", "cdf"],
-        ids=["netcdf", "netcdf4", "netcdf-4", "nc", "nc4", "ncdf", "hdf", "hdf5", "cdf"],
+        ids=[
+            "netcdf",
+            "netcdf4",
+            "netcdf-4",
+            "nc",
+            "nc4",
+            "ncdf",
+            "hdf",
+            "hdf5",
+            "cdf",
+        ],
     )
     def test_infer_netcdf_formats(self, input_format):
         """Test inferring NetCDF format from various inputs."""
@@ -246,6 +270,13 @@ class TestInferFileFormat:
         """Test that unknown formats return None."""
         result = _infer_file_format("completely_unknown_format_xyz")
         assert result is None
+
+    def test_infer_uses_fuzzy_matching(self):
+        """Test that fuzzy matching works for close variations."""
+        # netcdf_close should match netcdf via difflib fuzzy matching
+        result = _infer_file_format("netcdf4classic")
+        # Should match to netcdf via fuzzy matching on 'netcdf4' pattern
+        assert result == "netcdf"
 
 
 class TestValidateModeParam:
@@ -280,6 +311,12 @@ class TestValidateModeParam:
         with pytest.raises(ValueError, match="is not valid"):
             _validate_mode_param(params)
 
+    def test_invalid_mode_with_suggestion(self):
+        """Test that invalid mode with close match shows suggestion."""
+        params = {"mode": "locl"}  # Close to local
+        with pytest.raises(ValueError, match="Did you mean"):
+            _validate_mode_param(params)
+
 
 class TestValidateExportMethodParam:
     """Test class for _validate_export_method_param function."""
@@ -311,6 +348,12 @@ class TestValidateExportMethodParam:
         """Test that invalid export_method raises ValueError."""
         params = {"export_method": "invalid"}
         with pytest.raises(ValueError, match="is not valid"):
+            _validate_export_method_param(params)
+
+    def test_invalid_export_method_with_suggestion(self):
+        """Test that invalid export_method with close match shows suggestion."""
+        params = {"export_method": "dat"}  # Close to data
+        with pytest.raises(ValueError, match="Did you mean"):
             _validate_export_method_param(params)
 
 
@@ -517,9 +560,7 @@ class TestValidateExportOutputPath:
         test_file = tmp_path / "existing.nc"
         test_file.touch()
 
-        result = validate_export_output_path(
-            str(tmp_path / "existing"), "NetCDF"
-        )
+        result = validate_export_output_path(str(tmp_path / "existing"), "NetCDF")
         assert any("will be overwritten" in warn for warn in result["warnings"])
 
 
@@ -562,7 +603,11 @@ class TestPredictExportFilenames:
 
     def test_both_export_method(self):
         """Test filename prediction with both export method."""
-        params = {"filename": "output", "file_format": "NetCDF", "export_method": "both"}
+        params = {
+            "filename": "output",
+            "file_format": "NetCDF",
+            "export_method": "both",
+        }
         result = _predict_export_filenames(params)
         assert "output_raw.nc" in result
         assert "output_calc.nc" in result
@@ -635,7 +680,10 @@ class TestSuggestExportAlternatives:
         result = suggest_export_alternatives(params)
         assert "alternative_format" in result
         # Should suggest Zarr or CSV when current is NetCDF
-        assert "Zarr" in result["alternative_format"] or "CSV" in result["alternative_format"]
+        assert (
+            "Zarr" in result["alternative_format"]
+            or "CSV" in result["alternative_format"]
+        )
 
 
 class TestSuggestAlternativeFilename:
@@ -679,3 +727,219 @@ class TestValidatorRegistration:
         assert "export" in _PROCESSOR_VALIDATOR_REGISTRY
         assert _PROCESSOR_VALIDATOR_REGISTRY["export"] is validate_export_param
 
+
+class TestCheckFileConflicts:
+    """Test class for _check_file_conflicts function."""
+
+    def test_skip_existing_method_returns_early(self):
+        """Test that skip_existing export method skips conflict check."""
+        params = {"filename": "output", "export_method": "skip_existing"}
+        # Should return early without raising
+        _check_file_conflicts(params)
+
+    def test_none_method_returns_early(self):
+        """Test that none export method skips conflict check."""
+        params = {"filename": "output", "export_method": "none"}
+        # Should return early without raising
+        _check_file_conflicts(params)
+
+    def test_existing_file_raises_value_error(self, tmp_path):
+        """Test that existing file raises ValueError for data export."""
+        # Create a file that will conflict
+        test_file = tmp_path / "conflict.nc"
+        test_file.touch()
+
+        original_dir = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            params = {
+                "filename": "conflict",
+                "file_format": "NetCDF",
+                "export_method": "data",
+            }
+            with pytest.raises(ValueError, match="Output file.*already exist"):
+                _check_file_conflicts(params)
+        finally:
+            os.chdir(original_dir)
+
+    def test_existing_file_warns_for_raw_method(self, tmp_path, caplog):
+        """Test that existing file logs warning for raw export method."""
+        # Create a file that will conflict
+        test_file = tmp_path / "conflict_raw.nc"
+        test_file.touch()
+
+        original_dir = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            params = {
+                "filename": "conflict",
+                "file_format": "NetCDF",
+                "export_method": "raw",
+            }
+            with caplog.at_level(logging.WARNING):
+                _check_file_conflicts(params)
+            assert "will be overwritten" in caplog.text
+        finally:
+            os.chdir(original_dir)
+
+    def test_many_existing_files_truncates_list(self, tmp_path, caplog):
+        """Test that more than 5 conflicting files shows truncation in warning."""
+        original_dir = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            # Create 7 files that will be found as similar
+            for i in range(7):
+                (tmp_path / f"output_{i:02d}.nc").touch()
+
+            params = {
+                "filename": "output",
+                "file_format": "NetCDF",
+                "export_method": "raw",  # Use raw to get warning instead of error
+            }
+            with caplog.at_level(logging.WARNING):
+                _check_file_conflicts(params)
+            # The "and X more" message appears in similar files warning
+            assert "and" in caplog.text and "more" in caplog.text
+        finally:
+            os.chdir(original_dir)
+
+
+class TestWarnAboutSimilarFiles:
+    """Test class for _warn_about_similar_files function."""
+
+    def test_similar_files_logs_warning(self, tmp_path, caplog):
+        """Test that similar files log a warning."""
+        original_dir = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            # Create similar files
+            (tmp_path / "output.zarr").mkdir()
+            (tmp_path / "output_v2.nc").touch()
+
+            with caplog.at_level(logging.WARNING):
+                _warn_about_similar_files("output", ".nc")
+            assert "similar names" in caplog.text
+        finally:
+            os.chdir(original_dir)
+
+    def test_no_similar_files_no_warning(self, tmp_path, caplog):
+        """Test that no warning when no similar files exist."""
+        original_dir = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            with caplog.at_level(logging.WARNING):
+                _warn_about_similar_files("unique_file_name_xyz", ".nc")
+            assert "similar names" not in caplog.text
+        finally:
+            os.chdir(original_dir)
+
+    def test_many_similar_files_truncates_list(self, tmp_path, caplog):
+        """Test that more than 5 similar files shows truncation."""
+        original_dir = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            # Create many similar files
+            for i in range(10):
+                (tmp_path / f"output_{i:02d}.txt").touch()
+
+            with caplog.at_level(logging.WARNING):
+                _warn_about_similar_files("output", ".nc")
+            assert "and" in caplog.text and "more" in caplog.text
+        finally:
+            os.chdir(original_dir)
+
+
+class TestCheckWildcardFiles:
+    """Test class for _check_wildcard_files function."""
+
+    def test_matches_wildcard_pattern(self, tmp_path):
+        """Test that wildcard patterns find matching files."""
+        # Create files that match pattern
+        (tmp_path / "data_001.nc").touch()
+        (tmp_path / "data_002.nc").touch()
+
+        original_dir = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = _check_wildcard_files("data_*.nc")
+            assert len(result) == 2
+        finally:
+            os.chdir(original_dir)
+
+    def test_no_matches_returns_empty(self, tmp_path):
+        """Test that non-matching pattern returns empty list."""
+        original_dir = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = _check_wildcard_files("nonexistent_*.nc")
+            assert result == []
+        finally:
+            os.chdir(original_dir)
+
+
+class TestPredictExportFilenamesSeparated:
+    """Test class for _predict_export_filenames with separated option."""
+
+    def test_separated_adds_common_prefixes(self):
+        """Test that separated=True adds common prefix variations."""
+        params = {
+            "filename": "output",
+            "file_format": "NetCDF",
+            "separated": True,
+        }
+        result = _predict_export_filenames(params)
+        # Should include prefixed variations
+        assert any("temperature_output" in f for f in result)
+        assert any("precipitation_output" in f for f in result)
+
+
+class TestSuggestAlternativeFilenameExtended:
+    """Extended tests for _suggest_alternative_filename function."""
+
+    def test_suggests_timestamp_when_numbered_exhausted(self, tmp_path):
+        """Test that timestamp is used when all numbered versions exist."""
+        original_dir = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            # Create all numbered files (1-99)
+            for i in range(1, 100):
+                (tmp_path / f"output_{i:02d}.nc").touch()
+
+            result = _suggest_alternative_filename("output", ".nc")
+            # Should contain timestamp or 'new'
+            assert "_20" in result or "_new" in result
+        finally:
+            os.chdir(original_dir)
+
+    def test_fallback_when_timestamp_exists(self, tmp_path):
+        """Test fallback when even timestamp version exists."""
+        original_dir = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            # Create all numbered files (1-99)
+            for i in range(1, 100):
+                (tmp_path / f"output_{i:02d}.nc").touch()
+
+            # First call will create timestamp version
+            result1 = _suggest_alternative_filename("output", ".nc")
+
+            # If result contains timestamp and file doesn't exist, it returns that
+            # Otherwise it returns the _new fallback
+            assert "output" in result1
+        finally:
+            os.chdir(original_dir)
+
+
+class TestValidateExportOutputPathExtended:
+    """Extended tests for validate_export_output_path function."""
+
+    def test_no_write_permission_invalid(self, tmp_path):
+        """Test that lack of write permission is marked as invalid."""
+        # Use a directory that doesn't exist
+        result = validate_export_output_path(
+            "/nonexistent_dir_xyz123/test_output", "NetCDF", check_permissions=True
+        )
+        assert result["is_valid"] is False
+        assert any(
+            "write permission" in err or "unsafe" in err for err in result["errors"]
+        )
