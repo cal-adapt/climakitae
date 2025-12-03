@@ -194,3 +194,42 @@ class TestValidateFileFormatParam:
         assert params["file_format"] == expected_corrected
         assert "Interpreted" in caplog.text
 
+
+class TestInferFileFormat:
+    """Test class for _infer_file_format function."""
+
+    @pytest.mark.parametrize(
+        "input_format",
+        ["netcdf", "netcdf4", "netcdf-4", "nc", "nc4", "ncdf", "hdf", "hdf5", "cdf"],
+        ids=["netcdf", "netcdf4", "netcdf-4", "nc", "nc4", "ncdf", "hdf", "hdf5", "cdf"],
+    )
+    def test_infer_netcdf_formats(self, input_format):
+        """Test inferring NetCDF format from various inputs."""
+        result = _infer_file_format(input_format)
+        assert result == "netcdf"
+
+    @pytest.mark.parametrize(
+        "input_format",
+        ["zarr", "zar", "zarrs", "zarray", "z", "zr"],
+        ids=["zarr", "zar", "zarrs", "zarray", "z", "zr"],
+    )
+    def test_infer_zarr_formats(self, input_format):
+        """Test inferring Zarr format from various inputs."""
+        result = _infer_file_format(input_format)
+        assert result == "zarr"
+
+    @pytest.mark.parametrize(
+        "input_format",
+        ["csv", "csv.gz", "comma", "txt", "text", "delimited"],
+        ids=["csv", "csv.gz", "comma", "txt", "text", "delimited"],
+    )
+    def test_infer_csv_formats(self, input_format):
+        """Test inferring CSV format from various inputs."""
+        result = _infer_file_format(input_format)
+        assert result == "csv"
+
+    def test_infer_returns_none_for_unknown(self):
+        """Test that unknown formats return None."""
+        result = _infer_file_format("completely_unknown_format_xyz")
+        assert result is None
+
