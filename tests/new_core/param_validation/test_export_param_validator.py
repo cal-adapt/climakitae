@@ -406,3 +406,105 @@ class TestValidateFilenameTemplateParam:
         assert "unrecognized placeholders" in caplog.text
         assert "{invalid_placeholder}" in caplog.text
 
+
+class TestValidateFormatModeCompatibility:
+    """Test class for _validate_format_mode_compatibility function."""
+
+    def test_local_mode_with_netcdf_valid(self):
+        """Test that local mode with NetCDF is valid."""
+        params = {"mode": "local", "file_format": "NetCDF"}
+        # Should not raise
+        _validate_format_mode_compatibility(params)
+
+    def test_local_mode_with_zarr_valid(self):
+        """Test that local mode with Zarr is valid."""
+        params = {"mode": "local", "file_format": "Zarr"}
+        # Should not raise
+        _validate_format_mode_compatibility(params)
+
+    def test_local_mode_with_csv_valid(self):
+        """Test that local mode with CSV is valid."""
+        params = {"mode": "local", "file_format": "CSV"}
+        # Should not raise
+        _validate_format_mode_compatibility(params)
+
+    def test_s3_mode_with_zarr_valid(self):
+        """Test that S3 mode with Zarr is valid."""
+        params = {"mode": "s3", "file_format": "Zarr"}
+        # Should not raise
+        _validate_format_mode_compatibility(params)
+
+    def test_s3_mode_with_netcdf_raises_value_error(self):
+        """Test that S3 mode with NetCDF raises ValueError."""
+        params = {"mode": "s3", "file_format": "NetCDF"}
+        with pytest.raises(ValueError, match="S3 export.*only supported with Zarr"):
+            _validate_format_mode_compatibility(params)
+
+    def test_s3_mode_with_csv_raises_value_error(self):
+        """Test that S3 mode with CSV raises ValueError."""
+        params = {"mode": "s3", "file_format": "CSV"}
+        with pytest.raises(ValueError, match="S3 export.*only supported with Zarr"):
+            _validate_format_mode_compatibility(params)
+
+
+class TestIsPathSafe:
+    """Test class for _is_path_safe function."""
+
+    @pytest.mark.parametrize(
+        "safe_filename",
+        ["output", "my_data_export", "climate-data-2024", "test123"],
+        ids=["simple", "underscores", "dashes", "alphanumeric"],
+    )
+    def test_safe_filenames(self, safe_filename):
+        """Test that safe filenames return True."""
+        result = _is_path_safe(safe_filename)
+        assert result is True
+
+    @pytest.mark.parametrize(
+        "unsafe_filename",
+        ["../parent", "path/to/file", "path\\to\\file", "~/home/file"],
+        ids=["parent_traversal", "forward_slash", "backslash", "tilde"],
+    )
+    def test_unsafe_filenames(self, unsafe_filename):
+        """Test that unsafe filenames return False."""
+        result = _is_path_safe(unsafe_filename)
+        assert result is False
+
+
+class TestValidateExportOutputPath:
+    """Test class for validate_export_output_path function."""
+
+    def test_valid_output_path(self):
+        """Test validation with a valid output path."""
+        result = validate_export_output_path("test_output", "NetCDF")
+        assert result["is_valid"] is True
+        assert result["full_path"] == "test_output.nc"
+        assert result["errors"] == []
+
+    def test_zarr_extension(self):
+        """Test validation maps Zarr to .zarr extension."""
+        result = validate_export_output_path("test_output", "Zarr")
+        assert result["full_path"] == "test_output.zarr"
+
+    def test_csv_extension(self):
+        """Test validation maps CSV to .csv.gz extension."""
+        result = validate_export_output_path("test_output", "CSV")
+        assert result["full_path"] == "test_output.csv.gz"
+
+    def test_unsafe_path_invalid(self):
+        """Test that unsafe paths are marked as invalid."""
+        result = validate_export_output_path("../unsafe/path", "NetCDF")
+        assert result["is_valid"] is False
+        assert any("unsafe characters" in err for err in result["errors"])
+
+    def test_existing_file_adds_warning(self, tmp_path):
+        """Test that existing files add a warning."""
+        # Create a temporary file
+        test_file = tmp_path / "existing.nc"
+        test_file.touch()
+
+        result = validate_export_output_path(
+            str(tmp_path / "existing"), "NetCDF"
+        )
+        assert any("will be overwritten" in warn for warn in result["warnings"])
+
