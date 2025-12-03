@@ -62,3 +62,10 @@ class TestValidateExportParam:
         assert result is True
         assert "Export parameters cannot be None" in caplog.text
 
+    def test_validate_with_non_dict_returns_false_with_warning(self, caplog):
+        """Test validate_export_param with non-dict type returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_export_param("not a dict")
+        assert result is False
+        assert "Export parameters must be a dictionary" in caplog.text
+
