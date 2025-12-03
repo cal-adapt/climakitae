@@ -652,3 +652,16 @@ class TestSuggestAlternativeFilename:
         finally:
             os.chdir(original_dir)
 
+
+class TestValidatorRegistration:
+    """Test class for validator registration."""
+
+    def test_export_validator_is_registered(self):
+        """Test that export validator is registered in the registry."""
+        from climakitae.new_core.param_validation.abc_param_validation import (
+            _PROCESSOR_VALIDATOR_REGISTRY,
+        )
+
+        assert "export" in _PROCESSOR_VALIDATOR_REGISTRY
+        assert _PROCESSOR_VALIDATOR_REGISTRY["export"] is validate_export_param
+
