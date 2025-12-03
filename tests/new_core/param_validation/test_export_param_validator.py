@@ -233,3 +233,69 @@ class TestInferFileFormat:
         result = _infer_file_format("completely_unknown_format_xyz")
         assert result is None
 
+
+class TestValidateModeParam:
+    """Test class for _validate_mode_param function."""
+
+    @pytest.mark.parametrize(
+        "valid_mode",
+        ["local", "Local", "LOCAL", "s3", "S3"],
+        ids=["local_lower", "local_title", "local_upper", "s3_lower", "s3_upper"],
+    )
+    def test_valid_modes(self, valid_mode):
+        """Test that valid modes pass validation."""
+        params = {"mode": valid_mode}
+        # Should not raise
+        _validate_mode_param(params)
+
+    def test_default_mode_when_missing(self):
+        """Test that default mode is used when not provided."""
+        params = {}
+        # Should not raise, uses default "local"
+        _validate_mode_param(params)
+
+    def test_mode_non_string_raises_value_error(self):
+        """Test that non-string mode raises ValueError."""
+        params = {"mode": 123}
+        with pytest.raises(ValueError, match="mode must be a string"):
+            _validate_mode_param(params)
+
+    def test_invalid_mode_raises_value_error(self):
+        """Test that invalid mode raises ValueError."""
+        params = {"mode": "cloud"}
+        with pytest.raises(ValueError, match="is not valid"):
+            _validate_mode_param(params)
+
+
+class TestValidateExportMethodParam:
+    """Test class for _validate_export_method_param function."""
+
+    @pytest.mark.parametrize(
+        "valid_method",
+        ["data", "raw", "calculate", "both", "skip_existing", "none"],
+        ids=["data", "raw", "calculate", "both", "skip_existing", "none"],
+    )
+    def test_valid_export_methods(self, valid_method):
+        """Test that valid export methods pass validation."""
+        params = {"export_method": valid_method}
+        # Should not raise
+        _validate_export_method_param(params)
+
+    def test_default_export_method_when_missing(self):
+        """Test that default export_method is used when not provided."""
+        params = {}
+        # Should not raise, uses default "data"
+        _validate_export_method_param(params)
+
+    def test_export_method_non_string_raises_value_error(self):
+        """Test that non-string export_method raises ValueError."""
+        params = {"export_method": 123}
+        with pytest.raises(ValueError, match="export_method must be a string"):
+            _validate_export_method_param(params)
+
+    def test_invalid_export_method_raises_value_error(self):
+        """Test that invalid export_method raises ValueError."""
+        params = {"export_method": "invalid"}
+        with pytest.raises(ValueError, match="is not valid"):
+            _validate_export_method_param(params)
+
