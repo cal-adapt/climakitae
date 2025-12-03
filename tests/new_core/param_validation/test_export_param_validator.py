@@ -127,3 +127,21 @@ class TestValidateFilenameParam:
         with pytest.raises(ValueError, match="filename cannot be empty"):
             _validate_filename_param(params)
 
+    @pytest.mark.parametrize(
+        "invalid_char",
+        ["<", ">", ":", '"', "|", "?", "*"],
+        ids=["less_than", "greater_than", "colon", "quote", "pipe", "question", "star"],
+    )
+    def test_filename_with_invalid_characters_raises_value_error(self, invalid_char):
+        """Test that filenames with invalid characters raise ValueError."""
+        params = {"filename": f"test{invalid_char}file"}
+        with pytest.raises(ValueError, match="filename contains invalid characters"):
+            _validate_filename_param(params)
+
+    def test_filename_with_path_separator_logs_warning(self, caplog):
+        """Test that filename with path separators logs warning."""
+        params = {"filename": "path/to/file"}
+        with caplog.at_level(logging.WARNING):
+            _validate_filename_param(params)
+        assert "path separators" in caplog.text
+
