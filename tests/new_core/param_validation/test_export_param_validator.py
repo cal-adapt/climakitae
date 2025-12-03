@@ -109,3 +109,21 @@ class TestValidateFilenameParam:
         # Should not raise, uses default "dataexport"
         _validate_filename_param(params)
 
+    def test_filename_non_string_raises_value_error(self):
+        """Test that non-string filename raises ValueError."""
+        params = {"filename": 12345}
+        with pytest.raises(ValueError, match="filename must be a string"):
+            _validate_filename_param(params)
+
+    def test_filename_empty_string_raises_value_error(self):
+        """Test that empty filename raises ValueError."""
+        params = {"filename": ""}
+        with pytest.raises(ValueError, match="filename cannot be empty"):
+            _validate_filename_param(params)
+
+    def test_filename_whitespace_only_raises_value_error(self):
+        """Test that whitespace-only filename raises ValueError."""
+        params = {"filename": "   "}
+        with pytest.raises(ValueError, match="filename cannot be empty"):
+            _validate_filename_param(params)
+
