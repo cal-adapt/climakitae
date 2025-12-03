@@ -69,3 +69,19 @@ class TestValidateExportParam:
         assert result is False
         assert "Export parameters must be a dictionary" in caplog.text
 
+    def test_validate_with_empty_dict_returns_true(self):
+        """Test validate_export_param with empty dict uses defaults."""
+        result = validate_export_param({})
+        assert result is True
+
+    def test_validate_with_valid_params_returns_true(self):
+        """Test validate_export_param with valid parameters returns True."""
+        params = {
+            "filename": "test_output",
+            "file_format": "NetCDF",
+            "mode": "local",
+            "export_method": "data",
+        }
+        result = validate_export_param(params)
+        assert result is True
+
