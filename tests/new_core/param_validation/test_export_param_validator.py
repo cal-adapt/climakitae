@@ -55,3 +55,10 @@ class TestValidateExportParam:
         assert result is True
         assert "Export parameters cannot be None" in caplog.text
 
+    def test_validate_with_unset_returns_true_with_warning(self, caplog):
+        """Test validate_export_param with UNSET returns True (uses defaults)."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_export_param(UNSET)
+        assert result is True
+        assert "Export parameters cannot be None" in caplog.text
+
