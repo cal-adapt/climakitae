@@ -85,19 +85,6 @@ def validate_export_param(
         logger.warning("Export parameter validation failed: %s", str(e))
         return False
 
-    # File conflict checking - handled separately so errors propagate properly
-    # This check must raise errors that stop execution when files would be overwritten
-    try:
-        _check_file_conflicts(value)
-    except ValueError as file_error:
-        # Raise the error to prevent execution
-        raise ValueError(
-            f"Export blocked: {str(file_error)}\n\n"
-            f"To proceed, either:\n"
-            f"  - Delete or rename the existing file(s)\n"
-            f"  - Use a different filename in your export configuration"
-        ) from file_error
-
     return True
 
 
@@ -141,17 +128,21 @@ def _validate_filename_param(params: Dict[str, Any]) -> None:
 
 def _validate_file_format_param(params: Dict[str, Any]) -> None:
     """
-    Validate the file_format parameter.
+    Validate and auto-correct the file_format parameter.
+
+    This function attempts to infer the intended file format from common
+    variations, typos, and abbreviations. If a match is found, it updates
+    the params dict in place and logs an informational message.
 
     Parameters
     ----------
     params : Dict[str, Any]
-        Export parameters dictionary
+        Export parameters dictionary (modified in place if correction needed)
 
     Raises
     ------
     ValueError
-        If file_format is invalid
+        If file_format cannot be inferred
     """
     file_format = params.get("file_format", "NetCDF")
     valid_formats = ["netcdf", "zarr", "csv"]
@@ -161,17 +152,133 @@ def _validate_file_format_param(params: Dict[str, Any]) -> None:
             f"file_format must be a string, got {type(file_format).__name__}"
         )
 
-    # Case-insensitive validation with suggestion
-    if file_format.lower() not in valid_formats:
-        closest_options = _get_closest_options(file_format.lower(), valid_formats)
-        error_msg = (
-            f'file_format "{file_format}" is not valid. Valid options: {valid_formats}'
+    # Check if already valid (case-insensitive)
+    if file_format.lower() in valid_formats:
+        return
+
+    # Try to infer the intended format
+    inferred = _infer_file_format(file_format)
+
+    if inferred:
+        logger.info(
+            "Interpreted file_format '%s' as '%s'.",
+            file_format,
+            inferred.upper(),
         )
+        # Update params in place so the processor gets the corrected value
+        params["file_format"] = inferred.capitalize()
+        return
 
-        if closest_options:
-            error_msg += f". Did you mean: {closest_options[0]}?"
+    # Could not infer - raise error with suggestions
+    closest_options = _get_closest_options(file_format.lower(), valid_formats)
+    error_msg = (
+        f'file_format "{file_format}" is not valid. Valid options: {valid_formats}'
+    )
 
-        raise ValueError(error_msg)
+    if closest_options:
+        error_msg += f". Did you mean: {closest_options[0]}?"
+
+    raise ValueError(error_msg)
+
+
+def _infer_file_format(user_input: str) -> str | None:
+    """
+    Infer the intended file format from user input.
+
+    Handles common variations, typos, abbreviations, and alternative names
+    for supported file formats.
+
+    Parameters
+    ----------
+    user_input : str
+        The user-provided file format string
+
+    Returns
+    -------
+    str | None
+        The canonical format name ("netcdf", "zarr", or "csv") if inferred,
+        None if no match could be determined
+    """
+    normalized = user_input.lower().strip()
+
+    # NetCDF variations and common typos
+    netcdf_patterns = [
+        "netcdf",
+        "netcdf4",
+        "netcdf-4",
+        "netcdf3",
+        "netcdf-3",
+        "nc",
+        "nc4",
+        "ncdf",
+        "ntcdf",  # common typo
+        "netcd",  # truncated
+        "netcf",  # typo
+        "necdf",  # typo
+        "nectdf",  # typo
+        "netcdf4",
+        "net-cdf",
+        "net_cdf",
+        "cdf",
+        "hdf",  # sometimes confused
+        "hdf5",  # sometimes confused (netcdf4 uses hdf5)
+    ]
+
+    # Zarr variations
+    zarr_patterns = [
+        "zarr",
+        "zar",  # truncated
+        "zarrs",
+        "zarray",
+        "z",
+        "zr",
+        "zarrr",  # typo
+        "zarr3",
+        "zarr2",
+    ]
+
+    # CSV variations
+    csv_patterns = [
+        "csv",
+        "csv.gz",
+        "csvgz",
+        "csv_gz",
+        "csv-gz",
+        "gzip",
+        "gzipped",
+        "comma",
+        "commaseparated",
+        "comma-separated",
+        "comma_separated",
+        "text",
+        "txt",
+        "tsv",  # close enough, we only support csv
+        "delimited",
+    ]
+
+    if normalized in netcdf_patterns:
+        return "netcdf"
+    if normalized in zarr_patterns:
+        return "zarr"
+    if normalized in csv_patterns:
+        return "csv"
+
+    # Try fuzzy matching with difflib for anything else
+    all_patterns = {
+        "netcdf": netcdf_patterns,
+        "zarr": zarr_patterns,
+        "csv": csv_patterns,
+    }
+
+    # Check if input is similar to any pattern
+    import difflib
+
+    for canonical, patterns in all_patterns.items():
+        matches = difflib.get_close_matches(normalized, patterns, n=1, cutoff=0.6)
+        if matches:
+            return canonical
+
+    return None
 
 
 def _validate_mode_param(params: Dict[str, Any]) -> None:

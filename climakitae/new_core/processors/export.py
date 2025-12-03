@@ -2,6 +2,7 @@
 DataProcessor Export
 """
 
+import logging
 import os
 from typing import Any, Dict, Iterable, Union
 
@@ -14,10 +15,17 @@ from climakitae.core.data_export import (
     _export_to_zarr,
 )
 from climakitae.new_core.data_access.data_access import DataCatalog
+from climakitae.new_core.param_validation.export_param_validator import (
+    _infer_file_format,
+)
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
+
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 # last possible step
@@ -161,12 +169,22 @@ class Export(DataProcessor):
         ValueError
             If invalid parameter values are provided
         """
-        # Validate file format
+        # Validate and potentially auto-correct file format
         valid_formats = ["zarr", "netcdf", "csv"]
         if self.file_format.lower() not in valid_formats:
-            raise ValueError(
-                f'file_format must be one of {valid_formats}, got "{self.file_format}"'
-            )
+            # Try to infer the intended format
+            inferred = _infer_file_format(self.file_format)
+            if inferred:
+                logger.info(
+                    "Interpreted file_format '%s' as '%s'.",
+                    self.file_format,
+                    inferred.upper(),
+                )
+                self.file_format = inferred.capitalize()
+            else:
+                raise ValueError(
+                    f'file_format must be one of {valid_formats}, got "{self.file_format}"'
+                )
 
         # Validate mode
         valid_modes = ["local", "s3"]
@@ -479,7 +497,7 @@ class Export(DataProcessor):
                     # Convert numpy arrays to lists
                     try:
                         cleaned[k] = v.tolist()
-                    except:
+                    except Exception:
                         # If conversion fails, convert to string
                         cleaned[k] = str(v)
                 else:
@@ -576,6 +594,38 @@ class Export(DataProcessor):
 
         return base_filename
 
+    def _get_unique_filename(self, base_filename: str, extension: str) -> str:
+        """
+        Generate a unique filename by appending _N suffix if file exists.
+
+        Follows the Linux convention of appending _1, _2, etc. to find
+        the minimum N that guarantees a unique filename.
+
+        Parameters
+        ----------
+        base_filename : str
+            The base filename without extension
+        extension : str
+            The file extension (including the dot, e.g., ".nc")
+
+        Returns
+        -------
+        str
+            A unique filename that doesn't exist on disk
+        """
+        # Start checking from _1
+        n = 1
+        while True:
+            candidate = f"{base_filename}_{n}{extension}"
+            if not os.path.exists(candidate):
+                return candidate
+            n += 1
+            # Safety limit to prevent infinite loops
+            if n > 10000:
+                raise RuntimeError(
+                    f"Could not find unique filename after 10000 attempts for {base_filename}"
+                )
+
     def export_single(self, data: Union[xr.Dataset, xr.DataArray]):
         """
         Export a single xr.Dataset or xr.DataArray to file.
@@ -601,12 +651,20 @@ class Export(DataProcessor):
 
         # Create full filename with appropriate extension
         extension_dict = {"zarr": ".zarr", "netcdf": ".nc", "csv": ".csv.gz"}
-        save_name = base_filename + extension_dict[req_format]
+        extension = extension_dict[req_format]
+        save_name = base_filename + extension
 
-        # Check if file exists and handle based on export_method
+        # Handle export_method="skip_existing" - skip if file exists
         if self.export_method.lower() == "skip_existing" and os.path.exists(save_name):
-            print(f"File {save_name} already exists, skipping export.")
+            logger.info("File %s already exists, skipping export.", save_name)
             return
+
+        # For other export methods, find a unique filename if file exists
+        if os.path.exists(save_name):
+            save_name = self._get_unique_filename(base_filename, extension)
+            logger.info(
+                "File already exists. Saving to unique filename: %s", save_name
+            )
 
         try:
             match req_format:
@@ -625,6 +683,9 @@ class Export(DataProcessor):
                 case _:
                     # This should never happen due to validation in __init__
                     raise ValueError(f"Unsupported file format: {self.file_format}")
+
+            logger.info("Export complete: %s", save_name)
+
         except (OSError, ValueError, RuntimeError) as e:
             error_msg = f"Export failed for {save_name}: {str(e)}"
             if self.fail_on_error:
