@@ -5,8 +5,8 @@ Validator for parameters provided to Export Processor.
 from __future__ import annotations
 
 import glob
+import logging
 import os
-import warnings
 from typing import Any, Dict
 
 from climakitae.core.constants import UNSET
@@ -16,6 +16,10 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 from climakitae.new_core.param_validation.param_validation_tools import (
     _get_closest_options,
 )
+
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 @register_processor_validator("export")
@@ -54,15 +58,16 @@ def validate_export_param(
     """
 
     if value is None or value is UNSET:
-        warnings.warn(
+        logger.warning(
             "Export parameters cannot be None. Using default export configuration."
         )
         return True  # Will use defaults
 
     if not isinstance(value, dict):
-        warnings.warn(
-            f"Export parameters must be a dictionary, got {type(value).__name__}. "
-            f"Using default export configuration."
+        logger.warning(
+            "Export parameters must be a dictionary, got %s. "
+            "Using default export configuration.",
+            type(value).__name__,
         )
         return False
 
@@ -76,22 +81,31 @@ def validate_export_param(
         _validate_filename_template_param(value)
         _validate_format_mode_compatibility(value)
 
-        # File conflict checking with special handling
-        try:
-            _check_file_conflicts(value)
-        except ValueError as file_error:
-            # Check if user wants to fail on errors (default behavior)
-            fail_on_error = value.get("fail_on_error", True)
-            if fail_on_error:
-                # Re-raise the error to prevent execution
-                raise file_error
-            else:
-                # Convert to warning and continue
-                warnings.warn(f"File conflict warning: {str(file_error)}")
-
     except (ValueError, TypeError) as e:
-        warnings.warn(f"Export parameter validation failed: {str(e)}")
+        logger.warning("Export parameter validation failed: %s", str(e))
         return False
+
+    # File conflict checking - handled separately so errors propagate properly
+    # This check must raise errors that stop execution when files would be overwritten
+    try:
+        _check_file_conflicts(value)
+    except ValueError as file_error:
+        # Check if user wants to fail on errors (default behavior)
+        fail_on_error = value.get("fail_on_error", True)
+        if fail_on_error:
+            # Raise the error to prevent execution - don't catch this!
+            raise ValueError(
+                f"Export blocked: {str(file_error)}\n\n"
+                f"To proceed, either:\n"
+                f"  - Delete or rename the existing file(s)\n"
+                f"  - Use a different filename in your export configuration\n"
+                f"  - Set fail_on_error=False to allow overwriting (with warnings)"
+            ) from file_error
+        else:
+            # Convert to warning and continue
+            logger.warning(
+                "File conflict warning (overwriting allowed): %s", str(file_error)
+            )
 
     return True
 
@@ -128,7 +142,7 @@ def _validate_filename_param(params: Dict[str, Any]) -> None:
 
     # Warn about potential path separators
     if "/" in filename or "\\" in filename:
-        warnings.warn(
+        logger.warning(
             "filename appears to contain path separators. "
             "Only the filename portion will be used for the output file."
         )
@@ -292,9 +306,11 @@ def _validate_filename_template_param(params: Dict[str, Any]) -> None:
     invalid_placeholders = [p for p in all_placeholders if p not in valid_placeholders]
 
     if invalid_placeholders:
-        warnings.warn(
-            f"filename_template contains unrecognized placeholders: {invalid_placeholders}. "
-            f"Valid placeholders are: {valid_placeholders}"
+        logger.warning(
+            "filename_template contains unrecognized placeholders: %s. "
+            "Valid placeholders are: %s",
+            invalid_placeholders,
+            valid_placeholders,
         )
 
 
@@ -385,9 +401,10 @@ def _check_file_conflicts(params: Dict[str, Any]) -> None:
             )
         else:
             # For other methods, provide detailed warnings
-            warnings.warn(
-                f"Output file(s) already exist and will be overwritten: {file_list}. "
-                f"Consider using export_method='skip_existing' to avoid overwriting."
+            logger.warning(
+                "Output file(s) already exist and will be overwritten: %s. "
+                "Consider using export_method='skip_existing' to avoid overwriting.",
+                file_list,
             )
 
     # Additional check for similar files that might cause confusion
@@ -431,9 +448,10 @@ def _warn_about_similar_files(base_filename: str, target_extension: str) -> None
         if len(similar_files) > 5:
             file_list += f" (and {len(similar_files) - 5} more)"
 
-        warnings.warn(
-            f"Found existing files with similar names: {file_list}. "
-            f"Please verify you're using the correct filename to avoid confusion."
+        logger.warning(
+            "Found existing files with similar names: %s. "
+            "Please verify you're using the correct filename to avoid confusion.",
+            file_list,
         )
 
 
