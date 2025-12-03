@@ -93,3 +93,19 @@ class TestValidateExportParam:
         assert result is False
         assert "Export parameter validation failed" in caplog.text
 
+
+class TestValidateFilenameParam:
+    """Test class for _validate_filename_param function."""
+
+    def test_valid_filename(self):
+        """Test with valid filename."""
+        params = {"filename": "my_export_file"}
+        # Should not raise
+        _validate_filename_param(params)
+
+    def test_default_filename_when_missing(self):
+        """Test that default filename is used when not provided."""
+        params = {}
+        # Should not raise, uses default "dataexport"
+        _validate_filename_param(params)
+
