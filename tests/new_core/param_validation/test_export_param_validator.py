@@ -85,3 +85,11 @@ class TestValidateExportParam:
         result = validate_export_param(params)
         assert result is True
 
+    def test_validate_with_invalid_params_returns_false(self, caplog):
+        """Test validate_export_param with invalid parameters returns False."""
+        params = {"file_format": "invalid_format_xyz"}
+        with caplog.at_level(logging.WARNING):
+            result = validate_export_param(params)
+        assert result is False
+        assert "Export parameter validation failed" in caplog.text
+
