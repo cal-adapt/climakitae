@@ -154,6 +154,356 @@ def _package_file_path(rel_path: str) -> str:
     return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path))
 
 
+def _check_has_valid_data(test_data: xr.Dataset | xr.DataArray) -> bool:
+    """Check if test_data has any valid (non-null) values.
+
+    This helper handles both eager (numpy) and lazy (dask) arrays by explicitly
+    computing only the validity check, not the entire dataset.
+
+    Parameters
+    ----------
+    test_data : xr.Dataset | xr.DataArray
+        Data to check for valid values. Should already be subset to a single
+        gridcell (no spatial dimensions).
+
+    Returns
+    -------
+    bool
+        True if any data variable contains valid (non-null) data, False otherwise.
+
+    """
+    if isinstance(test_data, xr.Dataset):
+        # For Dataset, check if any variable has valid data
+        for var in test_data.data_vars:
+            is_all_null = test_data[var].isnull().all()
+            # Handle dask arrays - compute only the boolean result
+            if hasattr(is_all_null.data, "compute"):
+                is_all_null = is_all_null.compute()
+            if not is_all_null:
+                return True
+        return False
+    else:
+        # For DataArray
+        is_all_null = test_data.isnull().all()
+        if hasattr(is_all_null.data, "compute"):
+            is_all_null = is_all_null.compute()
+        return not is_all_null
+
+
+def _get_coord_value(coord: xr.DataArray) -> float:
+    """Extract a scalar coordinate value, handling both eager and lazy arrays.
+
+    Parameters
+    ----------
+    coord : xr.DataArray
+        Coordinate array (should be scalar or 0-d).
+
+    Returns
+    -------
+    float
+        The scalar coordinate value.
+
+    """
+    # If it's a dask array, compute it first
+    if hasattr(coord.data, "compute"):
+        coord = coord.compute()
+    # Now get the scalar value
+    if hasattr(coord, "item"):
+        return coord.item()
+    return float(coord.values)
+
+
+def _get_spatial_dims(data: xr.Dataset | xr.DataArray) -> tuple[str, str]:
+    """Identify the spatial dimension names in the data.
+
+    Parameters
+    ----------
+    data : xr.Dataset | xr.DataArray
+        Gridded data with spatial dimensions.
+
+    Returns
+    -------
+    tuple[str, str]
+        Tuple of (lat_dim, lon_dim) where lat_dim is 'y' or 'lat' (north-south)
+        and lon_dim is 'x' or 'lon' (east-west).
+
+    """
+    lat_dim = [d for d in data.dims if d in ["y", "lat"]][0]
+    lon_dim = [d for d in data.dims if d in ["x", "lon"]][0]
+    return lat_dim, lon_dim
+
+
+def _transform_coords_to_data_crs(
+    data: xr.Dataset | xr.DataArray,
+    lat: float,
+    lon: float,
+    lat_dim: str,
+    lon_dim: str,
+) -> tuple[float, float]:
+    """Transform lat/lon coordinates to the data's coordinate reference system.
+
+    If the input coordinates appear to already be in the data's CRS (detected by
+    magnitude - projection coordinates in meters are much larger than lat/lon),
+    they are returned as-is.
+
+    Parameters
+    ----------
+    data : xr.Dataset | xr.DataArray
+        Gridded data with CRS information (via rioxarray).
+    lat : float
+        Latitude coordinate (or y coordinate if already in projection CRS).
+    lon : float
+        Longitude coordinate (or x coordinate if already in projection CRS).
+    lat_dim : str
+        Name of the latitude/y spatial dimension ('y' or 'lat').
+    lon_dim : str
+        Name of the longitude/x spatial dimension ('x' or 'lon').
+
+    Returns
+    -------
+    tuple[float, float]
+        Coordinates in the data's CRS as (lat_coord, lon_coord).
+
+    """
+    # Detect if user passed lat/lon or x/y projection coordinates
+    # Lat/lon values are always <= 360, projection coords (meters) are much larger
+    user_passed_latlon = abs(lat) <= 360 and abs(lon) <= 360
+
+    if lat_dim == "y" and lon_dim == "x" and user_passed_latlon:
+        # Transform lat/lon to projection coordinates (x, y)
+        transformer = pyproj.Transformer.from_crs(
+            crs_from="epsg:4326",
+            crs_to=data.rio.crs,
+            always_xy=True,
+        )
+        # transform returns (x, y) with always_xy=True
+        # We return (y, x) to match (lat_coord, lon_coord) order
+        x, y = transformer.transform(lon, lat)
+        return y, x
+    return lat, lon
+
+
+def _reduce_to_single_point(
+    gridcell: xr.Dataset | xr.DataArray,
+    dim1_name: str,
+    dim2_name: str,
+) -> xr.Dataset | xr.DataArray:
+    """Reduce a gridcell to a single point by selecting first index of non-spatial dims.
+
+    This is used for validity checking - we only need to test one time slice
+    to know if the gridcell has valid data.
+
+    Parameters
+    ----------
+    gridcell : xr.Dataset | xr.DataArray
+        Data at a single gridcell (spatial dims already removed via isel).
+    dim1_name : str
+        Name of the first spatial dimension.
+    dim2_name : str
+        Name of the second spatial dimension.
+
+    Returns
+    -------
+    xr.Dataset | xr.DataArray
+        Data reduced to a single point for validity testing.
+
+    """
+    test_data = gridcell
+    for dim in gridcell.dims:
+        if dim not in [dim1_name, dim2_name]:
+            test_data = test_data.isel({dim: 0})
+    return test_data
+
+
+def _print_closest_coords(
+    closest_gridcell: xr.Dataset | xr.DataArray,
+    input_lat: float,
+    input_lon: float,
+    lat_dim: str,
+    lon_dim: str,
+    is_averaged: bool = False,
+    coord_values: tuple[float, float] | None = None,
+) -> None:
+    """Print the closest gridcell coordinates in the appropriate coordinate system.
+
+    Parameters
+    ----------
+    closest_gridcell : xr.Dataset | xr.DataArray
+        The closest gridcell data.
+    input_lat : float
+        The user's input latitude (or y coordinate).
+    input_lon : float
+        The user's input longitude (or x coordinate).
+    lat_dim : str
+        Name of the latitude/y spatial dimension.
+    lon_dim : str
+        Name of the longitude/x spatial dimension.
+    is_averaged : bool, optional
+        Whether the result was averaged over nearby valid gridcells.
+        Default is False.
+    coord_values : tuple[float, float] | None, optional
+        Pre-computed coordinate values (lat_val, lon_val) for averaged case.
+        If None, coordinates are extracted from closest_gridcell.
+
+    """
+    suffix = " (averaged over nearby valid gridcells)" if is_averaged else ""
+    # Detect if user passed lat/lon or x/y projection coordinates
+    # Lat/lon values are always <= 360, projection coords (meters) are much larger
+    user_passed_latlon = abs(input_lat) <= 360 and abs(input_lon) <= 360
+
+    if user_passed_latlon:
+        # Report in lat/lon regardless of internal data structure
+        if lat_dim == "y" and lon_dim == "x" and "lat" in closest_gridcell.coords:
+            # For projected data with lat/lon auxiliary coords, use those
+            print_lat = _get_coord_value(closest_gridcell["lat"])
+            print_lon = _get_coord_value(closest_gridcell["lon"])
+        elif coord_values is not None:
+            # Use pre-computed values for averaged case
+            print_lat = (
+                coord_values[0]
+                if np.isscalar(coord_values[0])
+                else float(coord_values[0])
+            )
+            print_lon = (
+                coord_values[1]
+                if np.isscalar(coord_values[1])
+                else float(coord_values[1])
+            )
+        else:
+            print_lat = _get_coord_value(closest_gridcell[lat_dim])
+            print_lon = _get_coord_value(closest_gridcell[lon_dim])
+
+        if is_averaged:
+            print(
+                f"Closest gridcell to lat: {input_lat}, lon: {input_lon} "
+                f"is at lat: {print_lat:.4g}, lon: {print_lon:.4g}{suffix}"
+            )
+        else:
+            print(
+                f"Closest gridcell to lat: {input_lat}, lon: {input_lon} "
+                f"is at lat: {print_lat}, lon: {print_lon}"
+            )
+    else:
+        # User passed projection coordinates (y, x), report in y/x
+        if coord_values is not None:
+            print_y = (
+                coord_values[0]
+                if np.isscalar(coord_values[0])
+                else float(coord_values[0])
+            )
+            print_x = (
+                coord_values[1]
+                if np.isscalar(coord_values[1])
+                else float(coord_values[1])
+            )
+        else:
+            print_y = _get_coord_value(closest_gridcell[lat_dim])
+            print_x = _get_coord_value(closest_gridcell[lon_dim])
+
+        if is_averaged:
+            print(
+                f"Closest gridcell to y: {input_lat}, x: {input_lon} "
+                f"is at y: {print_y:.4g}, x: {print_x:.4g}{suffix}"
+            )
+        else:
+            print(
+                f"Closest gridcell to y: {input_lat}, x: {input_lon} "
+                f"is at y: {print_y}, x: {print_x}"
+            )
+
+
+def _search_nearby_valid_gridcells(
+    data: xr.Dataset | xr.DataArray,
+    center_idx1: int,
+    center_idx2: int,
+    dim1_name: str,
+    dim2_name: str,
+    window_size: int = 1,
+) -> list:
+    """Search a window around the center index for valid gridcells.
+
+    Parameters
+    ----------
+    data : xr.Dataset | xr.DataArray
+        The full gridded dataset.
+    center_idx1 : int
+        Index of center gridcell along dim1.
+    center_idx2 : int
+        Index of center gridcell along dim2.
+    dim1_name : str
+        Name of the first spatial dimension.
+    dim2_name : str
+        Name of the second spatial dimension.
+    window_size : int, optional
+        Half-width of the search window (1 = 3x3 window). Default is 1.
+
+    Returns
+    -------
+    list
+        List of valid gridcells (xr.Dataset or xr.DataArray) found in the window.
+
+    """
+    valid_data = []
+    dim1_size = data.sizes[dim1_name]
+    dim2_size = data.sizes[dim2_name]
+
+    for i in range(-window_size, window_size + 1):
+        for j in range(-window_size, window_size + 1):
+            new_idx1 = center_idx1 + i
+            new_idx2 = center_idx2 + j
+
+            # Skip if indices are out of bounds
+            if not (0 <= new_idx1 < dim1_size and 0 <= new_idx2 < dim2_size):
+                continue
+
+            gridcell = data.isel({dim1_name: new_idx1, dim2_name: new_idx2})
+            test_data = _reduce_to_single_point(gridcell, dim1_name, dim2_name)
+
+            if _check_has_valid_data(test_data):
+                valid_data.append(gridcell)
+
+    return valid_data
+
+
+def _average_gridcells_preserve_coords(
+    valid_data: list,
+    dim1_name: str,
+    dim2_name: str,
+) -> tuple[xr.Dataset | xr.DataArray, tuple[float, float]]:
+    """Average multiple gridcells while preserving spatial coordinates.
+
+    Parameters
+    ----------
+    valid_data : list
+        List of valid gridcells to average.
+    dim1_name : str
+        Name of the first spatial dimension.
+    dim2_name : str
+        Name of the second spatial dimension.
+
+    Returns
+    -------
+    tuple
+        (averaged_gridcell, (coord1_val, coord2_val)) - the averaged data
+        with spatial coordinates restored, and the coordinate values used.
+
+    """
+    # Store spatial coordinates before averaging (they will be lost during mean)
+    # Use the first valid gridcell's coordinates as the representative location
+    coord1 = valid_data[0].coords[dim1_name]
+    coord2 = valid_data[0].coords[dim2_name]
+    coord1_val = _get_coord_value(coord1) if len(coord1.shape) == 0 else coord1.values
+    coord2_val = _get_coord_value(coord2) if len(coord2.shape) == 0 else coord2.values
+
+    # Average the valid gridcells (this removes spatial coords)
+    averaged = xr.concat(valid_data, dim="valid_points").mean(dim="valid_points")
+
+    # Add back the spatial coordinates as scalars
+    averaged = averaged.assign_coords({dim1_name: coord1_val, dim2_name: coord2_val})
+
+    return averaged, (coord1_val, coord2_val)
+
+
 def get_closest_gridcell(
     data: xr.Dataset | xr.DataArray, lat: float, lon: float, print_coords: bool = True
 ) -> xr.Dataset | xr.DataArray | None:
@@ -165,7 +515,7 @@ def get_closest_gridcell(
     Parameters
     ----------
     data : xr.DataArray | xr.Dataset
-        Gridded data
+        Gridded data (can be backed by numpy or dask arrays)
     lat : float
         Latitude or y value of coordinate pair
     lon : float
@@ -177,181 +527,57 @@ def get_closest_gridcell(
     Returns
     -------
     xr.Dataset | xr.DataArray | None
-        Grid cell closest to input lat,lon coordinate pair, returns same type as input
+        Grid cell closest to input lat,lon coordinate pair, returns same type as input.
+        The result preserves lazy evaluation if the input was lazy.
 
     See also
     --------
     xr.DataArray.isel
 
     """
-    dim1_name = [x for x in data.dims if x in ["x", "lat"]][0]
-    dim2_name = [x for x in data.dims if x in ["y", "lon"]][0]
+    # Identify spatial dimensions and transform coordinates
+    # lat_dim is y-axis (north-south), lon_dim is x-axis (east-west)
+    lat_dim, lon_dim = _get_spatial_dims(data)
+    lat_coord, lon_coord = _transform_coords_to_data_crs(
+        data, lat, lon, lat_dim, lon_dim
+    )
 
-    if dim1_name == "x" and dim2_name == "y":
-        # Make Transformer object
-        lat_lon_to_model_projection = pyproj.Transformer.from_crs(
-            crs_from="epsg:4326",  # Lat/lon
-            crs_to=data.rio.crs,  # Model projection
-            always_xy=True,
-        )
+    # Find nearest indices
+    lat_idx = data[lat_dim].to_index().get_indexer([lat_coord], method="nearest")[0]
+    lon_idx = data[lon_dim].to_index().get_indexer([lon_coord], method="nearest")[0]
 
-        # Convert coordinates to x,y
-        # transform returns (x, y) with always_xy=True
-        coords1, coords2 = lat_lon_to_model_projection.transform(lon, lat)
-    else:
-        coords1 = lat
-        coords2 = lon
-
-    dim1_idx = data[dim1_name].to_index().get_indexer([coords1], method="nearest")[0]
-    dim2_idx = data[dim2_name].to_index().get_indexer([coords2], method="nearest")[0]
-
-    if dim1_idx == -1 or dim2_idx == -1:
+    if lat_idx == -1 or lon_idx == -1:
         print("Input coordinate is OUTSIDE of data extent. Returning None.")
         return None
 
-    # check for valid data at closest gridcell
-    # isel out all non spatial dimensions
-    test_data = data.isel({dim1_name: dim1_idx, dim2_name: dim2_idx})
-    for dim in data.dims:
-        if dim not in [dim1_name, dim2_name]:
-            test_data = test_data.isel({dim: 0})
+    # Check for valid data at closest gridcell
+    gridcell = data.isel({lat_dim: lat_idx, lon_dim: lon_idx})
+    test_data = _reduce_to_single_point(gridcell, lat_dim, lon_dim)
 
-    # Check if data is valid (not all null)
-    # For Dataset, check if any data variable has valid data
-    # For DataArray, check if the data itself is valid
-    if isinstance(test_data, xr.Dataset):
-        has_valid_data = any(
-            not test_data[var].isnull().all() for var in test_data.data_vars
-        )
-    else:
-        has_valid_data = not test_data.isnull().all()
-
-    if has_valid_data:
-        closest_gridcell = data.isel({dim1_name: dim1_idx, dim2_name: dim2_idx})
-
+    if _check_has_valid_data(test_data):
         if print_coords:
-            # Detect if user passed lat/lon or x/y projection coordinates
-            # Lat/lon values are always <= 360, projection coords (meters) are much larger
-            user_passed_latlon = abs(lat) <= 360 and abs(lon) <= 360
+            _print_closest_coords(gridcell, lat, lon, lat_dim, lon_dim)
+        return gridcell
 
-            if user_passed_latlon:
-                # Report in lat/lon regardless of internal data structure
-                if dim1_name == "x" and dim2_name == "y":
-                    # For projected data, get lat/lon from coordinates
-                    print_lat = closest_gridcell["lat"].item()
-                    print_lon = closest_gridcell["lon"].item()
-                else:
-                    print_lat = closest_gridcell[dim1_name].item()
-                    print_lon = closest_gridcell[dim2_name].item()
-                print(
-                    f"Closest gridcell to lat: {lat}, lon: {lon} is at lat: {print_lat}, lon: {print_lon}"
-                )
-            else:
-                # User passed projection coordinates, report in x/y
-                print_x = closest_gridcell[dim1_name].item()
-                print_y = closest_gridcell[dim2_name].item()
-                print(
-                    f"Closest gridcell to x: {lat}, y: {lon} is at x: {print_x}, y: {print_y}"
-                )
-
-        return closest_gridcell
-
-    # if data at closest gridcell is all Nan
-    # search in 3x3 window around closest gridcell
-    # return average of all valid gridcells in that window
-    valid_data = []
-    dim1_size = data.sizes[dim1_name]
-    dim2_size = data.sizes[dim2_name]
-
-    for i in range(-1, 2):
-        for j in range(-1, 2):
-            new_dim1_idx = dim1_idx + i
-            new_dim2_idx = dim2_idx + j
-
-            # Skip if indices are out of bounds
-            if (
-                new_dim1_idx < 0
-                or new_dim1_idx >= dim1_size
-                or new_dim2_idx < 0
-                or new_dim2_idx >= dim2_size
-            ):
-                continue
-
-            # Get the gridcell at this location
-            gridcell = data.isel({dim1_name: new_dim1_idx, dim2_name: new_dim2_idx})
-
-            # Check if this gridcell has valid data by testing with non-spatial dims reduced
-            test_data = gridcell.copy()
-            for dim in data.dims:
-                if dim not in [dim1_name, dim2_name]:
-                    test_data = test_data.isel({dim: 0})
-
-            # Check if this gridcell has valid data
-            if isinstance(test_data, xr.Dataset):
-                has_valid = any(
-                    not test_data[var].isnull().all() for var in test_data.data_vars
-                )
-            else:
-                has_valid = not test_data.isnull().all()
-
-            # Append the full gridcell (with all dimensions) if valid
-            if has_valid:
-                valid_data.append(gridcell)
+    # If closest gridcell is all NaN, search in 3x3 window and average valid cells
+    valid_data = _search_nearby_valid_gridcells(
+        data, lat_idx, lon_idx, lat_dim, lon_dim
+    )
 
     if len(valid_data) > 0:
-        # Store the spatial coordinates before averaging (they will be lost during mean)
-        # Use the original closest gridcell coordinates as the representative location
-        coord1_val = (
-            valid_data[0].coords[dim1_name].values.item()
-            if len(valid_data[0].coords[dim1_name].shape) == 0
-            else valid_data[0].coords[dim1_name].values
+        closest_gridcell, coord_values = _average_gridcells_preserve_coords(
+            valid_data, lat_dim, lon_dim
         )
-        coord2_val = (
-            valid_data[0].coords[dim2_name].values.item()
-            if len(valid_data[0].coords[dim2_name].shape) == 0
-            else valid_data[0].coords[dim2_name].values
-        )
-
-        # Average the valid gridcells (this removes spatial coords)
-        closest_gridcell = xr.concat(valid_data, dim="valid_points").mean(
-            dim="valid_points"
-        )
-
-        # Add back the spatial coordinates as scalars
-        closest_gridcell = closest_gridcell.assign_coords(
-            {dim1_name: coord1_val, dim2_name: coord2_val}
-        )
-
         if print_coords:
-            # Detect if user passed lat/lon or x/y projection coordinates
-            user_passed_latlon = abs(lat) <= 360 and abs(lon) <= 360
-
-            if user_passed_latlon:
-                # Report in lat/lon regardless of internal data structure
-                if dim1_name == "x" and dim2_name == "y":
-                    # For projected data, get lat/lon from coordinates
-                    print_lat = (
-                        closest_gridcell["lat"].item()
-                        if hasattr(closest_gridcell["lat"], "item")
-                        else closest_gridcell["lat"].values
-                    )
-                    print_lon = (
-                        closest_gridcell["lon"].item()
-                        if hasattr(closest_gridcell["lon"], "item")
-                        else closest_gridcell["lon"].values
-                    )
-                else:
-                    print_lat = coord1_val
-                    print_lon = coord2_val
-                print(
-                    f"Closest gridcell to lat: {lat}, lon: {lon} is at lat: {print_lat:.4g}, lon: {print_lon:.4g} (averaged over nearby valid gridcells)"
-                )
-            else:
-                # User passed projection coordinates, report in x/y
-                print(
-                    f"Closest gridcell to x: {lat}, y: {lon} is at x: {coord1_val:.4g}, y: {coord2_val:.4g} (averaged over nearby valid gridcells)"
-                )
-
+            _print_closest_coords(
+                closest_gridcell,
+                lat,
+                lon,
+                lat_dim,
+                lon_dim,
+                is_averaged=True,
+                coord_values=coord_values,
+            )
         return closest_gridcell
 
     return None
@@ -361,10 +587,11 @@ def get_closest_gridcells(
     data: xr.Dataset | xr.DataArray,
     lats: Iterable[float] | float,
     lons: Iterable[float] | float,
+    print_coords: bool = True,
 ) -> xr.Dataset | xr.DataArray | None:
     """Find the nearest grid cell(s) for given latitude and longitude coordinates.
 
-    This function calls `get_closest_gridcell` for each lat/lon pair and concatenates
+    This function calls get_closest_gridcell for each lat/lon pair and concatenates
     the results along a 'points' dimension.
 
     Parameters
@@ -379,7 +606,7 @@ def get_closest_gridcells(
     Returns
     -------
     xr.Dataset | xr.DataArray | None
-        Nearest grid cell(s) or `None` if no valid match is found.
+        Nearest grid cell(s) or None if no valid match is found.
         If multiple coordinates are provided, results are concatenated along 'points' dimension.
 
     See Also
@@ -402,7 +629,7 @@ def get_closest_gridcells(
     # Get closest gridcell for each lat/lon pair
     gridcells = []
     for lat, lon in zip(lats, lons):
-        gridcell = get_closest_gridcell(data, lat, lon, print_coords=False)
+        gridcell = get_closest_gridcell(data, lat, lon, print_coords=print_coords)
         if gridcell is not None:
             gridcells.append(gridcell)
 
@@ -922,7 +1149,7 @@ def convert_to_local_time(
                 data_type = data[variable].attrs["data_type"]
             except KeyError:
                 print(
-                    f"Could not find attribute 'data_type' attribute set in {variable} attributes. Please set `data_type` attribute."
+                    f"Could not find attribute 'data_type' attribute set in {variable} attributes. Please set data_type attribute."
                 )
                 return data
 
@@ -1004,15 +1231,15 @@ def convert_to_local_time(
 
 
 def add_dummy_time_to_wl(wl_da: xr.DataArray, freq_name="daily") -> xr.DataArray:
-    """Replace the `[hours/days/months]_from_center` or `time_delta` dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a `time` dimension.
+    """Replace the [hours/days/months]_from_center or time_delta dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a time dimension.
 
     Parameters
     ----------
     wl_da : xr.DataArray
         The input Warming Levels DataArray. It is expected to have a time-based dimension which typically includes "from_center"
-        in its name or `time_delta` indicating the time dimension in relation to the year that the given warming level is reached per simulation.
+        in its name or time_delta indicating the time dimension in relation to the year that the given warming level is reached per simulation.
     freq_name : str, optional
-        The frequency name to use when `time_delta` is the time dimension. Options are "hourly", "daily", or "monthly". Default is "daily".
+        The frequency name to use when time_delta is the time dimension. Options are "hourly", "daily", or "monthly". Default is "daily".
 
     Returns
     -------
@@ -1079,8 +1306,8 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray, freq_name="daily") -> xr.DataArray
     extra_periods = total_leap_days * 24 if freq == "h" else total_leap_days
 
     # Edge cases:
-    # if total time passed in is less than 60 days (when Feb 29th is), then don't add `extra_periods`
-    # if we're looking at monthly data, then don't add `extra_periods`
+    # if total time passed in is less than 60 days (when Feb 29th is), then don't add extra_periods
+    # if we're looking at monthly data, then don't add extra_periods
     if (
         (freq == "h" and len_time < 24 * 60)
         or (freq == "D" and len_time < 60)
@@ -1096,7 +1323,7 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray, freq_name="daily") -> xr.DataArray
     # Filter out leap days (Feb 29)
     timestamps = timestamps[~((timestamps.month == 2) & (timestamps.day == 29))]
 
-    # Replacing WL timestamps with dummy timestamps so that calculations from tools like `thresholds_tools`
+    # Replacing WL timestamps with dummy timestamps so that calculations from tools like thresholds_tools
     # can be computed on a DataArray with a time dimension
     wl_da = wl_da.assign_coords({wl_time_dim: timestamps}).rename({wl_time_dim: "time"})
     return wl_da
@@ -1331,7 +1558,7 @@ def clip_to_shapefile(
     """Use a shapefile to select an area subset of AE data.
 
     By default, this function will clip the data to the area covered by all features in
-    the shapefile. To clip to specific features, use the `feature` keyword.
+    the shapefile. To clip to specific features, use the feature keyword.
 
     Parameters
     ----------
