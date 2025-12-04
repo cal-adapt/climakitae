@@ -32,117 +32,182 @@ logger = logging.getLogger(__name__)
 @register_processor("export", priority=9999)
 class Export(DataProcessor):
     """
-    Export data to various file formats.
+    Export climate data to various file formats.
 
-    This processor exports xarray datasets and data arrays to NetCDF, Zarr, or CSV formats.
-    It supports both local file export and AWS S3 export for Zarr files.
+    This processor exports xarray Datasets and DataArrays to NetCDF, Zarr, or CSV formats.
+    It supports both local filesystem export and AWS S3 export (Zarr only).
+
+    The processor handles two distinct data structures:
+
+    1. Gridded datasets: A single xr.Dataset/xr.DataArray with `lat` and `lon`
+       as coordinate dimensions containing multiple values (e.g., shape
+       ``(time, lat, lon)``). Options like ``separated`` and ``location_based_naming``
+       are silently ignored since they don't apply to gridded data.
+
+    2. Point-based data collections: A **list** of xr.Dataset/xr.DataArray objects,
+       where each item represents a single spatial point (scalar `lat`/`lon`
+       coordinates with size 1). This is the output format from ``cava_data``
+       when ``separate_files=True``. For collections:
+
+       - ``separated=True``: Each point is exported to its own file
+       - ``separated=True`` + ``location_based_naming=True``: Filenames include lat/lon
+         coordinates (e.g., ``myfile_34-0N_118-0W.nc``)
+       - ``separated=True`` + ``location_based_naming=False``: Filenames include index
+         numbers (e.g., ``myfile_0.nc``, ``myfile_1.nc``)
+       - ``separated=False``: Each item exported normally (unique filename if conflicts)
+
+    Note: When ``cava_data`` uses ``separate_files=False`` or ``batch_mode=True``,
+    it concatenates points into a single dataset along a ``simulation`` dimension.
+    In this case, the data is treated as a single dataset (like case 1 above).
 
     Parameters
-    ----------        value : dict[str, Any]
-            Configuration dictionary with the following supported keys:
+    ----------
+    value : dict[str, Any]
+        Configuration dictionary with the following supported keys:
 
-        - filename (str, optional): Output filename without extension. Default: "dataexport"
-        - file_format (str, optional): File format to export to. Supported values:
-          "NetCDF", "Zarr", "CSV". Default: "NetCDF"
-        - mode (str, optional): Save location for Zarr files. Supported values:
-          "local" (save to local filesystem), "s3" (save to AWS S3). Default: "local"
-        - separated (bool, optional): Whether to create separate files when exporting
-          multiple datasets. If True, each dataset will use its name as part of the filename.
-          Default: False
-        - export_method (str, optional): What type of data to export. Supported values:
-          "data" (export all data), "raw" (export raw data only), "calculate" (export calculated data only),
-          "both" (export both raw and calculated data), "skip_existing" (skip if file exists), "None" (no export).
-          Default: "data"
-        - raw_filename (str, optional): Filename for raw data when using "raw" or "both" export methods.
-          If not provided, defaults to "{filename}_raw". Default: None
-        - calc_filename (str, optional): Filename for calculated data when using "calculate" or "both" export methods.
-          If not provided, defaults to "{filename}_calc". Default: None
-        - location_based_naming (bool, optional): Whether to include lat/lon coordinates
-          in filenames for spatial data. Default: False
-        - filename_template (str, optional): Template for generating filenames. Can include
-          placeholders like {filename}, {lat}, {lon}, {name}. Default: None
-        - fail_on_error (bool, optional): Whether to raise exceptions on export errors.
-          If False, errors are logged but execution continues. Default: True
+        filename (str, optional): Base output filename without extension.
+            Default: "dataexport"
+        file_format (str, optional): Output file format. Supported values:
+            "NetCDF", "Zarr", "CSV". Case-insensitive. Default: "NetCDF"
+        mode (str, optional): Storage location for Zarr files.
+            "local" saves to local filesystem, "s3" saves to AWS S3.
+            Default: "local"
+        separated (bool, optional): When exporting a collection of point datasets,
+            whether to create separate files for each point. If True, each dataset
+            gets its own file with either lat/lon or index suffix. If False, all
+            items are exported with the base filename (unique suffixes added if needed).
+            Ignored for single gridded datasets. Default: False
+        location_based_naming (bool, optional): When separated=True and
+            exporting point-based data, include lat/lon coordinates in filenames
+            (e.g., filename_34-0N_118-0W.nc). If False, uses index numbers
+            instead (e.g., filename_0.nc). Silently ignored for gridded datasets.
+            Default: False
+        export_method (str, optional): Controls what data to export. Options:
+            "data": Export all provided data (default)
+            "raw": Export only raw/unprocessed data
+            "calculate": Export only calculated/processed data
+            "both": Export both raw and calculated data to separate files
+            "skip_existing": Skip export if file already exists
+            "none": Skip export entirely
+            Default: "data"
+        raw_filename (str, optional): Custom filename for raw data when using
+            export_method="raw" or "both". If not provided, uses
+            "{filename}_raw". Default: None
+        calc_filename (str, optional): Custom filename for calculated data when
+            using export_method="calculate" or "both". If not provided, uses
+            "{filename}_calc".
+            Default: None
+        filename_template (str, optional): Custom template for generating filenames.
+            Supports placeholders: {filename}, {lat}, {lon}, {name}.
+            Lat/lon placeholders only populated for single-point data.
+            Example: "{name}_data_{lat}N_{lon}W".
+            Default: None
+        fail_on_error (bool, optional): If True, raise exceptions on export
+            errors. If False, log warnings and continue.
+            Default: True
 
     Examples
     --------
-    Export to NetCDF (default):
-    >>> export_proc = Export({"filename": "my_data"})
+    Basic export to NetCDF:
+
+    >>> export_proc = Export({"filename": "climate_output"})
+
+    Export gridded data (separated/location_based_naming ignored):
+
+    >>> # These options are silently ignored for gridded data
+    >>> export_proc = Export({
+    ...     "filename": "gridded_data",
+    ...     "separated": True,  # ignored
+    ...     "location_based_naming": True,  # ignored
+    ... })
+
+    Export point collection with lat/lon in filenames:
+
+    >>> # For a list of single-point datasets (e.g., from cava_data)
+    >>> export_proc = Export({
+    ...     "filename": "station_data",
+    ...     "separated": True,
+    ...     "location_based_naming": True,
+    ... })
+    >>> # Results in: station_data_34-0N_118-0W.nc, station_data_35-5N_119-5W.nc, ...
+
+    Export point collection with index-based filenames:
+
+    >>> export_proc = Export({
+    ...     "filename": "station_data",
+    ...     "separated": True,
+    ...     "location_based_naming": False,
+    ... })
+    >>> # Results in: station_data_0.nc, station_data_1.nc, ...
 
     Export to Zarr on S3:
+
     >>> export_proc = Export({
     ...     "filename": "climate_data",
     ...     "file_format": "Zarr",
-    ...     "mode": "s3"
+    ...     "mode": "s3",
     ... })
 
-    Export to CSV with location-based naming:
-    >>> export_proc = Export({
-    ...     "filename": "temperature",
-    ...     "file_format": "CSV",
-    ...     "separated": True,
-    ...     "location_based_naming": True
-    ... })
+    Export raw and calculated data separately (e.g., for CAVA workflow):
 
-    Export with custom filename template:
     >>> export_proc = Export({
-    ...     "filename_template": "{name}_data_{lat}N_{lon}W",
-    ...     "file_format": "NetCDF"
-    ... })
-
-    Export with data type separation:
-    >>> export_proc = Export({
-    ...     "filename": "climate_data",
+    ...     "filename": "cava_output",
     ...     "export_method": "both",
-    ...     "raw_filename": "raw_climate_data",
-    ...     "calc_filename": "processed_climate_data"
+    ...     "raw_filename": "raw_observations",
+    ...     "calc_filename": "processed_metrics",
     ... })
 
-    Export only calculated data:
-    >>> export_proc = Export({
-    ...     "filename": "temperature",
-    ...     "export_method": "calculate"
-    ... })
+    Custom filename template:
 
-    Export only raw data:
     >>> export_proc = Export({
-    ...     "filename": "temperature",
-    ...     "export_method": "raw"
+    ...     "filename_template": "{name}_analysis_{lat}N_{lon}W",
+    ...     "file_format": "NetCDF",
     ... })
 
     Notes
     -----
-    - S3 export is only available for Zarr format
-    - Large files may trigger warnings about disk space and file size
-    - The processor adds metadata to exported datasets including timestamps and package information
-    - When location_based_naming is True, coordinates are formatted as {lat}N_{lon}W
-    - Custom filename templates support placeholders: {filename}, {lat}, {lon}, {name}
-    - export_method="skip_existing" allows graceful handling of existing files
-    - For "raw", "calculate", and "both" export methods, the processor looks for context indicators
-      to distinguish data types. Raw data is exported with "_raw" suffix, calculated with "_calc" suffix
-    - When using "both", two separate files are created for raw and calculated data
+    - S3 export requires file_format="Zarr"; other formats only support local export
+    - File extensions are automatically added based on format: .nc (NetCDF),
+      .zarr (Zarr), .csv.gz (CSV, gzip compressed)
+    - Duplicate filenames: If a file already exists, a unique suffix _1, _2,
+      etc. is appended (unless export_method="skip_existing")
+    - Lat/lon format in filenames uses dashes instead of dots to avoid extension
+      confusion: 34.5 becomes 34-5
+    - Gridded data: When exporting a single dataset with `lat`/`lon` dimensions
+      containing multiple values, the ``separated`` and ``location_based_naming``
+      options are silently ignored
+    - Point collections: When exporting a **list** of single-point datasets (e.g.,
+      from ``cava_data`` with ``separate_files=True``), use ``separated=True`` to
+      create individual files per location
+    - Concatenated points: When ``cava_data`` uses ``separate_files=False``, points
+      are concatenated along a ``simulation`` dimension into a single dataset;
+      this is treated as gridded data for export purposes
     """
 
     def __init__(self, value: Dict[str, Any]):
         """
-        Initialize the processor.
+        Initialize the Export processor.
 
         Parameters
         ----------
         value : dict[str, Any]
-            Configuration values for the export operation. Expected keys:
-            - filename (str, optional): Output filename without extension. Default: "dataexport"
-            - file_format (str, optional): File format ("NetCDF", "Zarr", "CSV"). Default: "NetCDF"
-            - mode (str, optional): Save location for Zarr files ("local", "s3"). Default: "local"
-            - separated (bool, optional): Whether to create separate files when exporting multiple datasets. Default: False
-            - export_method (str, optional): What type of data to export. Default: "data"
-            - raw_filename (str, optional): Filename for raw data exports. Default: None
-            - calc_filename (str, optional): Filename for calculated data exports. Default: None
+            Configuration dictionary. See class docstring for full parameter details.
+
+            Common keys:
+
+            - filename (str): Base output filename. Default: "dataexport"
+            - file_format (str): "NetCDF", "Zarr", or "CSV". Default: "NetCDF"
+            - mode (str): "local" or "s3" (Zarr only). Default: "local"
+            - separated (bool): Export collection items to separate files. Default: False
+            - location_based_naming (bool): Use lat/lon in filenames. Default: False
+            - export_method (str): "data", "raw", "calculate", "both",
+              "skip_existing", or "none". Default: "data"
 
         Raises
         ------
         ValueError
-            If invalid file_format or mode values are provided
+            If invalid parameter values are provided (e.g., unknown file_format,
+            S3 mode with non-Zarr format).
         """
         self.value = value
         self.name = "_export"
@@ -256,22 +321,43 @@ class Export(DataProcessor):
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
         """
-        Run the processor
+        Execute the export processor on the provided data.
+
+        This method is the main entry point for exporting climate data. It supports
+        multiple data structures and export modes, routing each case to the
+        appropriate internal handler.
 
         Parameters
         ----------
         result : xr.Dataset | xr.DataArray | Iterable[xr.Dataset | xr.DataArray]
-            The data to be exported.
+            The data to be exported. Can be:
+
+            - A single xr.Dataset or xr.DataArray (gridded data)
+            - A list or tuple of xr.Dataset/xr.DataArray (e.g., from cava_data)
+            - A dict with "raw_data" and/or "calc_data" keys
 
         context : dict
-            The context for the processor. This is not used in this
-            implementation but is included for consistency with the
-            DataProcessor interface.
+            The processing context. Used for determining data type when
+            export_method is "raw", "calculate", or "both".
 
         Returns
         -------
-        Union[xr.Dataset, xr.DataArray, Iterable[xr.Dataset | xr.DataArray]]
-            The data written to file.
+        xr.Dataset | xr.DataArray | Iterable[xr.Dataset | xr.DataArray]
+            The same data passed in (unchanged). This allows chaining processors.
+
+        Notes
+        -----
+        The export_method parameter controls what gets exported:
+
+        - "data" / "skip_existing": Standard export via `_export_data`
+        - "raw" / "calculate" / "both": Selective export based on
+          data type (uses `_handle_dict_result` or `_handle_selective_export`)
+        - "none": No export; prints a message and returns data unchanged
+
+        See Also
+        --------
+        _export_data : Main export dispatcher for standard export methods.
+        _handle_dict_result : Handles dict results (e.g., from cava_data).
         """
         # Skip export if method is "none"
         if self.export_method.lower() == "none":
@@ -291,26 +377,178 @@ class Export(DataProcessor):
                 self._handle_selective_export(result, context, export_method_lower)
         else:
             # Standard export for "data" and "skip_existing" methods
-            match result:
-                case xr.Dataset() | xr.DataArray():
-                    self.export_single(result)
-                case dict():
-                    for _, value in result.items():
-                        self.export_single(value)
-                case list() | tuple():
-                    for item in result:
-                        if isinstance(item, (xr.Dataset, xr.DataArray)):
-                            self.export_single(item)
-                        else:
-                            raise TypeError(
-                                f"Expected xr.Dataset or xr.DataArray, got {type(item)}"
-                            )
-                case _:
-                    raise TypeError(
-                        f"Expected xr.Dataset, xr.DataArray, dict, list, or tuple, got {type(result)}"
-                    )
+            self._export_data(result)
 
         return result
+
+    def _export_data(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+    ):
+        """
+        Route data to the appropriate export method based on its structure.
+
+        This is the main dispatcher that handles different data structures:
+
+        - xr.Dataset / xr.DataArray: Exported directly via `export_single`.
+          The `separated` and `location_based_naming` options are not applicable.
+        - list / tuple: Treated as a collection (e.g., from `cava_data`).
+          Routed to `_export_collection` which respects `separated` and
+          `location_based_naming` settings.
+        - dict: Each value is processed recursively. List/tuple values are
+          routed to `_export_collection`; others to `export_single`.
+
+        Parameters
+        ----------
+        result : xr.Dataset | xr.DataArray | Iterable[xr.Dataset | xr.DataArray]
+            The data to export.
+
+        Raises
+        ------
+        TypeError
+            If result is not a supported type (Dataset, DataArray, dict, list, tuple).
+
+        See Also
+        --------
+        export_single : Exports a single dataset/dataarray.
+        _export_collection : Handles collections with separated/location_based_naming.
+        """
+        match result:
+            case xr.Dataset() | xr.DataArray():
+                # Single dataset - export directly (separated/location_based_naming don't apply)
+                self.export_single(result)
+            case dict():
+                # Dict of datasets - export each value
+                for _, value in result.items():
+                    if isinstance(value, (list, tuple)):
+                        self._export_collection(value)
+                    else:
+                        self.export_single(value)
+            case list() | tuple():
+                # Collection of datasets - handle separated/location_based_naming
+                self._export_collection(result)
+            case _:
+                raise TypeError(
+                    f"Expected xr.Dataset, xr.DataArray, dict, list, or tuple, got {type(result)}"
+                )
+
+    def _export_collection(
+        self,
+        items: Iterable[Union[xr.Dataset, xr.DataArray]],
+    ):
+        """
+        Export a collection of datasets, respecting separated and location_based_naming.
+
+        This method handles the export of lists of datasets, such as those from
+        ``cava_data(..., separate_files=True)``, where each item is a single-point
+        dataset with scalar ``lat``/``lon`` coordinates. The behavior depends on
+        the ``separated`` configuration option:
+
+        - ``separated=True``: Each item is exported to its own file with a unique
+          suffix (either lat/lon coordinates or an index number).
+        - ``separated=False``: Each item is exported using the base filename. If
+          multiple items have the same base filename, later files will get
+          incrementing numeric suffixes (_1, _2, etc.) to avoid overwrites.
+
+        Parameters
+        ----------
+        items : Iterable[xr.Dataset | xr.DataArray]
+            Collection of datasets to export. Each item should be a single-point
+            dataset (scalar ``lat``/``lon``) for ``location_based_naming`` to work.
+
+        Raises
+        ------
+        TypeError
+            If any item in the collection is not an xr.Dataset or xr.DataArray.
+
+        See Also
+        --------
+        _export_single_from_collection : Handles individual item export with naming.
+        """
+        items_list = list(items)
+
+        if not items_list:
+            logger.warning("Empty collection provided for export, nothing to export.")
+            return
+
+        if self.separated:
+            # Export each item as a separate file
+            for idx, item in enumerate(items_list):
+                if not isinstance(item, (xr.Dataset, xr.DataArray)):
+                    raise TypeError(
+                        f"Expected xr.Dataset or xr.DataArray, got {type(item)}"
+                    )
+                self._export_single_from_collection(item, idx)
+        else:
+            # Export all items (each as its own file, but without index/location suffix)
+            for item in items_list:
+                if not isinstance(item, (xr.Dataset, xr.DataArray)):
+                    raise TypeError(
+                        f"Expected xr.Dataset or xr.DataArray, got {type(item)}"
+                    )
+                self.export_single(item)
+
+    def _export_single_from_collection(
+        self,
+        data: Union[xr.Dataset, xr.DataArray],
+        index: int,
+    ):
+        """
+        Export a single item from a collection with appropriate naming.
+
+        This method is called when `separated=True` for each item in a collection.
+        It modifies the filename based on the `location_based_naming` setting:
+
+        - location_based_naming=True: Appends _<lat>N_<lon>W to the filename
+          (e.g., output_37-7749N_122-4194W.nc).
+        - location_based_naming=False: Appends _<index> to the filename
+          (e.g., output_0.nc, output_1.nc).
+
+        Parameters
+        ----------
+        data : xr.Dataset | xr.DataArray
+            The data to export.
+        index : int
+            The index of this item in the collection (used when location_based_naming=False).
+
+        Notes
+        -----
+        Latitude and longitude values are rounded to 6 decimal places. Decimal points
+        are replaced with hyphens for filesystem compatibility (e.g., 37.7749 becomes
+        37-7749).
+
+        See Also
+        --------
+        _export_collection : The parent method that calls this for each item.
+        """
+        # Store original filename
+        original_filename = self.filename
+
+        try:
+            if self.location_based_naming and self._is_single_point_data(data):
+                # Use lat/lon in filename
+                lat_val, lon_val = self._extract_point_coordinates(data)
+                lat_str = str(round(lat_val, 6)).replace(".", "-")
+                lon_str = str(round(abs(lon_val), 6)).replace(".", "-")
+                self.filename = f"{original_filename}_{lat_str}N_{lon_str}W"
+            else:
+                # Use index in filename
+                self.filename = f"{original_filename}_{index}"
+
+            # Temporarily disable location_based_naming for export_single
+            # since we've already handled the naming here
+            original_location_naming = self.location_based_naming
+            self.location_based_naming = False
+
+            try:
+                self.export_single(data)
+            finally:
+                self.location_based_naming = original_location_naming
+
+        finally:
+            self.filename = original_filename
 
     def _handle_dict_result(self, result: dict, export_method: str):
         """
@@ -409,25 +647,8 @@ class Export(DataProcessor):
             self.filename = f"{original_filename}_{suffix}"
 
         try:
-            # Export the data using standard export logic
-            match data:
-                case xr.Dataset() | xr.DataArray():
-                    self.export_single(data)
-                case dict():
-                    for _, value in data.items():
-                        self.export_single(value)
-                case list() | tuple():
-                    for item in data:
-                        if isinstance(item, (xr.Dataset, xr.DataArray)):
-                            self.export_single(item)
-                        else:
-                            raise TypeError(
-                                f"Expected xr.Dataset or xr.DataArray, got {type(item)}"
-                            )
-                case _:
-                    raise TypeError(
-                        f"Expected xr.Dataset, xr.DataArray, dict, list, or tuple, got {type(data)}"
-                    )
+            # Export the data using the standard export logic
+            self._export_data(data)
         finally:
             # Restore original filename
             self.filename = original_filename
@@ -519,6 +740,92 @@ class Export(DataProcessor):
 
         return data
 
+    def _is_single_point_data(self, data: Union[xr.Dataset, xr.DataArray]) -> bool:
+        """
+        Check if the data represents a single spatial point.
+
+        Parameters
+        ----------
+        data : xr.Dataset | xr.DataArray
+            The data to check.
+
+        Returns
+        -------
+        bool
+            True if data has exactly one lat and one lon coordinate value.
+        """
+        if not (hasattr(data, "lat") and hasattr(data, "lon")):
+            return False
+
+        try:
+            lat_size = data.lat.size if hasattr(data.lat, "size") else len(data.lat)
+            lon_size = data.lon.size if hasattr(data.lon, "size") else len(data.lon)
+            return lat_size == 1 and lon_size == 1
+        except (AttributeError, TypeError):
+            return False
+
+    def _extract_point_coordinates(
+        self, data: Union[xr.Dataset, xr.DataArray]
+    ) -> tuple[float, float]:
+        """
+        Extract lat/lon coordinates from single-point data.
+
+        Parameters
+        ----------
+        data : xr.Dataset | xr.DataArray
+            The data to extract coordinates from. Must be single-point data.
+
+        Returns
+        -------
+        tuple[float, float]
+            A tuple of (lat, lon) values.
+
+        Raises
+        ------
+        ValueError
+            If the data is not single-point or coordinates cannot be extracted.
+        """
+        if not self._is_single_point_data(data):
+            lat_size = (
+                data.lat.size
+                if hasattr(data, "lat") and hasattr(data.lat, "size")
+                else "N/A"
+            )
+            lon_size = (
+                data.lon.size
+                if hasattr(data, "lon") and hasattr(data.lon, "size")
+                else "N/A"
+            )
+            raise ValueError(
+                f"Cannot use location_based_naming with gridded data. "
+                f"Your data has {lat_size} lat value(s) and {lon_size} lon value(s), "
+                f"but location_based_naming requires a single spatial point to include in the filename.\n\n"
+                f"Options:\n"
+                f"  1. Use the 'clip' processor with a single (lat, lon) tuple to extract one location\n"
+                f"  2. Set location_based_naming=False to export the full grid without coordinates in the filename"
+            )
+
+        try:
+            # Use .values to materialize dask arrays, then extract the scalar
+            lat_values = data.lat.values
+            lon_values = data.lon.values
+
+            # Handle both scalar and 1-element array cases
+            lat_val = float(
+                lat_values.item() if hasattr(lat_values, "item") else lat_values
+            )
+            lon_val = float(
+                lon_values.item() if hasattr(lon_values, "item") else lon_values
+            )
+
+            return lat_val, lon_val
+
+        except Exception as e:
+            raise ValueError(
+                f"Failed to extract lat/lon coordinates for location_based_naming: {e}. "
+                f"Ensure your data has valid single-point lat/lon coordinates."
+            ) from e
+
     def _generate_filename(self, data: Union[xr.Dataset, xr.DataArray]) -> str:
         """
         Generate a filename for the data based on configuration options.
@@ -532,6 +839,13 @@ class Export(DataProcessor):
         -------
         str
             The generated filename without extension.
+
+        Notes
+        -----
+        For gridded data (multiple lat/lon values), the `location_based_naming`
+        option is silently ignored since there's no single location to include
+        in the filename. Location-based naming is handled at the collection level
+        in `_export_single_from_collection` for point-based data collections.
         """
         # Start with base filename
         base_filename = self.filename
@@ -545,22 +859,14 @@ class Export(DataProcessor):
                 "lon": "",
             }
 
-            # Extract lat/lon if available
-            if hasattr(data, "lat") and hasattr(data, "lon"):
+            # Extract lat/lon if available and data is single-point
+            if self._is_single_point_data(data):
                 try:
-                    lat_val = float(
-                        data.lat.item()
-                        if hasattr(data.lat, "item")
-                        else data.lat.values.flat[0]
-                    )
-                    lon_val = float(
-                        data.lon.item()
-                        if hasattr(data.lon, "item")
-                        else data.lon.values.flat[0]
-                    )
+                    lat_val, lon_val = self._extract_point_coordinates(data)
                     template_vars["lat"] = str(round(lat_val, 3)).replace(".", "")
                     template_vars["lon"] = str(round(abs(lon_val), 3)).replace(".", "")
-                except (AttributeError, ValueError, IndexError):
+                except ValueError:
+                    # If extraction fails, leave lat/lon empty in template
                     pass
 
             base_filename = self.filename_template.format(**template_vars)
@@ -569,24 +875,16 @@ class Export(DataProcessor):
         elif self.separated and hasattr(data, "name") and data.name:
             base_filename = f"{data.name}_{base_filename}"
 
-        # Apply location-based naming if requested
-        if self.location_based_naming and hasattr(data, "lat") and hasattr(data, "lon"):
+        # Apply location-based naming if requested AND data is single-point
+        # For gridded data, this option is silently ignored (handled at collection level)
+        if self.location_based_naming and self._is_single_point_data(data):
             try:
-                lat_val = float(
-                    data.lat.item()
-                    if hasattr(data.lat, "item")
-                    else data.lat.values.flat[0]
-                )
-                lon_val = float(
-                    data.lon.item()
-                    if hasattr(data.lon, "item")
-                    else data.lon.values.flat[0]
-                )
+                lat_val, lon_val = self._extract_point_coordinates(data)
                 lat_str = str(round(lat_val, 3)).replace(".", "")
                 lon_str = str(round(abs(lon_val), 3)).replace(".", "")
                 base_filename = f"{base_filename}_{lat_str}N_{lon_str}W"
-            except (AttributeError, ValueError, IndexError):
-                # If lat/lon extraction fails, continue without location suffix
+            except ValueError:
+                # If extraction fails, skip location-based naming
                 pass
 
         # Remove any existing extension from filename
@@ -662,9 +960,7 @@ class Export(DataProcessor):
         # For other export methods, find a unique filename if file exists
         if os.path.exists(save_name):
             save_name = self._get_unique_filename(base_filename, extension)
-            logger.info(
-                "File already exists. Saving to unique filename: %s", save_name
-            )
+            logger.info("File already exists. Saving to unique filename: %s", save_name)
 
         try:
             match req_format:
@@ -693,87 +989,3 @@ class Export(DataProcessor):
             else:
                 print(f"Warning: {error_msg}")
                 return
-
-    @classmethod
-    def export_no_error(
-        cls,
-        data: Union[xr.Dataset, xr.DataArray],
-        filename: str = "dataexport",
-        file_format: str = "NetCDF",
-        **kwargs,
-    ) -> None:
-        """
-        Export data without raising exceptions if files already exist.
-
-        This is a convenience method that mimics the behavior of _export_no_e
-        from the cava_data function for backward compatibility.
-
-        Parameters
-        ----------
-        data : xr.Dataset | xr.DataArray
-            The data to export.
-        filename : str, optional
-            Output filename without extension. Default: "dataexport"
-        file_format : str, optional
-            File format ("NetCDF", "Zarr", "CSV"). Default: "NetCDF"
-        **kwargs
-            Additional parameters passed to the Export processor.
-        """
-        export_config = {
-            "filename": filename,
-            "file_format": file_format,
-            "export_method": "skip_existing",
-            "fail_on_error": False,
-            **kwargs,
-        }
-
-        exporter = cls(export_config)
-        exporter.export_single(data)
-
-    @classmethod
-    def export_raw_calc_data(
-        cls,
-        raw_data: Union[xr.Dataset, xr.DataArray, None] = None,
-        calc_data: Union[xr.Dataset, xr.DataArray, None] = None,
-        filename: str = "dataexport",
-        file_format: str = "NetCDF",
-        export_method: str = "both",
-        **kwargs,
-    ) -> None:
-        """
-        Export raw and/or calculated data similar to cava_data behavior.
-
-        Parameters
-        ----------
-        raw_data : xr.Dataset | xr.DataArray, optional
-            The raw data to export. Only exported if export_method includes "raw".
-        calc_data : xr.Dataset | xr.DataArray, optional
-            The calculated data to export. Only exported if export_method includes "calculate".
-        filename : str, optional
-            Base filename without extension. Default: "dataexport"
-        file_format : str, optional
-            File format ("NetCDF", "Zarr", "CSV"). Default: "NetCDF"
-        export_method : str, optional
-            What to export: "raw", "calculate", or "both". Default: "both"
-        **kwargs
-            Additional parameters passed to the Export processor.
-        """
-        export_config = {
-            "filename": filename,
-            "file_format": file_format,
-            "export_method": export_method,
-            "fail_on_error": False,
-            **kwargs,
-        }
-
-        exporter = cls(export_config)
-
-        # Create a dict similar to cava_data output
-        data_dict = {}
-        if raw_data is not None:
-            data_dict["raw_data"] = raw_data
-        if calc_data is not None:
-            data_dict["calc_data"] = calc_data
-
-        if data_dict:
-            exporter._handle_dict_result(data_dict, export_method)

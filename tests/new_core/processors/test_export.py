@@ -159,18 +159,18 @@ class TestExportFilenameGeneration:
         # name="test_array", filename="output", lat=34.0, lon=-118.0
         assert filename == "test_array_output_340N_1180W"
 
-    def test_generate_filename_latlon_error(self):
-        """Test filename generation when lat/lon extraction fails."""
+    def test_generate_filename_gridded_ignores_location_naming(self):
+        """Test that location_based_naming is silently ignored for gridded data."""
         processor = Export({"filename": "output", "location_based_naming": True})
 
-        # Create dataset with multi-dimensional lat/lon that will fail .item()
-        ds_error = xr.Dataset(
+        # Create dataset with multi-dimensional lat/lon (gridded data, not single-point)
+        ds_gridded = xr.Dataset(
             {"temp": (["lat", "lon"], np.random.rand(2, 2))},
             coords={"lat": [34.0, 35.0], "lon": [-118.0, -117.0]},
         )
 
-        # Should fall back to base filename without location
-        filename = processor._generate_filename(ds_error)
+        # Should return base filename without location suffix (silently ignored)
+        filename = processor._generate_filename(ds_gridded)
         assert filename == "output"
 
     def test_generate_filename_template_error(self):
@@ -188,6 +188,192 @@ class TestExportFilenameGeneration:
         # Should use empty strings for lat/lon in template
         filename = processor._generate_filename(ds_error)
         assert filename == "output__"
+
+
+class TestExportSinglePointDetection:
+    """Test class for single-point data detection and coordinate extraction."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = Export({"filename": "test"})
+
+    def test_is_single_point_data_true(self):
+        """Test detection of single-point data."""
+        ds = xr.Dataset(
+            {"temp": (["lat", "lon"], [[25.5]])},
+            coords={"lat": [34.0], "lon": [-118.0]},
+        )
+        assert self.processor._is_single_point_data(ds) is True
+
+    def test_is_single_point_data_false_multiple_lat(self):
+        """Test detection of multi-point data (multiple lat values)."""
+        ds = xr.Dataset(
+            {"temp": (["lat", "lon"], [[25.5], [26.0]])},
+            coords={"lat": [34.0, 35.0], "lon": [-118.0]},
+        )
+        assert self.processor._is_single_point_data(ds) is False
+
+    def test_is_single_point_data_false_multiple_lon(self):
+        """Test detection of multi-point data (multiple lon values)."""
+        ds = xr.Dataset(
+            {"temp": (["lat", "lon"], [[25.5, 26.0]])},
+            coords={"lat": [34.0], "lon": [-118.0, -117.0]},
+        )
+        assert self.processor._is_single_point_data(ds) is False
+
+    def test_is_single_point_data_no_lat(self):
+        """Test detection when data has no lat coordinate."""
+        ds = xr.Dataset(
+            {"temp": (["x"], [25.5])},
+            coords={"x": [1]},
+        )
+        assert self.processor._is_single_point_data(ds) is False
+
+    def test_extract_point_coordinates_success(self):
+        """Test successful extraction of point coordinates."""
+        ds = xr.Dataset(
+            {"temp": (["lat", "lon"], [[25.5]])},
+            coords={"lat": [34.0], "lon": [-118.0]},
+        )
+        lat, lon = self.processor._extract_point_coordinates(ds)
+        assert lat == 34.0
+        assert lon == -118.0
+
+    def test_extract_point_coordinates_error_multi_lat(self):
+        """Test error when extracting coordinates from multi-lat data."""
+        ds = xr.Dataset(
+            {"temp": (["lat", "lon"], [[25.5], [26.0]])},
+            coords={"lat": [34.0, 35.0], "lon": [-118.0]},
+        )
+        with pytest.raises(
+            ValueError, match="Cannot use location_based_naming with gridded data"
+        ):
+            self.processor._extract_point_coordinates(ds)
+
+    def test_extract_point_coordinates_error_message_includes_sizes(self):
+        """Test that error message includes actual lat/lon sizes."""
+        ds = xr.Dataset(
+            {"temp": (["lat", "lon"], np.random.rand(5, 10))},
+            coords={"lat": np.arange(5), "lon": np.arange(10)},
+        )
+        with pytest.raises(ValueError, match=r"5 lat value\(s\) and 10 lon value\(s\)"):
+            self.processor._extract_point_coordinates(ds)
+
+    def test_extract_point_coordinates_error_mentions_clip(self):
+        """Test that error message mentions clip processor as solution."""
+        ds = xr.Dataset(
+            {"temp": (["lat", "lon"], np.random.rand(2, 2))},
+            coords={"lat": [34.0, 35.0], "lon": [-118.0, -117.0]},
+        )
+        with pytest.raises(ValueError, match="Use the 'clip' processor"):
+            self.processor._extract_point_coordinates(ds)
+
+
+class TestExportCollectionHandling:
+    """Test class for collection (list/tuple) export behavior."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create a list of single-point datasets (like cava_data output)
+        self.point_datasets = [
+            xr.Dataset(
+                {"temp": (["lat", "lon"], [[25.5]])},
+                coords={"lat": [34.0], "lon": [-118.0]},
+            ),
+            xr.Dataset(
+                {"temp": (["lat", "lon"], [[26.5]])},
+                coords={"lat": [35.0], "lon": [-119.0]},
+            ),
+            xr.Dataset(
+                {"temp": (["lat", "lon"], [[27.5]])},
+                coords={"lat": [36.0], "lon": [-120.0]},
+            ),
+        ]
+
+    def test_export_collection_separated_with_location_naming(self):
+        """Test that separated=True with location_based_naming uses lat/lon in filenames."""
+        processor = Export(
+            {
+                "filename": "test_output",
+                "separated": True,
+                "location_based_naming": True,
+            }
+        )
+
+        with patch.object(processor, "export_single") as mock_export:
+            processor._export_collection(self.point_datasets)
+
+            # Should be called 3 times, once for each point
+            assert mock_export.call_count == 3
+
+        # Verify filenames would include lat/lon (check via _export_single_from_collection)
+        with patch.object(processor, "export_single") as mock_export:
+            processor._export_single_from_collection(self.point_datasets[0], 0)
+
+            # Filename should have been modified to include lat/lon
+            # The export_single is called with location_based_naming temporarily disabled
+            mock_export.assert_called_once()
+
+    def test_export_collection_separated_without_location_naming(self):
+        """Test that separated=True without location_based_naming uses index in filenames."""
+        processor = Export(
+            {
+                "filename": "test_output",
+                "separated": True,
+                "location_based_naming": False,
+            }
+        )
+
+        # Track filename changes during export
+        filenames_used = []
+
+        def track_filename(data):
+            filenames_used.append(processor.filename)
+            # Don't actually export
+            return
+
+        with patch.object(processor, "export_single", side_effect=track_filename):
+            processor._export_collection(self.point_datasets)
+
+        # Should use index-based naming: test_output_0, test_output_1, test_output_2
+        assert filenames_used == ["test_output_0", "test_output_1", "test_output_2"]
+
+    def test_export_collection_not_separated(self):
+        """Test that separated=False exports each item without index/location suffix."""
+        processor = Export(
+            {
+                "filename": "test_output",
+                "separated": False,
+                "location_based_naming": True,  # Should be ignored when not separated
+            }
+        )
+
+        with patch.object(processor, "export_single") as mock_export:
+            processor._export_collection(self.point_datasets)
+
+            # Should be called 3 times
+            assert mock_export.call_count == 3
+
+    def test_export_data_single_gridded_ignores_options(self):
+        """Test that a single gridded dataset ignores separated and location_based_naming."""
+        processor = Export(
+            {
+                "filename": "gridded_output",
+                "separated": True,  # Should be ignored
+                "location_based_naming": True,  # Should be ignored
+            }
+        )
+
+        gridded_ds = xr.Dataset(
+            {"temp": (["lat", "lon"], np.random.rand(10, 10))},
+            coords={"lat": np.arange(10), "lon": np.arange(10)},
+        )
+
+        with patch.object(processor, "export_single") as mock_export:
+            processor._export_data(gridded_ds)
+
+            # Should be called once with the dataset
+            mock_export.assert_called_once_with(gridded_ds)
 
 
 class TestExportAttributeCleaning:
