@@ -12,6 +12,7 @@ import xarray as xr
 from shapely.geometry import Point, box
 
 from climakitae.util.utils import (  # stack_sims_across_locs, # TODO: Uncomment when implemented
+    _determine_is_complete_wl,
     _get_cat_subset,
     _get_scenario_from_selections,
     _package_file_path,
@@ -1864,3 +1865,66 @@ class TestConvertToLocalTime:
         )
         with pytest.raises(RuntimeError, match="CRS"):
             result = clip_gpd_to_shapefile(gdf, clip_poly_none)
+
+
+class TestDetermineIsCompleteWl:
+    """Tests for _determine_is_complete_wl function."""
+
+    def test_valid_loca_years_returns_true(self):
+        """Test that valid LOCA year range returns True."""
+        # LOCA valid range: 1950-2100
+        result = _determine_is_complete_wl(
+            start_year=1950,
+            end_year=2100,
+            simulation_name="test_sim",
+            downscaling_method="Statistical",
+            level=2.0,
+        )
+        assert result is True
+
+    def test_valid_wrf_years_returns_true(self):
+        """Test that valid WRF year range returns True."""
+        # WRF valid range: 1981-2099
+        result = _determine_is_complete_wl(
+            start_year=1981,
+            end_year=2099,
+            simulation_name="test_sim",
+            downscaling_method="Dynamical",
+            level=1.5,
+        )
+        assert result is True
+
+    def test_start_year_before_loca_min_returns_false(self):
+        """Test that start year before LOCA minimum triggers warning and returns False."""
+        with pytest.warns(UserWarning, match="Incomplete warming level"):
+            result = _determine_is_complete_wl(
+                start_year=1940,  # Before LOCA_START_YEAR (1950)
+                end_year=2050,
+                simulation_name="CNRM-CM6-1",
+                downscaling_method="LOCA2",
+                level=2.0,
+            )
+        assert result is False
+
+    def test_end_year_after_wrf_max_returns_false(self):
+        """Test that end year after WRF maximum triggers warning and returns False."""
+        with pytest.warns(UserWarning, match="Incomplete warming level"):
+            result = _determine_is_complete_wl(
+                start_year=2000,
+                end_year=2150,  # After WRF_END_YEAR (2099)
+                simulation_name="EC-Earth3",
+                downscaling_method="WRF",
+                level=3.0,
+            )
+        assert result is False
+
+    def test_unknown_downscaling_method_returns_true(self):
+        """Test that unknown downscaling method returns True (no validation)."""
+        result = _determine_is_complete_wl(
+            start_year=1800,  # Would be invalid for known methods
+            end_year=2200,
+            simulation_name="test_sim",
+            downscaling_method="Unknown",
+            level=2.0,
+        )
+        assert result is True
