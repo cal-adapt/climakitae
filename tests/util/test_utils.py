@@ -376,6 +376,129 @@ class TestUtils:
             assert point_ds.coords["lat"].item() in ds.coords["lat"].values
             assert point_ds.coords["lon"].item() in ds.coords["lon"].values
 
+    def test_get_closest_gridcell_with_dask_arrays(self):
+        """Test that get_closest_gridcell works with lazy (dask-backed) arrays.
+
+        This test ensures the function handles dask arrays properly by:
+        1. Not triggering premature computation
+        2. Successfully extracting coordinate values for printing
+        3. Returning a result that is still lazy (dask-backed)
+        """
+        import dask.array as da
+
+        # Create a dask-backed dataset (lazy evaluation)
+        data = da.random.random((10, 5, 5), chunks=(5, 5, 5))
+        ds = xr.Dataset(
+            {
+                "var": (("time", "lat", "lon"), data),
+            },
+            coords={
+                "time": pd.date_range("2020-01-01", periods=10),
+                "lat": np.linspace(32, 42, 5),
+                "lon": np.linspace(-124, -114, 5),
+            },
+        )
+
+        # Verify input is dask-backed
+        assert hasattr(ds["var"].data, "compute"), "Test data should be dask-backed"
+
+        # Test with a point inside the grid
+        lat = 37.0
+        lon = -119.0
+        result = get_closest_gridcell(ds, lat, lon)
+
+        # Verify result is valid
+        assert result is not None, "Result should not be None"
+        assert isinstance(result, xr.Dataset), "Result should be a Dataset"
+
+        # Verify the result is still dask-backed (lazy)
+        assert hasattr(
+            result["var"].data, "compute"
+        ), "Result should remain dask-backed (lazy)"
+
+        # Verify dimensions are correct (spatial dims removed, time preserved)
+        assert "time" in result.dims, "Time dimension should be preserved"
+        assert "lat" not in result.dims, "Lat should not be a dimension"
+        assert "lon" not in result.dims, "Lon should not be a dimension"
+
+        # Verify coordinates exist
+        assert "lat" in result.coords, "Lat coordinate should exist"
+        assert "lon" in result.coords, "Lon coordinate should exist"
+
+    def test_get_closest_gridcell_with_projection_coords_idempotent(self, capsys):
+        """Test that querying with projection coordinates and re-querying with
+        result coordinates returns the same gridcell.
+
+        This addresses a reviewer comment where passing x/y projection coords
+        from a previous result into another call would retrieve a different gridcell.
+        """
+        # Create projection data with large y/x values (meters, not lat/lon)
+        y_coords = np.array([1.0e6, 1.1e6, 1.2e6, 1.3e6, 1.4e6])
+        x_coords = np.array([-2.0e6, -1.9e6, -1.8e6, -1.7e6, -1.6e6])
+        data = np.random.rand(len(y_coords), len(x_coords))
+
+        ds = xr.Dataset(
+            {"temp": (["y", "x"], data)},
+            coords={"y": y_coords, "x": x_coords},
+        )
+        ds.rio.write_crs("EPSG:32610", inplace=True)
+
+        # Step 1: Query with projection coordinates
+        input_y = 1.15e6
+        input_x = -1.85e6
+        result1 = get_closest_gridcell(ds, input_y, input_x, print_coords=True)
+
+        assert result1 is not None
+        result1_y = float(result1.coords["y"].values)
+        result1_x = float(result1.coords["x"].values)
+
+        # Step 2: Re-query with result coordinates
+        result2 = get_closest_gridcell(ds, result1_y, result1_x, print_coords=True)
+
+        assert result2 is not None
+        result2_y = float(result2.coords["y"].values)
+        result2_x = float(result2.coords["x"].values)
+
+        # Results should be identical
+        assert result1_y == result2_y, "Y coordinates should match after re-query"
+        assert result1_x == result2_x, "X coordinates should match after re-query"
+
+        # Check printed output uses y/x format (not lat/lon)
+        captured = capsys.readouterr()
+        assert "y:" in captured.out, "Output should use 'y:' for projection coords"
+        assert "x:" in captured.out, "Output should use 'x:' for projection coords"
+
+    def test_get_closest_gridcell_projection_coords_averaged(self, capsys):
+        """Test projection coordinate output path when averaging nearby gridcells.
+
+        This covers the 'is_averaged=True' branch with projection coordinates.
+        """
+        # Create projection data with NaN at center gridcell
+        y_coords = np.array([1.0e6, 1.1e6, 1.2e6])
+        x_coords = np.array([-1.9e6, -1.8e6, -1.7e6])
+        data = np.random.rand(len(y_coords), len(x_coords))
+        # Set center gridcell to NaN to trigger averaging
+        data[1, 1] = np.nan
+
+        ds = xr.Dataset(
+            {"temp": (["y", "x"], data)},
+            coords={"y": y_coords, "x": x_coords},
+        )
+        ds.rio.write_crs("EPSG:32610", inplace=True)
+
+        # Query at center (will be NaN, should average nearby)
+        input_y = 1.1e6
+        input_x = -1.8e6
+        result = get_closest_gridcell(ds, input_y, input_x, print_coords=True)
+
+        assert result is not None
+
+        # Check printed output mentions averaging and uses y/x format
+        captured = capsys.readouterr()
+        assert "averaged" in captured.out, "Output should mention averaging"
+        assert "y:" in captured.out, "Output should use 'y:' for projection coords"
+        assert "x:" in captured.out, "Output should use 'x:' for projection coords"
+
     def test_julianDay_to_date(self):
         """tests the julianDay_to_date function"""
         # Test default return_type (str) with default format
