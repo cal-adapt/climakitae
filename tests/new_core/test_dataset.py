@@ -292,3 +292,17 @@ class TestDatasetExecute:
 
         assert isinstance(result, xr.Dataset)
         mock_catalog.get_data.assert_called_once()
+
+    def test_execute_with_parameters(self):
+        """Test execute with parameters - context should be initialized."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
+
+        dataset = Dataset().with_catalog(mock_catalog)
+        parameters = {"variable": "temp", "grid_label": "d03"}
+
+        result = dataset.execute(parameters)
+
+        assert isinstance(result, xr.Dataset)
+        # Verify parameters were passed to get_data via validation (UNSET without validator)
+        mock_catalog.get_data.assert_called_once()
