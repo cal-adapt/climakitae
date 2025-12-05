@@ -397,3 +397,36 @@ class TestDatasetExecuteValidation:
         assert isinstance(result, xr.Dataset)
         # get_data should be called with UNSET since no validator processed the query
         mock_catalog.get_data.assert_called_once_with(UNSET)
+
+
+class TestDatasetExecuteProcessing:
+    """Test class for execute method - processing step execution paths."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.sample_dataset = xr.Dataset(
+            {"temp": (["x", "y"], [[1.0, 2.0], [3.0, 4.0]])},
+            coords={"x": [0, 1], "y": [0, 1]},
+        )
+        self.processed_dataset = xr.Dataset(
+            {"temp_processed": (["x", "y"], [[10.0, 20.0], [30.0, 40.0]])},
+            coords={"x": [0, 1], "y": [0, 1]},
+        )
+
+    def test_execute_single_processing_step(self):
+        """Test execute with single processor transforms data."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
+
+        mock_processor = _create_mock_processor(return_value=self.processed_dataset)
+
+        dataset = (
+            Dataset()
+            .with_catalog(mock_catalog)
+            .with_processing_step(mock_processor)
+        )
+
+        result = dataset.execute({"variable": "temp"})
+
+        assert result is self.processed_dataset
+        mock_processor.execute.assert_called_once()
