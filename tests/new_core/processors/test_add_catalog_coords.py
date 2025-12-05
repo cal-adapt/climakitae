@@ -70,10 +70,12 @@ class TestAddCatalogCoordsExecute:
 
         # Mock catalog search result
         mock_subset = MagicMock()
-        mock_subset.df = pd.DataFrame({
-            "network_id": ["ASOSAWOS", "ASOSAWOS", "ASOSAWOS"],
-            "station_id": ["ASOSAWOS_1", "ASOSAWOS_2", "ASOSAWOS_3"],
-        })
+        mock_subset.df = pd.DataFrame(
+            {
+                "network_id": ["ASOSAWOS", "ASOSAWOS", "ASOSAWOS"],
+                "station_id": ["ASOSAWOS_1", "ASOSAWOS_2", "ASOSAWOS_3"],
+            }
+        )
         self.mock_hdp_catalog.search.return_value = mock_subset
 
         context = {"station_id": ["ASOSAWOS_1", "ASOSAWOS_2", "ASOSAWOS_3"]}
@@ -83,7 +85,11 @@ class TestAddCatalogCoordsExecute:
         assert "network_id" in result.coords
         assert result.coords["network_id"].dims == ("station_id",)
         # All stations from same network
-        assert list(result.coords["network_id"].values) == ["ASOSAWOS", "ASOSAWOS", "ASOSAWOS"]
+        assert list(result.coords["network_id"].values) == [
+            "ASOSAWOS",
+            "ASOSAWOS",
+            "ASOSAWOS",
+        ]
 
         # Check attributes
         assert "long_name" in result["network_id"].attrs
@@ -102,10 +108,12 @@ class TestAddCatalogCoordsExecute:
 
         # Mock catalog search result with different networks
         mock_subset = MagicMock()
-        mock_subset.df = pd.DataFrame({
-            "network_id": ["ASOSAWOS", "CIMIS"],
-            "station_id": ["ASOSAWOS_1", "CIMIS_1"],
-        })
+        mock_subset.df = pd.DataFrame(
+            {
+                "network_id": ["ASOSAWOS", "CIMIS"],
+                "station_id": ["ASOSAWOS_1", "CIMIS_1"],
+            }
+        )
         self.mock_hdp_catalog.search.return_value = mock_subset
 
         context = {"station_id": ["ASOSAWOS_1", "CIMIS_1"]}
@@ -141,10 +149,12 @@ class TestAddCatalogCoordsExecute:
 
         # Mock catalog search result
         mock_subset = MagicMock()
-        mock_subset.df = pd.DataFrame({
-            "network_id": ["ASOSAWOS", "ASOSAWOS"],
-            "station_id": ["ASOSAWOS_1", "ASOSAWOS_2"],
-        })
+        mock_subset.df = pd.DataFrame(
+            {
+                "network_id": ["ASOSAWOS", "ASOSAWOS"],
+                "station_id": ["ASOSAWOS_1", "ASOSAWOS_2"],
+            }
+        )
         self.mock_hdp_catalog.search.return_value = mock_subset
 
         context = {"station_id": ["ASOSAWOS_1", "ASOSAWOS_2"]}
@@ -167,10 +177,12 @@ class TestAddCatalogCoordsExecute:
 
         # Mock catalog search result
         mock_subset = MagicMock()
-        mock_subset.df = pd.DataFrame({
-            "network_id": ["ASOSAWOS", "ASOSAWOS"],
-            "station_id": ["ASOSAWOS_1", "ASOSAWOS_2"],
-        })
+        mock_subset.df = pd.DataFrame(
+            {
+                "network_id": ["ASOSAWOS", "ASOSAWOS"],
+                "station_id": ["ASOSAWOS_1", "ASOSAWOS_2"],
+            }
+        )
         self.mock_hdp_catalog.search.return_value = mock_subset
 
         context = {"station_id": ["ASOSAWOS_1", "ASOSAWOS_2"]}
@@ -193,10 +205,12 @@ class TestAddCatalogCoordsExecute:
 
         # Mock catalog search result
         mock_subset = MagicMock()
-        mock_subset.df = pd.DataFrame({
-            "network_id": ["ASOSAWOS", "ASOSAWOS"],
-            "station_id": ["ASOSAWOS_1", "ASOSAWOS_2"],
-        })
+        mock_subset.df = pd.DataFrame(
+            {
+                "network_id": ["ASOSAWOS", "ASOSAWOS"],
+                "station_id": ["ASOSAWOS_1", "ASOSAWOS_2"],
+            }
+        )
         self.mock_hdp_catalog.search.return_value = mock_subset
 
         context = {"station_id": ["ASOSAWOS_1", "ASOSAWOS_2"]}
@@ -212,10 +226,12 @@ class TestAddCatalogCoordsExecute:
 
         # Mock catalog search result
         mock_subset = MagicMock()
-        mock_subset.df = pd.DataFrame({
-            "network_id": ["ASOSAWOS"],
-            "station_id": ["ASOSAWOS_1"],
-        })
+        mock_subset.df = pd.DataFrame(
+            {
+                "network_id": ["ASOSAWOS"],
+                "station_id": ["ASOSAWOS_1"],
+            }
+        )
         self.mock_hdp_catalog.search.return_value = mock_subset
 
         context = {"station_id": ["ASOSAWOS_1"]}
@@ -237,6 +253,7 @@ class TestAddCatalogCoordsUpdateContext:
         processor.update_context(context)
 
         from climakitae.core.constants import _NEW_ATTRS_KEY
+
         assert _NEW_ATTRS_KEY in context
         assert "add_catalog_coords" in context[_NEW_ATTRS_KEY]
         assert "ASOSAWOS" in context[_NEW_ATTRS_KEY]["add_catalog_coords"]
@@ -249,5 +266,6 @@ class TestAddCatalogCoordsUpdateContext:
         processor.update_context(context)
 
         from climakitae.core.constants import _NEW_ATTRS_KEY
+
         assert _NEW_ATTRS_KEY in context
         assert "add_catalog_coords" not in context[_NEW_ATTRS_KEY]

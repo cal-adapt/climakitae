@@ -143,7 +143,12 @@ class TestDatasetFactoryProcessingSteps:
 
     def test_get_processing_steps_unset_processes(self):
         """Test _get_list_of_processing_steps when processes is UNSET."""
-        query = {PROC_KEY: UNSET, "experiment_id": "historical", "catalog": "data", _NEW_ATTRS_KEY: {}}
+        query = {
+            PROC_KEY: UNSET,
+            "experiment_id": "historical",
+            "catalog": "data",
+            _NEW_ATTRS_KEY: {},
+        }
 
         # Mock registry with default processors
         mock_processor_class = MagicMock()
@@ -680,7 +685,12 @@ class TestDatasetFactoryEdgeCases:
 
     def test_get_processing_steps_with_empty_experiment_list(self):
         """Test _get_list_of_processing_steps with empty experiment_id list."""
-        query = {PROC_KEY: UNSET, "experiment_id": [], "catalog": "data", _NEW_ATTRS_KEY: {}}
+        query = {
+            PROC_KEY: UNSET,
+            "experiment_id": [],
+            "catalog": "data",
+            _NEW_ATTRS_KEY: {},
+        }
 
         mock_processor_class = MagicMock()
         self.factory._processing_step_registry = {

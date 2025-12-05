@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 @register_processor_validator("add_catalog_coords")
-def validate_add_catalog_coords_param(value: Any, **kwargs: Any) -> bool:  # noqa: ARG001
+def validate_add_catalog_coords_param(
+    value: Any, **kwargs: Any
+) -> bool:  # noqa: ARG001
     """Validate the parameters provided to the AddCatalogCoords Processor.
 
     The AddCatalogCoords processor does not require any parameters - it

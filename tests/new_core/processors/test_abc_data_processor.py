@@ -71,7 +71,9 @@ class TestRegistrySystem:
 
         # Should generate "my_custom_processor" from "MyCustomProcessor"
         assert "my_custom_processor" in _PROCESSOR_REGISTRY
-        registered_class, priority, catalogs = _PROCESSOR_REGISTRY["my_custom_processor"]
+        registered_class, priority, catalogs = _PROCESSOR_REGISTRY[
+            "my_custom_processor"
+        ]
         assert registered_class is MyCustomProcessor
         assert priority == 10
 
@@ -109,7 +111,9 @@ class TestRegistrySystem:
                 pass
 
         assert "another_test_processor" in _PROCESSOR_REGISTRY
-        registered_class, priority, catalogs = _PROCESSOR_REGISTRY["another_test_processor"]
+        registered_class, priority, catalogs = _PROCESSOR_REGISTRY[
+            "another_test_processor"
+        ]
         assert registered_class is AnotherTestProcessor
         assert priority == 1
 

@@ -81,7 +81,9 @@ class AddCatalogCoords(DataProcessor):
         subset = self.catalog.hdp.search(station_id=station_ids)
         # Create mapping from station_id to network_id
         station_to_network = dict(zip(subset.df["station_id"], subset.df["network_id"]))
-        logger.debug("Retrieved station to network mapping from catalog: %s", station_to_network)
+        logger.debug(
+            "Retrieved station to network mapping from catalog: %s", station_to_network
+        )
 
         match result:
             case dict():
@@ -91,7 +93,9 @@ class AddCatalogCoords(DataProcessor):
                         item, station_to_network, context
                     )
             case xr.Dataset():
-                result = self._add_coords_to_dataset(result, station_to_network, context)
+                result = self._add_coords_to_dataset(
+                    result, station_to_network, context
+                )
             case xr.DataArray():
                 # Convert to dataset, add coords, convert back
                 ds = result.to_dataset()
@@ -148,12 +152,12 @@ class AddCatalogCoords(DataProcessor):
             station_ids_in_ds = ds["station_id"].values
             logger.debug("Station IDs in dataset: %s", station_ids_in_ds)
             logger.debug("Station to network mapping: %s", station_to_network)
-            network_values = [station_to_network.get(str(sid), "unknown") for sid in station_ids_in_ds]
+            network_values = [
+                station_to_network.get(str(sid), "unknown") for sid in station_ids_in_ds
+            ]
             logger.debug("Network values to assign: %s", network_values)
 
-            ds = ds.assign_coords(
-                network_id=("station_id", network_values)
-            )
+            ds = ds.assign_coords(network_id=("station_id", network_values))
             ds["network_id"].attrs.update(
                 {
                     "long_name": "Weather station network identifier",
