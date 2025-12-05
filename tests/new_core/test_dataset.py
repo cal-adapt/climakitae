@@ -107,3 +107,10 @@ class TestDatasetWithParamValidator:
 
         with pytest.raises(TypeError, match="must be an instance of ParameterValidator"):
             dataset.with_param_validator(invalid_validator)
+
+    def test_with_param_validator_none(self):
+        """Test with_param_validator raises TypeError for None value."""
+        dataset = Dataset()
+
+        with pytest.raises(TypeError, match="must be an instance of ParameterValidator"):
+            dataset.with_param_validator(None)
