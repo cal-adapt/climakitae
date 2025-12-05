@@ -114,3 +114,40 @@ class TestDatasetWithParamValidator:
 
         with pytest.raises(TypeError, match="must be an instance of ParameterValidator"):
             dataset.with_param_validator(None)
+
+
+def _create_mock_processor(return_value=None, needs_catalog=False):
+    """Create a mock processor with required methods for testing.
+
+    Parameters
+    ----------
+    return_value : xr.Dataset or None
+        Value to return from execute method
+    needs_catalog : bool
+        Whether the processor needs catalog access
+
+    Returns
+    -------
+    MagicMock
+        Mock processor with execute, update_context, and set_data_accessor methods
+    """
+    mock_processor = MagicMock()
+    mock_processor.execute = MagicMock(return_value=return_value)
+    mock_processor.update_context = MagicMock()
+    mock_processor.set_data_accessor = MagicMock()
+    mock_processor.needs_catalog = needs_catalog
+    mock_processor.name = "MockProcessor"
+    return mock_processor
+
+
+class TestDatasetWithProcessingStep:
+    """Test class for with_processing_step method."""
+
+    def test_with_processing_step_valid(self):
+        """Test with_processing_step with valid processor."""
+        dataset = Dataset()
+        mock_processor = _create_mock_processor()
+
+        dataset.with_processing_step(mock_processor)
+
+        assert dataset.processing_pipeline == [mock_processor]
