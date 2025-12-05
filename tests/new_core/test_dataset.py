@@ -171,3 +171,19 @@ class TestDatasetWithProcessingStep:
 
         assert isinstance(dataset.processing_pipeline, list)
         assert len(dataset.processing_pipeline) == 1
+
+    def test_with_processing_step_multiple_steps(self):
+        """Test with_processing_step appends multiple steps in order."""
+        dataset = Dataset()
+        processor1 = _create_mock_processor()
+        processor2 = _create_mock_processor()
+        processor3 = _create_mock_processor()
+
+        dataset.with_processing_step(processor1)
+        dataset.with_processing_step(processor2)
+        dataset.with_processing_step(processor3)
+
+        assert len(dataset.processing_pipeline) == 3
+        assert dataset.processing_pipeline[0] is processor1
+        assert dataset.processing_pipeline[1] is processor2
+        assert dataset.processing_pipeline[2] is processor3
