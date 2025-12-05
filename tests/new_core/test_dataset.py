@@ -39,3 +39,13 @@ class TestDatasetWithCatalog:
         dataset.with_catalog(mock_catalog)
 
         assert dataset.data_access is mock_catalog
+
+    def test_with_catalog_returns_self(self):
+        """Test with_catalog returns Dataset instance for chaining."""
+        dataset = Dataset()
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock()
+
+        result = dataset.with_catalog(mock_catalog)
+
+        assert result is dataset
