@@ -363,3 +363,23 @@ class TestDatasetExecuteValidation:
         assert isinstance(result, xr.Dataset)
         mock_validator.is_valid_query.assert_called_once()
         mock_catalog.get_data.assert_called_once_with(validated_query)
+
+    def test_execute_validation_failure_returns_empty_dataset(self):
+        """Test execute returns empty xr.Dataset when validation fails."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
+
+        mock_validator = MagicMock(spec=ParameterValidator)
+        mock_validator.is_valid_query = MagicMock(return_value=None)  # Validation fails
+
+        dataset = (
+            Dataset()
+            .with_catalog(mock_catalog)
+            .with_param_validator(mock_validator)
+        )
+
+        result = dataset.execute({"invalid": "params"})
+
+        assert isinstance(result, xr.Dataset)
+        assert len(result.data_vars) == 0  # Empty dataset
+        mock_catalog.get_data.assert_not_called()  # Should not call get_data
