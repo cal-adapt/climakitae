@@ -67,3 +67,12 @@ class TestDatasetWithCatalog:
 
         with pytest.raises(AttributeError, match="must have a 'get_data' method"):
             dataset.with_catalog(mock_catalog)
+
+    def test_with_catalog_non_callable_get_data(self):
+        """Test with_catalog raises TypeError if get_data is not callable."""
+        dataset = Dataset()
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = "not_a_function"  # Non-callable
+
+        with pytest.raises(TypeError, match="'get_data' method.*must be callable"):
+            dataset.with_catalog(mock_catalog)
