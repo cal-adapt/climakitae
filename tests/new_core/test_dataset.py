@@ -160,3 +160,14 @@ class TestDatasetWithProcessingStep:
         result = dataset.with_processing_step(mock_processor)
 
         assert result is dataset
+
+    def test_with_processing_step_initializes_pipeline(self):
+        """Test with_processing_step converts UNSET to list on first call."""
+        dataset = Dataset()
+        assert dataset.processing_pipeline is UNSET
+
+        mock_processor = _create_mock_processor()
+        dataset.with_processing_step(mock_processor)
+
+        assert isinstance(dataset.processing_pipeline, list)
+        assert len(dataset.processing_pipeline) == 1
