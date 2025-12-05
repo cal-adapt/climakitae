@@ -209,3 +209,14 @@ class TestDatasetWithProcessingStep:
 
         with pytest.raises(AttributeError, match="must have an 'update_context' method"):
             dataset.with_processing_step(mock_processor)
+
+    def test_with_processing_step_missing_set_data_accessor(self):
+        """Test with_processing_step raises TypeError if step lacks set_data_accessor."""
+        dataset = Dataset()
+        mock_processor = MagicMock()
+        mock_processor.execute = MagicMock()
+        mock_processor.update_context = MagicMock()
+        del mock_processor.set_data_accessor  # Remove set_data_accessor
+
+        with pytest.raises(TypeError, match="must have a 'set_data_accessor' method"):
+            dataset.with_processing_step(mock_processor)
