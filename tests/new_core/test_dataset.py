@@ -459,3 +459,24 @@ class TestDatasetExecuteProcessing:
         # Verify processor2 received output from processor1
         call_args = processor2.execute.call_args
         assert call_args[0][0] is intermediate_dataset
+
+    def test_execute_processing_step_receives_context(self):
+        """Test processing step receives context dictionary."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
+
+        mock_processor = _create_mock_processor(return_value=self.processed_dataset)
+
+        dataset = (
+            Dataset()
+            .with_catalog(mock_catalog)
+            .with_processing_step(mock_processor)
+        )
+
+        parameters = {"variable": "temp", "grid_label": "d03"}
+        dataset.execute(parameters)
+
+        # Verify execute was called with context
+        call_args = mock_processor.execute.call_args
+        context = call_args[0][1]  # Second positional argument
+        assert isinstance(context, dict)
