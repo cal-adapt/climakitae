@@ -552,3 +552,20 @@ class TestDatasetExecuteErrorHandling:
 
         with pytest.raises(ValueError, match="Data accessor is not configured"):
             dataset.execute({"variable": "temp"})
+
+    def test_execute_processing_step_exception_raises_runtime_error(self):
+        """Test execute wraps processor exceptions in RuntimeError."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
+
+        mock_processor = _create_mock_processor()
+        mock_processor.execute.side_effect = ValueError("Processing failed")
+
+        dataset = (
+            Dataset()
+            .with_catalog(mock_catalog)
+            .with_processing_step(mock_processor)
+        )
+
+        with pytest.raises(RuntimeError, match="Error in processing pipeline"):
+            dataset.execute({"variable": "temp"})
