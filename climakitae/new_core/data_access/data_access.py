@@ -17,7 +17,6 @@ DataCatalog
 
 import difflib
 import logging
-import warnings
 from typing import Any, Dict
 
 import geopandas as gpd
@@ -356,6 +355,7 @@ class DataCatalog(dict):
             )
         )
         logger.info("Retrieved %d dataset(s) from catalog", len(result))
+        logger.debug("Retrieved datasets: %s", list(result.keys()))
         return result
 
     def list_clip_boundaries(self) -> dict[str, list[str]]:

@@ -12,7 +12,7 @@ import pandas as pd
 import xarray as xr
 import geopandas as gpd
 from unittest.mock import MagicMock, patch
-from shapely.geometry import Point, Polygon, box
+from shapely.geometry import box
 import pyproj
 
 from climakitae.new_core.processors.clip import Clip
@@ -2236,3 +2236,98 @@ class TestCombineGeometries:
                 ValueError, match="Failed to perform union operation on geometries"
             ):
                 self.clip_processor._combine_geometries([self.geom1, self.geom2])
+
+
+class TestClipDataWithGeomCRS:
+    """Test class for _clip_data_with_geom CRS handling logic."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create a dummy GeoDataFrame for clipping
+        self.gdf = gpd.GeoDataFrame(geometry=[box(-120, 35, -118, 37)], crs="EPSG:4326")
+
+    def test_wrf_lambert_conformal_crs_handling(self):
+        """Test CRS handling for WRF data with Lambert_Conformal coordinate."""
+        # Mock dataset with Lambert_Conformal coordinate and spatial_ref
+        mock_data = MagicMock(spec=xr.Dataset)
+
+        # Setup rio mock
+        rio_mock = MagicMock()
+        rio_mock.crs = None
+
+        def set_crs(*args, **kwargs):
+            rio_mock.crs = "EPSG:4326"  # Simulate setting CRS
+            return mock_data
+
+        rio_mock.write_crs.side_effect = set_crs
+        rio_mock.clip.return_value = "clipped_result"
+
+        mock_data.rio = rio_mock
+
+        # Setup Lambert_Conformal mock
+        lambert_mock = MagicMock()
+        lambert_mock.attrs = {"spatial_ref": "some_crs_string"}
+
+        # Configure __getitem__ to return lambert_mock
+        def getitem(key):
+            if key == "Lambert_Conformal":
+                return lambert_mock
+            return MagicMock()
+
+        mock_data.__getitem__.side_effect = getitem
+
+        # Also set coords for the "in" check
+        mock_data.coords = {"Lambert_Conformal": lambert_mock}
+
+        result = Clip._clip_data_with_geom(mock_data, self.gdf)
+
+        # Verify write_crs was called with the spatial_ref
+        rio_mock.write_crs.assert_called_with("some_crs_string", inplace=True)
+        assert result == "clipped_result"
+
+    def test_wrf_lambert_conformal_missing_spatial_ref(self):
+        """Test error raised when WRF data has Lambert_Conformal but missing spatial_ref."""
+        mock_data = MagicMock(spec=xr.Dataset)
+        rio_mock = MagicMock()
+        rio_mock.crs = None
+        mock_data.rio = rio_mock
+
+        # Setup Lambert_Conformal mock with empty attrs
+        lambert_mock = MagicMock()
+        lambert_mock.attrs = {}
+
+        def getitem(key):
+            if key == "Lambert_Conformal":
+                return lambert_mock
+            return MagicMock()
+
+        mock_data.__getitem__.side_effect = getitem
+
+        mock_data.coords = {"Lambert_Conformal": lambert_mock}
+
+        with pytest.raises(
+            ValueError,
+            match="Lambert_Conformal coordinate found but missing spatial_ref attribute",
+        ):
+            Clip._clip_data_with_geom(mock_data, self.gdf)
+
+    def test_default_crs_assignment(self):
+        """Test default CRS assignment (EPSG:4326) when no CRS and no Lambert_Conformal."""
+        mock_data = MagicMock(spec=xr.Dataset)
+        rio_mock = MagicMock()
+        rio_mock.crs = None
+
+        def set_crs(*args, **kwargs):
+            rio_mock.crs = "EPSG:4326"
+            return mock_data
+
+        rio_mock.write_crs.side_effect = set_crs
+        rio_mock.clip.return_value = "clipped_result"
+
+        mock_data.rio = rio_mock
+        mock_data.coords = {}  # No Lambert_Conformal
+
+        result = Clip._clip_data_with_geom(mock_data, self.gdf)
+
+        rio_mock.write_crs.assert_called_with("epsg:4326", inplace=True)
+        assert result == "clipped_result"

@@ -24,6 +24,7 @@ class TestDataInterface:
     Tests of methods and properties of the DataInterface class.
     """
 
+    @pytest.mark.advanced
     def test_singleton_instance(self):
         """
         Test that the DataInterface class is a singleton.

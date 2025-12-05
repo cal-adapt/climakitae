@@ -218,7 +218,7 @@ class Concat(DataProcessor):
             logger.info("Time-domain extension applied; switching concat dim to 'sim'")
 
         datasets_to_concat = []
-        concat_attr = (
+        concat_attrs = (
             [
                 "installation",
                 "institution_id",
@@ -247,10 +247,9 @@ class Concat(DataProcessor):
                     # Extract source_id from attributes
                     attr_id = "_".join(
                         [
-                            dataset.attrs.get(concat_attr, unknown_attr)
-                            for concat_attr in concat_attr
-                            if dataset.attrs.get(concat_attr, unknown_attr)
-                            != unknown_attr
+                            dataset.attrs.get(attr, unknown_attr)
+                            for attr in concat_attrs
+                            if dataset.attrs.get(attr, unknown_attr) != unknown_attr
                         ]
                     )
                     attr_id = attr_id.replace(
@@ -305,10 +304,7 @@ class Concat(DataProcessor):
 
                     # Extract source_id from attributes
                     attr_id = "_".join(
-                        [
-                            dataset.attrs.get(concat_attr, unknown_attr)
-                            for concat_attr in concat_attr
-                        ]
+                        [dataset.attrs.get(attr, unknown_attr) for attr in concat_attrs]
                     )
                     attr_id = attr_id.replace(
                         " ", ""
@@ -356,15 +352,16 @@ class Concat(DataProcessor):
 
         # Concatenate all datasets along the sim dimension
         try:
-            # Explicitly set `join`, `coords`, and `compat` to the current xarray defaults
-            # to silence FutureWarning about upcoming default changes and to
-            # preserve current behavior. See xarray deprecation notes.
+            # Use optimized settings for faster concatenation
+            # compat="override" skips expensive coordinate equality checks
+            # coords="minimal" avoids duplicating coordinates
             concatenated = xr.concat(
                 datasets_to_concat,
                 dim=self.dim_name,
+                data_vars="minimal",
+                coords="minimal",
+                compat="override",
                 join="outer",
-                coords="different",
-                compat="equals",
             )
         except ValueError as e:
             # Log dimensions of each dataset for debugging

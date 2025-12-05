@@ -1,19 +1,17 @@
 """Utility functions for processing data arrays in climakitae."""
 
+import logging
 import re
-import warnings
 from typing import Dict, Union
 
 import numpy as np
 import xarray as xr
-import logging
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 from climakitae.core.constants import UNSET
 from climakitae.explore.threshold_tools import calculate_ess
-
 
 # Constants for effective sample size calculations
 MIN_ESS_THRESHOLD = 25  # Minimum effective sample size for reliable statistics
@@ -961,26 +959,33 @@ def extend_time_domain(
             ret[key] = data
             continue
 
-        # Concatenate historical and SSP data along time dimension
+            # Concatenate historical and SSP data along time dimension
         try:
             hist_data = result[hist_key]
-            # Use proper xr.concat with explicit typing
+            # Use proper xr.concat with explicit typing and optimized settings
+            # compat="override" skips expensive coordinate equality checks
+            # coords="minimal" avoids duplicating coordinates
+            concat_kwargs = {
+                "dim": "time",
+                "coords": "minimal",
+                "compat": "override",
+                "join": "outer",
+            }
+
             if isinstance(data, xr.Dataset) and isinstance(hist_data, xr.Dataset):
-                extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
+                extended_data = xr.concat([hist_data, data], **concat_kwargs)  # type: ignore
             elif isinstance(data, xr.DataArray) and isinstance(hist_data, xr.DataArray):
-                extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
+                extended_data = xr.concat([hist_data, data], **concat_kwargs)  # type: ignore
             else:
                 # Handle mixed types by converting to same type
                 if isinstance(data, xr.Dataset):
                     if isinstance(hist_data, xr.DataArray):
                         hist_data = hist_data.to_dataset()
-                    extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
+                    extended_data = xr.concat([hist_data, data], **concat_kwargs)  # type: ignore
                 else:  # data is DataArray
                     if isinstance(hist_data, xr.Dataset):
                         data = data.to_dataset()
-                    extended_data = xr.concat([hist_data, data], dim="time")  # type: ignore
-
-            # Preserve SSP attributes
+                    extended_data = xr.concat([hist_data, data], **concat_kwargs)  # type: ignore            # Preserve SSP attributes
             extended_data.attrs.update(data.attrs)
             # add key attr indicating historical data was prepended
             extended_data.attrs["historical_prepended"] = True
@@ -993,3 +998,168 @@ def extend_time_domain(
             )
 
     return ret
+
+
+def get_station_coordinates(
+    station_identifier: str, catalog, stations_df=None
+) -> tuple[float, float, dict]:
+    """
+    Get lat/lon coordinates and metadata for a station identifier.
+
+    This function provides a centralized way to extract station coordinates
+    from the catalog. It's used by both the Clip processor and the
+    StationBiasCorrection processor.
+
+    Parameters
+    ----------
+    station_identifier : str
+        Station code (e.g., "KSAC") or full station name (e.g., "Sacramento (KSAC)")
+    catalog : DataCatalog
+        Data catalog instance for accessing station metadata
+    stations_df : pd.DataFrame, optional
+        Pre-loaded stations DataFrame. If None, will be loaded from catalog.
+
+    Returns
+    -------
+    tuple[float, float, dict]
+        Latitude, longitude, and station metadata dictionary containing:
+        - station_id: Station ID code
+        - station_name: Full station name
+        - city: City name
+        - state: State abbreviation
+        - elevation: Elevation value (if available)
+
+    Raises
+    ------
+    RuntimeError
+        If catalog is not set or station data is not available
+    ValueError
+        If station is not found or multiple matches exist
+
+    Examples
+    --------
+    >>> lat, lon, metadata = get_station_coordinates("KSAC", catalog)
+    >>> print(f"Sacramento station at ({lat}, {lon})")
+    >>> print(f"Elevation: {metadata['elevation']}")
+    """
+    from climakitae.core.constants import UNSET
+    from climakitae.new_core.data_access.data_access import DataCatalog
+
+    # Validate catalog
+    if catalog is UNSET or not isinstance(catalog, DataCatalog):
+        raise RuntimeError("DataCatalog is not set. Cannot access station data.")
+
+    # Load stations if not provided
+    if stations_df is None:
+        stations_df = catalog["stations"]
+
+    if stations_df is None or len(stations_df) == 0:
+        raise RuntimeError("Station data is not available in the catalog.")
+
+    # Use the generalized matching logic
+    match = find_station_match(station_identifier, stations_df)
+
+    if len(match) == 0:
+        # Station not found - provide suggestions
+        all_stations = stations_df["ID"].tolist() + stations_df["station"].tolist()
+        from climakitae.new_core.param_validation.param_validation_tools import (
+            _get_closest_options,
+        )
+
+        suggestions = _get_closest_options(station_identifier, all_stations, cutoff=0.5)
+
+        error_msg = f"Station '{station_identifier}' not found in station database."
+        if suggestions:
+            error_msg += "\n\nDid you mean one of these?\n  - " + "\n  - ".join(
+                suggestions[:5]
+            )
+        error_msg += "\n\nTo see all available stations, use: cd.show_station_options()"
+
+        raise ValueError(error_msg)
+
+    if len(match) > 1:
+        # Multiple matches found - show options
+        station_list = match[["ID", "station", "city", "state"]].to_string(index=False)
+        raise ValueError(
+            f"Multiple stations match '{station_identifier}':\n{station_list}\n\n"
+            f"Please use a more specific identifier."
+        )
+
+    # Extract coordinates and metadata
+    station_row = match.iloc[0]
+    lat = float(station_row["LAT_Y"])
+    lon = float(station_row["LON_X"])
+
+    metadata = {
+        "station_id": station_row["ID"],  # 4-letter airport code (e.g., "KSAC")
+        "station_id_numeric": station_row.get(
+            "station id", None
+        ),  # Numeric ID for HadISD files
+        "station_name": station_row["station"],
+        "city": station_row["city"],
+        "state": station_row["state"],
+        "elevation": station_row.get("elevation", None),
+    }
+
+    return lat, lon, metadata
+
+
+def convert_stations_to_points(
+    station_identifiers: list[str], catalog, stations_df=None
+) -> tuple[list[tuple[float, float]], list[dict]]:
+    """
+    Convert a list of station identifiers to lat/lon coordinates.
+
+    This function provides batch conversion of station identifiers to
+    coordinates, used by processors that need to work with multiple stations.
+
+    Parameters
+    ----------
+    station_identifiers : list[str]
+        List of station codes or names
+    catalog : DataCatalog
+        Data catalog instance for accessing station metadata
+    stations_df : pd.DataFrame, optional
+        Pre-loaded stations DataFrame. If None, will be loaded from catalog.
+
+    Returns
+    -------
+    tuple[list[tuple[float, float]], list[dict]]
+        List of (lat, lon) tuples and list of metadata dictionaries
+
+    Raises
+    ------
+    ValueError
+        If any station is not found or if there are validation errors
+
+    Examples
+    --------
+    >>> stations = ["KSAC", "KSFO", "KLAX"]
+    >>> points, metadata = convert_stations_to_points(stations, catalog)
+    >>> for (lat, lon), meta in zip(points, metadata):
+    ...     print(f"{meta['station_name']}: ({lat}, {lon})")
+    """
+    # Load stations once if not provided
+    if stations_df is None:
+        from climakitae.core.constants import UNSET
+        from climakitae.new_core.data_access.data_access import DataCatalog
+
+        if catalog is UNSET or not isinstance(catalog, DataCatalog):
+            raise RuntimeError("DataCatalog is not set. Cannot access station data.")
+        stations_df = catalog["stations"]
+
+    points = []
+    metadata_list = []
+
+    for station_id in station_identifiers:
+        try:
+            lat, lon, metadata = get_station_coordinates(
+                station_id, catalog, stations_df
+            )
+            points.append((lat, lon))
+            metadata_list.append(metadata)
+        except ValueError as e:
+            # Re-raise with context about which station failed
+            raise ValueError(f"Error processing station '{station_id}': {str(e)}")
+
+    return points, metadata_list

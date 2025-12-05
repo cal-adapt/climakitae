@@ -1475,7 +1475,7 @@ def write_tmy_file(
         """
         # line 1 - location, location name, state, country, WMO, lat, lon
         # line 1 - location, location name, state, country, weather station number (2 cols), lat, lon, time zone, elevation
-        line_1 = f"LOCATION,{location_name.upper()},{state},USA,{"Custom_{}".format(station_code)},{station_code},{stn_lat},{stn_lon},{timezone},{elevation}\n"
+        line_1 = f"LOCATION,{location_name.upper()},{state},USA,{'Custom_{}'.format(station_code)},{station_code},{stn_lat},{stn_lon},{timezone},{elevation}\n"
 
         # line 2 - design conditions, leave blank for now
         line_2 = "DESIGN CONDITIONS\n"
@@ -1498,7 +1498,7 @@ def write_tmy_file(
             line_7 = f"COMMENTS 2,TMY data produced using {warming_level}{degree_sign}C warming level. Year corresponds to index (1-30) in 30-year window centered on warming level. Model years for {warming_level}{degree_sign}C warming level in simulation {simulation} are {years[0]}-{years[1]}\n"
         elif "scenario" in df.columns:
             # line 6 - comments 1, going to include simulation + scenario information here
-            line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {df["scenario"].values[0]}, Simulation: {df["simulation"].values[0]}\n"
+            line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {df['scenario'].values[0]}, Simulation: {df['simulation'].values[0]}\n"
             # line 7 - comments 2, including date range here from which TMY calculated
             line_7 = f"COMMENTS 2,TMY data produced using {years[0]}-{years[1]} climatological period\n"
 

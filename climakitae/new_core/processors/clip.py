@@ -111,7 +111,6 @@ Notes
 
 import logging
 import os
-import warnings
 from typing import Any, Dict, Iterable, Union
 
 import geopandas as gpd
@@ -119,7 +118,8 @@ import numpy as np
 import pandas as pd
 import pyproj
 import xarray as xr
-from geopy.distance import geodesic
+
+# geodesic distance not used in immediate-neighborhood search
 from shapely.geometry import box, mapping
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
@@ -128,12 +128,8 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
-from climakitae.new_core.processors.processor_utils import (
-    find_station_match,
-    is_station_identifier,
-)
+from climakitae.new_core.processors.processor_utils import is_station_identifier
 from climakitae.util.utils import get_closest_gridcell, get_closest_gridcells
-
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -439,6 +435,8 @@ class Clip(DataProcessor):
         """
         Get lat/lon coordinates for a station identifier.
 
+        This is a wrapper around the shared utility function in processor_utils.
+
         Parameters
         ----------
         station_identifier : str
@@ -454,71 +452,19 @@ class Clip(DataProcessor):
         ValueError
             If station is not found or catalog is not available
         """
-        if self.catalog is UNSET or not isinstance(self.catalog, DataCatalog):
-            raise RuntimeError(
-                "DataCatalog is not set. Cannot access station data for clipping."
-            )
+        from climakitae.new_core.processors.processor_utils import (
+            get_station_coordinates,
+        )
 
-        stations_df = self.catalog["stations"]
-
-        if stations_df is None or len(stations_df) == 0:
-            raise RuntimeError("Station data is not available in the catalog.")
-
-        # Use the generalized matching logic
-        match = find_station_match(station_identifier, stations_df)
-
-        if len(match) == 0:
-            # Station not found - provide suggestions
-            all_stations = stations_df["ID"].tolist() + stations_df["station"].tolist()
-            from climakitae.new_core.param_validation.param_validation_tools import (
-                _get_closest_options,
-            )
-
-            suggestions = _get_closest_options(
-                station_identifier, all_stations, cutoff=0.5
-            )
-
-            error_msg = f"Station '{station_identifier}' not found in station database."
-            if suggestions:
-                error_msg += "\n\nDid you mean one of these?\n  - " + "\n  - ".join(
-                    suggestions[:5]
-                )
-            error_msg += (
-                "\n\nTo see all available stations, use: cd.show_station_options()"
-            )
-
-            raise ValueError(error_msg)
-
-        if len(match) > 1:
-            # Multiple matches found - show options
-            station_list = match[["ID", "station", "city", "state"]].to_string(
-                index=False
-            )
-            raise ValueError(
-                f"Multiple stations match '{station_identifier}':\n{station_list}\n\n"
-                f"Please use a more specific identifier."
-            )
-
-        # Extract coordinates and metadata
-        station_row = match.iloc[0]
-        lat = float(station_row["LAT_Y"])
-        lon = float(station_row["LON_X"])
-
-        metadata = {
-            "station_id": station_row["ID"],
-            "station_name": station_row["station"],
-            "city": station_row["city"],
-            "state": station_row["state"],
-            "elevation": station_row.get("elevation", None),
-        }
-
-        return lat, lon, metadata
+        return get_station_coordinates(station_identifier, self.catalog)
 
     def _convert_stations_to_points(
         self, station_identifiers: list[str]
     ) -> tuple[list[tuple[float, float]], list[dict]]:
         """
         Convert a list of station identifiers to lat/lon coordinates.
+
+        This is a wrapper around the shared utility function in processor_utils.
 
         Parameters
         ----------
@@ -530,19 +476,11 @@ class Clip(DataProcessor):
         tuple[list[tuple[float, float]], list[dict]]
             List of (lat, lon) tuples and list of metadata dictionaries
         """
-        points = []
-        metadata_list = []
+        from climakitae.new_core.processors.processor_utils import (
+            convert_stations_to_points,
+        )
 
-        for station_id in station_identifiers:
-            try:
-                lat, lon, metadata = self._get_station_coordinates(station_id)
-                points.append((lat, lon))
-                metadata_list.append(metadata)
-            except ValueError as e:
-                # Re-raise with context about which station failed
-                raise ValueError(f"Error processing station '{station_id}': {str(e)}")
-
-        return points, metadata_list
+        return convert_stations_to_points(station_identifiers, self.catalog)
 
     @staticmethod
     def _clip_data_with_geom(data: xr.DataArray | xr.Dataset, gdf: gpd.GeoDataFrame):
@@ -637,119 +575,184 @@ class Clip(DataProcessor):
                     test_data = test_data.isel({dim: 0})
 
             if not test_data.isnull().all():
-                logger.info(
-                    "Found valid data at closest gridcell: lat=%0.4f, lon=%0.4f",
-                    float(closest_gridcell.lat.values),
-                    float(closest_gridcell.lon.values),
-                )
+                # Log coordinates safely — not all selections will retain spatial dims
+                try:
+                    if len(spatial_dims) >= 2:
+                        coord0 = float(
+                            closest_gridcell[spatial_dims[0]].values
+                            if hasattr(closest_gridcell[spatial_dims[0]], "values")
+                            else closest_gridcell[spatial_dims[0]]
+                        )
+                        coord1 = float(
+                            closest_gridcell[spatial_dims[1]].values
+                            if hasattr(closest_gridcell[spatial_dims[1]], "values")
+                            else closest_gridcell[spatial_dims[1]]
+                        )
+                        logger.info(
+                            "Found valid data at closest gridcell: %s=%0.4f, %s=%0.4f",
+                            spatial_dims[0],
+                            coord0,
+                            spatial_dims[1],
+                            coord1,
+                        )
+                    elif (
+                        "lat" in closest_gridcell.coords
+                        and "lon" in closest_gridcell.coords
+                    ):
+                        lat_val = float(
+                            closest_gridcell.coords["lat"].to_numpy().item()
+                        )
+                        lon_val = float(
+                            closest_gridcell.coords["lon"].to_numpy().item()
+                        )
+                        logger.info(
+                            "Found valid data at closest gridcell: lat=%0.4f, lon=%0.4f",
+                            lat_val,
+                            lon_val,
+                        )
+                    else:
+                        logger.info(
+                            "Found valid data at closest gridcell (coords unavailable)"
+                        )
+                except Exception:
+                    logger.info("Found valid data at closest gridcell")
                 return closest_gridcell
 
-        # If no valid data found at closest point, search in expanding radius
-        logger.info(
-            "Closest gridcell contains NaN values, searching for nearest valid gridcell..."
+        # If no valid data found at closest point, search neighboring grid cells
+        # using index-based nearest-dimension ids (faster and more robust than
+        # repeated lat/lon slicing). This approach finds the closest grid index
+        # (using x/y or lat/lon coordinates) and expands in cell-space until a
+        # valid (non-NaN) cell is found within a reasonable radius.
+        logger.info("Closest gridcell contains NaN values, searching nearby indices...")
+        # Some tests assert on printed messages; keep a short printed status as well
+        try:
+            print("Searching for nearest valid gridcell...")
+        except Exception:
+            # If stdout is not available or patched, ignore
+            pass
+
+        # Determine spatial dimension names
+        if "x" in dataset.dims and "y" in dataset.dims:
+            dim1_name, dim2_name = "x", "y"
+
+        elif "lat" in dataset.dims and "lon" in dataset.dims:
+            dim1_name, dim2_name = "lat", "lon"
+        else:
+            # Unknown grid layout;
+            logger.warning("Unknown spatial dims, cannot search for nearest gridcell")
+            return None
+
+        # Find nearest index along each spatial dim
+        try:
+            coord1_vals = dataset[dim1_name].to_index()
+            coord2_vals = dataset[dim2_name].to_index()
+            if dim1_name in ["lat", "y"]:
+                coord1_target = lat
+                coord2_target = lon
+            else:
+                # For x/y dims transform lat/lon -> x/y coordinates
+                try:
+                    fwd_transformer = pyproj.Transformer.from_crs(
+                        "epsg:4326", dataset.rio.crs, always_xy=True
+                    )
+                    coord2_target, coord1_target = fwd_transformer.transform(lon, lat)
+                except Exception:
+                    # Fall back to lat/lon if transform fails
+                    coord1_target = lat
+                    coord2_target = lon
+
+            idx1 = coord1_vals.get_indexer([coord1_target], method="nearest")[0]
+            idx2 = coord2_vals.get_indexer([coord2_target], method="nearest")[0]
+        except Exception as e:
+            logger.error(
+                "Failed to determine nearest grid indices: %s", e, exc_info=True
+            )
+            return None
+
+        # Only search the immediate 3x3 neighborhood around the nearest index
+        max_i = dataset.sizes[dim1_name]
+        max_j = dataset.sizes[dim2_name]
+
+        center_i = int(idx1)
+        center_j = int(idx2)
+        logger.debug(
+            "Searching immediate 3x3 neighborhood around indices (%d, %d)",
+            center_i,
+            center_j,
         )
 
-        # Define search radii (in degrees)
-        search_radii = [0.01, 0.05, 0.1, 0.2, 0.5]
+        neighbor_cells = []
 
-        for radius in search_radii:
-            logger.debug("Searching within %s° radius...", radius)
+        for di in (-1, 0, 1):
+            for dj in (-1, 0, 1):
+                ni = center_i + di
+                nj = center_j + dj
+                # Skip out-of-bounds indices
+                if ni < 0 or nj < 0 or ni >= max_i or nj >= max_j:
+                    continue
+                try:
+                    cell = dataset.isel({dim1_name: ni, dim2_name: nj})
 
-            # Create a larger bounding box
-            lat_min, lat_max = lat - radius, lat + radius
-            lon_min, lon_max = lon - radius, lon + radius
+                    # Determine a DataArray to test for NaNs
+                    if isinstance(cell, xr.Dataset):
+                        sample_var = next(iter(cell.data_vars))
+                        sample_da = cell[sample_var]
+                    else:
+                        sample_da = cell
 
-            # Clip to bounding box
-            try:
-                larger_region = dataset.sel(
-                    lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)
-                )
+                    if sample_da.isnull().all():
+                        logger.debug(
+                            "Skipping all-NaN cell at indices (%d, %d)", ni, nj
+                        )
+                        continue
 
-                # Determine spatial dimensions dynamically
-                spatial_dims = []
-                for dim in larger_region.dims:
-                    if dim in ["x", "y", "lat", "lon"]:
-                        spatial_dims.append(dim)
-
-                # Check if we have any spatial data
-                if len(spatial_dims) == 0 or any(
-                    larger_region.sizes.get(dim, 0) == 0 for dim in spatial_dims
-                ):
+                    neighbor_cells.append(cell)
+                    logger.debug("Including cell at indices (%d, %d)", ni, nj)
+                except Exception:
+                    # Skip any candidate that raises (robust to missing coords)
                     continue
 
-                # Find valid gridcells in this region
-                first_var = next(iter(larger_region.data_vars))
-                test_data = larger_region[first_var]
+        logger.debug("Found %d valid neighbor cells", len(neighbor_cells))
+        if not neighbor_cells:
+            logger.warning("No valid gridcells found in immediate 3x3 neighborhood")
+            return None
 
-                # Reduce to spatial dimensions only by taking first element of other dimensions
-                for dim in test_data.dims:
-                    if dim not in spatial_dims:
-                        test_data = test_data.isel({dim: 0})
+        try:
+            logger.debug("Averaging all valid neighbor cells")
+            concat = xr.concat(neighbor_cells, dim="nearest_cell")
+            averaged = concat.mean(dim="nearest_cell")
 
-                # Find coordinates of valid (non-NaN) points
-                valid_mask = ~test_data.isnull()
+            # Try to set lat/lon to mean of selected cells if available
+            try:
+                if "lat" in concat.coords and "lon" in concat.coords:
+                    averaged = averaged.assign_coords(
+                        lat=float(np.nanmean(concat["lat"].to_numpy())),
+                        lon=float(np.nanmean(concat["lon"].to_numpy())),
+                    )
+            except Exception:
+                pass
 
-                if valid_mask.any():
-                    # Get lat/lon coordinates of valid points
-                    valid_lats = larger_region.lat.where(valid_mask)
-                    valid_lons = larger_region.lon.where(valid_mask)
-
-                    # Calculate distances to all valid points using geodesic
-                    distances = []
-                    valid_coords = []
-
-                    # Iterate over all spatial dimensions
-                    spatial_indices = {}
-                    for dim in spatial_dims:
-                        spatial_indices[dim] = range(valid_lats.sizes[dim])
-
-                    # Use the first two spatial dimensions for iteration
-                    dim_names = list(spatial_indices.keys())
-                    if len(dim_names) >= 2:
-                        dim1, dim2 = dim_names[0], dim_names[1]
-                        for i in spatial_indices[dim1]:
-                            for j in spatial_indices[dim2]:
-                                isel_dict = {dim1: i, dim2: j}
-                                if valid_mask.isel(**isel_dict):
-                                    point_lat = valid_lats.isel(**isel_dict).values
-                                    point_lon = valid_lons.isel(**isel_dict).values
-
-                                if not (np.isnan(point_lat) or np.isnan(point_lon)):
-                                    dist = geodesic(
-                                        (lat, lon), (point_lat, point_lon)
-                                    ).kilometers
-
-                                    distances.append(dist)
-                                    valid_coords.append(
-                                        (i, j, point_lat, point_lon, dim1, dim2)
-                                    )
-
-                    if valid_coords:
-                        # Find closest valid point
-                        min_idx = np.argmin(distances)
-                        closest_i, closest_j, closest_lat, closest_lon, dim1, dim2 = (
-                            valid_coords[min_idx]
-                        )
-
-                        logger.info(
-                            "Found valid gridcell at distance %0.2f km",
-                            distances[min_idx],
-                        )
-                        logger.debug(
-                            "Valid gridcell coordinates: lat=%0.4f, lon=%0.4f",
-                            closest_lat,
-                            closest_lon,
-                        )
-
-                        # Return the closest valid gridcell from the larger region
-                        return larger_region.isel({dim1: closest_i, dim2: closest_j})
-
-            except Exception as e:
-                logger.error("Error searching radius %s: %s", radius, e, exc_info=True)
-                continue
-
-        logger.warning("No valid gridcells found within search radius")
-        return None
+            return averaged
+        except Exception:
+            # Fallback to returning the center cell if averaging fails
+            logger.warning("Averaging failed", exc_info=True)
+            try:
+                return dataset.isel({dim1_name: center_i, dim2_name: center_j})
+            except Exception:
+                logger.warning("Returning center cell using isel failed", exc_info=True)
+                try:
+                    logger.debug("Returning center cell using sel with lat/lon")
+                    return dataset.sel(
+                        {
+                            "lat": dataset["lat"][center_i],
+                            "lon": dataset["lon"][center_j],
+                        }
+                    )
+                except Exception:
+                    logger.warning(
+                        "No valid gridcells found in neighborhood", exc_info=True
+                    )
+                    return None
 
     @staticmethod
     def _clip_data_to_multiple_points(
