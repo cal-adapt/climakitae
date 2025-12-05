@@ -90,3 +90,12 @@ class TestDatasetWithParamValidator:
         dataset.with_param_validator(mock_validator)
 
         assert dataset.parameter_validator is mock_validator
+
+    def test_with_param_validator_returns_self(self):
+        """Test with_param_validator returns Dataset instance for chaining."""
+        dataset = Dataset()
+        mock_validator = MagicMock(spec=ParameterValidator)
+
+        result = dataset.with_param_validator(mock_validator)
+
+        assert result is dataset
