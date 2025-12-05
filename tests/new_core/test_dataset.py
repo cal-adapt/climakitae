@@ -105,14 +105,18 @@ class TestDatasetWithParamValidator:
         dataset = Dataset()
         invalid_validator = {"is_valid_query": lambda x: x}  # dict, not validator
 
-        with pytest.raises(TypeError, match="must be an instance of ParameterValidator"):
+        with pytest.raises(
+            TypeError, match="must be an instance of ParameterValidator"
+        ):
             dataset.with_param_validator(invalid_validator)
 
     def test_with_param_validator_none(self):
         """Test with_param_validator raises TypeError for None value."""
         dataset = Dataset()
 
-        with pytest.raises(TypeError, match="must be an instance of ParameterValidator"):
+        with pytest.raises(
+            TypeError, match="must be an instance of ParameterValidator"
+        ):
             dataset.with_param_validator(None)
 
 
@@ -207,7 +211,9 @@ class TestDatasetWithProcessingStep:
         del mock_processor.update_context  # Remove update_context
         mock_processor.set_data_accessor = MagicMock()
 
-        with pytest.raises(AttributeError, match="must have an 'update_context' method"):
+        with pytest.raises(
+            AttributeError, match="must have an 'update_context' method"
+        ):
             dataset.with_processing_step(mock_processor)
 
     def test_with_processing_step_missing_set_data_accessor(self):
@@ -353,9 +359,7 @@ class TestDatasetExecuteValidation:
         mock_validator.is_valid_query = MagicMock(return_value=validated_query)
 
         dataset = (
-            Dataset()
-            .with_catalog(mock_catalog)
-            .with_param_validator(mock_validator)
+            Dataset().with_catalog(mock_catalog).with_param_validator(mock_validator)
         )
 
         result = dataset.execute({"variable": "temp"})
@@ -373,9 +377,7 @@ class TestDatasetExecuteValidation:
         mock_validator.is_valid_query = MagicMock(return_value=None)  # Validation fails
 
         dataset = (
-            Dataset()
-            .with_catalog(mock_catalog)
-            .with_param_validator(mock_validator)
+            Dataset().with_catalog(mock_catalog).with_param_validator(mock_validator)
         )
 
         result = dataset.execute({"invalid": "params"})
@@ -421,9 +423,7 @@ class TestDatasetExecuteProcessing:
         mock_processor = _create_mock_processor(return_value=self.processed_dataset)
 
         dataset = (
-            Dataset()
-            .with_catalog(mock_catalog)
-            .with_processing_step(mock_processor)
+            Dataset().with_catalog(mock_catalog).with_processing_step(mock_processor)
         )
 
         result = dataset.execute({"variable": "temp"})
@@ -468,9 +468,7 @@ class TestDatasetExecuteProcessing:
         mock_processor = _create_mock_processor(return_value=self.processed_dataset)
 
         dataset = (
-            Dataset()
-            .with_catalog(mock_catalog)
-            .with_processing_step(mock_processor)
+            Dataset().with_catalog(mock_catalog).with_processing_step(mock_processor)
         )
 
         parameters = {"variable": "temp", "grid_label": "d03"}
@@ -487,14 +485,11 @@ class TestDatasetExecuteProcessing:
         mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
 
         mock_processor = _create_mock_processor(
-            return_value=self.processed_dataset,
-            needs_catalog=True
+            return_value=self.processed_dataset, needs_catalog=True
         )
 
         dataset = (
-            Dataset()
-            .with_catalog(mock_catalog)
-            .with_processing_step(mock_processor)
+            Dataset().with_catalog(mock_catalog).with_processing_step(mock_processor)
         )
 
         dataset.execute({"variable": "temp"})
@@ -511,9 +506,7 @@ class TestDatasetExecuteProcessing:
         mock_processor = _create_mock_processor(return_value=None)
 
         dataset = (
-            Dataset()
-            .with_catalog(mock_catalog)
-            .with_processing_step(mock_processor)
+            Dataset().with_catalog(mock_catalog).with_processing_step(mock_processor)
         )
 
         # Should not raise, but result will be None
@@ -562,9 +555,7 @@ class TestDatasetExecuteErrorHandling:
         mock_processor.execute.side_effect = ValueError("Processing failed")
 
         dataset = (
-            Dataset()
-            .with_catalog(mock_catalog)
-            .with_processing_step(mock_processor)
+            Dataset().with_catalog(mock_catalog).with_processing_step(mock_processor)
         )
 
         with pytest.raises(RuntimeError, match="Error in processing pipeline"):
@@ -580,9 +571,7 @@ class TestDatasetExecuteErrorHandling:
         mock_processor.execute.side_effect = ValueError(original_error_msg)
 
         dataset = (
-            Dataset()
-            .with_catalog(mock_catalog)
-            .with_processing_step(mock_processor)
+            Dataset().with_catalog(mock_catalog).with_processing_step(mock_processor)
         )
 
         with pytest.raises(RuntimeError) as exc_info:
