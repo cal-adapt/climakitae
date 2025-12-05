@@ -231,3 +231,25 @@ class TestDatasetWithProcessingStep:
 
         with pytest.raises(TypeError, match="must have an 'execute' method"):
             dataset.with_processing_step(mock_processor)
+
+
+class TestDatasetMethodChaining:
+    """Test class for fluent interface / method chaining behavior."""
+
+    def test_method_chaining_all_methods(self):
+        """Test chaining all with_* methods together in fluent interface."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock()
+        mock_validator = MagicMock(spec=ParameterValidator)
+        mock_processor = _create_mock_processor()
+
+        dataset = (
+            Dataset()
+            .with_catalog(mock_catalog)
+            .with_param_validator(mock_validator)
+            .with_processing_step(mock_processor)
+        )
+
+        assert dataset.data_access is mock_catalog
+        assert dataset.parameter_validator is mock_validator
+        assert dataset.processing_pipeline == [mock_processor]
