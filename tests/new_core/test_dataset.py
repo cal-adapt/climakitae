@@ -11,6 +11,7 @@ import pytest
 import xarray as xr
 
 from climakitae.core.constants import UNSET
+from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.dataset import Dataset
 
 
@@ -24,3 +25,17 @@ class TestDatasetInit:
         assert dataset.data_access is UNSET
         assert dataset.parameter_validator is UNSET
         assert dataset.processing_pipeline is UNSET
+
+
+class TestDatasetWithCatalog:
+    """Test class for with_catalog method."""
+
+    def test_with_catalog_valid(self):
+        """Test with_catalog with valid DataCatalog instance."""
+        dataset = Dataset()
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock()
+
+        dataset.with_catalog(mock_catalog)
+
+        assert dataset.data_access is mock_catalog
