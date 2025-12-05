@@ -49,3 +49,11 @@ class TestDatasetWithCatalog:
         result = dataset.with_catalog(mock_catalog)
 
         assert result is dataset
+
+    def test_with_catalog_invalid_type(self):
+        """Test with_catalog raises TypeError for non-DataCatalog."""
+        dataset = Dataset()
+        invalid_catalog = {"get_data": lambda x: x}  # dict, not DataCatalog
+
+        with pytest.raises(TypeError, match="must be an instance of DataCatalog"):
+            dataset.with_catalog(invalid_catalog)
