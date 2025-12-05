@@ -151,3 +151,12 @@ class TestDatasetWithProcessingStep:
         dataset.with_processing_step(mock_processor)
 
         assert dataset.processing_pipeline == [mock_processor]
+
+    def test_with_processing_step_returns_self(self):
+        """Test with_processing_step returns Dataset instance for chaining."""
+        dataset = Dataset()
+        mock_processor = _create_mock_processor()
+
+        result = dataset.with_processing_step(mock_processor)
+
+        assert result is dataset
