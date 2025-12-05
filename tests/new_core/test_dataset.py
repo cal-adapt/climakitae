@@ -501,3 +501,23 @@ class TestDatasetExecuteProcessing:
 
         # Verify set_data_accessor was called with the catalog
         mock_processor.set_data_accessor.assert_called_once_with(mock_catalog)
+
+    def test_execute_processing_step_returns_none_continues(self):
+        """Test execute continues when processor returns None (with warning)."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
+
+        # Processor that returns None
+        mock_processor = _create_mock_processor(return_value=None)
+
+        dataset = (
+            Dataset()
+            .with_catalog(mock_catalog)
+            .with_processing_step(mock_processor)
+        )
+
+        # Should not raise, but result will be None
+        result = dataset.execute({"variable": "temp"})
+
+        assert result is None
+        mock_processor.execute.assert_called_once()
