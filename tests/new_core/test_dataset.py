@@ -383,3 +383,17 @@ class TestDatasetExecuteValidation:
         assert isinstance(result, xr.Dataset)
         assert len(result.data_vars) == 0  # Empty dataset
         mock_catalog.get_data.assert_not_called()  # Should not call get_data
+
+    def test_execute_without_validator(self):
+        """Test execute skips validation when no validator is set."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
+
+        dataset = Dataset().with_catalog(mock_catalog)
+        # No validator set
+
+        result = dataset.execute({"variable": "temp"})
+
+        assert isinstance(result, xr.Dataset)
+        # get_data should be called with UNSET since no validator processed the query
+        mock_catalog.get_data.assert_called_once_with(UNSET)
