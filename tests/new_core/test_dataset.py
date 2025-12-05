@@ -533,3 +533,22 @@ class TestDatasetExecuteProcessing:
         result = dataset.execute({"variable": "temp"})
 
         assert result is self.sample_dataset
+
+
+class TestDatasetExecuteErrorHandling:
+    """Test class for execute method - error scenarios."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.sample_dataset = xr.Dataset(
+            {"temp": (["x", "y"], [[1.0, 2.0], [3.0, 4.0]])},
+            coords={"x": [0, 1], "y": [0, 1]},
+        )
+
+    def test_execute_missing_data_accessor_raises(self):
+        """Test execute raises ValueError when data_access is UNSET."""
+        dataset = Dataset()
+        # data_access is UNSET by default
+
+        with pytest.raises(ValueError, match="Data accessor is not configured"):
+            dataset.execute({"variable": "temp"})
