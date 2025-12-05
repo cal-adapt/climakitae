@@ -521,3 +521,15 @@ class TestDatasetExecuteProcessing:
 
         assert result is None
         mock_processor.execute.assert_called_once()
+
+    def test_execute_empty_pipeline_returns_raw_data(self):
+        """Test execute with empty pipeline list returns raw data."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
+
+        dataset = Dataset().with_catalog(mock_catalog)
+        dataset.processing_pipeline = []  # Explicitly set to empty list
+
+        result = dataset.execute({"variable": "temp"})
+
+        assert result is self.sample_dataset
