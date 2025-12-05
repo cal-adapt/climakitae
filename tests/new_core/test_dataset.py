@@ -187,3 +187,14 @@ class TestDatasetWithProcessingStep:
         assert dataset.processing_pipeline[0] is processor1
         assert dataset.processing_pipeline[1] is processor2
         assert dataset.processing_pipeline[2] is processor3
+
+    def test_with_processing_step_missing_execute(self):
+        """Test with_processing_step raises TypeError if step lacks execute method."""
+        dataset = Dataset()
+        mock_processor = MagicMock()
+        del mock_processor.execute  # Remove execute
+        mock_processor.update_context = MagicMock()
+        mock_processor.set_data_accessor = MagicMock()
+
+        with pytest.raises(TypeError, match="must have an 'execute' method"):
+            dataset.with_processing_step(mock_processor)
