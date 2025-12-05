@@ -4,14 +4,18 @@ Validator for parameters provided to MetricCalc Processor.
 
 from __future__ import annotations
 
-import warnings
+import logging
 from typing import Any
 
 import numpy as np
 
+from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
 )
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 @register_processor_validator("metric_calc")
@@ -43,7 +47,7 @@ def validate_metric_calc_param(
         True if all parameters are valid, False otherwise
     """
     if not isinstance(value, dict):
-        warnings.warn(
+        logger.warning(
             "\n\nMetricCalc Processor expects a dictionary configuration. "
             "\nPlease check the configuration."
         )
@@ -51,7 +55,7 @@ def validate_metric_calc_param(
 
     # Extract parameters for validation
     metric = value.get("metric", "mean")
-    percentiles = value.get("percentiles", None)
+    percentiles = value.get("percentiles", UNSET)
     percentiles_only = value.get("percentiles_only", False)
     dim = value.get("dim", "time")
     skipna = value.get("skipna", True)
@@ -76,18 +80,18 @@ def _validate_basic_metric_parameters(
 
     # Validate metric
     if metric not in valid_metrics:
-        warnings.warn(
+        logger.warning(
             f"\n\nInvalid metric '{metric}'. "
             f"\nSupported metrics are: {valid_metrics}"
         )
         return False
 
     # Validate percentiles
-    if percentiles is not None:
+    if percentiles is not None and percentiles is not UNSET:
         if isinstance(percentiles, np.ndarray):
             percentiles = percentiles.tolist()
         if not isinstance(percentiles, list):
-            warnings.warn(
+            logger.warning(
                 f"\n\nPercentiles must be a list or numpy array, got {type(percentiles)}. "
                 "\nPlease check the configuration."
             )
@@ -95,7 +99,7 @@ def _validate_basic_metric_parameters(
 
         for p in percentiles:
             if not isinstance(p, (int, float)) or not (0 <= p <= 100):
-                warnings.warn(
+                logger.warning(
                     f"\n\nInvalid percentile value '{p}'. "
                     "\nPercentiles must be numbers between 0 and 100."
                 )
@@ -103,7 +107,7 @@ def _validate_basic_metric_parameters(
 
     # Validate dim type
     if not isinstance(dim, (str, list)):
-        warnings.warn(
+        logger.warning(
             f"\n\nParameter 'dim' must be a string or list, got {type(dim)}. "
             "\nPlease check the configuration."
         )
@@ -112,7 +116,7 @@ def _validate_basic_metric_parameters(
     if isinstance(dim, list):
         for d in dim:
             if not isinstance(d, str):
-                warnings.warn(
+                logger.warning(
                     "\n\nAll dimension names must be strings. "
                     "\nPlease check the configuration."
                 )
@@ -124,15 +128,17 @@ def _validate_basic_metric_parameters(
         ("skipna", skipna),
     ]:
         if not isinstance(param_value, bool):
-            warnings.warn(
+            logger.warning(
                 f"\n\nParameter '{param_name}' must be a boolean, got {type(param_value)}. "
                 "\nPlease check the configuration."
             )
             return False
 
     # Validate percentiles_only logic
-    if percentiles_only and percentiles is None:
-        warnings.warn(
+    if percentiles_only and (
+        percentiles is None or percentiles is UNSET or percentiles == []
+    ):
+        logger.warning(
             "\n\npercentiles_only=True requires percentiles to be specified. "
             "\nPlease provide a list of percentiles or set percentiles_only=False."
         )

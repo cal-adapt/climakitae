@@ -2,7 +2,7 @@
 DataProcessor MetricCalc
 """
 
-import warnings
+import logging
 from typing import Any, Dict, Iterable, Union
 
 import xarray as xr
@@ -15,6 +15,9 @@ from climakitae.new_core.processors.abc_data_processor import (
 )
 
 PERCENTILE_TO_QUANTILE_FACTOR = 100.0
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 @register_processor("metric_calc", priority=7500)
@@ -131,6 +134,11 @@ class MetricCalc(DataProcessor):
         """
         ret = None
 
+        if result is None or (isinstance(result, (list, tuple, dict)) and not result):
+            raise ValueError(
+                "Metric calculation operation failed to produce valid results on empty arguments."
+            )
+
         match result:
             case xr.Dataset() | xr.DataArray():
                 ret = self._calculate_metrics_single(result)
@@ -193,7 +201,7 @@ class MetricCalc(DataProcessor):
         # Filter out dimensions that don't exist
         valid_dims = [dim for dim in dims_to_check if dim in available_dims]
         if not valid_dims:
-            warnings.warn(
+            logger.warning(
                 f"\n\nNone of the specified dimensions {dims_to_check} exist in the data. "
                 f"\nAvailable dimensions: {list(available_dims)}"
             )
@@ -245,52 +253,101 @@ class MetricCalc(DataProcessor):
         # Return combined results or single result
         if len(results) == 1:
             return results[0]
-        elif len(results) == 2 and self.percentiles is not None:
+        elif len(results) == 2 and self.percentiles not in (UNSET, None):
             # Combine percentiles and metric results
             percentile_result, metric_result = results
 
             # Create a combined dataset/dataarray
             if isinstance(data, xr.Dataset):
-                # For datasets, we need to be more careful about combining
-                combined_data = {}
-
-                # Add percentile results
-                for var_name in percentile_result.data_vars:
-                    for i, p in enumerate(self.percentiles):
-                        # Drop the percentile coordinate to avoid conflicts when combining
-                        percentile_data = (
-                            percentile_result[var_name]
-                            .isel(percentile=i)
-                            .drop_vars("percentile")
-                        )
-                        combined_data[f"{var_name}_p{p}"] = percentile_data
-
-                # Add metric results
-                for var_name in metric_result.data_vars:
-                    combined_data[f"{var_name}_{self.metric}"] = metric_result[var_name]
-
-                result = xr.Dataset(combined_data, attrs=data.attrs)
-
+                return self._combine_dataset_results(
+                    data, percentile_result, metric_result
+                )
             else:
-                # For DataArrays, create a new dimension for the different statistics
-                stats_list = [f"p{p}" for p in self.percentiles] + [self.metric]
+                return self._combine_dataarray_results(percentile_result, metric_result)
 
-                # Stack percentile and metric results
-                all_values = []
-                for i in range(len(self.percentiles)):
-                    all_values.append(
-                        percentile_result.isel(percentile=i).drop_vars(
-                            "percentile", errors="ignore"
-                        )
-                    )
-                all_values.append(metric_result)
-                result = xr.concat(all_values, dim="statistic")
-                result = result.assign_coords(statistic=stats_list)
-
-            return result
         else:
             # Should not reach here, but return the first result as fallback
             return results[0] if results else data
+
+    def _combine_dataarray_results(
+        self,
+        percentile_result: xr.DataArray,
+        metric_result: xr.DataArray,
+    ) -> xr.DataArray:
+        """
+        Combine percentile and metric results into a single DataArray.
+
+        Parameters
+        ----------
+        percentile_result : xr.DataArray
+            The DataArray containing percentile results.
+        metric_result : xr.DataArray
+            The DataArray containing metric results.
+
+        Returns
+        -------
+        xr.DataArray
+            The combined DataArray with both percentile and metric results.
+        """
+        # For DataArrays, create a new dimension for the different statistics
+        stats_list = [f"p{p}" for p in self.percentiles] + [self.metric]
+
+        # Stack percentile and metric results
+        all_values = []
+        for i in range(len(self.percentiles)):
+            all_values.append(
+                percentile_result.isel(percentile=i).drop_vars(
+                    "percentile", errors="ignore"
+                )
+            )
+        all_values.append(metric_result)
+        result = xr.concat(all_values, dim="statistic")
+        result = result.assign_coords(statistic=stats_list)
+        return result
+
+    def _combine_dataset_results(
+        self,
+        data: xr.Dataset,
+        percentile_result: xr.Dataset,
+        metric_result: xr.Dataset,
+    ) -> xr.Dataset:
+        """
+        Combine percentile and metric results into a single Dataset.
+
+        Parameters
+        ----------
+        data : xr.Dataset
+            The original data.
+        percentile_result : xr.Dataset
+            The dataset containing percentile results.
+        metric_result : xr.Dataset
+            The dataset containing metric results.
+
+        Returns
+        -------
+        xr.Dataset
+            The combined dataset with both percentile and metric results.
+        """
+        # For datasets, we need to be more careful about combining
+        combined_data = {}
+
+        # Add percentile results
+        for var_name in percentile_result.data_vars:
+            for i, p in enumerate(self.percentiles):
+                # Drop the percentile coordinate to avoid conflicts when combining
+                percentile_data = (
+                    percentile_result[var_name]
+                    .isel(percentile=i)
+                    .drop_vars("percentile")
+                )
+                combined_data[f"{var_name}_p{p}"] = percentile_data
+
+        # Add metric results
+        for var_name in metric_result.data_vars:
+            combined_data[f"{var_name}_{self.metric}"] = metric_result[var_name]
+
+        result = xr.Dataset(combined_data, attrs=data.attrs)
+        return result
 
     def update_context(self, context: Dict[str, Any]):
         """
@@ -312,7 +369,7 @@ class MetricCalc(DataProcessor):
         description_parts = []
 
         # Regular metric calculations
-        if self.percentiles is not None:
+        if self.percentiles not in (UNSET, None):
             description_parts.append(f"Percentiles {self.percentiles} were calculated")
 
         if not self.percentiles_only:
@@ -339,4 +396,4 @@ class MetricCalc(DataProcessor):
         This processor does not require data access, so this is a placeholder.
         """
         # This processor does not require data access
-        self._catalog = catalog
+        ...
