@@ -198,3 +198,14 @@ class TestDatasetWithProcessingStep:
 
         with pytest.raises(TypeError, match="must have an 'execute' method"):
             dataset.with_processing_step(mock_processor)
+
+    def test_with_processing_step_missing_update_context(self):
+        """Test with_processing_step raises AttributeError if step lacks update_context."""
+        dataset = Dataset()
+        mock_processor = MagicMock()
+        mock_processor.execute = MagicMock()
+        del mock_processor.update_context  # Remove update_context
+        mock_processor.set_data_accessor = MagicMock()
+
+        with pytest.raises(AttributeError, match="must have an 'update_context' method"):
+            dataset.with_processing_step(mock_processor)
