@@ -480,3 +480,24 @@ class TestDatasetExecuteProcessing:
         call_args = mock_processor.execute.call_args
         context = call_args[0][1]  # Second positional argument
         assert isinstance(context, dict)
+
+    def test_execute_processing_step_needs_catalog(self):
+        """Test processing step with needs_catalog=True receives catalog."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
+
+        mock_processor = _create_mock_processor(
+            return_value=self.processed_dataset,
+            needs_catalog=True
+        )
+
+        dataset = (
+            Dataset()
+            .with_catalog(mock_catalog)
+            .with_processing_step(mock_processor)
+        )
+
+        dataset.execute({"variable": "temp"})
+
+        # Verify set_data_accessor was called with the catalog
+        mock_processor.set_data_accessor.assert_called_once_with(mock_catalog)
