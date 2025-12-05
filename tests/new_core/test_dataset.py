@@ -306,3 +306,16 @@ class TestDatasetExecute:
         assert isinstance(result, xr.Dataset)
         # Verify parameters were passed to get_data via validation (UNSET without validator)
         mock_catalog.get_data.assert_called_once()
+
+    def test_execute_without_parameters(self):
+        """Test execute with UNSET parameters - context should be empty dict."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
+
+        dataset = Dataset().with_catalog(mock_catalog)
+
+        result = dataset.execute()
+
+        assert isinstance(result, xr.Dataset)
+        # Should call get_data with UNSET (no validator, so valid_query stays UNSET)
+        mock_catalog.get_data.assert_called_once()
