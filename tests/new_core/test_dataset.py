@@ -331,3 +331,35 @@ class TestDatasetExecute:
 
         assert isinstance(result, xr.Dataset)
         assert "temp" in result.data_vars
+
+
+class TestDatasetExecuteValidation:
+    """Test class for execute method - validation paths."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.sample_dataset = xr.Dataset(
+            {"temp": (["x", "y"], [[1.0, 2.0], [3.0, 4.0]])},
+            coords={"x": [0, 1], "y": [0, 1]},
+        )
+
+    def test_execute_validation_success(self):
+        """Test execute with validator that returns valid query."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
+
+        mock_validator = MagicMock(spec=ParameterValidator)
+        validated_query = {"variable": "temp", "validated": True}
+        mock_validator.is_valid_query = MagicMock(return_value=validated_query)
+
+        dataset = (
+            Dataset()
+            .with_catalog(mock_catalog)
+            .with_param_validator(mock_validator)
+        )
+
+        result = dataset.execute({"variable": "temp"})
+
+        assert isinstance(result, xr.Dataset)
+        mock_validator.is_valid_query.assert_called_once()
+        mock_catalog.get_data.assert_called_once_with(validated_query)
