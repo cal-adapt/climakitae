@@ -569,3 +569,26 @@ class TestDatasetExecuteErrorHandling:
 
         with pytest.raises(RuntimeError, match="Error in processing pipeline"):
             dataset.execute({"variable": "temp"})
+
+    def test_execute_processing_step_exception_includes_original_message(self):
+        """Test RuntimeError message includes original exception info."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
+
+        mock_processor = _create_mock_processor()
+        original_error_msg = "Specific error from processor"
+        mock_processor.execute.side_effect = ValueError(original_error_msg)
+
+        dataset = (
+            Dataset()
+            .with_catalog(mock_catalog)
+            .with_processing_step(mock_processor)
+        )
+
+        with pytest.raises(RuntimeError) as exc_info:
+            dataset.execute({"variable": "temp"})
+
+        assert original_error_msg in str(exc_info.value)
+        # Verify the original exception is chained
+        assert exc_info.value.__cause__ is not None
+        assert isinstance(exc_info.value.__cause__, ValueError)
