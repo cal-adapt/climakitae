@@ -13,6 +13,7 @@ import xarray as xr
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.dataset import Dataset
+from climakitae.new_core.param_validation.abc_param_validation import ParameterValidator
 
 
 class TestDatasetInit:
@@ -76,3 +77,16 @@ class TestDatasetWithCatalog:
 
         with pytest.raises(TypeError, match="'get_data' method.*must be callable"):
             dataset.with_catalog(mock_catalog)
+
+
+class TestDatasetWithParamValidator:
+    """Test class for with_param_validator method."""
+
+    def test_with_param_validator_valid(self):
+        """Test with_param_validator with valid ParameterValidator instance."""
+        dataset = Dataset()
+        mock_validator = MagicMock(spec=ParameterValidator)
+
+        dataset.with_param_validator(mock_validator)
+
+        assert dataset.parameter_validator is mock_validator
