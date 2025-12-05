@@ -82,8 +82,8 @@ class TestHDPValidatorValidation:
         with patch.object(ParameterValidator, "_is_valid_query") as mock_parent_method:
             mock_parent_method.return_value = {"result": "test"}
 
-            # Test query
-            test_query = {"variable_id": "test_variable"}
+            # Test query (must include network_id which is required)
+            test_query = {"network_id": "TEST", "variable_id": "test_variable"}
             result = validator.is_valid_query(test_query)
 
             # Verify parent method was called with correct arguments
