@@ -319,3 +319,15 @@ class TestDatasetExecute:
         assert isinstance(result, xr.Dataset)
         # Should call get_data with UNSET (no validator, so valid_query stays UNSET)
         mock_catalog.get_data.assert_called_once()
+
+    def test_execute_returns_xarray_dataset(self):
+        """Test execute returns xr.Dataset."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
+
+        dataset = Dataset().with_catalog(mock_catalog)
+
+        result = dataset.execute({"variable": "temp"})
+
+        assert isinstance(result, xr.Dataset)
+        assert "temp" in result.data_vars
