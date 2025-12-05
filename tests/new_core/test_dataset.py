@@ -253,3 +253,19 @@ class TestDatasetMethodChaining:
         assert dataset.data_access is mock_catalog
         assert dataset.parameter_validator is mock_validator
         assert dataset.processing_pipeline == [mock_processor]
+
+    def test_method_chaining_returns_same_instance(self):
+        """Test each chained call returns the same Dataset instance."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock()
+        mock_validator = MagicMock(spec=ParameterValidator)
+        mock_processor = _create_mock_processor()
+
+        dataset = Dataset()
+        result1 = dataset.with_catalog(mock_catalog)
+        result2 = result1.with_param_validator(mock_validator)
+        result3 = result2.with_processing_step(mock_processor)
+
+        assert result1 is dataset
+        assert result2 is dataset
+        assert result3 is dataset
