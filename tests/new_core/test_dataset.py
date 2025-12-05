@@ -99,3 +99,11 @@ class TestDatasetWithParamValidator:
         result = dataset.with_param_validator(mock_validator)
 
         assert result is dataset
+
+    def test_with_param_validator_invalid_type(self):
+        """Test with_param_validator raises TypeError for non-ParameterValidator."""
+        dataset = Dataset()
+        invalid_validator = {"is_valid_query": lambda x: x}  # dict, not validator
+
+        with pytest.raises(TypeError, match="must be an instance of ParameterValidator"):
+            dataset.with_param_validator(invalid_validator)
