@@ -57,3 +57,13 @@ class TestDatasetWithCatalog:
 
         with pytest.raises(TypeError, match="must be an instance of DataCatalog"):
             dataset.with_catalog(invalid_catalog)
+
+    def test_with_catalog_missing_get_data(self):
+        """Test with_catalog raises AttributeError if catalog lacks get_data method."""
+        dataset = Dataset()
+        # Create a mock that passes isinstance check but lacks get_data
+        mock_catalog = MagicMock(spec=DataCatalog)
+        del mock_catalog.get_data  # Remove the get_data attribute
+
+        with pytest.raises(AttributeError, match="must have a 'get_data' method"):
+            dataset.with_catalog(mock_catalog)
