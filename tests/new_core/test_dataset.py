@@ -220,3 +220,14 @@ class TestDatasetWithProcessingStep:
 
         with pytest.raises(TypeError, match="must have a 'set_data_accessor' method"):
             dataset.with_processing_step(mock_processor)
+
+    def test_with_processing_step_non_callable_execute(self):
+        """Test with_processing_step raises TypeError if execute is not callable."""
+        dataset = Dataset()
+        mock_processor = MagicMock()
+        mock_processor.execute = "not_a_function"  # Non-callable
+        mock_processor.update_context = MagicMock()
+        mock_processor.set_data_accessor = MagicMock()
+
+        with pytest.raises(TypeError, match="must have an 'execute' method"):
+            dataset.with_processing_step(mock_processor)
