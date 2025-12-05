@@ -319,9 +319,6 @@ class DatasetFactory:
         if "concat" not in query[PROC_KEY] and catalog == "hdp":
             query[PROC_KEY]["concat"] = "station_id"
 
-        if "add_catalog_coords" not in query[PROC_KEY] and catalog == "hdp":
-            query[PROC_KEY]["add_catalog_coords"] = UNSET
-
         if "update_attributes" not in query[PROC_KEY]:
             # add default attribute update step if not present
             query[PROC_KEY]["update_attributes"] = UNSET

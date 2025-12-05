@@ -154,10 +154,251 @@ class TestHDPValidatorRegistration:
         with patch.object(ParameterValidator, "_is_valid_query") as mock_parent_method:
             mock_parent_method.return_value = None
 
-            # Test query
-            test_query = {"invalid_key": "test_value"}
+            # Test query with network_id (to pass initial check)
+            test_query = {"network_id": "TEST", "invalid_key": "test_value"}
             result = validator.is_valid_query(test_query)
 
             # Verify parent method was called and None was returned
             mock_parent_method.assert_called_once_with(test_query)
             assert result is None
+
+
+class TestHDPValidatorNetworkIdRequirement:
+    """Test class for network_id requirement validation."""
+
+    def test_query_without_network_id_fails(self):
+        """Test that query without network_id fails validation."""
+        # Create mock DataCatalog
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_data_catalog.hdp = mock_hdp_catalog
+
+        # Initialize validator
+        validator = HDPValidator(mock_data_catalog)
+
+        # Test query without network_id
+        test_query = {"station_id": "TEST_1"}
+        result = validator.is_valid_query(test_query)
+
+        # Should return None (validation failed)
+        assert result is None
+
+    def test_query_with_network_id_string_passes_initial_check(self):
+        """Test that query with network_id as string passes initial validation check."""
+        from climakitae.new_core.param_validation.abc_param_validation import (
+            ParameterValidator,
+        )
+
+        # Create mock DataCatalog
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_data_catalog.hdp = mock_hdp_catalog
+
+        # Initialize validator
+        validator = HDPValidator(mock_data_catalog)
+
+        # Mock the parent class method
+        with patch.object(ParameterValidator, "_is_valid_query") as mock_parent_method:
+            mock_parent_method.return_value = {"network_id": "TEST"}
+
+            # Test query with network_id as string
+            test_query = {"network_id": "TEST"}
+            result = validator.is_valid_query(test_query)
+
+            # Should pass initial check and call parent method
+            mock_parent_method.assert_called_once()
+            assert result == {"network_id": "TEST"}
+
+    def test_query_with_single_item_network_id_list_converted(self):
+        """Test that single-item network_id list is converted to string."""
+        from climakitae.new_core.param_validation.abc_param_validation import (
+            ParameterValidator,
+        )
+
+        # Create mock DataCatalog
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_data_catalog.hdp = mock_hdp_catalog
+
+        # Initialize validator
+        validator = HDPValidator(mock_data_catalog)
+
+        # Mock the parent class method
+        with patch.object(ParameterValidator, "_is_valid_query") as mock_parent_method:
+            mock_parent_method.return_value = {"network_id": "TEST"}
+
+            # Test query with single-item list
+            test_query = {"network_id": ["TEST"]}
+            result = validator.is_valid_query(test_query)
+
+            # Should convert to string and pass
+            assert test_query["network_id"] == "TEST"  # Modified in place
+            mock_parent_method.assert_called_once()
+
+    def test_query_with_multiple_network_ids_fails(self):
+        """Test that query with multiple network_ids fails validation."""
+        # Create mock DataCatalog
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_data_catalog.hdp = mock_hdp_catalog
+
+        # Initialize validator
+        validator = HDPValidator(mock_data_catalog)
+
+        # Test query with multiple network_ids
+        test_query = {"network_id": ["TEST1", "TEST2"]}
+        result = validator.is_valid_query(test_query)
+
+        # Should return None (validation failed)
+        assert result is None
+
+    def test_query_with_empty_network_id_list_fails(self):
+        """Test that query with empty network_id list fails validation."""
+        # Create mock DataCatalog
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_data_catalog.hdp = mock_hdp_catalog
+
+        # Initialize validator
+        validator = HDPValidator(mock_data_catalog)
+
+        # Test query with empty list
+        test_query = {"network_id": []}
+        result = validator.is_valid_query(test_query)
+
+        # Should return None (validation failed)
+        assert result is None
+
+
+class TestHDPValidatorStationIdValidation:
+    """Test class for station_id validation."""
+
+    def test_query_with_invalid_station_id_fails(self):
+        """Test that query with invalid station_id fails validation."""
+        import pandas as pd
+
+        # Create mock DataCatalog
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_data_catalog.hdp = mock_hdp_catalog
+
+        # Mock catalog search to return only 2 out of 3 requested stations
+        mock_search_result = MagicMock()
+        mock_search_result.df = pd.DataFrame(
+            {
+                "station_id": ["ASOSAWOS_1", "ASOSAWOS_2"],
+                "network_id": ["ASOSAWOS", "ASOSAWOS"],
+            }
+        )
+        mock_hdp_catalog.search.return_value = mock_search_result
+
+        # Initialize validator
+        validator = HDPValidator(mock_data_catalog)
+
+        # Test query with 3 stations, but only 2 exist
+        test_query = {
+            "network_id": "ASOSAWOS",
+            "station_id": ["ASOSAWOS_1", "ASOSAWOS_2", "nicole"],
+        }
+        result = validator.is_valid_query(test_query)
+
+        # Should return None (validation failed)
+        assert result is None
+
+    def test_query_with_all_valid_station_ids_passes(self):
+        """Test that query with all valid station_ids passes."""
+        import pandas as pd
+        from climakitae.new_core.param_validation.abc_param_validation import (
+            ParameterValidator,
+        )
+
+        # Create mock DataCatalog
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_data_catalog.hdp = mock_hdp_catalog
+
+        # Mock catalog search to return all requested stations
+        mock_search_result = MagicMock()
+        mock_search_result.df = pd.DataFrame(
+            {
+                "station_id": ["ASOSAWOS_1", "ASOSAWOS_2"],
+                "network_id": ["ASOSAWOS", "ASOSAWOS"],
+            }
+        )
+        mock_hdp_catalog.search.return_value = mock_search_result
+
+        # Initialize validator
+        validator = HDPValidator(mock_data_catalog)
+
+        # Mock the parent class method
+        with patch.object(ParameterValidator, "_is_valid_query") as mock_parent_method:
+            mock_parent_method.return_value = {
+                "network_id": "ASOSAWOS",
+                "station_id": ["ASOSAWOS_1", "ASOSAWOS_2"],
+            }
+
+            # Test query with valid stations
+            test_query = {
+                "network_id": "ASOSAWOS",
+                "station_id": ["ASOSAWOS_1", "ASOSAWOS_2"],
+            }
+            result = validator.is_valid_query(test_query)
+
+            # Should pass validation
+            assert result is not None
+            mock_parent_method.assert_called_once()
+
+    def test_query_without_station_id_passes(self):
+        """Test that query without station_id passes (station_id is optional)."""
+        from climakitae.new_core.param_validation.abc_param_validation import (
+            ParameterValidator,
+        )
+
+        # Create mock DataCatalog
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_data_catalog.hdp = mock_hdp_catalog
+
+        # Initialize validator
+        validator = HDPValidator(mock_data_catalog)
+
+        # Mock the parent class method
+        with patch.object(ParameterValidator, "_is_valid_query") as mock_parent_method:
+            mock_parent_method.return_value = {"network_id": "ASOSAWOS"}
+
+            # Test query without station_id
+            test_query = {"network_id": "ASOSAWOS"}
+            result = validator.is_valid_query(test_query)
+
+            # Should pass validation (station_id is optional)
+            assert result is not None
+            mock_parent_method.assert_called_once()
+
+    def test_query_with_single_invalid_station_id_string_fails(self):
+        """Test that query with single invalid station_id string fails."""
+        import pandas as pd
+
+        # Create mock DataCatalog
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_data_catalog.hdp = mock_hdp_catalog
+
+        # Mock catalog search to return empty result
+        mock_search_result = MagicMock()
+        mock_search_result.df = pd.DataFrame(
+            {
+                "station_id": [],
+                "network_id": [],
+            }
+        )
+        mock_hdp_catalog.search.return_value = mock_search_result
+
+        # Initialize validator
+        validator = HDPValidator(mock_data_catalog)
+
+        # Test query with single invalid station (as string)
+        test_query = {"network_id": "ASOSAWOS", "station_id": "invalid_station"}
+        result = validator.is_valid_query(test_query)
+
+        # Should return None (validation failed)
+        assert result is None

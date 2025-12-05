@@ -56,57 +56,48 @@ class AddCatalogCoords(DataProcessor):
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
         """Execute the AddCatalogCoords processor.
 
-        Adds network_id and other catalog metadata as coordinates to the dataset.
+        Adds network_id as a coordinate to the dataset. Since validation ensures
+        only a single network_id is queried, this is obtained directly from context.
 
         Parameters
         ----------
         result : Dataset, DataArray, or iterable
             The data to process.
         context : dict
-            Processing context containing query parameters.
+            Processing context containing query parameters including network_id.
 
         Returns
         -------
         Dataset, DataArray, or iterable
-            Data with catalog metadata added as coordinates.
+            Data with network_id added as a coordinate.
         """
         logger.debug("AddCatalogCoords.execute called")
 
-        # Always get network_id from catalog using station_ids
-        station_ids = context.get("station_id", UNSET)
-        if station_ids is UNSET:
-            logger.debug("No station_id in context, skipping coordinate addition")
+        # Get network_id from context (required by validator)
+        network_id = context.get("network_id", UNSET)
+        if network_id is UNSET:
+            logger.debug("No network_id in context, skipping coordinate addition")
             return result
 
-        subset = self.catalog.hdp.search(station_id=station_ids)
-        # Create mapping from station_id to network_id
-        station_to_network = dict(zip(subset.df["station_id"], subset.df["network_id"]))
-        logger.debug(
-            "Retrieved station to network mapping from catalog: %s", station_to_network
-        )
+        logger.debug("Adding network_id='%s' as coordinate", network_id)
 
         match result:
             case dict():
                 # Process each dataset in the dictionary
                 for key, item in result.items():
-                    result[key] = self._add_coords_to_dataset(
-                        item, station_to_network, context
-                    )
+                    result[key] = self._add_coords_to_dataset(item, network_id)
             case xr.Dataset():
-                result = self._add_coords_to_dataset(
-                    result, station_to_network, context
-                )
+                result = self._add_coords_to_dataset(result, network_id)
             case xr.DataArray():
                 # Convert to dataset, add coords, convert back
                 ds = result.to_dataset()
-                ds = self._add_coords_to_dataset(ds, station_to_network, context)
+                ds = self._add_coords_to_dataset(ds, network_id)
                 result = (
                     ds[result.name] if result.name else list(ds.data_vars.values())[0]
                 )
             case list() | tuple():
                 result = [
-                    self._add_coords_to_dataset(item, station_to_network, context)
-                    for item in result
+                    self._add_coords_to_dataset(item, network_id) for item in result
                 ]
             case _:
                 logger.warning(
@@ -121,24 +112,21 @@ class AddCatalogCoords(DataProcessor):
     def _add_coords_to_dataset(
         self,
         ds: Union[xr.Dataset, xr.DataArray],
-        station_to_network: dict,
-        context: Dict[str, Any],
+        network_id: str,
     ) -> Union[xr.Dataset, xr.DataArray]:
-        """Add coordinates to a single dataset or dataarray.
+        """Add network_id coordinate to a single dataset or dataarray.
 
         Parameters
         ----------
         ds : Dataset or DataArray
             The dataset to modify.
-        station_to_network : dict
-            Mapping from station_id to network_id.
-        context : dict
-            Processing context.
+        network_id : str
+            The network identifier to add as a coordinate.
 
         Returns
         -------
         Dataset or DataArray
-            Dataset with added coordinates.
+            Dataset with network_id coordinate added.
         """
         if isinstance(ds, xr.DataArray):
             ds = ds.to_dataset()
@@ -146,16 +134,18 @@ class AddCatalogCoords(DataProcessor):
         else:
             was_dataarray = False
 
-        # Add network_id with station_id dimension if it exists
+        # Add network_id coordinate
         if "station_id" in ds.dims:
-            # Map each station_id in the dataset to its network_id
-            station_ids_in_ds = ds["station_id"].values
-            logger.debug("Station IDs in dataset: %s", station_ids_in_ds)
-            logger.debug("Station to network mapping: %s", station_to_network)
-            network_values = [
-                station_to_network.get(str(sid), "unknown") for sid in station_ids_in_ds
-            ]
-            logger.debug("Network values to assign: %s", network_values)
+            # Dataset has station_id dimension - broadcast network_id across all stations
+            # Since validation ensures all stations are from the same network,
+            # we can safely broadcast the single network_id value
+            num_stations = ds.dims["station_id"]
+            network_values = [network_id] * num_stations
+            logger.debug(
+                "Broadcasting network_id='%s' across %d stations",
+                network_id,
+                num_stations,
+            )
 
             ds = ds.assign_coords(network_id=("station_id", network_values))
             ds["network_id"].attrs.update(
@@ -164,20 +154,19 @@ class AddCatalogCoords(DataProcessor):
                     "description": "Network that operates each weather station",
                 }
             )
-            logger.debug("Successfully added network_id coordinate")
+            logger.debug(
+                "Successfully added network_id coordinate with station_id dimension"
+            )
         else:
             # No station_id dimension, add as scalar coordinate
-            unique_networks = list(set(station_to_network.values()))
-            if len(unique_networks) == 1:
-                ds = ds.assign_coords(network_id=unique_networks[0])
-                ds["network_id"].attrs.update(
-                    {
-                        "long_name": "Weather station network identifier",
-                        "description": "Network that operates the weather station(s)",
-                    }
-                )
-            else:
-                logger.warning("Multiple network_ids but no station_id dimension found")
+            ds = ds.assign_coords(network_id=network_id)
+            ds["network_id"].attrs.update(
+                {
+                    "long_name": "Weather station network identifier",
+                    "description": "Network that operates the weather station(s)",
+                }
+            )
+            logger.debug("Successfully added network_id as scalar coordinate")
 
         if was_dataarray:
             # Convert back to DataArray

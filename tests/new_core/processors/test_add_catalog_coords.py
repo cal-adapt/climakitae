@@ -5,8 +5,7 @@ This module contains comprehensive unit tests for the AddCatalogCoords processor
 that adds catalog metadata (network_id) as coordinates to HDP datasets.
 """
 
-from unittest.mock import MagicMock, Mock
-import pandas as pd
+from unittest.mock import MagicMock
 import pytest
 import xarray as xr
 
@@ -49,13 +48,8 @@ class TestAddCatalogCoordsExecute:
     def setup_method(self):
         """Set up test fixtures."""
         self.processor = AddCatalogCoords()
-
-        # Create mock catalog
-        self.mock_catalog = MagicMock()
-        self.mock_hdp_catalog = MagicMock()
-        self.mock_catalog.hdp = self.mock_hdp_catalog
-
-        self.processor.set_data_accessor(self.mock_catalog)
+        # Set mock catalog (even though we don't use it in the new implementation)
+        self.processor.set_data_accessor(MagicMock())
 
     def test_execute_with_single_network_broadcasts_to_all_stations(self):
         """Test execute with single network_id broadcasts to all stations."""
@@ -68,17 +62,7 @@ class TestAddCatalogCoordsExecute:
             },
         )
 
-        # Mock catalog search result
-        mock_subset = MagicMock()
-        mock_subset.df = pd.DataFrame(
-            {
-                "network_id": ["ASOSAWOS", "ASOSAWOS", "ASOSAWOS"],
-                "station_id": ["ASOSAWOS_1", "ASOSAWOS_2", "ASOSAWOS_3"],
-            }
-        )
-        self.mock_hdp_catalog.search.return_value = mock_subset
-
-        context = {"station_id": ["ASOSAWOS_1", "ASOSAWOS_2", "ASOSAWOS_3"]}
+        context = {"network_id": "ASOSAWOS"}
         result = self.processor.execute(dataset, context)
 
         # Check network_id was added as coordinate
@@ -95,37 +79,8 @@ class TestAddCatalogCoordsExecute:
         assert "long_name" in result["network_id"].attrs
         assert "description" in result["network_id"].attrs
 
-    def test_execute_with_multiple_networks(self):
-        """Test execute with multiple network_ids."""
-        # Create dataset with station_id dimension
-        dataset = xr.Dataset(
-            {"temp": (["station_id", "time"], [[1, 2], [3, 4]])},
-            coords={
-                "station_id": ["ASOSAWOS_1", "CIMIS_1"],
-                "time": [0, 1],
-            },
-        )
-
-        # Mock catalog search result with different networks
-        mock_subset = MagicMock()
-        mock_subset.df = pd.DataFrame(
-            {
-                "network_id": ["ASOSAWOS", "CIMIS"],
-                "station_id": ["ASOSAWOS_1", "CIMIS_1"],
-            }
-        )
-        self.mock_hdp_catalog.search.return_value = mock_subset
-
-        context = {"station_id": ["ASOSAWOS_1", "CIMIS_1"]}
-        result = self.processor.execute(dataset, context)
-
-        # Check network_id was added with correct values
-        assert "network_id" in result.coords
-        assert result.coords["network_id"].dims == ("station_id",)
-        assert list(result.coords["network_id"].values) == ["ASOSAWOS", "CIMIS"]
-
-    def test_execute_no_station_id_in_context(self):
-        """Test execute when station_id is not in context."""
+    def test_execute_no_network_id_in_context(self):
+        """Test execute when network_id is not in context."""
         dataset = xr.Dataset({"temp": (["time"], [1, 2, 3])})
         context = {}
 
@@ -147,22 +102,13 @@ class TestAddCatalogCoordsExecute:
             name="temp",
         )
 
-        # Mock catalog search result
-        mock_subset = MagicMock()
-        mock_subset.df = pd.DataFrame(
-            {
-                "network_id": ["ASOSAWOS", "ASOSAWOS"],
-                "station_id": ["ASOSAWOS_1", "ASOSAWOS_2"],
-            }
-        )
-        self.mock_hdp_catalog.search.return_value = mock_subset
-
-        context = {"station_id": ["ASOSAWOS_1", "ASOSAWOS_2"]}
+        context = {"network_id": "ASOSAWOS"}
         result = self.processor.execute(dataarray, context)
 
         # Should be a DataArray with network_id coordinate
         assert isinstance(result, xr.DataArray)
         assert "network_id" in result.coords
+        assert list(result.coords["network_id"].values) == ["ASOSAWOS", "ASOSAWOS"]
 
     def test_execute_with_dict_of_datasets(self):
         """Test execute with dictionary of datasets."""
@@ -175,22 +121,16 @@ class TestAddCatalogCoordsExecute:
             coords={"station_id": ["ASOSAWOS_1", "ASOSAWOS_2"]},
         )
 
-        # Mock catalog search result
-        mock_subset = MagicMock()
-        mock_subset.df = pd.DataFrame(
-            {
-                "network_id": ["ASOSAWOS", "ASOSAWOS"],
-                "station_id": ["ASOSAWOS_1", "ASOSAWOS_2"],
-            }
-        )
-        self.mock_hdp_catalog.search.return_value = mock_subset
-
-        context = {"station_id": ["ASOSAWOS_1", "ASOSAWOS_2"]}
+        context = {"network_id": "ASOSAWOS"}
         result = self.processor.execute({"key1": ds1, "key2": ds2}, context)
 
         # Both datasets should have network_id coordinate
         assert "network_id" in result["key1"].coords
         assert "network_id" in result["key2"].coords
+        assert list(result["key1"].coords["network_id"].values) == [
+            "ASOSAWOS",
+            "ASOSAWOS",
+        ]
 
     def test_execute_with_list_of_datasets(self):
         """Test execute with list of datasets."""
@@ -203,43 +143,42 @@ class TestAddCatalogCoordsExecute:
             coords={"station_id": ["ASOSAWOS_1", "ASOSAWOS_2"]},
         )
 
-        # Mock catalog search result
-        mock_subset = MagicMock()
-        mock_subset.df = pd.DataFrame(
-            {
-                "network_id": ["ASOSAWOS", "ASOSAWOS"],
-                "station_id": ["ASOSAWOS_1", "ASOSAWOS_2"],
-            }
-        )
-        self.mock_hdp_catalog.search.return_value = mock_subset
-
-        context = {"station_id": ["ASOSAWOS_1", "ASOSAWOS_2"]}
+        context = {"network_id": "ASOSAWOS"}
         result = self.processor.execute([ds1, ds2], context)
 
         # Both datasets should have network_id coordinate
         assert "network_id" in result[0].coords
         assert "network_id" in result[1].coords
+        assert list(result[0].coords["network_id"].values) == ["ASOSAWOS", "ASOSAWOS"]
 
     def test_execute_without_station_id_dimension(self):
         """Test execute with dataset that doesn't have station_id dimension."""
         dataset = xr.Dataset({"temp": (["time"], [1, 2, 3])})
 
-        # Mock catalog search result
-        mock_subset = MagicMock()
-        mock_subset.df = pd.DataFrame(
-            {
-                "network_id": ["ASOSAWOS"],
-                "station_id": ["ASOSAWOS_1"],
-            }
-        )
-        self.mock_hdp_catalog.search.return_value = mock_subset
-
-        context = {"station_id": ["ASOSAWOS_1"]}
+        context = {"network_id": "ASOSAWOS"}
         result = self.processor.execute(dataset, context)
 
         # Should add network_id as scalar coordinate
         assert "network_id" in result.coords
         assert result.coords["network_id"].dims == ()
+        assert result.coords["network_id"].values == "ASOSAWOS"
+
+    def test_execute_with_cimis_network(self):
+        """Test execute with a different network (CIMIS)."""
+        dataset = xr.Dataset(
+            {"temp": (["station_id", "time"], [[1, 2], [3, 4]])},
+            coords={
+                "station_id": ["CIMIS_1", "CIMIS_2"],
+                "time": [0, 1],
+            },
+        )
+
+        context = {"network_id": "CIMIS"}
+        result = self.processor.execute(dataset, context)
+
+        # Check network_id was added correctly
+        assert "network_id" in result.coords
+        assert list(result.coords["network_id"].values) == ["CIMIS", "CIMIS"]
 
 
 class TestAddCatalogCoordsUpdateContext:

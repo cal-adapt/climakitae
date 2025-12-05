@@ -684,17 +684,19 @@ class ClimateData:
             # Execute the query
             logger.debug("Executing query")
             data = dataset.execute(self._query)
-            # check if empty dataset
-            # Check if data is empty/null
-            if (
-                data is None
-                or (hasattr(data, "nbytes") and data.nbytes == 0)
-                or (isinstance(data, dict) and not data)
+
+            # Check for validation failure (None) vs empty data
+            if data is None:
+                # Validation failed - invalid parameters
+                logger.error("❌ Data retrieval failed due to validation errors.")
+            elif (hasattr(data, "nbytes") and data.nbytes == 0) or (
+                isinstance(data, dict) and not data
             ):
+                # Valid query but no data available
                 logger.warning("Retrieved dataset is empty")
                 logger.warning("⚠️ Warning: Retrieved dataset is empty.")
-
             else:
+                # Success
                 logger.info("Data retrieval successful")
                 logger.info("✅ Data retrieval successful!")
 
@@ -727,7 +729,7 @@ class ClimateData:
         if catalog in ["renewables", "data"]:
             required_params.extend(["variable_id", "grid_label", "table_id"])
         elif catalog == "hdp":
-            required_params.extend(["station_id"])
+            required_params.extend(["network_id"])
 
         missing_params = []
 
