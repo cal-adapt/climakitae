@@ -430,3 +430,32 @@ class TestDatasetExecuteProcessing:
 
         assert result is self.processed_dataset
         mock_processor.execute.assert_called_once()
+
+    def test_execute_multiple_processing_steps_sequential(self):
+        """Test execute with multiple processors executes in order."""
+        mock_catalog = MagicMock(spec=DataCatalog)
+        mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
+
+        intermediate_dataset = xr.Dataset(
+            {"temp_intermediate": (["x", "y"], [[5.0, 10.0], [15.0, 20.0]])},
+            coords={"x": [0, 1], "y": [0, 1]},
+        )
+
+        processor1 = _create_mock_processor(return_value=intermediate_dataset)
+        processor2 = _create_mock_processor(return_value=self.processed_dataset)
+
+        dataset = (
+            Dataset()
+            .with_catalog(mock_catalog)
+            .with_processing_step(processor1)
+            .with_processing_step(processor2)
+        )
+
+        result = dataset.execute({"variable": "temp"})
+
+        assert result is self.processed_dataset
+        processor1.execute.assert_called_once()
+        processor2.execute.assert_called_once()
+        # Verify processor2 received output from processor1
+        call_args = processor2.execute.call_args
+        assert call_args[0][0] is intermediate_dataset
