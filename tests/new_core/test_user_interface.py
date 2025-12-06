@@ -283,13 +283,11 @@ class TestClimateDataGet:
 
     def test_get_missing_required_parameters(self):
         """Test get method when required parameters are missing."""
-        # The current implementation has a bug where it continues execution
-        # even after validation fails. This test documents the current behavior.
         with patch("builtins.print") as mock_print:
             result = self.climate_data.get()
 
-        # Current behavior: returns a mock object instead of None (this is a bug)
-        assert result is not None  # Documents current buggy behavior
+        # Should return None when validation fails
+        assert result is None
         # Should print error about missing parameters
         printed_text = "".join(str(call) for call in mock_print.call_args_list)
         assert "ERROR: Missing required parameters" in printed_text

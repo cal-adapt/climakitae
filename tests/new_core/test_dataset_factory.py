@@ -174,7 +174,7 @@ class TestDatasetFactoryProcessingSteps:
         query = {
             PROC_KEY: UNSET,
             "experiment_id": ["historical", "ssp245"],
-            "catalog": "data",
+            "catalog": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -194,7 +194,7 @@ class TestDatasetFactoryProcessingSteps:
         """Test _get_list_of_processing_steps with custom processes."""
         query = {
             PROC_KEY: {"spatial_avg": "region", "temporal_avg": "monthly"},
-            "catalog": "data",
+            "catalog": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -688,7 +688,7 @@ class TestDatasetFactoryEdgeCases:
         query = {
             PROC_KEY: UNSET,
             "experiment_id": [],
-            "catalog": "data",
+            "catalog": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
