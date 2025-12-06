@@ -75,6 +75,8 @@ class DataCatalog(dict):
         Access to the lazy-loading boundaries data manager.
     renewables : intake_esm.core.esm_datastore
         Access to the renewables data catalog.
+    hdp: intake_esm.core.esm_datastore
+        Access to the hdp data catalog 
 
     Methods
     -------
