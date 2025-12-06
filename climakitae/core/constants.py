@@ -52,8 +52,8 @@ _NEW_ATTRS_KEY = "new_attrs"
 PROC_KEY = "processes"
 
 # Constant Keys for Data Catalog
-CATALOG_CADCAT = "data"
-CATALOG_REN_ENERGY_GEN = "renewables"
+CATALOG_CADCAT = "cadcat"
+CATALOG_REN_ENERGY_GEN = "renewable energy generation"
 CATALOG_BOUNDARY = "boundary"
 CATALOG_HDP = "hdp"
 

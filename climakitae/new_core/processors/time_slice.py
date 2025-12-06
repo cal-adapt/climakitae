@@ -21,7 +21,11 @@ from climakitae.new_core.processors.abc_data_processor import (
 logger = logging.getLogger(__name__)
 
 
-@register_processor("time_slice", priority=100, catalogs=["data", "renewables", "hdp"])
+@register_processor(
+    "time_slice",
+    priority=100,
+    catalogs=["cadcat", "renewable energy generation", "hdp"],
+)
 class TimeSlice(DataProcessor):
     """
     Slice data based on time.

@@ -146,7 +146,7 @@ class TestDatasetFactoryProcessingSteps:
         query = {
             PROC_KEY: UNSET,
             "experiment_id": "historical",
-            "catalog": "data",
+            "catalog": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -238,7 +238,7 @@ class TestDatasetFactoryProcessingSteps:
         """Test that processing steps are ordered by priority."""
         query = {
             PROC_KEY: {"high_priority": "value1", "low_priority": "value2"},
-            "catalog": "data",
+            "catalog": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 

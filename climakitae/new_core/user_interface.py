@@ -667,6 +667,7 @@ class ClimateData:
         if not self._validate_required_parameters():
             logger.warning("Required parameter validation failed")
             self._reset_query()
+            return None
 
         try:
             # Create dataset using factory
@@ -724,7 +725,7 @@ class ClimateData:
 
         # Only require these params for specific catalogs
         catalog = self._query.get("catalog", UNSET)
-        if catalog in ["renewables", "data"]:
+        if catalog in ["renewable energy generation", "cadcat"]:
             required_params.extend(["variable_id", "grid_label", "table_id"])
         elif catalog == "hdp":
             required_params.extend(["network_id"])

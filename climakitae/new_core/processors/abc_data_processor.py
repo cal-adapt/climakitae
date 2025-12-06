@@ -44,7 +44,7 @@ def register_processor(
     catalogs : list[str], optional
         List of catalog names that this processor is compatible with.
         If not provided (UNSET), the processor is available for all catalogs.
-        Examples: ["data", "renewables"], ["hdp"]
+        Examples: ["cadcat", "renewable energy generation"], ["hdp"]
 
     Returns
     -------
@@ -53,7 +53,7 @@ def register_processor(
 
     Examples
     --------
-    @register_processor("my_processor", priority=10, catalogs=["data", "renewables"])
+    @register_processor("my_processor", priority=10, catalogs=["cadcat", "renewable energy generation"])
     class MyProcessor(DataProcessor):
         ...
 

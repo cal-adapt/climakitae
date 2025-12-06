@@ -289,13 +289,16 @@ class DatasetFactory:
 
         ## ===== climate model datasets only ======
         if "filter_unadjusted_models" not in query[PROC_KEY] and catalog in [
-            "data",
-            "renewables",
+            "cadcat",
+            "renewable energy generation",
         ]:
             # add default filtering step if not present for climate model data
             query[PROC_KEY]["filter_unadjusted_models"] = "yes"
 
-        if "concat" not in query[PROC_KEY] and catalog in ["data", "renewables"]:
+        if "concat" not in query[PROC_KEY] and catalog in [
+            "cadcat",
+            "renewable energy generation",
+        ]:
             # add default concatenation step if not present
             default_concat = "time"
             # now we check if "time" makes sense

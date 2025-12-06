@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 # concatenation processor in the pre-processing chain
-@register_processor("concat", priority=50, catalogs=["data", "renewables", "hdp"])
+@register_processor(
+    "concat", priority=50, catalogs=["cadcat", "renewable energy generation", "hdp"]
+)
 class Concat(DataProcessor):
     """DataProcessor that concatenates multiple datasets along a new "sim" dimension.
 
