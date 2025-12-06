@@ -1,6 +1,5 @@
 """Initialize the processors, ensuring they get registered."""
 
-from .add_catalog_coords import AddCatalogCoords
 from .bias_adjust_model_to_station import BiasAdjustModelToStation
 from .concatenate import Concat
 from .convert_units import ConvertUnits
@@ -11,7 +10,6 @@ from .update_attributes import UpdateAttributes
 from .warming_level import WarmingLevel
 
 __all__ = [
-    "AddCatalogCoords",
     "Concat",
     "ConvertUnits",
     "Clip",
