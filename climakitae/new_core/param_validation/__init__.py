@@ -1,6 +1,5 @@
 """Import param validation classes ensuring they are registered."""
 
-from .add_catalog_coords_param_validator import validate_add_catalog_coords_param
 from .concat_param_validator import validate_concat_param
 from .convert_units_param_validator import validate_convert_units_param
 from .clip_param_validator import validate_clip_param
