@@ -189,6 +189,9 @@ def test_dataarray_wl_20_all_season_loca_3km_daily_temp(rootdir):
     filename = "test_data/test_dataarray_wl_20_all_season_loca_3km_daily_temp.nc"
     filepath = os.path.join(rootdir, filename)
     da = xr.open_dataarray(filepath)
+    # Fill NaNs with 0 to ensure valid data for testing
+    if da.isnull().all():
+        da = da.fillna(0)
     return da
 
 

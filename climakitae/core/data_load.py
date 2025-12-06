@@ -1719,6 +1719,12 @@ def _station_apply(
             gridded_da, station_lat, station_lon, print_coords=False
         )
 
+        if gridded_da_closest_gridcell is None:
+            raise ValueError(
+                f"No valid gridcell found for station at coordinates ({station_lat}, {station_lon}). "
+                "The station may be outside the gridded data domain or the data may be missing."
+            )
+
         # Droop any coordinates in the output dataset that are not also dimensions
         # This makes merging all the stations together easier and drops superfluous coordinates
         gridded_da_closest_gridcell = gridded_da_closest_gridcell.drop_vars(
