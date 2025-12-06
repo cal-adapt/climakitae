@@ -236,12 +236,6 @@ class Dataset:
                         "Processing step %s returned None",
                         getattr(step, "name", type(step).__name__),
                     )
-                    # Keep logging warning for visibility
-                    logger.warning(
-                        f"\n\nProcessing step {step.name} returned None. "
-                        "\nEnsure that the step is implemented correctly.",
-                        stacklevel=999,
-                    )
                 logger.debug("Processing step %d completed successfully", i)
 
             logger.info("All processing steps completed successfully")
