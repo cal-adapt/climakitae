@@ -76,7 +76,7 @@ class DataCatalog(dict):
     renewables : intake_esm.core.esm_datastore
         Access to the renewables data catalog.
     hdp: intake_esm.core.esm_datastore
-        Access to the hdp data catalog 
+        Access to the hdp data catalog
 
     Methods
     -------
