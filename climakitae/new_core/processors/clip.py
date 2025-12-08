@@ -1025,6 +1025,7 @@ class Clip(DataProcessor):
             "CA Electric Load Serving Entities (IOU & POU)": boundaries._ca_utilities,
             "CA Electricity Demand Forecast Zones": boundaries._ca_forecast_zones,
             "CA Electric Balancing Authority Areas": boundaries._ca_electric_balancing_areas,
+            "CA Census Tracts": boundaries._ca_census_tracts,
         }
 
         if category not in category_map:

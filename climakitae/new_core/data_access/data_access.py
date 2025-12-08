@@ -328,7 +328,11 @@ class DataCatalog(dict):
             self[self.catalog_key]
             .search(**query)
             .to_dataset_dict(
-                zarr_kwargs={"consolidated": True},
+                # Use consolidated=None for compatibility with both Zarr v2 and v3.
+                # - True: requires consolidated metadata (fails on Zarr v3 without it)
+                # - False: always reads metadata from individual arrays
+                # - None: uses consolidated if available, falls back to individual reads
+                zarr_kwargs={"consolidated": None},
                 storage_options={"anon": True},
                 progressbar=False,
             )
