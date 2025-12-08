@@ -129,6 +129,10 @@ class ConvertUnits(DataProcessor):
         self.value = value
         self.name = "convert_units"
         self.success = True
+        logger.debug(
+            "ConvertUnits processor initialized with target_units=%s",
+            value if value is not UNSET else "<not set>",
+        )
 
     def execute(
         self,
@@ -137,19 +141,31 @@ class ConvertUnits(DataProcessor):
         ],
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
-        # Placeholder for unit conversion logic
+        logger.debug(
+            "ConvertUnits.execute called with target_units=%s, result_type=%s",
+            self.value,
+            type(result).__name__,
+        )
+
         if self.value is UNSET:
+            logger.debug("No target units specified, returning data unchanged")
             return result
 
         ret = result
         match result:
             case dict():
                 # If result is a dictionary, convert each item
+                logger.debug(
+                    "Converting units for %d datasets in dictionary", len(result)
+                )
                 ret = {k: self._convert_units(v, self.value) for k, v in result.items()}
             case xr.Dataset() | xr.DataArray():
                 ret = self._convert_units(result, self.value)
             case list() | tuple():
                 # If result is an iterable, convert each item
+                logger.debug(
+                    "Converting units for %d datasets in iterable", len(result)
+                )
                 ret = type(result)(
                     [self._convert_units(item, self.value) for item in result]
                 )
@@ -161,6 +177,7 @@ class ConvertUnits(DataProcessor):
 
         if self.success:
             # In this processor, it doesn't make sense to update unless the conversion was successful
+            logger.info("Units successfully converted to '%s'", self.value)
             self.update_context(context)
         return ret
 
@@ -213,6 +230,9 @@ class ConvertUnits(DataProcessor):
             units_from = data.data_vars[var].attrs[
                 "units"
             ]  # Trying to get an error if the units attribute does not exist
+            logger.debug(
+                "Converting variable '%s' from '%s' to '%s'", var, units_from, value
+            )
         except (KeyError, IndexError):
             logger.warning(
                 "This variable does not have identifiable native units. "
@@ -248,7 +268,8 @@ class ConvertUnits(DataProcessor):
                     self.success = False
                     return data
 
-                # Perform the actual conversion - Fix: assign to the dataset directly
+                # Perform the actual conversion
+                logger.debug("Applying conversion: (%s, %s)", units_from, value)
                 converted_var = UNIT_CONVERSIONS.get(
                     (units_from, value), lambda da: da
                 )(data.data_vars[var])
@@ -256,6 +277,12 @@ class ConvertUnits(DataProcessor):
                 converted_var.attrs["units"] = value
                 # Assign back to the dataset
                 data = data.assign({var: converted_var})
+                logger.debug(
+                    "Conversion complete for variable '%s': %s -> %s",
+                    var,
+                    units_from,
+                    value,
+                )
             case _:
                 logger.warning(
                     "The provided value is not the correct type. "
