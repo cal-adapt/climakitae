@@ -253,7 +253,7 @@ class MetricCalc(DataProcessor):
         # Return combined results or single result
         if len(results) == 1:
             return results[0]
-        elif len(results) == 2 and self.percentiles not in (UNSET, None):
+        elif len(results) == 2 and (self.percentiles is not UNSET and self.percentiles is not None):#self.percentiles not in (UNSET, None):
             # Combine percentiles and metric results
             percentile_result, metric_result = results
 
@@ -369,7 +369,8 @@ class MetricCalc(DataProcessor):
         description_parts = []
 
         # Regular metric calculations
-        if self.percentiles not in (UNSET, None):
+        # if self.percentiles not in (UNSET, None):
+        if self.percentiles is not UNSET and self.percentiles is not None:
             description_parts.append(f"Percentiles {self.percentiles} were calculated")
 
         if not self.percentiles_only:
