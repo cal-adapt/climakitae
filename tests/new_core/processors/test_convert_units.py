@@ -174,7 +174,7 @@ class TestConvertUnitsConvertUnitsHelper:
     ):
         """Test that unsupported unit conversions raise a ValueError."""
         with pytest.warns(
-            UserWarning, match="The selected units unknown_unit are not valid for degC."
+            UserWarning, match="The selected units 'unknown_unit' are not valid for 'degC'"
         ):
             processor._convert_units(sample_dataset, "unknown_unit")
             assert processor.success is False
@@ -202,7 +202,7 @@ class TestConvertUnitsConvertUnitsHelper:
 
         with pytest.warns(
             UserWarning,
-            match="There are no valid unit conversions implemented for invalid_unit",
+            match="No valid unit conversions implemented for 'invalid_unit'",
         ):
             converted_dataset = processor._convert_units(sample_dataset, "K")
 

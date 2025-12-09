@@ -2307,7 +2307,7 @@ class TestClipDataWithGeomCRS:
 
         with pytest.raises(
             ValueError,
-            match="Lambert_Conformal coordinate found but missing spatial_ref attribute",
+            match="Lambert_Conformal coordinate found but missing required CF convention attribute",
         ):
             Clip._clip_data_with_geom(mock_data, self.gdf)
 
