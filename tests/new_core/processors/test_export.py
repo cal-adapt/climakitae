@@ -376,6 +376,175 @@ class TestExportCollectionHandling:
             mock_export.assert_called_once_with(gridded_ds)
 
 
+class TestExportClosestCellHandling:
+    """Test class for multi-point clip results (closest_cell dimension) export behavior."""
+
+    def setup_method(self):
+        """Set up test fixtures with closest_cell dimension data (like from clip processor)."""
+        # Simulate output from clipping to multiple lat/lon points
+        # The clip processor creates a closest_cell dimension with target_lats/lons coords
+        self.multi_point_ds = xr.Dataset(
+            {
+                "temp": (
+                    ["time", "closest_cell"],
+                    [[25.5, 26.5, 27.5], [25.6, 26.6, 27.6]],
+                )
+            },
+            coords={
+                "time": [0, 1],
+                "closest_cell": [0, 1, 2],
+                "target_lats": ("closest_cell", [34.05, 37.77, 32.72]),
+                "target_lons": ("closest_cell", [-118.25, -122.42, -117.16]),
+                "point_index": ("closest_cell", [0, 1, 2]),
+            },
+        )
+
+        # Dataset with closest_cell but no target coords (edge case)
+        self.multi_point_ds_no_target = xr.Dataset(
+            {"temp": (["time", "closest_cell"], [[25.5, 26.5], [25.6, 26.6]])},
+            coords={
+                "time": [0, 1],
+                "closest_cell": [0, 1],
+            },
+        )
+
+    def test_has_closest_cell_dimension_true(self):
+        """Test detection of closest_cell dimension."""
+        processor = Export({})
+        assert processor._has_closest_cell_dimension(self.multi_point_ds) is True
+
+    def test_has_closest_cell_dimension_false_no_dim(self):
+        """Test detection returns False when no closest_cell dimension."""
+        processor = Export({})
+        gridded_ds = xr.Dataset(
+            {"temp": (["lat", "lon"], np.random.rand(10, 10))},
+            coords={"lat": np.arange(10), "lon": np.arange(10)},
+        )
+        assert processor._has_closest_cell_dimension(gridded_ds) is False
+
+    def test_has_closest_cell_dimension_false_size_one(self):
+        """Test detection returns False when closest_cell has size 1."""
+        processor = Export({})
+        single_point_ds = xr.Dataset(
+            {"temp": (["closest_cell"], [25.5])},
+            coords={"closest_cell": [0]},
+        )
+        assert processor._has_closest_cell_dimension(single_point_ds) is False
+
+    def test_export_data_separated_splits_closest_cell(self):
+        """Test that separated=True splits data along closest_cell dimension."""
+        processor = Export(
+            {
+                "filename": "test_output",
+                "separated": True,
+                "location_based_naming": False,
+            }
+        )
+
+        with patch.object(processor, "export_single") as mock_export:
+            processor._export_data(self.multi_point_ds)
+
+            # Should be called 3 times (once per closest_cell)
+            assert mock_export.call_count == 3
+
+    def test_export_data_not_separated_keeps_together(self):
+        """Test that separated=False exports the full dataset as one file."""
+        processor = Export(
+            {
+                "filename": "test_output",
+                "separated": False,
+            }
+        )
+
+        with patch.object(processor, "export_single") as mock_export:
+            processor._export_data(self.multi_point_ds)
+
+            # Should be called once with the full dataset
+            mock_export.assert_called_once()
+
+    def test_split_closest_cells_with_location_naming(self):
+        """Test location-based naming when splitting closest_cell dimension."""
+        processor = Export(
+            {
+                "filename": "station",
+                "separated": True,
+                "location_based_naming": True,
+            }
+        )
+
+        filenames_used = []
+
+        def track_filename(data):
+            filenames_used.append(processor.filename)
+
+        with patch.object(processor, "export_single", side_effect=track_filename):
+            processor._split_and_export_closest_cells(self.multi_point_ds)
+
+        # Should use target_lats/lons for naming
+        # Format: {base}_{lat}{N/S}_{lon}{E/W}
+        assert len(filenames_used) == 3
+        assert filenames_used[0] == "station_34-05N_118-25W"
+        assert filenames_used[1] == "station_37-77N_122-42W"
+        assert filenames_used[2] == "station_32-72N_117-16W"
+
+    def test_split_closest_cells_with_index_naming(self):
+        """Test index-based naming when splitting closest_cell dimension."""
+        processor = Export(
+            {
+                "filename": "station",
+                "separated": True,
+                "location_based_naming": False,
+            }
+        )
+
+        filenames_used = []
+
+        def track_filename(data):
+            filenames_used.append(processor.filename)
+
+        with patch.object(processor, "export_single", side_effect=track_filename):
+            processor._split_and_export_closest_cells(self.multi_point_ds)
+
+        # Should use index-based naming
+        assert filenames_used == ["station_0", "station_1", "station_2"]
+
+    def test_split_closest_cells_location_naming_no_target_coords(self):
+        """Test location naming falls back to index when target coords missing."""
+        processor = Export(
+            {
+                "filename": "station",
+                "separated": True,
+                "location_based_naming": True,  # Should fallback to index
+            }
+        )
+
+        filenames_used = []
+
+        def track_filename(data):
+            filenames_used.append(processor.filename)
+
+        with patch.object(processor, "export_single", side_effect=track_filename):
+            processor._split_and_export_closest_cells(self.multi_point_ds_no_target)
+
+        # Should fall back to index naming since no target_lats/lons
+        assert filenames_used == ["station_0", "station_1"]
+
+    def test_split_closest_cells_restores_filename(self):
+        """Test that original filename is restored after split export."""
+        processor = Export(
+            {
+                "filename": "original_name",
+                "separated": True,
+            }
+        )
+
+        with patch.object(processor, "export_single"):
+            processor._split_and_export_closest_cells(self.multi_point_ds)
+
+        # Original filename should be restored
+        assert processor.filename == "original_name"
+
+
 class TestExportAttributeCleaning:
     """Test class for attribute cleaning logic."""
 

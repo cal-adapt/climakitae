@@ -37,14 +37,25 @@ class Export(DataProcessor):
     This processor exports xarray Datasets and DataArrays to NetCDF, Zarr, or CSV formats.
     It supports both local filesystem export and AWS S3 export (Zarr only).
 
-    The processor handles two distinct data structures:
+    The processor handles three distinct data structures:
 
     1. Gridded datasets: A single xr.Dataset/xr.DataArray with `lat` and `lon`
        as coordinate dimensions containing multiple values (e.g., shape
        ``(time, lat, lon)``). Options like ``separated`` and ``location_based_naming``
        are silently ignored since they don't apply to gridded data.
 
-    2. Point-based data collections: A **list** of xr.Dataset/xr.DataArray objects,
+    2. Multi-point clip results: A single xr.Dataset/xr.DataArray with a
+       ``closest_cell`` dimension (output from clipping to multiple lat/lon points).
+       When ``separated=True``, the data is split along the ``closest_cell``
+       dimension and each slice is exported to its own file:
+
+       - ``separated=True`` + ``location_based_naming=True``: Filenames include
+         the target lat/lon coordinates (e.g., ``myfile_34-05N_118-25W.nc``)
+       - ``separated=True`` + ``location_based_naming=False``: Filenames include
+         index numbers (e.g., ``myfile_0.nc``, ``myfile_1.nc``)
+       - ``separated=False``: Single file with all points along ``closest_cell``
+
+    3. Point-based data collections: A **list** of xr.Dataset/xr.DataArray objects,
        where each item represents a single spatial point (scalar `lat`/`lon`
        coordinates with size 1). This is the output format from ``cava_data``
        when ``separate_files=True``. For collections:
@@ -392,13 +403,16 @@ class Export(DataProcessor):
 
         This is the main dispatcher that handles different data structures:
 
-        - xr.Dataset / xr.DataArray: Exported directly via `export_single`.
-          The `separated` and `location_based_naming` options are not applicable.
-        - list / tuple: Treated as a collection (e.g., from `cava_data`).
-          Routed to `_export_collection` which respects `separated` and
-          `location_based_naming` settings.
+        - xr.Dataset / xr.DataArray with ``closest_cell`` dimension: When
+          ``separated=True``, splits along the dimension and exports each
+          slice to a separate file via ``_split_and_export_closest_cells``.
+          This handles multi-point clip results.
+        - xr.Dataset / xr.DataArray (gridded): Exported directly via ``export_single``.
+        - list / tuple: Treated as a collection (e.g., from ``cava_data``).
+          Routed to ``_export_collection`` which respects ``separated`` and
+          ``location_based_naming`` settings.
         - dict: Each value is processed recursively. List/tuple values are
-          routed to `_export_collection`; others to `export_single`.
+          routed to ``_export_collection``; others to ``export_single``.
 
         Parameters
         ----------
@@ -414,11 +428,17 @@ class Export(DataProcessor):
         --------
         export_single : Exports a single dataset/dataarray.
         _export_collection : Handles collections with separated/location_based_naming.
+        _split_and_export_closest_cells : Handles multi-point clip results.
         """
         match result:
             case xr.Dataset() | xr.DataArray():
-                # Single dataset - export directly (separated/location_based_naming don't apply)
-                self.export_single(result)
+                # Check if this is multi-point data with closest_cell dimension
+                # that should be split into separate files
+                if self.separated and self._has_closest_cell_dimension(result):
+                    self._split_and_export_closest_cells(result)
+                else:
+                    # Single dataset - export directly
+                    self.export_single(result)
             case dict():
                 # Dict of datasets - export each value
                 for _, value in result.items():
@@ -763,6 +783,92 @@ class Export(DataProcessor):
             return lat_size == 1 and lon_size == 1
         except (AttributeError, TypeError):
             return False
+
+    def _has_closest_cell_dimension(
+        self, data: Union[xr.Dataset, xr.DataArray]
+    ) -> bool:
+        """
+        Check if data has a closest_cell dimension (from multi-point clipping).
+
+        Parameters
+        ----------
+        data : xr.Dataset | xr.DataArray
+            The data to check.
+
+        Returns
+        -------
+        bool
+            True if data has a 'closest_cell' dimension with size > 1.
+        """
+        if not hasattr(data, "dims"):
+            return False
+        return "closest_cell" in data.dims and data.sizes.get("closest_cell", 0) > 1
+
+    def _split_and_export_closest_cells(self, data: Union[xr.Dataset, xr.DataArray]):
+        """
+        Split data along closest_cell dimension and export each slice separately.
+
+        This handles multi-point clip results where data has a 'closest_cell'
+        dimension. Each slice is exported with appropriate naming based on
+        the `location_based_naming` setting:
+
+        - location_based_naming=True: Uses target_lats/target_lons coordinates
+          if available, otherwise falls back to index-based naming
+        - location_based_naming=False: Uses index-based naming (0, 1, 2...)
+
+        Parameters
+        ----------
+        data : xr.Dataset | xr.DataArray
+            Data with a 'closest_cell' dimension to split and export.
+
+        Notes
+        -----
+        The clip processor adds `target_lats` and `target_lons` coordinates
+        along the `closest_cell` dimension, which are used for location-based
+        naming when available.
+        """
+        n_points = data.sizes["closest_cell"]
+        original_filename = self.filename
+
+        # Check for target coordinate availability (added by clip processor)
+        has_target_coords = (
+            hasattr(data, "target_lats")
+            and hasattr(data, "target_lons")
+            and "closest_cell" in data.target_lats.dims
+        )
+
+        try:
+            for idx in range(n_points):
+                # Select this slice along closest_cell
+                slice_data = data.isel(closest_cell=idx)
+
+                # Determine filename suffix
+                if self.location_based_naming and has_target_coords:
+                    # Use target coordinates from clip processor
+                    lat_val = float(data.target_lats.isel(closest_cell=idx).values)
+                    lon_val = float(data.target_lons.isel(closest_cell=idx).values)
+                    # Format: replace decimal point with hyphen for filesystem safety
+                    # Use absolute values and add N/S, E/W suffixes
+                    lat_str = str(round(abs(lat_val), 4)).replace(".", "-")
+                    lon_str = str(round(abs(lon_val), 4)).replace(".", "-")
+                    lat_suffix = "N" if lat_val >= 0 else "S"
+                    lon_suffix = "W" if lon_val < 0 else "E"
+                    self.filename = f"{original_filename}_{lat_str}{lat_suffix}_{lon_str}{lon_suffix}"
+                else:
+                    # Use index-based naming
+                    self.filename = f"{original_filename}_{idx}"
+
+                # Temporarily disable location_based_naming since we've handled it
+                original_location_naming = self.location_based_naming
+                self.location_based_naming = False
+
+                try:
+                    self.export_single(slice_data)
+                finally:
+                    self.location_based_naming = original_location_naming
+
+        finally:
+            self.filename = original_filename
 
     def _extract_point_coordinates(
         self, data: Union[xr.Dataset, xr.DataArray]
