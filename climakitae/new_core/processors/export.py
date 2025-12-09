@@ -849,8 +849,8 @@ class Export(DataProcessor):
                     lon_val = float(data.target_lons.isel(closest_cell=idx).values)
                     # Format: replace decimal point with hyphen for filesystem safety
                     # Use absolute values and add N/S, E/W suffixes
-                    lat_str = str(round(abs(lat_val), 4)).replace(".", "-")
-                    lon_str = str(round(abs(lon_val), 4)).replace(".", "-")
+                    lat_str = str(round(abs(lat_val), 6)).replace(".", "-")
+                    lon_str = str(round(abs(lon_val), 6)).replace(".", "-")
                     lat_suffix = "N" if lat_val >= 0 else "S"
                     lon_suffix = "W" if lon_val < 0 else "E"
                     self.filename = f"{original_filename}_{lat_str}{lat_suffix}_{lon_str}{lon_suffix}"
