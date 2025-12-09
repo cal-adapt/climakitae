@@ -240,7 +240,9 @@ class TestDataCatalogCatalogKeyManagement:
             mock_data_catalog.get_data({"variable_id": "test"})
 
     @pytest.mark.parametrize("valid_key", ["cadcat", "boundary"])
-    def test_resolve_valid_catalog_key(self, mock_data_catalog: DataCatalog, valid_key: str):
+    def test_resolve_valid_catalog_key(
+        self, mock_data_catalog: DataCatalog, valid_key: str
+    ):
         """Resolving a valid catalog key returns the same key."""
         resolved = mock_data_catalog.resolve_catalog_key(valid_key)
         assert resolved == valid_key
@@ -365,6 +367,7 @@ class TestDataCatalogCatalogKeyManagement:
 
         # Use deprecated set_catalog_key (which sets _catalog_key)
         import warnings
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
             mock_data_catalog.set_catalog_key("cadcat")

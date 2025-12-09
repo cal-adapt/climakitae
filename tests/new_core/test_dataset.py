@@ -356,7 +356,11 @@ class TestDatasetExecuteValidation:
         mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
 
         mock_validator = MagicMock(spec=ParameterValidator)
-        validated_query = {"variable": "temp", "validated": True, "_catalog_key": "cadcat"}
+        validated_query = {
+            "variable": "temp",
+            "validated": True,
+            "_catalog_key": "cadcat",
+        }
         mock_validator.is_valid_query = MagicMock(return_value=validated_query)
 
         dataset = (

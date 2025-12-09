@@ -209,7 +209,9 @@ class Dataset:
             )
 
         # Initialize the processing result - will be updated through pipeline steps
-        logger.debug("Retrieving data from data accessor with catalog_key=%s", catalog_key)
+        logger.debug(
+            "Retrieving data from data accessor with catalog_key=%s", catalog_key
+        )
         current_result = self.data_access.get_data(valid_query, catalog_key=catalog_key)
         logger.info("Data retrieved successfully")
 
