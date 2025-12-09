@@ -12,6 +12,7 @@ import xarray as xr
 from shapely.geometry import Point, box
 
 from climakitae.util.utils import (  # stack_sims_across_locs, # TODO: Uncomment when implemented
+    _determine_is_complete_wl,
     _get_cat_subset,
     _get_scenario_from_selections,
     _package_file_path,
@@ -261,6 +262,71 @@ class TestUtils:
             assert result.x.item() == 50
             assert result.y.item() == 140
 
+    def test_get_closest_gridcell_preserves_dimensions(self):
+        """Test that non-spatial dimensions are preserved when using 3x3 window search.
+
+        This test confirms that when the closest gridcell contains all NaN values
+        and the function falls back to averaging a 3x3 window, non-spatial dimensions
+        like 'simulation' are preserved in the result.
+        """
+        # Create a dataset with lat, lon, and simulation dimensions
+        n_sims = 4
+        n_lat = 7
+        n_lon = 7
+
+        # Create data with some valid values
+        data = np.random.rand(n_lat, n_lon, n_sims)
+
+        # Make the center gridcell (closest to our target point) all NaN to trigger 3x3 search
+        center_lat_idx = n_lat // 2  # Index 3
+        center_lon_idx = n_lon // 2  # Index 3
+        data[center_lat_idx, center_lon_idx, :] = np.nan
+
+        ds = xr.Dataset(
+            {
+                "var": (("lat", "lon", "simulation"), data),
+            },
+            coords={
+                "lat": np.linspace(30, 40, n_lat),
+                "lon": np.linspace(-125, -115, n_lon),
+                "simulation": [f"sim_{i}" for i in range(n_sims)],
+            },
+        )
+
+        # Target point that maps to the center gridcell with NaN values
+        target_lat = 35.0  # Center of lat range
+        target_lon = -120.0  # Center of lon range
+
+        result = get_closest_gridcell(ds, target_lat, target_lon)
+
+        # Verify result is not None
+        assert result is not None, "Result should not be None"
+
+        # CRITICAL: Verify non-spatial dimension (simulation) is preserved
+        assert "simulation" in result.dims, "Simulation dimension should be preserved"
+        assert (
+            result.sizes["simulation"] == n_sims
+        ), f"Simulation dimension should have size {n_sims}, got {result.sizes['simulation']}"
+        assert (
+            "simulation" in result.coords
+        ), "Simulation coordinates should be preserved"
+        assert (
+            len(result.coords["simulation"]) == n_sims
+        ), f"Should have {n_sims} simulation coordinates"
+
+        # Verify spatial dimensions are REMOVED (not dimensions anymore, just scalar coords)
+        assert "lat" not in result.dims, "Lat should not be a dimension in result"
+        assert "lon" not in result.dims, "Lon should not be a dimension in result"
+
+        # Verify lat and lon still exist as scalar coordinates (for reference)
+        assert "lat" in result.coords, "Lat coordinate should exist as scalar"
+        assert "lon" in result.coords, "Lon coordinate should exist as scalar"
+
+        # Verify the data variable has only the simulation dimension
+        assert result["var"].dims == (
+            "simulation",
+        ), f"Data variable should only have simulation dimension, got {result['var'].dims}"
+
     def test_get_closest_gridcells(self):
         """tests the get_closest_gridcells function"""
         # Create a mock dataset
@@ -295,12 +361,144 @@ class TestUtils:
             assert point_ds.coords["lon"].item() in ds.coords["lon"].values
 
         # Test with a list of points outside the grid
+        # The function now uses get_closest_gridcell which returns nearest gridcells
         lats = [60, 70]
         lons = [150, 160]
         closest_dss = get_closest_gridcells(ds, lats, lons)
 
-        # Function returns a dataset with a "points" dimension
-        assert closest_dss is None
+        # Function returns a dataset with the nearest gridcells
+        assert isinstance(closest_dss, xr.Dataset)
+        assert "points" in closest_dss.dims
+        assert closest_dss.sizes["points"] == len(lats)
+
+        # Points should snap to the edge of the grid
+        for i in range(len(lats)):
+            point_ds = closest_dss.isel(points=i)
+            assert point_ds.coords["lat"].item() in ds.coords["lat"].values
+            assert point_ds.coords["lon"].item() in ds.coords["lon"].values
+
+    def test_get_closest_gridcell_with_dask_arrays(self):
+        """Test that get_closest_gridcell works with lazy (dask-backed) arrays.
+
+        This test ensures the function handles dask arrays properly by:
+        1. Not triggering premature computation
+        2. Successfully extracting coordinate values for printing
+        3. Returning a result that is still lazy (dask-backed)
+        """
+        import dask.array as da
+
+        # Create a dask-backed dataset (lazy evaluation)
+        data = da.random.random((10, 5, 5), chunks=(5, 5, 5))
+        ds = xr.Dataset(
+            {
+                "var": (("time", "lat", "lon"), data),
+            },
+            coords={
+                "time": pd.date_range("2020-01-01", periods=10),
+                "lat": np.linspace(32, 42, 5),
+                "lon": np.linspace(-124, -114, 5),
+            },
+        )
+
+        # Verify input is dask-backed
+        assert hasattr(ds["var"].data, "compute"), "Test data should be dask-backed"
+
+        # Test with a point inside the grid
+        lat = 37.0
+        lon = -119.0
+        result = get_closest_gridcell(ds, lat, lon)
+
+        # Verify result is valid
+        assert result is not None, "Result should not be None"
+        assert isinstance(result, xr.Dataset), "Result should be a Dataset"
+
+        # Verify the result is still dask-backed (lazy)
+        assert hasattr(
+            result["var"].data, "compute"
+        ), "Result should remain dask-backed (lazy)"
+
+        # Verify dimensions are correct (spatial dims removed, time preserved)
+        assert "time" in result.dims, "Time dimension should be preserved"
+        assert "lat" not in result.dims, "Lat should not be a dimension"
+        assert "lon" not in result.dims, "Lon should not be a dimension"
+
+        # Verify coordinates exist
+        assert "lat" in result.coords, "Lat coordinate should exist"
+        assert "lon" in result.coords, "Lon coordinate should exist"
+
+    def test_get_closest_gridcell_with_projection_coords_idempotent(self, capsys):
+        """Test that querying with projection coordinates and re-querying with
+        result coordinates returns the same gridcell.
+
+        This addresses a reviewer comment where passing x/y projection coords
+        from a previous result into another call would retrieve a different gridcell.
+        """
+        # Create projection data with large y/x values (meters, not lat/lon)
+        y_coords = np.array([1.0e6, 1.1e6, 1.2e6, 1.3e6, 1.4e6])
+        x_coords = np.array([-2.0e6, -1.9e6, -1.8e6, -1.7e6, -1.6e6])
+        data = np.random.rand(len(y_coords), len(x_coords))
+
+        ds = xr.Dataset(
+            {"temp": (["y", "x"], data)},
+            coords={"y": y_coords, "x": x_coords},
+        )
+        ds.rio.write_crs("EPSG:32610", inplace=True)
+
+        # Step 1: Query with projection coordinates
+        input_y = 1.15e6
+        input_x = -1.85e6
+        result1 = get_closest_gridcell(ds, input_y, input_x, print_coords=True)
+
+        assert result1 is not None
+        result1_y = float(result1.coords["y"].values)
+        result1_x = float(result1.coords["x"].values)
+
+        # Step 2: Re-query with result coordinates
+        result2 = get_closest_gridcell(ds, result1_y, result1_x, print_coords=True)
+
+        assert result2 is not None
+        result2_y = float(result2.coords["y"].values)
+        result2_x = float(result2.coords["x"].values)
+
+        # Results should be identical
+        assert result1_y == result2_y, "Y coordinates should match after re-query"
+        assert result1_x == result2_x, "X coordinates should match after re-query"
+
+        # Check printed output uses y/x format (not lat/lon)
+        captured = capsys.readouterr()
+        assert "y:" in captured.out, "Output should use 'y:' for projection coords"
+        assert "x:" in captured.out, "Output should use 'x:' for projection coords"
+
+    def test_get_closest_gridcell_projection_coords_averaged(self, capsys):
+        """Test projection coordinate output path when averaging nearby gridcells.
+
+        This covers the 'is_averaged=True' branch with projection coordinates.
+        """
+        # Create projection data with NaN at center gridcell
+        y_coords = np.array([1.0e6, 1.1e6, 1.2e6])
+        x_coords = np.array([-1.9e6, -1.8e6, -1.7e6])
+        data = np.random.rand(len(y_coords), len(x_coords))
+        # Set center gridcell to NaN to trigger averaging
+        data[1, 1] = np.nan
+
+        ds = xr.Dataset(
+            {"temp": (["y", "x"], data)},
+            coords={"y": y_coords, "x": x_coords},
+        )
+        ds.rio.write_crs("EPSG:32610", inplace=True)
+
+        # Query at center (will be NaN, should average nearby)
+        input_y = 1.1e6
+        input_x = -1.8e6
+        result = get_closest_gridcell(ds, input_y, input_x, print_coords=True)
+
+        assert result is not None
+
+        # Check printed output mentions averaging and uses y/x format
+        captured = capsys.readouterr()
+        assert "averaged" in captured.out, "Output should mention averaging"
+        assert "y:" in captured.out, "Output should use 'y:' for projection coords"
+        assert "x:" in captured.out, "Output should use 'x:' for projection coords"
 
     def test_julianDay_to_date(self):
         """tests the julianDay_to_date function"""
@@ -1667,3 +1865,66 @@ class TestConvertToLocalTime:
         )
         with pytest.raises(RuntimeError, match="CRS"):
             result = clip_gpd_to_shapefile(gdf, clip_poly_none)
+
+
+class TestDetermineIsCompleteWl:
+    """Tests for _determine_is_complete_wl function."""
+
+    def test_valid_loca_years_returns_true(self):
+        """Test that valid LOCA year range returns True."""
+        # LOCA valid range: 1950-2100
+        result = _determine_is_complete_wl(
+            start_year=1950,
+            end_year=2100,
+            simulation_name="test_sim",
+            downscaling_method="Statistical",
+            level=2.0,
+        )
+        assert result is True
+
+    def test_valid_wrf_years_returns_true(self):
+        """Test that valid WRF year range returns True."""
+        # WRF valid range: 1981-2099
+        result = _determine_is_complete_wl(
+            start_year=1981,
+            end_year=2099,
+            simulation_name="test_sim",
+            downscaling_method="Dynamical",
+            level=1.5,
+        )
+        assert result is True
+
+    def test_start_year_before_loca_min_returns_false(self):
+        """Test that start year before LOCA minimum triggers warning and returns False."""
+        with pytest.warns(UserWarning, match="Incomplete warming level"):
+            result = _determine_is_complete_wl(
+                start_year=1940,  # Before LOCA_START_YEAR (1950)
+                end_year=2050,
+                simulation_name="CNRM-CM6-1",
+                downscaling_method="LOCA2",
+                level=2.0,
+            )
+        assert result is False
+
+    def test_end_year_after_wrf_max_returns_false(self):
+        """Test that end year after WRF maximum triggers warning and returns False."""
+        with pytest.warns(UserWarning, match="Incomplete warming level"):
+            result = _determine_is_complete_wl(
+                start_year=2000,
+                end_year=2150,  # After WRF_END_YEAR (2099)
+                simulation_name="EC-Earth3",
+                downscaling_method="WRF",
+                level=3.0,
+            )
+        assert result is False
+
+    def test_unknown_downscaling_method_returns_true(self):
+        """Test that unknown downscaling method returns True (no validation)."""
+        result = _determine_is_complete_wl(
+            start_year=1800,  # Would be invalid for known methods
+            end_year=2200,
+            simulation_name="test_sim",
+            downscaling_method="Unknown",
+            level=2.0,
+        )
+        assert result is True
