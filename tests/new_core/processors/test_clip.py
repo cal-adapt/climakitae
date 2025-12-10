@@ -73,6 +73,56 @@ class TestClipInit:
         assert clip.multi_mode is False
 
 
+class TestClipInitSeparated:
+    """Test class for Clip initialization with separated mode (dict input)."""
+
+    def test_init_separated_dict_basic(self):
+        """Test initialization with dict input and separated=True."""
+        clip = Clip({"boundaries": ["CA", "OR", "WA"], "separated": True})
+        assert clip.value == ["CA", "OR", "WA"]
+        assert clip.separated is True
+        assert clip.boundary_names == ["CA", "OR", "WA"]
+        assert clip.multi_mode is True
+        assert clip.operation is None  # No union when separated
+
+    def test_init_separated_dict_false(self):
+        """Test initialization with dict input and separated=False (default behavior)."""
+        clip = Clip({"boundaries": ["CA", "OR"], "separated": False})
+        assert clip.value == ["CA", "OR"]
+        assert clip.separated is False
+        assert clip.multi_mode is True
+        assert clip.operation == "union"  # Union when not separated
+
+    def test_init_separated_dict_default(self):
+        """Test initialization with dict input without separated key (defaults to False)."""
+        clip = Clip({"boundaries": ["CA", "OR"]})
+        assert clip.value == ["CA", "OR"]
+        assert clip.separated is False
+        assert clip.multi_mode is True
+        assert clip.operation == "union"
+
+    def test_init_separated_dict_missing_boundaries(self):
+        """Test initialization with dict input missing boundaries key raises error."""
+        with pytest.raises(ValueError, match="must contain 'boundaries' key"):
+            Clip({"separated": True})
+
+    def test_init_separated_single_boundary(self):
+        """Test initialization with dict input and single boundary."""
+        clip = Clip({"boundaries": ["CA"], "separated": True})
+        assert clip.value == ["CA"]
+        assert clip.separated is True
+        assert clip.multi_mode is False  # Single boundary
+
+    def test_init_separated_preserves_attributes(self):
+        """Test that separated dict input preserves other Clip attributes."""
+        clip = Clip({"boundaries": ["CA", "OR"], "separated": True})
+        assert clip.name == "clip"
+        assert clip.needs_catalog is True
+        assert clip.is_single_point is False
+        assert clip.is_multi_point is False
+        assert clip.is_station is False
+
+
 class TestClipSetDataAccessor:
     """Test class for set_data_accessor method."""
 
@@ -541,6 +591,250 @@ class TestClipExecuteWithMultipleBoundaries:
 
             # Verify context was updated
             assert _NEW_ATTRS_KEY in context
+
+
+class TestClipExecuteWithSeparatedMode:
+    """Test class for execute method with separated mode (dict input)."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.boundaries = ["CA", "OR", "WA"]
+        self.clip = Clip({"boundaries": self.boundaries, "separated": True})
+        self.mock_catalog = MagicMock()
+        self.clip.set_data_accessor(self.mock_catalog)
+
+        self.sample_dataset = xr.Dataset(
+            {"temp": (["time", "y", "x"], np.random.rand(10, 5, 5))},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=10),
+                "y": np.linspace(32, 42, 5),
+                "x": np.linspace(-124, -114, 5),
+            },
+        )
+        self.sample_dataset.rio.write_crs("EPSG:4326", inplace=True)
+
+        # Create mock individual geometries
+        self.mock_ca_geom = gpd.GeoDataFrame(
+            geometry=[box(-125, 32, -114, 42)], crs=pyproj.CRS.from_epsg(4326)
+        )
+        self.mock_or_geom = gpd.GeoDataFrame(
+            geometry=[box(-125, 42, -114, 46)], crs=pyproj.CRS.from_epsg(4326)
+        )
+        self.mock_wa_geom = gpd.GeoDataFrame(
+            geometry=[box(-125, 46, -114, 49)], crs=pyproj.CRS.from_epsg(4326)
+        )
+
+    def test_execute_separated_mode_dataset(self):
+        """Test execute with separated mode and xr.Dataset - outcome: data with region dimension."""
+        # Create clipped results for each boundary
+        clipped_ca = self.sample_dataset.copy()
+        clipped_or = self.sample_dataset.copy()
+        clipped_wa = self.sample_dataset.copy()
+
+        with (
+            patch.object(
+                self.clip,
+                "_clip_data_separated",
+                return_value=xr.concat(
+                    [clipped_ca, clipped_or, clipped_wa], dim="state"
+                ).assign_coords(state=self.boundaries),
+            ) as mock_separated,
+        ):
+            context = {}
+            result = self.clip.execute(self.sample_dataset, context)
+
+            # Verify result exists
+            assert result is not None
+            assert isinstance(result, xr.Dataset)
+
+            # Verify separated clipping method was called
+            mock_separated.assert_called_once()
+
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
+            assert "Separated boundary clipping" in context[_NEW_ATTRS_KEY]["clip"]
+
+    def test_execute_separated_mode_dict(self):
+        """Test execute with separated mode and dict - outcome: dict of separated results."""
+        data_dict = {"sim1": self.sample_dataset, "sim2": self.sample_dataset}
+
+        separated_result = xr.concat(
+            [self.sample_dataset, self.sample_dataset, self.sample_dataset], dim="state"
+        ).assign_coords(state=self.boundaries)
+
+        with patch.object(
+            self.clip, "_clip_data_separated", return_value=separated_result
+        ):
+            context = {}
+            result = self.clip.execute(data_dict, context)
+
+            # Verify result structure
+            assert isinstance(result, dict)
+            assert "sim1" in result
+            assert "sim2" in result
+
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
+
+    def test_execute_separated_mode_list(self):
+        """Test execute with separated mode and list - outcome: list of separated results."""
+        data_list = [self.sample_dataset, self.sample_dataset]
+
+        separated_result = xr.concat(
+            [self.sample_dataset, self.sample_dataset, self.sample_dataset], dim="state"
+        ).assign_coords(state=self.boundaries)
+
+        with patch.object(
+            self.clip, "_clip_data_separated", return_value=separated_result
+        ):
+            context = {}
+            result = self.clip.execute(data_list, context)
+
+            # Verify result structure
+            assert isinstance(result, list)
+            assert len(result) == 2
+
+            # Verify context was updated
+            assert _NEW_ATTRS_KEY in context
+
+
+class TestClipInferDimensionName:
+    """Test class for _infer_dimension_name method."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.clip = Clip({"boundaries": ["CA"], "separated": True})
+        self.mock_catalog = MagicMock()
+        self.clip.set_data_accessor(self.mock_catalog)
+
+    def test_infer_dimension_name_states(self):
+        """Test dimension name inference for US states."""
+        # Mock validate_boundary_key to return states category
+        with patch.object(
+            self.clip,
+            "validate_boundary_key",
+            return_value={"valid": True, "category": "states"},
+        ):
+            result = self.clip._infer_dimension_name("CA")
+            assert result == "state"
+
+    def test_infer_dimension_name_counties(self):
+        """Test dimension name inference for CA counties."""
+        with patch.object(
+            self.clip,
+            "validate_boundary_key",
+            return_value={"valid": True, "category": "CA counties"},
+        ):
+            result = self.clip._infer_dimension_name("Los Angeles County")
+            assert result == "county"
+
+    def test_infer_dimension_name_watersheds(self):
+        """Test dimension name inference for CA watersheds."""
+        with patch.object(
+            self.clip,
+            "validate_boundary_key",
+            return_value={"valid": True, "category": "CA watersheds"},
+        ):
+            result = self.clip._infer_dimension_name("Sacramento River")
+            assert result == "watershed"
+
+    def test_infer_dimension_name_utilities(self):
+        """Test dimension name inference for CA utilities."""
+        with patch.object(
+            self.clip,
+            "validate_boundary_key",
+            return_value={
+                "valid": True,
+                "category": "CA Electric Load Serving Entities (IOU & POU)",
+            },
+        ):
+            result = self.clip._infer_dimension_name("PG&E")
+            assert result == "utility"
+
+    def test_infer_dimension_name_forecast_zones(self):
+        """Test dimension name inference for CA forecast zones."""
+        with patch.object(
+            self.clip,
+            "validate_boundary_key",
+            return_value={
+                "valid": True,
+                "category": "CA Electricity Demand Forecast Zones",
+            },
+        ):
+            result = self.clip._infer_dimension_name("Zone1")
+            assert result == "forecast_zone"
+
+    def test_infer_dimension_name_balancing_areas(self):
+        """Test dimension name inference for CA balancing areas."""
+        with patch.object(
+            self.clip,
+            "validate_boundary_key",
+            return_value={
+                "valid": True,
+                "category": "CA Electric Balancing Authority Areas",
+            },
+        ):
+            result = self.clip._infer_dimension_name("CAISO")
+            assert result == "balancing_area"
+
+    def test_infer_dimension_name_census_tracts(self):
+        """Test dimension name inference for CA census tracts."""
+        with patch.object(
+            self.clip,
+            "validate_boundary_key",
+            return_value={"valid": True, "category": "CA Census Tracts"},
+        ):
+            result = self.clip._infer_dimension_name("06001402500")
+            assert result == "census_tract"
+
+    def test_infer_dimension_name_unknown_category(self):
+        """Test dimension name inference for unknown category defaults to 'region'."""
+        with patch.object(
+            self.clip,
+            "validate_boundary_key",
+            return_value={"valid": True, "category": "unknown_category"},
+        ):
+            result = self.clip._infer_dimension_name("SomeKey")
+            assert result == "region"
+
+    def test_infer_dimension_name_invalid_key(self):
+        """Test dimension name inference for invalid key defaults to 'region'."""
+        with patch.object(
+            self.clip, "validate_boundary_key", return_value={"valid": False}
+        ):
+            result = self.clip._infer_dimension_name("InvalidKey")
+            assert result == "region"
+
+
+class TestClipUpdateContextSeparated:
+    """Test class for update_context method with separated mode."""
+
+    def test_update_context_separated_mode(self):
+        """Test context update for separated boundary clipping."""
+        clip = Clip({"boundaries": ["CA", "OR", "WA"], "separated": True})
+        clip.dimension_name = "state"
+        clip.boundary_names = ["CA", "OR", "WA"]
+
+        context = {}
+        clip.update_context(context)
+
+        assert _NEW_ATTRS_KEY in context
+        assert "clip" in context[_NEW_ATTRS_KEY]
+        assert "Separated boundary clipping" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "state" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "3 boundaries" in context[_NEW_ATTRS_KEY]["clip"]
+
+    def test_update_context_separated_mode_default_dimension(self):
+        """Test context update for separated mode with default dimension name."""
+        clip = Clip({"boundaries": ["Region1", "Region2"], "separated": True})
+        clip.boundary_names = ["Region1", "Region2"]
+        # dimension_name not set - should default to 'region'
+
+        context = {}
+        clip.update_context(context)
+
+        assert _NEW_ATTRS_KEY in context
+        assert "region" in context[_NEW_ATTRS_KEY]["clip"]
 
 
 class TestClipIntegrationCoordinateBounds:
