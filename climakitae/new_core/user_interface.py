@@ -279,6 +279,25 @@ class ClimateData:
             pkg_logger.setLevel(logging.CRITICAL + 1)
             logging.captureWarnings(False)
 
+        # Suppress noisy third-party libraries
+        # These libraries can be very verbose at DEBUG level, so we force them
+        # to WARNING level to keep the output clean.
+        noisy_libs = [
+            "botocore",
+            "boto3",
+            "s3fs",
+            "fsspec",
+            "asyncio",
+            "urllib3",
+            "numcodecs",
+            "zarr",
+            "aiobotocore",
+            "distributed",
+            "dask",
+        ]
+        for lib in noisy_libs:
+            logging.getLogger(lib).setLevel(logging.WARNING)
+
     def verbosity(self, level: int) -> "ClimateData":
         """Set the logging verbosity level.
 
@@ -592,9 +611,8 @@ class ClimateData:
             dataset = self._factory.create_dataset(self._query)
             logger.info("Dataset created successfully")
         except (ValueError, KeyError, TypeError) as e:
-            logger.error("Error during dataset creation: %s", str(e), exc_info=True)
             logger.error("Error during dataset creation: %s", str(e))
-            logger.debug("Traceback:\n%s", traceback.format_exc())
+            logger.debug("Traceback:", exc_info=True)
             self._reset_query()
             return None
 
@@ -609,20 +627,14 @@ class ClimateData:
                 or (hasattr(data, "nbytes") and data.nbytes == 0)
                 or (isinstance(data, dict) and not data)
             ):
-                logger.warning("Retrieved dataset is empty")
                 logger.warning("⚠️ Warning: Retrieved dataset is empty.")
 
             else:
-                logger.info("Data retrieval successful")
                 logger.info("✅ Data retrieval successful!")
 
         except (ValueError, KeyError, IOError, RuntimeError) as e:
-            logger.error("Error during data retrieval: %s", str(e), exc_info=True)
-            logger.error("Error during data retrieval: %s", str(e))
-            logger.debug("Traceback:\n%s", traceback.format_exc())
-            logger.error(
-                "❌ Data retrieval failed. Please check your query parameters."
-            )
+            logger.error("❌ Data retrieval failed: %s", str(e))
+            logger.debug("Traceback:", exc_info=True)
 
         # Always reset query after execution
         self._reset_query()
