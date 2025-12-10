@@ -325,9 +325,10 @@ class Concat(DataProcessor):
         Union[xr.Dataset, xr.DataArray]
             The dataset with aligned time dimension.
         """
-        if self.dim_name == "sim":
-            time_freq = {"hr": "H", "day": "D", "mon": "MS"}
-            floored_time = dataset["time"].dt.floor(time_freq.get(context["table_id"]))
+        if self.dim_name == "sim" and context["table_id"] == "day":
+            # time_freq = {"hr": "H", "day": "D", "mon": "MS"}
+            # floored_time = dataset["time"].dt.floor(time_freq.get(context["table_id"]))
+            floored_time = dataset["time"].dt.floor("D")
             dataset = dataset.assign_coords(time=floored_time)
         return dataset
 
