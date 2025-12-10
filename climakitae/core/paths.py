@@ -11,6 +11,7 @@ BOUNDARY_CATALOG_URL = "https://cadcat.s3.amazonaws.com/parquet/catalog.yaml"
 RENEWABLES_CATALOG_URL = (
     "https://wfclimres.s3.amazonaws.com/era/era-ren-collection.json"
 )
+HDP_CATALOG_URL = "https://cadcat.s3.amazonaws.com/histwxstns/era-hdp-collection.json"
 
 # S3 scratch bucket for exporting
 EXPORT_S3_BUCKET = "cadcat-tmp"

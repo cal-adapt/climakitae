@@ -55,6 +55,7 @@ PROC_KEY = "processes"
 CATALOG_CADCAT = "cadcat"
 CATALOG_REN_ENERGY_GEN = "renewable energy generation"
 CATALOG_BOUNDARY = "boundary"
+CATALOG_HDP = "hdp"
 
 # Boundary Data Constants
 WESTERN_STATES_LIST = ["CA", "NV", "OR", "WA", "UT", "MT", "ID", "AZ", "CO", "NM", "WY"]
