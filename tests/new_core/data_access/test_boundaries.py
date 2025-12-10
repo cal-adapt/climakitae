@@ -525,6 +525,7 @@ class TestBoundariesPublicMethods:
         boundaries._get_ious_pous = Mock(return_value={"PG&E": 0})
         boundaries._get_forecast_zones = Mock(return_value={"North Bay": 0})
         boundaries._get_electric_balancing_areas = Mock(return_value={"CALISO": 0})
+        boundaries._get_ca_census_tracts = Mock(return_value={"06001400100": 0})
 
         return boundaries
 
@@ -541,6 +542,7 @@ class TestBoundariesPublicMethods:
             "CA Electric Load Serving Entities (IOU & POU)",
             "CA Electricity Demand Forecast Zones",
             "CA Electric Balancing Authority Areas",
+            "CA Census Tracts",
         ]
 
         for key in expected_keys:
@@ -554,6 +556,7 @@ class TestBoundariesPublicMethods:
         mock_boundaries_public._get_ious_pous.assert_called_once()
         mock_boundaries_public._get_forecast_zones.assert_called_once()
         mock_boundaries_public._get_electric_balancing_areas.assert_called_once()
+        mock_boundaries_public._get_ca_census_tracts.assert_called_once()
 
     def test_load_deprecated_warning(self, mock_boundaries_public):
         """Test that load() method issues deprecation warning."""
@@ -576,6 +579,7 @@ class TestBoundariesPublicMethods:
         mock_boundaries_public._ca_utilities = Mock()
         mock_boundaries_public._ca_forecast_zones = Mock()
         mock_boundaries_public._ca_electric_balancing_areas = Mock()
+        mock_boundaries_public._ca_census_tracts = Mock()
 
         mock_boundaries_public.preload_all()
 
@@ -622,6 +626,7 @@ class TestBoundariesMemoryManagement:
         setattr(boundaries, "_Boundaries__ca_utilities", None)
         setattr(boundaries, "_Boundaries__ca_forecast_zones", None)
         setattr(boundaries, "_Boundaries__ca_electric_balancing_areas", None)
+        setattr(boundaries, "_Boundaries__ca_census_tracts", None)
 
         result = boundaries.get_memory_usage()
 
@@ -632,6 +637,7 @@ class TestBoundariesMemoryManagement:
         assert result["ca_utilities"] == 0
         assert result["ca_forecast_zones"] == 0
         assert result["ca_electric_balancing_areas"] == 0
+        assert result["ca_census_tracts"] == 0
         assert result["total_bytes"] == 0
         assert result["loaded_datasets"] == 0
         assert result["cached_lookups"] == 0
@@ -659,12 +665,14 @@ class TestBoundariesMemoryManagement:
         setattr(boundaries, "_Boundaries__ca_utilities", None)
         setattr(boundaries, "_Boundaries__ca_forecast_zones", None)
         setattr(boundaries, "_Boundaries__ca_electric_balancing_areas", None)
+        setattr(boundaries, "_Boundaries__ca_census_tracts", None)
 
         result = boundaries.get_memory_usage()
 
         assert result["us_states"] == 1024
         assert result["ca_counties"] == 2048
         assert result["ca_watersheds"] == 0
+        assert result["ca_census_tracts"] == 0
         assert result["total_bytes"] == 3072
         assert result["loaded_datasets"] == 2
         assert result["cached_lookups"] == 1

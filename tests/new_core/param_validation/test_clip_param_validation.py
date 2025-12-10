@@ -24,6 +24,7 @@ import pytest
 from climakitae.new_core.param_validation.clip_param_validator import (
     _is_file_path_like,
     _validate_boundary_key_string,
+    _validate_dict_param,
     _validate_list_param,
     _validate_station_identifier,
     _validate_string_param,
@@ -73,11 +74,10 @@ class TestValidateClipParam:
             result = validate_clip_param(123)
             assert result is False
 
-    def test_validate_with_dict_returns_false(self):
-        """Test validate_clip_param with dict returns False and warns."""
-        with pytest.warns(UserWarning, match="Invalid parameter type"):
-            result = validate_clip_param({"key": "value"})
-            assert result is False
+    def test_validate_with_valid_dict_returns_true(self):
+        """Test validate_clip_param with valid dict returns True."""
+        result = validate_clip_param({"boundaries": ["CA", "OR"], "separated": True})
+        assert result is True
 
     def test_validate_with_invalid_tuple_format_returns_false(self):
         """Test validate_clip_param with invalid tuple format returns False."""
@@ -680,4 +680,71 @@ class TestWarnAboutCaseSensitivity:
 
         with pytest.warns(UserWarning, match="County names typically end with"):
             result = _warn_about_case_sensitivity("los angeles county")
+            assert result is False
+
+
+class TestValidateDictParam:
+    """Test class for _validate_dict_param function.
+
+    Tests validation of dict parameters for separated boundary clipping.
+    """
+
+    def test_validate_dict_valid_with_separated_true(self):
+        """Test _validate_dict_param with valid dict and separated=True."""
+        result = _validate_dict_param({"boundaries": ["CA", "OR"], "separated": True})
+        assert result is True
+
+    def test_validate_dict_valid_with_separated_false(self):
+        """Test _validate_dict_param with valid dict and separated=False."""
+        result = _validate_dict_param({"boundaries": ["CA", "OR"], "separated": False})
+        assert result is True
+
+    def test_validate_dict_valid_without_separated_key(self):
+        """Test _validate_dict_param with valid dict without separated key (defaults to False)."""
+        result = _validate_dict_param({"boundaries": ["CA", "NV"]})
+        assert result is True
+
+    def test_validate_dict_missing_boundaries_key(self):
+        """Test _validate_dict_param with dict missing boundaries key."""
+        with pytest.warns(UserWarning, match="must contain 'boundaries' key"):
+            result = _validate_dict_param({"separated": True})
+            assert result is False
+
+    def test_validate_dict_boundaries_not_list(self):
+        """Test _validate_dict_param with boundaries that is not a list."""
+        with pytest.warns(UserWarning, match="'boundaries' must be a list"):
+            result = _validate_dict_param({"boundaries": "CA"})
+            assert result is False
+
+    def test_validate_dict_separated_not_bool(self):
+        """Test _validate_dict_param with separated that is not a boolean."""
+        with pytest.warns(UserWarning, match="'separated' must be a boolean"):
+            result = _validate_dict_param({"boundaries": ["CA"], "separated": "yes"})
+            assert result is False
+
+    def test_validate_dict_single_boundary_with_separated_warns(self):
+        """Test _validate_dict_param with single boundary and separated=True warns."""
+        with pytest.warns(UserWarning, match="single boundary has no effect"):
+            result = _validate_dict_param({"boundaries": ["CA"], "separated": True})
+            assert result is True  # Still valid, just warns
+
+    def test_validate_dict_unknown_keys_warns(self):
+        """Test _validate_dict_param with unknown keys warns but still valid."""
+        with pytest.warns(UserWarning, match="Unknown keys"):
+            result = _validate_dict_param(
+                {"boundaries": ["CA", "OR"], "unknown_key": "value"}
+            )
+            assert result is True  # Still valid, just warns
+
+    def test_validate_dict_invalid_boundary_in_list(self):
+        """Test _validate_dict_param with invalid boundary key in list."""
+        # This should fail because the list validation will fail
+        with pytest.warns(UserWarning):
+            result = _validate_dict_param({"boundaries": [123, "CA"]})
+            assert result is False
+
+    def test_validate_dict_empty_boundaries_list(self):
+        """Test _validate_dict_param with empty boundaries list."""
+        with pytest.warns(UserWarning, match="Empty list"):
+            result = _validate_dict_param({"boundaries": []})
             assert result is False
