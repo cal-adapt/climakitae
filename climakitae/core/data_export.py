@@ -178,10 +178,17 @@ def _update_encoding(data: xr.Dataset):
         None
 
         """
-        try:
-            del d.encoding["missing_value"]
-        except:
-            pass
+        for key in [
+            "missing_value",
+            "compressor",
+            "filters",
+            "chunks",
+            "preferred_chunks",
+        ]:
+            try:
+                del d.encoding[key]
+            except:
+                pass
 
     _unencode_missing_value(data)
     for coord in data.coords:
@@ -316,6 +323,11 @@ def _export_to_netcdf(data: xr.DataArray | xr.Dataset, save_name: str):
 
         if hasattr(obj, "attrs"):
             for key, value in list(obj.attrs.items()):
+                # Explicitly handle boolean values which are subclasses of int but cause issues in NetCDF
+                if isinstance(value, (bool, np.bool_)):
+                    obj.attrs[key] = str(value)
+                    continue
+
                 if value is not None and not isinstance(value, allowed_types):
                     # Convert or remove problematic attributes
                     try:
@@ -367,6 +379,9 @@ def _export_to_zarr(data: xr.DataArray | xr.Dataset, save_name: str, mode: str):
     # Convert xr.DataArray to xr.Dataset so that compression can be utilized
     _data = _convert_da_to_ds(data)
 
+    # Unify chunks to avoid errors with inconsistent chunking
+    _data = _data.unify_chunks()
+
     est_file_size = _estimate_file_size(_data, "Zarr")
     disk_space = shutil.disk_usage(os.path.expanduser("~"))[2] / bytes_per_gigabyte
 
@@ -377,6 +392,11 @@ def _export_to_zarr(data: xr.DataArray | xr.Dataset, save_name: str, mode: str):
     _update_encoding(_data)
 
     def _write_zarr(path: str, data: xr.Dataset):
+        # Ensure encoding is clean
+        for var in data.variables:
+            # Clear all encoding that might cause issues
+            data[var].encoding.clear()
+
         encoding = _fillvalue_encoding(data)
         chunks = {k: v[0] for k, v in data.chunks.items()}
         data = data.chunk(chunks)
@@ -1224,7 +1244,6 @@ def _tmy_8760_size_check(df: pd.DataFrame) -> pd.DataFrame:
 
     """
     # first drop any duplicate time rows -- some df with 8760 are 8759 with duplicate rows, i.e., not a true 8760
-    # this should handle cases of 8761 by reducing to 8760 or 8759
     df_to_check = df.copy(deep=True)
     df_to_check = df_to_check.drop_duplicates(subset=["time"], keep="first")
 
