@@ -256,10 +256,7 @@ class Concat(DataProcessor):
                 "No valid datasets found for concatenation. Sample result: %s", result
             )
             raise ValueError("No valid datasets found for concatenation")
-
-        # Make sure the time dimension is aligned across datasets
-        datasets_to_concat = self._align_time_dimension(datasets_to_concat)
-
+            
         # Concatenate all datasets along the sim dimension
         try:
             # Use optimized settings for faster concatenation
@@ -314,27 +311,6 @@ class Concat(DataProcessor):
                     concatenated.attrs["resolution"] = resolutions[k]
                     break
         return concatenated
-
-    def _align_time_dimension(
-        self,
-        datasets: List[Union[xr.Dataset, xr.DataArray]],
-        context: Dict[str, Any] = None,
-    ) -> List[Union[xr.Dataset, xr.DataArray]]:
-        """Align the time dimension across multiple datasets.
-
-        Parameters
-        ----------
-        datasets : List[Union[xr.Dataset, xr.DataArray]]
-            List of datasets to align.
-
-        Returns
-        -------
-        List[Union[xr.Dataset, xr.DataArray]]
-            List of datasets with aligned time dimensions.
-        """
-        # 'table_id': 'day
-        if context["table_id"] == "day":
-            floored = times.astype("datetime64[D]").astype("datetime64[ns]")
 
     def update_context(
         self, context: Dict[str, Any], source_ids: List[str] | object = UNSET
