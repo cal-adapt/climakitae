@@ -14,7 +14,6 @@ from climakitae.new_core.processors.abc_data_processor import (
 )
 from climakitae.new_core.processors.processor_utils import extend_time_domain
 
-
 # Module logger
 logger = logging.getLogger(__name__)
 
@@ -144,6 +143,14 @@ class Concat(DataProcessor):
                     if not isinstance(dataset, (xr.Dataset, xr.DataArray)):
                         continue
 
+                    # Make sure time dimensions are aligned on the same values
+                    if self.dim_name == "sim":
+                        time_freq = {"hr": "H", "day": "D", "mon": "MS"}
+                        floored_time = dataset["time"].dt.floor(
+                            time_freq.get(context["table_id"])
+                        )
+                        dataset = dataset.assign_coords(time=floored_time)
+
                     # Extract source_id from attributes
                     attr_id = "_".join(
                         [
@@ -250,6 +257,9 @@ class Concat(DataProcessor):
             )
             raise ValueError("No valid datasets found for concatenation")
 
+        # Make sure the time dimension is aligned across datasets
+        datasets_to_concat = self._align_time_dimension(datasets_to_concat)
+
         # Concatenate all datasets along the sim dimension
         try:
             # Use optimized settings for faster concatenation
@@ -304,6 +314,27 @@ class Concat(DataProcessor):
                     concatenated.attrs["resolution"] = resolutions[k]
                     break
         return concatenated
+
+    def _align_time_dimension(
+        self,
+        datasets: List[Union[xr.Dataset, xr.DataArray]],
+        context: Dict[str, Any] = None,
+    ) -> List[Union[xr.Dataset, xr.DataArray]]:
+        """Align the time dimension across multiple datasets.
+
+        Parameters
+        ----------
+        datasets : List[Union[xr.Dataset, xr.DataArray]]
+            List of datasets to align.
+
+        Returns
+        -------
+        List[Union[xr.Dataset, xr.DataArray]]
+            List of datasets with aligned time dimensions.
+        """
+        # 'table_id': 'day
+        if context["table_id"] == "day":
+            floored = times.astype("datetime64[D]").astype("datetime64[ns]")
 
     def update_context(
         self, context: Dict[str, Any], source_ids: List[str] | object = UNSET
