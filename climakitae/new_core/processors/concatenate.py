@@ -143,13 +143,8 @@ class Concat(DataProcessor):
                     if not isinstance(dataset, (xr.Dataset, xr.DataArray)):
                         continue
 
-                    # Make sure time dimensions are aligned on the same values
-                    if self.dim_name == "sim":
-                        time_freq = {"hr": "H", "day": "D", "mon": "MS"}
-                        floored_time = dataset["time"].dt.floor(
-                            time_freq.get(context["table_id"])
-                        )
-                        dataset = dataset.assign_coords(time=floored_time)
+                    # Make sure the time dimension is aligned on the same timestamps
+                    dataset = self._align_time_dim(dataset, context)
 
                     # Extract source_id from attributes
                     attr_id = "_".join(
@@ -209,6 +204,9 @@ class Concat(DataProcessor):
                         # skip items that are not xarray datasets or data arrays
                         continue
 
+                    # Make sure the time dimension is aligned on the same timestamps
+                    dataset = self._align_time_dim(dataset, context)
+
                     # Extract source_id from attributes
                     attr_id = "_".join(
                         [dataset.attrs.get(attr, unknown_attr) for attr in concat_attrs]
@@ -256,7 +254,7 @@ class Concat(DataProcessor):
                 "No valid datasets found for concatenation. Sample result: %s", result
             )
             raise ValueError("No valid datasets found for concatenation")
-            
+
         # Concatenate all datasets along the sim dimension
         try:
             # Use optimized settings for faster concatenation
@@ -311,6 +309,27 @@ class Concat(DataProcessor):
                     concatenated.attrs["resolution"] = resolutions[k]
                     break
         return concatenated
+
+    def _align_time_dim(
+        self, dataset: Union[xr.Dataset, xr.DataArray], context: Dict[str, Any] = {}
+    ) -> Union[xr.Dataset, xr.DataArray]:
+        """Align the time dimension of the dataset to ensure consistency.
+
+        Parameters
+        ----------
+        dataset : Union[xr.Dataset, xr.DataArray]
+            The dataset whose time dimension needs to be aligned.
+
+        Returns
+        -------
+        Union[xr.Dataset, xr.DataArray]
+            The dataset with aligned time dimension.
+        """
+        if self.dim_name == "sim":
+            time_freq = {"hr": "H", "day": "D", "mon": "MS"}
+            floored_time = dataset["time"].dt.floor(time_freq.get(context["table_id"]))
+            dataset = dataset.assign_coords(time=floored_time)
+        return dataset
 
     def update_context(
         self, context: Dict[str, Any], source_ids: List[str] | object = UNSET
