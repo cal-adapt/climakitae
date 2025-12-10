@@ -311,7 +311,8 @@ def _reduce_to_single_point(
     test_data = gridcell
     for dim in gridcell.dims:
         if dim not in [dim1_name, dim2_name]:
-            test_data = test_data.isel({dim: 0})
+            mid_idx = gridcell.sizes[dim] // 2
+            test_data = test_data.isel({dim: mid_idx})
     return test_data
 
 
