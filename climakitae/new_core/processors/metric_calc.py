@@ -265,6 +265,9 @@ class MetricCalc(DataProcessor):
         match result:
             case xr.Dataset() | xr.DataArray():
                 if self.one_in_x_config is not UNSET:
+                    import pdb
+
+                    pdb.set_trace()
                     ret = self._calculate_one_in_x_single(result)
                 else:
                     ret = self._calculate_metrics_single(result)
@@ -457,6 +460,9 @@ class MetricCalc(DataProcessor):
         """
         if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
             raise ValueError("Extreme value analysis functions are not available")
+
+        ### The DataArray may have missing gridcells, since the WRF grid is not lat/lon, or the clipping may have may this DataArray an irregular shape.
+        ### To resolve this, we will select all the valid gridcells from `data`, pass them through the calculation, and then re-insert them back into the original grid shape with NaNs where appropriate.
 
         # Handle Dataset vs DataArray
         if isinstance(data, xr.Dataset):
