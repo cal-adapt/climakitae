@@ -1191,6 +1191,32 @@ class TestExtendTimeDomain:
         assert "reanalysis_era5" not in result
         assert "observations" not in result
 
+    # # Write a test that makes sure that the historical data and SSP data are not extended if SSP does not exist for a certian historical data.
+    # # For instance, if r1i1p1f1 historical data exists but there is no corresponding ssp245 or ssp370 data for r1i1p1f1, then the historical data should not be extended.
+    # # And that r1i1p1f1 historical data should be dropped from the final output.
+    # def test_historical_without_ssp_not_extended(self, scenario_dict_with_historical):
+    #     """Test that historical data without corresponding SSP is not extended."""
+    #     # Add historical data without corresponding SSP
+    #     # scenario_dict_with_historical["model2_historical_r3i1p1f1"] = (
+    #     #     TestDataFactory.create_climate_dataset(time_periods=365 * 35)
+    #     # )
+    #     # scenario_dict_with_historical["model2_historical_r3i1p1f1"].attrs[
+    #     #     "experiment"
+    #     # ] = "historical"
+
+    #     with patch("builtins.print") as mock_print:
+    #         result = extend_time_domain(scenario_dict_with_historical)
+
+    #     import pdb
+
+    #     pdb.set_trace()
+    #     # Historical data without SSP should not be in the result
+    #     assert "model2_historical_r3i1p1f1" not in result
+
+    #     # Should still have other SSP data extended
+    #     assert "model1_ssp245_r1i1p1f1" in result
+    #     assert result["model1_ssp245_r1i1p1f1"].attrs.get("historical_prepended", False)
+
     def test_already_extended_data(self, scenario_dict_with_historical):
         """Test behavior when data has already been extended."""
         # Mark data as already processed
