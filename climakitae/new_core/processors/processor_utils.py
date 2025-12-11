@@ -971,15 +971,19 @@ def extend_time_domain(
                 "compat": "override",
                 "join": "outer",
             }
-            # Find common member_ids between historical and SSP data
-            common_members = np.intersect1d(
-                hist_data.member_id.values,
-                data.member_id.values,
-            )
+            hist_common = hist_data
+            data_common = data
 
-            # Select only matching members
-            hist_common = hist_data.sel(member_id=common_members)
-            data_common = data.sel(member_id=common_members)
+            if "member_id" in data.dims and "member_id" in hist_data.dims:
+                # Find common member_ids between historical and SSP data
+                common_members = np.intersect1d(
+                    hist_data.member_id.values,
+                    data.member_id.values,
+                )
+
+                # Select only matching members
+                hist_common = hist_data.sel(member_id=common_members)
+                data_common = data.sel(member_id=common_members)
 
             if isinstance(data, xr.Dataset) and isinstance(hist_common, xr.Dataset):
                 extended_data = xr.concat([hist_common, data_common], **concat_kwargs)  # type: ignore

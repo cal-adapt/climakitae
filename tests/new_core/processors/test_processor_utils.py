@@ -1109,8 +1109,8 @@ class TestExtendTimeDomain:
 
     def test_successful_time_domain_extension(self, scenario_dict_with_historical):
         """Test successful time domain extension."""
-        # with patch("builtins.print") as mock_print:
-        result = extend_time_domain(scenario_dict_with_historical)
+        with patch("builtins.print") as mock_print:
+            result = extend_time_domain(scenario_dict_with_historical)
 
         assert isinstance(result, dict)
 
