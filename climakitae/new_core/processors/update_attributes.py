@@ -1,8 +1,8 @@
 """UpdateAttributes Processor definition."""
 
+import logging
 from typing import Any, Dict, Iterable, Union
 
-import logging
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
@@ -11,7 +11,6 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
-
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -114,7 +113,7 @@ class UpdateAttributes(DataProcessor):
                 raise TypeError(
                     "Result must be an xarray Dataset, DataArray, or iterable of them."
                 )
-                
+
         logger.info(
             "UpdateAttributes applied to result; added %d attributes",
             len(context.get(_NEW_ATTRS_KEY, {})),

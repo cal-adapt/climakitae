@@ -947,9 +947,6 @@ def extend_time_domain(
             # drop non-SSP data since historical gets prepended
             continue
 
-        # if 'LOCA2.UCSD.IPSL-CM6A-LR' in key:
-        #     import pdb; pdb.set_trace()
-
         # Find corresponding historical key by replacing SSP pattern with "historical"
         hist_key = re.sub(r"ssp.{3}", "historical", key)
 
@@ -987,7 +984,9 @@ def extend_time_domain(
 
             if isinstance(data, xr.Dataset) and isinstance(hist_common, xr.Dataset):
                 extended_data = xr.concat([hist_common, data_common], **concat_kwargs)  # type: ignore
-            elif isinstance(data, xr.DataArray) and isinstance(hist_common, xr.DataArray):
+            elif isinstance(data, xr.DataArray) and isinstance(
+                hist_common, xr.DataArray
+            ):
                 extended_data = xr.concat([hist_common, data_common], **concat_kwargs)  # type: ignore
             else:
                 # Handle mixed types by converting to same type

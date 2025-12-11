@@ -630,7 +630,6 @@ class ClimateData:
                 logger.warning("⚠️ Warning: Retrieved dataset is empty.")
 
             else:
-                # import pdb; pdb.set_trace()
                 logger.info("✅ Data retrieval successful!")
 
         except (ValueError, KeyError, IOError, RuntimeError) as e:
