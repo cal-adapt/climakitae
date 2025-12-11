@@ -330,9 +330,10 @@ class Concat(DataProcessor):
             and "table_id" in context
             and context["table_id"] == "day"
         ):
-            # time_freq = {"hr": "H", "day": "D", "mon": "MS"}
-            # floored_time = dataset["time"].dt.floor(time_freq.get(context["table_id"]))
-            floored_time = dataset["time"].dt.floor("D")
+            if "time" in dataset.coords:
+                floored_time = dataset["time"].dt.floor("D")
+            elif "time_delta" in dataset.coords:
+                floored_time = dataset["time_delta"].dt.floor("D")
             dataset = dataset.assign_coords(time=floored_time)
         return dataset
 
