@@ -132,7 +132,7 @@ class Concat(DataProcessor):
                 "intake_esm_attrs:institution_id",
                 "intake_esm_attrs:source_id",
                 "intake_esm_attrs:experiment_id",
-                "intake_esm_attrs:member_id",
+                # "intake_esm_attrs:member_id",
             ]
         )
         unknown_attr = "unknown"
@@ -242,7 +242,9 @@ class Concat(DataProcessor):
                         # Add sim dimension to the dataset
                         dataset = dataset.expand_dims({self.dim_name: [attr_id]})
                         datasets_to_concat.append(dataset)
-
+                        
+        # import pdb; pdb.set_trace()
+            
         if not datasets_to_concat:
             # If no valid datasets to concatenate, return the first valid dataset
             if isinstance(result, dict):
@@ -291,6 +293,8 @@ class Concat(DataProcessor):
             )
             raise
 
+        # import pdb; pdb.set_trace()
+        
         logger.info("Concatenated datasets along '%s' dimension.", self.dim_name)
 
         self.update_context(context, attr_ids)

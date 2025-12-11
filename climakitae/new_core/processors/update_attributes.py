@@ -114,7 +114,7 @@ class UpdateAttributes(DataProcessor):
                 raise TypeError(
                     "Result must be an xarray Dataset, DataArray, or iterable of them."
                 )
-
+                
         logger.info(
             "UpdateAttributes applied to result; added %d attributes",
             len(context.get(_NEW_ATTRS_KEY, {})),
