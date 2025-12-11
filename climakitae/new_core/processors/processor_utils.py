@@ -971,7 +971,6 @@ def extend_time_domain(
                 "compat": "override",
                 "join": "outer",
             }
-
             # Find common member_ids between historical and SSP data
             common_members = np.intersect1d(
                 hist_data.member_id.values,
