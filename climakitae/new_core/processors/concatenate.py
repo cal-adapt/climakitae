@@ -329,11 +329,9 @@ class Concat(DataProcessor):
             self.dim_name == "sim"
             and "table_id" in context
             and context["table_id"] == "day"
+            and "time" in dataset.coords
         ):
-            if "time" in dataset.coords:
-                floored_time = dataset["time"].dt.floor("D")
-            elif "time_delta" in dataset.coords:
-                floored_time = dataset["time_delta"].dt.floor("D")
+            floored_time = dataset["time"].dt.floor("D")
             dataset = dataset.assign_coords(time=floored_time)
         return dataset
 
