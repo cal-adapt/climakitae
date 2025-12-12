@@ -1,10 +1,42 @@
 # constants.py
 """This module defines constants across the codebase"""
 
+
+class _UnsetType:
+    """Singleton sentinel for unset values.
+
+    This class implements __deepcopy__ to return itself, ensuring that
+    `copy.deepcopy(UNSET) is UNSET` remains True. This is critical for
+    thread-safe query snapshots in ClimateData.get().
+    """
+
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __deepcopy__(self, memo):
+        # Return the singleton instance, not a copy
+        return self
+
+    def __copy__(self):
+        # Return the singleton instance, not a copy
+        return self
+
+    def __repr__(self):
+        return "UNSET"
+
+    def __reduce__(self):
+        # Support pickling by returning the class for reconstruction
+        return (self.__class__, ())
+
+
 # Sentinel for unset values
 # This is used to differentiate between a value that is set to None
 # and a value that is not set at all.
-UNSET = object()
+UNSET = _UnsetType()
 
 # global warming levels available on AE
 WARMING_LEVELS = [0.8, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0]

@@ -209,10 +209,20 @@ class DatasetFactory:
         # Create and configure parameter validator
         catalog_key = self._get_catalog_key_from_query(ui_query)
         logger.info("Determined catalog key: %s", catalog_key)
+
+        # Store catalog_key in query for thread-safe access during execution
+        # This avoids storing mutable state on the singleton DataCatalog
+        ui_query["_catalog_key"] = catalog_key
+
         self._catalog = DataCatalog()
-        self._catalog.set_catalog_key(catalog_key)
-        logger.debug("Creating validator for catalog: %s", catalog_key)
-        dataset.with_param_validator(self.create_validator(catalog_key))
+        # Resolve the key to validate it (but don't store it on the singleton)
+        resolved_key = self._catalog.resolve_catalog_key(catalog_key)
+        if resolved_key is None:
+            raise ValueError(f"Invalid catalog key: {catalog_key}")
+        ui_query["_catalog_key"] = resolved_key
+
+        logger.debug("Creating validator for catalog: %s", resolved_key)
+        dataset.with_param_validator(self.create_validator(resolved_key))
 
         # Configure the appropriate catalog based on query parameters
         logger.debug("Configuring dataset with data catalog")
