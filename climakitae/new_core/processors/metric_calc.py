@@ -667,13 +667,12 @@ class MetricCalc(DataProcessor):
                         block_maxima = block_maxima.squeeze("sim", drop=True)
 
                     # Check data quality and filter out locations with insufficient data
+                    spatial_dims = [
+                        dim for dim in block_maxima.dims if dim not in ["time", "year"]
+                    ]
+
                     if hasattr(block_maxima, "dims") and len(block_maxima.dims) > 1:
                         # For multi-dimensional block maxima, we need to check each location
-                        spatial_dims = [
-                            dim
-                            for dim in block_maxima.dims
-                            if dim not in ["time", "year"]
-                        ]
                         if spatial_dims:
                             # Count valid data points for each location
                             count_dim = (
@@ -689,7 +688,16 @@ class MetricCalc(DataProcessor):
                                     f"Warning: No locations have sufficient valid data for simulation {s}"
                                 )
                                 raise ValueError("No valid locations found")
-                            elif valid_locations.sum() < len(valid_locations):
+                            elif valid_locations.sum() > 1:
+                                # Filtering out invalid locations by dropping NaNs after stacking spatial dims together
+                                spatial_stacked = block_maxima.stack(
+                                    latlon=["lat", "lon"]
+                                )
+                                block_maxima = spatial_stacked.dropna(dim="latlon")
+                                # spatial_dims = None
+                            elif valid_locations.sum() < len(
+                                valid_locations
+                            ):  # BUG: len(valid_locations) just takes the len of the first dimension to show up in the spatial dimensions
                                 n_valid = int(valid_locations.sum())
                                 n_total = len(valid_locations)
                                 print(
@@ -699,11 +707,6 @@ class MetricCalc(DataProcessor):
                                 block_maxima = block_maxima.where(
                                     valid_locations, drop=True
                                 )
-
-                    # Handle spatial dimensions (e.g., closest_cell, lat, lon)
-                    spatial_dims = [
-                        dim for dim in block_maxima.dims if dim not in ["time", "year"]
-                    ]
 
                     if spatial_dims:
                         # We have spatial dimensions - need to process each location separately
@@ -783,6 +786,11 @@ class MetricCalc(DataProcessor):
                                 },
                                 name="return_value",
                             )
+
+                        import pdb
+
+                        pdb.set_trace()
+
                     else:
                         # No spatial dimensions - process as before
                         result = self._get_return_values_vectorized(
