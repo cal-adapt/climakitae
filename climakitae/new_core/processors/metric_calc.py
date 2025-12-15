@@ -708,6 +708,10 @@ class MetricCalc(DataProcessor):
                                     valid_locations, drop=True
                                 )
 
+                    import pdb
+
+                    pdb.set_trace()
+
                     if spatial_dims:
                         # We have spatial dimensions - need to process each location separately
                         # Get the first spatial dimension to iterate over
