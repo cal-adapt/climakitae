@@ -256,10 +256,7 @@ def _get_block_maxima_optimized(
     bms = _set_block_maxima_attributes(
         bms, duration, groupby, grouped_duration, extremes_type, block_size
     )
-
-    import pdb
-
-    pdb.set_trace()
+    
     # Handle NaN values efficiently
     bms = _handle_nan_values_optimized(bms)
 
