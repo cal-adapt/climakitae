@@ -849,7 +849,12 @@ class MetricCalc(DataProcessor):
                     )
 
                 # The result is now already properly formatted as a DataArray with the correct coordinates
-                return_values = result.unstack(dim="latlon") if "latlon" in result.dims else result
+                import pdb
+
+                pdb.set_trace()
+                return_values = (
+                    result.unstack(dim="latlon") if "latlon" in result.dims else result
+                )
                 batch_results.append(return_values)
 
                 # Calculate p-values if requested
@@ -857,7 +862,11 @@ class MetricCalc(DataProcessor):
                     _, p_value = get_ks_stat(
                         block_maxima, distr=self.distribution, multiple_points=False
                     ).data_vars.values()
-                    p_value = p_value.unstack(dim="latlon") if "latlon" in p_value.dims else p_value
+                    p_value = (
+                        p_value.unstack(dim="latlon")
+                        if "latlon" in p_value.dims
+                        else p_value
+                    )
                     batch_p_vals.append(p_value)
 
                     if self.print_goodness_of_fit:
