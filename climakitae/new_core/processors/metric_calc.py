@@ -689,7 +689,10 @@ class MetricCalc(DataProcessor):
                                 spatial_stacked = block_maxima.stack(
                                     latlon=["lat", "lon"]
                                 )
-                                block_maxima = spatial_stacked.dropna(dim="latlon")
+                                nonnull_mask = spatial_stacked.notnull().all(dim="time")
+                                block_maxima = block_maxima.where(
+                                    nonnull_mask, drop=True
+                                )
                                 spatial_dims = ["latlon"]
                                 # spatial_dims = None
                             elif valid_locations.sum() < len(
