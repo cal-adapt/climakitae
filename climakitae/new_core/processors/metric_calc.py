@@ -455,6 +455,10 @@ class MetricCalc(DataProcessor):
         xr.Dataset
             Dataset with return_value and p_values DataArrays.
         """
+        import pdb
+
+        pdb.set_trace()
+
         if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
             raise ValueError("Extreme value analysis functions are not available")
 
