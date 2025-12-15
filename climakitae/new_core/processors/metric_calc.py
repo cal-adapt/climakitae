@@ -658,6 +658,9 @@ class MetricCalc(DataProcessor):
                         sim_data, **kwargs
                     ).squeeze()
 
+                    import pdb
+
+                    pdb.set_trace()
                     # Force drop the sim dimension if it still exists in block_maxima
                     if "sim" in block_maxima.dims:
                         block_maxima = block_maxima.squeeze("sim", drop=True)
