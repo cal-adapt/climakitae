@@ -265,9 +265,6 @@ class MetricCalc(DataProcessor):
         match result:
             case xr.Dataset() | xr.DataArray():
                 if self.one_in_x_config is not UNSET:
-                    import pdb
-
-                    pdb.set_trace()
                     ret = self._calculate_one_in_x_single(result)
                 else:
                     ret = self._calculate_metrics_single(result)
