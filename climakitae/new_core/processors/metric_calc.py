@@ -709,10 +709,6 @@ class MetricCalc(DataProcessor):
                                     valid_locations, drop=True
                                 )
 
-                    import pdb
-
-                    pdb.set_trace()
-
                     if spatial_dims:
                         # We have spatial dimensions - need to process each location separately
                         # Get the first spatial dimension to iterate over
@@ -791,10 +787,6 @@ class MetricCalc(DataProcessor):
                                 },
                                 name="return_value",
                             )
-
-                        import pdb
-
-                        pdb.set_trace()
 
                     else:
                         # No spatial dimensions - process as before
@@ -880,6 +872,10 @@ class MetricCalc(DataProcessor):
             all_p_vals.extend(batch_p_vals)
 
         # Combine all results with robust error handling
+        import pdb
+
+        pdb.set_trace()
+
         ret_vals, p_vals = self._combine_return_value_results(
             all_return_vals, all_p_vals, data_array
         )
