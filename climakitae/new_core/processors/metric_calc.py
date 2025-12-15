@@ -621,182 +621,172 @@ class MetricCalc(DataProcessor):
 
             for s in batch_sims:
                 block_maxima = None  # Initialize to avoid scoping issues
-                try:
-                    # Check for duplicate simulations and handle appropriately
-                    sim_matches = data_array.sim.values == s
-                    num_matches = sim_matches.sum()
+                # try:
+                # Check for duplicate simulations and handle appropriately
+                sim_matches = data_array.sim.values == s
+                num_matches = sim_matches.sum()
 
-                    # Handle duplicate simulations by selecting the first occurrence
-                    if num_matches > 1:
-                        first_idx = np.where(sim_matches)[0][0]
-                        print(
-                            f"Warning: Found {num_matches} matches for simulation '{s}', selecting first occurrence"
-                        )
-                        sim_data = data_array.isel(sim=first_idx)
-                    else:
-                        # Try the selection
+                # Handle duplicate simulations by selecting the first occurrence
+                if num_matches > 1:
+                    first_idx = np.where(sim_matches)[0][0]
+                    print(
+                        f"Warning: Found {num_matches} matches for simulation '{s}', selecting first occurrence"
+                    )
+                    sim_data = data_array.isel(sim=first_idx)
+                else:
+                    # Try the selection
+                    try:
+                        sim_data = data_array.sel(sim=s)
+                    except (KeyError, IndexError) as sel_error:
+                        # Try alternative selection methods
                         try:
-                            sim_data = data_array.sel(sim=s)
-                        except (KeyError, IndexError) as sel_error:
-                            # Try alternative selection methods
-                            try:
-                                # Try using isel if sel fails
-                                sim_idx = list(data_array.sim.values).index(s)
-                                sim_data = data_array.isel(sim=sim_idx)
-                            except (KeyError, IndexError):
-                                raise sel_error
+                            # Try using isel if sel fails
+                            sim_idx = list(data_array.sim.values).index(s)
+                            sim_data = data_array.isel(sim=sim_idx)
+                        except (KeyError, IndexError):
+                            raise sel_error
 
-                    # Now squeeze to remove size-1 dimensions
-                    sim_data = sim_data.squeeze()
+                # Now squeeze to remove size-1 dimensions
+                sim_data = sim_data.squeeze()
 
-                    # Force drop the sim dimension if it still exists
-                    if "sim" in sim_data.dims:
-                        sim_data = sim_data.squeeze("sim", drop=True)
+                # Force drop the sim dimension if it still exists
+                if "sim" in sim_data.dims:
+                    sim_data = sim_data.squeeze("sim", drop=True)
 
-                    # Extract block maxima for this simulation using optimized function
-                    block_maxima = _get_block_maxima_optimized(
-                        sim_data, **kwargs
-                    ).squeeze()
+                # Extract block maxima for this simulation using optimized function
+                block_maxima = _get_block_maxima_optimized(sim_data, **kwargs).squeeze()
 
-                    # Force drop the sim dimension if it still exists in block_maxima
-                    if "sim" in block_maxima.dims:
-                        block_maxima = block_maxima.squeeze("sim", drop=True)
+                # Force drop the sim dimension if it still exists in block_maxima
+                if "sim" in block_maxima.dims:
+                    block_maxima = block_maxima.squeeze("sim", drop=True)
 
-                    # Check data quality and filter out locations with insufficient data
-                    spatial_dims = [
-                        dim for dim in block_maxima.dims if dim not in ["time", "year"]
-                    ]
+                # Check data quality and filter out locations with insufficient data
+                spatial_dims = [
+                    dim for dim in block_maxima.dims if dim not in ["time", "year"]
+                ]
 
-                    if hasattr(block_maxima, "dims") and len(block_maxima.dims) > 1:
-                        # For multi-dimensional block maxima, we need to check each location
-                        if spatial_dims:
-                            # Count valid data points for each location
-                            count_dim = (
-                                "year"
-                                if "year" in block_maxima.dims
-                                else str(block_maxima.dims[0])
-                            )
-                            valid_counts = block_maxima.count(dim=count_dim)
-                            # Filter out locations with fewer than 3 valid time periods
-                            valid_locations = valid_counts >= 3
-                            if valid_locations.sum() == 0:
-                                print(
-                                    f"Warning: No locations have sufficient valid data for simulation {s}"
-                                )
-                                raise ValueError("No valid locations found")
-                            elif valid_locations.sum() > 1:
-                                # Filtering out invalid locations by dropping NaNs after stacking spatial dims together
-                                spatial_stacked = block_maxima.stack(
-                                    latlon=["lat", "lon"]
-                                )
-                                nonnull_mask = spatial_stacked.notnull().all(dim="time")
-                                block_maxima = block_maxima.where(
-                                    nonnull_mask, drop=True
-                                )
-                                spatial_dims = ["latlon"]
-                                # spatial_dims = None
-                            elif valid_locations.sum() < len(
-                                valid_locations
-                            ):  # BUG: len(valid_locations) just takes the len of the first dimension to show up in the spatial dimensions
-                                n_valid = int(valid_locations.sum())
-                                n_total = len(valid_locations)
-                                print(
-                                    f"Filtering to {n_valid} valid locations out of {n_total} total locations"
-                                )
-                                # Filter the block maxima to only include valid locations
-                                block_maxima = block_maxima.where(
-                                    valid_locations, drop=True
-                                )
-
+                if hasattr(block_maxima, "dims") and len(block_maxima.dims) > 1:
+                    # For multi-dimensional block maxima, we need to check each location
                     if spatial_dims:
-                        # We have spatial dimensions - need to process each location separately
-                        # Get the first spatial dimension to iterate over
-                        spatial_dim = spatial_dims[0]
-                        spatial_coords = block_maxima.coords[spatial_dim]
-
-                        location_results = []
-                        for loc_idx, spatial_coord in enumerate(spatial_coords):
-                            try:
-                                # Extract data for this specific location
-                                loc_block_maxima = block_maxima.isel(
-                                    {spatial_dim: loc_idx}
-                                )
-
-                                # Check if this location has enough valid data
-                                # Determine which time dimension to use
-                                time_dim = (
-                                    "year"
-                                    if "year" in loc_block_maxima.dims
-                                    else "time"
-                                )
-                                valid_data = loc_block_maxima.dropna(
-                                    dim=time_dim, how="all"
-                                )
-                                n_valid_periods = len(valid_data[time_dim])
-                                if (
-                                    n_valid_periods < 3
-                                ):  # Need at least 3 periods for distribution fitting
-                                    print(
-                                        f"Warning: Location {loc_idx} has insufficient valid data ({n_valid_periods} {time_dim} periods), skipping..."
-                                    )
-                                    raise ValueError(
-                                        f"Insufficient valid data for location {loc_idx}"
-                                    )
-
-                                import pdb
-
-                                pdb.set_trace()
-                                # Calculate return values for this location
-                                loc_result = self._get_return_values_vectorized(
-                                    valid_data,  # Use the filtered data
-                                    return_periods=self.return_periods,
-                                    distr=self.distribution,
-                                )
-
-                                # Add the spatial coordinate back to the result
-                                loc_result = loc_result.assign_coords(
-                                    {spatial_dim: spatial_coords[loc_idx]}
-                                )
-                                loc_result = loc_result.expand_dims(spatial_dim)
-                                location_results.append(loc_result)
-
-                            except Exception as loc_error:
-                                print(
-                                    f"Warning: Failed to process location {loc_idx} in {spatial_dim}: {loc_error}"
-                                )
-                                # Create NaN result for this location
-                                nan_result = self._create_nan_return_value_array()
-                                nan_result = nan_result.assign_coords(
-                                    {spatial_dim: spatial_coords[loc_idx]}
-                                )
-                                nan_result = nan_result.expand_dims(spatial_dim)
-                                location_results.append(nan_result)
-
-                        # Combine results across all locations
-                        if location_results:
-                            result = xr.concat(location_results, dim=spatial_dim)
-                        else:
-                            # All locations failed - create NaN result
-                            result = xr.DataArray(
-                                np.full(
-                                    (len(spatial_coords), len(self.return_periods)),
-                                    np.nan,
-                                ),
-                                dims=[spatial_dim, "one_in_x"],
-                                coords={
-                                    spatial_dim: spatial_coords,
-                                    "one_in_x": self.return_periods,
-                                },
-                                name="return_value",
+                        # Count valid data points for each location
+                        count_dim = (
+                            "year"
+                            if "year" in block_maxima.dims
+                            else str(block_maxima.dims[0])
+                        )
+                        valid_counts = block_maxima.count(dim=count_dim)
+                        # Filter out locations with fewer than 3 valid time periods
+                        valid_locations = valid_counts >= 3
+                        if valid_locations.sum() == 0:
+                            print(
+                                f"Warning: No locations have sufficient valid data for simulation {s}"
+                            )
+                            raise ValueError("No valid locations found")
+                        elif valid_locations.sum() > 1:
+                            # Filtering out invalid locations by dropping NaNs after stacking spatial dims together
+                            spatial_stacked = block_maxima.stack(latlon=["lat", "lon"])
+                            nonnull_mask = spatial_stacked.notnull().all(dim="time")
+                            block_maxima = block_maxima.where(nonnull_mask, drop=True)
+                            spatial_dims = ["latlon"]
+                            # spatial_dims = None
+                        elif valid_locations.sum() < len(
+                            valid_locations
+                        ):  # BUG: len(valid_locations) just takes the len of the first dimension to show up in the spatial dimensions
+                            n_valid = int(valid_locations.sum())
+                            n_total = len(valid_locations)
+                            print(
+                                f"Filtering to {n_valid} valid locations out of {n_total} total locations"
+                            )
+                            # Filter the block maxima to only include valid locations
+                            block_maxima = block_maxima.where(
+                                valid_locations, drop=True
                             )
 
+                if spatial_dims:
+                    # We have spatial dimensions - need to process each location separately
+                    # Get the first spatial dimension to iterate over
+                    spatial_dim = spatial_dims[0]
+                    spatial_coords = block_maxima.coords[spatial_dim]
+
+                    location_results = []
+                    for loc_idx, spatial_coord in enumerate(spatial_coords):
+                        try:
+                            # Extract data for this specific location
+                            loc_block_maxima = block_maxima.isel({spatial_dim: loc_idx})
+
+                            # Check if this location has enough valid data
+                            # Determine which time dimension to use
+                            time_dim = (
+                                "year" if "year" in loc_block_maxima.dims else "time"
+                            )
+                            valid_data = loc_block_maxima.dropna(
+                                dim=time_dim, how="all"
+                            )
+                            n_valid_periods = len(valid_data[time_dim])
+                            if (
+                                n_valid_periods < 3
+                            ):  # Need at least 3 periods for distribution fitting
+                                print(
+                                    f"Warning: Location {loc_idx} has insufficient valid data ({n_valid_periods} {time_dim} periods), skipping..."
+                                )
+                                raise ValueError(
+                                    f"Insufficient valid data for location {loc_idx}"
+                                )
+
+                            import pdb
+
+                            pdb.set_trace()
+                            # Calculate return values for this location
+                            loc_result = self._get_return_values_vectorized(
+                                valid_data,  # Use the filtered data
+                                return_periods=self.return_periods,
+                                distr=self.distribution,
+                            )
+
+                            # Add the spatial coordinate back to the result
+                            loc_result = loc_result.assign_coords(
+                                {spatial_dim: spatial_coords[loc_idx]}
+                            )
+                            loc_result = loc_result.expand_dims(spatial_dim)
+                            location_results.append(loc_result)
+
+                        except Exception as loc_error:
+                            print(
+                                f"Warning: Failed to process location {loc_idx} in {spatial_dim}: {loc_error}"
+                            )
+                            # Create NaN result for this location
+                            nan_result = self._create_nan_return_value_array()
+                            nan_result = nan_result.assign_coords(
+                                {spatial_dim: spatial_coords[loc_idx]}
+                            )
+                            nan_result = nan_result.expand_dims(spatial_dim)
+                            location_results.append(nan_result)
+
+                    # Combine results across all locations
+                    if location_results:
+                        result = xr.concat(location_results, dim=spatial_dim)
                     else:
-                        # No spatial dimensions - process as before
-                        result = self._get_return_values_vectorized(
-                            block_maxima,
-                            return_periods=self.return_periods,
-                            distr=self.distribution,
+                        # All locations failed - create NaN result
+                        result = xr.DataArray(
+                            np.full(
+                                (len(spatial_coords), len(self.return_periods)),
+                                np.nan,
+                            ),
+                            dims=[spatial_dim, "one_in_x"],
+                            coords={
+                                spatial_dim: spatial_coords,
+                                "one_in_x": self.return_periods,
+                            },
+                            name="return_value",
                         )
+
+                else:
+                    # No spatial dimensions - process as before
+                    result = self._get_return_values_vectorized(
+                        block_maxima,
+                        return_periods=self.return_periods,
+                        distr=self.distribution,
+                    )
 
                 # except Exception:
                 #     # Fallback to individual calculation
