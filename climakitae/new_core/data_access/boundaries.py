@@ -44,6 +44,7 @@ import logging
 import warnings
 from typing import Dict, Optional, Union
 
+import geopandas as gpd
 import intake
 import pandas as pd
 
@@ -191,6 +192,7 @@ class Boundaries:
         self.__ca_utilities: Optional[pd.DataFrame] = None
         self.__ca_forecast_zones: Optional[pd.DataFrame] = None
         self.__ca_electric_balancing_areas: Optional[pd.DataFrame] = None
+        self.__ca_census_tracts: Optional[pd.DataFrame] = None
 
         # Cache for lookup dictionaries
         self._lookup_cache: Dict[str, Dict[str, int]] = {}
@@ -321,6 +323,21 @@ class Boundaries:
     @_ca_electric_balancing_areas.setter
     def _ca_electric_balancing_areas(self, value: pd.DataFrame) -> None:
         self.__ca_electric_balancing_areas = value
+
+    @property
+    def _ca_census_tracts(self) -> gpd.GeoDataFrame:
+        """Lazy-loaded California census tracts data."""
+        if self.__ca_census_tracts is None:
+            try:
+                logger.debug("Loading CA census tracts data from catalog")
+                self.__ca_census_tracts = self._cat.censustracts.read()
+            except Exception as e:
+                raise RuntimeError(f"Failed to load CA census tracts data: {e}") from e
+        return self.__ca_census_tracts
+
+    @_ca_census_tracts.setter
+    def _ca_census_tracts(self, value: gpd.GeoDataFrame) -> None:
+        self.__ca_census_tracts = value
 
     def _process_us_states(self, df: pd.DataFrame) -> pd.DataFrame:
         """Process raw US states data.
@@ -555,6 +572,24 @@ class Boundaries:
             ).to_dict()
         return self._lookup_cache["electric_balancing_areas"]
 
+    def _get_ca_census_tracts(self) -> Dict[str, int]:
+        """Get cached lookup dictionary for California census tracts.
+
+        Returns
+        -------
+        Dict[str, int]
+            Dictionary mapping census tract GEOIDs to DataFrame indices.
+            GEOID is used because tract names (NAMELSAD) are not unique
+            across counties (e.g., "Census Tract 1" exists in multiple counties).
+
+        """
+        if "ca_census_tracts" not in self._lookup_cache:
+            logger.debug("Building CA census tracts lookup dictionary")
+            self._lookup_cache["ca_census_tracts"] = pd.Series(
+                self._ca_census_tracts.index, index=self._ca_census_tracts["GEOID"]
+            ).to_dict()
+        return self._lookup_cache["ca_census_tracts"]
+
     def boundary_dict(self) -> Dict[str, Dict[str, int]]:
         """Return dictionary of all boundary lookup dictionaries for UI population.
 
@@ -618,6 +653,7 @@ class Boundaries:
             "CA Electric Load Serving Entities (IOU & POU)": self._get_ious_pous(),
             "CA Electricity Demand Forecast Zones": self._get_forecast_zones(),
             "CA Electric Balancing Authority Areas": self._get_electric_balancing_areas(),
+            "CA Census Tracts": self._get_ca_census_tracts(),
         }
 
     def load(self) -> None:
@@ -685,6 +721,7 @@ class Boundaries:
             self._ca_utilities,
             self._ca_forecast_zones,
             self._ca_electric_balancing_areas,
+            self._ca_census_tracts,
         )
 
         # Build all lookup caches
@@ -695,6 +732,7 @@ class Boundaries:
             self._get_forecast_zones(),
             self._get_ious_pous(),
             self._get_electric_balancing_areas(),
+            self._get_ca_census_tracts(),
         )
 
     def clear_cache(self) -> None:
@@ -738,6 +776,7 @@ class Boundaries:
         self.__ca_utilities = None
         self.__ca_forecast_zones = None
         self.__ca_electric_balancing_areas = None
+        self.__ca_census_tracts = None
 
         # Clear lookup cache
         self._lookup_cache.clear()
@@ -807,6 +846,7 @@ class Boundaries:
             "ca_utilities": self.__ca_utilities,
             "ca_forecast_zones": self.__ca_forecast_zones,
             "ca_electric_balancing_areas": self.__ca_electric_balancing_areas,
+            "ca_census_tracts": self.__ca_census_tracts,
         }
 
         for name, df in datasets.items():

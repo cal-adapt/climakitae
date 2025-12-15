@@ -383,6 +383,35 @@ class TestConcatExecuteTimeDimension:
         assert processor.dim_name == "sim"
         assert result is concatenated
 
+    @pytest.mark.parametrize(
+        "table_id, expected_times",
+        [
+            (
+                "day",
+                pd.date_range("2020-01-01", periods=3),
+            ),  # Daily data, times floored
+            (
+                "hr",
+                pd.date_range("2020-01-01 12:34", periods=3),
+            ),  # Non-daily, no change
+            (
+                "mon",
+                pd.date_range("2020-01-01 12:34", periods=3),
+            ),  # Non-daily, no change
+        ],
+    )
+    def test_execute_align_time_dim(self, table_id, expected_times):
+        """Test align_time_dim method aligns time dimension based on table_id."""
+        processor = Concat("sim")
+        dataset = xr.Dataset(
+            {"temp": (["time"], pd.date_range("2020-01-01 12:34", periods=3))},
+            coords={"time": pd.date_range("2020-01-01 12:34", periods=3)},
+        )
+        context = {"table_id": table_id}
+        aligned_dataset = processor._align_time_dim(dataset, context)
+
+        assert all(aligned_dataset["time"].values == expected_times.values)
+
 
 class TestConcatExecuteResolutionHandling:
     """Test class for resolution attribute handling."""
@@ -657,6 +686,54 @@ class TestConcatIntegration:
         assert isinstance(result, xr.Dataset)
         assert "new_attrs" in context
         assert "Time domain extension" in context["new_attrs"]["concat"]
+
+    @pytest.mark.integration
+    @pytest.mark.parametrize(
+        "dataset1_time",
+        [
+            pd.date_range("2020-01-01 06:00", periods=3),  # Offset time
+            pd.date_range(
+                "2020-01-01 00:00", periods=3
+            ),  # Aligned time, to make sure timestamps do not change
+        ],
+    )
+    def test_time_dimension_aligned_across_daily_sims(self, dataset1_time):
+        """Test time dimension alignment across daily simulations."""
+        processor = Concat("sim")
+
+        # Create two datasets with daily time coordinates that need alignment
+        dataset1 = xr.Dataset(
+            {"pr": (["time"], np.array([1, 2, 3]))},
+            coords={
+                "time": dataset1_time,
+            },
+            attrs={
+                "intake_esm_attrs:source_id": "CNRM-CM6-1",
+                "intake_esm_attrs:experiment_id": "ssp245",
+            },
+        )
+
+        dataset2 = xr.Dataset(
+            {"pr": (["time"], np.array([4, 5, 6]))},
+            coords={
+                "time": pd.date_range("2020-01-01 00:00", periods=3),
+            },
+            attrs={
+                "intake_esm_attrs:source_id": "GFDL-ESM4",
+                "intake_esm_attrs:experiment_id": "ssp370",
+            },
+        )
+
+        result_dict = {"cnrm.ssp245": dataset1, "gfdl.ssp370": dataset2}
+        context = {"table_id": "day"}
+
+        result = processor.execute(result_dict, context)  # type: ignore
+
+        # Verify that time coordinates are aligned to start of day
+        expected_times = pd.date_range("2020-01-01", periods=3)
+        for i in range(2):
+            model_data = result.isel(sim=i)
+            assert all(model_data["time"].values == expected_times.values)
 
 
 class TestConcatEdgeCases:

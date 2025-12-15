@@ -79,11 +79,14 @@ def validate_clip_param(
             return _validate_list_param(value)
         case tuple():
             return _validate_tuple_param(value)
+        case dict():
+            return _validate_dict_param(value)
         case _:
             logger.warning(
                 f"\n\nInvalid parameter type for Clip processor. "
-                f"\nExpected str, list, or tuple, but got {type(value).__name__}. "
-                f"\nValid examples: 'CA', ['CA', 'OR'], or ((32.0, 42.0), (-125.0, -114.0))",
+                f"\nExpected str, list, tuple, or dict, but got {type(value).__name__}. "
+                f"\nValid examples: 'CA', ['CA', 'OR'], ((32.0, 42.0), (-125.0, -114.0)), "
+                f"or {{'boundaries': ['CA', 'OR'], 'separated': True}}",
                 stacklevel=999,
             )
 
@@ -299,6 +302,91 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
         logger.warning(msg)
         return False
 
+    return True
+
+
+def _validate_dict_param(value: dict) -> bool:
+    """
+    Validate a dict parameter for the Clip processor.
+
+    Dict parameters enable advanced clipping features like separated mode.
+    Required structure: {"boundaries": [...], "separated": bool}
+
+    Parameters
+    ----------
+    value : dict
+        Dictionary with clipping configuration
+
+    Returns
+    -------
+    bool
+        True if the parameter is valid, False otherwise
+
+    Examples
+    --------
+    >>> _validate_dict_param({"boundaries": ["CA", "OR"], "separated": True})
+    True
+    >>> _validate_dict_param({"boundaries": ["CA"]})  # separated defaults to False
+    True
+    """
+    logger.debug("_validate_dict_param called with: %s", value)
+
+    # Check for required 'boundaries' key
+    if "boundaries" not in value:
+        msg = (
+            "Dict parameter for Clip must contain 'boundaries' key with a list of boundary names. "
+            "Example: {'boundaries': ['CA', 'OR', 'WA'], 'separated': True}"
+        )
+        logger.warning(msg)
+        return False
+
+    boundaries = value["boundaries"]
+
+    # Validate boundaries is a list
+    if not isinstance(boundaries, list):
+        msg = (
+            f"'boundaries' must be a list, got {type(boundaries).__name__}. "
+            "Example: {'boundaries': ['CA', 'OR', 'WA'], 'separated': True}"
+        )
+        logger.warning(msg)
+        return False
+
+    # Validate the boundaries list
+    if not _validate_list_param(boundaries):
+        return False
+
+    # Validate 'separated' if present
+    if "separated" in value:
+        separated = value["separated"]
+        if not isinstance(separated, bool):
+            msg = (
+                f"'separated' must be a boolean (True or False), got {type(separated).__name__}. "
+                "Example: {'boundaries': ['CA', 'OR'], 'separated': True}"
+            )
+            logger.warning(msg)
+            return False
+
+    # Warn if only one boundary is provided with separated=True
+    if value.get("separated", False) and len(boundaries) == 1:
+        msg = (
+            "Using 'separated': True with a single boundary has no effect. "
+            "Consider removing the 'separated' option or adding more boundaries."
+        )
+        logger.warning(msg)
+        # Still valid, just a warning
+
+    # Check for unknown keys
+    known_keys = {"boundaries", "separated"}
+    unknown_keys = set(value.keys()) - known_keys
+    if unknown_keys:
+        msg = (
+            f"Unknown keys in clip dict parameter: {unknown_keys}. "
+            f"Valid keys are: {known_keys}"
+        )
+        logger.warning(msg)
+        # Still valid, just a warning
+
+    logger.debug("Dict parameter validated successfully")
     return True
 
 
