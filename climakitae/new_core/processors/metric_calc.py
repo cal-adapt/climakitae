@@ -743,6 +743,9 @@ class MetricCalc(DataProcessor):
                                         f"Insufficient valid data for location {loc_idx}"
                                     )
 
+                                import pdb
+
+                                pdb.set_trace()
                                 # Calculate return values for this location
                                 loc_result = self._get_return_values_vectorized(
                                     valid_data,  # Use the filtered data
