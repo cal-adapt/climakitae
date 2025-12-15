@@ -874,10 +874,6 @@ class MetricCalc(DataProcessor):
             all_p_vals.extend(batch_p_vals)
 
         # Combine all results with robust error handling
-        import pdb
-
-        pdb.set_trace()
-
         ret_vals, p_vals = self._combine_return_value_results(
             all_return_vals, all_p_vals, data_array
         )
