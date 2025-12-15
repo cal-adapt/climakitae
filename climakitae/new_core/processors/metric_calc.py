@@ -798,61 +798,61 @@ class MetricCalc(DataProcessor):
                             distr=self.distribution,
                         )
 
-                except Exception:
-                    # Fallback to individual calculation
-                    print(
-                        f"Warning: Vectorized return value calculation failed for simulation {s}, using fallback method"
-                    )
-                    individual_return_values = []
+                # except Exception:
+                #     # Fallback to individual calculation
+                #     print(
+                #         f"Warning: Vectorized return value calculation failed for simulation {s}, using fallback method"
+                #     )
+                #     individual_return_values = []
 
-                    # Check if block_maxima was successfully extracted
-                    if block_maxima is None:
-                        print(
-                            f"Warning: Block maxima extraction failed for simulation {s}, returning NaN values"
-                        )
-                        individual_return_values = [np.nan] * len(self.return_periods)
-                    else:
-                        for rp in self.return_periods.tolist():
-                            try:
-                                single_result = get_return_value(
-                                    block_maxima,
-                                    return_period=rp,  # Pass single return period
-                                    multiple_points=False,
-                                    distr=self.distribution,
-                                )
+                #     # Check if block_maxima was successfully extracted
+                #     if block_maxima is None:
+                #         print(
+                #             f"Warning: Block maxima extraction failed for simulation {s}, returning NaN values"
+                #         )
+                #         individual_return_values = [np.nan] * len(self.return_periods)
+                #     else:
+                #         for rp in self.return_periods.tolist():
+                #             try:
+                #                 single_result = get_return_value(
+                #                     block_maxima,
+                #                     return_period=rp,  # Pass single return period
+                #                     multiple_points=False,
+                #                     distr=self.distribution,
+                #                 )
 
-                                # Extract the return value from the result
-                                if (
-                                    isinstance(single_result, dict)
-                                    and "return_value" in single_result
-                                ):
-                                    rv = single_result["return_value"]
-                                else:
-                                    rv = single_result
+                #                 # Extract the return value from the result
+                #                 if (
+                #                     isinstance(single_result, dict)
+                #                     and "return_value" in single_result
+                #                 ):
+                #                     rv = single_result["return_value"]
+                #                 else:
+                #                     rv = single_result
 
-                                # Convert to scalar if it's a DataArray
-                                if isinstance(rv, xr.DataArray):
-                                    rv = (
-                                        rv.values.item()
-                                        if rv.values.size == 1
-                                        else rv.values.flat[0]
-                                    )
+                #                 # Convert to scalar if it's a DataArray
+                #                 if isinstance(rv, xr.DataArray):
+                #                     rv = (
+                #                         rv.values.item()
+                #                         if rv.values.size == 1
+                #                         else rv.values.flat[0]
+                #                     )
 
-                                individual_return_values.append(rv)
+                #                 individual_return_values.append(rv)
 
-                            except Exception as single_rv_error:
-                                print(
-                                    f"Warning: Return value calculation failed for return period {rp}: {single_rv_error}"
-                                )
-                                individual_return_values.append(np.nan)
+                #             except Exception as single_rv_error:
+                #                 print(
+                #                     f"Warning: Return value calculation failed for return period {rp}: {single_rv_error}"
+                #                 )
+                #                 individual_return_values.append(np.nan)
 
-                    # Create a DataArray with the individual return values
-                    result = xr.DataArray(
-                        individual_return_values,
-                        dims=["one_in_x"],
-                        coords={"one_in_x": self.return_periods},
-                        name="return_value",
-                    )
+                #     # Create a DataArray with the individual return values
+                #     result = xr.DataArray(
+                #         individual_return_values,
+                #         dims=["one_in_x"],
+                #         coords={"one_in_x": self.return_periods},
+                #         name="return_value",
+                #     )
 
                 # The result is now already properly formatted as a DataArray with the correct coordinates
                 import pdb
