@@ -704,10 +704,6 @@ class MetricCalc(DataProcessor):
                                 valid_locations, drop=True
                             )
 
-                import pdb
-
-                pdb.set_trace()
-
                 if spatial_dims:
                     # We have spatial dimensions - need to process each location separately
                     # Get the first spatial dimension to iterate over
@@ -738,10 +734,6 @@ class MetricCalc(DataProcessor):
                                 raise ValueError(
                                     f"Insufficient valid data for location {loc_idx}"
                                 )
-
-                            import pdb
-
-                            pdb.set_trace()
                             # Calculate return values for this location
                             loc_result = self._get_return_values_vectorized(
                                 valid_data,  # Use the filtered data
