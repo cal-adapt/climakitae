@@ -763,6 +763,9 @@ class MetricCalc(DataProcessor):
                     # Combine results across all locations
                     if location_results:
                         result = xr.concat(location_results, dim=spatial_dim)
+                        # Assign MultiIndex back to result
+                        if spatial_dim == "latlon":
+                            result = result.set_index(latlon=["lat", "lon"])
                     else:
                         # All locations failed - create NaN result
                         result = xr.DataArray(
@@ -843,9 +846,6 @@ class MetricCalc(DataProcessor):
                 #     )
 
                 # The result is now already properly formatted as a DataArray with the correct coordinates
-                import pdb
-
-                pdb.set_trace()
                 return_values = (
                     result.unstack(dim="latlon") if "latlon" in result.dims else result
                 )
