@@ -51,7 +51,7 @@ class TestRegistrySystem:
                 pass
 
         assert "test_processor" in _PROCESSOR_REGISTRY
-        registered_class, priority, catalogs = _PROCESSOR_REGISTRY["test_processor"]
+        registered_class, priority = _PROCESSOR_REGISTRY["test_processor"]
         assert registered_class is TestProcessor
         assert priority == 5
 
@@ -71,9 +71,7 @@ class TestRegistrySystem:
 
         # Should generate "my_custom_processor" from "MyCustomProcessor"
         assert "my_custom_processor" in _PROCESSOR_REGISTRY
-        registered_class, priority, catalogs = _PROCESSOR_REGISTRY[
-            "my_custom_processor"
-        ]
+        registered_class, priority = _PROCESSOR_REGISTRY["my_custom_processor"]
         assert registered_class is MyCustomProcessor
         assert priority == 10
 
@@ -92,7 +90,7 @@ class TestRegistrySystem:
                 pass
 
         assert "simple_processor" in _PROCESSOR_REGISTRY
-        registered_class, priority, catalogs = _PROCESSOR_REGISTRY["simple_processor"]
+        registered_class, priority = _PROCESSOR_REGISTRY["simple_processor"]
         assert registered_class is SimpleProcessor
         assert priority is UNSET
 
@@ -111,9 +109,7 @@ class TestRegistrySystem:
                 pass
 
         assert "another_test_processor" in _PROCESSOR_REGISTRY
-        registered_class, priority, catalogs = _PROCESSOR_REGISTRY[
-            "another_test_processor"
-        ]
+        registered_class, priority = _PROCESSOR_REGISTRY["another_test_processor"]
         assert registered_class is AnotherTestProcessor
         assert priority == 1
 
@@ -171,7 +167,7 @@ class TestRegistrySystem:
                 pass
 
         # Should have the second processor
-        registered_class, _, _ = _PROCESSOR_REGISTRY["overwrite_test"]
+        registered_class, _ = _PROCESSOR_REGISTRY["overwrite_test"]
         assert registered_class is SecondProcessor
 
 
@@ -312,7 +308,7 @@ class TestProcessorIntegration:
         assert "integration_test" in _PROCESSOR_REGISTRY
 
         # Retrieve and instantiate
-        processor_class, _, _ = _PROCESSOR_REGISTRY["integration_test"]
+        processor_class, _ = _PROCESSOR_REGISTRY["integration_test"]
         processor = processor_class()
 
         # Test functionality
@@ -350,8 +346,8 @@ class TestProcessorIntegration:
                 pass
 
         # Check both are registered with correct priorities
-        _, high_priority, _ = _PROCESSOR_REGISTRY["high_priority"]
-        _, low_priority, _ = _PROCESSOR_REGISTRY["low_priority"]
+        _, high_priority = _PROCESSOR_REGISTRY["high_priority"]
+        _, low_priority = _PROCESSOR_REGISTRY["low_priority"]
 
         assert high_priority < low_priority
 
@@ -424,7 +420,7 @@ class TestEdgeCases:
             def set_data_accessor(self, catalog):
                 pass
 
-        _, priority, _ = _PROCESSOR_REGISTRY["none_priority"]
+        _, priority = _PROCESSOR_REGISTRY["none_priority"]
         assert priority is None
 
     def test_registry_state_isolation(self):

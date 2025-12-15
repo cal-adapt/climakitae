@@ -217,8 +217,3 @@ class HDPValidator(ParameterValidator):
             msg = f"Error validating station_ids: {e}"
             logger.warning(msg, stacklevel=999)
             return False
-
-      
-    def _is_valid_processor(): 
-    """Check if processor supplied with variable query is one of time_slice, update_attributes. All else invalid
-    """
