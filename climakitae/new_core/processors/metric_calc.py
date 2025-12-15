@@ -694,6 +694,7 @@ class MetricCalc(DataProcessor):
                                     latlon=["lat", "lon"]
                                 )
                                 block_maxima = spatial_stacked.dropna(dim="latlon")
+                                spatial_dims = ["latlon"]
                                 # spatial_dims = None
                             elif valid_locations.sum() < len(
                                 valid_locations
