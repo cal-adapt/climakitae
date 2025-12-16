@@ -198,3 +198,15 @@ class TestUpdateAttributesExecuteDict:
         assert result["ds1"].attrs["test_attr"] == "test_value"
         assert "test_attr" in result["ds2"].attrs
         assert result["ds2"].attrs["test_attr"] == "test_value"
+
+    def test_execute_dict_updates_dim_attrs(self):
+        """Test that execute updates dim attrs for items in dict."""
+        result_dict = {"ds1": self.ds1, "ds2": self.ds2}
+        context = {_NEW_ATTRS_KEY: {"test_attr": "test_value"}}
+
+        result = self.processor.execute(result_dict, context)
+
+        # Check ds1 has lat attrs
+        assert result["ds1"]["lat"].attrs["standard_name"] == "latitude"
+        # Check ds2 has lon attrs
+        assert result["ds2"]["lon"].attrs["standard_name"] == "longitude"
