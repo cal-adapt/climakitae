@@ -244,3 +244,15 @@ class TestUpdateAttributesExecuteIterable:
         assert result[0].attrs["test_attr"] == "test_value"
         assert "test_attr" in result[1].attrs
         assert result[1].attrs["test_attr"] == "test_value"
+
+    def test_execute_tuple_updates_all_items(self):
+        """Test that execute updates attrs on all items in tuple."""
+        result_tuple = (self.ds1, self.ds2)
+        context = {_NEW_ATTRS_KEY: {"test_attr": "test_value"}}
+
+        result = self.processor.execute(result_tuple, context)
+
+        assert "test_attr" in result[0].attrs
+        assert result[0].attrs["test_attr"] == "test_value"
+        assert "test_attr" in result[1].attrs
+        assert result[1].attrs["test_attr"] == "test_value"
