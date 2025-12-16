@@ -153,3 +153,14 @@ class TestUpdateAttributesExecuteDataArray:
 
         assert "test_attr" in result.attrs
         assert result.attrs["test_attr"] == "test_value"
+
+    def test_execute_dataarray_updates_dim_attrs(self):
+        """Test that execute updates dimension attributes on DataArray."""
+        context = {_NEW_ATTRS_KEY: {"test_attr": "test_value"}}
+
+        result = self.processor.execute(self.sample_dataarray, context)
+
+        # Check lat dimension attrs
+        assert result["lat"].attrs["standard_name"] == "latitude"
+        # Check time dimension attrs
+        assert result["time"].attrs["standard_name"] == "time"
