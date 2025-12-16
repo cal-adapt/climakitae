@@ -21,6 +21,7 @@ Example Usage:
 
 """
 
+import copy
 import logging
 import sys
 import traceback
@@ -187,6 +188,12 @@ class ClimateData:
         ClimateData
             The current instance for method chaining.
 
+        Note
+        ----
+        This method only resets the query parameters on this ClimateData instance.
+        It does not reset global state on the DataCatalog singleton, making it
+        safe to call in multi-threaded scenarios.
+
         """
         self._query = {
             "catalog": UNSET,
@@ -200,7 +207,9 @@ class ClimateData:
             "variable_id": UNSET,
             "processes": UNSET,
         }
-        self._factory.reset()
+        # Note: We intentionally do NOT call self._factory.reset() here
+        # The factory's registry state should persist, and the DataCatalog
+        # singleton should not have its state modified per-query for thread safety
         return self
 
     def _configure_logging(self) -> None:
@@ -582,6 +591,13 @@ class ClimateData:
         the factory pattern, executes the query, and resets the query state
         for the next use.
 
+        Thread Safety
+        -------------
+        This method takes a snapshot of the query at the start of execution,
+        making it safe to call from multiple threads on the same ClimateData
+        instance. However, for maximum clarity and safety, it is recommended
+        to use separate ClimateData instances in multi-threaded scenarios.
+
         Returns
         -------
         Optional[xr.DataArray]
@@ -599,16 +615,21 @@ class ClimateData:
         logger.info("Starting data retrieval with query: %s", self._query)
         data = None
 
+        # Take a snapshot of the query for thread-safety
+        # This allows concurrent calls to get() without corrupting each other
+        query_snapshot = copy.deepcopy(self._query)
+
         # Validate required parameters
         logger.debug("Validating required parameters")
         if not self._validate_required_parameters():
             logger.warning("Required parameter validation failed")
             self._reset_query()
+            return None
 
         try:
-            # Create dataset using factory
+            # Create dataset using factory with the snapshot
             logger.debug("Creating dataset using factory")
-            dataset = self._factory.create_dataset(self._query)
+            dataset = self._factory.create_dataset(query_snapshot)
             logger.info("Dataset created successfully")
         except (ValueError, KeyError, TypeError) as e:
             logger.error("Error during dataset creation: %s", str(e))
@@ -617,9 +638,9 @@ class ClimateData:
             return None
 
         try:
-            # Execute the query
+            # Execute the query with the snapshot
             logger.debug("Executing query")
-            data = dataset.execute(self._query)
+            data = dataset.execute(query_snapshot)
             # check if empty dataset
             # Check if data is empty/null
             if (

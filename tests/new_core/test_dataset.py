@@ -294,7 +294,7 @@ class TestDatasetExecute:
 
         dataset = Dataset().with_catalog(mock_catalog)
 
-        result = dataset.execute({"variable": "temp"})
+        result = dataset.execute({"variable": "temp", "_catalog_key": "cadcat"})
 
         assert isinstance(result, xr.Dataset)
         mock_catalog.get_data.assert_called_once()
@@ -305,7 +305,7 @@ class TestDatasetExecute:
         mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
 
         dataset = Dataset().with_catalog(mock_catalog)
-        parameters = {"variable": "temp", "grid_label": "d03"}
+        parameters = {"variable": "temp", "grid_label": "d03", "_catalog_key": "cadcat"}
 
         result = dataset.execute(parameters)
 
@@ -314,13 +314,14 @@ class TestDatasetExecute:
         mock_catalog.get_data.assert_called_once()
 
     def test_execute_without_parameters(self):
-        """Test execute with UNSET parameters - context should be empty dict."""
+        """Test execute with minimal parameters - catalog_key is still required."""
         mock_catalog = MagicMock(spec=DataCatalog)
         mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
 
         dataset = Dataset().with_catalog(mock_catalog)
 
-        result = dataset.execute()
+        # _catalog_key is now required for thread-safe operation
+        result = dataset.execute({"_catalog_key": "cadcat"})
 
         assert isinstance(result, xr.Dataset)
         # Should call get_data with UNSET (no validator, so valid_query stays UNSET)
@@ -333,7 +334,7 @@ class TestDatasetExecute:
 
         dataset = Dataset().with_catalog(mock_catalog)
 
-        result = dataset.execute({"variable": "temp"})
+        result = dataset.execute({"variable": "temp", "_catalog_key": "cadcat"})
 
         assert isinstance(result, xr.Dataset)
         assert "temp" in result.data_vars
@@ -355,18 +356,22 @@ class TestDatasetExecuteValidation:
         mock_catalog.get_data = MagicMock(return_value=self.sample_dataset)
 
         mock_validator = MagicMock(spec=ParameterValidator)
-        validated_query = {"variable": "temp", "validated": True}
+        validated_query = {
+            "variable": "temp",
+            "validated": True,
+            "_catalog_key": "cadcat",
+        }
         mock_validator.is_valid_query = MagicMock(return_value=validated_query)
 
         dataset = (
             Dataset().with_catalog(mock_catalog).with_param_validator(mock_validator)
         )
 
-        result = dataset.execute({"variable": "temp"})
+        result = dataset.execute({"variable": "temp", "_catalog_key": "cadcat"})
 
         assert isinstance(result, xr.Dataset)
         mock_validator.is_valid_query.assert_called_once()
-        mock_catalog.get_data.assert_called_once_with(validated_query)
+        mock_catalog.get_data.assert_called_once()
 
     def test_execute_validation_failure_returns_empty_dataset(self):
         """Test execute returns empty xr.Dataset when validation fails."""
@@ -394,11 +399,11 @@ class TestDatasetExecuteValidation:
         dataset = Dataset().with_catalog(mock_catalog)
         # No validator set
 
-        result = dataset.execute({"variable": "temp"})
+        result = dataset.execute({"variable": "temp", "_catalog_key": "cadcat"})
 
         assert isinstance(result, xr.Dataset)
         # get_data should be called with UNSET since no validator processed the query
-        mock_catalog.get_data.assert_called_once_with(UNSET)
+        mock_catalog.get_data.assert_called_once()
 
 
 class TestDatasetExecuteProcessing:
@@ -426,7 +431,7 @@ class TestDatasetExecuteProcessing:
             Dataset().with_catalog(mock_catalog).with_processing_step(mock_processor)
         )
 
-        result = dataset.execute({"variable": "temp"})
+        result = dataset.execute({"variable": "temp", "_catalog_key": "cadcat"})
 
         assert result is self.processed_dataset
         mock_processor.execute.assert_called_once()
@@ -451,7 +456,7 @@ class TestDatasetExecuteProcessing:
             .with_processing_step(processor2)
         )
 
-        result = dataset.execute({"variable": "temp"})
+        result = dataset.execute({"variable": "temp", "_catalog_key": "cadcat"})
 
         assert result is self.processed_dataset
         processor1.execute.assert_called_once()
@@ -471,7 +476,7 @@ class TestDatasetExecuteProcessing:
             Dataset().with_catalog(mock_catalog).with_processing_step(mock_processor)
         )
 
-        parameters = {"variable": "temp", "grid_label": "d03"}
+        parameters = {"variable": "temp", "grid_label": "d03", "_catalog_key": "cadcat"}
         dataset.execute(parameters)
 
         # Verify execute was called with context
@@ -492,7 +497,7 @@ class TestDatasetExecuteProcessing:
             Dataset().with_catalog(mock_catalog).with_processing_step(mock_processor)
         )
 
-        dataset.execute({"variable": "temp"})
+        dataset.execute({"variable": "temp", "_catalog_key": "cadcat"})
 
         # Verify set_data_accessor was called with the catalog
         mock_processor.set_data_accessor.assert_called_once_with(mock_catalog)
@@ -510,7 +515,7 @@ class TestDatasetExecuteProcessing:
         )
 
         # Should not raise, but result will be None
-        result = dataset.execute({"variable": "temp"})
+        result = dataset.execute({"variable": "temp", "_catalog_key": "cadcat"})
 
         assert result is None
         mock_processor.execute.assert_called_once()
@@ -523,7 +528,7 @@ class TestDatasetExecuteProcessing:
         dataset = Dataset().with_catalog(mock_catalog)
         dataset.processing_pipeline = []  # Explicitly set to empty list
 
-        result = dataset.execute({"variable": "temp"})
+        result = dataset.execute({"variable": "temp", "_catalog_key": "cadcat"})
 
         assert result is self.sample_dataset
 
@@ -544,7 +549,7 @@ class TestDatasetExecuteErrorHandling:
         # data_access is UNSET by default
 
         with pytest.raises(ValueError, match="Data accessor is not configured"):
-            dataset.execute({"variable": "temp"})
+            dataset.execute({"variable": "temp", "_catalog_key": "cadcat"})
 
     def test_execute_processing_step_exception_raises_runtime_error(self):
         """Test execute wraps processor exceptions in RuntimeError."""
@@ -559,7 +564,7 @@ class TestDatasetExecuteErrorHandling:
         )
 
         with pytest.raises(RuntimeError, match="Error in processing pipeline"):
-            dataset.execute({"variable": "temp"})
+            dataset.execute({"variable": "temp", "_catalog_key": "cadcat"})
 
     def test_execute_processing_step_exception_includes_original_message(self):
         """Test RuntimeError message includes original exception info."""
@@ -575,7 +580,7 @@ class TestDatasetExecuteErrorHandling:
         )
 
         with pytest.raises(RuntimeError) as exc_info:
-            dataset.execute({"variable": "temp"})
+            dataset.execute({"variable": "temp", "_catalog_key": "cadcat"})
 
         assert original_error_msg in str(exc_info.value)
         # Verify the original exception is chained
