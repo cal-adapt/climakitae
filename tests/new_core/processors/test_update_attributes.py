@@ -128,3 +128,28 @@ class TestUpdateAttributesExecuteDataset:
         # update_context should have been called and added the processor entry
         assert self.processor.name in context[_NEW_ATTRS_KEY]
         assert "update_attributes" in context[_NEW_ATTRS_KEY][self.processor.name]
+
+
+class TestUpdateAttributesExecuteDataArray:
+    """Test class for UpdateAttributes execute method with xr.DataArray."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = UpdateAttributes()
+        self.sample_dataarray = xr.DataArray(
+            np.random.rand(2, 3),
+            dims=["time", "lat"],
+            coords={
+                "time": pd.date_range("2020-01-01", periods=2),
+                "lat": [34.0, 35.0, 36.0],
+            },
+        )
+
+    def test_execute_dataarray_adds_new_attrs(self):
+        """Test that execute adds new attributes from context to DataArray."""
+        context = {_NEW_ATTRS_KEY: {"test_attr": "test_value"}}
+
+        result = self.processor.execute(self.sample_dataarray, context)
+
+        assert "test_attr" in result.attrs
+        assert result.attrs["test_attr"] == "test_value"
