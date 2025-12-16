@@ -90,3 +90,14 @@ class TestUpdateAttributesExecuteDataset:
 
         assert "test_attr" in result.attrs
         assert result.attrs["test_attr"] == "test_value"
+
+    def test_execute_dataset_preserves_existing_attrs(self):
+        """Test that execute preserves existing Dataset attributes."""
+        self.sample_dataset.attrs["original_attr"] = "original_value"
+        context = {_NEW_ATTRS_KEY: {"new_attr": "new_value"}}
+
+        result = self.processor.execute(self.sample_dataset, context)
+
+        assert "original_attr" in result.attrs
+        assert result.attrs["original_attr"] == "original_value"
+        assert "new_attr" in result.attrs
