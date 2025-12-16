@@ -164,3 +164,37 @@ class TestUpdateAttributesExecuteDataArray:
         assert result["lat"].attrs["standard_name"] == "latitude"
         # Check time dimension attrs
         assert result["time"].attrs["standard_name"] == "time"
+
+
+class TestUpdateAttributesExecuteDict:
+    """Test class for UpdateAttributes execute method with dict input."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = UpdateAttributes()
+        self.ds1 = xr.Dataset(
+            {"temp": (["time", "lat"], np.random.rand(2, 3))},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=2),
+                "lat": [34.0, 35.0, 36.0],
+            },
+        )
+        self.ds2 = xr.Dataset(
+            {"precip": (["time", "lon"], np.random.rand(2, 4))},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=2),
+                "lon": [-118.0, -117.0, -116.0, -115.0],
+            },
+        )
+
+    def test_execute_dict_updates_all_items(self):
+        """Test that execute updates attrs on all items in dict."""
+        result_dict = {"ds1": self.ds1, "ds2": self.ds2}
+        context = {_NEW_ATTRS_KEY: {"test_attr": "test_value"}}
+
+        result = self.processor.execute(result_dict, context)
+
+        assert "test_attr" in result["ds1"].attrs
+        assert result["ds1"].attrs["test_attr"] == "test_value"
+        assert "test_attr" in result["ds2"].attrs
+        assert result["ds2"].attrs["test_attr"] == "test_value"
