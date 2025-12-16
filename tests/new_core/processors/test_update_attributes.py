@@ -117,3 +117,14 @@ class TestUpdateAttributesExecuteDataset:
         # Check time dimension attrs
         assert result["time"].attrs["standard_name"] == "time"
         assert result["time"].attrs["axis"] == "T"
+
+    def test_execute_dataset_calls_update_context_if_needed(self):
+        """Test that execute calls update_context when processor name not in context."""
+        # Context without the processor name, but with _NEW_ATTRS_KEY
+        context = {_NEW_ATTRS_KEY: {}}
+
+        result = self.processor.execute(self.sample_dataset, context)
+
+        # update_context should have been called and added the processor entry
+        assert self.processor.name in context[_NEW_ATTRS_KEY]
+        assert "update_attributes" in context[_NEW_ATTRS_KEY][self.processor.name]
