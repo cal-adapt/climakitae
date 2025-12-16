@@ -929,6 +929,9 @@ class MetricCalc(DataProcessor):
                 if block_maxima.dims
                 else None
             )
+            import pdb
+
+            pdb.set_trace()
             if primary_dim:
                 valid_data = block_maxima.dropna(dim=primary_dim)
             else:
