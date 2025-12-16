@@ -290,7 +290,12 @@ class TestUpdateAttributesCommonAttrs:
         """Test that all common dimension attrs are correctly applied."""
         # Dataset with all supported dimensions
         ds = xr.Dataset(
-            {"var": (["time", "lat", "lon", "x", "y", "sim"], np.random.rand(2, 2, 2, 2, 2, 2))},
+            {
+                "var": (
+                    ["time", "lat", "lon", "x", "y", "sim"],
+                    np.random.rand(2, 2, 2, 2, 2, 2),
+                )
+            },
             coords={
                 "time": pd.date_range("2020-01-01", periods=2),
                 "lat": [34.0, 35.0],

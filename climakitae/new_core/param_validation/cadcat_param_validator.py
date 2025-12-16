@@ -133,11 +133,6 @@ class DataValidator(ParameterValidator):
             "Checking WRF/localize constraints for query processes: %s",
             query.get("processes"),
         )
-        if query.get("activity_id", UNSET) is UNSET:
-            logger.warning(
-                "No activity_id specified; This dataset contains LOCA2 and WRF datasets whose products should not be mixed without extreme care.\nPlease specify '.activity_id(\"LOCA2\")' or '.activity_id(\"WRF\")' in your query."
-            )
-            return False
         if "localize" in query.get("processes", {}).keys():
             if "WRF" not in query.get("activity_id", ""):
                 msg = (
