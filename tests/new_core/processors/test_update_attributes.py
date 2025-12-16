@@ -54,3 +54,14 @@ class TestUpdateAttributesUpdateContext:
         assert processor.name in context[_NEW_ATTRS_KEY]
         assert "update_attributes" in context[_NEW_ATTRS_KEY][processor.name]
         assert "applied to the data" in context[_NEW_ATTRS_KEY][processor.name]
+
+    def test_update_context_preserves_existing_attrs(self):
+        """Test that update_context preserves existing entries in _NEW_ATTRS_KEY."""
+        processor = UpdateAttributes()
+        context = {_NEW_ATTRS_KEY: {"existing_key": "existing_value"}}
+
+        processor.update_context(context)
+
+        assert "existing_key" in context[_NEW_ATTRS_KEY]
+        assert context[_NEW_ATTRS_KEY]["existing_key"] == "existing_value"
+        assert processor.name in context[_NEW_ATTRS_KEY]
