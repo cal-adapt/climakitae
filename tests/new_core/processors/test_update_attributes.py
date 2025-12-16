@@ -101,3 +101,19 @@ class TestUpdateAttributesExecuteDataset:
         assert "original_attr" in result.attrs
         assert result.attrs["original_attr"] == "original_value"
         assert "new_attr" in result.attrs
+
+    def test_execute_dataset_updates_dim_attrs(self):
+        """Test that execute updates dimension attributes with common_attrs."""
+        context = {_NEW_ATTRS_KEY: {"test_attr": "test_value"}}
+
+        result = self.processor.execute(self.sample_dataset, context)
+
+        # Check lat dimension attrs
+        assert result["lat"].attrs["standard_name"] == "latitude"
+        assert result["lat"].attrs["units"] == "degrees_north"
+        # Check lon dimension attrs
+        assert result["lon"].attrs["standard_name"] == "longitude"
+        assert result["lon"].attrs["units"] == "degrees_east"
+        # Check time dimension attrs
+        assert result["time"].attrs["standard_name"] == "time"
+        assert result["time"].attrs["axis"] == "T"
