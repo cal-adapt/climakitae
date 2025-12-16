@@ -43,3 +43,14 @@ class TestUpdateAttributesUpdateContext:
 
         assert _NEW_ATTRS_KEY in context
         assert isinstance(context[_NEW_ATTRS_KEY], dict)
+
+    def test_update_context_adds_processor_entry(self):
+        """Test that update_context adds processor description entry."""
+        processor = UpdateAttributes()
+        context = {}
+
+        processor.update_context(context)
+
+        assert processor.name in context[_NEW_ATTRS_KEY]
+        assert "update_attributes" in context[_NEW_ATTRS_KEY][processor.name]
+        assert "applied to the data" in context[_NEW_ATTRS_KEY][processor.name]
