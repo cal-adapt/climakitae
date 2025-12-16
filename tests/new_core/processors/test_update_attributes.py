@@ -338,3 +338,15 @@ class TestUpdateAttributesCommonAttrs:
 
         # Custom dim should not have common_attrs entries
         assert "standard_name" not in result["custom_dim"].attrs
+
+
+class TestUpdateAttributesSetDataAccessor:
+    """Test class for set_data_accessor method."""
+
+    def test_set_data_accessor_placeholder(self):
+        """Test that set_data_accessor accepts catalog without error."""
+        processor = UpdateAttributes()
+        mock_catalog = MagicMock()
+
+        # Should not raise any errors
+        processor.set_data_accessor(mock_catalog)
