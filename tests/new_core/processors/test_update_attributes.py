@@ -256,3 +256,24 @@ class TestUpdateAttributesExecuteIterable:
         assert result[0].attrs["test_attr"] == "test_value"
         assert "test_attr" in result[1].attrs
         assert result[1].attrs["test_attr"] == "test_value"
+
+
+class TestUpdateAttributesExecuteInvalid:
+    """Test class for UpdateAttributes execute method with invalid input."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = UpdateAttributes()
+
+    def test_execute_invalid_type_raises_typeerror(self):
+        """Test that execute raises TypeError for invalid input types."""
+        context = {_NEW_ATTRS_KEY: {"test_attr": "test_value"}}
+
+        with pytest.raises(TypeError, match="Result must be an xarray"):
+            self.processor.execute("invalid_string", context)
+
+        with pytest.raises(TypeError, match="Result must be an xarray"):
+            self.processor.execute(123, context)
+
+        with pytest.raises(TypeError, match="Result must be an xarray"):
+            self.processor.execute(None, context)
