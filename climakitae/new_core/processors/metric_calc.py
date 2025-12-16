@@ -681,16 +681,6 @@ class MetricCalc(DataProcessor):
                             print(
                                 f"Warning: No locations have sufficient valid data for simulation {s}"
                             )
-                            raise ValueError("No valid locations found")
-                        elif valid_locations.sum() > 1:
-                            # Filtering out invalid locations by dropping NaNs after stacking spatial dims together
-                            spatial_stacked = block_maxima.stack(latlon=["lat", "lon"])
-                            nonnull_mask = spatial_stacked.notnull().all(dim="time")
-                            block_maxima = spatial_stacked.where(
-                                nonnull_mask, drop=True
-                            )
-                            spatial_dims = ["latlon"]
-                            # spatial_dims = None
                         elif valid_locations.sum() < len(
                             valid_locations
                         ):  # BUG: len(valid_locations) just takes the len of the first dimension to show up in the spatial dimensions
@@ -763,9 +753,6 @@ class MetricCalc(DataProcessor):
                     # Combine results across all locations
                     if location_results:
                         result = xr.concat(location_results, dim=spatial_dim)
-                        # Assign MultiIndex back to result
-                        if spatial_dim == "latlon":
-                            result = result.set_index(latlon=["lat", "lon"])
                     else:
                         # All locations failed - create NaN result
                         result = xr.DataArray(
@@ -846,9 +833,7 @@ class MetricCalc(DataProcessor):
                 #     )
 
                 # The result is now already properly formatted as a DataArray with the correct coordinates
-                return_values = (
-                    result.unstack(dim="latlon") if "latlon" in result.dims else result
-                )
+                return_values = result
                 batch_results.append(return_values)
 
                 # Calculate p-values if requested
@@ -856,11 +841,6 @@ class MetricCalc(DataProcessor):
                     _, p_value = get_ks_stat(
                         block_maxima, distr=self.distribution, multiple_points=False
                     ).data_vars.values()
-                    p_value = (
-                        p_value.unstack(dim="latlon")
-                        if "latlon" in p_value.dims
-                        else p_value
-                    )
                     batch_p_vals.append(p_value)
 
                     if self.print_goodness_of_fit:
