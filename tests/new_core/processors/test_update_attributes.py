@@ -210,3 +210,37 @@ class TestUpdateAttributesExecuteDict:
         assert result["ds1"]["lat"].attrs["standard_name"] == "latitude"
         # Check ds2 has lon attrs
         assert result["ds2"]["lon"].attrs["standard_name"] == "longitude"
+
+
+class TestUpdateAttributesExecuteIterable:
+    """Test class for UpdateAttributes execute method with list/tuple input."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = UpdateAttributes()
+        self.ds1 = xr.Dataset(
+            {"temp": (["time", "lat"], np.random.rand(2, 3))},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=2),
+                "lat": [34.0, 35.0, 36.0],
+            },
+        )
+        self.ds2 = xr.Dataset(
+            {"precip": (["time", "lon"], np.random.rand(2, 4))},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=2),
+                "lon": [-118.0, -117.0, -116.0, -115.0],
+            },
+        )
+
+    def test_execute_list_updates_all_items(self):
+        """Test that execute updates attrs on all items in list."""
+        result_list = [self.ds1, self.ds2]
+        context = {_NEW_ATTRS_KEY: {"test_attr": "test_value"}}
+
+        result = self.processor.execute(result_list, context)
+
+        assert "test_attr" in result[0].attrs
+        assert result[0].attrs["test_attr"] == "test_value"
+        assert "test_attr" in result[1].attrs
+        assert result[1].attrs["test_attr"] == "test_value"
