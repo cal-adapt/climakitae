@@ -23,3 +23,9 @@ class TestUpdateAttributesInit:
         processor = UpdateAttributes()
         assert processor.value is UNSET
         assert processor.name == "update_attributes"
+
+    def test_init_with_value(self):
+        """Test initialization with custom value."""
+        processor = UpdateAttributes(value="custom_value")
+        assert processor.value == "custom_value"
+        assert processor.name == "update_attributes"
