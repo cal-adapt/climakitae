@@ -277,3 +277,64 @@ class TestUpdateAttributesExecuteInvalid:
 
         with pytest.raises(TypeError, match="Result must be an xarray"):
             self.processor.execute(None, context)
+
+
+class TestUpdateAttributesCommonAttrs:
+    """Test class for common_attrs dimension attributes."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = UpdateAttributes()
+
+    def test_common_attrs_all_dimensions(self):
+        """Test that all common dimension attrs are correctly applied."""
+        # Dataset with all supported dimensions
+        ds = xr.Dataset(
+            {"var": (["time", "lat", "lon", "x", "y", "sim"], np.random.rand(2, 2, 2, 2, 2, 2))},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=2),
+                "lat": [34.0, 35.0],
+                "lon": [-118.0, -117.0],
+                "x": [0.0, 1.0],
+                "y": [0.0, 1.0],
+                "sim": [0, 1],
+            },
+        )
+        context = {_NEW_ATTRS_KEY: {"test": "value"}}
+
+        result = self.processor.execute(ds, context)
+
+        # Check x attrs
+        assert result["x"].attrs["standard_name"] == "projection_x_coordinate"
+        assert result["x"].attrs["units"] == "metre"
+        assert result["x"].attrs["axis"] == "X"
+        # Check y attrs
+        assert result["y"].attrs["standard_name"] == "projection_y_coordinate"
+        assert result["y"].attrs["units"] == "metre"
+        assert result["y"].attrs["axis"] == "Y"
+        # Check lat attrs
+        assert result["lat"].attrs["standard_name"] == "latitude"
+        assert result["lat"].attrs["units"] == "degrees_north"
+        # Check lon attrs
+        assert result["lon"].attrs["standard_name"] == "longitude"
+        assert result["lon"].attrs["units"] == "degrees_east"
+        # Check time attrs
+        assert result["time"].attrs["standard_name"] == "time"
+        assert result["time"].attrs["axis"] == "T"
+        # Check sim attrs
+        assert result["sim"].attrs["standard_name"] == "simulation"
+        assert result["sim"].attrs["axis"] == "S"
+        assert "description" in result["sim"].attrs
+
+    def test_unknown_dim_no_attrs_added(self):
+        """Test that unknown dimensions don't get common attrs."""
+        ds = xr.Dataset(
+            {"var": (["custom_dim"], np.random.rand(3))},
+            coords={"custom_dim": [1, 2, 3]},
+        )
+        context = {_NEW_ATTRS_KEY: {"test": "value"}}
+
+        result = self.processor.execute(ds, context)
+
+        # Custom dim should not have common_attrs entries
+        assert "standard_name" not in result["custom_dim"].attrs
