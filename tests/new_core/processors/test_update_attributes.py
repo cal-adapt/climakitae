@@ -65,3 +65,28 @@ class TestUpdateAttributesUpdateContext:
         assert "existing_key" in context[_NEW_ATTRS_KEY]
         assert context[_NEW_ATTRS_KEY]["existing_key"] == "existing_value"
         assert processor.name in context[_NEW_ATTRS_KEY]
+
+
+class TestUpdateAttributesExecuteDataset:
+    """Test class for UpdateAttributes execute method with xr.Dataset."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = UpdateAttributes()
+        self.sample_dataset = xr.Dataset(
+            {"temp": (["time", "lat", "lon"], np.random.rand(2, 3, 4))},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=2),
+                "lat": [34.0, 35.0, 36.0],
+                "lon": [-118.0, -117.0, -116.0, -115.0],
+            },
+        )
+
+    def test_execute_dataset_adds_new_attrs(self):
+        """Test that execute adds new attributes from context to Dataset."""
+        context = {_NEW_ATTRS_KEY: {"test_attr": "test_value"}}
+
+        result = self.processor.execute(self.sample_dataset, context)
+
+        assert "test_attr" in result.attrs
+        assert result.attrs["test_attr"] == "test_value"
