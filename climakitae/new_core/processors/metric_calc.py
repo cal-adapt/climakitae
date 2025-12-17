@@ -747,6 +747,10 @@ class MetricCalc(DataProcessor):
                             )
 
                 if spatial_dims:
+
+                    import pdb
+
+                    pdb.set_trace()
                     # We need to process each spatial location individually in a vectorized manner
                     return_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
                         self._fit_return_values_1d,
