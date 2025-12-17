@@ -682,15 +682,15 @@ class MetricCalc(DataProcessor):
                                 f"Warning: No locations have sufficient valid data for simulation {s}"
                             )
                             raise ValueError("No valid locations found")
-                        elif valid_locations.sum() > 1:
-                            # Filtering out invalid locations by dropping NaNs after stacking spatial dims together
-                            spatial_stacked = block_maxima.stack(latlon=["lat", "lon"])
-                            nonnull_mask = spatial_stacked.notnull().all(dim="time")
-                            block_maxima = spatial_stacked.where(
-                                nonnull_mask, drop=True
-                            )
-                            spatial_dims = ["latlon"]
-                            # spatial_dims = None
+                        # elif valid_locations.sum() > 1:
+                        #     # Filtering out invalid locations by dropping NaNs after stacking spatial dims together
+                        #     spatial_stacked = block_maxima.stack(latlon=["lat", "lon"])
+                        #     nonnull_mask = spatial_stacked.notnull().all(dim="time")
+                        #     block_maxima = spatial_stacked.where(
+                        #         nonnull_mask, drop=True
+                        #     )
+                        #     spatial_dims = ["latlon"]
+                        #     # spatial_dims = None
                         elif valid_locations.sum() < len(
                             valid_locations
                         ):  # BUG: len(valid_locations) just takes the len of the first dimension to show up in the spatial dimensions
@@ -711,6 +711,11 @@ class MetricCalc(DataProcessor):
                     spatial_coords = block_maxima.coords[spatial_dim]
 
                     location_results = []
+
+                    import pdb
+
+                    pdb.set_trace()
+
                     for loc_idx, spatial_coord in enumerate(spatial_coords):
                         try:
                             # Extract data for this specific location
