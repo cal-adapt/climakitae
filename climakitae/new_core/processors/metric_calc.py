@@ -551,6 +551,9 @@ class MetricCalc(DataProcessor):
         distr: str = "gev",
         extremes_type: str = "max",
     ) -> np.ndarray:
+        import pdb
+
+        pdb.set_trace()
         """docstring goes here"""
         n_return_periods = len(return_periods)
 
@@ -755,10 +758,10 @@ class MetricCalc(DataProcessor):
                     return_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
                         self._fit_return_values_1d,
                         block_maxima,  # (time, lat, lon) or (time, y, x) or (time, spatial_1, spatial_2)
-                        kwargs={
-                            "return_periods": self.return_periods,
-                            "distr": self.distribution,
-                        },
+                        # kwargs={
+                        #     "return_periods": self.return_periods,
+                        #     "distr": self.distribution,
+                        # },
                         input_core_dims=[
                             ["time"]
                         ],  # "time" is the dimension we reduce over
@@ -1679,6 +1682,8 @@ class MetricCalc(DataProcessor):
 
         all_return_vals = []
         all_p_vals = []
+
+        batch_size = 10  # Hardcoding for testing
 
         for i in range(0, len(sim_values), batch_size):
             batch_sims = sim_values[i : i + batch_size]
