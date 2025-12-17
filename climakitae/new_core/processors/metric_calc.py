@@ -709,9 +709,6 @@ class MetricCalc(DataProcessor):
             #     block_maxima = block_maxima.squeeze("sim", drop=True)
 
             # Check data quality and filter out locations with insufficient data
-            spatial_dims = [
-                dim for dim in block_maxima.dims if dim not in ["time", "year"]
-            ]
 
             # if hasattr(block_maxima, "dims") and len(block_maxima.dims) > 1:
             #     # For multi-dimensional block maxima, we need to check each location
@@ -755,6 +752,10 @@ class MetricCalc(DataProcessor):
             block_maxima = _get_block_maxima_optimized(
                 data_array.sel(sim=batch_sims), **kwargs
             ).squeeze()
+
+            spatial_dims = [
+                dim for dim in block_maxima.dims if dim not in ["time", "year"]
+            ]
 
             if spatial_dims:
 
