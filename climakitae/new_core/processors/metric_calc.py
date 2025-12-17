@@ -560,7 +560,7 @@ class MetricCalc(DataProcessor):
 
         # Need at least 3 valid data points for meaningful distribution fitting
         if len(valid_data) < MIN_VALID_DATA_POINTS:
-            print("Finished this location, all null")
+            # print("Finished this location, all null")
             return np.full(n_return_periods, np.nan)
 
         try:
@@ -583,7 +583,7 @@ class MetricCalc(DataProcessor):
                     )
                 except (ValueError, ZeroDivisionError):
                     return_values[i] = np.nan
-            print("Finished this location, valid point")
+            # print("Finished this location, valid point")
             return return_values
 
         except (ValueError, RuntimeError, np.linalg.LinAlgError):
@@ -795,7 +795,7 @@ class MetricCalc(DataProcessor):
 
                 else:
                     # No spatial dimensions - process as before
-                    result = self._get_return_values_vectorized(
+                    return_values = self._get_return_values_vectorized(
                         block_maxima,
                         return_periods=self.return_periods,
                         distr=self.distribution,
@@ -858,7 +858,6 @@ class MetricCalc(DataProcessor):
                 #     )
 
                 # The result is now already properly formatted as a DataArray with the correct coordinates
-                return_values = result
                 batch_results.append(return_values)
 
                 # Calculate p-values if requested
