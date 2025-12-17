@@ -545,6 +545,48 @@ class MetricCalc(DataProcessor):
             )
             return self._calculate_one_in_x_serial(data_array)
 
+    def _fit_return_values_1d(
+        block_maxima_1d: np.ndarray,
+        return_periods: np.ndarray,
+        distr: str = "gev",
+        extremes_type: str = "max",
+    ) -> np.ndarray:
+        """docstring goes here"""
+        n_return_periods = len(return_periods)
+
+        # Remove NaN values
+        valid_data = block_maxima_1d[~np.isnan(block_maxima_1d)]
+
+        # Need at least 3 valid data points for meaningful distribution fitting
+        if len(valid_data) < MIN_VALID_DATA_POINTS:
+            return np.full(n_return_periods, np.nan)
+
+        try:
+            # Get distribution function, fit, and create frozen distribution
+            distr_func = _get_distr_func(distr)
+            params = distr_func.fit(valid_data)
+            fitted_distr = distr_func(*params)
+
+            # Calculate return values for each return period
+            return_values = np.empty(n_return_periods)
+            for i, rp in enumerate(return_periods):
+                try:
+                    event_prob = 1.0 / rp  # Assuming 1-year blocks
+                    if extremes_type == "max":
+                        return_event = 1.0 - event_prob
+                    else:  # min
+                        return_event = event_prob
+                    return_values[i] = np.round(
+                        fitted_distr.ppf(return_event), RETURN_VALUE_PRECISION
+                    )
+                except (ValueError, ZeroDivisionError):
+                    return_values[i] = np.nan
+            print("Finished this location")
+            return return_values
+
+        except (ValueError, RuntimeError, np.linalg.LinAlgError):
+            return np.full(n_return_periods, np.nan)
+
     def _calculate_one_in_x_vectorized(self, data_array: xr.DataArray) -> xr.Dataset:
         """
         Vectorized calculation of 1-in-X values for better performance.
@@ -705,82 +747,42 @@ class MetricCalc(DataProcessor):
                             )
 
                 if spatial_dims:
-                    # We have spatial dimensions - need to process each location separately
-                    # Get the first spatial dimension to iterate over
-                    spatial_dim = spatial_dims[0]
-                    spatial_coords = block_maxima.coords[spatial_dim]
+                    # We need to process each spatial location individually in a vectorized manner
+                    return_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
+                        self._fit_return_values_1d,
+                        block_maxima,  # (time, lat, lon) or (time, y, x) or (time, spatial_1, spatial_2)
+                        kwargs={
+                            "return_periods": self.return_periods,
+                            "distr": self.distribution,
+                        },
+                        input_core_dims=[
+                            ["time"]
+                        ],  # "time" is the dimension we reduce over
+                        output_core_dims=[
+                            ["return_period"]
+                        ],  # output has this new dimension
+                        vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
+                        dask="parallelized",  # works with lazy dask arrays
+                    )
+                    return_values = return_values.assign_coords(
+                        return_period=self.return_periods
+                    )
 
-                    location_results = []
-
-                    import pdb
-
-                    pdb.set_trace()
-
-                    for loc_idx, spatial_coord in enumerate(spatial_coords):
-                        try:
-                            # Extract data for this specific location
-                            loc_block_maxima = block_maxima.isel({spatial_dim: loc_idx})
-
-                            # Check if this location has enough valid data
-                            # Determine which time dimension to use
-                            time_dim = (
-                                "year" if "year" in loc_block_maxima.dims else "time"
-                            )
-                            valid_data = loc_block_maxima.dropna(
-                                dim=time_dim, how="all"
-                            )
-                            n_valid_periods = len(valid_data[time_dim])
-                            if (
-                                n_valid_periods < 3
-                            ):  # Need at least 3 periods for distribution fitting
-                                print(
-                                    f"Warning: Location {loc_idx} has insufficient valid data ({n_valid_periods} {time_dim} periods), skipping..."
-                                )
-                                raise ValueError(
-                                    f"Insufficient valid data for location {loc_idx}"
-                                )
-                            # Calculate return values for this location
-                            loc_result = self._get_return_values_vectorized(
-                                valid_data,  # Use the filtered data
-                                return_periods=self.return_periods,
-                                distr=self.distribution,
-                            )
-
-                            # Add the spatial coordinate back to the result
-                            loc_result = loc_result.assign_coords(
-                                {spatial_dim: spatial_coords[loc_idx]}
-                            )
-                            loc_result = loc_result.expand_dims(spatial_dim)
-                            location_results.append(loc_result)
-
-                        except Exception as loc_error:
-                            print(
-                                f"Warning: Failed to process location {loc_idx} in {spatial_dim}: {loc_error}"
-                            )
-                            # Create NaN result for this location
-                            nan_result = self._create_nan_return_value_array()
-                            nan_result = nan_result.assign_coords(
-                                {spatial_dim: spatial_coords[loc_idx]}
-                            )
-                            nan_result = nan_result.expand_dims(spatial_dim)
-                            location_results.append(nan_result)
-
-                    # Combine results across all locations
-                    if location_results:
-                        result = xr.concat(location_results, dim=spatial_dim)
-                        # Assign MultiIndex back to result
-                        if spatial_dim == "latlon":
-                            result = result.set_index(latlon=["lat", "lon"])
-                    else:
+                    if return_values.isnull().all():
                         # All locations failed - create NaN result
                         result = xr.DataArray(
                             np.full(
-                                (len(spatial_coords), len(self.return_periods)),
+                                (
+                                    len(block_maxima[spatial_dims[0]]),
+                                    len(block_maxima[spatial_dims[1]]),
+                                    len(self.return_periods),
+                                ),
                                 np.nan,
                             ),
-                            dims=[spatial_dim, "one_in_x"],
+                            dims=["lat", "lon", "one_in_x"],
                             coords={
-                                spatial_dim: spatial_coords,
+                                "lat": block_maxima[spatial_dims[0]],
+                                "lon": block_maxima[spatial_dims[1]],
                                 "one_in_x": self.return_periods,
                             },
                             name="return_value",
@@ -851,9 +853,7 @@ class MetricCalc(DataProcessor):
                 #     )
 
                 # The result is now already properly formatted as a DataArray with the correct coordinates
-                return_values = (
-                    result.unstack(dim="latlon") if "latlon" in result.dims else result
-                )
+                return_values = result
                 batch_results.append(return_values)
 
                 # Calculate p-values if requested
