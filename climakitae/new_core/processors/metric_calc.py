@@ -554,9 +554,6 @@ class MetricCalc(DataProcessor):
         extremes_type: str = "max",
     ) -> np.ndarray:
         """docstring goes here"""
-        import pdb
-
-        pdb.set_trace()
         n_return_periods = len(return_periods)
 
         # Remove NaN values
@@ -758,10 +755,6 @@ class MetricCalc(DataProcessor):
             ]
 
             if spatial_dims:
-
-                import pdb
-
-                pdb.set_trace()
                 # We need to process each spatial location individually in a vectorized manner
                 return_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
                     self._fit_return_values_1d,
@@ -880,7 +873,7 @@ class MetricCalc(DataProcessor):
             else:
                 batch_p_vals.append(xr.DataArray(np.nan, name="p_value"))
 
-            print(f"End of sim processing for {sim}.")
+            print(f"End of sim processing for {batch_sims}.")
 
             all_return_vals.extend(return_values)
             all_p_vals.extend(batch_p_vals)
