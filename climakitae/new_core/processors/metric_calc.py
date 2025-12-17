@@ -527,6 +527,7 @@ class MetricCalc(DataProcessor):
         elif use_dask_optimization == "medium":
             try:
                 print("Using medium-size Dask-aware processing...")
+                data_array = data_array.isel(simulation=range(0, 20))
                 return self._calculate_one_in_x_medium_dask(data_array)
             except Exception as e:
                 print(
@@ -761,18 +762,18 @@ class MetricCalc(DataProcessor):
                             ["time"]
                         ],  # "time" is the dimension we reduce over
                         output_core_dims=[
-                            ["return_period"]
+                            ["one_in_x"]
                         ],  # output has this new dimension
                         vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
                         dask="parallelized",  # works with lazy dask arrays
                     )
                     return_values = return_values.assign_coords(
-                        return_period=self.return_periods
+                        one_in_x=self.return_periods
                     )
 
                     if return_values.isnull().all():
                         # All locations failed - create NaN result
-                        result = xr.DataArray(
+                        return_values = xr.DataArray(
                             np.full(
                                 (
                                     len(block_maxima[spatial_dims[0]]),
@@ -1679,7 +1680,7 @@ class MetricCalc(DataProcessor):
 
         batch_size = 10  # Hardcoding for testing
 
-        for i in range(0, 20, batch_size):  # Also hard-coding
+        for i in range(0, len(sim_values), batch_size):  # Also hard-coding
             batch_sims = sim_values[i : i + batch_size]
             print(
                 f"Processing simulation batch {i//batch_size + 1}/{(len(sim_values) + batch_size - 1)//batch_size}"
