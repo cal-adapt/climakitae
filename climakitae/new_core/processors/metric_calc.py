@@ -572,19 +572,14 @@ class MetricCalc(DataProcessor):
 
             # Calculate return values for each return period
             return_values = np.empty(n_return_periods)
-            for i, rp in enumerate(return_periods):
-                try:
-                    event_prob = 1.0 / rp  # Assuming 1-year blocks
-                    if extremes_type == "max":
-                        return_event = 1.0 - event_prob
-                    else:  # min
-                        return_event = event_prob
-                    return_values[i] = np.round(
-                        fitted_distr.ppf(return_event), RETURN_VALUE_PRECISION
-                    )
-                except (ValueError, ZeroDivisionError):
-                    return_values[i] = np.nan
-            # print("Finished this location, valid point")
+            event_prob = 1.0 / return_periods  # Assuming 1-year blocks
+            if extremes_type == "max":
+                return_events = 1.0 - event_prob
+            else:  # min
+                return_events = event_prob
+            return_values = np.round(
+                fitted_distr.ppf(return_events), RETURN_VALUE_PRECISION
+            )
             return return_values
 
         except (ValueError, RuntimeError, np.linalg.LinAlgError):
