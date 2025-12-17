@@ -552,9 +552,6 @@ class MetricCalc(DataProcessor):
         distr: str = "gev",
         extremes_type: str = "max",
     ) -> np.ndarray:
-        import pdb
-
-        pdb.set_trace()
         """docstring goes here"""
         n_return_periods = len(return_periods)
 
@@ -563,6 +560,7 @@ class MetricCalc(DataProcessor):
 
         # Need at least 3 valid data points for meaningful distribution fitting
         if len(valid_data) < MIN_VALID_DATA_POINTS:
+            print("Finished this location, all null")
             return np.full(n_return_periods, np.nan)
 
         try:
