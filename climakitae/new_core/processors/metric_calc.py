@@ -756,23 +756,26 @@ class MetricCalc(DataProcessor):
 
             if spatial_dims:
                 # We need to process each spatial location individually in a vectorized manner
-                return_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
-                    self._fit_return_values_1d,
-                    block_maxima,  # (time, lat, lon) or (time, y, x) or (time, spatial_1, spatial_2)
-                    kwargs={
-                        "return_periods": self.return_periods,
-                        "distr": self.distribution,
-                    },
-                    input_core_dims=[
-                        ["time"]
-                    ],  # "time" is the dimension we reduce over
-                    output_core_dims=[["one_in_x"]],  # output has this new dimension
-                    vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
-                    dask="parallelized",  # works with lazy dask arrays
-                )
-                return_values = return_values.assign_coords(
-                    one_in_x=self.return_periods
-                )
+                with ProgressBar():
+                    return_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
+                        self._fit_return_values_1d,
+                        block_maxima,  # (time, lat, lon) or (time, y, x) or (time, spatial_1, spatial_2)
+                        kwargs={
+                            "return_periods": self.return_periods,
+                            "distr": self.distribution,
+                        },
+                        input_core_dims=[
+                            ["time"]
+                        ],  # "time" is the dimension we reduce over
+                        output_core_dims=[
+                            ["one_in_x"]
+                        ],  # output has this new dimension
+                        vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
+                        dask="parallelized",  # works with lazy dask arrays
+                    )
+                    return_values = return_values.assign_coords(
+                        one_in_x=self.return_periods
+                    )
 
                 if return_values.isnull().all():
                     # All locations failed - create NaN result
@@ -859,7 +862,7 @@ class MetricCalc(DataProcessor):
                 #     )
 
             # The result is now already properly formatted as a DataArray with the correct coordinates
-            batch_results.append(return_values)
+            # batch_results.append(return_values)
 
             # Calculate p-values if requested
             if self.goodness_of_fit_test and block_maxima is not None:
@@ -878,10 +881,12 @@ class MetricCalc(DataProcessor):
             all_return_vals.extend(return_values)
             all_p_vals.extend(batch_p_vals)
 
-        # Combine all results with robust error handling
-        ret_vals, p_vals = self._combine_return_value_results(
-            all_return_vals, all_p_vals, data_array
-        )
+        # # Combine all results with robust error handling
+        # ret_vals, p_vals = self._combine_return_value_results(
+        #     all_return_vals, all_p_vals, data_array
+        # )
+        ret_vals = xr.concat(all_return_vals, dim="sim")
+        p_vals = xr.concat(all_p_vals, dim="sim")
 
         # Create and return result dataset
         return self._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
@@ -1689,8 +1694,8 @@ class MetricCalc(DataProcessor):
             print(
                 f"Computing batch data for simulations {i} to {i + batch_size - 1}..."
             )
-            with ProgressBar():
-                batch_data = batch_data.compute()
+            # with ProgressBar():
+            #     batch_data = batch_data.compute()
 
             # Process this batch using vectorized method for computed data
             try:
