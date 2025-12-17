@@ -865,29 +865,24 @@ class MetricCalc(DataProcessor):
                 #         name="return_value",
                 #     )
 
-                # The result is now already properly formatted as a DataArray with the correct coordinates
-                batch_results.append(return_values)
+            # The result is now already properly formatted as a DataArray with the correct coordinates
+            batch_results.append(return_values)
 
-                # Calculate p-values if requested
-                if self.goodness_of_fit_test and block_maxima is not None:
-                    _, p_value = get_ks_stat(
-                        block_maxima, distr=self.distribution, multiple_points=False
-                    ).data_vars.values()
-                    p_value = (
-                        p_value.unstack(dim="latlon")
-                        if "latlon" in p_value.dims
-                        else p_value
-                    )
-                    batch_p_vals.append(p_value)
+            # Calculate p-values if requested
+            if self.goodness_of_fit_test and block_maxima is not None:
+                _, p_value = get_ks_stat(
+                    block_maxima, distr=self.distribution, multiple_points=False
+                ).data_vars.values()
+                batch_p_vals.append(p_value)
 
-                    if self.print_goodness_of_fit:
-                        self._print_goodness_of_fit_result(s, p_value)
-                else:
-                    batch_p_vals.append(xr.DataArray(np.nan, name="p_value"))
+                if self.print_goodness_of_fit:
+                    self._print_goodness_of_fit_result(s, p_value)
+            else:
+                batch_p_vals.append(xr.DataArray(np.nan, name="p_value"))
 
-                print(f"End of sim processing for {s}.")
+            print(f"End of sim processing for {sim}.")
 
-            all_return_vals.extend(batch_results)
+            all_return_vals.extend(return_values)
             all_p_vals.extend(batch_p_vals)
 
         # Combine all results with robust error handling
