@@ -766,9 +766,6 @@ class MetricCalc(DataProcessor):
                         vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
                         dask="parallelized",  # works with lazy dask arrays
                     )
-                    import pdb
-
-                    pdb.set_trace()
                     return_values = return_values.assign_coords(
                         return_period=self.return_periods
                     )
