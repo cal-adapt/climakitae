@@ -790,7 +790,7 @@ class MetricCalc(DataProcessor):
                                 "lon": block_maxima[spatial_dims[1]],
                                 "one_in_x": self.return_periods,
                             },
-                            name="return_value",
+                            name="one_in_x",
                         )
 
                 else:
@@ -1683,7 +1683,7 @@ class MetricCalc(DataProcessor):
 
         batch_size = 10  # Hardcoding for testing
 
-        for i in range(0, len(sim_values), batch_size):
+        for i in range(0, 20, batch_size):  # Also hard-coding
             batch_sims = sim_values[i : i + batch_size]
             print(
                 f"Processing simulation batch {i//batch_size + 1}/{(len(sim_values) + batch_size - 1)//batch_size}"
