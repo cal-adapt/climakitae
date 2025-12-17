@@ -554,6 +554,9 @@ class MetricCalc(DataProcessor):
         extremes_type: str = "max",
     ) -> np.ndarray:
         """docstring goes here"""
+        import pdb
+
+        pdb.set_trace()
         n_return_periods = len(return_periods)
 
         # Remove NaN values
@@ -664,140 +667,146 @@ class MetricCalc(DataProcessor):
             batch_results = []
             batch_p_vals = []
 
-            for s in batch_sims:
-                block_maxima = None  # Initialize to avoid scoping issues
-                # try:
-                # Check for duplicate simulations and handle appropriately
-                sim_matches = data_array.sim.values == s
-                num_matches = sim_matches.sum()
+            # for s in batch_sims:
+            #     block_maxima = None  # Initialize to avoid scoping issues
+            #     # try:
+            #     # Check for duplicate simulations and handle appropriately
+            #     sim_matches = data_array.sim.values == s
+            #     num_matches = sim_matches.sum()
 
-                # Handle duplicate simulations by selecting the first occurrence
-                if num_matches > 1:
-                    first_idx = np.where(sim_matches)[0][0]
-                    print(
-                        f"Warning: Found {num_matches} matches for simulation '{s}', selecting first occurrence"
-                    )
-                    sim_data = data_array.isel(sim=first_idx)
-                else:
-                    # Try the selection
-                    try:
-                        sim_data = data_array.sel(sim=s)
-                    except (KeyError, IndexError) as sel_error:
-                        # Try alternative selection methods
-                        try:
-                            # Try using isel if sel fails
-                            sim_idx = list(data_array.sim.values).index(s)
-                            sim_data = data_array.isel(sim=sim_idx)
-                        except (KeyError, IndexError):
-                            raise sel_error
+            #     # Handle duplicate simulations by selecting the first occurrence
+            #     if num_matches > 1:
+            #         first_idx = np.where(sim_matches)[0][0]
+            #         print(
+            #             f"Warning: Found {num_matches} matches for simulation '{s}', selecting first occurrence"
+            #         )
+            #         sim_data = data_array.isel(sim=first_idx)
+            #     else:
+            #         # Try the selection
+            #         try:
+            #             sim_data = data_array.sel(sim=s)
+            #         except (KeyError, IndexError) as sel_error:
+            #             # Try alternative selection methods
+            #             try:
+            #                 # Try using isel if sel fails
+            #                 sim_idx = list(data_array.sim.values).index(s)
+            #                 sim_data = data_array.isel(sim=sim_idx)
+            #             except (KeyError, IndexError):
+            #                 raise sel_error
 
-                # Now squeeze to remove size-1 dimensions
-                sim_data = sim_data.squeeze()
+            #     # Now squeeze to remove size-1 dimensions
+            #     sim_data = sim_data.squeeze()
 
-                # Force drop the sim dimension if it still exists
-                if "sim" in sim_data.dims:
-                    sim_data = sim_data.squeeze("sim", drop=True)
+            #     # Force drop the sim dimension if it still exists
+            #     if "sim" in sim_data.dims:
+            #         sim_data = sim_data.squeeze("sim", drop=True)
 
-                # Extract block maxima for this simulation using optimized function
-                block_maxima = _get_block_maxima_optimized(sim_data, **kwargs).squeeze()
+            #     # Extract block maxima for this simulation using optimized function
+            #     block_maxima = _get_block_maxima_optimized(sim_data, **kwargs).squeeze()
 
-                # Force drop the sim dimension if it still exists in block_maxima
-                if "sim" in block_maxima.dims:
-                    block_maxima = block_maxima.squeeze("sim", drop=True)
+            # Force drop the sim dimension if it still exists in block_maxima
+            # if "sim" in block_maxima.dims:
+            #     block_maxima = block_maxima.squeeze("sim", drop=True)
 
-                # Check data quality and filter out locations with insufficient data
-                spatial_dims = [
-                    dim for dim in block_maxima.dims if dim not in ["time", "year"]
-                ]
+            # Check data quality and filter out locations with insufficient data
+            spatial_dims = [
+                dim for dim in block_maxima.dims if dim not in ["time", "year"]
+            ]
 
-                if hasattr(block_maxima, "dims") and len(block_maxima.dims) > 1:
-                    # For multi-dimensional block maxima, we need to check each location
-                    if spatial_dims:
-                        # Count valid data points for each location
-                        count_dim = (
-                            "year"
-                            if "year" in block_maxima.dims
-                            else str(block_maxima.dims[0])
-                        )
-                        valid_counts = block_maxima.count(dim=count_dim)
-                        # Filter out locations with fewer than 3 valid time periods
-                        valid_locations = valid_counts >= 3
-                        if valid_locations.sum() == 0:
-                            print(
-                                f"Warning: No locations have sufficient valid data for simulation {s}"
-                            )
-                            raise ValueError("No valid locations found")
-                        # elif valid_locations.sum() > 1:
-                        #     # Filtering out invalid locations by dropping NaNs after stacking spatial dims together
-                        #     spatial_stacked = block_maxima.stack(latlon=["lat", "lon"])
-                        #     nonnull_mask = spatial_stacked.notnull().all(dim="time")
-                        #     block_maxima = spatial_stacked.where(
-                        #         nonnull_mask, drop=True
-                        #     )
-                        #     spatial_dims = ["latlon"]
-                        #     # spatial_dims = None
-                        elif valid_locations.sum() < len(
-                            valid_locations
-                        ):  # BUG: len(valid_locations) just takes the len of the first dimension to show up in the spatial dimensions
-                            n_valid = int(valid_locations.sum())
-                            n_total = len(valid_locations)
-                            print(
-                                f"Filtering to {n_valid} valid locations out of {n_total} total locations"
-                            )
-                            # Filter the block maxima to only include valid locations
-                            block_maxima = block_maxima.where(
-                                valid_locations, drop=True
-                            )
+            # if hasattr(block_maxima, "dims") and len(block_maxima.dims) > 1:
+            #     # For multi-dimensional block maxima, we need to check each location
+            #     if spatial_dims:
+            #         # Count valid data points for each location
+            #         count_dim = (
+            #             "year"
+            #             if "year" in block_maxima.dims
+            #             else str(block_maxima.dims[0])
+            #         )
+            #         valid_counts = block_maxima.count(dim=count_dim)
+            #         # Filter out locations with fewer than 3 valid time periods
+            #         valid_locations = valid_counts >= 3
+            #         if valid_locations.sum() == 0:
+            #             print(
+            #                 f"Warning: No locations have sufficient valid data for simulation {s}"
+            #             )
+            #             raise ValueError("No valid locations found")
+            #         # elif valid_locations.sum() > 1:
+            #         #     # Filtering out invalid locations by dropping NaNs after stacking spatial dims together
+            #         #     spatial_stacked = block_maxima.stack(latlon=["lat", "lon"])
+            #         #     nonnull_mask = spatial_stacked.notnull().all(dim="time")
+            #         #     block_maxima = spatial_stacked.where(
+            #         #         nonnull_mask, drop=True
+            #         #     )
+            #         #     spatial_dims = ["latlon"]
+            #         #     # spatial_dims = None
+            #         elif valid_locations.sum() < len(
+            #             valid_locations
+            #         ):  # BUG: len(valid_locations) just takes the len of the first dimension to show up in the spatial dimensions
+            #             n_valid = int(valid_locations.sum())
+            #             n_total = len(valid_locations)
+            #             print(
+            #                 f"Filtering to {n_valid} valid locations out of {n_total} total locations"
+            #             )
+            #             # Filter the block maxima to only include valid locations
+            #             block_maxima = block_maxima.where(
+            #                 valid_locations, drop=True
+            #             )
 
-                if spatial_dims:
-                    # We need to process each spatial location individually in a vectorized manner
-                    return_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
-                        self._fit_return_values_1d,
-                        block_maxima,  # (time, lat, lon) or (time, y, x) or (time, spatial_1, spatial_2)
-                        kwargs={
-                            "return_periods": self.return_periods,
-                            "distr": self.distribution,
-                        },
-                        input_core_dims=[
-                            ["time"]
-                        ],  # "time" is the dimension we reduce over
-                        output_core_dims=[
-                            ["one_in_x"]
-                        ],  # output has this new dimension
-                        vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
-                        dask="parallelized",  # works with lazy dask arrays
-                    )
-                    return_values = return_values.assign_coords(
-                        one_in_x=self.return_periods
-                    )
+            block_maxima = _get_block_maxima_optimized(
+                data_array.sel(sim=batch_sims), **kwargs
+            ).squeeze()
 
-                    if return_values.isnull().all():
-                        # All locations failed - create NaN result
-                        return_values = xr.DataArray(
-                            np.full(
-                                (
-                                    len(block_maxima[spatial_dims[0]]),
-                                    len(block_maxima[spatial_dims[1]]),
-                                    len(self.return_periods),
-                                ),
-                                np.nan,
+            if spatial_dims:
+
+                import pdb
+
+                pdb.set_trace()
+                # We need to process each spatial location individually in a vectorized manner
+                return_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
+                    self._fit_return_values_1d,
+                    block_maxima,  # (time, lat, lon) or (time, y, x) or (time, spatial_1, spatial_2)
+                    kwargs={
+                        "return_periods": self.return_periods,
+                        "distr": self.distribution,
+                    },
+                    input_core_dims=[
+                        ["time"]
+                    ],  # "time" is the dimension we reduce over
+                    output_core_dims=[["one_in_x"]],  # output has this new dimension
+                    vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
+                    dask="parallelized",  # works with lazy dask arrays
+                )
+                return_values = return_values.assign_coords(
+                    one_in_x=self.return_periods
+                )
+
+                if return_values.isnull().all():
+                    # All locations failed - create NaN result
+                    return_values = xr.DataArray(
+                        np.full(
+                            (
+                                len(block_maxima[spatial_dims[0]]),
+                                len(block_maxima[spatial_dims[1]]),
+                                len(self.return_periods),
                             ),
-                            dims=["lat", "lon", "one_in_x"],
-                            coords={
-                                "lat": block_maxima[spatial_dims[0]],
-                                "lon": block_maxima[spatial_dims[1]],
-                                "one_in_x": self.return_periods,
-                            },
-                            name="one_in_x",
-                        )
-
-                else:
-                    # No spatial dimensions - process as before
-                    return_values = self._get_return_values_vectorized(
-                        block_maxima,
-                        return_periods=self.return_periods,
-                        distr=self.distribution,
+                            np.nan,
+                        ),
+                        dims=["lat", "lon", "one_in_x"],
+                        coords={
+                            "lat": block_maxima[spatial_dims[0]],
+                            "lon": block_maxima[spatial_dims[1]],
+                            "one_in_x": self.return_periods,
+                        },
+                        name="one_in_x",
                     )
+
+            else:
+                # No spatial dimensions - process as before
+                return_values = self._get_return_values_vectorized(
+                    block_maxima,
+                    return_periods=self.return_periods,
+                    distr=self.distribution,
+                )
 
                 # except Exception:
                 #     # Fallback to individual calculation
