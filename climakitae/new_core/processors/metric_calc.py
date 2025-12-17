@@ -767,7 +767,7 @@ class MetricCalc(DataProcessor):
                         ],  # output has this new dimension
                         vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
                         dask="parallelized",  # works with lazy dask arrays
-                    )
+                    ).compute()
                     return_values = return_values.assign_coords(
                         one_in_x=self.return_periods
                     )
