@@ -527,7 +527,7 @@ class MetricCalc(DataProcessor):
         elif use_dask_optimization == "medium":
             try:
                 print("Using medium-size Dask-aware processing...")
-                data_array = data_array.isel(simulation=range(0, 20))
+                data_array = data_array.isel(sim=range(0, 20))
                 return self._calculate_one_in_x_medium_dask(data_array)
             except Exception as e:
                 print(
