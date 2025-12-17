@@ -546,6 +546,7 @@ class MetricCalc(DataProcessor):
             return self._calculate_one_in_x_serial(data_array)
 
     def _fit_return_values_1d(
+        self,
         block_maxima_1d: np.ndarray,
         return_periods: np.ndarray,
         distr: str = "gev",
@@ -758,10 +759,10 @@ class MetricCalc(DataProcessor):
                     return_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
                         self._fit_return_values_1d,
                         block_maxima,  # (time, lat, lon) or (time, y, x) or (time, spatial_1, spatial_2)
-                        # kwargs={
-                        #     "return_periods": self.return_periods,
-                        #     "distr": self.distribution,
-                        # },
+                        kwargs={
+                            "return_periods": self.return_periods,
+                            "distr": self.distribution,
+                        },
                         input_core_dims=[
                             ["time"]
                         ],  # "time" is the dimension we reduce over
