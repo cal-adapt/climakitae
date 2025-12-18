@@ -745,6 +745,10 @@ class MetricCalc(DataProcessor):
                 data_array.sel(sim=batch_sims), **kwargs
             ).squeeze()
 
+            block_maxima = block_maxima.chunk(
+                {"time": -1}
+            )  # merge all time into one chunk
+
             spatial_dims = [
                 dim for dim in block_maxima.dims if dim not in ["time", "year"]
             ]
