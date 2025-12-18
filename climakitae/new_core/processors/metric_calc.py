@@ -884,6 +884,10 @@ class MetricCalc(DataProcessor):
         # ret_vals, p_vals = self._combine_return_value_results(
         #     all_return_vals, all_p_vals, data_array
         # )
+        import pdb
+
+        pdb.set_trace()
+
         ret_vals = xr.concat(all_return_vals, dim="sim")
         p_vals = xr.concat(all_p_vals, dim="sim")
 
