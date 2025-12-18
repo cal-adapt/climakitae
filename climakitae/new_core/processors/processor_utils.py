@@ -258,7 +258,7 @@ def _get_block_maxima_optimized(
     )
 
     # Handle NaN values efficiently
-    bms = _handle_nan_values_optimized(bms)
+    # bms = _handle_nan_values_optimized(bms)
 
     return bms
 

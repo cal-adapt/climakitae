@@ -729,7 +729,9 @@ class MetricCalc(DataProcessor):
         #             # Filter the block maxima to only include valid locations
         #             block_maxima = block_maxima.where(
         #                 valid_locations, drop=True
-        #             )
+        # #             )
+        # with ProgressBar():
+        #     data_array = data_array.compute()
 
         block_maxima = _get_block_maxima_optimized(
             data_array.sel(sim=batch_sims), **kwargs
