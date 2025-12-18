@@ -735,9 +735,15 @@ class MetricCalc(DataProcessor):
             data_array.sel(sim=batch_sims), **kwargs
         ).squeeze()
 
-        block_maxima = block_maxima.chunk({"time": -1})  # merge all time into one chunk
+        time_dim = ["time" if "time" in block_maxima.dims else "time_delta"][0]
 
-        spatial_dims = [dim for dim in block_maxima.dims if dim not in ["time", "year"]]
+        block_maxima = block_maxima.chunk(
+            {time_dim: -1}
+        )  # merge all time into one chunk
+
+        spatial_dims = [
+            dim for dim in block_maxima.dims if dim not in [time_dim, "year"]
+        ]
 
         if spatial_dims:
             # We need to process each spatial location individually in a vectorized manner
@@ -750,8 +756,8 @@ class MetricCalc(DataProcessor):
                         "distr": self.distribution,
                     },
                     input_core_dims=[
-                        ["time"]
-                    ],  # "time" is the dimension we reduce over
+                        [time_dim]
+                    ],  # "time_dim" is the dimension we reduce over
                     output_core_dims=[["one_in_x"]],  # output has this new dimension
                     output_sizes={"one_in_x": len(self.return_periods)},
                     vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
