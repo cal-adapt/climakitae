@@ -649,20 +649,19 @@ class MetricCalc(DataProcessor):
             print(f"Using default batch size: {batch_size} simulations")
         sim_values = data_array.sim.values
         batch_sims = sim_values[0 : 0 + batch_size]
-        # print(
-        #     f"Processing simulation batch {0//batch_size + 1}/{(len(sim_values) + batch_size - 1)//batch_size}"
-        # )
 
         batch_results = []
         batch_p_vals = []
 
+        import pdb
+
+        pdb.set_trace()
         # for s in batch_sims:
         #     block_maxima = None  # Initialize to avoid scoping issues
         #     # try:
         #     # Check for duplicate simulations and handle appropriately
         #     sim_matches = data_array.sim.values == s
         #     num_matches = sim_matches.sum()
-
         #     # Handle duplicate simulations by selecting the first occurrence
         #     if num_matches > 1:
         #         first_idx = np.where(sim_matches)[0][0]
@@ -682,23 +681,17 @@ class MetricCalc(DataProcessor):
         #                 sim_data = data_array.isel(sim=sim_idx)
         #             except (KeyError, IndexError):
         #                 raise sel_error
-
         #     # Now squeeze to remove size-1 dimensions
         #     sim_data = sim_data.squeeze()
-
         #     # Force drop the sim dimension if it still exists
         #     if "sim" in sim_data.dims:
         #         sim_data = sim_data.squeeze("sim", drop=True)
-
         #     # Extract block maxima for this simulation using optimized function
         #     block_maxima = _get_block_maxima_optimized(sim_data, **kwargs).squeeze()
-
         # Force drop the sim dimension if it still exists in block_maxima
         # if "sim" in block_maxima.dims:
         #     block_maxima = block_maxima.squeeze("sim", drop=True)
-
         # Check data quality and filter out locations with insufficient data
-
         # if hasattr(block_maxima, "dims") and len(block_maxima.dims) > 1:
         #     # For multi-dimensional block maxima, we need to check each location
         #     if spatial_dims:
@@ -796,67 +789,7 @@ class MetricCalc(DataProcessor):
                 distr=self.distribution,
             )
 
-            # except Exception:
-            #     # Fallback to individual calculation
-            #     print(
-            #         f"Warning: Vectorized return value calculation failed for simulation {s}, using fallback method"
-            #     )
-            #     individual_return_values = []
-
-            #     # Check if block_maxima was successfully extracted
-            #     if block_maxima is None:
-            #         print(
-            #             f"Warning: Block maxima extraction failed for simulation {s}, returning NaN values"
-            #         )
-            #         individual_return_values = [np.nan] * len(self.return_periods)
-            #     else:
-            #         for rp in self.return_periods.tolist():
-            #             try:
-            #                 single_result = get_return_value(
-            #                     block_maxima,
-            #                     return_period=rp,  # Pass single return period
-            #                     multiple_points=False,
-            #                     distr=self.distribution,
-            #                 )
-
-            #                 # Extract the return value from the result
-            #                 if (
-            #                     isinstance(single_result, dict)
-            #                     and "return_value" in single_result
-            #                 ):
-            #                     rv = single_result["return_value"]
-            #                 else:
-            #                     rv = single_result
-
-            #                 # Convert to scalar if it's a DataArray
-            #                 if isinstance(rv, xr.DataArray):
-            #                     rv = (
-            #                         rv.values.item()
-            #                         if rv.values.size == 1
-            #                         else rv.values.flat[0]
-            #                     )
-
-            #                 individual_return_values.append(rv)
-
-            #             except Exception as single_rv_error:
-            #                 print(
-            #                     f"Warning: Return value calculation failed for return period {rp}: {single_rv_error}"
-            #                 )
-            #                 individual_return_values.append(np.nan)
-
-            #     # Create a DataArray with the individual return values
-            #     result = xr.DataArray(
-            #         individual_return_values,
-            #         dims=["one_in_x"],
-            #         coords={"one_in_x": self.return_periods},
-            #         name="return_value",
-            #     )
-
-        # The result is now already properly formatted as a DataArray with the correct coordinates
-        # batch_results.append(return_values)
-
         # Calculate p-values if requested
-
         # TODO: Make this work properly
         if self.goodness_of_fit_test and block_maxima is not None:
             _, p_value = get_ks_stat(
@@ -876,18 +809,12 @@ class MetricCalc(DataProcessor):
 
         print(f"End of sim processing for {batch_sims}.")
 
-        # all_return_vals.extend(return_values)
-        # all_p_vals.extend(batch_p_vals)
-
-        # # Combine all results with robust error handling
-        # ret_vals, p_vals = self._combine_return_value_results(
-        #     all_return_vals, all_p_vals, data_array
-        # )
-
         ret_vals = return_values
-        # p_vals = xr.concat(all_p_vals, dim="sim")
         p_vals = batch_p_vals
 
+        import pdb
+
+        pdb.set_trace()
         # Create and return result dataset
         return self._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
 
