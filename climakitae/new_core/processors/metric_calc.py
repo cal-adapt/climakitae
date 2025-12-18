@@ -756,7 +756,9 @@ class MetricCalc(DataProcessor):
             if spatial_dims:
                 # We need to process each spatial location individually in a vectorized manner
                 with ProgressBar():
-                    import pdb; pdb.set_trace()
+                    import pdb
+
+                    pdb.set_trace()
                     return_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
                         self._fit_return_values_1d,
                         block_maxima,  # (time, lat, lon) or (time, y, x) or (time, spatial_1, spatial_2)
@@ -770,7 +772,7 @@ class MetricCalc(DataProcessor):
                         output_core_dims=[
                             ["one_in_x"]
                         ],  # output has this new dimension
-                        output_sizes={"one_in_x": len(self.return_periods)}
+                        output_sizes={"one_in_x": len(self.return_periods)},
                         vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
                         dask="parallelized",  # works with lazy dask arrays
                     ).compute()
