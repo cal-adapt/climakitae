@@ -648,11 +648,10 @@ class MetricCalc(DataProcessor):
             batch_size = min(MEDIUM_DASK_BATCH_SIZE, len(data_array.sim))
             print(f"Using default batch size: {batch_size} simulations")
         sim_values = data_array.sim.values
-
-        batch_sims = sim_values[i : i + batch_size]
-        print(
-            f"Processing simulation batch {i//batch_size + 1}/{(len(sim_values) + batch_size - 1)//batch_size}"
-        )
+        batch_sims = sim_values[0 : 0 + batch_size]
+        # print(
+        #     f"Processing simulation batch {0//batch_size + 1}/{(len(sim_values) + batch_size - 1)//batch_size}"
+        # )
 
         batch_results = []
         batch_p_vals = []
