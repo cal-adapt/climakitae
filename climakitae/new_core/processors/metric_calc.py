@@ -800,23 +800,12 @@ class MetricCalc(DataProcessor):
             if self.print_goodness_of_fit:
                 self._print_goodness_of_fit_result(s, p_value)
         else:
-            batch_p_vals = xr.DataArray(
-                np.full(len(sim_values), np.nan),
-                dims=["sim"],
-                coords={"sim": sim_values},
-                name="p_value",
-            )
+            batch_p_vals = xr.full_like(return_values, np.nan)
 
-        print(f"End of sim processing for {batch_sims}.")
-
-        ret_vals = return_values
-        p_vals = batch_p_vals
-
-        import pdb
-
-        pdb.set_trace()
         # Create and return result dataset
-        return self._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
+        return self._create_one_in_x_result_dataset(
+            return_values, batch_p_vals, data_array
+        )
 
     def _calculate_one_in_x_serial(self, data_array: xr.DataArray) -> xr.Dataset:
         """
