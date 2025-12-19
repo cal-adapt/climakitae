@@ -511,30 +511,32 @@ class MetricCalc(DataProcessor):
         data_array = self._preprocess_variable_for_one_in_x(data_array, var_name)
 
         print(
-            f"Calculating 1-in-{self.return_periods} year return values using {self.distribution} distribution..."
+            f"Calculating 1-in
+            
+            -{self.return_periods} year return values using {self.distribution} distribution..."
         )
 
-        # Try different processing strategies based on data size
-        if use_dask_optimization == True:
-            try:
-                print("Using Dask-optimized processing...")
-                return self._calculate_one_in_x_dask_optimized(data_array)
-            except Exception as e:
-                print(
-                    f"Dask optimization failed ({e}), falling back to batch processing..."
-                )
-                return self._process_large_dataset_in_batches(data_array)
-        elif use_dask_optimization == "medium":
-            try:
-                print("Using medium-size Dask-aware processing...")
-                return self._calculate_one_in_x_medium_dask(data_array)
-            except Exception as e:
-                print(
-                    f"Medium Dask processing failed ({e}), falling back to vectorized processing..."
-                )
-                # Compute the data and fallback to vectorized processing
-                data_array = data_array.compute()
-                return self._calculate_one_in_x_vectorized(data_array)
+        # # Try different processing strategies based on data size
+        # if use_dask_optimization == True:
+        #     try:
+        #         print("Using Dask-optimized processing...")
+        #         return self._calculate_one_in_x_dask_optimized(data_array)
+        #     except Exception as e:
+        #         print(
+        #             f"Dask optimization failed ({e}), falling back to batch processing..."
+        #         )
+        #         return self._process_large_dataset_in_batches(data_array)
+        # elif use_dask_optimization == "medium":
+        #     try:
+        #         print("Using medium-size Dask-aware processing...")
+        #         return self._calculate_one_in_x_medium_dask(data_array)
+        #     except Exception as e:
+        #         print(
+        #             f"Medium Dask processing failed ({e}), falling back to vectorized processing..."
+        #         )
+        #         # Compute the data and fallback to vectorized processing
+        #         data_array = data_array.compute()
+        #         return self._calculate_one_in_x_vectorized(data_array)
 
         # Try vectorized processing first for better performance
         try:
