@@ -707,13 +707,14 @@ class MetricCalc(DataProcessor):
         return_values = return_values.assign_coords(one_in_x=self.return_periods)
 
         # Combine the results into one Dataset to be loaded into memory
-        import pdb
-
-        pdb.set_trace()
         with ProgressBar():
             combined_ds = self._create_one_in_x_result_dataset(
                 return_values, p_values, data_array
             ).compute()
+
+        import pdb
+
+        pdb.set_trace()
 
         return combined_ds
 
