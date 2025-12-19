@@ -707,38 +707,15 @@ class MetricCalc(DataProcessor):
         return_values = return_values.assign_coords(one_in_x=self.return_periods)
 
         # Combine the results into one Dataset to be loaded into memory
+        import pdb
+
+        pdb.set_trace()
         with ProgressBar():
             combined_ds = self._create_one_in_x_result_dataset(
                 return_values, p_values, data_array
             ).compute()
 
-        import pdb
-
-        pdb.set_trace()
         return combined_ds
-
-        # if return_values.isnull().all():
-        #     # All locations failed - create NaN result
-        #     return_values = xr.DataArray(
-        #         np.full(
-        #             (
-        #                 len(block_maxima[spatial_dims[0]]),
-        #                 len(block_maxima[spatial_dims[1]]),
-        #                 len(self.return_periods),
-        #             ),
-        #             np.nan,
-        #         ),
-        #         dims=["lat", "lon", "one_in_x"],
-        #         coords={
-        #             "lat": block_maxima[spatial_dims[0]],
-        #             "lon": block_maxima[spatial_dims[1]],
-        #             "one_in_x": self.return_periods,
-        #         },
-        #         name="one_in_x",
-        #     )
-
-        # # return return_values
-        # return self._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
 
     def _calculate_one_in_x_serial(self, data_array: xr.DataArray) -> xr.Dataset:
         """
