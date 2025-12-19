@@ -543,9 +543,6 @@ class MetricCalc(DataProcessor):
 
         try:
             # Get distribution function, fit, and create frozen distribution
-            import pdb
-
-            pdb.set_trace()
             distr_func = _get_distr_func(distr)
             params = distr_func.fit(valid_data)
             fitted_distr = distr_func(*params)
