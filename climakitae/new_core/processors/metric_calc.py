@@ -511,9 +511,7 @@ class MetricCalc(DataProcessor):
         data_array = self._preprocess_variable_for_one_in_x(data_array, var_name)
 
         print(
-            f"Calculating 1-in
-            
-            -{self.return_periods} year return values using {self.distribution} distribution..."
+            f"Calculating 1-in-{self.return_periods} year return values using {self.distribution} distribution..."
         )
 
         # # Try different processing strategies based on data size
