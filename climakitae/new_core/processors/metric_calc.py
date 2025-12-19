@@ -543,10 +543,6 @@ class MetricCalc(DataProcessor):
             return np.full(n_return_periods, np.nan)
 
         try:
-            # Get distribution function, fit, and create frozen distribution
-            # distr_func = _get_distr_func(distr)
-            # parameters = distr_func.fit(valid_data)
-            # fitted_distr = distr_func(*parameters)
             parameters, fitted_distr = _get_fitted_distr(
                 valid_data, distr, _get_distr_func(distr)
             )
@@ -624,10 +620,6 @@ class MetricCalc(DataProcessor):
         elif self.event_duration[1] == "hour":
             kwargs["duration"] = self.event_duration
 
-        # Process all simulations at once using xarray's vectorized operations
-        all_return_vals = []
-        all_p_vals = []
-
         # Process simulations in batches to manage memory
         # Use adaptive batch sizing based on available memory
         try:
@@ -663,11 +655,9 @@ class MetricCalc(DataProcessor):
             # Fallback if psutil not available
             batch_size = min(MEDIUM_DASK_BATCH_SIZE, len(data_array.sim))
             print(f"Using default batch size: {batch_size} simulations")
+
         sim_values = data_array.sim.values
         batch_sims = sim_values[0 : 0 + batch_size]
-
-        batch_results = []
-        batch_p_vals = []
 
         block_maxima = _get_block_maxima_optimized(
             data_array.sel(sim=batch_sims), **kwargs
@@ -683,84 +673,68 @@ class MetricCalc(DataProcessor):
             dim for dim in block_maxima.dims if dim not in [time_dim, "year"]
         ]
 
-        if spatial_dims:
-            # We need to process each spatial location individually in a vectorized manner
-            with ProgressBar():
-
-                get_p_value = True if self.goodness_of_fit_test else False
-                if get_p_value:
-                    output_core_dims = [["one_in_x"], [], []]
-                else:
-                    output_core_dims = ["one_in_x"]
-
-                return_values, d_stats, p_values = (
-                    xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
-                        self._fit_return_values_1d,
-                        block_maxima,  # (time, lat, lon) or (time, y, x) or (time, spatial_1, spatial_2)
-                        kwargs={
-                            "return_periods": self.return_periods,
-                            "distr": self.distribution,
-                            "get_p_value": get_p_value,
-                        },
-                        input_core_dims=[
-                            [time_dim]
-                        ],  # "time_dim" is the dimension we reduce over
-                        output_core_dims=output_core_dims,  # output has this new dimension
-                        output_sizes={
-                            "one_in_x": len(self.return_periods),
-                        },
-                        output_dtypes=("float", "float", "float"),
-                        vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
-                        dask="parallelized",  # works with lazy dask arrays
-                    )
-                )
-
-                return_values = return_values.compute()
-                if get_p_value:
-                    d_stats = d_stats.compute()
-                    p_values = p_values.compute()
-
-                import pdb
-
-                pdb.set_trace()
-
-                return_values = return_values.assign_coords(
-                    one_in_x=self.return_periods
-                )
-
-            if return_values.isnull().all():
-                # All locations failed - create NaN result
-                return_values = xr.DataArray(
-                    np.full(
-                        (
-                            len(block_maxima[spatial_dims[0]]),
-                            len(block_maxima[spatial_dims[1]]),
-                            len(self.return_periods),
-                        ),
-                        np.nan,
-                    ),
-                    dims=["lat", "lon", "one_in_x"],
-                    coords={
-                        "lat": block_maxima[spatial_dims[0]],
-                        "lon": block_maxima[spatial_dims[1]],
-                        "one_in_x": self.return_periods,
-                    },
-                    name="one_in_x",
-                )
-
+        # We need to process each spatial location individually in a vectorized manner
+        if self.goodness_of_fit_test:
+            output_core_dims = [["one_in_x"], [], []]
         else:
-            # No spatial dimensions - process as before
-            return_values = self._get_return_values_vectorized(
-                block_maxima,
-                return_periods=self.return_periods,
-                distr=self.distribution,
+            output_core_dims = ["one_in_x"]
+
+        return_values, d_stats, p_values = (
+            xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
+                self._fit_return_values_1d,
+                block_maxima,  # (time, lat, lon) or (time, y, x) or (time, spatial_1, spatial_2)
+                kwargs={
+                    "return_periods": self.return_periods,
+                    "distr": self.distribution,
+                    "get_p_value": self.goodness_of_fit_test,
+                },
+                input_core_dims=[
+                    [time_dim]
+                ],  # "time_dim" is the dimension we reduce over
+                output_core_dims=output_core_dims,  # output has this new dimension
+                output_sizes={
+                    "one_in_x": len(self.return_periods),
+                },
+                output_dtypes=("float", "float", "float"),
+                vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
+                dask="parallelized",  # works with lazy dask arrays
             )
+        )
 
-        import pdb
+        if not self.goodness_of_fit_test:
+            p_values = None
 
-        pdb.set_trace()
-        # Create and return result dataset
-        return self._create_one_in_x_result_dataset(return_values, p_values, data_array)
+        return_values = return_values.assign_coords(one_in_x=self.return_periods)
+
+        # Combine the results into one Dataset to be loaded into memory
+        with ProgressBar():
+            combined_ds = self._create_one_in_x_result_dataset(
+                return_values, p_values, data_array
+            ).compute()
+        return combined_ds
+
+        # if return_values.isnull().all():
+        #     # All locations failed - create NaN result
+        #     return_values = xr.DataArray(
+        #         np.full(
+        #             (
+        #                 len(block_maxima[spatial_dims[0]]),
+        #                 len(block_maxima[spatial_dims[1]]),
+        #                 len(self.return_periods),
+        #             ),
+        #             np.nan,
+        #         ),
+        #         dims=["lat", "lon", "one_in_x"],
+        #         coords={
+        #             "lat": block_maxima[spatial_dims[0]],
+        #             "lon": block_maxima[spatial_dims[1]],
+        #             "one_in_x": self.return_periods,
+        #         },
+        #         name="one_in_x",
+        #     )
+
+        # # return return_values
+        # return self._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
 
     def _calculate_one_in_x_serial(self, data_array: xr.DataArray) -> xr.Dataset:
         """
@@ -1300,7 +1274,10 @@ class MetricCalc(DataProcessor):
         xr.Dataset
             Final result dataset with return_value and p_values
         """
-        result = xr.Dataset({"return_value": ret_vals, "p_values": p_vals})
+        if p_vals:
+            result = xr.Dataset({"return_value": ret_vals, "p_values": p_vals})
+        else:
+            result = xr.Dataset({"return_value": ret_vals})
 
         # Add attributes
         result.attrs.update(
