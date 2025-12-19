@@ -529,6 +529,7 @@ class MetricCalc(DataProcessor):
         return_periods: np.ndarray,
         distr: str = "gev",
         extremes_type: str = "max",
+        get_p_value: bool = False,
     ) -> np.ndarray:
         """docstring goes here"""
         n_return_periods = len(return_periods)
@@ -547,6 +548,14 @@ class MetricCalc(DataProcessor):
             params = distr_func.fit(valid_data)
             fitted_distr = distr_func(*params)
 
+            import pdb
+
+            pdb.set_trace()
+
+            if get_p_value:
+                ks = stats.kstest(valid_data, distr, args=params)
+                d_statistic, p_value = ks[0], ks[1]
+
             # Calculate return values for each return period
             return_values = np.empty(n_return_periods)
             event_prob = 1.0 / return_periods  # Assuming 1-year blocks
@@ -557,7 +566,10 @@ class MetricCalc(DataProcessor):
             return_values = np.round(
                 fitted_distr.ppf(return_events), RETURN_VALUE_PRECISION
             )
-            return (return_values, fitted_distr)
+            if get_p_value:
+                return (return_values, d_statistic, p_value)
+            else:
+                return return_values
 
         except (ValueError, RuntimeError, np.linalg.LinAlgError):
             return np.full(n_return_periods, np.nan)
@@ -731,6 +743,13 @@ class MetricCalc(DataProcessor):
                 import pdb
 
                 pdb.set_trace()
+
+                get_p_value = True if self.goodness_of_fit_test else False
+                if get_p_value:
+                    output_core_dims = ["one_in_x", "d_statistic", "p_value"]
+                else:
+                    output_core_dims = ["one_in_x"]
+
                 return_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
                     self._fit_return_values_1d,
                     block_maxima,  # (time, lat, lon) or (time, y, x) or (time, spatial_1, spatial_2)
@@ -741,16 +760,15 @@ class MetricCalc(DataProcessor):
                     input_core_dims=[
                         [time_dim]
                     ],  # "time_dim" is the dimension we reduce over
-                    output_core_dims=[
-                        ["one_in_x", "fitted_distr"]
-                    ],  # output has this new dimension
-                    output_sizes={
-                        "one_in_x": len(self.return_periods),
-                        "fitted_distr": 1,
-                    },
+                    output_core_dims=output_core_dims,  # output has this new dimension
+                    # output_sizes={
+                    #     "one_in_x": len(self.return_periods),
+                    #     # "fitted_distr": 1,
+                    # },
                     vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
                     dask="parallelized",  # works with lazy dask arrays
                 ).compute()
+
                 return_values = return_values.assign_coords(
                     one_in_x=self.return_periods
                 )
