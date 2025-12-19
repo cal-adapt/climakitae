@@ -286,11 +286,11 @@ class TestClimateDataGet:
         with patch("builtins.print") as mock_print:
             result = self.climate_data.get()
 
-        # Should return None when validation fails
+        # Correctly returns None when validation fails
         assert result is None
         # Should print error about missing parameters
         printed_text = "".join(str(call) for call in mock_print.call_args_list)
-        assert "ERROR: Missing required parameters" in printed_text
+        assert "Missing required parameters" in printed_text
 
     def test_get_successful_execution(self):
         """Test successful get execution."""

@@ -94,7 +94,12 @@ class TestLoad:
     def test_load_chunked(self):
         da = xr.DataArray(data=np.zeros((10, 10)))
         da = da.chunk(chunks={"dim_0": 5, "dim_1": 5})
-        result = load(da)
+
+        # Mock psutil to report plenty of memory to avoid input() prompt
+        with patch("climakitae.core.data_load.psutil.virtual_memory") as mock_mem:
+            mock_mem.return_value.available = 10 * 1024 * 1024 * 1024  # 10 GB
+            result = load(da)
+
         assert result.equals(da)
         assert result.chunks is None
         # Check that this object is numpy array, not dask

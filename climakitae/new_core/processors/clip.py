@@ -143,17 +143,17 @@ class Clip(DataProcessor):
     Clip data based on spatial boundaries.
 
     This processor supports single and multiple boundary clipping operations.
-    In Phase 1, it supports multiple boundaries of the same category using
-    union operations to combine geometries.
+    By default, multiple boundaries are combined using union operations.
+    Use the ``separated`` option to keep boundaries as separate dimensions.
 
     Parameters
     ----------
-    value : str | list | tuple
+    value : str | list | tuple | dict
         The value(s) to clip the data by. Can be:
         - str: Single boundary key, file path, or coordinate specification
-        - list: Multiple boundary keys of the same category (Phase 1) OR list of (lat, lon) tuples for multiple points
-        - tuple: Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max)) or a single (lat, lon) point
-
+        - list: Multiple boundary keys of the same category OR list of (lat, lon) tuples
+        - tuple: Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max)) or single (lat, lon) point
+        - dict: Configuration with ``boundaries`` key and optional ``separated`` flag
 
     Examples
     --------
@@ -161,9 +161,13 @@ class Clip(DataProcessor):
     >>> clip = Clip("CA")  # Single state
     >>> clip = Clip("Los Angeles County")  # Single county
 
-    Multiple boundaries (Phase 1):
-    >>> clip = Clip(["CA", "OR", "WA"])  # Multiple states
-    >>> clip = Clip(["Los Angeles County", "Orange County"])  # Multiple counties
+    Multiple boundaries (union, default):
+    >>> clip = Clip(["CA", "OR", "WA"])  # Multiple states combined
+    >>> clip = Clip(["Los Angeles County", "Orange County"])  # Multiple counties combined
+
+    Multiple boundaries (separated):
+    >>> clip = Clip({"boundaries": ["CA", "OR", "WA"], "separated": True})
+    >>> # Returns data with a 'state' dimension containing each boundary
 
     Coordinate bounds:
     >>> clip = Clip(((32.0, 42.0), (-125.0, -114.0)))  # lat/lon bounds
@@ -181,12 +185,29 @@ class Clip(DataProcessor):
 
         Parameters
         ----------
-        value : str | list | tuple
+        value : str | list | tuple | dict
             The value(s) to clip the data by. Can be:
             - str: Single boundary key, file path, station code/name, or coordinate specification
             - list: Multiple boundary keys, station codes/names, or (lat, lon) tuples for multiple points
             - tuple: Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max)) or single (lat, lon) point
+            - dict: Configuration dict with ``boundaries`` (list) and optional ``separated`` (bool)
         """
+        # Handle dict input: extract boundaries and separated flag
+        self.separated = False
+        self.boundary_names: list[str] = []
+        self.dimension_name: str | None = None
+
+        if isinstance(value, dict):
+            if "boundaries" not in value:
+                raise ValueError(
+                    "Dict input to Clip must contain 'boundaries' key with list of boundary names. "
+                    "Example: {'boundaries': ['CA', 'OR', 'WA'], 'separated': True}"
+                )
+            self.separated = value.get("separated", False)
+            self.boundary_names = list(value["boundaries"])
+            # Store the boundaries list as the value for processing
+            value = value["boundaries"]
+
         self.value = value
         self.name = "clip"
         self.catalog: Union[DataCatalog, object] = UNSET
@@ -216,7 +237,10 @@ class Clip(DataProcessor):
         else:
             # Determine if this is a multi-boundary operation
             self.multi_mode = isinstance(value, list) and len(value) > 1
-            self.operation = "union" if self.multi_mode else None
+            # Only use union if not separated mode
+            self.operation = (
+                "union" if (self.multi_mode and not self.separated) else None
+            )
 
         # Check if this is a single point operation and store coordinates
         self.is_single_point = (
@@ -228,11 +252,12 @@ class Clip(DataProcessor):
             self.lat, self.lon = float(value[0]), float(value[1])
         # log initialization
         logger.debug(
-            "Clip processor initialized value=%s multi_mode=%s is_multi_point=%s is_single_point=%s",
+            "Clip processor initialized value=%s multi_mode=%s is_multi_point=%s is_single_point=%s separated=%s",
             self.value,
             self.multi_mode,
             self.is_multi_point,
             getattr(self, "is_single_point", False),
+            self.separated,
         )
 
     def execute(
@@ -282,6 +307,9 @@ class Clip(DataProcessor):
                 # Handle multiple boundary keys (Phase 1) OR multiple lat/lon points
                 elif self.is_multi_point:
                     geom = None  # Will be handled differently for multi-point
+                elif self.separated:
+                    # Separated mode: don't create union geometry, will clip each boundary separately
+                    geom = None  # Will be handled in separated clipping
                 else:
                     geom = self._get_multi_boundary_geometry(self.value)
             case tuple():
@@ -310,7 +338,12 @@ class Clip(DataProcessor):
                     f"Invalid value type for clipping. Expected str, list, or tuple but got {type(self.value)}."
                 )
 
-        if geom is None and not self.is_single_point and not self.is_multi_point:
+        if (
+            geom is None
+            and not self.is_single_point
+            and not self.is_multi_point
+            and not self.separated
+        ):
             raise ValueError("Failed to create geometry for clipping operation.")
 
         ret = None
@@ -332,6 +365,11 @@ class Clip(DataProcessor):
                         key: self._clip_data_to_multiple_points(value, self.point_list)
                         for key, value in result.items()
                     }
+                elif self.separated:
+                    ret = {
+                        key: self._clip_data_separated(value, self.value)
+                        for key, value in result.items()
+                    }
                 else:
                     ret = {
                         key: self._clip_data_with_geom(value, geom)
@@ -344,6 +382,8 @@ class Clip(DataProcessor):
                     ret = self._clip_data_to_point(result, self.lat, self.lon)
                 elif self.is_multi_point:
                     ret = self._clip_data_to_multiple_points(result, self.point_list)
+                elif self.separated:
+                    ret = self._clip_data_separated(result, self.value)
                 elif geom is not None:
                     ret = self._clip_data_with_geom(result, geom)
             case list() | tuple():
@@ -364,6 +404,10 @@ class Clip(DataProcessor):
                     # Filter out None results
                     valid_data = [data for data in clipped_data if data is not None]
                     ret = type(result)(valid_data) if valid_data else None
+                elif self.separated:
+                    ret = type(result)(
+                        [self._clip_data_separated(data, self.value) for data in result]
+                    )
                 elif geom is not None:
                     ret = type(result)(
                         [self._clip_data_with_geom(data, geom) for data in result]
@@ -418,6 +462,12 @@ class Clip(DataProcessor):
             context[_NEW_ATTRS_KEY][
                 self.name
             ] = f"""Process '{self.name}' applied to the data. Multi-point clipping was done using closest gridcells to {len(self.point_list)} coordinate pairs, filtered for unique grid cells, and concatenated along 'closest_cell' dimension: {self.point_list}."""
+        elif self.separated:
+            # Separated mode: boundaries are clipped individually along a dimension
+            dim_name = self.dimension_name or "region"
+            context[_NEW_ATTRS_KEY][
+                self.name
+            ] = f"""Process '{self.name}' applied to the data. Separated boundary clipping was done using {len(self.boundary_names)} boundaries along '{dim_name}' dimension: {self.boundary_names}."""
         elif self.multi_mode:
             context[_NEW_ATTRS_KEY][
                 self.name
@@ -505,14 +555,33 @@ class Clip(DataProcessor):
         if data.rio.crs is None:
             # Check if this is WRF data with Lambert Conformal projection
             if "Lambert_Conformal" in data.coords:
-                # WRF data: use Lambert Conformal projection from spatial_ref attribute
+                # WRF data: try spatial_ref attribute first, then build from CF attrs
                 spatial_ref = data["Lambert_Conformal"].attrs.get("spatial_ref")
                 if spatial_ref:
                     data = data.rio.write_crs(spatial_ref, inplace=True)
                 else:
-                    raise ValueError(
-                        "Lambert_Conformal coordinate found but missing spatial_ref attribute"
-                    )
+                    # Build CRS from CF convention attributes
+                    attrs = data["Lambert_Conformal"].attrs
+                    try:
+                        crs = pyproj.CRS.from_cf(
+                            {
+                                "grid_mapping_name": attrs["grid_mapping_name"],
+                                "latitude_of_projection_origin": attrs[
+                                    "latitude_of_projection_origin"
+                                ],
+                                "longitude_of_central_meridian": attrs[
+                                    "longitude_of_central_meridian"
+                                ],
+                                "standard_parallel": attrs["standard_parallel"],
+                                "earth_radius": attrs["earth_radius"],
+                            }
+                        )
+                        data = data.rio.write_crs(crs, inplace=True)
+                    except KeyError as e:
+                        raise ValueError(
+                            f"Lambert_Conformal coordinate found but missing required "
+                            f"CF convention attribute: {e}"
+                        )
             else:
                 # LOCA2 or other lat/lon data: use WGS84/EPSG:4326
                 data = data.rio.write_crs("epsg:4326", inplace=True)
@@ -937,6 +1006,101 @@ class Clip(DataProcessor):
             logger.error("Error concatenating results: %s", e, exc_info=True)
             return None
 
+    def _clip_data_separated(
+        self,
+        data: xr.Dataset | xr.DataArray,
+        boundary_keys: list[str],
+    ) -> xr.Dataset | xr.DataArray:
+        """
+        Clip data to multiple boundaries, keeping each boundary as a separate dimension.
+
+        Instead of merging all boundaries into one geometry (union), this method
+        clips the data to each boundary individually and concatenates the results
+        along a new dimension with a name inferred from the boundary category.
+
+        Parameters
+        ----------
+        data : xr.Dataset | xr.DataArray
+            The data to clip
+        boundary_keys : list[str]
+            List of boundary keys to clip to (e.g., ["CA", "OR", "WA"])
+
+        Returns
+        -------
+        xr.Dataset | xr.DataArray
+            Data with a new dimension for each boundary, containing the clipped data
+
+        Raises
+        ------
+        ValueError
+            If no valid clipped data is produced for any boundary
+        """
+        logger.info(
+            "Clipping data to %d boundaries with separated mode", len(boundary_keys)
+        )
+
+        # Infer the dimension name from the first boundary
+        if not self.dimension_name:
+            self.dimension_name = self._infer_dimension_name(boundary_keys[0])
+        dim_name = self.dimension_name
+
+        logger.debug("Using dimension name: %s", dim_name)
+
+        clipped_results = []
+        valid_boundary_names = []
+
+        for boundary_key in boundary_keys:
+            try:
+                # Get geometry for this boundary
+                geom = self._get_boundary_geometry(boundary_key)
+
+                # Clip the data
+                clipped = self._clip_data_with_geom(data, geom)
+
+                if clipped is not None:
+                    clipped_results.append(clipped)
+                    valid_boundary_names.append(boundary_key)
+                    logger.debug(
+                        "Successfully clipped data for boundary: %s", boundary_key
+                    )
+                else:
+                    logger.warning(
+                        "No valid data after clipping for boundary: %s", boundary_key
+                    )
+
+            except Exception as e:
+                logger.error("Error clipping boundary '%s': %s", boundary_key, e)
+                # Continue with other boundaries
+                continue
+
+        if not clipped_results:
+            raise ValueError(
+                f"No valid clipped data produced for any of the boundaries: {boundary_keys}"
+            )
+
+        # Concatenate all results along the new dimension
+        try:
+            concatenated = xr.concat(clipped_results, dim=dim_name)
+
+            # Add the boundary names as coordinates
+            concatenated = concatenated.assign_coords({dim_name: valid_boundary_names})
+
+            logger.info(
+                "Successfully created separated clip with %d boundaries along '%s' dimension",
+                len(valid_boundary_names),
+                dim_name,
+            )
+
+            # Store boundary names for context update
+            self.boundary_names = valid_boundary_names
+
+            return concatenated
+
+        except Exception as e:
+            raise ValueError(
+                f"Failed to concatenate separated clip results: {e}"
+            ) from e
+
     def _get_boundary_geometry(self, boundary_key: str) -> gpd.GeoDataFrame:
         """
         Get geometry data for a boundary key from the boundaries catalog.
@@ -1027,6 +1191,7 @@ class Clip(DataProcessor):
             "CA Electric Load Serving Entities (IOU & POU)": boundaries._ca_utilities,
             "CA Electricity Demand Forecast Zones": boundaries._ca_forecast_zones,
             "CA Electric Balancing Authority Areas": boundaries._ca_electric_balancing_areas,
+            "CA Census Tracts": boundaries._ca_census_tracts,
         }
 
         if category not in category_map:
@@ -1050,6 +1215,63 @@ class Clip(DataProcessor):
             geometry_row.set_crs(epsg=4326, inplace=True)
 
         return geometry_row
+
+    def _infer_dimension_name(self, boundary_key: str) -> str:
+        """
+        Infer an appropriate dimension name based on the boundary category.
+
+        This method determines the dimension name for separated clipping based
+        on the category of the boundary key (e.g., "state" for US states,
+        "county" for CA counties).
+
+        Parameters
+        ----------
+        boundary_key : str
+            A boundary key to determine the category from
+
+        Returns
+        -------
+        str
+            The inferred dimension name (e.g., "state", "county", "watershed")
+        """
+        # Map category names to dimension names
+        category_to_dimension = {
+            "states": "state",
+            "CA counties": "county",
+            "CA watersheds": "watershed",
+            "CA Electric Load Serving Entities (IOU & POU)": "utility",
+            "CA Electricity Demand Forecast Zones": "forecast_zone",
+            "CA Electric Balancing Authority Areas": "balancing_area",
+            "CA Census Tracts": "census_tract",
+        }
+
+        # Get the category for this boundary key
+        validation = self.validate_boundary_key(boundary_key)
+        if validation.get("valid") and "category" in validation:
+            category = validation["category"]
+            return category_to_dimension.get(category, "region")
+
+        # Default fallback
+        return "region"
+
+    def _get_boundary_category(self, boundary_key: str) -> str | None:
+        """
+        Get the category for a boundary key.
+
+        Parameters
+        ----------
+        boundary_key : str
+            The boundary key to look up
+
+        Returns
+        -------
+        str | None
+            The category name, or None if not found
+        """
+        validation = self.validate_boundary_key(boundary_key)
+        if validation.get("valid"):
+            return validation.get("category")
+        return None
 
     def validate_boundary_key(self, boundary_key: str) -> Dict[str, Any]:
         """

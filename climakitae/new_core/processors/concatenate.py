@@ -14,7 +14,6 @@ from climakitae.new_core.processors.abc_data_processor import (
 )
 from climakitae.new_core.processors.processor_utils import extend_time_domain
 
-
 # Module logger
 logger = logging.getLogger(__name__)
 
@@ -246,6 +245,9 @@ class Concat(DataProcessor):
                     if not isinstance(dataset, (xr.Dataset, xr.DataArray)):
                         continue
 
+                    # Make sure the time dimension is aligned on the same timestamps
+                    dataset = self._align_time_dim(dataset, context)
+
                     # Extract source_id from attributes
                     attr_id = "_".join(
                         [
@@ -303,6 +305,9 @@ class Concat(DataProcessor):
                     if not isinstance(dataset, (xr.Dataset, xr.DataArray)):
                         # skip items that are not xarray datasets or data arrays
                         continue
+
+                    # Make sure the time dimension is aligned on the same timestamps
+                    dataset = self._align_time_dim(dataset, context)
 
                     # Extract source_id from attributes
                     attr_id = "_".join(
@@ -406,6 +411,31 @@ class Concat(DataProcessor):
                     concatenated.attrs["resolution"] = resolutions[k]
                     break
         return concatenated
+
+    def _align_time_dim(
+        self, dataset: Union[xr.Dataset, xr.DataArray], context: Dict[str, Any] = {}
+    ) -> Union[xr.Dataset, xr.DataArray]:
+        """Align the time dimension of the dataset to ensure consistency.
+
+        Parameters
+        ----------
+        dataset : Union[xr.Dataset, xr.DataArray]
+            The dataset whose time dimension needs to be aligned.
+
+        Returns
+        -------
+        Union[xr.Dataset, xr.DataArray]
+            The dataset with aligned time dimension.
+        """
+        if (
+            self.dim_name == "sim"
+            and "table_id" in context
+            and context["table_id"] == "day"
+            and "time" in dataset.coords
+        ):
+            floored_time = dataset["time"].dt.floor("D")
+            dataset = dataset.assign_coords(time=floored_time)
+        return dataset
 
     def update_context(
         self, context: Dict[str, Any], source_ids: List[str] | object = UNSET

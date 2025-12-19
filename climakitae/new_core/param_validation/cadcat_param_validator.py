@@ -77,13 +77,41 @@ class DataValidator(ParameterValidator):
 
         """
         logger.debug("Validating query: %s", query)
-        initial_checks = [self._check_query_for_wrf_and_localize(query)]
+        initial_checks = [
+            self._check_query_for_wrf_and_localize(query),
+            self._check_query_for_required_keys(query),
+        ]
         if not all(initial_checks):
             logger.warning("Initial validation checks failed: %s", initial_checks)
             return None
         result = super()._is_valid_query(query)
         logger.info("Query validation result: %s", bool(result))
         return result
+
+    def _check_query_for_required_keys(self, query: Dict[str, Any]) -> bool:
+        """Check if the query contains all required keys.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The query to check.
+
+        Returns
+        -------
+        bool
+            True if the query contains all required keys, False otherwise.
+
+        """
+        logger.debug("Checking for required keys in query: %s", query)
+        required_keys = ("activity_id", "table_id", "grid_label", "variable_id")
+        unset_keys = [key for key in required_keys if query.get(key, UNSET) is UNSET]
+        if unset_keys:
+            logger.warning(
+                "Query is missing the following required keys: %s",
+                ", ".join(unset_keys),
+            )
+            return False
+        return True
 
     def _check_query_for_wrf_and_localize(self, query: Dict[str, Any]) -> bool:
         """Check if the query contains the localize processor.

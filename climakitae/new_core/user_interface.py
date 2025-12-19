@@ -21,6 +21,7 @@ Example Usage:
 
 """
 
+import copy
 import logging
 import sys
 import traceback
@@ -191,6 +192,12 @@ class ClimateData:
         ClimateData
             The current instance for method chaining.
 
+        Note
+        ----
+        This method only resets the query parameters on this ClimateData instance.
+        It does not reset global state on the DataCatalog singleton, making it
+        safe to call in multi-threaded scenarios.
+
         """
         self._query = {
             "catalog": UNSET,
@@ -206,7 +213,9 @@ class ClimateData:
             "network_id": UNSET,
             "processes": UNSET,
         }
-        self._factory.reset()
+        # Note: We intentionally do NOT call self._factory.reset() here
+        # The factory's registry state should persist, and the DataCatalog
+        # singleton should not have its state modified per-query for thread safety
         return self
 
     def _configure_logging(self) -> None:
@@ -284,6 +293,25 @@ class ClimateData:
             # stop capturing warnings
             pkg_logger.setLevel(logging.CRITICAL + 1)
             logging.captureWarnings(False)
+
+        # Suppress noisy third-party libraries
+        # These libraries can be very verbose at DEBUG level, so we force them
+        # to WARNING level to keep the output clean.
+        noisy_libs = [
+            "botocore",
+            "boto3",
+            "s3fs",
+            "fsspec",
+            "asyncio",
+            "urllib3",
+            "numcodecs",
+            "zarr",
+            "aiobotocore",
+            "distributed",
+            "dask",
+        ]
+        for lib in noisy_libs:
+            logging.getLogger(lib).setLevel(logging.WARNING)
 
     def verbosity(self, level: int) -> "ClimateData":
         """Set the logging verbosity level.
@@ -645,6 +673,13 @@ class ClimateData:
         the factory pattern, executes the query, and resets the query state
         for the next use.
 
+        Thread Safety
+        -------------
+        This method takes a snapshot of the query at the start of execution,
+        making it safe to call from multiple threads on the same ClimateData
+        instance. However, for maximum clarity and safety, it is recommended
+        to use separate ClimateData instances in multi-threaded scenarios.
+
         Returns
         -------
         Optional[xr.DataArray]
@@ -662,6 +697,10 @@ class ClimateData:
         logger.info("Starting data retrieval with query: %s", self._query)
         data = None
 
+        # Take a snapshot of the query for thread-safety
+        # This allows concurrent calls to get() without corrupting each other
+        query_snapshot = copy.deepcopy(self._query)
+
         # Validate required parameters
         logger.debug("Validating required parameters")
         if not self._validate_required_parameters():
@@ -670,42 +709,35 @@ class ClimateData:
             return None
 
         try:
-            # Create dataset using factory
+            # Create dataset using factory with the snapshot
             logger.debug("Creating dataset using factory")
-            dataset = self._factory.create_dataset(self._query)
+            dataset = self._factory.create_dataset(query_snapshot)
             logger.info("Dataset created successfully")
         except (ValueError, KeyError, TypeError) as e:
-            logger.error("Error during dataset creation: %s", str(e), exc_info=True)
             logger.error("Error during dataset creation: %s", str(e))
-            logger.debug("Traceback:\n%s", traceback.format_exc())
+            logger.debug("Traceback:", exc_info=True)
             self._reset_query()
             return None
 
         try:
-            # Execute the query
+            # Execute the query with the snapshot
             logger.debug("Executing query")
-            data = dataset.execute(self._query)
-
+            data = dataset.execute(query_snapshot)
+            # check if empty dataset
             # Check if data is empty/null
             if (
                 data is None
                 or (hasattr(data, "nbytes") and data.nbytes == 0)
                 or (isinstance(data, dict) and not data)
             ):
-                logger.warning("Retrieved dataset is empty")
                 logger.warning("⚠️ Warning: Retrieved dataset is empty.")
 
             else:
-                logger.info("Data retrieval successful")
                 logger.info("✅ Data retrieval successful!")
 
         except (ValueError, KeyError, IOError, RuntimeError) as e:
-            logger.error("Error during data retrieval: %s", str(e), exc_info=True)
-            logger.error("Error during data retrieval: %s", str(e))
-            logger.debug("Traceback:\n%s", traceback.format_exc())
-            logger.error(
-                "❌ Data retrieval failed. Please check your query parameters."
-            )
+            logger.error("❌ Data retrieval failed: %s", str(e))
+            logger.debug("Traceback:", exc_info=True)
 
         # Always reset query after execution
         self._reset_query()

@@ -971,21 +971,36 @@ def extend_time_domain(
                 "compat": "override",
                 "join": "outer",
             }
+            hist_common = hist_data
+            data_common = data
 
-            if isinstance(data, xr.Dataset) and isinstance(hist_data, xr.Dataset):
-                extended_data = xr.concat([hist_data, data], **concat_kwargs)  # type: ignore
-            elif isinstance(data, xr.DataArray) and isinstance(hist_data, xr.DataArray):
-                extended_data = xr.concat([hist_data, data], **concat_kwargs)  # type: ignore
+            if "member_id" in data.dims and "member_id" in hist_data.dims:
+                # Find common member_ids between historical and SSP data
+                common_members = np.intersect1d(
+                    hist_data.member_id.values,
+                    data.member_id.values,
+                )
+
+                # Select only matching members
+                hist_common = hist_data.sel(member_id=common_members)
+                data_common = data.sel(member_id=common_members)
+
+            if isinstance(data, xr.Dataset) and isinstance(hist_common, xr.Dataset):
+                extended_data = xr.concat([hist_common, data_common], **concat_kwargs)  # type: ignore
+            elif isinstance(data, xr.DataArray) and isinstance(
+                hist_common, xr.DataArray
+            ):
+                extended_data = xr.concat([hist_common, data_common], **concat_kwargs)  # type: ignore
             else:
                 # Handle mixed types by converting to same type
-                if isinstance(data, xr.Dataset):
-                    if isinstance(hist_data, xr.DataArray):
-                        hist_data = hist_data.to_dataset()
-                    extended_data = xr.concat([hist_data, data], **concat_kwargs)  # type: ignore
+                if isinstance(data_common, xr.Dataset):
+                    if isinstance(hist_common, xr.DataArray):
+                        hist_data = hist_common.to_dataset()
+                    extended_data = xr.concat([hist_common, data_common], **concat_kwargs)  # type: ignore
                 else:  # data is DataArray
-                    if isinstance(hist_data, xr.Dataset):
-                        data = data.to_dataset()
-                    extended_data = xr.concat([hist_data, data], **concat_kwargs)  # type: ignore            # Preserve SSP attributes
+                    if isinstance(hist_common, xr.Dataset):
+                        data_common = data_common.to_dataset()
+                    extended_data = xr.concat([hist_common, data], **concat_kwargs)  # type: ignore            # Preserve SSP attributes
             extended_data.attrs.update(data.attrs)
             # add key attr indicating historical data was prepended
             extended_data.attrs["historical_prepended"] = True

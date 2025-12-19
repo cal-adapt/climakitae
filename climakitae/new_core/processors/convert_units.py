@@ -2,7 +2,7 @@
 DataProcessor for converting units of data.
 """
 
-import warnings
+import logging
 from typing import Any, Dict, Iterable, Union
 
 import xarray as xr
@@ -13,6 +13,8 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
+
+logger = logging.getLogger(__name__)
 
 UNIT_CONVERSIONS = {
     # Identity conversion
@@ -129,6 +131,10 @@ class ConvertUnits(DataProcessor):
         self.value = value
         self.name = "convert_units"
         self.success = True
+        logger.debug(
+            "ConvertUnits processor initialized with target_units=%s",
+            value if value is not UNSET else "<not set>",
+        )
 
     def execute(
         self,
@@ -137,27 +143,43 @@ class ConvertUnits(DataProcessor):
         ],
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
-        # Placeholder for unit conversion logic
+        logger.debug(
+            "ConvertUnits.execute called with target_units=%s, result_type=%s",
+            self.value,
+            type(result).__name__,
+        )
+
         if self.value is UNSET:
+            logger.debug("No target units specified, returning data unchanged")
             return result
 
         ret = result
         match result:
             case dict():
                 # If result is a dictionary, convert each item
+                logger.debug(
+                    "Converting units for %d datasets in dictionary", len(result)
+                )
                 ret = {k: self._convert_units(v, self.value) for k, v in result.items()}
             case xr.Dataset() | xr.DataArray():
                 ret = self._convert_units(result, self.value)
             case list() | tuple():
                 # If result is an iterable, convert each item
+                logger.debug(
+                    "Converting units for %d datasets in iterable", len(result)
+                )
                 ret = type(result)(
                     [self._convert_units(item, self.value) for item in result]
                 )
             case _:
-                warnings.warn()
+                logger.warning(
+                    "Unexpected result type %s in ConvertUnits processor",
+                    type(result).__name__,
+                )
 
         if self.success:
             # In this processor, it doesn't make sense to update unless the conversion was successful
+            logger.info("Units successfully converted to '%s'", self.value)
             self.update_context(context)
         return ret
 
@@ -210,29 +232,27 @@ class ConvertUnits(DataProcessor):
             units_from = data.data_vars[var].attrs[
                 "units"
             ]  # Trying to get an error if the units attribute does not exist
+            logger.debug(
+                "Converting variable '%s' from '%s' to '%s'", var, units_from, value
+            )
         except (KeyError, IndexError):
-            warnings.warn(
-                (
-                    "WARNING ::: You've encountered a bug in the code. "
-                    " This variable does not have identifiable native units. The data"
-                    " for this variable will need to have a 'units'"
-                    " attribute added in the catalog."
-                    " Please report this issue to the developers at"
-                    " https://github.com/cal-adapt/climakitae/issues/new/choose "
-                )
+            logger.warning(
+                "This variable does not have identifiable native units. "
+                "The data for this variable will need to have a 'units' "
+                "attribute added in the catalog. "
+                "Please report this issue at: "
+                "https://github.com/cal-adapt/climakitae/issues/new/choose"
             )
             self.success = False
             return data
 
         valid_units = UNIT_OPTIONS.get(units_from, None)
         if valid_units is None:
-            warnings.warn(
-                (
-                    "WARNING ::: You've encountered a bug in the code. "
-                    f" There are no valid unit conversions implemented for {units_from}. "
-                    " Please report this issue to the developers at"
-                    " https://github.com/cal-adapt/climakitae/issues/new/choose "
-                )
+            logger.warning(
+                "No valid unit conversions implemented for '%s'. "
+                "Please report this issue at: "
+                "https://github.com/cal-adapt/climakitae/issues/new/choose",
+                units_from,
             )
             self.success = False
             return data
@@ -240,15 +260,18 @@ class ConvertUnits(DataProcessor):
         match value:
             case str():
                 if value not in valid_units:
-                    warnings.warn(
-                        (
-                            f"WARNING ::: The selected units {value} are not valid for {units_from}."
-                        )
+                    logger.warning(
+                        "The selected units '%s' are not valid for '%s'. "
+                        "Valid options: %s",
+                        value,
+                        units_from,
+                        valid_units,
                     )
                     self.success = False
                     return data
 
-                # Perform the actual conversion - Fix: assign to the dataset directly
+                # Perform the actual conversion
+                logger.debug("Applying conversion: (%s, %s)", units_from, value)
                 converted_var = UNIT_CONVERSIONS.get(
                     (units_from, value), lambda da: da
                 )(data.data_vars[var])
@@ -256,12 +279,17 @@ class ConvertUnits(DataProcessor):
                 converted_var.attrs["units"] = value
                 # Assign back to the dataset
                 data = data.assign({var: converted_var})
+                logger.debug(
+                    "Conversion complete for variable '%s': %s -> %s",
+                    var,
+                    units_from,
+                    value,
+                )
             case _:
-                warnings.warn(
-                    (
-                        "WARNING ::: The provided value is not the correct type. "
-                        f"Expected str or Iterable[str], but got {type(value)}."
-                    )
+                logger.warning(
+                    "The provided value is not the correct type. "
+                    "Expected str, but got %s.",
+                    type(value).__name__,
                 )
                 self.success = False
                 return data
