@@ -549,7 +549,7 @@ class MetricCalc(DataProcessor):
             fitted_distr = distr_func(*params)
 
             if get_p_value:
-                ks = stats.kstest(valid_data, distr, args=params)
+                ks = stats.kstest(valid_data, "genextreme", args=params)
                 d_statistic, p_value = ks[0], ks[1]
 
             # Calculate return values for each return period
