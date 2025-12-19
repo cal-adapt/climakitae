@@ -567,7 +567,7 @@ class MetricCalc(DataProcessor):
                 fitted_distr.ppf(return_events), RETURN_VALUE_PRECISION
             )
             if get_p_value:
-                return (return_values, d_statistic, p_value)
+                return return_values, d_statistic, p_value
             else:
                 return return_values
 
