@@ -711,6 +711,10 @@ class MetricCalc(DataProcessor):
             combined_ds = self._create_one_in_x_result_dataset(
                 return_values, p_values, data_array
             ).compute()
+
+        import pdb
+
+        pdb.set_trace()
         return combined_ds
 
         # if return_values.isnull().all():
