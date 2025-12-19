@@ -764,17 +764,20 @@ class MetricCalc(DataProcessor):
             )
 
         # Calculate p-values if requested
-        if self.goodness_of_fit_test and block_maxima is not None:
-            _, p_value = get_ks_stat(
-                block_maxima, distr=self.distribution, multiple_points=False
-            ).data_vars.values()
-            batch_p_vals.append(p_value)
+        # if self.goodness_of_fit_test and block_maxima is not None:
+        #     _, p_value = get_ks_stat(
+        #         block_maxima, distr=self.distribution, multiple_points=False
+        #     ).data_vars.values()
+        #     batch_p_vals.append(p_value)
 
-            if self.print_goodness_of_fit:
-                self._print_goodness_of_fit_result(s, p_value)
-        else:
-            batch_p_vals = xr.full_like(return_values, np.nan)
+        #     if self.print_goodness_of_fit:
+        #         self._print_goodness_of_fit_result(s, p_value)
+        # else:
+        #     batch_p_vals = xr.full_like(return_values, np.nan)
 
+        import pdb
+
+        pdb.set_trace()
         # Create and return result dataset
         return self._create_one_in_x_result_dataset(
             return_values, batch_p_vals, data_array
