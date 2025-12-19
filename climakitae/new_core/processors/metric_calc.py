@@ -544,9 +544,12 @@ class MetricCalc(DataProcessor):
 
         try:
             # Get distribution function, fit, and create frozen distribution
-            distr_func = _get_distr_func(distr)
-            parameters = distr_func.fit(valid_data)
-            fitted_distr = distr_func(*parameters)
+            # distr_func = _get_distr_func(distr)
+            # parameters = distr_func.fit(valid_data)
+            # fitted_distr = distr_func(*parameters)
+            parameters, fitted_distr = _get_fitted_distr(
+                valid_data, distr, _get_distr_func(distr)
+            )
 
             match distr:
                 case "gev":
@@ -592,6 +595,9 @@ class MetricCalc(DataProcessor):
                 return return_values, np.nan, np.nan
 
         except (ValueError, RuntimeError, np.linalg.LinAlgError):
+            import pdb
+
+            pdb.set_trace()
             return np.full(n_return_periods, np.nan)
 
     def _calculate_one_in_x_vectorized(self, data_array: xr.DataArray) -> xr.Dataset:

@@ -444,9 +444,6 @@ def get_ks_stat(
         )
 
     def ks_stat(bms):
-        import pdb
-
-        pdb.set_trace()
         parameters, fitted_distr = _get_fitted_distr(bms, distr, distr_func)
 
         match distr:
