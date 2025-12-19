@@ -228,7 +228,7 @@ class TestClimateDataParameterSetters:
     def test_network_id_string_valid(self):
         """Test network_id setter with valid string."""
         result = self.climate_data.network_id("ASOSAWOS")
-        assert self.climate_data._query["network_id"] == ["ASOSAWOS"]
+        assert self.climate_data._query["network_id"] == "ASOSAWOS"
         assert result is self.climate_data
 
     def test_network_id_list_valid(self):

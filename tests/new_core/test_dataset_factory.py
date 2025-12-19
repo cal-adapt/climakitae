@@ -146,6 +146,7 @@ class TestDatasetFactoryProcessingSteps:
         query = {
             PROC_KEY: UNSET,
             "experiment_id": "historical",
+            "catalog": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -162,7 +163,7 @@ class TestDatasetFactoryProcessingSteps:
 
         result = self.factory._get_list_of_processing_steps(query)
 
-        # Should have default processors
+        # Should have default processors for cadcat catalog
         assert len(result) == 3
         assert query[PROC_KEY]["filter_unadjusted_models"] == "yes"
         assert query[PROC_KEY]["concat"] == "sim"  # historical should use sim
@@ -193,6 +194,7 @@ class TestDatasetFactoryProcessingSteps:
         """Test _get_list_of_processing_steps with custom processes."""
         query = {
             PROC_KEY: {"spatial_avg": "region", "temporal_avg": "monthly"},
+            "catalog": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -236,6 +238,7 @@ class TestDatasetFactoryProcessingSteps:
         """Test that processing steps are ordered by priority."""
         query = {
             PROC_KEY: {"high_priority": "value1", "low_priority": "value2"},
+            "catalog": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -685,6 +688,7 @@ class TestDatasetFactoryEdgeCases:
         query = {
             PROC_KEY: UNSET,
             "experiment_id": [],
+            "catalog": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
