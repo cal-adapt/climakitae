@@ -690,15 +690,8 @@ class MetricCalc(DataProcessor):
                 get_p_value = True if self.goodness_of_fit_test else False
                 if get_p_value:
                     output_core_dims = [["one_in_x"], [], []]
-                    output_sizes = {
-                        "one_in_x": len(self.return_periods),
-                    }
-
                 else:
                     output_core_dims = ["one_in_x"]
-                    output_sizes = {
-                        "one_in_x": len(self.return_periods),
-                    }
 
                 return_values, d_stats, p_values = (
                     xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
@@ -763,25 +756,11 @@ class MetricCalc(DataProcessor):
                 distr=self.distribution,
             )
 
-        # Calculate p-values if requested
-        # if self.goodness_of_fit_test and block_maxima is not None:
-        #     _, p_value = get_ks_stat(
-        #         block_maxima, distr=self.distribution, multiple_points=False
-        #     ).data_vars.values()
-        #     batch_p_vals.append(p_value)
-
-        #     if self.print_goodness_of_fit:
-        #         self._print_goodness_of_fit_result(s, p_value)
-        # else:
-        #     batch_p_vals = xr.full_like(return_values, np.nan)
-
         import pdb
 
         pdb.set_trace()
         # Create and return result dataset
-        return self._create_one_in_x_result_dataset(
-            return_values, batch_p_vals, data_array
-        )
+        return self._create_one_in_x_result_dataset(return_values, p_values, data_array)
 
     def _calculate_one_in_x_serial(self, data_array: xr.DataArray) -> xr.Dataset:
         """
