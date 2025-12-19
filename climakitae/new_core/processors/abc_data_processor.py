@@ -28,9 +28,7 @@ _PROCESSOR_REGISTRY = {}
 
 
 def register_processor(
-    key: str | object = UNSET,
-    priority: int | object = UNSET,
-    catalogs: list[str] | object = UNSET,
+    key: str | object = UNSET, priority: int | object = UNSET
 ) -> Callable:
     """Decorator to register a processor class.
 
@@ -41,10 +39,6 @@ def register_processor(
         will be generated from the class name.
     priority : int, optional
         Optional priority for the processor. Lower values indicate higher priority.
-    catalogs : list[str], optional
-        List of catalog names that this processor is compatible with.
-        If not provided (UNSET), the processor is available for all catalogs.
-        Examples: ["cadcat", "renewable energy generation"], ["hdp"]
 
     Returns
     -------
@@ -53,7 +47,7 @@ def register_processor(
 
     Examples
     --------
-    @register_processor("my_processor", priority=10, catalogs=["cadcat", "renewable energy generation"])
+    @register_processor("my_processor", priority=10)
     class MyProcessor(DataProcessor):
         ...
 
@@ -68,9 +62,7 @@ def register_processor(
                 ["_" + c.lower() if c.isupper() else c for c in cls.__name__]
             ).lstrip("_")
         )
-        # Store catalogs list (None means available for all catalogs)
-        allowed_catalogs = catalogs if catalogs is not UNSET else None
-        _PROCESSOR_REGISTRY[processor_key] = (cls, priority, allowed_catalogs)
+        _PROCESSOR_REGISTRY[processor_key] = (cls, priority)
         return cls
 
     return decorator

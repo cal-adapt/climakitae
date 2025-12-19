@@ -90,6 +90,7 @@ class HDPValidator(ParameterValidator):
         initial_checks = [
             self._check_network_id_required(query),
             self._check_station_ids_exist(query),
+            self._check_query_invalid_processors(query),
         ]
         if not all(initial_checks):
             logger.warning("Initial validation checks failed")
@@ -98,6 +99,29 @@ class HDPValidator(ParameterValidator):
         result = super()._is_valid_query(query)
         logger.info("HDP query validation result: %s", bool(result))
         return result
+
+    def _check_query_invalid_processors(self, query: Dict[str, Any]) -> bool:
+        """Check if the query contains the invalid processors
+
+        Valid processors: ["time_slice", "export"]
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The query to check.
+
+        Returns
+        -------
+        bool
+            True if the query does not contain localize processor, False otherwise.
+
+        """
+        valid_processors = ["time_slice", "export"]
+        for processor in query.get("processors", []):
+            if processor not in valid_processors:
+                logger.warning(f"Invalid processor for HDP data: {processor}")
+                return False
+        return True
 
     def _check_network_id_required(self, query: Dict[str, Any]) -> bool:
         """Check that network_id is provided and is a single value.

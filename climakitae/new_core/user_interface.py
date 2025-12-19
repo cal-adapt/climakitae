@@ -620,7 +620,6 @@ class ClimateData:
 
         """
         logger.debug("Setting network_id to: %s", network_id)
-        net = []
         if not isinstance(network_id, (str, list)):
             logger.error(
                 "Invalid network_id parameter: must be string or list of strings"
@@ -630,8 +629,10 @@ class ClimateData:
             if not network_id.strip():
                 logger.error("Invalid network_id parameter: empty string")
                 raise ValueError("Network ID must be a non-empty string")
-            net.append(network_id.strip())
+            self._query["network_id"] = network_id.strip()
+            logger.info("Network ID set to: %s", network_id.strip())
         else:
+            net = []
             for id in network_id:
                 if not isinstance(id, str) or not id.strip():
                     logger.error(
@@ -639,8 +640,8 @@ class ClimateData:
                     )
                     raise ValueError("Each network ID must be a non-empty string")
                 net.append(id.strip())
-        self._query["network_id"] = net
-        logger.info("Network ID(s) set to: %s", net)
+            self._query["network_id"] = net
+            logger.info("Network ID(s) set to: %s", net)
         return self
 
     def processes(self, processes: Dict[str, Union[str, Iterable]]) -> "ClimateData":
@@ -829,9 +830,19 @@ class ClimateData:
         """Display available experiment ID options."""
         self._show_options("experiment_id", "experiment_id options (Simulation runs)")
 
-    def show_station_id_options(self) -> None:
-        """Display available station ID options."""
-        self._show_options("station_id", "station_id options (Weather station names)")
+    def show_station_id_options(self, limit_per_group: Optional[int] = None) -> None:
+        """Display available station ID options.
+
+        Parameters
+        ----------
+        limit_per_group : int, optional
+            Maximum number of stations to display. If None (default), shows all stations.
+        """
+        self._show_options(
+            "station_id",
+            "station_id options (Weather station names)",
+            limit_per_group=limit_per_group,
+        )
 
     def show_network_id_options(self) -> None:
         """Display available network ID options."""
@@ -858,6 +869,8 @@ class ClimateData:
 
     def show_processors(self) -> None:
         """Display available data processors."""
+        from climakitae.core.constants import CATALOG_ALLOWED_PROCESSORS
+
         msg = "Processors (Methods for transforming raw catalog data):"
         logger.info(msg)
         logger.info("%s", "-" * len(msg))
@@ -867,7 +880,20 @@ class ClimateData:
         except Exception:
             pass
         try:
-            for processor in self._factory.get_processors():
+            all_processors = self._factory.get_processors()
+
+            # Filter processors based on current catalog
+            current_catalog = self._query.get("catalog", UNSET)
+            if (
+                current_catalog is not UNSET
+                and current_catalog in CATALOG_ALLOWED_PROCESSORS
+            ):
+                allowed = CATALOG_ALLOWED_PROCESSORS[current_catalog]
+                processors = [p for p in all_processors if p in allowed]
+            else:
+                processors = all_processors
+
+            for processor in processors:
                 logger.info("%s", processor)
 
             logger.info("\n")
@@ -946,7 +972,20 @@ class ClimateData:
 
         for method_name, section_title in option_methods:
             try:
-                getattr(self, method_name)()
+                if method_name == "show_station_id_options":
+                    # Truncate station IDs in show_all to keep output manageable
+                    self.show_station_id_options(limit_per_group=15)
+                    # Let users know how to see all stations
+                    truncation_msg = (
+                        "Use show_station_id_options() to see all station options."
+                    )
+                    try:
+                        logger.info("%s", truncation_msg)
+                        print(truncation_msg)
+                    except Exception:
+                        pass
+                else:
+                    getattr(self, method_name)()
             except Exception as e:
                 logger.error(
                     "Error displaying %s: %s", section_title.lower(), e, exc_info=True
@@ -957,7 +996,9 @@ class ClimateData:
         logger.info("%s", "=" * 60)
         self.show_query()
 
-    def _show_options(self, option_type: str, title: str) -> None:
+    def _show_options(
+        self, option_type: str, title: str, limit_per_group: Optional[int] = None
+    ) -> None:
         """Helper method to display options with consistent formatting.
 
         Parameters
@@ -966,6 +1007,10 @@ class ClimateData:
             The type of option to display.
         title : str
             The title for the options display.
+        limit_per_group : int, optional
+            If provided, limits the number of items shown per group.
+            For station_id, groups by network and shows this many per network.
+            If None, shows all options (default).
 
         """
         logger.info("%s:", title)
@@ -983,8 +1028,29 @@ class ClimateData:
                 logger.info("No options available with current parameters")
 
             else:
-                max_len = max(len(option) for option in options)
-                for option in sorted(options):
+                sorted_options = sorted(options)
+                total_count = len(sorted_options)
+
+                # Set limit to requested value or total count, whichever is smaller
+                limit = (
+                    min(limit_per_group, total_count)
+                    if limit_per_group is not None
+                    else total_count
+                )
+                display_options = sorted_options[:limit]
+
+                # Warn user of truncation if limit_per_group was set
+                if limit < total_count:
+                    truncation_msg = f"Showing {limit} of {total_count} total options"
+                    try:
+                        logger.info("%s", truncation_msg)
+                        print(truncation_msg)
+                    except Exception:
+                        pass
+
+                # Display options
+                max_len = max(len(option) for option in display_options)
+                for option in display_options:
                     formatted = self._format_option(
                         option, option_type, spacing=4 + max_len - len(option)
                     )

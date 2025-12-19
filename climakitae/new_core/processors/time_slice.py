@@ -3,7 +3,6 @@ Subset data on time
 """
 
 import logging
-import warnings
 from typing import Any, Dict, Iterable, Union
 
 import xarray as xr
@@ -24,7 +23,6 @@ logger = logging.getLogger(__name__)
 @register_processor(
     "time_slice",
     priority=100,
-    catalogs=["cadcat", "renewable energy generation", "hdp"],
 )
 class TimeSlice(DataProcessor):
     """

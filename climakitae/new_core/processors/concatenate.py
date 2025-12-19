@@ -19,9 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 # concatenation processor in the pre-processing chain
-@register_processor(
-    "concat", priority=50, catalogs=["cadcat", "renewable energy generation", "hdp"]
-)
+@register_processor("concat", priority=50)
 class Concat(DataProcessor):
     """DataProcessor that concatenates multiple datasets along a new "sim" dimension.
 
@@ -108,7 +106,9 @@ class Concat(DataProcessor):
             return result
 
         # Route to appropriate concat method based on catalog
-        if self.catalog and getattr(self.catalog, "catalog_key", None) == "hdp":
+        # Check context for catalog type (more reliable than catalog object attribute)
+        catalog_type = context.get("catalog", context.get("_catalog_key"))
+        if catalog_type == "hdp":
             return self._execute_hdp_concat(result, context)
         else:
             return self._execute_gridded_concat(result, context)
@@ -149,15 +149,11 @@ class Concat(DataProcessor):
         else:
             datasets = list(result)
 
-        # Simple concatenation along station dimension
-        # HDP data always has a "station" coordinate
-        # Rename to "station_id" before concatenation for consistency
+        # Simple concatenation along station_id dimension
+        # (station already renamed to station_id in data_access.get_data)
         for dataset in datasets:
             if not isinstance(dataset, (xr.Dataset, xr.DataArray)):
                 continue
-
-            # Rename "station" coordinate to "station_id" for consistency with catalog/intake
-            dataset = dataset.rename({"station": "station_id"})
 
             datasets_to_concat.append(dataset)
 
@@ -174,7 +170,7 @@ class Concat(DataProcessor):
         # Simple concatenation along station_id dimension
         concatenated = xr.concat(
             datasets_to_concat,
-            dim="station_id",  # Now using "station_id" consistently
+            dim="station_id",
             join="outer",
         )
 

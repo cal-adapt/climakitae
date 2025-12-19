@@ -344,20 +344,9 @@ class DatasetFactory:
                 )
                 continue
 
-            # Unpack processor info (class, priority, allowed_catalogs)
+            # Unpack processor info (class, priority)
             registry_entry = self._processing_step_registry[key]
             processor_class, priority = registry_entry[0], registry_entry[1]
-            allowed_catalogs = registry_entry[2] if len(registry_entry) > 2 else None
-
-            # Check if processor is allowed for this catalog
-            current_catalog = query.get("catalog", UNSET)
-            if allowed_catalogs is not None and current_catalog not in allowed_catalogs:
-                error_msg = (
-                    f"Processor '{key}' is not compatible with catalog '{current_catalog}'. "
-                    f"This processor is only available for catalogs: {allowed_catalogs}."
-                )
-                logger.error(error_msg)
-                raise ValueError(error_msg)
 
             index = len(processing_steps)
             if not priorities:

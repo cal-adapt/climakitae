@@ -31,9 +31,7 @@ from climakitae.new_core.processors.processor_utils import extend_time_domain
 logger = logging.getLogger(__name__)
 
 
-@register_processor(
-    "warming_level", priority=10, catalogs=["cadcat", "renewable energy generation"]
-)
+@register_processor("warming_level", priority=10)
 class WarmingLevel(DataProcessor):
     """
     Transform time-series climate data into a warming-levels approach.

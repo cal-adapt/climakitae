@@ -466,6 +466,13 @@ class DataCatalog(dict):
         )
         logger.info("Retrieved %d dataset(s) from catalog", len(result))
         logger.debug("Retrieved datasets: %s", list(result.keys()))
+
+        # For HDP data, rename station coordinate to station_id for consistency
+        if effective_key == CATALOG_HDP:
+            for key in result:
+                result[key] = result[key].rename({"station": "station_id"})
+                logger.debug("Renamed station → station_id for dataset %s", key)
+
         return result
 
     def list_clip_boundaries(self) -> dict[str, list[str]]:

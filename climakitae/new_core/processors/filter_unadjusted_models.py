@@ -18,11 +18,7 @@ from climakitae.new_core.processors.abc_data_processor import (
 logger = logging.getLogger(__name__)
 
 
-@register_processor(
-    "filter_unadjusted_models",
-    priority=0,
-    catalogs=["cadcat", "renewable energy generation"],
-)
+@register_processor("filter_unadjusted_models", priority=0)
 class FilterUnAdjustedModels(DataProcessor):
     """Processor to filter out models that do not have a-priori bias adjustment.
 
