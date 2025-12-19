@@ -545,11 +545,35 @@ class MetricCalc(DataProcessor):
         try:
             # Get distribution function, fit, and create frozen distribution
             distr_func = _get_distr_func(distr)
-            params = distr_func.fit(valid_data)
-            fitted_distr = distr_func(*params)
+            parameters = distr_func.fit(valid_data)
+            fitted_distr = distr_func(*parameters)
+
+            match distr:
+                case "gev":
+                    cdf = "genextreme"
+                    args = (parameters["c"], parameters["loc"], parameters["scale"])
+                case "gumbel":
+                    cdf = "gumbel_r"
+                    args = (parameters["loc"], parameters["scale"])
+                case "weibull":
+                    cdf = "weibull_min"
+                    args = (parameters["c"], parameters["loc"], parameters["scale"])
+                case "pearson3":
+                    cdf = "pearson3"
+                    args = (parameters["skew"], parameters["loc"], parameters["scale"])
+                case "genpareto":
+                    cdf = "genpareto"
+                    args = (parameters["c"], parameters["loc"], parameters["scale"])
+                case "gamma":
+                    cdf = "gamma"
+                    args = (parameters["a"], parameters["loc"], parameters["scale"])
+                case _:
+                    raise ValueError(
+                        'invalid distribution type. expected one of the following: ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"]'
+                    )
 
             if get_p_value:
-                ks = stats.kstest(valid_data, "genextreme", args=params)
+                ks = stats.kstest(valid_data, cdf, args=args)
                 d_statistic, p_value = ks[0], ks[1]
 
             # Calculate return values for each return period
