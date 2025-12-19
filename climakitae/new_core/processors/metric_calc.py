@@ -557,7 +557,7 @@ class MetricCalc(DataProcessor):
             return_values = np.round(
                 fitted_distr.ppf(return_events), RETURN_VALUE_PRECISION
             )
-            return return_values
+            return (return_values, fitted_distr)
 
         except (ValueError, RuntimeError, np.linalg.LinAlgError):
             return np.full(n_return_periods, np.nan)
@@ -631,9 +631,9 @@ class MetricCalc(DataProcessor):
         batch_results = []
         batch_p_vals = []
 
-        import pdb
+        # import pdb
 
-        pdb.set_trace()
+        # pdb.set_trace()
         # for s in batch_sims:
         #     block_maxima = None  # Initialize to avoid scoping issues
         #     # try:
@@ -728,6 +728,9 @@ class MetricCalc(DataProcessor):
         if spatial_dims:
             # We need to process each spatial location individually in a vectorized manner
             with ProgressBar():
+                import pdb
+
+                pdb.set_trace()
                 return_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
                     self._fit_return_values_1d,
                     block_maxima,  # (time, lat, lon) or (time, y, x) or (time, spatial_1, spatial_2)
@@ -738,8 +741,13 @@ class MetricCalc(DataProcessor):
                     input_core_dims=[
                         [time_dim]
                     ],  # "time_dim" is the dimension we reduce over
-                    output_core_dims=[["one_in_x"]],  # output has this new dimension
-                    output_sizes={"one_in_x": len(self.return_periods)},
+                    output_core_dims=[
+                        ["one_in_x", "fitted_distr"]
+                    ],  # output has this new dimension
+                    output_sizes={
+                        "one_in_x": len(self.return_periods),
+                        "fitted_distr": 1,
+                    },
                     vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
                     dask="parallelized",  # works with lazy dask arrays
                 ).compute()
