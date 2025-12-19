@@ -747,8 +747,16 @@ class MetricCalc(DataProcessor):
                 get_p_value = True if self.goodness_of_fit_test else False
                 if get_p_value:
                     output_core_dims = ["one_in_x", "d_statistic", "p_value"]
+                    output_sizes = {
+                        "one_in_x": len(self.return_periods),
+                        "d_statistic": len(self.return_periods),
+                        "p_value": len(self.return_periods),
+                    }
                 else:
                     output_core_dims = ["one_in_x"]
+                    output_sizes = {
+                        "one_in_x": len(self.return_periods),
+                    }
 
                 return_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
                     self._fit_return_values_1d,
@@ -761,10 +769,7 @@ class MetricCalc(DataProcessor):
                         [time_dim]
                     ],  # "time_dim" is the dimension we reduce over
                     output_core_dims=output_core_dims,  # output has this new dimension
-                    # output_sizes={
-                    #     "one_in_x": len(self.return_periods),
-                    #     # "fitted_distr": 1,
-                    # },
+                    output_sizes=output_sizes,
                     vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
                     dask="parallelized",  # works with lazy dask arrays
                 ).compute()
