@@ -89,6 +89,35 @@ CATALOG_REN_ENERGY_GEN = "renewable energy generation"
 CATALOG_BOUNDARY = "boundary"
 CATALOG_HDP = "hdp"
 
+# Allowed processors by catalog
+CATALOG_ALLOWED_PROCESSORS = {
+    CATALOG_CADCAT: [
+        "bias_adjust_model_to_station",
+        "clip",
+        "concatenate",
+        "convert_units",
+        "export",
+        "filter_unadjusted_models",
+        "metric_calc",
+        "time_slice",
+        "update_attributes",
+        "warming_level",
+    ],
+    CATALOG_REN_ENERGY_GEN: [
+        "bias_adjust_model_to_station",
+        "clip",
+        "concatenate",
+        "convert_units",
+        "export",
+        "filter_unadjusted_models",
+        "metric_calc",
+        "time_slice",
+        "update_attributes",
+        "warming_level",
+    ],
+    CATALOG_HDP: ["export", "time_slice", "concatenate", "update_attributes"],
+}
+
 # Boundary Data Constants
 WESTERN_STATES_LIST = ["CA", "NV", "OR", "WA", "UT", "MT", "ID", "AZ", "CO", "NM", "WY"]
 
