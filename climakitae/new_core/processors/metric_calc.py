@@ -677,6 +677,7 @@ class MetricCalc(DataProcessor):
                         kwargs={
                             "return_periods": self.return_periods,
                             "distr": self.distribution,
+                            "get_p_value": get_p_value,
                         },
                         input_core_dims=[
                             [time_dim]
