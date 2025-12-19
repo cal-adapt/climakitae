@@ -548,10 +548,6 @@ class MetricCalc(DataProcessor):
             params = distr_func.fit(valid_data)
             fitted_distr = distr_func(*params)
 
-            import pdb
-
-            pdb.set_trace()
-
             if get_p_value:
                 ks = stats.kstest(valid_data, distr, args=params)
                 d_statistic, p_value = ks[0], ks[1]
@@ -660,13 +656,10 @@ class MetricCalc(DataProcessor):
         if spatial_dims:
             # We need to process each spatial location individually in a vectorized manner
             with ProgressBar():
-                import pdb
-
-                pdb.set_trace()
 
                 get_p_value = True if self.goodness_of_fit_test else False
                 if get_p_value:
-                    output_core_dims = ["one_in_x", [], []]
+                    output_core_dims = [["one_in_x"], [], []]
                     output_sizes = {
                         "one_in_x": len(self.return_periods),
                     }
@@ -697,6 +690,11 @@ class MetricCalc(DataProcessor):
                         dask="parallelized",  # works with lazy dask arrays
                     )
                 )
+
+                return_values = return_values.compute()
+                if get_p_value:
+                    d_stats = d_stats.compute()
+                    p_values = p_values.compute()
 
                 import pdb
 
