@@ -607,3 +607,292 @@ class TestBiasCorrectConcatIntegration:
             # Check that result has 'sim' dimension
             assert "sim" in result["KSAC"].dims
             assert len(result["KSAC"].sim) == 2
+
+
+class TestBiasCorrectStationDataInitValidation:
+    """Test class for __init__ validation."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.ProcClass = BiasAdjustModelToStation
+
+    def test_init_with_non_dict_raises_typeerror(self):
+        """Test that __init__ raises TypeError when value is not a dict."""
+        with pytest.raises(TypeError, match="Expected dictionary"):
+            self.ProcClass("not_a_dict")
+
+    def test_init_with_list_raises_typeerror(self):
+        """Test that __init__ raises TypeError when value is a list."""
+        with pytest.raises(TypeError, match="Expected dictionary"):
+            self.ProcClass(["stations"])
+
+
+class TestBiasCorrectExecuteUnsupportedType:
+    """Test execute with unsupported input types."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = BiasAdjustModelToStation({"stations": ["KSAC"]})
+
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    def test_execute_with_unsupported_type_raises_typeerror(self, mock_load):
+        """Test execute raises TypeError for unsupported input types."""
+        mock_load.return_value = MagicMock(spec=xr.Dataset)
+
+        with pytest.raises(TypeError, match="requires xr.DataArray, xr.Dataset"):
+            self.processor.execute("invalid_string_input", {})
+
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    def test_execute_with_int_raises_typeerror(self, mock_load):
+        """Test execute raises TypeError for integer input."""
+        mock_load.return_value = MagicMock(spec=xr.Dataset)
+
+        with pytest.raises(TypeError, match="requires xr.DataArray, xr.Dataset"):
+            self.processor.execute(12345, {})
+
+
+class TestProcessSingleDatasetEdgeCases:
+    """Test _process_single_dataset edge cases."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = BiasAdjustModelToStation({"stations": ["KSAC"]})
+
+    def test_process_single_dataset_empty_dataset_raises(self):
+        """Test _process_single_dataset raises ValueError for empty Dataset."""
+        empty_ds = xr.Dataset()
+        station_ds = MagicMock(spec=xr.Dataset)
+
+        with pytest.raises(ValueError, match="no data variables"):
+            self.processor._process_single_dataset(empty_ds, station_ds, {})
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
+    def test_process_single_dataset_unsupported_type_raises(self, mock_get_closest):
+        """Test _process_single_dataset raises TypeError for unsupported type."""
+        station_ds = MagicMock(spec=xr.Dataset)
+
+        with pytest.raises(TypeError, match="requires xr.DataArray or xr.Dataset"):
+            self.processor._process_single_dataset("not_valid", station_ds, {})
+
+
+class TestProcessSingleDatasetResolutionInference:
+    """Test resolution inference in _process_single_dataset."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = BiasAdjustModelToStation({"stations": ["KSAC"]})
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
+    @patch.object(BiasAdjustModelToStation, "_bias_correct_model_data")
+    def test_resolution_inferred_from_grid_label_in_attrs(
+        self, mock_bias, mock_get_closest
+    ):
+        """Test resolution is inferred from grid_label attribute."""
+        times = pd.date_range("2000-01-01", periods=5)
+        input_da = xr.DataArray(
+            [1.0, 2.0, 3.0, 4.0, 5.0],
+            dims=("time",),
+            coords={"time": times},
+            attrs={"grid_label": "d02"},  # No resolution, but has grid_label
+        )
+        input_da.name = "tas"
+
+        station_da = xr.DataArray(
+            [10.0, 20.0, 30.0],
+            dims="time",
+            coords={"time": times[:3]},
+            attrs={"coordinates": (38.5, -121.5), "elevation": "10 m", "units": "K"},
+        )
+        station_ds = xr.Dataset({"KSAC": station_da})
+
+        mock_get_closest.return_value = input_da
+        mock_bias.return_value = station_ds.to_array(dim="station")
+
+        context = {}
+        self.processor._process_single_dataset(input_da, station_ds, context)
+
+        # Verify get_closest_gridcell was called
+        mock_get_closest.assert_called()
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
+    @patch.object(BiasAdjustModelToStation, "_bias_correct_model_data")
+    def test_resolution_inferred_from_context_query(self, mock_bias, mock_get_closest):
+        """Test resolution is inferred from context['query']['grid_label']."""
+        times = pd.date_range("2000-01-01", periods=5)
+        input_da = xr.DataArray(
+            [1.0, 2.0, 3.0, 4.0, 5.0],
+            dims=("time",),
+            coords={"time": times},
+            # No grid_label or resolution in attrs
+        )
+        input_da.name = "tas"
+
+        station_da = xr.DataArray(
+            [10.0, 20.0, 30.0],
+            dims="time",
+            coords={"time": times[:3]},
+            attrs={"coordinates": (38.5, -121.5), "elevation": "10 m", "units": "K"},
+        )
+        station_ds = xr.Dataset({"KSAC": station_da})
+
+        mock_get_closest.return_value = input_da
+        mock_bias.return_value = station_ds.to_array(dim="station")
+
+        # Context with grid_label in query
+        context = {"query": {"grid_label": "d03"}}
+        self.processor._process_single_dataset(input_da, station_ds, context)
+
+        # Verify get_closest_gridcell was called
+        mock_get_closest.assert_called()
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
+    @patch.object(BiasAdjustModelToStation, "_bias_correct_model_data")
+    def test_resolution_inferred_from_flat_context(self, mock_bias, mock_get_closest):
+        """Test resolution is inferred from flat context['grid_label']."""
+        times = pd.date_range("2000-01-01", periods=5)
+        input_da = xr.DataArray(
+            [1.0, 2.0, 3.0, 4.0, 5.0],
+            dims=("time",),
+            coords={"time": times},
+        )
+        input_da.name = "tas"
+
+        station_da = xr.DataArray(
+            [10.0, 20.0, 30.0],
+            dims="time",
+            coords={"time": times[:3]},
+            attrs={"coordinates": (38.5, -121.5), "elevation": "10 m", "units": "K"},
+        )
+        station_ds = xr.Dataset({"KSAC": station_da})
+
+        mock_get_closest.return_value = input_da
+        mock_bias.return_value = station_ds.to_array(dim="station")
+
+        # Flat context with grid_label
+        context = {"grid_label": "d01"}
+        self.processor._process_single_dataset(input_da, station_ds, context)
+
+        mock_get_closest.assert_called()
+
+
+class TestExecuteDictPairing:
+    """Test _execute_dict SSP/historical pairing logic."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = BiasAdjustModelToStation({"stations": ["KSAC"]})
+
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    @patch.object(BiasAdjustModelToStation, "_process_single_dataset")
+    def test_execute_dict_ssp_with_historical(self, mock_process, mock_load):
+        """Test _execute_dict pairs SSP data with historical for training."""
+        mock_load.return_value = MagicMock(spec=xr.Dataset)
+        mock_process.return_value = MagicMock(spec=xr.Dataset)
+
+        # Create dict with ssp and historical keys
+        ssp_da = MagicMock(spec=xr.DataArray)
+        hist_da = MagicMock(spec=xr.DataArray)
+
+        input_dict = {
+            "model_ssp245_run1": ssp_da,
+            "model_historical_run1": hist_da,
+        }
+
+        context = {}
+        result = self.processor._execute_dict(input_dict, context)
+
+        assert isinstance(result, dict)
+        assert "model_ssp245_run1" in result
+        assert "model_historical_run1" in result
+
+        # Verify SSP was processed with historical as training data
+        ssp_call = None
+        for call in mock_process.call_args_list:
+            if call[0][0] == ssp_da:
+                ssp_call = call
+                break
+
+        assert ssp_call is not None
+        # historical_da should be passed for SSP
+        assert ssp_call[0][3] == hist_da
+
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    @patch.object(BiasAdjustModelToStation, "_process_single_dataset")
+    def test_execute_dict_ssp_without_matching_historical(
+        self, mock_process, mock_load
+    ):
+        """Test _execute_dict warns when no historical found for SSP."""
+        mock_load.return_value = MagicMock(spec=xr.Dataset)
+        mock_process.return_value = MagicMock(spec=xr.Dataset)
+
+        # Only SSP data, no historical
+        ssp_da = MagicMock(spec=xr.DataArray)
+
+        input_dict = {"model_ssp245_run1": ssp_da}
+
+        context = {}
+        import warnings
+
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            result = self.processor._execute_dict(input_dict, context)
+
+        assert isinstance(result, dict)
+
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    @patch.object(BiasAdjustModelToStation, "_process_single_dataset")
+    def test_execute_dict_historical_uses_self(self, mock_process, mock_load):
+        """Test _execute_dict uses historical data itself for training."""
+        mock_load.return_value = MagicMock(spec=xr.Dataset)
+        mock_process.return_value = MagicMock(spec=xr.Dataset)
+
+        hist_da = MagicMock(spec=xr.DataArray)
+
+        input_dict = {"model_historical_run1": hist_da}
+
+        context = {}
+        result = self.processor._execute_dict(input_dict, context)
+
+        assert isinstance(result, dict)
+        assert "model_historical_run1" in result
+
+        # Historical should use itself as training data
+        hist_call = mock_process.call_args_list[0]
+        assert hist_call[0][0] == hist_da
+        assert hist_call[0][3] == hist_da  # historical_da is itself
+
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    @patch.object(BiasAdjustModelToStation, "_process_single_dataset")
+    def test_execute_dict_with_dataset_historical(self, mock_process, mock_load):
+        """Test _execute_dict handles Dataset historical data."""
+        mock_load.return_value = MagicMock(spec=xr.Dataset)
+        mock_process.return_value = MagicMock(spec=xr.Dataset)
+
+        # Historical as Dataset instead of DataArray
+        times = pd.date_range("2000-01-01", periods=5)
+        hist_ds = xr.Dataset(
+            {"tas": xr.DataArray([1.0, 2.0, 3.0, 4.0, 5.0], dims=["time"])}
+        )
+        hist_ds.coords["time"] = times
+
+        ssp_da = MagicMock(spec=xr.DataArray)
+
+        input_dict = {
+            "model_ssp245_run1": ssp_da,
+            "model_historical_run1": hist_ds,
+        }
+
+        context = {}
+        result = self.processor._execute_dict(input_dict, context)
+
+        assert isinstance(result, dict)
+        # Both should be processed
+        assert mock_process.call_count == 2

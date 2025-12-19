@@ -2625,3 +2625,336 @@ class TestClipDataWithGeomCRS:
 
         rio_mock.write_crs.assert_called_with("epsg:4326", inplace=True)
         assert result == "clipped_result"
+
+
+class TestClipStationExecute:
+    """Test class for station-based clipping in execute method."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.sample_dataset = xr.Dataset(
+            {
+                "tas": xr.DataArray(
+                    np.random.rand(10, 5, 5),
+                    dims=["time", "lat", "lon"],
+                    coords={
+                        "time": pd.date_range("2020-01-01", periods=10),
+                        "lat": np.linspace(32, 42, 5),
+                        "lon": np.linspace(-125, -114, 5),
+                    },
+                )
+            }
+        )
+
+    @patch(
+        "climakitae.new_core.processors.clip.is_station_identifier", return_value=True
+    )
+    def test_execute_single_station_identifier(self, mock_is_station):
+        """Test execute with single station identifier string."""
+        clip = Clip("KSAC")
+        mock_catalog = MagicMock()
+        clip.set_data_accessor(mock_catalog)
+
+        # Mock _get_station_coordinates
+        station_info = {
+            "station_id": "KSAC",
+            "station_name": "Sacramento Executive Airport",
+            "city": "Sacramento",
+            "state": "CA",
+        }
+        with (
+            patch.object(
+                clip,
+                "_get_station_coordinates",
+                return_value=(38.5, -121.5, station_info),
+            ),
+            patch.object(
+                clip, "_clip_data_to_point", return_value=self.sample_dataset
+            ) as mock_clip_point,
+        ):
+            context = {}
+            result = clip.execute(self.sample_dataset, context)
+
+            assert result is not None
+            assert clip.is_station is True
+            assert clip.is_single_point is True
+            mock_clip_point.assert_called()
+
+    @patch(
+        "climakitae.new_core.processors.clip.is_station_identifier", return_value=True
+    )
+    def test_execute_single_station_error_handling(self, mock_is_station):
+        """Test execute handles station coordinate lookup failure."""
+        clip = Clip("INVALID_STATION")
+        mock_catalog = MagicMock()
+        clip.set_data_accessor(mock_catalog)
+
+        with patch.object(
+            clip,
+            "_get_station_coordinates",
+            side_effect=ValueError("Station not found"),
+        ):
+            with pytest.raises(ValueError, match="Station clipping failed"):
+                clip.execute(self.sample_dataset, {})
+
+    @patch(
+        "climakitae.new_core.processors.clip.is_station_identifier", return_value=True
+    )
+    def test_execute_multi_station_identifiers(self, mock_is_station):
+        """Test execute with list of station identifiers."""
+        clip = Clip(["KSAC", "KSFO"])
+        mock_catalog = MagicMock()
+        clip.set_data_accessor(mock_catalog)
+
+        station_metadata = [
+            {
+                "station_id": "KSAC",
+                "station_name": "Sacramento",
+                "city": "Sacramento",
+                "state": "CA",
+            },
+            {
+                "station_id": "KSFO",
+                "station_name": "San Francisco",
+                "city": "San Francisco",
+                "state": "CA",
+            },
+        ]
+        with (
+            patch.object(
+                clip,
+                "_convert_stations_to_points",
+                return_value=([(38.5, -121.5), (37.6, -122.4)], station_metadata),
+            ),
+            patch.object(
+                clip,
+                "_clip_data_to_multiple_points",
+                return_value=self.sample_dataset,
+            ) as mock_clip_multi,
+        ):
+            context = {}
+            result = clip.execute(self.sample_dataset, context)
+
+            assert result is not None
+            assert clip.is_multi_station is True
+            assert clip.is_multi_point is True
+            mock_clip_multi.assert_called()
+
+    @patch(
+        "climakitae.new_core.processors.clip.is_station_identifier", return_value=True
+    )
+    def test_execute_multi_station_error_handling(self, mock_is_station):
+        """Test execute handles multi-station lookup failure."""
+        clip = Clip(["INVALID1", "INVALID2"])
+        mock_catalog = MagicMock()
+        clip.set_data_accessor(mock_catalog)
+
+        with patch.object(
+            clip,
+            "_convert_stations_to_points",
+            side_effect=RuntimeError("Station lookup failed"),
+        ):
+            with pytest.raises(ValueError, match="Multi-station clipping failed"):
+                clip.execute(self.sample_dataset, {})
+
+
+class TestClipUpdateContextStation:
+    """Test class for update_context with station clipping."""
+
+    def test_update_context_single_station(self):
+        """Test update_context for single station clipping."""
+        clip = Clip("KSAC")
+        clip.is_station = True
+        clip.is_single_point = True
+        clip.lat = 38.5
+        clip.lon = -121.5
+        clip.station_info = {
+            "station_id": "KSAC",
+            "station_name": "Sacramento Executive Airport",
+            "city": "Sacramento",
+            "state": "CA",
+        }
+
+        context = {}
+        clip.update_context(context)
+
+        assert _NEW_ATTRS_KEY in context
+        assert "Station clipping" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "KSAC" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "Sacramento" in context[_NEW_ATTRS_KEY]["clip"]
+
+    def test_update_context_multi_station(self):
+        """Test update_context for multi-station clipping."""
+        clip = Clip(["KSAC", "KSFO"])
+        clip.is_multi_station = True
+        clip.is_multi_point = True
+        clip.point_list = [(38.5, -121.5), (37.6, -122.4)]
+        clip.station_info = [
+            {"station_id": "KSAC", "station_name": "Sacramento"},
+            {"station_id": "KSFO", "station_name": "San Francisco"},
+        ]
+
+        context = {}
+        clip.update_context(context)
+
+        assert _NEW_ATTRS_KEY in context
+        assert "Multi-station clipping" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "2 stations" in context[_NEW_ATTRS_KEY]["clip"]
+
+
+class TestClipGetBoundaryCategory:
+    """Test class for _get_boundary_category method."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.clip = Clip("CA")
+        self.mock_catalog = MagicMock()
+        self.clip.set_data_accessor(self.mock_catalog)
+
+    def test_get_boundary_category_valid(self):
+        """Test _get_boundary_category with valid boundary key."""
+        with patch.object(
+            self.clip,
+            "validate_boundary_key",
+            return_value={"valid": True, "category": "states"},
+        ):
+            result = self.clip._get_boundary_category("CA")
+            assert result == "states"
+
+    def test_get_boundary_category_invalid(self):
+        """Test _get_boundary_category with invalid boundary key."""
+        with patch.object(
+            self.clip,
+            "validate_boundary_key",
+            return_value={"valid": False, "error": "Not found"},
+        ):
+            result = self.clip._get_boundary_category("INVALID")
+            assert result is None
+
+
+class TestClipDataSeparatedIntegration:
+    """Test class for _clip_data_separated method integration."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.sample_dataset = xr.Dataset(
+            {
+                "tas": xr.DataArray(
+                    np.random.rand(10, 5, 5),
+                    dims=["time", "lat", "lon"],
+                    coords={
+                        "time": pd.date_range("2020-01-01", periods=10),
+                        "lat": np.linspace(32, 42, 5),
+                        "lon": np.linspace(-125, -114, 5),
+                    },
+                )
+            }
+        )
+
+        self.clip = Clip({"boundaries": ["CA", "OR"], "separated": True})
+        self.mock_catalog = MagicMock()
+        self.clip.set_data_accessor(self.mock_catalog)
+
+    def test_clip_data_separated_successful(self):
+        """Test _clip_data_separated with successful clipping."""
+        clipped_ca = self.sample_dataset.copy()
+        clipped_or = self.sample_dataset.copy()
+
+        with (
+            patch.object(self.clip, "_infer_dimension_name", return_value="state"),
+            patch.object(
+                self.clip,
+                "_get_boundary_geometry",
+                side_effect=[MagicMock(), MagicMock()],
+            ),
+            patch.object(
+                self.clip,
+                "_clip_data_with_geom",
+                side_effect=[clipped_ca, clipped_or],
+            ),
+        ):
+            result = self.clip._clip_data_separated(
+                self.sample_dataset, ["CA", "OR"]
+            )
+
+            assert result is not None
+            assert "state" in result.dims
+            assert len(result.state) == 2
+
+    def test_clip_data_separated_no_valid_results(self):
+        """Test _clip_data_separated raises error when no valid results."""
+        with (
+            patch.object(self.clip, "_infer_dimension_name", return_value="state"),
+            patch.object(
+                self.clip,
+                "_get_boundary_geometry",
+                side_effect=ValueError("Not found"),
+            ),
+        ):
+            with pytest.raises(ValueError, match="No valid clipped data"):
+                self.clip._clip_data_separated(self.sample_dataset, ["INVALID"])
+
+    def test_clip_data_separated_partial_failure(self):
+        """Test _clip_data_separated continues when some boundaries fail."""
+        clipped_ca = self.sample_dataset.copy()
+
+        with (
+            patch.object(self.clip, "_infer_dimension_name", return_value="state"),
+            patch.object(
+                self.clip,
+                "_get_boundary_geometry",
+                side_effect=[MagicMock(), ValueError("Not found")],
+            ),
+            patch.object(
+                self.clip, "_clip_data_with_geom", return_value=clipped_ca
+            ),
+        ):
+            result = self.clip._clip_data_separated(
+                self.sample_dataset, ["CA", "INVALID"]
+            )
+
+            # Should still succeed with just CA
+            assert result is not None
+            assert "state" in result.dims
+            assert len(result.state) == 1
+
+    def test_clip_data_separated_concatenation_failure(self):
+        """Test _clip_data_separated handles concatenation errors."""
+        with (
+            patch.object(self.clip, "_infer_dimension_name", return_value="state"),
+            patch.object(
+                self.clip, "_get_boundary_geometry", return_value=MagicMock()
+            ),
+            patch.object(
+                self.clip, "_clip_data_with_geom", return_value=self.sample_dataset
+            ),
+            patch("xarray.concat", side_effect=Exception("Concat failed")),
+        ):
+            with pytest.raises(ValueError, match="Failed to concatenate"):
+                self.clip._clip_data_separated(self.sample_dataset, ["CA"])
+
+    def test_clip_data_separated_clip_returns_none(self):
+        """Test _clip_data_separated skips boundaries where clip returns None."""
+        clipped_ca = self.sample_dataset.copy()
+
+        with (
+            patch.object(self.clip, "_infer_dimension_name", return_value="state"),
+            patch.object(
+                self.clip,
+                "_get_boundary_geometry",
+                side_effect=[MagicMock(), MagicMock()],
+            ),
+            patch.object(
+                self.clip,
+                "_clip_data_with_geom",
+                side_effect=[clipped_ca, None],  # Second clip returns None
+            ),
+        ):
+            result = self.clip._clip_data_separated(
+                self.sample_dataset, ["CA", "OR"]
+            )
+
+            # Should succeed with just CA
+            assert result is not None
+            assert "state" in result.dims
+            assert len(result.state) == 1
