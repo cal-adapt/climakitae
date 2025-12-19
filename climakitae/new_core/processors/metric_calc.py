@@ -666,19 +666,18 @@ class MetricCalc(DataProcessor):
 
                 get_p_value = True if self.goodness_of_fit_test else False
                 if get_p_value:
-                    output_core_dims = ["one_in_x", "d_statistic", "p_value"]
+                    output_core_dims = ["one_in_x", [], []]
                     output_sizes = {
                         "one_in_x": len(self.return_periods),
-                        "d_statistic": 1,
-                        "p_value": 1,
                     }
+
                 else:
                     output_core_dims = ["one_in_x"]
                     output_sizes = {
                         "one_in_x": len(self.return_periods),
                     }
 
-                return_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
+                return_values, d_stats, p_values = xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
                     self._fit_return_values_1d,
                     block_maxima,  # (time, lat, lon) or (time, y, x) or (time, spatial_1, spatial_2)
                     kwargs={
@@ -688,14 +687,18 @@ class MetricCalc(DataProcessor):
                     input_core_dims=[
                         [time_dim]
                     ],  # "time_dim" is the dimension we reduce over
-                    output_core_dims=[
+                    output_core_dims=
                         output_core_dims
-                    ],  # output has this new dimension
-                    output_sizes=output_sizes,
-                    output_dtypes=[float, float, float],
+                    ,  # output has this new dimension
+                    output_sizes={
+                        "one_in_x": len(self.return_periods),
+                    },
+                    output_dtypes=('float', 'float', 'float')
                     vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
                     dask="parallelized",  # works with lazy dask arrays
-                ).compute()
+                )
+
+                import pdb; pdb.set_trace()
 
                 return_values = return_values.assign_coords(
                     one_in_x=self.return_periods
