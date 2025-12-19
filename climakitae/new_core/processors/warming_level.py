@@ -21,8 +21,6 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
-
-# from climakitae.new_core.processors.processor_utils import _determine_is_complete_wl
 from climakitae.util.utils import _determine_is_complete_wl, read_csv_file
 from climakitae.new_core.processors.processor_utils import extend_time_domain
 

@@ -5,6 +5,7 @@ omit =
     */__pycache__/*
     */.*
     setup.py
+    climakitae/newcore/processors/template.py
 
 [report]
 # Include all files under climakitae, even if not executed

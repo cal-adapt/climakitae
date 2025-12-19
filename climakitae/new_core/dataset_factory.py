@@ -65,18 +65,10 @@ class DatasetFactory:
     The factory uses registries to maintain extensible collections of components and
     automatically determines the appropriate combination based on query parameters.
 
-    Parameters
-    ----------
-    catalog_path : str, optional
-        Path to the catalog configuration CSV file. Default is
-        'climakitae/data/catalogs.csv'.
-
     Attributes
     ----------
-    catalog_path : str
-        Path to the catalog configuration CSV file.
-    _catalog : dict
-        Dictionary mapping catalog keys to DataCatalog instances.
+    _catalog : DataCatalog or None
+        Reference to the DataCatalog singleton instance.
     _catalog_df : pandas.DataFrame
         DataFrame containing catalog metadata loaded from CSV.
     _validator_registry : dict
@@ -135,18 +127,9 @@ class DatasetFactory:
     def __init__(self):
         """Initialize the DatasetFactory.
 
-        Parameters
-        ----------
-        catalog_path : str, optional
-            Path to the catalog configuration CSV file. If None, uses the
-            default path 'climakitae/data/catalogs.csv'.
-
-        Raises
-        ------
-        FileNotFoundError
-            If the catalog file cannot be found at the specified path.
-        RuntimeError
-            If the catalog file cannot be loaded or parsed.
+        Sets up the factory with access to the data catalog singleton,
+        validator registry, and processor registry for creating fully
+        configured Dataset objects.
 
         """
         logger.debug("Initializing DatasetFactory")

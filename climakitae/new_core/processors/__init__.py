@@ -1,10 +1,15 @@
-"""Initialize the processors, ensuring they get registered."""
+"""Initialize the processors, ensuring they get registered.
+
+This module imports all DataProcessor implementations to trigger their
+registration with the processor registry via the @register_processor decorator.
+The registry enables dynamic processor discovery and priority-based execution
+in the data processing pipeline.
+"""
 
 from .bias_adjust_model_to_station import BiasAdjustModelToStation
 from .clip import Clip
 from .concatenate import Concat
 from .convert_units import ConvertUnits
-from .clip import Clip
 from .export import Export
 from .filter_unadjusted_models import FilterUnAdjustedModels
 from .metric_calc import MetricCalc
