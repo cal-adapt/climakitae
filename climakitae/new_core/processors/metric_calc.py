@@ -539,7 +539,7 @@ class MetricCalc(DataProcessor):
 
         # Need at least 3 valid data points for meaningful distribution fitting
         if len(valid_data) < MIN_VALID_DATA_POINTS:
-            # print("Finished this location, all null")
+            print("Finished this location, all null")
             return np.full(n_return_periods, np.nan)
 
         try:
@@ -668,10 +668,6 @@ class MetricCalc(DataProcessor):
         optimal_chunks = self._get_optimal_chunks(block_maxima)
         block_maxima = block_maxima.chunk(optimal_chunks)
 
-        # block_maxima = block_maxima.chunk(
-        #     {time_dim: -1}
-        # )  # merge all time into one chunk
-
         spatial_dims = [
             dim for dim in block_maxima.dims if dim not in [time_dim, "year"]
         ]
@@ -718,10 +714,6 @@ class MetricCalc(DataProcessor):
             combined_ds = self._create_one_in_x_result_dataset(
                 return_values, p_values, data_array
             ).compute()
-
-        import pdb
-
-        pdb.set_trace()
 
         return combined_ds
 
