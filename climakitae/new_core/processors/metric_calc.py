@@ -665,9 +665,12 @@ class MetricCalc(DataProcessor):
 
         time_dim = ["time" if "time" in block_maxima.dims else "time_delta"][0]
 
-        block_maxima = block_maxima.chunk(
-            {time_dim: -1}
-        )  # merge all time into one chunk
+        optimal_chunks = self._get_optimal_chunks(block_maxima)
+        block_maxima = block_maxima.chunk(optimal_chunks)
+
+        # block_maxima = block_maxima.chunk(
+        #     {time_dim: -1}
+        # )  # merge all time into one chunk
 
         spatial_dims = [
             dim for dim in block_maxima.dims if dim not in [time_dim, "year"]
@@ -698,6 +701,10 @@ class MetricCalc(DataProcessor):
                 output_dtypes=("float", "float", "float"),
                 vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
                 dask="parallelized",  # works with lazy dask arrays
+                dask_gufunc_kwargs={
+                    "output_sizes": {"one_in_x": len(self.return_periods)},
+                    "allow_rechunk": True,
+                },  # Parallelization settings
             )
         )
 
@@ -1256,7 +1263,7 @@ class MetricCalc(DataProcessor):
         xr.Dataset
             Final result dataset with return_value and p_values
         """
-        if p_vals:
+        if p_vals is not None:
             result = xr.Dataset({"return_value": ret_vals, "p_values": p_vals})
         else:
             result = xr.Dataset({"return_value": ret_vals})
