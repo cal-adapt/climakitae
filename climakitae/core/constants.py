@@ -88,6 +88,8 @@ CATALOG_CADCAT = "cadcat"
 CATALOG_REN_ENERGY_GEN = "renewable energy generation"
 CATALOG_BOUNDARY = "boundary"
 CATALOG_HDP = "hdp"
+CATALOG_TMY = "typical meteorological year"
+CATALOG_STY = "standard meteorological year"
 
 # Allowed processors by catalog
 CATALOG_ALLOWED_PROCESSORS = {
@@ -116,6 +118,8 @@ CATALOG_ALLOWED_PROCESSORS = {
         "warming_level",
     ],
     CATALOG_HDP: ["export", "time_slice", "concatenate", "update_attributes"],
+    CATALOG_TMY: ["export", "time_slice", "concatenate", "update_attributes"],
+    CATALOG_STY: ["export", "time_slice", "concatenate", "update_attributes"],
 }
 
 # Boundary Data Constants
