@@ -542,7 +542,6 @@ class MetricCalc(DataProcessor):
 
         # Need at least 3 valid data points for meaningful distribution fitting
         if len(valid_data) < MIN_VALID_DATA_POINTS:
-            print("Finished this location, all null")
             return np.full_like(return_periods, np.nan), np.nan, np.nan
 
         try:
