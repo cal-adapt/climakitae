@@ -219,6 +219,9 @@ def _get_block_maxima_optimized(
     if extremes_type not in valid_extremes:
         raise ValueError(f"invalid extremes type. expected one of: {valid_extremes}")
 
+    import pdb
+
+    pdb.set_trace()
     # Optimize chunking for Dask arrays
     if hasattr(da_series.data, "chunks"):
         da_series = _optimize_chunking_for_block_maxima(
