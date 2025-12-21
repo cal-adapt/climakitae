@@ -674,6 +674,10 @@ class MetricCalc(DataProcessor):
             dim for dim in block_maxima.dims if dim not in [time_dim, "year"]
         ]
 
+        import pdb
+
+        pdb.set_trace()
+
         return_values, d_stats, p_values = (
             xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
                 self._fit_return_values_1d,
