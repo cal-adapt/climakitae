@@ -269,6 +269,9 @@ class ConvertUnits(DataProcessor):
                     return data
 
                 # Perform the actual conversion
+                import pdb
+
+                pdb.set_trace()
                 logger.debug("Applying conversion: (%s, %s)", units_from, value)
                 converted_var = UNIT_CONVERSIONS.get(
                     (units_from, value), lambda da: da
@@ -291,5 +294,7 @@ class ConvertUnits(DataProcessor):
                 )
                 self.success = False
                 return data
+        import pdb
 
+        pdb.set_trace()
         return data
