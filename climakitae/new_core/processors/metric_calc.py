@@ -505,6 +505,9 @@ class MetricCalc(DataProcessor):
 
         # Check if we have a time dimension, and add dummy time if needed
         if "time" not in data_array.dims:
+            import pdb
+
+            pdb.set_trace()
             data_array = self._add_dummy_time_if_needed(data_array)
 
         # Apply variable-specific preprocessing
