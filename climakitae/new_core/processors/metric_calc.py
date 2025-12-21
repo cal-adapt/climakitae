@@ -505,10 +505,7 @@ class MetricCalc(DataProcessor):
 
         # Check if we have a time dimension, and add dummy time if needed
         if "time" not in data_array.dims:
-            import pdb
-
-            pdb.set_trace()
-            data_array = self._add_dummy_time_if_needed(data_array)
+            data_array = self._add_dummy_time_if_needed(data_array, data.frequency)
 
         # Apply variable-specific preprocessing
         data_array = self._preprocess_variable_for_one_in_x(data_array, var_name)
@@ -1028,7 +1025,9 @@ class MetricCalc(DataProcessor):
 
         context[_NEW_ATTRS_KEY][self.name] = transformation_description
 
-    def _add_dummy_time_if_needed(self, data_array: xr.DataArray) -> xr.DataArray:
+    def _add_dummy_time_if_needed(
+        self, data_array: xr.DataArray, frequency: str
+    ) -> xr.DataArray:
         """
         Add dummy time dimension if data has time_delta or similar warming level dimensions.
 
@@ -1064,8 +1063,11 @@ class MetricCalc(DataProcessor):
         # Determine frequency and create dummy timestamps
         if wl_time_dim == "time_delta":
             # Get frequency from data array attributes
-            time_freq_name = getattr(data_array, "frequency", "daily")
-            name_to_freq = {"hourly": "h", "daily": "D", "monthly": "ME"}
+            time_freq_name = frequency
+            import pdb
+
+            pdb.set_trace()
+            name_to_freq = {"1hr": "h", "day": "D", "mon": "ME"}
         else:
             # Extract frequency from dimension name (e.g., 'hours_from_center' -> 'hours')
             time_freq_name = wl_time_dim.split("_")[0]

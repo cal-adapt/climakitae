@@ -309,9 +309,6 @@ class Concat(DataProcessor):
                     concatenated.attrs["resolution"] = resolutions[k]
                     break
 
-        import pdb
-
-        pdb.set_trace()
         return concatenated
 
     def _align_time_dim(
