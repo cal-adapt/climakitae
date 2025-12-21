@@ -515,13 +515,16 @@ class MetricCalc(DataProcessor):
         )
 
         # Try vectorized processing first for better performance
-        try:
-            return self._calculate_one_in_x_vectorized(data_array)
-        except Exception as e:
-            print(
-                f"Vectorized processing failed ({e}), falling back to serial processing..."
-            )
-            return self._calculate_one_in_x_serial(data_array)
+        # try:
+        return self._calculate_one_in_x_vectorized(data_array)
+        # except Exception as e:
+        #     import pdb
+
+        #     pdb.set_trace()
+        #     print(
+        #         f"Vectorized processing failed ({e}), falling back to serial processing..."
+        #     )
+        #     return self._calculate_one_in_x_serial(data_array)
 
     def _fit_return_values_1d(
         self,
