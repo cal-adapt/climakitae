@@ -680,6 +680,10 @@ class MetricCalc(DataProcessor):
         else:
             output_core_dims = ["one_in_x"]
 
+        import pdb
+
+        pdb.set_trace()
+
         return_values, d_stats, p_values = (
             xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
                 self._fit_return_values_1d,
@@ -697,12 +701,12 @@ class MetricCalc(DataProcessor):
                     "one_in_x": len(self.return_periods),
                 },
                 output_dtypes=("float", "float", "float"),
-                vectorize=True,  # auto-loop over lat/lon or y/x or spatial_1/spatial_2
-                dask="parallelized",  # works with lazy dask arrays
+                vectorize=True,
+                dask="parallelized",
                 dask_gufunc_kwargs={
                     "output_sizes": {"one_in_x": len(self.return_periods)},
                     "allow_rechunk": True,
-                },  # Parallelization settings
+                },
             )
         )
 
