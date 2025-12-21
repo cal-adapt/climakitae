@@ -210,6 +210,9 @@ class WarmingLevel(DataProcessor):
                 length = da_slice.sizes["time"]
                 time_delta = range(-length // 2, length // 2)
 
+                import pdb
+
+                pdb.set_trace()
                 # Replace time dimension with time_delta
                 da_slice = da_slice.swap_dims({"time": "time_delta"})
                 da_slice = da_slice.drop_vars("time")
