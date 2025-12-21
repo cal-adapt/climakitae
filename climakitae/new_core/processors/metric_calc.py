@@ -674,16 +674,6 @@ class MetricCalc(DataProcessor):
             dim for dim in block_maxima.dims if dim not in [time_dim, "year"]
         ]
 
-        # We need to process each spatial location individually in a vectorized manner
-        if self.goodness_of_fit_test:
-            output_core_dims = [["one_in_x"], [], []]
-        else:
-            output_core_dims = ["one_in_x"]
-
-        import pdb
-
-        pdb.set_trace()
-
         return_values, d_stats, p_values = (
             xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
                 self._fit_return_values_1d,
@@ -696,7 +686,11 @@ class MetricCalc(DataProcessor):
                 input_core_dims=[
                     [time_dim]
                 ],  # "time_dim" is the dimension we reduce over
-                output_core_dims=output_core_dims,  # output has this new dimension
+                output_core_dims=[
+                    ["one_in_x"],
+                    [],
+                    [],
+                ],  # We need to process each spatial location individually in a vectorized manner
                 output_sizes={
                     "one_in_x": len(self.return_periods),
                 },
