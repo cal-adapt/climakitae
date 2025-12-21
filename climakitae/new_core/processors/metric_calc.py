@@ -543,7 +543,7 @@ class MetricCalc(DataProcessor):
         # Need at least 3 valid data points for meaningful distribution fitting
         if len(valid_data) < MIN_VALID_DATA_POINTS:
             print("Finished this location, all null")
-            return np.nan, np.nan, np.nan
+            return np.full_like(return_periods, np.nan), np.nan, np.nan
 
         try:
             parameters, fitted_distr = _get_fitted_distr(
@@ -597,7 +597,7 @@ class MetricCalc(DataProcessor):
             import pdb
 
             pdb.set_trace()
-            return np.nan, np.nan, np.nan
+            return np.full_like(return_periods, np.nan), np.nan, np.nan
 
     def _calculate_one_in_x_vectorized(self, data_array: xr.DataArray) -> xr.Dataset:
         """
