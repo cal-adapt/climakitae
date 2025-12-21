@@ -542,7 +542,7 @@ class MetricCalc(DataProcessor):
 
         # Need at least 3 valid data points for meaningful distribution fitting
         if len(valid_data) < MIN_VALID_DATA_POINTS:
-            return np.full_like(return_periods, np.nan), np.nan, np.nan
+            return np.full_like(return_periods, np.nan, dtype=float), np.nan, np.nan
 
         try:
             parameters, fitted_distr = _get_fitted_distr(
