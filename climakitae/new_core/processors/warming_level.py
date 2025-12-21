@@ -238,9 +238,6 @@ class WarmingLevel(DataProcessor):
                 slices, dim="warming_level", join="outer", fill_value=np.nan
             )
 
-        import pdb
-
-        pdb.set_trace()
         self.update_context(context)
         return ret
 
