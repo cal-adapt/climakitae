@@ -152,13 +152,12 @@ def _get_clean_standardyr_filename(
     filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}_{clean_gwl_name}{delta_str}.csv"
     return filename
 
-
 # helper functions
-def _check_cached_area(location_str, **kwaargs):
+def _check_cached_area(location_str:str, **kwargs: any) -> str:
     """
     Check cached area input to profile selections
     """
-    cached_area = kwaargs.get("cached_area")
+    cached_area = kwargs.get("cached_area")
 
     match cached_area:
         case str():
@@ -168,13 +167,13 @@ def _check_cached_area(location_str, **kwaargs):
     return location_str
 
 
-def _check_lat_lon(location_str, **kwaargs):
+def _check_lat_lon(location_str: str, **kwargs: any) -> str:
     """
     Check latitude and longitude inputs to profile selections
     """
 
-    latitude = kwaargs.get("latitude")
-    longitude = kwaargs.get("longitude")
+    latitude = kwargs.get("latitude")
+    longitude = kwargs.get("longitude")
 
     match latitude, longitude, len(location_str):
         # lat/lon provided, no cached area
@@ -192,11 +191,11 @@ def _check_lat_lon(location_str, **kwaargs):
     return location_str
 
 
-def _check_stations(location_str, **kwaargs):
+def _check_stations(location_str: str, **kwargs: any) -> str:
     """
     Check station name input to profile selections
     """
-    stations = kwaargs.get("stations")
+    stations = kwargs.get("stations")
 
     match stations, len(location_str):
         # only station(s) provided
