@@ -2,6 +2,7 @@
 DataProcessor MetricCalc
 """
 
+import gc
 import logging
 from typing import Any, Dict, Iterable, Union
 
@@ -591,15 +592,13 @@ class MetricCalc(DataProcessor):
 
     def _calculate_one_in_x_vectorized(self, data_array: xr.DataArray) -> xr.Dataset:
         """
-        Vectorized calculation of 1-in-X values for better performance.
+        Vectorized calculation of 1-in-X values with proper memory-safe batching.
 
-        This method attempts to process multiple simulations simultaneously.
+        This method processes simulations in sequential batches to manage memory,
+        while still using vectorized operations within each batch.
         """
         if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
             raise ValueError("Extreme value analysis functions are not available")
-
-        # Extract block maxima for all simulations at once
-        print("Extracting block maxima for all simulations...")
 
         # Configure block maxima extraction
         kwargs = {
@@ -613,104 +612,165 @@ class MetricCalc(DataProcessor):
         elif self.event_duration[1] == "hour":
             kwargs["duration"] = self.event_duration
 
-        # Process simulations in batches to manage memory
-        # Use adaptive batch sizing based on available memory
+        # Calculate adaptive batch size based on available memory
+        batch_size = self._calculate_adaptive_batch_size(data_array)
+
+        n_sims = len(data_array.sim)
+        sim_indices = np.arange(n_sims)
+
+        # Split simulation indices into batches
+        n_batches = int(np.ceil(n_sims / batch_size))
+        sim_batches = np.array_split(sim_indices, n_batches)
+
+        print(
+            f"Processing {n_sims} simulations in {n_batches} sequential batches "
+            f"(batch size: {batch_size})..."
+        )
+
+        # Process each batch sequentially and collect results
+        batch_results = []
+
+        for batch_idx, batch_indices in enumerate(sim_batches):
+            print(
+                f"  Batch {batch_idx + 1}/{n_batches}: "
+                f"simulations {batch_indices[0]+1}-{batch_indices[-1]+1}..."
+            )
+
+            # Select simulations for this batch
+            batch_sims = data_array.sim.values[batch_indices]
+            batch_data = data_array.sel(sim=batch_sims)
+
+            # Process this batch
+            batch_result = self._process_simulation_batch(batch_data, kwargs)
+            batch_results.append(batch_result)
+
+            # Explicit garbage collection after each batch
+            gc.collect()
+
+        # Combine all batch results along the simulation dimension
+        print("Combining batch results...")
+        combined_ds = xr.concat(batch_results, dim="sim")
+
+        return combined_ds
+
+    def _calculate_adaptive_batch_size(self, data_array: xr.DataArray) -> int:
+        """
+        Calculate adaptive batch size based on available memory and data size.
+
+        Parameters
+        ----------
+        data_array : xr.DataArray
+            Input data array to estimate memory requirements.
+
+        Returns
+        -------
+        int
+            Recommended batch size for simulation processing.
+        """
         try:
             import psutil
 
             available_memory_gb = psutil.virtual_memory().available / BYTES_TO_GB_FACTOR
 
-            # Calculate adaptive batch size - more conservative for vectorized processing
-            estimated_batch_size = int(
-                (
-                    available_memory_gb
-                    * TARGET_MEMORY_USAGE_FRACTION
-                    * MB_TO_BYTES_FACTOR
-                )
-                / (MEMORY_PER_SIM_MB_ESTIMATE * 2)  # More conservative multiplier
+            # Estimate memory per simulation more accurately
+            # Account for: input data + block maxima + output arrays + overhead
+            n_sims = len(data_array.sim)
+            total_size_bytes = data_array.nbytes
+            size_per_sim_mb = (total_size_bytes / n_sims) / BYTES_TO_MB_FACTOR
+
+            # Block maxima reduces time dimension but we need buffer for processing
+            # Estimate ~3x the raw data size for safe processing headroom
+            estimated_memory_per_sim_mb = size_per_sim_mb * 3
+
+            # Target using only 50% of available memory for safety
+            target_memory_mb = available_memory_gb * 1000 * 0.5
+
+            # Calculate batch size
+            estimated_batch_size = max(
+                1, int(target_memory_mb / estimated_memory_per_sim_mb)
             )
 
-            # Clamp between reasonable values using large dataset constants
+            # Clamp to reasonable bounds
             batch_size = max(
-                LARGE_DATASET_MIN_BATCH_SIZE,  # Minimum batch size
+                1,  # At least 1 simulation
                 min(
                     estimated_batch_size,
-                    LARGE_DATASET_MAX_BATCH_SIZE,
-                    len(data_array.sim),
-                ),  # Use large dataset max
+                    20,  # Cap at 20 simulations per batch for memory safety
+                    n_sims,  # Don't exceed total simulations
+                ),
             )
 
             print(
-                f"Using adaptive batch size: {batch_size} simulations (available memory: {available_memory_gb:.1f}GB)"
+                f"Memory analysis: {available_memory_gb:.1f}GB available, "
+                f"~{estimated_memory_per_sim_mb:.0f}MB per simulation, "
+                f"batch size: {batch_size}"
             )
+
+            return batch_size
 
         except ImportError:
-            # Fallback if psutil not available
-            batch_size = min(MEDIUM_DASK_BATCH_SIZE, len(data_array.sim))
-            print(f"Using default batch size: {batch_size} simulations")
+            # Fallback if psutil not available - use conservative batch size
+            print("psutil not available, using conservative batch size of 5")
+            return min(5, len(data_array.sim))
 
-        # Process all simulations - batch_size is used for chunking, not for limiting
-        # The actual parallelization is handled by Dask via apply_ufunc
-        n_sims = len(data_array.sim)
-        if n_sims > batch_size:
-            print(
-                f"Processing {n_sims} simulations in parallel chunks of ~{batch_size}..."
-            )
+    def _process_simulation_batch(
+        self, batch_data: xr.DataArray, block_maxima_kwargs: dict
+    ) -> xr.Dataset:
+        """
+        Process a single batch of simulations for 1-in-X analysis.
 
-        # Compute block maxima for ALL simulations
-        block_maxima = _get_block_maxima_optimized(data_array, **kwargs).squeeze()
+        Parameters
+        ----------
+        batch_data : xr.DataArray
+            Data array containing a subset of simulations.
+        block_maxima_kwargs : dict
+            Keyword arguments for block maxima extraction.
 
-        # Determine the time dimension to reduce over (either "time" or "time_delta")
+        Returns
+        -------
+        xr.Dataset
+            Dataset with return values and p-values for this batch.
+        """
+        # Compute block maxima for this batch - force compute to free memory
+        block_maxima = _get_block_maxima_optimized(batch_data, **block_maxima_kwargs)
+        block_maxima = block_maxima.squeeze()
+
+        # If it's a dask array, compute it now to manage memory explicitly
+        if hasattr(block_maxima, "chunks") and block_maxima.chunks is not None:
+            block_maxima = block_maxima.compute()
+
+        # Determine the time dimension to reduce over
         time_dim = "time" if "time" in block_maxima.dims else "time_delta"
 
-        # Calculate optimal chunk sizes for Dask processing
-        optimal_chunks = self._get_optimal_chunks(block_maxima)
-        block_maxima = block_maxima.chunk(optimal_chunks)
-
-        # Apply the return value fitting function to each spatial location
-        return_values, p_values = (
-            xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
-                self._fit_return_values_1d,
-                block_maxima,  # (time, lat, lon) or (time, y, x) or (time, spatial_1, spatial_2)
-                kwargs={
-                    "return_periods": self.return_periods,
-                    "distr": self.distribution,
-                    "get_p_value": self.goodness_of_fit_test,
-                },
-                input_core_dims=[
-                    [time_dim]
-                ],  # "time_dim" is the dimension we reduce over
-                output_core_dims=[
-                    ["one_in_x"],
-                    [],
-                ],  # We need to process each spatial location individually in a vectorized manner
-                output_sizes={
-                    "one_in_x": len(self.return_periods),
-                },
-                output_dtypes=("float", "float"),
-                vectorize=True,  # Enable vectorized processing for better performance
-                dask="parallelized",  # Use Dask for parallelized computation
-                dask_gufunc_kwargs={
-                    "output_sizes": {"one_in_x": len(self.return_periods)},
-                    "allow_rechunk": True,  # Allow rechunking for better memory management
-                },
-            )
+        # Apply the return value fitting function
+        return_values, p_values = xr.apply_ufunc(
+            self._fit_return_values_1d,
+            block_maxima,
+            kwargs={
+                "return_periods": self.return_periods,
+                "distr": self.distribution,
+                "get_p_value": self.goodness_of_fit_test,
+            },
+            input_core_dims=[[time_dim]],
+            output_core_dims=[["one_in_x"], []],
+            output_sizes={"one_in_x": len(self.return_periods)},
+            output_dtypes=("float", "float"),
+            vectorize=True,
         )
 
         # If goodness-of-fit test is not requested, set p_values to None
         if not self.goodness_of_fit_test:
             p_values = None
 
-        # Assign return periods as coordinates to the return values
+        # Assign return periods as coordinates
         return_values = return_values.assign_coords(one_in_x=self.return_periods)
 
-        # Combine the results into one Dataset to be loaded into memory
-        with ProgressBar():
-            combined_ds = self._create_one_in_x_result_dataset(
-                return_values, p_values, data_array
-            ).compute()
+        # Create result dataset for this batch
+        result_ds = self._create_one_in_x_result_dataset(
+            return_values, p_values, batch_data
+        )
 
-        return combined_ds
+        return result_ds
 
     def _preprocess_variable_for_one_in_x(
         self, data: xr.DataArray, var_name: str
