@@ -773,13 +773,18 @@ class MetricCalc(DataProcessor):
 
         # Step 3: Fit distributions and calculate return values
         n_fits = int(np.prod([s for d, s in block_maxima.sizes.items() if d != time_dim]))
-        print(f"  → Fitting {self.distribution.upper()} distributions to {n_fits:,} locations...", end=" ", flush=True)
-        step_start = time_module.time()
+        print(f"  → Fitting {self.distribution.upper()} distributions to {n_fits:,} locations...")
 
-        # Apply the return value fitting function
+        # Convert to dask array for parallelized processing with progress bar
+        # Chunk along spatial dimensions for parallel distribution fitting
+        chunk_sizes = {dim: 50 for dim in block_maxima.dims if dim != time_dim}
+        chunk_sizes[time_dim] = -1  # Keep time dimension together
+        block_maxima_dask = block_maxima.chunk(chunk_sizes)
+
+        # Apply the return value fitting function with dask parallelization
         return_values, p_values = xr.apply_ufunc(
             self._fit_return_values_1d,
-            block_maxima,
+            block_maxima_dask,
             kwargs={
                 "return_periods": self.return_periods,
                 "distr": self.distribution,
@@ -790,8 +795,18 @@ class MetricCalc(DataProcessor):
             output_sizes={"one_in_x": len(self.return_periods)},
             output_dtypes=("float", "float"),
             vectorize=True,
+            dask="parallelized",
+            dask_gufunc_kwargs={
+                "output_sizes": {"one_in_x": len(self.return_periods)},
+                "allow_rechunk": True,
+            },
         )
-        print(f"({time_module.time() - step_start:.1f}s)")
+
+        # Compute with progress bar
+        with ProgressBar(dt=1.0, minimum=1.0):
+            return_values = return_values.compute()
+            if p_values is not None:
+                p_values = p_values.compute()
 
         # If goodness-of-fit test is not requested, set p_values to None
         if not self.goodness_of_fit_test:
