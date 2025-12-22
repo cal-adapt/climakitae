@@ -8,6 +8,7 @@ that provide the high-level interface for accessing climate data.
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+import pytest
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.user_interface import ClimateData
@@ -392,41 +393,41 @@ class TestClimateDataOptionMethods:
             "catalog", "catalog options (Cloud data collections)"
         )
 
-    def test_show_processors_no_catalog(self):
-        """Test show_processors method when no catalog is set."""
-        # Mock the processor registry (used when catalog is UNSET)
-        self.climate_data._factory._processing_step_registry = {
-            "concat": (MagicMock(), 10),
-            "clip": (MagicMock(), 15),
-        }
+    @pytest.mark.parametrize(
+        "catalog,expected_processors,should_call_get_valid",
+        [
+            (UNSET, ["clip", "concat"], False),  # No catalog set
+            ("hdp", ["concat", "export"], True),  # Catalog set
+        ],
+    )
+    def test_show_processors(self, catalog, expected_processors, should_call_get_valid):
+        """Test show_processors method with and without catalog."""
+        if catalog is UNSET:
+            # Mock processor registry for UNSET case
+            self.climate_data._factory._processing_step_registry = {
+                proc: (MagicMock(), 10) for proc in expected_processors
+            }
+        else:
+            # Set catalog and mock get_valid_processors
+            self.climate_data._query["catalog"] = catalog
+            self.climate_data._factory.get_valid_processors = MagicMock(
+                return_value=expected_processors
+            )
 
         with patch("builtins.print") as mock_print:
             self.climate_data.show_processors()
 
+        # Verify get_valid_processors was called appropriately
+        if should_call_get_valid:
+            self.climate_data._factory.get_valid_processors.assert_called_once_with(
+                catalog
+            )
+
+        # Verify printed output
         printed_text = "".join(str(call) for call in mock_print.call_args_list)
         assert "Processors" in printed_text
-        assert "concat" in printed_text
-        assert "clip" in printed_text
-
-    def test_show_processors_with_catalog(self):
-        """Test show_processors method when catalog is set."""
-        # Set a catalog
-        self.climate_data._query["catalog"] = "hdp"
-
-        # Mock get_valid_processors to return filtered list
-        self.climate_data._factory.get_valid_processors = MagicMock(
-            return_value=["concat", "export"]
-        )
-
-        with patch("builtins.print") as mock_print:
-            self.climate_data.show_processors()
-
-        # Should call get_valid_processors with the catalog
-        self.climate_data._factory.get_valid_processors.assert_called_once_with("hdp")
-        printed_text = "".join(str(call) for call in mock_print.call_args_list)
-        assert "Processors" in printed_text
-        assert "concat" in printed_text
-        assert "export" in printed_text
+        for proc in expected_processors:
+            assert proc in printed_text
 
 
 class TestClimateDataConvenienceMethods:
