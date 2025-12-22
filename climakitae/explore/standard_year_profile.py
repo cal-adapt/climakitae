@@ -152,8 +152,9 @@ def _get_clean_standardyr_filename(
     filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}_{clean_gwl_name}{delta_str}.csv"
     return filename
 
+
 # helper functions
-def _check_cached_area(location_str:str, **kwargs: any) -> str:
+def _check_cached_area(location_str: str, **kwargs: any) -> str:
     """
     Check cached area input to profile selections
     """
