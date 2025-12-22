@@ -152,10 +152,10 @@ class ClimateData:
             Path to log file. If None, logs to stdout. Default is None.
         verbosity : int, optional
             Logging verbosity level:
-            - 0: No logging (default)
-            - 1: WARNING level
-            - 2: INFO level
-            - 3: DEBUG level
+            - <= -2: Effectively silent (no logs)
+            - -1: WARNING level
+            - 0: INFO level (default)
+            - > 0: DEBUG level
             Default is 0.
 
         """
@@ -172,12 +172,7 @@ class ClimateData:
             logger.info("ClimateData initialization successful")
             logger.info("✅ Ready to query!")
         except Exception as e:
-            logger.error("Setup failed: %s", str(e), exc_info=True)
-            logger.error("❌ Setup failed: %s", str(e))
-            # Emit the traceback at ERROR level so user-facing callers and
-            # test harnesses that bridge logging->warnings/print capture it
-            # as part of the failure output.
-            logger.error("Error details: %s", traceback.format_exc())
+            logger.error("❌ Setup failed: %s", str(e), exc_info=True)
             return
 
     def _reset_query(self) -> "ClimateData":
@@ -460,13 +455,19 @@ class ClimateData:
 
         Parameters
         ----------
-        experiment_id : str
-            The experiment ID (e.g., "historical", "ssp245").
+        experiment_id : str or list of str
+            The experiment ID (e.g., "historical", "ssp245") or a list of
+            experiment IDs to query multiple scenarios at once.
 
         Returns
         -------
         ClimateData
             The current instance for method chaining.
+
+        Examples
+        --------
+        >>> cd.experiment_id("ssp245")  # Single experiment
+        >>> cd.experiment_id(["historical", "ssp245", "ssp370"])  # Multiple
 
         """
         logger.debug("Setting experiment_id to: %s", experiment_id)
@@ -619,9 +620,9 @@ class ClimateData:
         # This allows concurrent calls to get() without corrupting each other
         query_snapshot = copy.deepcopy(self._query)
 
-        # Validate required parameters
+        # Validate required parameters using the snapshot for thread-safety
         logger.debug("Validating required parameters")
-        if not self._validate_required_parameters():
+        if not self._validate_required_parameters(query_snapshot):
             logger.warning("Required parameter validation failed")
             self._reset_query()
             return None
@@ -661,8 +662,13 @@ class ClimateData:
         self._reset_query()
         return data
 
-    def _validate_required_parameters(self) -> bool:
+    def _validate_required_parameters(self, query: Dict[str, Any]) -> bool:
         """Validate that all required parameters are set.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The query dictionary to validate (should be a snapshot for thread-safety).
 
         Returns
         -------
@@ -674,7 +680,7 @@ class ClimateData:
         missing_params = []
 
         for param in required_params:
-            if self._query[param] is UNSET:
+            if query[param] is UNSET:
                 missing_params.append(param)
 
         if missing_params:
@@ -702,14 +708,14 @@ class ClimateData:
             print(msg)
             print("%s" % ("-" * len(msg)))
         except Exception:
-            pass
+            logger.debug("Failed to print query header to stdout")
         for key, value in self._query.items():
             display_value = value if value is not UNSET else "UNSET"
             logger.info("%s: %s", key, display_value)
             try:
                 print(f"{key}: {display_value}")
             except Exception:
-                pass
+                logger.debug("Failed to print %s to stdout", key)
 
     # Option exploration methods
     def show_catalog_options(self) -> None:
@@ -766,7 +772,7 @@ class ClimateData:
             print(msg)
             print("%s" % ("-" * len(msg)))
         except Exception:
-            pass
+            logger.debug("Failed to print processors header to stdout")
         try:
             for processor in self._factory.get_processors():
                 logger.info("%s", processor)
@@ -784,7 +790,7 @@ class ClimateData:
             print(msg)
             print("%s" % ("-" * len(msg)))
         except Exception:
-            pass
+            logger.debug("Failed to print stations header to stdout")
         try:
             stations = self._factory.get_stations()
             if not stations:
@@ -798,19 +804,27 @@ class ClimateData:
         except Exception as e:
             logger.error("Error retrieving stations: %s", e, exc_info=True)
 
-    def show_boundary_options(self, type=UNSET) -> None:
-        """Display available boundaries for spatial queries."""
-        if type is UNSET:
-            msg = "Boundary Types (call again with option type='...' to see options for any type):"
+    def show_boundary_options(self, boundary_type=UNSET) -> None:
+        """Display available boundaries for spatial queries.
+
+        Parameters
+        ----------
+        boundary_type : str, optional
+            The type of boundary to display (e.g., "ca_counties", "ca_watersheds").
+            If not specified, displays available boundary types.
+
+        """
+        if boundary_type is UNSET:
+            msg = "Boundary Types (call again with boundary_type='...' to see options):"
         else:
             msg = "Available {} Boundaries:".format(
-                " ".join([x.capitalize() for x in type.split("_")])
+                " ".join([x.capitalize() for x in boundary_type.split("_")])
             )
         logger.info(msg)
         logger.info("%s", "-" * len(msg))
 
         try:
-            boundaries = self._factory.get_boundaries(type)
+            boundaries = self._factory.get_boundaries(boundary_type)
             if not boundaries:
                 logger.info("No boundaries available with current parameters")
 
@@ -875,7 +889,7 @@ class ClimateData:
                 print(f"{title}:")
                 print("%s" % ("-" * (len(title) + 1)))
             except Exception:
-                pass
+                logger.debug("Failed to print options header to stdout")
             current_query = {k: v for k, v in self._query.items() if v is not UNSET}
             options = self._factory.get_catalog_options(option_type, current_query)
             if not options:
@@ -919,20 +933,44 @@ class ClimateData:
     def load_query(self, query_params: Dict[str, Any]) -> "ClimateData":
         """Load query parameters from a dictionary.
 
+        Uses the individual setter methods to ensure validation is applied
+        to each parameter. Unknown keys are silently ignored.
+
         Parameters
         ----------
         query_params : Dict[str, Any]
-            Dictionary of query parameters to load.
+            Dictionary of query parameters to load. Supported keys:
+            catalog, installation, activity_id, institution_id, source_id,
+            experiment_id, table_id, grid_label, variable_id, processes.
 
         Returns
         -------
         ClimateData
             The current instance with loaded parameters.
 
+        Raises
+        ------
+        ValueError
+            If any parameter value fails validation.
+
         """
+        # Map query keys to their setter methods
+        setters = {
+            "catalog": self.catalog,
+            "installation": self.installation,
+            "activity_id": self.activity_id,
+            "institution_id": self.institution_id,
+            "source_id": self.source_id,
+            "experiment_id": self.experiment_id,
+            "table_id": self.table_id,
+            "grid_label": self.grid_label,
+            "variable_id": self.variable,
+            "processes": self.processes,
+        }
+
         for key, value in query_params.items():
-            if key in self._query:
-                self._query[key] = value
+            if key in setters and value is not UNSET:
+                setters[key](value)
         return self
 
     def _format_option(self, option: str, option_type: str, spacing: int = 0) -> str:
@@ -944,6 +982,9 @@ class ClimateData:
             The option string to format.
         option_type : str
             The type of option being formatted.
+        spacing : int, optional
+            Number of spaces to add between option name and description
+            for alignment. Default is 0.
 
         Returns
         -------

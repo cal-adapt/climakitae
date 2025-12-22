@@ -24,13 +24,14 @@ class TestClimateDataInit:
         mock_factory.return_value = mock_factory_instance
         mock_read_csv.return_value = pd.DataFrame()
 
-        with patch("builtins.print") as mock_print:
+        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
             climate_data = ClimateData()
 
         assert hasattr(climate_data, "_factory")
         assert hasattr(climate_data, "_query")
         assert hasattr(climate_data, "var_desc")
-        mock_print.assert_called_with("✅ Ready to query! ")
+        # The implementation uses logger.info for the ready message
+        mock_logger.info.assert_any_call("✅ Ready to query!")
 
     @patch("climakitae.new_core.user_interface.read_csv_file")
     @patch("climakitae.new_core.user_interface.DatasetFactory")
@@ -38,18 +39,15 @@ class TestClimateDataInit:
         """Test initialization when DatasetFactory raises an exception."""
         mock_factory.side_effect = Exception("Factory error")
 
-        with (
-            patch("builtins.print") as mock_print,
-            patch(
-                "climakitae.new_core.user_interface.traceback.format_exc",
-                return_value="Traceback info",
-            ),
-        ):
+        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
             climate_data = ClimateData()
 
-        # Should handle the error gracefully
-        mock_print.assert_any_call("❌ Setup failed: Factory error")
-        mock_print.assert_any_call("Error details: Traceback info")
+        # Should handle the error gracefully using logger.error
+        # The implementation uses logger.error with exc_info=True
+        mock_logger.error.assert_called_once()
+        call_args = mock_logger.error.call_args
+        assert "❌ Setup failed:" in call_args[0][0]
+        assert "Factory error" in str(call_args)
 
 
 class TestClimateDataParameterSetters:
@@ -275,12 +273,12 @@ class TestClimateDataGet:
         mock_dataset.execute.return_value = expected_data
         self.climate_data._factory.create_dataset.return_value = mock_dataset
 
-        with patch("builtins.print") as mock_print:
+        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
             result = self.climate_data.get()
 
         assert result is expected_data
-        printed_text = "".join(str(call) for call in mock_print.call_args_list)
-        assert "✅ Data retrieval successful!" in printed_text
+        # The implementation uses logger.info for success message
+        mock_logger.info.assert_any_call("✅ Data retrieval successful!")
 
 
 class TestClimateDataValidation:
@@ -304,7 +302,7 @@ class TestClimateDataValidation:
 
     def test_validate_all_required_present(self):
         """Test validation when all required parameters are present."""
-        self.climate_data._query = {
+        query = {
             "catalog": "climate",
             "installation": UNSET,
             "activity_id": UNSET,
@@ -317,7 +315,7 @@ class TestClimateDataValidation:
             "processes": UNSET,
         }
 
-        result = self.climate_data._validate_required_parameters()
+        result = self.climate_data._validate_required_parameters(query)
         assert result is True
 
 
@@ -929,11 +927,11 @@ class TestClimateDataShowOptionsExceptionHandling:
         self.climate_data.show_station_options()
 
     def test_show_boundary_options_with_type(self):
-        """Test show_boundary_options with specific type parameter."""
+        """Test show_boundary_options with specific boundary_type parameter."""
         self.climate_data._factory.get_boundaries.return_value = ["CA", "NV"]
 
         with patch("builtins.print"):
-            self.climate_data.show_boundary_options(type="us_states")
+            self.climate_data.show_boundary_options(boundary_type="us_states")
 
         self.climate_data._factory.get_boundaries.assert_called_with("us_states")
 

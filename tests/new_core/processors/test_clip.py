@@ -2873,9 +2873,7 @@ class TestClipDataSeparatedIntegration:
                 side_effect=[clipped_ca, clipped_or],
             ),
         ):
-            result = self.clip._clip_data_separated(
-                self.sample_dataset, ["CA", "OR"]
-            )
+            result = self.clip._clip_data_separated(self.sample_dataset, ["CA", "OR"])
 
             assert result is not None
             assert "state" in result.dims
@@ -2905,9 +2903,7 @@ class TestClipDataSeparatedIntegration:
                 "_get_boundary_geometry",
                 side_effect=[MagicMock(), ValueError("Not found")],
             ),
-            patch.object(
-                self.clip, "_clip_data_with_geom", return_value=clipped_ca
-            ),
+            patch.object(self.clip, "_clip_data_with_geom", return_value=clipped_ca),
         ):
             result = self.clip._clip_data_separated(
                 self.sample_dataset, ["CA", "INVALID"]
@@ -2922,9 +2918,7 @@ class TestClipDataSeparatedIntegration:
         """Test _clip_data_separated handles concatenation errors."""
         with (
             patch.object(self.clip, "_infer_dimension_name", return_value="state"),
-            patch.object(
-                self.clip, "_get_boundary_geometry", return_value=MagicMock()
-            ),
+            patch.object(self.clip, "_get_boundary_geometry", return_value=MagicMock()),
             patch.object(
                 self.clip, "_clip_data_with_geom", return_value=self.sample_dataset
             ),
@@ -2950,9 +2944,7 @@ class TestClipDataSeparatedIntegration:
                 side_effect=[clipped_ca, None],  # Second clip returns None
             ),
         ):
-            result = self.clip._clip_data_separated(
-                self.sample_dataset, ["CA", "OR"]
-            )
+            result = self.clip._clip_data_separated(self.sample_dataset, ["CA", "OR"])
 
             # Should succeed with just CA
             assert result is not None
