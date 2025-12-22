@@ -9,20 +9,13 @@ from typing import Any, Dict, Iterable, Union
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY
-from climakitae.core.data_export import (
-    _export_to_csv,
-    _export_to_netcdf,
-    _export_to_zarr,
-)
+from climakitae.core.data_export import (_export_to_csv, _export_to_netcdf,
+                                         _export_to_zarr)
 from climakitae.new_core.data_access.data_access import DataCatalog
-from climakitae.new_core.param_validation.export_param_validator import (
-    _infer_file_format,
-)
+from climakitae.new_core.param_validation.export_param_validator import \
+    _infer_file_format
 from climakitae.new_core.processors.abc_data_processor import (
-    DataProcessor,
-    register_processor,
-)
-
+    DataProcessor, register_processor)
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -372,7 +365,7 @@ class Export(DataProcessor):
         """
         # Skip export if method is "none"
         if self.export_method.lower() == "none":
-            print("Export method set to 'none'; no data is exported!")
+            logger.info("Export method set to 'none'; no data is exported!")
             return result
 
         # Handle different export methods
@@ -1093,5 +1086,5 @@ class Export(DataProcessor):
             if self.fail_on_error:
                 raise RuntimeError(error_msg) from e
             else:
-                print(f"Warning: {error_msg}")
+                logger.warning(error_msg)
                 return

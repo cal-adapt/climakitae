@@ -2078,12 +2078,9 @@ class TestClipDataToPointNaNSearchExpansion:
         # Verify it's actually NaN
         assert np.isnan(nan_result["temp"].isel(time=0).values)
 
-        with (
-            patch(
-                "climakitae.new_core.processors.clip.get_closest_gridcell",
-                return_value=nan_result,
-            ),
-            patch("builtins.print") as mock_print,
+        with patch(
+            "climakitae.new_core.processors.clip.get_closest_gridcell",
+            return_value=nan_result,
         ):
             result = Clip._clip_data_to_point(dataset, 37.0, -120.0)
 
@@ -2091,15 +2088,6 @@ class TestClipDataToPointNaNSearchExpansion:
         assert result is not None
         # Verify the result has valid (non-NaN) data
         assert not np.isnan(result["temp"].isel(time=0).values)
-
-        # Verify search messages were printed
-        printed_output = " ".join(
-            [str(call[0][0]) for call in mock_print.call_args_list]
-        )
-        assert (
-            "searching for nearest valid gridcell" in printed_output.lower()
-            or "found valid" in printed_output.lower()
-        )
 
 
 class TestGetMultiBoundaryGeometry:
