@@ -2,27 +2,18 @@
 DataProcessor MetricCalc
 """
 
-import threading
 import warnings
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, Iterable, Union
 
 import dask
 import numpy as np
 import pandas as pd
-import psutil
 import scipy.stats as stats
 import xarray as xr
-from dask.delayed import delayed
 from dask.diagnostics.progress import ProgressBar
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
-from climakitae.explore.threshold_tools import (
-    _get_distr_func,
-    _get_fitted_distr,
-    get_ks_stat,
-    get_return_value,
-)
+from climakitae.explore.threshold_tools import _get_distr_func, _get_fitted_distr
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
@@ -513,18 +504,7 @@ class MetricCalc(DataProcessor):
         print(
             f"Calculating 1-in-{self.return_periods} year return values using {self.distribution} distribution..."
         )
-
-        # Try vectorized processing first for better performance
-        # try:
         return self._calculate_one_in_x_vectorized(data_array)
-        # except Exception as e:
-        #     import pdb
-
-        #     pdb.set_trace()
-        #     print(
-        #         f"Vectorized processing failed ({e}), falling back to serial processing..."
-        #     )
-        #     return self._calculate_one_in_x_serial(data_array)
 
     def _fit_return_values_1d(
         self,
@@ -542,7 +522,7 @@ class MetricCalc(DataProcessor):
 
         # Need at least 3 valid data points for meaningful distribution fitting
         if len(valid_data) < MIN_VALID_DATA_POINTS:
-            return np.full_like(return_periods, np.nan, dtype=float), np.nan, np.nan
+            return np.full_like(return_periods, np.nan, dtype=float), np.nan
 
         try:
             parameters, fitted_distr = _get_fitted_distr(
@@ -575,7 +555,7 @@ class MetricCalc(DataProcessor):
 
             if get_p_value:
                 ks = stats.kstest(valid_data, cdf, args=args)
-                d_statistic, p_value = ks[0], ks[1]
+                p_value = ks[1]
 
             # Calculate return values for each return period
             return_values = np.empty(n_return_periods)
@@ -588,12 +568,12 @@ class MetricCalc(DataProcessor):
                 fitted_distr.ppf(return_events), RETURN_VALUE_PRECISION
             )
             if get_p_value:
-                return return_values, d_statistic, p_value
+                return return_values, p_value
             else:
-                return return_values, np.nan, np.nan
+                return return_values, np.nan
 
         except (ValueError, RuntimeError, np.linalg.LinAlgError):
-            return np.full_like(return_periods, np.nan), np.nan, np.nan
+            return np.full_like(return_periods, np.nan), np.nan
 
     def _calculate_one_in_x_vectorized(self, data_array: xr.DataArray) -> xr.Dataset:
         """
@@ -655,22 +635,23 @@ class MetricCalc(DataProcessor):
             batch_size = min(MEDIUM_DASK_BATCH_SIZE, len(data_array.sim))
             print(f"Using default batch size: {batch_size} simulations")
 
+        # Extract simulation values and select a batch of simulations to process
         sim_values = data_array.sim.values
         batch_sims = sim_values[0 : 0 + batch_size]
 
+        # Compute block maxima for the selected batch of simulations
         block_maxima = _get_block_maxima_optimized(
             data_array.sel(sim=batch_sims), **kwargs
         ).squeeze()
 
+        # Determine the time dimension to reduce over (either "time" or "time_delta")
         time_dim = ["time" if "time" in block_maxima.dims else "time_delta"][0]
 
+        # Calculate optimal chunk sizes for Dask processing
         optimal_chunks = self._get_optimal_chunks(block_maxima)
         block_maxima = block_maxima.chunk(optimal_chunks)
 
-        spatial_dims = [
-            dim for dim in block_maxima.dims if dim not in [time_dim, "year"]
-        ]
-
+        # Apply the return value fitting function to each spatial location
         return_values, d_stats, p_values = (
             xr.apply_ufunc(  # Result shape: (lat/y/spatial_1, lon/x/spatial_2, return_period)
                 self._fit_return_values_1d,
@@ -686,24 +667,25 @@ class MetricCalc(DataProcessor):
                 output_core_dims=[
                     ["one_in_x"],
                     [],
-                    [],
                 ],  # We need to process each spatial location individually in a vectorized manner
                 output_sizes={
                     "one_in_x": len(self.return_periods),
                 },
-                output_dtypes=("float", "float", "float"),
-                vectorize=True,
-                dask="parallelized",
+                output_dtypes=("float", "float"),
+                vectorize=True,  # Enable vectorized processing for better performance
+                dask="parallelized",  # Use Dask for parallelized computation
                 dask_gufunc_kwargs={
                     "output_sizes": {"one_in_x": len(self.return_periods)},
-                    "allow_rechunk": True,
+                    "allow_rechunk": True,  # Allow rechunking for better memory management
                 },
             )
         )
 
+        # If goodness-of-fit test is not requested, set p_values to None
         if not self.goodness_of_fit_test:
             p_values = None
 
+        # Assign return periods as coordinates to the return values
         return_values = return_values.assign_coords(one_in_x=self.return_periods)
 
         # Combine the results into one Dataset to be loaded into memory
