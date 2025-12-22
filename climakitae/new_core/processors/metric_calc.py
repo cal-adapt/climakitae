@@ -2,10 +2,11 @@
 DataProcessor MetricCalc
 """
 
-import warnings
+import logging
 from typing import Any, Dict, Iterable, Union
 
 import dask
+import dask.config
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
@@ -27,22 +28,14 @@ BYTES_TO_GB_FACTOR = 1e9  # Conversion factor from bytes to gigabytes
 SMALL_ARRAY_THRESHOLD_BYTES = 1e7  # 10MB threshold for small arrays
 MEDIUM_ARRAY_THRESHOLD_BYTES = 1e9  # 1GB threshold for medium arrays
 PERCENTILE_TO_QUANTILE_FACTOR = 100.0  # Convert percentiles to quantiles
-DEFAULT_BATCH_SIZE = 50  # Default batch size for processing simulations
 MIN_VALID_DATA_POINTS = 3  # Minimum data points required for statistical fitting
-SIGNIFICANCE_LEVEL = 0.05  # P-value threshold for statistical significance
-MIN_WORKERS_COUNT = 2  # Minimum number of workers for parallel processing
 DEFAULT_YEARLY_CHUNK_DAYS = 365  # Default chunk size for yearly data
 YEARLY_CHUNK_DIVISOR = 10  # Divisor for calculating yearly chunk size
 DEFAULT_SIM_CHUNK_SIZE = 2  # Default chunk size for simulations
 DEFAULT_SPATIAL_CHUNK_SIZE = 50  # Default chunk size for spatial dimensions
 NUMERIC_PRECISION_DECIMAL_PLACES = 2  # Decimal places for numeric output formatting
-SCIENTIFIC_NOTATION_PRECISION = 3  # Precision for scientific notation formatting
-MIN_SIMULATIONS_FOR_PARALLEL = 4  # Minimum simulations required for parallel processing
 RETURN_VALUE_PRECISION = 5  # Decimal places for return value rounding
-P_VALUE_PRECISION = 4  # Decimal places for p-value rounding
-MEMORY_SAFETY_FACTOR = 0.5  # Safety factor for memory usage calculations
 MB_TO_BYTES_FACTOR = 1000  # Conversion factor from MB to bytes
-MEMORY_DIVISOR_FACTOR = 2  # Divisor for memory constraint calculations
 
 # Constants for adaptive batch sizing
 MEDIUM_DASK_BATCH_SIZE = 50  # Batch size for medium Dask arrays
@@ -53,16 +46,9 @@ MEMORY_PER_SIM_MB_ESTIMATE = (
 )
 TARGET_MEMORY_USAGE_FRACTION = 0.85  # Target fraction of available memory to use
 
-# Constants for return value calculations
-DEFAULT_EVENT_DURATION_DAYS = 1  # Default event duration in days
-DEFAULT_BLOCK_SIZE_YEARS = 1  # Default block size in years
-
-# Import functions for 1-in-X calculations
-try:
-    EXTREME_VALUE_ANALYSIS_AVAILABLE = True
-except ImportError as e:
-    EXTREME_VALUE_ANALYSIS_AVAILABLE = False
-    warnings.warn(f"Extreme value analysis functions not available: {e}")
+# Check if extreme value analysis dependencies are available
+# The required functions are imported from threshold_tools above
+EXTREME_VALUE_ANALYSIS_AVAILABLE = True
 
 
 @register_processor("metric_calc", priority=7500)
@@ -332,9 +318,11 @@ class MetricCalc(DataProcessor):
         valid_dims = [dim for dim in dims_to_check if dim in available_dims]
 
         if not valid_dims:
-            warnings.warn(
-                f"\n\nNone of the specified dimensions {dims_to_check} exist in the data. "
-                f"\nAvailable dimensions: {list(available_dims)}"
+            logging.warning(
+                "None of the specified dimensions %s exist in the data. "
+                "Available dimensions: %s",
+                dims_to_check,
+                list(available_dims),
             )
             return data
 
@@ -343,7 +331,7 @@ class MetricCalc(DataProcessor):
 
         # Calculate percentiles if requested
         results = []
-        if self.percentiles is not None:
+        if self.percentiles is not UNSET and self.percentiles is not None:
             percentile_result = data.quantile(
                 [p / PERCENTILE_TO_QUANTILE_FACTOR for p in self.percentiles],
                 dim=calc_dim,
@@ -384,7 +372,7 @@ class MetricCalc(DataProcessor):
         # Return combined results or single result
         if len(results) == 1:
             return results[0]
-        elif len(results) == 2 and self.percentiles is not None:
+        elif len(results) == 2 and self.percentiles is not UNSET:
             # Combine percentiles and metric results
             percentile_result, metric_result = results
 
@@ -480,19 +468,12 @@ class MetricCalc(DataProcessor):
             ):  # Less than 10MB - load into memory
                 print("Small array detected - loading into memory...")
                 data_array = data_array.compute()
-                use_dask_optimization = False
             elif (
                 total_size < MEDIUM_ARRAY_THRESHOLD_BYTES
             ):  # 10MB - 1GB - use chunked processing with Dask
                 print("Medium array detected - using Dask-aware chunked processing...")
-                use_dask_optimization = (
-                    "medium"  # Use special handling for medium arrays
-                )
             else:  # > 1GB - use Dask optimization
                 print("Large array detected - using Dask optimization...")
-                use_dask_optimization = True
-        else:
-            use_dask_optimization = False
 
         # Check if we have a time dimension, and add dummy time if needed
         if "time" not in data_array.dims:
@@ -513,10 +494,39 @@ class MetricCalc(DataProcessor):
         distr: str = "gev",
         extremes_type: str = "max",
         get_p_value: bool = False,
-    ) -> np.ndarray:
-        """docstring goes here"""
-        n_return_periods = len(return_periods)
+    ) -> tuple[np.ndarray, float]:
+        """
+        Fit a distribution to 1D block maxima and calculate return values.
 
+        This function fits a statistical distribution to the block maxima series
+        and calculates return values for the specified return periods.
+
+        Parameters
+        ----------
+        block_maxima_1d : np.ndarray
+            1D array of block maxima values (e.g., annual maxima).
+        return_periods : np.ndarray
+            Array of return periods in years (e.g., [10, 25, 50, 100]).
+        distr : str, optional
+            Distribution type for fitting. Options: "gev", "gumbel", "weibull",
+            "pearson3", "genpareto", "gamma". Default: "gev".
+        extremes_type : str, optional
+            Type of extremes: "max" for maxima, "min" for minima. Default: "max".
+        get_p_value : bool, optional
+            Whether to calculate and return p-value from KS test. Default: False.
+
+        Returns
+        -------
+        tuple[np.ndarray, float]
+            Tuple containing:
+            - return_values: Array of return values for each return period
+            - p_value: P-value from Kolmogorov-Smirnov test (np.nan if not calculated)
+
+        Notes
+        -----
+        Requires at least MIN_VALID_DATA_POINTS (3) non-NaN values for fitting.
+        Returns arrays of NaN if fitting fails.
+        """
         # Remove NaN values
         valid_data = block_maxima_1d[~np.isnan(block_maxima_1d)]
 
@@ -525,9 +535,14 @@ class MetricCalc(DataProcessor):
             return np.full_like(return_periods, np.nan, dtype=float), np.nan
 
         try:
-            parameters, fitted_distr = _get_fitted_distr(
-                valid_data, distr, _get_distr_func(distr)
+            # _get_fitted_distr works with array-like inputs (numpy or xarray)
+            # and returns (dict[str, float], rv_continuous_frozen)
+            # Type ignore needed because threshold_tools.py has incorrect type annotation
+            result = _get_fitted_distr(
+                valid_data, distr, _get_distr_func(distr)  # type: ignore[arg-type]
             )
+            parameters: dict[str, float] = result[0]  # type: ignore[index, assignment]
+            fitted_distr = result[1]  # type: ignore[index]
 
             match distr:
                 case "gev":
@@ -558,14 +573,13 @@ class MetricCalc(DataProcessor):
                 p_value = ks[1]
 
             # Calculate return values for each return period
-            return_values = np.empty(n_return_periods)
             event_prob = 1.0 / return_periods  # Assuming 1-year blocks
             if extremes_type == "max":
                 return_events = 1.0 - event_prob
             else:  # min
                 return_events = event_prob
             return_values = np.round(
-                fitted_distr.ppf(return_events), RETURN_VALUE_PRECISION
+                fitted_distr.ppf(return_events), RETURN_VALUE_PRECISION  # type: ignore[union-attr]
             )
             if get_p_value:
                 return return_values, p_value
@@ -635,17 +649,19 @@ class MetricCalc(DataProcessor):
             batch_size = min(MEDIUM_DASK_BATCH_SIZE, len(data_array.sim))
             print(f"Using default batch size: {batch_size} simulations")
 
-        # Extract simulation values and select a batch of simulations to process
-        sim_values = data_array.sim.values
-        batch_sims = sim_values[0 : 0 + batch_size]
+        # Process all simulations - batch_size is used for chunking, not for limiting
+        # The actual parallelization is handled by Dask via apply_ufunc
+        n_sims = len(data_array.sim)
+        if n_sims > batch_size:
+            print(
+                f"Processing {n_sims} simulations in parallel chunks of ~{batch_size}..."
+            )
 
-        # Compute block maxima for the selected batch of simulations
-        block_maxima = _get_block_maxima_optimized(
-            data_array.sel(sim=batch_sims), **kwargs
-        ).squeeze()
+        # Compute block maxima for ALL simulations
+        block_maxima = _get_block_maxima_optimized(data_array, **kwargs).squeeze()
 
         # Determine the time dimension to reduce over (either "time" or "time_delta")
-        time_dim = ["time" if "time" in block_maxima.dims else "time_delta"][0]
+        time_dim = "time" if "time" in block_maxima.dims else "time_delta"
 
         # Calculate optimal chunk sizes for Dask processing
         optimal_chunks = self._get_optimal_chunks(block_maxima)
@@ -724,9 +740,8 @@ class MetricCalc(DataProcessor):
             preprocessing = self.variable_preprocessing.get("precipitation", {})
 
             # Aggregate to daily if needed and requested
-            if (
-                preprocessing.get("daily_aggregation", True)
-                and "1hr" in str(data.attrs.get("frequency", "")).lower()
+            if preprocessing.get("daily_aggregation", True) and (
+                "1hr" in str(data.attrs.get("frequency", "")).lower()
                 or "hourly" in str(data.attrs.get("frequency", "")).lower()
             ):
                 data = data.resample(time="1D").sum()
@@ -757,7 +772,7 @@ class MetricCalc(DataProcessor):
         # Build description based on what was calculated
         description_parts = []
 
-        if self.one_in_x_config is not None:
+        if self.one_in_x_config is not UNSET:
             # 1-in-X calculations
             return_periods_str = ", ".join(map(str, self.return_periods))
             description_parts.append(
@@ -767,7 +782,7 @@ class MetricCalc(DataProcessor):
             )
         else:
             # Regular metric calculations
-            if self.percentiles is not None:
+            if self.percentiles is not UNSET:
                 description_parts.append(
                     f"Percentiles {self.percentiles} were calculated"
                 )
@@ -775,7 +790,7 @@ class MetricCalc(DataProcessor):
             if not self.percentiles_only:
                 description_parts.append(f"Metric '{self.metric}' was calculated")
 
-        if self.one_in_x_config is not None:
+        if self.one_in_x_config is not UNSET:
             transformation_description = (
                 f"Process '{self.name}' applied to the data. "
                 f"{' and '.join(description_parts)}."
@@ -865,7 +880,10 @@ class MetricCalc(DataProcessor):
         self._catalog = catalog
 
     def _create_one_in_x_result_dataset(
-        self, ret_vals: xr.DataArray, p_vals: xr.DataArray, data_array: xr.DataArray
+        self,
+        ret_vals: xr.DataArray,
+        p_vals: Union[xr.DataArray, None],
+        data_array: xr.DataArray,
     ) -> xr.Dataset:
         """
         Create the final result dataset for 1-in-X calculations.
@@ -924,7 +942,7 @@ class MetricCalc(DataProcessor):
 
         except ImportError:
             print("Dask not available - skipping performance optimization")
-        except Exception as e:
+        except (ValueError, TypeError, KeyError) as e:
             print(f"Warning: Failed to optimize Dask performance: {e}")
 
     def _get_optimal_chunks(self, data_array: xr.DataArray) -> dict:
