@@ -650,8 +650,11 @@ class MetricCalc(DataProcessor):
             gc.collect()
 
         # Combine all batch results along the simulation dimension
-        print("\nCombining batch results...")
+        print("=" * 60)
+        print(f"All batches complete. Combining {len(batch_results)} batch results...")
         combined_ds = xr.concat(batch_results, dim="sim")
+        print(f"Final result shape: {dict(combined_ds.dims)}")
+        print("=" * 60)
 
         return combined_ds
 
@@ -741,17 +744,37 @@ class MetricCalc(DataProcessor):
         xr.Dataset
             Dataset with return values and p-values for this batch.
         """
-        # Compute block maxima for this batch - force compute to free memory
+        import time as time_module
+
+        batch_start = time_module.time()
+
+        # Step 1: Extract block maxima
+        print(f"  → Extracting block maxima...", end=" ", flush=True)
+        step_start = time_module.time()
         block_maxima = _get_block_maxima_optimized(batch_data, **block_maxima_kwargs)
         block_maxima = block_maxima.squeeze()
+        print(f"({time_module.time() - step_start:.1f}s)")
 
-        # If it's a dask array, compute it with progress bar
+        # Step 2: Compute block maxima (if dask array)
         if hasattr(block_maxima, "chunks") and block_maxima.chunks is not None:
+            print(f"  → Computing block maxima from Dask array...")
             with ProgressBar(dt=1.0, minimum=1.0):
                 block_maxima = block_maxima.compute()
+        else:
+            print(f"  → Block maxima already in memory")
+
+        # Show block maxima shape
+        n_years = block_maxima.sizes.get("time", block_maxima.sizes.get("time_delta", 0))
+        spatial_size = np.prod([s for d, s in block_maxima.sizes.items() if d not in ["time", "time_delta", "sim"]])
+        print(f"  → Block maxima shape: {dict(block_maxima.sizes)} ({n_years} years × {spatial_size} gridcells)")
 
         # Determine the time dimension to reduce over
         time_dim = "time" if "time" in block_maxima.dims else "time_delta"
+
+        # Step 3: Fit distributions and calculate return values
+        n_fits = int(np.prod([s for d, s in block_maxima.sizes.items() if d != time_dim]))
+        print(f"  → Fitting {self.distribution.upper()} distributions to {n_fits:,} locations...", end=" ", flush=True)
+        step_start = time_module.time()
 
         # Apply the return value fitting function
         return_values, p_values = xr.apply_ufunc(
@@ -768,6 +791,7 @@ class MetricCalc(DataProcessor):
             output_dtypes=("float", "float"),
             vectorize=True,
         )
+        print(f"({time_module.time() - step_start:.1f}s)")
 
         # If goodness-of-fit test is not requested, set p_values to None
         if not self.goodness_of_fit_test:
@@ -776,10 +800,17 @@ class MetricCalc(DataProcessor):
         # Assign return periods as coordinates
         return_values = return_values.assign_coords(one_in_x=self.return_periods)
 
-        # Create result dataset for this batch
+        # Step 4: Create result dataset
+        print(f"  → Creating result dataset...", end=" ", flush=True)
+        step_start = time_module.time()
         result_ds = self._create_one_in_x_result_dataset(
             return_values, p_values, batch_data
         )
+        print(f"({time_module.time() - step_start:.1f}s)")
+
+        # Batch summary
+        batch_elapsed = time_module.time() - batch_start
+        print(f"  ✓ Batch {batch_num}/{total_batches} complete ({batch_elapsed:.1f}s total)\n")
 
         return result_ds
 
