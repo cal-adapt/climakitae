@@ -36,7 +36,7 @@ components based on user queries from the ClimateData UI.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Type
+from typing import Any, Dict, List, Optional, Type
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, PROC_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
@@ -307,8 +307,8 @@ class DatasetFactory:
         for key, value in query[PROC_KEY].items():
             if key not in self._processing_step_registry:
                 logger.warning(
-                    f"Processing step '{key}' not found in registry. Skipping.",
-                    stacklevel=999,
+                    "Processing step '%s' not found in registry. Skipping.",
+                    key,
                 )
                 continue
 
@@ -338,7 +338,7 @@ class DatasetFactory:
 
         return processing_steps
 
-    def register_catalog(self, key: str, catalog: DataCatalog):
+    def register_catalog(self, key: str, catalog_url: str):
         """Register a data catalog with the factory.
 
         Parameters
@@ -346,28 +346,27 @@ class DatasetFactory:
         key : str
             Identifier for the catalog. Should correspond to data_type,
             installation, or other distinguishing characteristics.
-        catalog : DataCatalog
-            Catalog implementation to register for the given key.
+        catalog_url : str
+            URL or path to the catalog to register for the given key.
 
         Raises
         ------
-        TypeError
-            If catalog is not an instance of DataCatalog.
         ValueError
             If key is empty or None.
 
         Examples
         --------
         >>> factory = DatasetFactory()
-        >>> custom_catalog = DataCatalog()
-        >>> factory.register_catalog('wind_data', custom_catalog)
+        >>> factory.register_catalog('wind_data', 's3://bucket/catalog.csv')
 
         See Also
         --------
         DataCatalog : Base catalog class
 
         """
-        self._catalog[key] = catalog
+        if not key:
+            raise ValueError("Catalog key cannot be empty or None.")
+        DataCatalog().set_catalog(key, catalog_url)
 
     def register_validator(self, key: str, validator_class: Type[ParameterValidator]):
         """Register a parameter validator with the factory.
@@ -395,7 +394,7 @@ class DatasetFactory:
         """
         self._processing_step_registry[step_type] = step_class
 
-    def create_validator(self, val_reg_key: str) -> ParameterValidator:
+    def create_validator(self, val_reg_key: str) -> Optional[ParameterValidator]:
         """Create a parameter validator based on data_type and approach.
 
         Parameters
@@ -405,13 +404,8 @@ class DatasetFactory:
 
         Returns
         -------
-        ParameterValidator
-            An appropriate parameter validator
-
-        Raises
-        ------
-        ValueError
-            If no validator is registered for the given combination
+        ParameterValidator or None
+            An appropriate parameter validator, or None if not found.
 
         """
         if val_reg_key in self._validator_registry:
@@ -419,37 +413,32 @@ class DatasetFactory:
 
         # check for typo or close matches
         closest = _get_closest_options(val_reg_key, self._validator_registry.keys())
-        if not closest:
-            logger.warning(
-                f"No validator registered for '{val_reg_key}'. "
-                "Available options: {list(self._validator_registry.keys())}",
-                stacklevel=999,
-            )
-            return None
 
         match len(closest):
             case 0:
                 logger.warning(
-                    f"No validator registered for '{val_reg_key}'. "
-                    "Available options: {list(self._validator_registry.keys())}",
-                    stacklevel=999,
+                    "No validator registered for '%s'. Available options: %s",
+                    val_reg_key,
+                    list(self._validator_registry.keys()),
                 )
-                return None  # type: ignore[return-value]
+                return None
             case 1:
                 logger.warning(
-                    f"\n\nUsing closest match '{closest[0]}' for validator '{val_reg_key}'.",
-                    stacklevel=999,
+                    "Using closest match '%s' for validator '%s'.",
+                    closest[0],
+                    val_reg_key,
                 )
                 return self._validator_registry[closest[0]](self._catalog)
             case _:
                 logger.warning(
-                    f"Multiple closest matches found for '{val_reg_key}': {closest}. "
+                    "Multiple closest matches found for '%s': %s. "
                     "Please specify a more precise key.",
-                    stacklevel=999,
+                    val_reg_key,
+                    closest,
                 )
-                return None  # type: ignore[return-value]
+                return None
 
-    def _get_catalog_key_from_query(self, query: Dict[str, Any]) -> str:
+    def _get_catalog_key_from_query(self, query: Dict[str, Any]) -> Optional[str]:
         """Get the appropriate catalog for the query.
 
         Parameters
@@ -459,8 +448,9 @@ class DatasetFactory:
 
         Returns
         -------
-        str
-            Key for the catalog to use (e.g., "cadcat", "renewable energy generation")
+        str or None
+            Key for the catalog to use (e.g., "cadcat", "renewable energy generation"),
+            or None if no matching catalog is found.
 
         """
         # search catalog for matching datasets
@@ -485,14 +475,13 @@ class DatasetFactory:
                 return subset.iloc[0]["catalog"]
             case _:
                 logger.warning(
-                    "Multiple matching datasets found. Please refine your query.",
-                    stacklevel=999,
+                    "Multiple matching datasets found. Please refine your query."
                 )
 
         return None
 
     def get_catalog_options(
-        self, key: str, query: dict[str, Any] | object = UNSET
+        self, key: str, query: Optional[Dict[str, Any]] = None
     ) -> List[str]:
         """Get available options for a specific catalog.
 
@@ -514,7 +503,7 @@ class DatasetFactory:
         if key not in self._catalog_df.columns:
             raise ValueError(f"Catalog key '{key}' not found.")
         filtered_df = self._catalog_df.copy()
-        if query is not UNSET:
+        if query is not None:
             # Filter the catalog DataFrame based on the query
             for k, v in query.items():
                 if k in filtered_df.columns:

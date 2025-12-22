@@ -14,6 +14,7 @@ from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.dataset import Dataset
 from climakitae.new_core.param_validation.abc_param_validation import ParameterValidator
+from climakitae.new_core.processors.abc_data_processor import DataProcessor
 
 
 class TestDatasetInit:
@@ -135,7 +136,7 @@ def _create_mock_processor(return_value=None, needs_catalog=False):
     MagicMock
         Mock processor with execute, update_context, and set_data_accessor methods
     """
-    mock_processor = MagicMock()
+    mock_processor = MagicMock(spec=DataProcessor)
     mock_processor.execute = MagicMock(return_value=return_value)
     mock_processor.update_context = MagicMock()
     mock_processor.set_data_accessor = MagicMock()
@@ -192,51 +193,42 @@ class TestDatasetWithProcessingStep:
         assert dataset.processing_pipeline[1] is processor2
         assert dataset.processing_pipeline[2] is processor3
 
-    def test_with_processing_step_missing_execute(self):
-        """Test with_processing_step raises TypeError if step lacks execute method."""
+    def test_with_processing_step_non_dataprocessor_raises_typeerror(self):
+        """Test with_processing_step raises TypeError if step is not a DataProcessor."""
         dataset = Dataset()
-        mock_processor = MagicMock()
-        del mock_processor.execute  # Remove execute
-        mock_processor.update_context = MagicMock()
-        mock_processor.set_data_accessor = MagicMock()
-
-        with pytest.raises(TypeError, match="must have an 'execute' method"):
-            dataset.with_processing_step(mock_processor)
-
-    def test_with_processing_step_missing_update_context(self):
-        """Test with_processing_step raises AttributeError if step lacks update_context."""
-        dataset = Dataset()
-        mock_processor = MagicMock()
-        mock_processor.execute = MagicMock()
-        del mock_processor.update_context  # Remove update_context
-        mock_processor.set_data_accessor = MagicMock()
-
-        with pytest.raises(
-            AttributeError, match="must have an 'update_context' method"
-        ):
-            dataset.with_processing_step(mock_processor)
-
-    def test_with_processing_step_missing_set_data_accessor(self):
-        """Test with_processing_step raises TypeError if step lacks set_data_accessor."""
-        dataset = Dataset()
-        mock_processor = MagicMock()
+        mock_processor = MagicMock()  # Not a DataProcessor instance
         mock_processor.execute = MagicMock()
         mock_processor.update_context = MagicMock()
-        del mock_processor.set_data_accessor  # Remove set_data_accessor
-
-        with pytest.raises(TypeError, match="must have a 'set_data_accessor' method"):
-            dataset.with_processing_step(mock_processor)
-
-    def test_with_processing_step_non_callable_execute(self):
-        """Test with_processing_step raises TypeError if execute is not callable."""
-        dataset = Dataset()
-        mock_processor = MagicMock()
-        mock_processor.execute = "not_a_function"  # Non-callable
-        mock_processor.update_context = MagicMock()
         mock_processor.set_data_accessor = MagicMock()
 
-        with pytest.raises(TypeError, match="must have an 'execute' method"):
+        with pytest.raises(TypeError, match="must be an instance of DataProcessor"):
             dataset.with_processing_step(mock_processor)
+
+    def test_with_processing_step_none_raises_typeerror(self):
+        """Test with_processing_step raises TypeError if step is None."""
+        dataset = Dataset()
+
+        with pytest.raises(TypeError, match="must be an instance of DataProcessor"):
+            dataset.with_processing_step(None)
+
+    def test_with_processing_step_string_raises_typeerror(self):
+        """Test with_processing_step raises TypeError if step is a string."""
+        dataset = Dataset()
+
+        with pytest.raises(TypeError, match="must be an instance of DataProcessor"):
+            dataset.with_processing_step("not_a_processor")
+
+    def test_with_processing_step_dict_raises_typeerror(self):
+        """Test with_processing_step raises TypeError if step is a dict."""
+        dataset = Dataset()
+        fake_processor = {
+            "execute": lambda x, y: x,
+            "update_context": lambda x: None,
+            "set_data_accessor": lambda x: None,
+        }
+
+        with pytest.raises(TypeError, match="must be an instance of DataProcessor"):
+            dataset.with_processing_step(fake_processor)
 
 
 class TestDatasetMethodChaining:

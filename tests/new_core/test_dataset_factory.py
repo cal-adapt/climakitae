@@ -277,21 +277,25 @@ class TestDatasetFactoryRegistration:
 
     def test_register_catalog(self):
         """Test register_catalog method."""
-        # This method exists but requires proper catalog setup
-        # We'll just test that it doesn't raise an exception
-        mock_catalog = MagicMock()
-        try:
-            self.factory.register_catalog("test_catalog", mock_catalog)
-            # If we get here, the method completed without error
-            assert True
-        except Exception as e:
-            # This is expected due to type restrictions or implementation issues
-            error_msg = str(e)
-            assert (
-                "Cannot assign" in error_msg
-                or "not assignable" in error_msg
-                or "does not support item assignment" in error_msg
+        # register_catalog now takes a key and URL string
+        with patch("climakitae.new_core.dataset_factory.DataCatalog") as mock_cat:
+            mock_catalog_instance = MagicMock()
+            mock_cat.return_value = mock_catalog_instance
+
+            self.factory.register_catalog("test_catalog", "s3://bucket/catalog.csv")
+
+            # Verify set_catalog was called on the DataCatalog singleton
+            mock_catalog_instance.set_catalog.assert_called_once_with(
+                "test_catalog", "s3://bucket/catalog.csv"
             )
+
+    def test_register_catalog_empty_key_raises_valueerror(self):
+        """Test register_catalog raises ValueError for empty key."""
+        with pytest.raises(ValueError, match="cannot be empty"):
+            self.factory.register_catalog("", "s3://bucket/catalog.csv")
+
+        with pytest.raises(ValueError, match="cannot be empty"):
+            self.factory.register_catalog(None, "s3://bucket/catalog.csv")
 
     def test_register_validator(self):
         """Test register_validator method."""
