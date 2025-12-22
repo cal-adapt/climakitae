@@ -869,7 +869,6 @@ class ClimateData:
 
     def show_processors(self) -> None:
         """Display available data processors."""
-        from climakitae.core.constants import CATALOG_ALLOWED_PROCESSORS
 
         msg = "Processors (Methods for transforming raw catalog data):"
         logger.info(msg)
@@ -879,24 +878,31 @@ class ClimateData:
             print("%s" % ("-" * len(msg)))
         except Exception:
             pass
+
         try:
-            all_processors = self._factory.get_processors()
-
-            # Filter processors based on current catalog
+            # Get current catalog from query
             current_catalog = self._query.get("catalog", UNSET)
-            if (
-                current_catalog is not UNSET
-                and current_catalog in CATALOG_ALLOWED_PROCESSORS
-            ):
-                allowed = CATALOG_ALLOWED_PROCESSORS[current_catalog]
-                processors = [p for p in all_processors if p in allowed]
-            else:
-                processors = all_processors
 
-            for processor in processors:
+            # Get valid processors (filtered by catalog if specified)
+            if current_catalog is not UNSET:
+                valid_processors = self._factory.get_valid_processors(current_catalog)
+                logger.info("Showing processors valid for catalog: %s", current_catalog)
+            else:
+                # No catalog specified - show all processors from registry
+                valid_processors = sorted(
+                    list(self._factory._processing_step_registry.keys())
+                )
+                logger.info("Showing all processors")
+
+            for processor in valid_processors:
                 logger.info("%s", processor)
+                try:
+                    print(processor)
+                except Exception:
+                    pass
 
             logger.info("\n")
+
         except Exception as e:
             logger.error("Error retrieving processors: %s", e, exc_info=True)
 

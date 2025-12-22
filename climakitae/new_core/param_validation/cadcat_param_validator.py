@@ -50,6 +50,7 @@ class DataValidator(ParameterValidator):
             "variable_id": UNSET,
         }
         self.catalog = catalog.data
+        self.invalid_processors = []
         logger.debug(
             "DataValidator initialized for catalog with keys: %s",
             list(self.catalog.keys()) if hasattr(self.catalog, "keys") else "unknown",

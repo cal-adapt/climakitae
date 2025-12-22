@@ -53,6 +53,15 @@ class HDPValidator(ParameterValidator):
             "station_id": UNSET,
         }
         self.catalog = catalog.hdp
+        self.invalid_processors = [
+            "localize",
+            "clip",
+            "convert_units",
+            "bias_adjust_model_to_station",
+            "filter_unadjusted_models",
+            "metric_calc",
+            "warming_level",
+        ]
         logger.debug("HDPValidator initialized for hdp catalog")
 
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
@@ -103,8 +112,6 @@ class HDPValidator(ParameterValidator):
     def _check_query_invalid_processors(self, query: Dict[str, Any]) -> bool:
         """Check if the query contains the invalid processors
 
-        Valid processors: ["time_slice", "export"]
-
         Parameters
         ----------
         query : Dict[str, Any]
@@ -116,9 +123,8 @@ class HDPValidator(ParameterValidator):
             True if the query does not contain localize processor, False otherwise.
 
         """
-        valid_processors = ["time_slice", "export"]
         for processor in query.get("processors", []):
-            if processor not in valid_processors:
+            if processor in self.invalid_processors:
                 logger.warning(f"Invalid processor for HDP data: {processor}")
                 return False
         return True

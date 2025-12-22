@@ -150,8 +150,8 @@ class DatasetFactory:
 
         """
         logger.debug("Initializing DatasetFactory")
-        self._catalog = None
-        self._catalog_df = DataCatalog().catalog_df
+        self._catalog = DataCatalog()
+        self._catalog_df = self._catalog.catalog_df
         self._validator_registry = _CATALOG_VALIDATOR_REGISTRY
         self._processing_step_registry = _PROCESSOR_REGISTRY
         logger.info(
@@ -588,16 +588,29 @@ class DatasetFactory:
         """
         return sorted(list(self._validator_registry.keys()))
 
-    def get_processors(self) -> List[str]:
-        """Get a list of available processors.
+    def get_valid_processors(self, catalog_key: str) -> List[str]:
+        """Get a list of valid processors for a specific catalog.
+
+        Parameters
+        ----------
+        catalog_key : str
+            The catalog key to filter processors by (required).
 
         Returns
         -------
         List[str]
-            List of available processors.
+            List of processors valid for the specified catalog.
 
         """
-        return sorted(list(self._processing_step_registry.keys()))
+        all_processors = sorted(list(self._processing_step_registry.keys()))
+
+        # Get the validator for this catalog to determine invalid processors
+        validator = self.create_validator(catalog_key)
+        if validator and hasattr(validator, "invalid_processors"):
+            invalid_processors = validator.invalid_processors
+            return [p for p in all_processors if p not in invalid_processors]
+
+        return all_processors
 
     def get_stations(self) -> List[str]:
         """Get a list of available station datasets.
