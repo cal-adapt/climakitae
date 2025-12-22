@@ -757,23 +757,37 @@ class MetricCalc(DataProcessor):
 
         # Step 2: Compute block maxima (if dask array)
         if hasattr(block_maxima, "chunks") and block_maxima.chunks is not None:
-            print(f"  → Computing block maxima from Dask array...")
+            print(f"  → Computing block maxima from Dask array (parallelized)...")
             with ProgressBar(dt=1.0, minimum=1.0):
-                block_maxima = block_maxima.compute()
+                block_maxima = block_maxima.compute(scheduler="threads")
         else:
             print(f"  → Block maxima already in memory")
 
         # Show block maxima shape
-        n_years = block_maxima.sizes.get("time", block_maxima.sizes.get("time_delta", 0))
-        spatial_size = np.prod([s for d, s in block_maxima.sizes.items() if d not in ["time", "time_delta", "sim"]])
-        print(f"  → Block maxima shape: {dict(block_maxima.sizes)} ({n_years} years × {spatial_size} gridcells)")
+        n_years = block_maxima.sizes.get(
+            "time", block_maxima.sizes.get("time_delta", 0)
+        )
+        spatial_size = np.prod(
+            [
+                s
+                for d, s in block_maxima.sizes.items()
+                if d not in ["time", "time_delta", "sim"]
+            ]
+        )
+        print(
+            f"  → Block maxima shape: {dict(block_maxima.sizes)} ({n_years} years × {spatial_size} gridcells)"
+        )
 
         # Determine the time dimension to reduce over
         time_dim = "time" if "time" in block_maxima.dims else "time_delta"
 
         # Step 3: Fit distributions and calculate return values
-        n_fits = int(np.prod([s for d, s in block_maxima.sizes.items() if d != time_dim]))
-        print(f"  → Fitting {self.distribution.upper()} distributions to {n_fits:,} locations...")
+        n_fits = int(
+            np.prod([s for d, s in block_maxima.sizes.items() if d != time_dim])
+        )
+        print(
+            f"  → Fitting {self.distribution.upper()} distributions to {n_fits:,} locations..."
+        )
 
         # Convert to dask array for parallelized processing with progress bar
         # Chunk along spatial dimensions for parallel distribution fitting
@@ -802,11 +816,11 @@ class MetricCalc(DataProcessor):
             },
         )
 
-        # Compute with progress bar
+        # Compute with progress bar (parallelized with threads)
         with ProgressBar(dt=1.0, minimum=1.0):
-            return_values = return_values.compute()
+            return_values = return_values.compute(scheduler="threads")
             if p_values is not None:
-                p_values = p_values.compute()
+                p_values = p_values.compute(scheduler="threads")
 
         # If goodness-of-fit test is not requested, set p_values to None
         if not self.goodness_of_fit_test:
@@ -825,7 +839,9 @@ class MetricCalc(DataProcessor):
 
         # Batch summary
         batch_elapsed = time_module.time() - batch_start
-        print(f"  ✓ Batch {batch_num}/{total_batches} complete ({batch_elapsed:.1f}s total)\n")
+        print(
+            f"  ✓ Batch {batch_num}/{total_batches} complete ({batch_elapsed:.1f}s total)\n"
+        )
 
         return result_ds
 
@@ -1043,19 +1059,26 @@ class MetricCalc(DataProcessor):
         large climate datasets with extreme value analysis.
         """
         try:
+            import multiprocessing
+
+            # Get number of CPUs available
+            n_workers = max(1, multiprocessing.cpu_count() - 1)  # Leave 1 CPU free
+
             # Configure Dask for better performance with extreme value analysis
             dask_config = {
                 "array.chunk-size": "128MiB",  # Reasonable chunk size for climate data
                 "array.slicing.split_large_chunks": True,  # Handle large chunks better
-                "distributed.worker.memory.target": 0.8,  # Use 80% of worker memory
-                "distributed.worker.memory.spill": 0.9,  # Spill at 90% memory usage
-                "distributed.worker.memory.pause": 0.95,  # Pause at 95% memory usage
-                "distributed.worker.memory.terminate": 0.98,  # Terminate at 98% memory usage
+                # Use threaded scheduler for parallelization (thread-safe for numpy/scipy)
+                "scheduler": "threads",
+                "num_workers": n_workers,
             }
 
             # Apply configuration
             dask.config.set(dask_config)
-            print("Dask performance configuration applied for extreme value analysis")
+            print(
+                f"Dask performance configuration applied for extreme value analysis "
+                f"(using {n_workers} threads)"
+            )
 
         except ImportError:
             print("Dask not available - skipping performance optimization")
