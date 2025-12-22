@@ -597,6 +597,8 @@ class MetricCalc(DataProcessor):
         This method processes simulations in sequential batches to manage memory,
         while still using vectorized operations within each batch.
         """
+        import time as time_module
+
         if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
             raise ValueError("Extreme value analysis functions are not available")
 
@@ -623,17 +625,44 @@ class MetricCalc(DataProcessor):
         sim_batches = np.array_split(sim_indices, n_batches)
 
         print(
-            f"Processing {n_sims} simulations in {n_batches} sequential batches "
-            f"(batch size: {batch_size})..."
+            f"\nProcessing {n_sims} simulations in {n_batches} sequential batches "
+            f"(batch size: {batch_size})...\n"
         )
 
         # Process each batch sequentially and collect results
         batch_results = []
+        batch_times = []
+        total_start_time = time_module.time()
 
         for batch_idx, batch_indices in enumerate(sim_batches):
+            batch_start_time = time_module.time()
+
+            # Progress bar
+            progress_pct = (batch_idx / n_batches) * 100
+            bar_width = 30
+            filled = int(bar_width * batch_idx / n_batches)
+            bar = "█" * filled + "░" * (bar_width - filled)
+
+            # ETA calculation
+            if batch_times:
+                avg_batch_time = sum(batch_times) / len(batch_times)
+                remaining_batches = n_batches - batch_idx
+                eta_seconds = avg_batch_time * remaining_batches
+                eta_str = (
+                    f"ETA: {eta_seconds / 60:.1f} min"
+                    if eta_seconds > 60
+                    else f"ETA: {eta_seconds:.0f} sec"
+                )
+            else:
+                eta_str = "ETA: calculating..."
+
             print(
-                f"  Batch {batch_idx + 1}/{n_batches}: "
-                f"simulations {batch_indices[0]+1}-{batch_indices[-1]+1}..."
+                f"\r  [{bar}] {progress_pct:5.1f}% | "
+                f"Batch {batch_idx + 1}/{n_batches} | "
+                f"Sims {batch_indices[0]+1}-{batch_indices[-1]+1} | "
+                f"{eta_str}",
+                end="",
+                flush=True,
             )
 
             # Select simulations for this batch
@@ -644,11 +673,33 @@ class MetricCalc(DataProcessor):
             batch_result = self._process_simulation_batch(batch_data, kwargs)
             batch_results.append(batch_result)
 
+            # Track batch timing
+            batch_elapsed = time_module.time() - batch_start_time
+            batch_times.append(batch_elapsed)
+
             # Explicit garbage collection after each batch
             gc.collect()
 
+        # Final progress update
+        total_elapsed = time_module.time() - total_start_time
+        bar = "█" * bar_width
+        print(
+            f"\r  [{bar}] 100.0% | "
+            f"Completed {n_batches} batches | "
+            f"Total time: {total_elapsed / 60:.1f} min"
+        )
+
+        # Print summary statistics
+        if batch_times:
+            avg_time = sum(batch_times) / len(batch_times)
+            min_time = min(batch_times)
+            max_time = max(batch_times)
+            print(
+                f"\n  Batch timing: avg={avg_time:.1f}s, min={min_time:.1f}s, max={max_time:.1f}s"
+            )
+
         # Combine all batch results along the simulation dimension
-        print("Combining batch results...")
+        print("\nCombining batch results...")
         combined_ds = xr.concat(batch_results, dim="sim")
 
         return combined_ds
