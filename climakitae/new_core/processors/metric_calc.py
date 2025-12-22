@@ -597,8 +597,6 @@ class MetricCalc(DataProcessor):
         This method processes simulations in sequential batches to manage memory,
         while still using vectorized operations within each batch.
         """
-        import time as time_module
-
         if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
             raise ValueError("Extreme value analysis functions are not available")
 
@@ -631,72 +629,25 @@ class MetricCalc(DataProcessor):
 
         # Process each batch sequentially and collect results
         batch_results = []
-        batch_times = []
-        total_start_time = time_module.time()
 
         for batch_idx, batch_indices in enumerate(sim_batches):
-            batch_start_time = time_module.time()
-
-            # Progress bar
-            progress_pct = (batch_idx / n_batches) * 100
-            bar_width = 30
-            filled = int(bar_width * batch_idx / n_batches)
-            bar = "█" * filled + "░" * (bar_width - filled)
-
-            # ETA calculation
-            if batch_times:
-                avg_batch_time = sum(batch_times) / len(batch_times)
-                remaining_batches = n_batches - batch_idx
-                eta_seconds = avg_batch_time * remaining_batches
-                eta_str = (
-                    f"ETA: {eta_seconds / 60:.1f} min"
-                    if eta_seconds > 60
-                    else f"ETA: {eta_seconds:.0f} sec"
-                )
-            else:
-                eta_str = "ETA: calculating..."
-
             print(
-                f"\r  [{bar}] {progress_pct:5.1f}% | "
-                f"Batch {batch_idx + 1}/{n_batches} | "
-                f"Sims {batch_indices[0]+1}-{batch_indices[-1]+1} | "
-                f"{eta_str}",
-                end="",
-                flush=True,
+                f"Batch {batch_idx + 1}/{n_batches}: "
+                f"simulations {batch_indices[0]+1}-{batch_indices[-1]+1}"
             )
 
             # Select simulations for this batch
             batch_sims = data_array.sim.values[batch_indices]
             batch_data = data_array.sel(sim=batch_sims)
 
-            # Process this batch
-            batch_result = self._process_simulation_batch(batch_data, kwargs)
+            # Process this batch (includes its own progress bar for dask operations)
+            batch_result = self._process_simulation_batch(
+                batch_data, kwargs, batch_idx + 1, n_batches
+            )
             batch_results.append(batch_result)
-
-            # Track batch timing
-            batch_elapsed = time_module.time() - batch_start_time
-            batch_times.append(batch_elapsed)
 
             # Explicit garbage collection after each batch
             gc.collect()
-
-        # Final progress update
-        total_elapsed = time_module.time() - total_start_time
-        bar = "█" * bar_width
-        print(
-            f"\r  [{bar}] 100.0% | "
-            f"Completed {n_batches} batches | "
-            f"Total time: {total_elapsed / 60:.1f} min"
-        )
-
-        # Print summary statistics
-        if batch_times:
-            avg_time = sum(batch_times) / len(batch_times)
-            min_time = min(batch_times)
-            max_time = max(batch_times)
-            print(
-                f"\n  Batch timing: avg={avg_time:.1f}s, min={min_time:.1f}s, max={max_time:.1f}s"
-            )
 
         # Combine all batch results along the simulation dimension
         print("\nCombining batch results...")
@@ -765,7 +716,11 @@ class MetricCalc(DataProcessor):
             return min(5, len(data_array.sim))
 
     def _process_simulation_batch(
-        self, batch_data: xr.DataArray, block_maxima_kwargs: dict
+        self,
+        batch_data: xr.DataArray,
+        block_maxima_kwargs: dict,
+        batch_num: int = 1,
+        total_batches: int = 1,
     ) -> xr.Dataset:
         """
         Process a single batch of simulations for 1-in-X analysis.
@@ -776,6 +731,10 @@ class MetricCalc(DataProcessor):
             Data array containing a subset of simulations.
         block_maxima_kwargs : dict
             Keyword arguments for block maxima extraction.
+        batch_num : int
+            Current batch number (for progress display).
+        total_batches : int
+            Total number of batches (for progress display).
 
         Returns
         -------
@@ -786,9 +745,10 @@ class MetricCalc(DataProcessor):
         block_maxima = _get_block_maxima_optimized(batch_data, **block_maxima_kwargs)
         block_maxima = block_maxima.squeeze()
 
-        # If it's a dask array, compute it now to manage memory explicitly
+        # If it's a dask array, compute it with progress bar
         if hasattr(block_maxima, "chunks") and block_maxima.chunks is not None:
-            block_maxima = block_maxima.compute()
+            with ProgressBar(dt=1.0, minimum=1.0):
+                block_maxima = block_maxima.compute()
 
         # Determine the time dimension to reduce over
         time_dim = "time" if "time" in block_maxima.dims else "time_delta"
