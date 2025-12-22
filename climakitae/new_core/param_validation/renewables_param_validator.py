@@ -51,8 +51,9 @@ class RenewablesValidator(ParameterValidator):
             "variable_id": UNSET,
         }
         self.catalog = catalog.renewables
+        self.invalid_processors = []
 
-    logger.debug("RenewablesValidator initialized for renewables catalog")
+        logger.debug("RenewablesValidator initialized for renewables catalog")
 
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         logger.debug("Validating renewables query: %s", query)

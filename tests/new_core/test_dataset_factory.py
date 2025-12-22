@@ -38,7 +38,7 @@ class TestDatasetFactoryInit:
         assert hasattr(factory, "_catalog_df")
         assert hasattr(factory, "_validator_registry")
         assert hasattr(factory, "_processing_step_registry")
-        assert factory._catalog is None
+        assert factory._catalog is mock_catalog_instance
         assert isinstance(factory._catalog_df, pd.DataFrame)
 
     @patch("climakitae.new_core.dataset_factory.DataCatalog")
@@ -557,16 +557,25 @@ class TestDatasetFactoryGetMethods:
         expected = sorted(["climate", "renewables"])
         assert result == expected
 
-    def test_get_processors(self):
-        """Test get_processors method."""
+    def test_get_valid_processors(self):
+        """Test get_valid_processors method."""
         self.factory._processing_step_registry = {
-            "spatial_avg": (MagicMock(), 10),
-            "temporal_avg": (MagicMock(), 15),
+            "concat": (MagicMock(), 10),
+            "clip": (MagicMock(), 15),
+            "localize": (MagicMock(), 20),
         }
 
-        result = self.factory.get_processors()
+        # Mock a validator with invalid_processors
+        mock_validator = MagicMock()
+        mock_validator.invalid_processors = ["clip"]
 
-        expected = sorted(["spatial_avg", "temporal_avg"])
+        with patch.object(
+            self.factory, "create_validator", return_value=mock_validator
+        ):
+            result = self.factory.get_valid_processors("test_catalog")
+
+        # Should return all processors except 'clip'
+        expected = sorted(["concat", "localize"])
         assert result == expected
 
     @patch("climakitae.new_core.dataset_factory.DataCatalog")
