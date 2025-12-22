@@ -226,7 +226,7 @@ def _check_stations(location_str, **kwaargs):
             # if location_str does NOT contain numbers (ie, cached area was provided)
             if not any(char.isdigit() for char in location_str):
                 return location_str
-            
+
             # if only one station provided, it's custom, and location_str contains numbers (ie, lat/lon were provided)
             if (
                 len(stations) == 1
@@ -244,7 +244,7 @@ def _check_stations(location_str, **kwaargs):
     return location_str
 
 
-def export_profile_to_csv(profile,**kwargs):
+def export_profile_to_csv(profile, **kwargs):
     """
     Export profile to csv file with a descriptive file name.
 
@@ -271,7 +271,7 @@ def export_profile_to_csv(profile,**kwargs):
                 Name of HadISD station(s) or custom location used in profile
             cached_area : str, optional
                 Name of cached area used in profile
-            no_delta : bool, optional
+            no_delta : bool, default False, optional
                 True if no_delta=True when generating profile
 
     Notes
@@ -295,6 +295,9 @@ def export_profile_to_csv(profile,**kwargs):
     q = kwargs.get("q")
     global_warming_levels = kwargs.get("warming_level")
 
+    # Handle no_delta input
+    no_delta = kwargs.get("no_delta", False)
+
     # Get variable id string to use in file name
     variable_descriptions = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
     var_id = variable_descriptions[
@@ -304,7 +307,6 @@ def export_profile_to_csv(profile,**kwargs):
 
     # Get location string based on combination of location variables
     func_list = [_check_cached_area, _check_lat_lon, _check_stations]
-
     location_str = ""
     for func in func_list:
         location_str = func(location_str, **kwargs)
