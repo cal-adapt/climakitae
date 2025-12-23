@@ -143,7 +143,7 @@ class HDPValidator(ParameterValidator):
         Returns
         -------
         bool
-            True if the query does not contain localize processor, False otherwise.
+            True if the query does not contain invalid processors, False otherwise.
 
         """
         for processor in query.get("processors", []):
