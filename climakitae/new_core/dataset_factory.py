@@ -254,6 +254,10 @@ class DatasetFactory:
         for a query by examining explicit user requests, implicit requirements
         based on query parameters, and mandatory system processing steps.
 
+        Default processors are obtained from the catalog's validator, which
+        knows catalog-specific requirements (e.g., HDP uses station_id for
+        concatenation, climate model data uses filter_unadjusted_models).
+
         Parameters
         ----------
         query : dict
@@ -289,53 +293,25 @@ class DatasetFactory:
         processing_steps = []
         priorities = []
 
-        # Retrieve user-set value for catalog
-        # This is always set before processors are run
-        catalog = query.get("catalog")
-
         if query[PROC_KEY] is UNSET:
             # create empty processing step key
             query[PROC_KEY] = {}
 
-        ## ===== climate model datasets only ======
-        if "filter_unadjusted_models" not in query[PROC_KEY] and catalog in [
-            "cadcat",
-            "renewable energy generation",
-        ]:
-            # add default filtering step if not present for climate model data
-            query[PROC_KEY]["filter_unadjusted_models"] = "yes"
+        # Get default processors from validator
+        catalog_key = query.get("_catalog_key")
+        if catalog_key:
+            try:
+                validator = self.create_validator(catalog_key)
+                default_processors = validator.get_default_processors(query)
 
-        if "concat" not in query[PROC_KEY] and catalog in [
-            "cadcat",
-            "renewable energy generation",
-        ]:
-            # add default concatenation step if not present
-            default_concat = "time"
-            # now we check if "time" makes sense
-            value = query.get("experiment_id", UNSET)
-            match value:
-                case str():
-                    # if experiment_id is a string, check if it contains "historical"
-                    if "historical" in value.lower() or "reanalysis" in value.lower():
-                        # if it does, we can use "sim" as the default concat dimension
-                        default_concat = "sim"
-                case list() | tuple():
-                    # if experiment_id is a list or tuple, check each element
-                    # if there are no elements with "ssp" in them then we use the sim
-                    # approach
-                    if not any("ssp" in str(item).lower() for item in value):
-                        default_concat = "sim"
+                # Apply defaults for any processors not explicitly set by user
+                for proc_name, default_value in default_processors.items():
+                    if proc_name not in query[PROC_KEY]:
+                        query[PROC_KEY][proc_name] = default_value
+            except Exception as e:
+                logger.warning(f"Could not get default processors: {e}")
 
-            query[PROC_KEY]["concat"] = default_concat
-
-        ## ===== HDP data only =====
-        if "concat" not in query[PROC_KEY] and catalog == "hdp":
-            query[PROC_KEY]["concat"] = "station_id"
-
-        if "update_attributes" not in query[PROC_KEY]:
-            # add default attribute update step if not present
-            query[PROC_KEY]["update_attributes"] = UNSET
-
+        # Process all processors in query[PROC_KEY]
         for key, value in query[PROC_KEY].items():
             if key not in self._processing_step_registry:
                 logger.warning(

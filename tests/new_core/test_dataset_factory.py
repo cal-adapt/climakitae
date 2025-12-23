@@ -147,6 +147,7 @@ class TestDatasetFactoryProcessingSteps:
             PROC_KEY: UNSET,
             "experiment_id": "historical",
             "catalog": "cadcat",
+            "_catalog_key": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -175,6 +176,7 @@ class TestDatasetFactoryProcessingSteps:
             PROC_KEY: UNSET,
             "experiment_id": ["historical", "ssp245"],
             "catalog": "cadcat",
+            "_catalog_key": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -195,6 +197,7 @@ class TestDatasetFactoryProcessingSteps:
         query = {
             PROC_KEY: {"spatial_avg": "region", "temporal_avg": "monthly"},
             "catalog": "cadcat",
+            "_catalog_key": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -239,6 +242,7 @@ class TestDatasetFactoryProcessingSteps:
         query = {
             PROC_KEY: {"high_priority": "value1", "low_priority": "value2"},
             "catalog": "cadcat",
+            "_catalog_key": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -698,6 +702,7 @@ class TestDatasetFactoryEdgeCases:
             PROC_KEY: UNSET,
             "experiment_id": [],
             "catalog": "cadcat",
+            "_catalog_key": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
