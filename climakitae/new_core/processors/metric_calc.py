@@ -169,10 +169,6 @@ class MetricCalc(DataProcessor):
         if self.one_in_x_config is not UNSET:
             self._setup_one_in_x_parameters()
 
-        # Auto-configure Dask for large dataset processing
-        if self.one_in_x_config is not UNSET:
-            self.optimize_dask_performance()
-
     def _setup_one_in_x_parameters(self):
         """Setup parameters for 1-in-X calculations."""
         if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
@@ -757,22 +753,9 @@ class MetricCalc(DataProcessor):
 
         # Step 2: Compute block maxima (if dask array)
         if hasattr(block_maxima, "chunks") and block_maxima.chunks is not None:
-            scheduler = self._get_dask_scheduler()
-            print(f"  → Computing block maxima from Dask array ({scheduler})...")
+            print(f"  → Computing block maxima from Dask array...")
             with ProgressBar(dt=1.0, minimum=1.0):
-                try:
-                    if scheduler == "distributed":
-                        block_maxima = block_maxima.compute()
-                    else:
-                        block_maxima = block_maxima.compute(scheduler=scheduler)
-                except RuntimeError as e:
-                    if "deserialization" in str(e) or "different environments" in str(e):
-                        print(
-                            f"\n  ⚠ Cluster environment mismatch detected, falling back to local compute..."
-                        )
-                        block_maxima = block_maxima.compute(scheduler="threads")
-                    else:
-                        raise
+                block_maxima = block_maxima.compute(scheduler="threads")
         else:
             print(f"  → Block maxima already in memory")
 
@@ -829,29 +812,12 @@ class MetricCalc(DataProcessor):
             },
         )
 
-        # Compute with progress bar (using distributed if available, else threads)
-        scheduler = self._get_dask_scheduler()
-        print(f"  → Computing return values ({scheduler})...")
+        # Compute with progress bar using threaded scheduler
+        print(f"  → Computing return values...")
         with ProgressBar(dt=1.0, minimum=1.0):
-            try:
-                if scheduler == "distributed":
-                    return_values = return_values.compute()
-                    if p_values is not None:
-                        p_values = p_values.compute()
-                else:
-                    return_values = return_values.compute(scheduler=scheduler)
-                    if p_values is not None:
-                        p_values = p_values.compute(scheduler=scheduler)
-            except RuntimeError as e:
-                if "deserialization" in str(e) or "different environments" in str(e):
-                    print(
-                        f"\n  ⚠ Cluster environment mismatch detected, falling back to local compute..."
-                    )
-                    return_values = return_values.compute(scheduler="threads")
-                    if p_values is not None:
-                        p_values = p_values.compute(scheduler="threads")
-                else:
-                    raise
+            return_values = return_values.compute(scheduler="threads")
+            if p_values is not None:
+                p_values = p_values.compute(scheduler="threads")
 
         # If goodness-of-fit test is not requested, set p_values to None
         if not self.goodness_of_fit_test:
@@ -1081,76 +1047,6 @@ class MetricCalc(DataProcessor):
         )
 
         return result
-
-    def _get_dask_scheduler(self) -> str:
-        """
-        Detect if a distributed client is available and return the appropriate scheduler.
-
-        Returns
-        -------
-        str
-            'distributed' if a dask.distributed client is active, otherwise 'threads'
-        """
-        try:
-            from dask.distributed import get_client
-
-            client = get_client()
-            # Check if client is actually connected
-            if client.status == "running":
-                return "distributed"
-        except (ImportError, ValueError):
-            # No distributed client available
-            pass
-        return "threads"
-
-    def optimize_dask_performance(self):
-        """
-        Optimize Dask performance for large dataset processing.
-
-        This method configures Dask settings to improve performance when processing
-        large climate datasets with extreme value analysis.
-        """
-        try:
-            import multiprocessing
-
-            # Check if distributed client is available
-            scheduler = self._get_dask_scheduler()
-
-            if scheduler == "distributed":
-                from dask.distributed import get_client
-
-                client = get_client()
-                n_workers = len(client.scheduler_info()["workers"])
-                print(
-                    f"Dask distributed client detected with {n_workers} workers - "
-                    f"computations will be offloaded to cluster"
-                )
-                # Configure for distributed
-                dask_config = {
-                    "array.chunk-size": "128MiB",
-                    "array.slicing.split_large_chunks": True,
-                }
-            else:
-                # Get number of CPUs available for local threading
-                n_workers = max(1, multiprocessing.cpu_count() - 1)
-                dask_config = {
-                    "array.chunk-size": "128MiB",
-                    "array.slicing.split_large_chunks": True,
-                    "scheduler": "threads",
-                    "num_workers": n_workers,
-                }
-                print(
-                    f"Dask performance configuration applied for extreme value analysis "
-                    f"(using {n_workers} local threads)"
-                )
-
-            # Apply configuration
-            dask.config.set(dask_config)
-
-        except ImportError:
-            print("Dask not available - skipping performance optimization")
-        except (ValueError, TypeError, KeyError) as e:
-            print(f"Warning: Failed to optimize Dask performance: {e}")
 
     def _get_optimal_chunks(self, data_array: xr.DataArray) -> dict:
         """
