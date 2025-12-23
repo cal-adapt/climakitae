@@ -148,10 +148,3 @@ cython_debug/
 .local
 *.DS_Store
 
-
-# Local test files
-examples/lat_lons.py
-examples/one_in_x_stress_test.ipynb
-test.ipynb
-test_slides.html
-uv.lock
