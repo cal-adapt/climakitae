@@ -162,6 +162,7 @@ class TestHDPValidatorRegistration:
             mock_parent_method.assert_called_once_with(test_query)
             assert result is None
 
+
 class TestHDPValidatorNetworkIdRequirement:
     """Test class for network_id requirement validation."""
 
@@ -267,6 +268,7 @@ class TestHDPValidatorNetworkIdRequirement:
 
         # Should return None (validation failed)
         assert result is None
+
 
 class TestHDPValidatorDefaultProcessors:
     """Test class for default processors."""

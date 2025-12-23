@@ -208,7 +208,7 @@ class TestRenewablesValidatorRegistration:
         """
         query = {"experiment_id": ["historical", "ssp370"]}
         defaults = self.validator.get_default_processors(query)
-        
+
         # Check universal defaults
         assert defaults["update_attributes"] is UNSET
 

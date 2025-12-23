@@ -175,7 +175,7 @@ class TestDataValidator:
             # Should call parent method once and return its result
             mock_parent.assert_called_once_with(query)
             assert result == expected_result
-    
+
     def test_default_processors_with_empty_query(self):
         """Test get_default_processors with empty query.
 
@@ -229,7 +229,7 @@ class TestDataValidator:
         """
         query = {"experiment_id": ["historical", "ssp370"]}
         defaults = self.validator.get_default_processors(query)
-        
+
         # Check universal defaults
         assert defaults["update_attributes"] is UNSET
 
