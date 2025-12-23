@@ -77,14 +77,17 @@ class DataValidator(ParameterValidator):
         # Add default filtering for climate model data
         defaults["filter_unadjusted_models"] = "yes"
 
-        # Set default concatenation 
-        concat_dim = "time" 
+        # Set default concatenation
+        concat_dim = "time"
 
         # if experiment_id is a string, check if it contains "historical"
         experiment_id = query.get("experiment_id", UNSET)
         match experiment_id:
             case str():
-                if "historical" in experiment_id.lower() or "reanalysis" in experiment_id.lower():
+                if (
+                    "historical" in experiment_id.lower()
+                    or "reanalysis" in experiment_id.lower()
+                ):
                     # if it does, we can use "sim" as the default concat dimension
                     concat_dim = "sim"
             case list() | tuple():

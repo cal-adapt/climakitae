@@ -80,9 +80,11 @@ class HDPValidator(ParameterValidator):
             Dictionary mapping processor names to their default configurations
         """
         defaults = super().get_default_processors(query)  # Get universal defaults
-        defaults.update({
-            "concat": "station_id",
-        })
+        defaults.update(
+            {
+                "concat": "station_id",
+            }
+        )
         return defaults
 
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
