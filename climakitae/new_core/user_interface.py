@@ -585,7 +585,7 @@ class ClimateData:
         stn = []
         if not isinstance(station_id, (str, list)):
             logger.error(
-                "Invalid experiment_id parameter: must be string or list of strings"
+                "Invalid station_id parameter: must be string or list of strings"
             )
             raise ValueError("Station ID must be a non-empty string or list of strings")
         if isinstance(station_id, str):
