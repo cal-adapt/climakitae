@@ -170,3 +170,48 @@ class TestRenewablesValidatorRegistration:
             # Verify parent method was called and None was returned
             mock_parent_method.assert_called_once_with(test_query)
             assert result is None
+
+    def test_default_processors_with_historical_experiment_id(self):
+        """Test get_default_processors with historical experiment_id.
+
+        Tests that concat dimension is set to 'sim' for historical data.
+        """
+        query = {"experiment_id": "historical"}
+        defaults = self.validator.get_default_processors(query)
+
+        # Check universal defaults
+        assert defaults["update_attributes"] is UNSET
+
+        # Check catalog-specific defaults
+        assert defaults["filter_unadjusted_models"] == "yes"
+        assert defaults["concat"] == "sim"  # Changes to sim for historical
+
+    def test_default_processors_with_ssp_experiment_id(self):
+        """Test get_default_processors with SSP experiment_id.
+
+        Tests that concat dimension remains 'time' for SSP scenarios.
+        """
+        query = {"experiment_id": "ssp370"}
+        defaults = self.validator.get_default_processors(query)
+
+        # Check universal defaults
+        assert defaults["update_attributes"] is UNSET
+
+        # Check catalog-specific defaults
+        assert defaults["filter_unadjusted_models"] == "yes"
+        assert defaults["concat"] == "time"  # Stays time for SSP
+
+    def test_default_processors_with_ssp_concat_to_historical(self):
+        """Test get_default_processors to confirm historical is appended to ssp.
+
+        Tests that concat is 'time' when experiment_id includes SSP scenarios.
+        """
+        query = {"experiment_id": ["historical", "ssp370"]}
+        defaults = self.validator.get_default_processors(query)
+        
+        # Check universal defaults
+        assert defaults["update_attributes"] is UNSET
+
+        # Check catalog-specific defaults
+        assert defaults["filter_unadjusted_models"] == "yes"
+        assert defaults["concat"] == "time"  # Stays time for SSP

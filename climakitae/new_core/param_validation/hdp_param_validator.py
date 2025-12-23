@@ -64,6 +64,27 @@ class HDPValidator(ParameterValidator):
         ]
         logger.debug("HDPValidator initialized for hdp catalog")
 
+    def get_default_processors(self, query: Dict[str, Any]) -> Dict[str, Any]:
+        """Get default processors for HDP catalog.
+
+        HDP data uses station_id for concatenation since it's station-based data.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The current query containing user parameters
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary mapping processor names to their default configurations
+        """
+        defaults = super().get_default_processors(query)  # Get universal defaults
+        defaults.update({
+            "concat": "station_id",
+        })
+        return defaults
+
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         """Validate query parameters for HDP data.
 

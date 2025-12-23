@@ -162,7 +162,6 @@ class TestHDPValidatorRegistration:
             mock_parent_method.assert_called_once_with(test_query)
             assert result is None
 
-
 class TestHDPValidatorNetworkIdRequirement:
     """Test class for network_id requirement validation."""
 
@@ -268,6 +267,54 @@ class TestHDPValidatorNetworkIdRequirement:
 
         # Should return None (validation failed)
         assert result is None
+
+class TestHDPValidatorDefaultProcessors:
+    """Test class for default processors."""
+
+    def test_default_processors_set_correctly(self):
+        """Test that default processors are set correctly.
+
+        Tests that get_default_processors returns the correct defaults for HDP,
+        including both universal defaults from parent class and HDP-specific defaults.
+        """
+        # Create mock DataCatalog
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_data_catalog.hdp = mock_hdp_catalog
+
+        # Initialize validator
+        validator = HDPValidator(mock_data_catalog)
+
+        # Get default processors
+        defaults = validator.get_default_processors({})
+
+        # Check universal defaults from parent class
+        assert defaults["update_attributes"] is UNSET
+
+        # Check HDP-specific defaults
+        assert defaults["concat"] == "station_id"
+
+    def test_default_processors_with_query_parameters(self):
+        """Test that default processors work with query parameters.
+
+        Tests that query parameters don't affect the HDP default processors
+        (unlike CADCAT where experiment_id affects concat dimension).
+        """
+        # Create mock DataCatalog
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_data_catalog.hdp = mock_hdp_catalog
+
+        # Initialize validator
+        validator = HDPValidator(mock_data_catalog)
+
+        # Get default processors with a query
+        query = {"network_id": "ASOSAWOS", "station_id": "ASOSAWOS_1"}
+        defaults = validator.get_default_processors(query)
+
+        # Defaults should remain the same regardless of query parameters
+        assert defaults["update_attributes"] is UNSET
+        assert defaults["concat"] == "station_id"
 
 
 class TestHDPValidatorStationIdValidation:
