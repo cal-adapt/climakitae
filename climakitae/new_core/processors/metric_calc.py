@@ -673,46 +673,58 @@ class MetricCalc(DataProcessor):
 
             available_memory_gb = psutil.virtual_memory().available / BYTES_TO_GB_FACTOR
 
-            # Estimate memory per simulation more accurately
-            # Account for: input data + block maxima + output arrays + overhead
+            # Get actual dimensions for memory estimation
             n_sims = len(data_array.sim)
-            total_size_bytes = data_array.nbytes
-            size_per_sim_mb = (total_size_bytes / n_sims) / BYTES_TO_MB_FACTOR
+            
+            # Calculate actual size per simulation based on array shape
+            # This accounts for clipped data (e.g., 1590 points instead of full grid)
+            sim_dim_idx = data_array.dims.index("sim")
+            shape_without_sim = list(data_array.shape)
+            shape_without_sim.pop(sim_dim_idx)
+            elements_per_sim = np.prod(shape_without_sim)
+            
+            # Memory per sim: input data + block maxima (~1/365th the size) + distribution fitting overhead
+            # Use float32 = 4 bytes
+            bytes_per_element = 4
+            input_size_per_sim_mb = (elements_per_sim * bytes_per_element) / BYTES_TO_MB_FACTOR
+            
+            # Block maxima reduces time dimension significantly (10950 days -> ~30 years)
+            # But we need multiple copies: input, block maxima, intermediate arrays
+            # Estimate 5x overhead for safe processing
+            estimated_memory_per_sim_mb = input_size_per_sim_mb * 5
 
-            # Block maxima reduces time dimension but we need buffer for processing
-            # Estimate ~3x the raw data size for safe processing headroom
-            estimated_memory_per_sim_mb = size_per_sim_mb * 3
-
-            # Target using only 50% of available memory for safety
-            target_memory_mb = available_memory_gb * 1000 * 0.5
+            # Target using only 30% of available memory for safety on shared systems
+            target_memory_mb = available_memory_gb * 1000 * 0.3
 
             # Calculate batch size
-            estimated_batch_size = max(
-                1, int(target_memory_mb / estimated_memory_per_sim_mb)
-            )
+            if estimated_memory_per_sim_mb > 0:
+                estimated_batch_size = max(1, int(target_memory_mb / estimated_memory_per_sim_mb))
+            else:
+                estimated_batch_size = 1
 
-            # Clamp to reasonable bounds
+            # Clamp to reasonable bounds - be very conservative
             batch_size = max(
                 1,  # At least 1 simulation
                 min(
                     estimated_batch_size,
-                    20,  # Cap at 20 simulations per batch for memory safety
+                    10,  # Cap at 10 simulations per batch for memory safety
                     n_sims,  # Don't exceed total simulations
                 ),
             )
 
             print(
                 f"Memory analysis: {available_memory_gb:.1f}GB available, "
-                f"~{estimated_memory_per_sim_mb:.0f}MB per simulation, "
+                f"~{elements_per_sim:,} elements/sim, "
+                f"~{estimated_memory_per_sim_mb:.0f}MB estimated/sim, "
                 f"batch size: {batch_size}"
             )
 
             return batch_size
 
         except ImportError:
-            # Fallback if psutil not available - use conservative batch size
-            print("psutil not available, using conservative batch size of 5")
-            return min(5, len(data_array.sim))
+            # Fallback if psutil not available - use very conservative batch size
+            print("psutil not available, using conservative batch size of 2")
+            return min(2, len(data_array.sim))
 
     def _process_simulation_batch(
         self,
@@ -744,38 +756,14 @@ class MetricCalc(DataProcessor):
 
         batch_start = time_module.time()
 
-        # Step 1: Extract block maxima
+        # Step 1: Extract block maxima (keep as dask if possible)
         print(f"  → Extracting block maxima...", end=" ", flush=True)
         step_start = time_module.time()
         block_maxima = _get_block_maxima_optimized(batch_data, **block_maxima_kwargs)
         block_maxima = block_maxima.squeeze()
         print(f"({time_module.time() - step_start:.1f}s)")
 
-        # Step 2: Compute block maxima (if dask array)
-        if hasattr(block_maxima, "chunks") and block_maxima.chunks is not None:
-            scheduler = self._get_dask_scheduler()
-            print(f"  → Computing block maxima from Dask array ({scheduler})...")
-            with ProgressBar(dt=1.0, minimum=1.0):
-                try:
-                    if scheduler == "distributed":
-                        block_maxima = block_maxima.compute()
-                    else:
-                        block_maxima = block_maxima.compute(scheduler=scheduler)
-                except Exception as e:
-                    if (
-                        "scheduler-connection-lost" in str(e)
-                        or "CancelledError" in type(e).__name__
-                    ):
-                        print(
-                            f"\n  ⚠ Cluster connection lost, falling back to local threads..."
-                        )
-                        block_maxima = block_maxima.compute(scheduler="threads")
-                    else:
-                        raise
-        else:
-            print(f"  → Block maxima already in memory")
-
-        # Show block maxima shape
+        # Show block maxima shape (estimate without computing)
         n_years = block_maxima.sizes.get(
             "time", block_maxima.sizes.get("time_delta", 0)
         )
@@ -793,7 +781,8 @@ class MetricCalc(DataProcessor):
         # Determine the time dimension to reduce over
         time_dim = "time" if "time" in block_maxima.dims else "time_delta"
 
-        # Step 3: Fit distributions and calculate return values
+        # Step 2: Fit distributions and calculate return values
+        # Keep as dask array and let apply_ufunc handle the computation
         n_fits = int(
             np.prod([s for d, s in block_maxima.sizes.items() if d != time_dim])
         )
@@ -801,11 +790,29 @@ class MetricCalc(DataProcessor):
             f"  → Fitting {self.distribution.upper()} distributions to {n_fits:,} locations..."
         )
 
-        # Convert to dask array for parallelized processing with progress bar
-        # Chunk along spatial dimensions for parallel distribution fitting
-        chunk_sizes = {dim: 50 for dim in block_maxima.dims if dim != time_dim}
-        chunk_sizes[time_dim] = -1  # Keep time dimension together
-        block_maxima_dask = block_maxima.chunk(chunk_sizes)
+        # Chunk intelligently based on actual dimensions
+        # Small chunks on non-time dimensions to limit memory during distribution fitting
+        chunk_sizes = {}
+        for dim in block_maxima.dims:
+            if dim == time_dim:
+                # Keep entire time series together for distribution fitting
+                chunk_sizes[dim] = -1
+            elif dim == "sim":
+                # Small sim chunks since we're already batching
+                chunk_sizes[dim] = min(block_maxima.sizes[dim], 5)
+            elif dim == "points":
+                # For clipped data with points dimension, use moderate chunks
+                chunk_sizes[dim] = min(block_maxima.sizes[dim], 100)
+            else:
+                # Spatial dimensions (lat, lon, etc.)
+                chunk_sizes[dim] = min(block_maxima.sizes[dim], 50)
+        
+        # Only rechunk if it's a dask array
+        if hasattr(block_maxima.data, "chunks"):
+            block_maxima_dask = block_maxima.chunk(chunk_sizes)
+        else:
+            # Convert numpy array to dask with appropriate chunks
+            block_maxima_dask = block_maxima.chunk(chunk_sizes)
 
         # Apply the return value fitting function with dask parallelization
         return_values, p_values = xr.apply_ufunc(
