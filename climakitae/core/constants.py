@@ -88,8 +88,8 @@ CATALOG_CADCAT = "cadcat"
 CATALOG_REN_ENERGY_GEN = "renewable energy generation"
 CATALOG_BOUNDARY = "boundary"
 CATALOG_HDP = "hdp"
-CATALOG_TMY = "typical meteorological year"
-CATALOG_STY = "standard meteorological year"
+CATALOG_TMY = "typical met year"
+CATALOG_STY = "standard met year"
 
 # Boundary Data Constants
 WESTERN_STATES_LIST = ["CA", "NV", "OR", "WA", "UT", "MT", "ID", "AZ", "CO", "NM", "WY"]
