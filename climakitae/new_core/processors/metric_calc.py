@@ -781,8 +781,7 @@ class MetricCalc(DataProcessor):
         # Determine the time dimension to reduce over
         time_dim = "time" if "time" in block_maxima.dims else "time_delta"
 
-        # Step 2: Fit distributions and calculate return values
-        # Keep as dask array and let apply_ufunc handle the computation
+        # Step 2: Fit distributions with spatial batching for memory safety
         n_fits = int(
             np.prod([s for d, s in block_maxima.sizes.items() if d != time_dim])
         )
@@ -790,77 +789,29 @@ class MetricCalc(DataProcessor):
             f"  → Fitting {self.distribution.upper()} distributions to {n_fits:,} locations..."
         )
 
-        # Chunk intelligently based on actual dimensions
-        # Small chunks on non-time dimensions to limit memory during distribution fitting
-        chunk_sizes = {}
-        for dim in block_maxima.dims:
-            if dim == time_dim:
-                # Keep entire time series together for distribution fitting
-                chunk_sizes[dim] = -1
-            elif dim == "sim":
-                # Small sim chunks since we're already batching
-                chunk_sizes[dim] = min(block_maxima.sizes[dim], 5)
-            elif dim == "points":
-                # For clipped data with points dimension, use moderate chunks
-                chunk_sizes[dim] = min(block_maxima.sizes[dim], 100)
-            else:
-                # Spatial dimensions (lat, lon, etc.)
-                chunk_sizes[dim] = min(block_maxima.sizes[dim], 50)
+        # Check if we need spatial batching (for clipped data with many points)
+        spatial_dim = None
+        spatial_size_check = 0
+        if "closest_cell" in block_maxima.dims:
+            spatial_dim = "closest_cell"
+            spatial_size_check = block_maxima.sizes["closest_cell"]
+        elif "points" in block_maxima.dims:
+            spatial_dim = "points"
+            spatial_size_check = block_maxima.sizes["points"]
         
-        # Only rechunk if it's a dask array
-        if hasattr(block_maxima.data, "chunks"):
-            block_maxima_dask = block_maxima.chunk(chunk_sizes)
+        # If we have many spatial points, process them in chunks to avoid memory crash
+        SPATIAL_BATCH_SIZE = 200  # Process 200 points at a time
+        
+        if spatial_dim and spatial_size_check > SPATIAL_BATCH_SIZE:
+            # Process spatial chunks sequentially
+            return_values, p_values = self._fit_with_spatial_batching(
+                block_maxima, time_dim, spatial_dim, SPATIAL_BATCH_SIZE
+            )
         else:
-            # Convert numpy array to dask with appropriate chunks
-            block_maxima_dask = block_maxima.chunk(chunk_sizes)
-
-        # Apply the return value fitting function with dask parallelization
-        return_values, p_values = xr.apply_ufunc(
-            self._fit_return_values_1d,
-            block_maxima_dask,
-            kwargs={
-                "return_periods": self.return_periods,
-                "distr": self.distribution,
-                "get_p_value": self.goodness_of_fit_test,
-            },
-            input_core_dims=[[time_dim]],
-            output_core_dims=[["one_in_x"], []],
-            output_sizes={"one_in_x": len(self.return_periods)},
-            output_dtypes=("float", "float"),
-            vectorize=True,
-            dask="parallelized",
-            dask_gufunc_kwargs={
-                "output_sizes": {"one_in_x": len(self.return_periods)},
-                "allow_rechunk": True,
-            },
-        )
-
-        # Compute with progress bar (using distributed if available, else threads)
-        scheduler = self._get_dask_scheduler()
-        print(f"  → Computing return values ({scheduler})...")
-        with ProgressBar(dt=1.0, minimum=1.0):
-            try:
-                if scheduler == "distributed":
-                    return_values = return_values.compute()
-                    if p_values is not None:
-                        p_values = p_values.compute()
-                else:
-                    return_values = return_values.compute(scheduler=scheduler)
-                    if p_values is not None:
-                        p_values = p_values.compute(scheduler=scheduler)
-            except Exception as e:
-                if (
-                    "scheduler-connection-lost" in str(e)
-                    or "CancelledError" in type(e).__name__
-                ):
-                    print(
-                        f"\n  ⚠ Cluster connection lost, falling back to local threads..."
-                    )
-                    return_values = return_values.compute(scheduler="threads")
-                    if p_values is not None:
-                        p_values = p_values.compute(scheduler="threads")
-                else:
-                    raise
+            # Process all at once (small enough)
+            return_values, p_values = self._fit_distributions_vectorized(
+                block_maxima, time_dim
+            )
 
         # If goodness-of-fit test is not requested, set p_values to None
         if not self.goodness_of_fit_test:
@@ -884,6 +835,134 @@ class MetricCalc(DataProcessor):
         )
 
         return result_ds
+
+    def _fit_distributions_vectorized(
+        self, block_maxima: xr.DataArray, time_dim: str
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """
+        Fit distributions using vectorized apply_ufunc.
+        
+        Parameters
+        ----------
+        block_maxima : xr.DataArray
+            Block maxima data with time dimension
+        time_dim : str
+            Name of the time dimension
+            
+        Returns
+        -------
+        tuple[xr.DataArray, xr.DataArray]
+            Return values and p-values arrays
+        """
+        # Compute block maxima to numpy first (small after yearly aggregation)
+        if hasattr(block_maxima.data, "compute"):
+            block_maxima_computed = block_maxima.compute()
+        else:
+            block_maxima_computed = block_maxima
+        
+        # Apply the return value fitting function
+        return_values, p_values = xr.apply_ufunc(
+            self._fit_return_values_1d,
+            block_maxima_computed,
+            kwargs={
+                "return_periods": self.return_periods,
+                "distr": self.distribution,
+                "get_p_value": self.goodness_of_fit_test,
+            },
+            input_core_dims=[[time_dim]],
+            output_core_dims=[["one_in_x"], []],
+            output_sizes={"one_in_x": len(self.return_periods)},
+            output_dtypes=("float", "float"),
+            vectorize=True,
+        )
+        
+        return return_values, p_values
+
+    def _fit_with_spatial_batching(
+        self,
+        block_maxima: xr.DataArray,
+        time_dim: str,
+        spatial_dim: str,
+        batch_size: int,
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """
+        Fit distributions with spatial batching to manage memory.
+        
+        Parameters
+        ----------
+        block_maxima : xr.DataArray
+            Block maxima data with time and spatial dimensions
+        time_dim : str
+            Name of the time dimension
+        spatial_dim : str
+            Name of the spatial dimension to batch over
+        batch_size : int
+            Number of spatial points to process at once
+            
+        Returns
+        -------
+        tuple[xr.DataArray, xr.DataArray]
+            Return values and p-values arrays
+        """
+        n_spatial = block_maxima.sizes[spatial_dim]
+        n_batches = int(np.ceil(n_spatial / batch_size))
+        
+        print(f"    Processing {n_spatial} spatial points in {n_batches} chunks of {batch_size}...")
+        
+        return_values_list = []
+        p_values_list = []
+        
+        # Compute block maxima once (it's small after yearly aggregation)
+        print(f"    Computing block maxima to memory...", end=" ", flush=True)
+        if hasattr(block_maxima.data, "compute"):
+            block_maxima_computed = block_maxima.compute()
+        else:
+            block_maxima_computed = block_maxima
+        print(f"done")
+        
+        for i in range(n_batches):
+            start_idx = i * batch_size
+            end_idx = min((i + 1) * batch_size, n_spatial)
+            
+            # Select spatial chunk
+            chunk_data = block_maxima_computed.isel({spatial_dim: slice(start_idx, end_idx)})
+            
+            # Apply the return value fitting function (pure numpy, no dask)
+            chunk_return_values, chunk_p_values = xr.apply_ufunc(
+                self._fit_return_values_1d,
+                chunk_data,
+                kwargs={
+                    "return_periods": self.return_periods,
+                    "distr": self.distribution,
+                    "get_p_value": self.goodness_of_fit_test,
+                },
+                input_core_dims=[[time_dim]],
+                output_core_dims=[["one_in_x"], []],
+                output_sizes={"one_in_x": len(self.return_periods)},
+                output_dtypes=("float", "float"),
+                vectorize=True,
+            )
+            
+            return_values_list.append(chunk_return_values)
+            p_values_list.append(chunk_p_values)
+            
+            # Progress update every 5 chunks
+            if (i + 1) % 5 == 0 or i == n_batches - 1:
+                print(f"    Chunk {i+1}/{n_batches} complete ({end_idx}/{n_spatial} points)")
+            
+            # Garbage collect periodically
+            if (i + 1) % 10 == 0:
+                gc.collect()
+        
+        # Concatenate results along spatial dimension
+        return_values = xr.concat(return_values_list, dim=spatial_dim)
+        p_values = xr.concat(p_values_list, dim=spatial_dim)
+        
+        # Clean up
+        del return_values_list, p_values_list
+        gc.collect()
+        
+        return return_values, p_values
 
     def _preprocess_variable_for_one_in_x(
         self, data: xr.DataArray, var_name: str
