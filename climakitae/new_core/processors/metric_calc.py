@@ -756,59 +756,60 @@ class MetricCalc(DataProcessor):
 
         batch_start = time_module.time()
 
-        # Step 1: Extract block maxima (keep as dask if possible)
-        print(f"  → Extracting block maxima...", end=" ", flush=True)
-        step_start = time_module.time()
-        block_maxima = _get_block_maxima_optimized(batch_data, **block_maxima_kwargs)
-        block_maxima = block_maxima.squeeze()
-        print(f"({time_module.time() - step_start:.1f}s)")
-
-        # Show block maxima shape (estimate without computing)
-        n_years = block_maxima.sizes.get(
-            "time", block_maxima.sizes.get("time_delta", 0)
-        )
-        spatial_size = np.prod(
-            [
-                s
-                for d, s in block_maxima.sizes.items()
-                if d not in ["time", "time_delta", "sim"]
-            ]
-        )
-        print(
-            f"  → Block maxima shape: {dict(block_maxima.sizes)} ({n_years} years × {spatial_size} gridcells)"
-        )
-
-        # Determine the time dimension to reduce over
-        time_dim = "time" if "time" in block_maxima.dims else "time_delta"
-
-        # Step 2: Fit distributions with spatial batching for memory safety
-        n_fits = int(
-            np.prod([s for d, s in block_maxima.sizes.items() if d != time_dim])
-        )
-        print(
-            f"  → Fitting {self.distribution.upper()} distributions to {n_fits:,} locations..."
-        )
-
         # Check if we need spatial batching (for clipped data with many points)
+        # Must do this BEFORE computing block maxima to avoid OOM
         spatial_dim = None
         spatial_size_check = 0
-        if "closest_cell" in block_maxima.dims:
+        if "closest_cell" in batch_data.dims:
             spatial_dim = "closest_cell"
-            spatial_size_check = block_maxima.sizes["closest_cell"]
-        elif "points" in block_maxima.dims:
+            spatial_size_check = batch_data.sizes["closest_cell"]
+        elif "points" in batch_data.dims:
             spatial_dim = "points"
-            spatial_size_check = block_maxima.sizes["points"]
-        
-        # If we have many spatial points, process them in chunks to avoid memory crash
-        SPATIAL_BATCH_SIZE = 200  # Process 200 points at a time
-        
+            spatial_size_check = batch_data.sizes["points"]
+
+        # If we have many spatial points, process them in chunks BEFORE block maxima
+        SPATIAL_BATCH_SIZE = 100  # Process 100 points at a time (reduced for safety)
+
         if spatial_dim and spatial_size_check > SPATIAL_BATCH_SIZE:
-            # Process spatial chunks sequentially
-            return_values, p_values = self._fit_with_spatial_batching(
-                block_maxima, time_dim, spatial_dim, SPATIAL_BATCH_SIZE
+            # Process spatial chunks sequentially - this avoids loading all data at once
+            return_values, p_values = self._fit_with_early_spatial_batching(
+                batch_data, block_maxima_kwargs, spatial_dim, SPATIAL_BATCH_SIZE
             )
         else:
-            # Process all at once (small enough)
+            # Small enough to process all at once
+            # Step 1: Extract block maxima (keep as dask if possible)
+            print(f"  → Extracting block maxima...", end=" ", flush=True)
+            step_start = time_module.time()
+            block_maxima = _get_block_maxima_optimized(batch_data, **block_maxima_kwargs)
+            block_maxima = block_maxima.squeeze()
+            print(f"({time_module.time() - step_start:.1f}s)")
+
+            # Show block maxima shape (estimate without computing)
+            n_years = block_maxima.sizes.get(
+                "time", block_maxima.sizes.get("time_delta", 0)
+            )
+            spatial_size = np.prod(
+                [
+                    s
+                    for d, s in block_maxima.sizes.items()
+                    if d not in ["time", "time_delta", "sim"]
+                ]
+            )
+            print(
+                f"  → Block maxima shape: {dict(block_maxima.sizes)} ({n_years} years × {spatial_size} gridcells)"
+            )
+
+            # Determine the time dimension to reduce over
+            time_dim = "time" if "time" in block_maxima.dims else "time_delta"
+
+            # Step 2: Fit distributions
+            n_fits = int(
+                np.prod([s for d, s in block_maxima.sizes.items() if d != time_dim])
+            )
+            print(
+                f"  → Fitting {self.distribution.upper()} distributions to {n_fits:,} locations..."
+            )
+
             return_values, p_values = self._fit_distributions_vectorized(
                 block_maxima, time_dim
             )
@@ -961,6 +962,112 @@ class MetricCalc(DataProcessor):
         # Clean up
         del return_values_list, p_values_list
         gc.collect()
+        
+        return return_values, p_values
+
+    def _fit_with_early_spatial_batching(
+        self,
+        batch_data: xr.DataArray,
+        block_maxima_kwargs: dict,
+        spatial_dim: str,
+        batch_size: int,
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """
+        Fit distributions with EARLY spatial batching - before computing block maxima.
+        
+        This is critical for memory safety: we select a spatial chunk FIRST,
+        then compute block maxima for just that chunk, then fit distributions.
+        This avoids loading the entire raw dataset into memory.
+        
+        Parameters
+        ----------
+        batch_data : xr.DataArray
+            Raw data (before block maxima) with spatial dimension
+        block_maxima_kwargs : dict
+            Keyword arguments for block maxima extraction
+        spatial_dim : str
+            Name of the spatial dimension to batch over
+        batch_size : int
+            Number of spatial points to process at once
+            
+        Returns
+        -------
+        tuple[xr.DataArray, xr.DataArray]
+            Return values and p-values arrays
+        """
+        import time as time_module
+        
+        n_spatial = batch_data.sizes[spatial_dim]
+        n_batches = int(np.ceil(n_spatial / batch_size))
+        
+        print(f"  → Processing {n_spatial} spatial points in {n_batches} chunks of {batch_size}...")
+        print(f"    (Early spatial batching to avoid loading all raw data at once)")
+        
+        return_values_list = []
+        p_values_list = []
+        
+        step_start = time_module.time()
+        
+        for i in range(n_batches):
+            start_idx = i * batch_size
+            end_idx = min((i + 1) * batch_size, n_spatial)
+            
+            # Step 1: Select spatial chunk BEFORE any computation
+            chunk_data = batch_data.isel({spatial_dim: slice(start_idx, end_idx)})
+            
+            # Step 2: Compute block maxima for just this chunk (much smaller!)
+            chunk_block_maxima = _get_block_maxima_optimized(chunk_data, **block_maxima_kwargs)
+            chunk_block_maxima = chunk_block_maxima.squeeze()
+            
+            # Compute to memory (now it's small: e.g., 10 sims × 2 WL × 30 years × 100 points)
+            if hasattr(chunk_block_maxima.data, "compute"):
+                chunk_block_maxima = chunk_block_maxima.compute()
+            
+            # Determine time dimension
+            time_dim = "time" if "time" in chunk_block_maxima.dims else "time_delta"
+            
+            # Step 3: Fit distributions for this spatial chunk
+            chunk_return_values, chunk_p_values = xr.apply_ufunc(
+                self._fit_return_values_1d,
+                chunk_block_maxima,
+                kwargs={
+                    "return_periods": self.return_periods,
+                    "distr": self.distribution,
+                    "get_p_value": self.goodness_of_fit_test,
+                },
+                input_core_dims=[[time_dim]],
+                output_core_dims=[["one_in_x"], []],
+                output_sizes={"one_in_x": len(self.return_periods)},
+                output_dtypes=("float", "float"),
+                vectorize=True,
+            )
+            
+            return_values_list.append(chunk_return_values)
+            p_values_list.append(chunk_p_values)
+            
+            # Clean up chunk data
+            del chunk_data, chunk_block_maxima
+            gc.collect()
+            
+            # Progress update every 2 chunks or at the end
+            if (i + 1) % 2 == 0 or i == n_batches - 1:
+                elapsed = time_module.time() - step_start
+                rate = (end_idx) / elapsed if elapsed > 0 else 0
+                remaining = (n_spatial - end_idx) / rate if rate > 0 else 0
+                print(f"    Chunk {i+1}/{n_batches}: {end_idx}/{n_spatial} points "
+                      f"({elapsed:.1f}s elapsed, ~{remaining:.0f}s remaining)")
+        
+        # Concatenate results along spatial dimension
+        print(f"  → Concatenating {n_batches} chunk results...")
+        return_values = xr.concat(return_values_list, dim=spatial_dim)
+        p_values = xr.concat(p_values_list, dim=spatial_dim)
+        
+        # Clean up
+        del return_values_list, p_values_list
+        gc.collect()
+        
+        total_time = time_module.time() - step_start
+        print(f"  → Spatial processing complete ({total_time:.1f}s total)")
         
         return return_values, p_values
 
