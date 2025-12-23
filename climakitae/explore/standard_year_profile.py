@@ -236,6 +236,9 @@ def _check_stations(location_str: str, **kwargs: any) -> str:
                 location_str = f"{stations[0].lower()}_{location_str}"
             else:
                 return location_str
+        # no station(s), other location parameters provided
+        case (object(), length) if length > 0:
+            return location_str
         case _:
             raise TypeError(
                 "Location must be provided as either `station_name` or `cached_area` or `latitude` plus `longitude`."
