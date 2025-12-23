@@ -174,7 +174,7 @@ class Concat(DataProcessor):
             join="outer",
         )
 
-        logger.info("Concatenated HDP datasets along '%s' dimension.", self.dim_name)
+        logger.info("Concatenated HDP datasets along station_id dimension.")
         self.update_context(context, station_ids)
         return concatenated
 
