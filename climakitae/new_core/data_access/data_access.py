@@ -19,6 +19,7 @@ import difflib
 import logging
 from typing import Any, Dict
 
+import dask
 import geopandas as gpd
 import intake
 import intake_esm
@@ -324,19 +325,39 @@ class DataCatalog(dict):
         logger.debug("Executing catalog search")
         # Detailed query log (was printed previously)
         logger.debug("Querying %s catalog with query: %s", self.catalog_key, query)
-        result = (
-            self[self.catalog_key]
-            .search(**query)
-            .to_dataset_dict(
-                # Use consolidated=None for compatibility with both Zarr v2 and v3.
-                # - True: requires consolidated metadata (fails on Zarr v3 without it)
-                # - False: always reads metadata from individual arrays
-                # - None: uses consolidated if available, falls back to individual reads
-                zarr_kwargs={"consolidated": None},
-                storage_options={"anon": True},
-                progressbar=False,
+
+        # Check if a distributed client is active - if so, force synchronous scheduler
+        # during data loading to prevent intake_esm from sending open_dataset tasks
+        # to the cluster (workers may not have data access). The data remains lazy
+        # (dask arrays) - we're only forcing the metadata/catalog operations to run locally.
+        scheduler_override = None
+        try:
+            from dask.distributed import get_client
+
+            client = get_client()
+            if client.status == "running":
+                scheduler_override = "synchronous"
+                logger.debug(
+                    "Distributed client detected, using synchronous scheduler for data loading"
+                )
+        except (ImportError, ValueError):
+            # No distributed client active, use default scheduler
+            pass
+
+        with dask.config.set(scheduler=scheduler_override):
+            result = (
+                self[self.catalog_key]
+                .search(**query)
+                .to_dataset_dict(
+                    # Use consolidated=None for compatibility with both Zarr v2 and v3.
+                    # - True: requires consolidated metadata (fails on Zarr v3 without it)
+                    # - False: always reads metadata from individual arrays
+                    # - None: uses consolidated if available, falls back to individual reads
+                    zarr_kwargs={"consolidated": None},
+                    storage_options={"anon": True},
+                    progressbar=False,
+                )
             )
-        )
         logger.info("Retrieved %d dataset(s) from catalog", len(result))
         logger.debug("Retrieved datasets: %s", list(result.keys()))
         return result
