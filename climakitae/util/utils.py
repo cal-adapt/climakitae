@@ -722,6 +722,7 @@ def get_closest_gridcells(
     # Check for invalid (ocean/masked) points using landmask BEFORE extracting data
     # This avoids loading the full dataset just to check for NaNs
     print("  Checking landmask for valid land points...")
+    print(data)
 
     # Get landmask - it's a 2D array where 1 = land, 0 = water/masked
     if "landmask" in data.coords or "landmask" in getattr(data, "data_vars", {}):
