@@ -171,6 +171,20 @@ class TestRenewablesValidatorRegistration:
             mock_parent_method.assert_called_once_with(test_query)
             assert result is None
 
+
+class TestRenewablesValidatorDefaultProcessors:
+    """Test class for RenewablesValidator default processors."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create mock DataCatalog
+        mock_data_catalog = MagicMock()
+        mock_renewables_catalog = MagicMock()
+        mock_data_catalog.renewables = mock_renewables_catalog
+
+        # Initialize validator
+        self.validator = RenewablesValidator(mock_data_catalog)
+
     def test_default_processors_with_historical_experiment_id(self):
         """Test get_default_processors with historical experiment_id.
 
