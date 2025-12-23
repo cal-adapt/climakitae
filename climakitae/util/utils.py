@@ -584,6 +584,52 @@ def get_closest_gridcell(
     return None
 
 
+def _transform_coords_to_data_crs_vectorized(
+    data: xr.Dataset | xr.DataArray,
+    lats: np.ndarray,
+    lons: np.ndarray,
+    lat_dim: str,
+    lon_dim: str,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Transform arrays of lat/lon coordinates to the data's CRS (vectorized).
+
+    Parameters
+    ----------
+    data : xr.Dataset | xr.DataArray
+        Gridded data with CRS information (via rioxarray).
+    lats : np.ndarray
+        Array of latitude coordinates.
+    lons : np.ndarray
+        Array of longitude coordinates.
+    lat_dim : str
+        Name of the latitude/y spatial dimension ('y' or 'lat').
+    lon_dim : str
+        Name of the longitude/x spatial dimension ('x' or 'lon').
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        Arrays of coordinates in the data's CRS as (lat_coords, lon_coords).
+
+    """
+    # Detect if user passed lat/lon or x/y projection coordinates
+    # Lat/lon values are always <= 360, projection coords (meters) are much larger
+    user_passed_latlon = np.all(np.abs(lats) <= 360) and np.all(np.abs(lons) <= 360)
+
+    if lat_dim == "y" and lon_dim == "x" and user_passed_latlon:
+        # Transform lat/lon to projection coordinates (x, y) - vectorized
+        transformer = pyproj.Transformer.from_crs(
+            crs_from="epsg:4326",
+            crs_to=data.rio.crs,
+            always_xy=True,
+        )
+        # transform returns (x, y) with always_xy=True
+        # We return (y, x) to match (lat_coord, lon_coord) order
+        x_coords, y_coords = transformer.transform(lons, lats)
+        return np.asarray(y_coords), np.asarray(x_coords)
+    return lats, lons
+
+
 def get_closest_gridcells(
     data: xr.Dataset | xr.DataArray,
     lats: Iterable[float] | float,
@@ -592,8 +638,9 @@ def get_closest_gridcells(
 ) -> xr.Dataset | xr.DataArray | None:
     """Find the nearest grid cell(s) for given latitude and longitude coordinates.
 
-    This function calls get_closest_gridcell for each lat/lon pair and concatenates
-    the results along a 'points' dimension.
+    This function uses vectorized operations to efficiently find closest gridcells
+    for multiple coordinate pairs at once. For a single point, it delegates to
+    get_closest_gridcell.
 
     Parameters
     ----------
@@ -603,6 +650,9 @@ def get_closest_gridcells(
         Latitude coordinate(s).
     lons : float | Iterable[float]
         Longitude coordinate(s).
+    print_coords : bool, optional
+        Print closest coordinates for each point. Default is True.
+        Note: For large numbers of points, printing is automatically suppressed.
 
     Returns
     -------
@@ -615,48 +665,90 @@ def get_closest_gridcells(
     get_closest_gridcell
 
     """
-    # Convert single values to lists for uniform handling
-    if not isinstance(lats, Iterable) or isinstance(lats, str):
-        lats = [lats]
-    if not isinstance(lons, Iterable) or isinstance(lons, str):
-        lons = [lons]
+    # Convert single values to arrays for uniform handling
+    lats_arr = np.atleast_1d(np.asarray(lats))
+    lons_arr = np.atleast_1d(np.asarray(lons))
 
     # Ensure lats and lons have the same length
-    if len(lats) != len(lons):
+    if len(lats_arr) != len(lons_arr):
         raise ValueError(
-            f"lats and lons must have the same length, got {len(lats)} and {len(lons)}"
+            f"lats and lons must have the same length, got {len(lats_arr)} and {len(lons_arr)}"
         )
 
-    # Get closest gridcell for each lat/lon pair
-    gridcells = []
-    for lat, lon in zip(lats, lons):
-        gridcell = get_closest_gridcell(data, lat, lon, print_coords=print_coords)
-        if gridcell is not None:
-            gridcells.append(gridcell)
+    n_points = len(lats_arr)
 
-    # If no valid gridcells found, return None
-    if len(gridcells) == 0:
-        print("No valid gridcells found for the provided coordinates.")
+    # Suppress printing for large numbers of points
+    if n_points > 10:
+        print_coords = False
+
+    # Identify spatial dimensions and transform all coordinates at once
+    lat_dim, lon_dim = _get_spatial_dims(data)
+    lat_coords, lon_coords = _transform_coords_to_data_crs_vectorized(
+        data, lats_arr, lons_arr, lat_dim, lon_dim
+    )
+
+    # Get coordinate arrays from data
+    lat_index = data[lat_dim].to_index()
+    lon_index = data[lon_dim].to_index()
+
+    # Find nearest indices for all points at once (vectorized)
+    lat_indices = lat_index.get_indexer(lat_coords, method="nearest")
+    lon_indices = lon_index.get_indexer(lon_coords, method="nearest")
+
+    # Check for out-of-bounds points
+    valid_mask = (lat_indices != -1) & (lon_indices != -1)
+    if not np.any(valid_mask):
+        print("All input coordinates are OUTSIDE of data extent. Returning None.")
         return None
 
-    # If only one gridcell, return it directly
-    if len(gridcells) == 1:
-        return gridcells[0]
+    if not np.all(valid_mask):
+        n_invalid = np.sum(~valid_mask)
+        print(
+            f"Warning: {n_invalid} point(s) are outside data extent and will be excluded."
+        )
 
-    # Concatenate multiple gridcells along 'points' dimension
-    # Note: concat adds the new dimension first, so we transpose to preserve
-    # the original dimension order (e.g., time comes before points)
-    result = xr.concat(gridcells, dim="points")
+    # Filter to valid indices only
+    valid_lat_indices = lat_indices[valid_mask]
+    valid_lon_indices = lon_indices[valid_mask]
+    valid_lats = lats_arr[valid_mask]
+    valid_lons = lons_arr[valid_mask]
+    n_valid = len(valid_lat_indices)
 
-    # Get all dimensions and move 'points' to the end
+    # Use advanced indexing to select all gridcells at once
+    # Create DataArrays for the indices to enable vectorized selection
+    lat_idx_da = xr.DataArray(valid_lat_indices, dims=["points"])
+    lon_idx_da = xr.DataArray(valid_lon_indices, dims=["points"])
+
+    # Select all gridcells in one operation using isel with DataArrays
+    result = data.isel({lat_dim: lat_idx_da, lon_dim: lon_idx_da})
+
+    # Add coordinate information for each point
+    actual_lats = np.array([lat_index[i] for i in valid_lat_indices])
+    actual_lons = np.array([lon_index[i] for i in valid_lon_indices])
+
+    # Assign coordinates to the result
+    result = result.assign_coords(
+        {
+            lat_dim: ("points", actual_lats),
+            lon_dim: ("points", actual_lons),
+        }
+    )
+
+    # Print coordinates if requested
+    if print_coords:
+        for i in range(n_valid):
+            print(
+                f"Closest gridcell to lat: {valid_lats[i]}, lon: {valid_lons[i]} "
+                f"is at {lat_dim}: {actual_lats[i]}, {lon_dim}: {actual_lons[i]}"
+            )
+
+    # Reorder dimensions to put 'points' at the end
     if isinstance(result, xr.Dataset):
-        # For datasets, get dimensions from the first data variable
         first_var = list(result.data_vars)[0]
         all_dims = list(result[first_var].dims)
     else:
         all_dims = list(result.dims)
 
-    # Move 'points' dimension to the end
     if "points" in all_dims:
         all_dims.remove("points")
         all_dims.append("points")

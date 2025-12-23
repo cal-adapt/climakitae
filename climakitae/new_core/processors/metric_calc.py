@@ -756,10 +756,22 @@ class MetricCalc(DataProcessor):
             scheduler = self._get_dask_scheduler()
             print(f"  → Computing block maxima from Dask array ({scheduler})...")
             with ProgressBar(dt=1.0, minimum=1.0):
-                if scheduler == "distributed":
-                    block_maxima = block_maxima.compute()
-                else:
-                    block_maxima = block_maxima.compute(scheduler=scheduler)
+                try:
+                    if scheduler == "distributed":
+                        block_maxima = block_maxima.compute()
+                    else:
+                        block_maxima = block_maxima.compute(scheduler=scheduler)
+                except Exception as e:
+                    if (
+                        "scheduler-connection-lost" in str(e)
+                        or "CancelledError" in type(e).__name__
+                    ):
+                        print(
+                            f"\n  ⚠ Cluster connection lost, falling back to local threads..."
+                        )
+                        block_maxima = block_maxima.compute(scheduler="threads")
+                    else:
+                        raise
         else:
             print(f"  → Block maxima already in memory")
 
@@ -820,14 +832,28 @@ class MetricCalc(DataProcessor):
         scheduler = self._get_dask_scheduler()
         print(f"  → Computing return values ({scheduler})...")
         with ProgressBar(dt=1.0, minimum=1.0):
-            if scheduler == "distributed":
-                return_values = return_values.compute()
-                if p_values is not None:
-                    p_values = p_values.compute()
-            else:
-                return_values = return_values.compute(scheduler=scheduler)
-                if p_values is not None:
-                    p_values = p_values.compute(scheduler=scheduler)
+            try:
+                if scheduler == "distributed":
+                    return_values = return_values.compute()
+                    if p_values is not None:
+                        p_values = p_values.compute()
+                else:
+                    return_values = return_values.compute(scheduler=scheduler)
+                    if p_values is not None:
+                        p_values = p_values.compute(scheduler=scheduler)
+            except Exception as e:
+                if (
+                    "scheduler-connection-lost" in str(e)
+                    or "CancelledError" in type(e).__name__
+                ):
+                    print(
+                        f"\n  ⚠ Cluster connection lost, falling back to local threads..."
+                    )
+                    return_values = return_values.compute(scheduler="threads")
+                    if p_values is not None:
+                        p_values = p_values.compute(scheduler="threads")
+                else:
+                    raise
 
         # If goodness-of-fit test is not requested, set p_values to None
         if not self.goodness_of_fit_test:

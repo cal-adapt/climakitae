@@ -848,7 +848,7 @@ class Clip(DataProcessor):
             or None if no valid gridcells found for any points
         """
         logger.info(
-            "Processing %d points using efficient vectorized approach...",
+            "Processing %d points ...",
             len(point_list),
         )
 
