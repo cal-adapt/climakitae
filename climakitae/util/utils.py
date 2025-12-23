@@ -722,6 +722,51 @@ def get_closest_gridcells(
     # Select all gridcells in one operation using isel with DataArrays
     result = data.isel({lat_dim: lat_idx_da, lon_dim: lon_idx_da})
 
+    # Check for NaN values at each point and handle with 3x3 search if needed
+    # We need to check validity and potentially replace with averaged neighbors
+    needs_nan_handling = []
+    for i in range(n_valid):
+        point_data = result.isel(points=i)
+        test_data = _reduce_to_single_point(point_data, lat_dim, lon_dim)
+        if not _check_has_valid_data(test_data):
+            needs_nan_handling.append(i)
+
+    # For points with NaN data, search 3x3 neighborhood and average valid cells
+    if needs_nan_handling:
+        # Process NaN points using the 3x3 search approach
+        replacement_data = []
+        replacement_indices = []
+        lat_size = data.sizes[lat_dim]
+        lon_size = data.sizes[lon_dim]
+
+        for point_idx in needs_nan_handling:
+            lat_idx = int(valid_lat_indices[point_idx])
+            lon_idx = int(valid_lon_indices[point_idx])
+
+            # Search 3x3 window for valid data
+            valid_neighbors = _search_nearby_valid_gridcells(
+                data, lat_idx, lon_idx, lat_dim, lon_dim
+            )
+
+            if valid_neighbors:
+                # Average the valid neighbors
+                averaged, _ = _average_gridcells_preserve_coords(
+                    valid_neighbors, lat_dim, lon_dim
+                )
+                replacement_data.append(averaged)
+                replacement_indices.append(point_idx)
+
+        # Replace NaN points with averaged neighbors in the result
+        if replacement_data:
+            # Convert result to list of individual point datasets for replacement
+            result_list = [result.isel(points=i) for i in range(n_valid)]
+
+            for repl_data, repl_idx in zip(replacement_data, replacement_indices):
+                result_list[repl_idx] = repl_data
+
+            # Reconstruct the result by concatenating
+            result = xr.concat(result_list, dim="points")
+
     # Add coordinate information for each point
     actual_lats = np.array([lat_index[i] for i in valid_lat_indices])
     actual_lons = np.array([lon_index[i] for i in valid_lon_indices])
