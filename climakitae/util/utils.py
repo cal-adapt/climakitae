@@ -733,15 +733,26 @@ def get_closest_gridcells(
     # Rename the gridcell dimension to points
     result = result.rename({"gridcell": "points"})
 
-    # Check for NaN values at each point and handle with 3x3 search if needed
-    # We need to check validity and potentially replace with averaged neighbors
+    # Vectorized NaN check - much faster than iterating
     print("  Checking for NaN values at extracted points...")
-    needs_nan_handling = []
-    for i in range(n_valid):
-        point_data = result.isel(points=i)
-        test_data = _reduce_to_single_point(point_data, lat_dim, lon_dim)
-        if not _check_has_valid_data(test_data):
-            needs_nan_handling.append(i)
+    if isinstance(result, xr.Dataset):
+        first_var = list(result.data_vars)[0]
+        check_data = result[first_var]
+    else:
+        check_data = result
+
+    # Check if all values are NaN for each point (reduce over all dims except 'points')
+    dims_to_reduce = [d for d in check_data.dims if d != "points"]
+    if dims_to_reduce:
+        all_nan_per_point = check_data.isnull().all(dim=dims_to_reduce)
+    else:
+        all_nan_per_point = check_data.isnull()
+
+    # Compute if dask-backed
+    if hasattr(all_nan_per_point.data, "compute"):
+        all_nan_per_point = all_nan_per_point.compute()
+
+    needs_nan_handling = list(np.where(all_nan_per_point.values)[0])
 
     # For points with NaN data, search 3x3 neighborhood and average valid cells
     if needs_nan_handling:
