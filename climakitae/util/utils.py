@@ -830,8 +830,18 @@ def get_closest_gridcells(
     # Select all points at once
     result = stacked.isel(gridcell=flat_indices)
 
+    # Reset the MultiIndex before renaming - this drops the (lat, lon) index components
+    # so we can reassign them as simple 1D coordinates on the points dimension
+    result = result.reset_index("gridcell")
+
     # Rename the gridcell dimension to points
     result = result.rename({"gridcell": "points"})
+
+    # Drop the old lat/lon coordinates that came from the MultiIndex reset
+    # (they're scalar values from the stacking, not what we want)
+    coords_to_drop = [c for c in [lat_dim, lon_dim] if c in result.coords]
+    if coords_to_drop:
+        result = result.drop_vars(coords_to_drop)
 
     # Add coordinate information for each point
     actual_lats = np.array([lat_index[i] for i in final_lat_indices])
