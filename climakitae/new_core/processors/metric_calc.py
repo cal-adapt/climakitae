@@ -753,9 +753,13 @@ class MetricCalc(DataProcessor):
 
         # Step 2: Compute block maxima (if dask array)
         if hasattr(block_maxima, "chunks") and block_maxima.chunks is not None:
-            print(f"  → Computing block maxima from Dask array...")
+            scheduler = self._get_dask_scheduler()
+            print(f"  → Computing block maxima from Dask array ({scheduler})...")
             with ProgressBar(dt=1.0, minimum=1.0):
-                block_maxima = block_maxima.compute(scheduler="threads")
+                if scheduler == "distributed":
+                    block_maxima = block_maxima.compute()
+                else:
+                    block_maxima = block_maxima.compute(scheduler=scheduler)
         else:
             print(f"  → Block maxima already in memory")
 
@@ -812,12 +816,18 @@ class MetricCalc(DataProcessor):
             },
         )
 
-        # Compute with progress bar using threaded scheduler
-        print(f"  → Computing return values...")
+        # Compute with progress bar (using distributed if available, else threads)
+        scheduler = self._get_dask_scheduler()
+        print(f"  → Computing return values ({scheduler})...")
         with ProgressBar(dt=1.0, minimum=1.0):
-            return_values = return_values.compute(scheduler="threads")
-            if p_values is not None:
-                p_values = p_values.compute(scheduler="threads")
+            if scheduler == "distributed":
+                return_values = return_values.compute()
+                if p_values is not None:
+                    p_values = p_values.compute()
+            else:
+                return_values = return_values.compute(scheduler=scheduler)
+                if p_values is not None:
+                    p_values = p_values.compute(scheduler=scheduler)
 
         # If goodness-of-fit test is not requested, set p_values to None
         if not self.goodness_of_fit_test:
@@ -1047,6 +1057,27 @@ class MetricCalc(DataProcessor):
         )
 
         return result
+
+    def _get_dask_scheduler(self) -> str:
+        """
+        Detect if a distributed client is available and return the appropriate scheduler.
+
+        Returns
+        -------
+        str
+            'distributed' if a dask.distributed client is active, otherwise 'threads'
+        """
+        try:
+            from dask.distributed import get_client
+
+            client = get_client()
+            # Check if client is actually connected
+            if client.status == "running":
+                return "distributed"
+        except (ImportError, ValueError):
+            # No distributed client available
+            pass
+        return "threads"
 
     def _get_optimal_chunks(self, data_array: xr.DataArray) -> dict:
         """
