@@ -733,26 +733,41 @@ def get_closest_gridcells(
     # Rename the gridcell dimension to points
     result = result.rename({"gridcell": "points"})
 
-    # Vectorized NaN check - much faster than iterating
+    # Batched NaN check to avoid memory issues with large datasets
     print("  Checking for NaN values at extracted points...")
-    if isinstance(result, xr.Dataset):
-        first_var = list(result.data_vars)[0]
-        check_data = result[first_var]
-    else:
-        check_data = result
+    batch_size = 100  # Process 100 points at a time
+    needs_nan_handling = []
 
-    # Check if all values are NaN for each point (reduce over all dims except 'points')
-    dims_to_reduce = [d for d in check_data.dims if d != "points"]
-    if dims_to_reduce:
-        all_nan_per_point = check_data.isnull().all(dim=dims_to_reduce)
-    else:
-        all_nan_per_point = check_data.isnull()
+    for batch_start in range(0, n_valid, batch_size):
+        batch_end = min(batch_start + batch_size, n_valid)
+        batch_slice = slice(batch_start, batch_end)
 
-    # Compute if dask-backed
-    if hasattr(all_nan_per_point.data, "compute"):
-        all_nan_per_point = all_nan_per_point.compute()
+        # Get batch of points
+        batch_result = result.isel(points=batch_slice)
 
-    needs_nan_handling = list(np.where(all_nan_per_point.values)[0])
+        if isinstance(batch_result, xr.Dataset):
+            first_var = list(batch_result.data_vars)[0]
+            check_data = batch_result[first_var]
+        else:
+            check_data = batch_result
+
+        # Check if all values are NaN for each point in batch
+        dims_to_reduce = [d for d in check_data.dims if d != "points"]
+        if dims_to_reduce:
+            all_nan_batch = check_data.isnull().all(dim=dims_to_reduce)
+        else:
+            all_nan_batch = check_data.isnull()
+
+        # Compute this batch
+        if hasattr(all_nan_batch.data, "compute"):
+            all_nan_batch = all_nan_batch.compute()
+
+        # Find NaN indices within this batch and convert to global indices
+        batch_nan_indices = np.where(all_nan_batch.values)[0]
+        needs_nan_handling.extend(batch_start + batch_nan_indices)
+
+        if batch_end < n_valid:
+            print(f"    Checked {batch_end}/{n_valid} points...")
 
     # For points with NaN data, search 3x3 neighborhood and average valid cells
     if needs_nan_handling:
