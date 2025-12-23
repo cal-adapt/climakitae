@@ -676,13 +676,16 @@ def get_closest_gridcells(
         )
 
     n_points = len(lats_arr)
+    print(f"Processing {n_points} coordinate pair(s)...")
 
-    # Suppress printing for large numbers of points
+    # Suppress per-point printing for large numbers of points
     if n_points > 10:
         print_coords = False
 
     # Identify spatial dimensions and transform all coordinates at once
     lat_dim, lon_dim = _get_spatial_dims(data)
+    print(f"  Spatial dimensions: {lat_dim}, {lon_dim}")
+
     lat_coords, lon_coords = _transform_coords_to_data_crs_vectorized(
         data, lats_arr, lons_arr, lat_dim, lon_dim
     )
@@ -690,6 +693,7 @@ def get_closest_gridcells(
     # Get coordinate arrays from data
     lat_index = data[lat_dim].to_index()
     lon_index = data[lon_dim].to_index()
+    print(f"  Data grid size: {len(lat_index)} x {len(lon_index)}")
 
     # Find nearest indices for all points at once (vectorized)
     lat_indices = lat_index.get_indexer(lat_coords, method="nearest")
@@ -704,7 +708,7 @@ def get_closest_gridcells(
     if not np.all(valid_mask):
         n_invalid = np.sum(~valid_mask)
         print(
-            f"Warning: {n_invalid} point(s) are outside data extent and will be excluded."
+            f"  Warning: {n_invalid} point(s) are outside data extent and will be excluded."
         )
 
     # Filter to valid indices only
@@ -713,6 +717,7 @@ def get_closest_gridcells(
     valid_lats = lats_arr[valid_mask]
     valid_lons = lons_arr[valid_mask]
     n_valid = len(valid_lat_indices)
+    print(f"  Found {n_valid} valid point(s) within data extent")
 
     # Use advanced indexing to select all gridcells at once
     # Create DataArrays for the indices to enable vectorized selection
