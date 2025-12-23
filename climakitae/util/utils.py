@@ -719,107 +719,122 @@ def get_closest_gridcells(
     n_valid = len(valid_lat_indices)
     print(f"  Found {n_valid} valid point(s) within data extent")
 
-    # Stack spatial dimensions for efficient flat indexing
-    print("  Extracting gridcells...")
-    n_lon = data.sizes[lon_dim]
-    stacked = data.stack(gridcell=(lat_dim, lon_dim))
+    # Check for invalid (ocean/masked) points using landmask BEFORE extracting data
+    # This avoids loading the full dataset just to check for NaNs
+    print("  Checking landmask for valid land points...")
 
-    # Compute flat indices: flat_idx = lat_idx * n_lon + lon_idx
-    flat_indices = valid_lat_indices * n_lon + valid_lon_indices
+    # Get landmask - it's a 2D array where 1 = land, 0 = water/masked
+    if "landmask" in data.coords or "landmask" in getattr(data, "data_vars", {}):
+        landmask = data["landmask"]
+        # Compute if dask-backed (this is just 2D, so cheap)
+        if hasattr(landmask.data, "compute"):
+            landmask = landmask.compute()
+        landmask_values = landmask.values
 
-    # Select all points at once using simple integer indexing (much faster)
-    result = stacked.isel(gridcell=flat_indices)
-
-    # Rename the gridcell dimension to points
-    result = result.rename({"gridcell": "points"})
-
-    # Batched NaN check to avoid memory issues with large datasets
-    print("  Checking for NaN values at extracted points...")
-    batch_size = 100  # Process 100 points at a time
-    needs_nan_handling = []
-
-    for batch_start in range(0, n_valid, batch_size):
-        batch_end = min(batch_start + batch_size, n_valid)
-        batch_slice = slice(batch_start, batch_end)
-
-        # Get batch of points
-        batch_result = result.isel(points=batch_slice)
-
-        if isinstance(batch_result, xr.Dataset):
-            first_var = list(batch_result.data_vars)[0]
-            check_data = batch_result[first_var]
-        else:
-            check_data = batch_result
-
-        # Check if all values are NaN for each point in batch
-        dims_to_reduce = [d for d in check_data.dims if d != "points"]
-        if dims_to_reduce:
-            all_nan_batch = check_data.isnull().all(dim=dims_to_reduce)
-        else:
-            all_nan_batch = check_data.isnull()
-
-        # Compute this batch
-        if hasattr(all_nan_batch.data, "compute"):
-            all_nan_batch = all_nan_batch.compute()
-
-        # Find NaN indices within this batch and convert to global indices
-        batch_nan_indices = np.where(all_nan_batch.values)[0]
-        needs_nan_handling.extend(batch_start + batch_nan_indices)
-
-        if batch_end < n_valid:
-            print(f"    Checked {batch_end}/{n_valid} points...")
-
-    # For points with NaN data, search 3x3 neighborhood and average valid cells
-    if needs_nan_handling:
-        print(
-            f"  {len(needs_nan_handling)} point(s) have NaN data, searching 3x3 neighborhoods..."
+        # Check which target points are on land vs water
+        is_land = np.array(
+            [
+                landmask_values[lat_idx, lon_idx] == 1
+                for lat_idx, lon_idx in zip(valid_lat_indices, valid_lon_indices)
+            ]
         )
-        # Process NaN points using the 3x3 search approach
-        replacement_data = []
-        replacement_indices = []
+        needs_nan_handling = list(np.where(~is_land)[0])
+        print(f"  {np.sum(is_land)}/{n_valid} points are on land")
+    else:
+        # No landmask available - create one from a single time slice
+        print("  No landmask found, checking single time slice for validity...")
+        if isinstance(data, xr.Dataset):
+            first_var = list(data.data_vars)[0]
+            check_data = data[first_var]
+        else:
+            check_data = data
+
+        # Get a single time slice to create validity mask
+        if "time" in check_data.dims:
+            single_slice = check_data.isel(time=0)
+        else:
+            single_slice = check_data
+
+        # Reduce any remaining non-spatial dims
+        for dim in list(single_slice.dims):
+            if dim not in [lat_dim, lon_dim]:
+                single_slice = single_slice.isel({dim: 0})
+
+        # Compute the validity mask (2D)
+        if hasattr(single_slice.data, "compute"):
+            single_slice = single_slice.compute()
+
+        validity_mask = ~np.isnan(single_slice.values)
+
+        # Check which target points are valid
+        is_valid = np.array(
+            [
+                validity_mask[lat_idx, lon_idx]
+                for lat_idx, lon_idx in zip(valid_lat_indices, valid_lon_indices)
+            ]
+        )
+        needs_nan_handling = list(np.where(~is_valid)[0])
+        print(f"  {np.sum(is_valid)}/{n_valid} points have valid data")
+
+    # For invalid points, find valid neighbor indices using the 2D mask
+    # This is done BEFORE extracting the full timeseries data
+    final_lat_indices = valid_lat_indices.copy()
+    final_lon_indices = valid_lon_indices.copy()
+
+    if len(needs_nan_handling) > 0:
+        print(f"  {len(needs_nan_handling)} point(s) need neighbor search...")
+
+        # Get the validity mask for neighbor searching
+        if "landmask" in data.coords or "landmask" in getattr(data, "data_vars", {}):
+            mask_2d = landmask_values == 1
+        else:
+            mask_2d = validity_mask
+
         lat_size = data.sizes[lat_dim]
         lon_size = data.sizes[lon_dim]
+        points_fixed = 0
 
         for point_idx in needs_nan_handling:
             lat_idx = int(valid_lat_indices[point_idx])
             lon_idx = int(valid_lon_indices[point_idx])
 
-            # Search 3x3 window for valid data
-            valid_neighbors = _search_nearby_valid_gridcells(
-                data, lat_idx, lon_idx, lat_dim, lon_dim
-            )
+            # Search 3x3 window for valid neighbor using the 2D mask
+            found_valid = False
+            for di in range(-1, 2):
+                for dj in range(-1, 2):
+                    ni, nj = lat_idx + di, lon_idx + dj
+                    if 0 <= ni < lat_size and 0 <= nj < lon_size:
+                        if mask_2d[ni, nj]:
+                            # Found a valid neighbor - use its indices
+                            final_lat_indices[point_idx] = ni
+                            final_lon_indices[point_idx] = nj
+                            found_valid = True
+                            points_fixed += 1
+                            break
+                if found_valid:
+                    break
 
-            if valid_neighbors:
-                # Average the valid neighbors
-                averaged, _ = _average_gridcells_preserve_coords(
-                    valid_neighbors, lat_dim, lon_dim
-                )
-                replacement_data.append(averaged)
-                replacement_indices.append(point_idx)
+        print(
+            f"  Fixed {points_fixed}/{len(needs_nan_handling)} points with valid neighbors"
+        )
 
-        # Replace NaN points with averaged neighbors in the result
-        if replacement_data:
-            print(
-                f"  Replaced {len(replacement_data)} point(s) with averaged neighbors"
-            )
-            # Convert result to list of individual point datasets for replacement
-            result_list = [result.isel(points=i) for i in range(n_valid)]
+    # Now extract the full timeseries data using the corrected indices
+    print("  Extracting gridcells...")
+    n_lon = data.sizes[lon_dim]
+    stacked = data.stack(gridcell=(lat_dim, lon_dim))
 
-            for repl_data, repl_idx in zip(replacement_data, replacement_indices):
-                result_list[repl_idx] = repl_data
+    # Compute flat indices with corrected positions
+    flat_indices = final_lat_indices * n_lon + final_lon_indices
 
-            # Reconstruct the result by concatenating
-            result = xr.concat(result_list, dim="points")
-        else:
-            print(
-                f"  Could not find valid neighbors for {len(needs_nan_handling)} point(s)"
-            )
-    else:
-        print("  All extracted points have valid data")
+    # Select all points at once
+    result = stacked.isel(gridcell=flat_indices)
+
+    # Rename the gridcell dimension to points
+    result = result.rename({"gridcell": "points"})
 
     # Add coordinate information for each point
-    actual_lats = np.array([lat_index[i] for i in valid_lat_indices])
-    actual_lons = np.array([lon_index[i] for i in valid_lon_indices])
+    actual_lats = np.array([lat_index[i] for i in final_lat_indices])
+    actual_lons = np.array([lon_index[i] for i in final_lon_indices])
 
     # Assign coordinates to the result
     result = result.assign_coords(
