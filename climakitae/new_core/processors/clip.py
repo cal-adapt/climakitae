@@ -177,7 +177,7 @@ class Clip(DataProcessor):
     >>> clip = Clip([(37.7749, -122.4194), (34.0522, -118.2437)])  # Multiple lat, lon points
     """
 
-    def __init__(self, value):
+    def __init__(self, value, persist: bool = False):
         """
         Initialize the Clip processor.
 
@@ -188,23 +188,44 @@ class Clip(DataProcessor):
             - str: Single boundary key, file path, station code/name, or coordinate specification
             - list: Multiple boundary keys, station codes/names, or (lat, lon) tuples for multiple points
             - tuple: Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max)) or single (lat, lon) point
-            - dict: Configuration dict with ``boundaries`` (list) and optional ``separated`` (bool)
+            - dict: Configuration dict with options:
+              - ``boundaries`` (list): Boundary names for boundary clipping
+              - ``points`` (list): List of (lat, lon) tuples for multi-point clipping
+              - ``separated`` (bool): Keep boundaries as separate dimensions
+              - ``persist`` (bool): Compute data to memory after clipping (recommended for
+                multi-point clipping with downstream computations like 1-in-X analysis)
+        persist : bool, optional
+            If True, compute the clipped data to memory after clipping. This collapses
+            the Dask task graph, which is critical for efficient downstream operations
+            like 1-in-X analysis. For multi-point clipping with many points, the task
+            graph can become very large (millions of tasks), causing OOM errors during
+            subsequent computations. Default is False for backward compatibility.
         """
-        # Handle dict input: extract boundaries and separated flag
+        # Handle dict input: extract boundaries, separated flag, and persist option
         self.separated = False
         self.boundary_names: list[str] = []
         self.dimension_name: str | None = None
+        self.persist = persist
 
         if isinstance(value, dict):
-            if "boundaries" not in value:
+            # Check for persist in dict config
+            if "persist" in value:
+                self.persist = value.get("persist", False)
+
+            if "boundaries" in value:
+                self.separated = value.get("separated", False)
+                self.boundary_names = list(value["boundaries"])
+                # Store the boundaries list as the value for processing
+                value = value["boundaries"]
+            elif "points" in value:
+                # Multi-point clipping with dict config
+                value = value["points"]
+            else:
+                # No recognized key - raise error
                 raise ValueError(
-                    "Dict input to Clip must contain 'boundaries' key with list of boundary names. "
-                    "Example: {'boundaries': ['CA', 'OR', 'WA'], 'separated': True}"
+                    "Dict input to Clip must contain 'boundaries' or 'points' key. "
+                    "Example: {'points': [(lat1, lon1), (lat2, lon2)], 'persist': True}"
                 )
-            self.separated = value.get("separated", False)
-            self.boundary_names = list(value["boundaries"])
-            # Store the boundaries list as the value for processing
-            value = value["boundaries"]
 
         self.value = value
         self.name = "clip"
@@ -418,6 +439,21 @@ class Clip(DataProcessor):
 
         if ret is None:
             raise ValueError("Clipping operation failed to produce valid results.")
+
+        # Persist to memory if requested - this collapses the Dask task graph
+        # Critical for multi-point clipping where task graph can be very large
+        if self.persist:
+            logger.info(
+                "Persisting clipped data to memory to collapse Dask task graph..."
+            )
+            if isinstance(ret, dict):
+                ret = {
+                    k: v.compute() if hasattr(v, "compute") else v
+                    for k, v in ret.items()
+                }
+            elif hasattr(ret, "compute"):
+                ret = ret.compute()
+            logger.info("Clipped data persisted to memory successfully")
 
         self.update_context(context)
         return ret

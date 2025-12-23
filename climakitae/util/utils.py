@@ -635,6 +635,7 @@ def get_closest_gridcells(
     lats: Iterable[float] | float,
     lons: Iterable[float] | float,
     print_coords: bool = True,
+    bbox_buffer: int = 5,
 ) -> xr.Dataset | xr.DataArray | None:
     """Find the nearest grid cell(s) for given latitude and longitude coordinates.
 
@@ -653,6 +654,9 @@ def get_closest_gridcells(
     print_coords : bool, optional
         Print closest coordinates for each point. Default is True.
         Note: For large numbers of points, printing is automatically suppressed.
+    bbox_buffer : int, optional
+        Number of grid cells to add as buffer around the bounding box when
+        pre-clipping large datasets. Default is 5.
 
     Returns
     -------
@@ -663,6 +667,12 @@ def get_closest_gridcells(
     See Also
     --------
     get_closest_gridcell
+
+    Notes
+    -----
+    For large datasets with many target points, this function first clips the data
+    to a bounding box around the target points. This dramatically reduces the Dask
+    task graph complexity and improves performance for downstream operations.
 
     """
     # Convert single values to arrays for uniform handling
@@ -694,6 +704,40 @@ def get_closest_gridcells(
     lat_index = data[lat_dim].to_index()
     lon_index = data[lon_dim].to_index()
     print(f"  Data grid size: {len(lat_index)} x {len(lon_index)}")
+
+    # OPTIMIZATION: Pre-clip to bounding box to reduce Dask task graph complexity
+    # This is critical for large datasets with many scattered points
+    lat_min_idx = lat_index.get_indexer([lat_coords.min()], method="nearest")[0]
+    lat_max_idx = lat_index.get_indexer([lat_coords.max()], method="nearest")[0]
+    lon_min_idx = lon_index.get_indexer([lon_coords.min()], method="nearest")[0]
+    lon_max_idx = lon_index.get_indexer([lon_coords.max()], method="nearest")[0]
+
+    # Add buffer and clamp to valid range
+    lat_min_idx = max(0, min(lat_min_idx, lat_max_idx) - bbox_buffer)
+    lat_max_idx = min(len(lat_index) - 1, max(lat_min_idx, lat_max_idx) + bbox_buffer)
+    lon_min_idx = max(0, min(lon_min_idx, lon_max_idx) - bbox_buffer)
+    lon_max_idx = min(len(lon_index) - 1, max(lon_min_idx, lon_max_idx) + bbox_buffer)
+
+    bbox_lat_size = lat_max_idx - lat_min_idx + 1
+    bbox_lon_size = lon_max_idx - lon_min_idx + 1
+    original_size = len(lat_index) * len(lon_index)
+    bbox_size = bbox_lat_size * bbox_lon_size
+
+    # Only pre-clip if it reduces spatial size significantly (>50% reduction)
+    if bbox_size < original_size * 0.5:
+        print(
+            f"  Pre-clipping to bounding box: {bbox_lat_size} x {bbox_lon_size} "
+            f"({bbox_size / original_size * 100:.1f}% of original)"
+        )
+        data = data.isel(
+            {
+                lat_dim: slice(lat_min_idx, lat_max_idx + 1),
+                lon_dim: slice(lon_min_idx, lon_max_idx + 1),
+            }
+        )
+        # Update indices to reference the clipped data
+        lat_index = data[lat_dim].to_index()
+        lon_index = data[lon_dim].to_index()
 
     # Find nearest indices for all points at once (vectorized)
     lat_indices = lat_index.get_indexer(lat_coords, method="nearest")
