@@ -757,9 +757,13 @@ class MetricCalc(DataProcessor):
 
         # Step 2: Compute block maxima (if dask array)
         if hasattr(block_maxima, "chunks") and block_maxima.chunks is not None:
-            print(f"  → Computing block maxima from Dask array (parallelized)...")
+            scheduler = self._get_dask_scheduler()
+            print(f"  → Computing block maxima from Dask array ({scheduler})...")
             with ProgressBar(dt=1.0, minimum=1.0):
-                block_maxima = block_maxima.compute(scheduler="threads")
+                if scheduler == "distributed":
+                    block_maxima = block_maxima.compute()
+                else:
+                    block_maxima = block_maxima.compute(scheduler=scheduler)
         else:
             print(f"  → Block maxima already in memory")
 
@@ -816,11 +820,18 @@ class MetricCalc(DataProcessor):
             },
         )
 
-        # Compute with progress bar (parallelized with threads)
+        # Compute with progress bar (using distributed if available, else threads)
+        scheduler = self._get_dask_scheduler()
+        print(f"  → Computing return values ({scheduler})...")
         with ProgressBar(dt=1.0, minimum=1.0):
-            return_values = return_values.compute(scheduler="threads")
-            if p_values is not None:
-                p_values = p_values.compute(scheduler="threads")
+            if scheduler == "distributed":
+                return_values = return_values.compute()
+                if p_values is not None:
+                    p_values = p_values.compute()
+            else:
+                return_values = return_values.compute(scheduler=scheduler)
+                if p_values is not None:
+                    p_values = p_values.compute(scheduler=scheduler)
 
         # If goodness-of-fit test is not requested, set p_values to None
         if not self.goodness_of_fit_test:
@@ -1051,6 +1062,27 @@ class MetricCalc(DataProcessor):
 
         return result
 
+    def _get_dask_scheduler(self) -> str:
+        """
+        Detect if a distributed client is available and return the appropriate scheduler.
+
+        Returns
+        -------
+        str
+            'distributed' if a dask.distributed client is active, otherwise 'threads'
+        """
+        try:
+            from dask.distributed import get_client
+
+            client = get_client()
+            # Check if client is actually connected
+            if client.status == "running":
+                return "distributed"
+        except (ImportError, ValueError):
+            # No distributed client available
+            pass
+        return "threads"
+
     def optimize_dask_performance(self):
         """
         Optimize Dask performance for large dataset processing.
@@ -1061,24 +1093,39 @@ class MetricCalc(DataProcessor):
         try:
             import multiprocessing
 
-            # Get number of CPUs available
-            n_workers = max(1, multiprocessing.cpu_count() - 1)  # Leave 1 CPU free
+            # Check if distributed client is available
+            scheduler = self._get_dask_scheduler()
 
-            # Configure Dask for better performance with extreme value analysis
-            dask_config = {
-                "array.chunk-size": "128MiB",  # Reasonable chunk size for climate data
-                "array.slicing.split_large_chunks": True,  # Handle large chunks better
-                # Use threaded scheduler for parallelization (thread-safe for numpy/scipy)
-                "scheduler": "threads",
-                "num_workers": n_workers,
-            }
+            if scheduler == "distributed":
+                from dask.distributed import get_client
+
+                client = get_client()
+                n_workers = len(client.scheduler_info()["workers"])
+                print(
+                    f"Dask distributed client detected with {n_workers} workers - "
+                    f"computations will be offloaded to cluster"
+                )
+                # Configure for distributed
+                dask_config = {
+                    "array.chunk-size": "128MiB",
+                    "array.slicing.split_large_chunks": True,
+                }
+            else:
+                # Get number of CPUs available for local threading
+                n_workers = max(1, multiprocessing.cpu_count() - 1)
+                dask_config = {
+                    "array.chunk-size": "128MiB",
+                    "array.slicing.split_large_chunks": True,
+                    "scheduler": "threads",
+                    "num_workers": n_workers,
+                }
+                print(
+                    f"Dask performance configuration applied for extreme value analysis "
+                    f"(using {n_workers} local threads)"
+                )
 
             # Apply configuration
             dask.config.set(dask_config)
-            print(
-                f"Dask performance configuration applied for extreme value analysis "
-                f"(using {n_workers} threads)"
-            )
 
         except ImportError:
             print("Dask not available - skipping performance optimization")
