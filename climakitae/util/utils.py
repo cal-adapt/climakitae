@@ -765,11 +765,15 @@ def get_closest_gridcells(
 
     # Check for invalid (ocean/masked) points using landmask BEFORE extracting data
     # This avoids loading the full dataset just to check for NaNs
-    print("  Checking landmask for valid land points...")
-    print(data)
+    # SKIP expensive validity check for large point sets (>100 points) - the compute
+    # call triggers the entire Dask task graph which is extremely slow
+    needs_nan_handling = []
+    skip_validity_check = n_valid > 100
 
-    # Get landmask - it's a 2D array where 1 = land, 0 = water/masked
-    if "landmask" in data.coords or "landmask" in getattr(data, "data_vars", {}):
+    if skip_validity_check:
+        print(f"  Skipping validity check for {n_valid} points (too expensive)")
+    elif "landmask" in data.coords or "landmask" in getattr(data, "data_vars", {}):
+        print("  Checking landmask for valid land points...")
         landmask = data["landmask"]
         # Compute if dask-backed (this is just 2D, so cheap)
         if hasattr(landmask.data, "compute"):
@@ -787,6 +791,7 @@ def get_closest_gridcells(
         print(f"  {np.sum(is_land)}/{n_valid} points are on land")
     else:
         # No landmask available - create one from a single time slice
+        # Only do this for small point sets since it requires compute()
         print("  No landmask found, checking single time slice for validity...")
         if isinstance(data, xr.Dataset):
             first_var = list(data.data_vars)[0]
@@ -865,31 +870,18 @@ def get_closest_gridcells(
 
     # Now extract the full timeseries data using the corrected indices
     print("  Extracting gridcells...")
-    n_lon = data.sizes[lon_dim]
-    stacked = data.stack(gridcell=(lat_dim, lon_dim))
 
-    # Compute flat indices with corrected positions
-    flat_indices = final_lat_indices * n_lon + final_lon_indices
+    # Use vectorized advanced indexing with DataArray indexers
+    # This is more efficient than stack+isel because it doesn't create a complex MultiIndex
+    lat_indexer = xr.DataArray(final_lat_indices, dims=["points"])
+    lon_indexer = xr.DataArray(final_lon_indices, dims=["points"])
 
-    # Select all points at once
-    result = stacked.isel(gridcell=flat_indices)
-
-    # Reset the MultiIndex before renaming - this drops the (lat, lon) index components
-    # so we can reassign them as simple 1D coordinates on the points dimension
-    result = result.reset_index("gridcell")
-
-    # Rename the gridcell dimension to points
-    result = result.rename({"gridcell": "points"})
-
-    # Drop the old lat/lon coordinates that came from the MultiIndex reset
-    # (they're scalar values from the stacking, not what we want)
-    coords_to_drop = [c for c in [lat_dim, lon_dim] if c in result.coords]
-    if coords_to_drop:
-        result = result.drop_vars(coords_to_drop)
+    # Select all points at once using vectorized indexing
+    result = data.isel({lat_dim: lat_indexer, lon_dim: lon_indexer})
 
     # Add coordinate information for each point
-    actual_lats = np.array([lat_index[i] for i in final_lat_indices])
-    actual_lons = np.array([lon_index[i] for i in final_lon_indices])
+    actual_lats = data[lat_dim].values[final_lat_indices]
+    actual_lons = data[lon_dim].values[final_lon_indices]
 
     # Assign coordinates to the result
     result = result.assign_coords(
