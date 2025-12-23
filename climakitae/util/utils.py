@@ -719,16 +719,23 @@ def get_closest_gridcells(
     n_valid = len(valid_lat_indices)
     print(f"  Found {n_valid} valid point(s) within data extent")
 
-    # Use advanced indexing to select all gridcells at once
-    # Create DataArrays for the indices to enable vectorized selection
-    lat_idx_da = xr.DataArray(valid_lat_indices, dims=["points"])
-    lon_idx_da = xr.DataArray(valid_lon_indices, dims=["points"])
+    # Stack spatial dimensions for efficient flat indexing
+    print("  Extracting gridcells...")
+    n_lon = data.sizes[lon_dim]
+    stacked = data.stack(gridcell=(lat_dim, lon_dim))
 
-    # Select all gridcells in one operation using isel with DataArrays
-    result = data.isel({lat_dim: lat_idx_da, lon_dim: lon_idx_da})
+    # Compute flat indices: flat_idx = lat_idx * n_lon + lon_idx
+    flat_indices = valid_lat_indices * n_lon + valid_lon_indices
+
+    # Select all points at once using simple integer indexing (much faster)
+    result = stacked.isel(gridcell=flat_indices)
+
+    # Rename the gridcell dimension to points
+    result = result.rename({"gridcell": "points"})
 
     # Check for NaN values at each point and handle with 3x3 search if needed
     # We need to check validity and potentially replace with averaged neighbors
+    print("  Checking for NaN values at extracted points...")
     needs_nan_handling = []
     for i in range(n_valid):
         point_data = result.isel(points=i)
@@ -738,6 +745,9 @@ def get_closest_gridcells(
 
     # For points with NaN data, search 3x3 neighborhood and average valid cells
     if needs_nan_handling:
+        print(
+            f"  {len(needs_nan_handling)} point(s) have NaN data, searching 3x3 neighborhoods..."
+        )
         # Process NaN points using the 3x3 search approach
         replacement_data = []
         replacement_indices = []
@@ -763,6 +773,9 @@ def get_closest_gridcells(
 
         # Replace NaN points with averaged neighbors in the result
         if replacement_data:
+            print(
+                f"  Replaced {len(replacement_data)} point(s) with averaged neighbors"
+            )
             # Convert result to list of individual point datasets for replacement
             result_list = [result.isel(points=i) for i in range(n_valid)]
 
@@ -771,6 +784,12 @@ def get_closest_gridcells(
 
             # Reconstruct the result by concatenating
             result = xr.concat(result_list, dim="points")
+        else:
+            print(
+                f"  Could not find valid neighbors for {len(needs_nan_handling)} point(s)"
+            )
+    else:
+        print("  All extracted points have valid data")
 
     # Add coordinate information for each point
     actual_lats = np.array([lat_index[i] for i in valid_lat_indices])
@@ -788,8 +807,8 @@ def get_closest_gridcells(
     if print_coords:
         for i in range(n_valid):
             print(
-                f"Closest gridcell to lat: {valid_lats[i]}, lon: {valid_lons[i]} "
-                f"is at {lat_dim}: {actual_lats[i]}, {lon_dim}: {actual_lons[i]}"
+                f"  Point {i+1}: ({valid_lats[i]:.4f}, {valid_lons[i]:.4f}) -> "
+                f"({actual_lats[i]:.4f}, {actual_lons[i]:.4f})"
             )
 
     # Reorder dimensions to put 'points' at the end
@@ -804,6 +823,7 @@ def get_closest_gridcells(
         all_dims.append("points")
         result = result.transpose(*all_dims)
 
+    print(f"Done! Extracted {n_valid} gridcell(s)")
     return result
 
 
