@@ -184,7 +184,7 @@ class MetricCalc(DataProcessor):
 
         # Required parameter
         self.return_periods = self.one_in_x_config.get("return_periods")
-        if self.return_periods is UNSET:
+        if self.return_periods is None or self.return_periods is UNSET:
             raise ValueError("return_periods is required for 1-in-X calculations")
 
         # Convert to numpy array for consistency
@@ -243,6 +243,10 @@ class MetricCalc(DataProcessor):
                 else:
                     ret = self._calculate_metrics_single(result)
             case dict():
+                if not result:
+                    raise ValueError(
+                        "Metric calculation operation failed to produce valid results on empty arguments."
+                    )
                 if self.one_in_x_config is not UNSET:
                     ret = {
                         key: self._calculate_one_in_x_single(value)
@@ -254,6 +258,10 @@ class MetricCalc(DataProcessor):
                         for key, value in result.items()
                     }
             case list() | tuple():
+                if not result:
+                    raise ValueError(
+                        "Metric calculation operation failed to produce valid results on empty arguments."
+                    )
                 if self.one_in_x_config is not UNSET:
                     processed_data = [
                         self._calculate_one_in_x_single(item)
@@ -402,7 +410,11 @@ class MetricCalc(DataProcessor):
                 # Stack percentile and metric results
                 all_values = []
                 for i in range(len(self.percentiles)):
-                    all_values.append(percentile_result.isel(percentile=i))
+                    # Drop the percentile coordinate to avoid conflicts when combining
+                    val = percentile_result.isel(percentile=i)
+                    if "percentile" in val.coords:
+                        val = val.drop_vars("percentile")
+                    all_values.append(val)
                 all_values.append(metric_result)
 
                 result = xr.concat(all_values, dim="statistic")
