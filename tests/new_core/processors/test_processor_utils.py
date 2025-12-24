@@ -17,23 +17,15 @@ import xarray as xr
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.processors.processor_utils import (
-    FALLBACK_ESS_VALUE,
-    LARGE_DATASET_THRESHOLD,
-    LARGE_TIMESERIES_THRESHOLD,
-    _apply_duration_filter_vectorized,
-    _apply_groupby_filter_vectorized,
+    FALLBACK_ESS_VALUE, LARGE_DATASET_THRESHOLD, LARGE_TIMESERIES_THRESHOLD,
+    _apply_duration_filter_vectorized, _apply_groupby_filter_vectorized,
     _apply_grouped_duration_filter_vectorized,
     _calc_average_ess_gridded_optimized,
     _calc_average_ess_timeseries_optimized,
-    _check_effective_sample_size_optimized,
-    _extract_block_extremes_vectorized,
-    _get_block_maxima_optimized,
-    _handle_nan_values_optimized,
-    _optimize_chunking_for_block_maxima,
-    _set_block_maxima_attributes,
-    extend_time_domain,
-    find_station_match,
-)
+    _check_effective_sample_size_optimized, _extract_block_extremes_vectorized,
+    _get_block_maxima_optimized, _handle_nan_values_optimized,
+    _optimize_chunking_for_block_maxima, _set_block_maxima_attributes,
+    extend_time_domain, find_station_match)
 
 
 class TestDataFactory:

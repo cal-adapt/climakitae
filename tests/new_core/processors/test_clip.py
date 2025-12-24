@@ -6,18 +6,19 @@ that handles spatial data clipping operations including boundary-based,
 coordinate-based, and point-based clipping.
 """
 
-import pytest
+from unittest.mock import MagicMock, patch
+
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import xarray as xr
-import geopandas as gpd
-from unittest.mock import MagicMock, patch
-from shapely.geometry import box
 import pyproj
+import pytest
+import xarray as xr
+from shapely.geometry import box
 
-from climakitae.new_core.processors.clip import Clip
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
+from climakitae.new_core.processors.clip import Clip
 
 
 class TestClipInit:
@@ -2383,8 +2384,8 @@ class TestClipErrorHandlingPaths:
     def test_execute_with_shapefile_path(self):
         """Test execute() with shapefile path - outcome: reads file and clips data."""
         # Create a temporary shapefile
-        import tempfile
         import os
+        import tempfile
 
         # Create GeoDataFrame
         geometry = [box(-120, 35, -118, 38)]
