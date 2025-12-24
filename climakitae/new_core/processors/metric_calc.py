@@ -590,8 +590,12 @@ class MetricCalc(DataProcessor):
         """
         Vectorized calculation of 1-in-X values with proper memory-safe batching.
 
-        This method processes simulations in sequential batches to manage memory,
-        while still using vectorized operations within each batch.
+        This method processes data in a hierarchical batching scheme:
+        1. First batch by warming_level (if present) to avoid memory overload
+        2. Then batch by simulation within each warming level
+
+        This ensures that even with multiple warming levels and many simulations,
+        memory usage remains bounded.
         """
         if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
             raise ValueError("Extreme value analysis functions are not available")
@@ -608,6 +612,70 @@ class MetricCalc(DataProcessor):
         elif self.event_duration[1] == "hour":
             kwargs["duration"] = self.event_duration
 
+        # Check if warming_level dimension exists
+        has_warming_levels = "warming_level" in data_array.dims
+
+        if has_warming_levels:
+            # Process each warming level separately to manage memory
+            warming_levels = data_array.warming_level.values
+            n_warming_levels = len(warming_levels)
+
+            print(f"\n{'=' * 60}")
+            print(f"Processing {n_warming_levels} warming level(s) sequentially...")
+            print(f"{'=' * 60}")
+
+            warming_level_results = []
+
+            for wl_idx, wl in enumerate(warming_levels):
+                print(f"\n{'─' * 60}")
+                print(f"Warming Level {wl_idx + 1}/{n_warming_levels}: {wl}°C")
+                print(f"{'─' * 60}")
+
+                # Select data for this warming level
+                wl_data = data_array.sel(warming_level=wl)
+
+                # Process simulations for this warming level
+                wl_result = self._process_simulations_batched(wl_data, kwargs)
+
+                # Add warming_level back as a coordinate
+                wl_result = wl_result.expand_dims(warming_level=[wl])
+                warming_level_results.append(wl_result)
+
+                # Explicit garbage collection after each warming level
+                gc.collect()
+
+            # Combine all warming level results
+            print(f"\n{'=' * 60}")
+            print(
+                f"All warming levels complete. Combining {len(warming_level_results)} results..."
+            )
+            combined_ds = xr.concat(warming_level_results, dim="warming_level")
+            print(f"Final result shape: {dict(combined_ds.dims)}")
+            print(f"{'=' * 60}")
+
+            return combined_ds
+        else:
+            # No warming levels - just process simulations
+            return self._process_simulations_batched(data_array, kwargs)
+
+    def _process_simulations_batched(
+        self, data_array: xr.DataArray, block_maxima_kwargs: dict
+    ) -> xr.Dataset:
+        """
+        Process simulations in memory-safe batches.
+
+        Parameters
+        ----------
+        data_array : xr.DataArray
+            Data array with simulation dimension (but no warming_level dimension).
+        block_maxima_kwargs : dict
+            Keyword arguments for block maxima extraction.
+
+        Returns
+        -------
+        xr.Dataset
+            Combined results from all simulation batches.
+        """
         # Calculate adaptive batch size based on available memory
         batch_size = self._calculate_adaptive_batch_size(data_array)
 
@@ -638,7 +706,7 @@ class MetricCalc(DataProcessor):
 
             # Process this batch (includes its own progress bar for dask operations)
             batch_result = self._process_simulation_batch(
-                batch_data, kwargs, batch_idx + 1, n_batches
+                batch_data, block_maxima_kwargs, batch_idx + 1, n_batches
             )
             batch_results.append(batch_result)
 
@@ -646,11 +714,10 @@ class MetricCalc(DataProcessor):
             gc.collect()
 
         # Combine all batch results along the simulation dimension
-        print("=" * 60)
-        print(f"All batches complete. Combining {len(batch_results)} batch results...")
+        print("─" * 40)
+        print(f"Combining {len(batch_results)} simulation batch results...")
         combined_ds = xr.concat(batch_results, dim="sim")
-        print(f"Final result shape: {dict(combined_ds.dims)}")
-        print("=" * 60)
+        print(f"Result shape: {dict(combined_ds.dims)}")
 
         return combined_ds
 
@@ -711,7 +778,7 @@ class MetricCalc(DataProcessor):
                 1,  # At least 1 simulation
                 min(
                     estimated_batch_size,
-                    10,  # Cap at 10 simulations per batch for memory safety
+                    20,  # Cap at 10 simulations per batch for memory safety
                     n_sims,  # Don't exceed total simulations
                 ),
             )
