@@ -202,6 +202,7 @@ class TestMetricCalcOneInXInit:
             "precipitation": {"remove_trace": True}
         }
 
+
 class TestMetricCalcFitReturnValues1d:
     """Test class for the _fit_return_values_1d distribution fitting method."""
 
@@ -662,9 +663,7 @@ class TestMetricCalcPreprocessVariable:
             {
                 "one_in_x": {
                     "return_periods": [10],
-                    "variable_preprocessing": {
-                        "precipitation": {"remove_trace": True}
-                    },
+                    "variable_preprocessing": {"precipitation": {"remove_trace": True}},
                 }
             }
         )
@@ -1124,9 +1123,10 @@ class TestMetricCalcDaskArrayHandling:
         n_lon = 3
 
         # Create small dask array
-        data = da.random.random(
-            (n_time, n_sims, n_lat, n_lon), chunks=(365, 1, 3, 3)
-        ) * 10 + 20
+        data = (
+            da.random.random((n_time, n_sims, n_lat, n_lon), chunks=(365, 1, 3, 3)) * 10
+            + 20
+        )
 
         time_coords = pd.date_range("2000-01-01", periods=n_time, freq="D")
 
@@ -1157,5 +1157,3 @@ class TestMetricCalcDaskArrayHandling:
 
         assert isinstance(result, xr.Dataset)
         assert "return_value" in result.data_vars
-
-

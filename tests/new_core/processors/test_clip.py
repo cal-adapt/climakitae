@@ -103,7 +103,9 @@ class TestClipInitSeparated:
 
     def test_init_separated_dict_missing_boundaries(self):
         """Test initialization with dict input missing boundaries key raises error."""
-        with pytest.raises(ValueError, match="must contain 'boundaries' key"):
+        with pytest.raises(
+            ValueError, match="must contain 'boundaries' or 'points' key"
+        ):
             Clip({"separated": True})
 
     def test_init_separated_single_boundary(self):
