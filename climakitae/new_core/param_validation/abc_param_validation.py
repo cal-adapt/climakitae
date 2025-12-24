@@ -215,6 +215,33 @@ class ParameterValidator(ABC):
         self.all_catalog_keys = UNSET
         self.load_catalog_df()
 
+    def get_default_processors(self, query: Dict[str, Any]) -> Dict[str, Any]:
+        """Get default processors for this catalog.
+
+        This method returns a dictionary of default processor configurations
+        that should be applied if not explicitly set by the user.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The current query containing user parameters
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary mapping processor names to their default configurations
+
+        Notes
+        -----
+        Subclasses should override this method to provide catalog-specific defaults.
+        The default implementation returns only the universal defaults that apply
+        to all catalogs.
+        """
+        # Universal default for all catalogs
+        return {
+            "update_attributes": UNSET,
+        }
+
     @abstractmethod
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         """Validate the query parameters (abstract method).

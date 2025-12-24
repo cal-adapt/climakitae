@@ -16,11 +16,13 @@ from climakitae.core.paths import (
     BOUNDARY_CATALOG_URL,
     DATA_CATALOG_URL,
     RENEWABLES_CATALOG_URL,
+    HDP_CATALOG_URL,
 )
 from climakitae.new_core.data_access.data_access import (
     CATALOG_BOUNDARY,
     CATALOG_CADCAT,
     CATALOG_REN_ENERGY_GEN,
+    CATALOG_HDP,
     UNSET,
     DataCatalog,
     _get_closest_options,
@@ -135,9 +137,10 @@ class TestDataCatalogInitialization:
         *_, mock_open_esm, mock_open_catalog = mock_data_catalog_and_objs
 
         # Intake functions called with expected args
-        assert mock_open_esm.call_count == 2
+        assert mock_open_esm.call_count == 3
         mock_open_esm.assert_any_call(DATA_CATALOG_URL)
         mock_open_esm.assert_any_call(RENEWABLES_CATALOG_URL)
+        mock_open_esm.assert_any_call(HDP_CATALOG_URL)
         mock_open_catalog.assert_called_once_with(BOUNDARY_CATALOG_URL)
 
     def test_contains_expected_catalog_keys(self, mock_data_catalog_and_objs: Tuple):
@@ -150,6 +153,7 @@ class TestDataCatalogInitialization:
         assert catalog_instance[CATALOG_CADCAT] == mock_esm_catalog
         assert catalog_instance[CATALOG_BOUNDARY] == mock_boundary_catalog
         assert catalog_instance[CATALOG_REN_ENERGY_GEN] == mock_esm_catalog
+        assert catalog_instance[CATALOG_HDP] == mock_esm_catalog
 
     def test_contains_expected_entries(self, mock_data_catalog_and_objs: Tuple):
         """The DataCatalog should contain expected entries after initialization."""
@@ -160,6 +164,7 @@ class TestDataCatalogInitialization:
             CATALOG_CADCAT,
             CATALOG_BOUNDARY,
             CATALOG_REN_ENERGY_GEN,
+            CATALOG_HDP,
             "stations",
         ):
             assert key in catalog_instance
@@ -177,7 +182,7 @@ class TestDataCatalogInitialization:
 
         assert isinstance(df, pd.DataFrame)
         assert set(df["catalog"].unique()).issubset(
-            [CATALOG_REN_ENERGY_GEN, CATALOG_CADCAT]
+            [CATALOG_REN_ENERGY_GEN, CATALOG_CADCAT, CATALOG_HDP]
         )
 
     def test_initialized_state(self, mock_data_catalog_and_objs: Tuple):

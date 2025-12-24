@@ -38,7 +38,7 @@ class TestDatasetFactoryInit:
         assert hasattr(factory, "_catalog_df")
         assert hasattr(factory, "_validator_registry")
         assert hasattr(factory, "_processing_step_registry")
-        assert factory._catalog is None
+        assert factory._catalog is mock_catalog_instance
         assert isinstance(factory._catalog_df, pd.DataFrame)
 
     @patch("climakitae.new_core.dataset_factory.DataCatalog")
@@ -143,7 +143,13 @@ class TestDatasetFactoryProcessingSteps:
 
     def test_get_processing_steps_unset_processes(self):
         """Test _get_list_of_processing_steps when processes is UNSET."""
-        query = {PROC_KEY: UNSET, "experiment_id": "historical", _NEW_ATTRS_KEY: {}}
+        query = {
+            PROC_KEY: UNSET,
+            "experiment_id": "historical",
+            "catalog": "cadcat",
+            "_catalog_key": "cadcat",
+            _NEW_ATTRS_KEY: {},
+        }
 
         # Mock registry with default processors
         mock_processor_class = MagicMock()
@@ -158,7 +164,7 @@ class TestDatasetFactoryProcessingSteps:
 
         result = self.factory._get_list_of_processing_steps(query)
 
-        # Should have default processors
+        # Should have default processors for cadcat catalog
         assert len(result) == 3
         assert query[PROC_KEY]["filter_unadjusted_models"] == "yes"
         assert query[PROC_KEY]["concat"] == "sim"  # historical should use sim
@@ -169,6 +175,8 @@ class TestDatasetFactoryProcessingSteps:
         query = {
             PROC_KEY: UNSET,
             "experiment_id": ["historical", "ssp245"],
+            "catalog": "cadcat",
+            "_catalog_key": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -188,6 +196,8 @@ class TestDatasetFactoryProcessingSteps:
         """Test _get_list_of_processing_steps with custom processes."""
         query = {
             PROC_KEY: {"spatial_avg": "region", "temporal_avg": "monthly"},
+            "catalog": "cadcat",
+            "_catalog_key": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -231,6 +241,8 @@ class TestDatasetFactoryProcessingSteps:
         """Test that processing steps are ordered by priority."""
         query = {
             PROC_KEY: {"high_priority": "value1", "low_priority": "value2"},
+            "catalog": "cadcat",
+            "_catalog_key": "cadcat",
             _NEW_ATTRS_KEY: {},
         }
 
@@ -553,16 +565,25 @@ class TestDatasetFactoryGetMethods:
         expected = sorted(["climate", "renewables"])
         assert result == expected
 
-    def test_get_processors(self):
-        """Test get_processors method."""
+    def test_get_valid_processors(self):
+        """Test get_valid_processors method."""
         self.factory._processing_step_registry = {
-            "spatial_avg": (MagicMock(), 10),
-            "temporal_avg": (MagicMock(), 15),
+            "concat": (MagicMock(), 10),
+            "clip": (MagicMock(), 15),
+            "localize": (MagicMock(), 20),
         }
 
-        result = self.factory.get_processors()
+        # Mock a validator with invalid_processors
+        mock_validator = MagicMock()
+        mock_validator.invalid_processors = ["clip"]
 
-        expected = sorted(["spatial_avg", "temporal_avg"])
+        with patch.object(
+            self.factory, "create_validator", return_value=mock_validator
+        ):
+            result = self.factory.get_valid_processors("test_catalog")
+
+        # Should return all processors except 'clip'
+        expected = sorted(["concat", "localize"])
         assert result == expected
 
     @patch("climakitae.new_core.dataset_factory.DataCatalog")
@@ -681,7 +702,13 @@ class TestDatasetFactoryEdgeCases:
 
     def test_get_processing_steps_with_empty_experiment_list(self):
         """Test _get_list_of_processing_steps with empty experiment_id list."""
-        query = {PROC_KEY: UNSET, "experiment_id": [], _NEW_ATTRS_KEY: {}}
+        query = {
+            PROC_KEY: UNSET,
+            "experiment_id": [],
+            "catalog": "cadcat",
+            "_catalog_key": "cadcat",
+            _NEW_ATTRS_KEY: {},
+        }
 
         mock_processor_class = MagicMock()
         self.factory._processing_step_registry = {

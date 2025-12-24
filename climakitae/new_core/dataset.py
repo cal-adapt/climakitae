@@ -189,8 +189,8 @@ class Dataset:
                 )
             valid_query = self.parameter_validator.is_valid_query(context)
             if valid_query is None:
-                logger.warning("Parameter validation failed, returning empty dataset")
-                return xr.Dataset()  # return empty dataset if validation fails
+                logger.error("Parameter validation failed")
+                return None  # return None if validation fails
             logger.info("Parameter validation successful")
 
         # Check if data access is properly configured

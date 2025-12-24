@@ -84,6 +84,10 @@ class ClimateData:
         Set the spatial resolution.
     variable(variable: str) -> ClimateData
         Set the climate variable to retrieve.
+    station_id(station_id: str) --> ClimateData
+        Set the station identifier
+    network_id(network_id: str) --> ClimateData
+        Set the network identifier
     processes(processes: Dict[str, Union[str, Iterable]]) -> ClimateData
         Set processing operations to apply to the data.
     get() -> Optional[xr.DataArray]
@@ -200,6 +204,8 @@ class ClimateData:
             "table_id": UNSET,
             "grid_label": UNSET,
             "variable_id": UNSET,
+            "station_id": UNSET,
+            "network_id": UNSET,
             "processes": UNSET,
         }
         # Note: We intentionally do NOT call self._factory.reset() here
@@ -562,6 +568,83 @@ class ClimateData:
         logger.info("Variable set to: %s", variable.strip())
         return self
 
+    def station_id(self, station_id: str | list[str]) -> "ClimateData":
+        """Set the station identifier for the query.
+
+        Parameters
+        ----------
+        station_id : str
+            The station ID (e.g., "ASOSAWOS_72019300117", "ASOSAWOS_72020200118").
+
+        Returns
+        -------
+        ClimateData
+            The current instance for method chaining.
+
+        """
+        logger.debug("Setting station_id to: %s", station_id)
+        stn = []
+        if not isinstance(station_id, (str, list)):
+            logger.error(
+                "Invalid station_id parameter: must be string or list of strings"
+            )
+            raise ValueError("Station ID must be a non-empty string or list of strings")
+        if isinstance(station_id, str):
+            if not station_id.strip():
+                logger.error("Invalid station_id parameter: empty string")
+                raise ValueError("Station ID must be a non-empty string")
+            stn.append(station_id.strip())
+        else:
+            for id in station_id:
+                if not isinstance(id, str) or not id.strip():
+                    logger.error(
+                        "Invalid station_id in list: must be non-empty strings"
+                    )
+                    raise ValueError("Each station ID must be a non-empty string")
+                stn.append(id.strip())
+        self._query["station_id"] = stn
+        logger.info("Station ID(s) set to: %s", stn)
+        return self
+
+    def network_id(self, network_id: str | list[str]) -> "ClimateData":
+        """Set the network identifier for the query.
+
+        Parameters
+        ----------
+        network_id : str | list[str]
+            The network ID (e.g., "ASOSAWOS", "CWOP").
+
+        Returns
+        -------
+        ClimateData
+            The current instance for method chaining.
+
+        """
+        logger.debug("Setting network_id to: %s", network_id)
+        if not isinstance(network_id, (str, list)):
+            logger.error(
+                "Invalid network_id parameter: must be string or list of strings"
+            )
+            raise ValueError("Network ID must be a non-empty string or list of strings")
+        if isinstance(network_id, str):
+            if not network_id.strip():
+                logger.error("Invalid network_id parameter: empty string")
+                raise ValueError("Network ID must be a non-empty string")
+            self._query["network_id"] = network_id.strip()
+            logger.info("Network ID set to: %s", network_id.strip())
+        else:
+            net = []
+            for id in network_id:
+                if not isinstance(id, str) or not id.strip():
+                    logger.error(
+                        "Invalid network_id in list: must be non-empty strings"
+                    )
+                    raise ValueError("Each network ID must be a non-empty string")
+                net.append(id.strip())
+            self._query["network_id"] = net
+            logger.info("Network ID(s) set to: %s", net)
+        return self
+
     def processes(self, processes: Dict[str, Union[str, Iterable]]) -> "ClimateData":
         """Set processing operations to apply to the retrieved data.
 
@@ -676,7 +759,16 @@ class ClimateData:
             True if all required parameters are present, False otherwise.
 
         """
-        required_params = ["variable_id", "grid_label", "table_id", "catalog"]
+        # Always require catalog
+        required_params = ["catalog"]
+
+        # Only require these params for specific catalogs
+        catalog = self._query.get("catalog", UNSET)
+        if catalog in ["renewable energy generation", "cadcat"]:
+            required_params.extend(["variable_id", "grid_label", "table_id"])
+        elif catalog == "hdp":
+            required_params.extend(["network_id"])
+
         missing_params = []
 
         for param in required_params:
@@ -744,6 +836,24 @@ class ClimateData:
         """Display available experiment ID options."""
         self._show_options("experiment_id", "experiment_id options (Simulation runs)")
 
+    def show_station_id_options(self, limit_per_group: Optional[int] = None) -> None:
+        """Display available station ID options.
+
+        Parameters
+        ----------
+        limit_per_group : int, optional
+            Maximum number of stations to display. If None (default), shows all stations.
+        """
+        self._show_options(
+            "station_id",
+            "station_id options (Weather station names)",
+            limit_per_group=limit_per_group,
+        )
+
+    def show_network_id_options(self) -> None:
+        """Display available network ID options."""
+        self._show_options("network_id", "network_id options (Weather network names)")
+
     def show_table_id_options(self) -> None:
         """Display available table ID options (Temporal resolutions)."""
         self._show_options("table_id", "table_id options (Temporal resolutions)")
@@ -765,6 +875,7 @@ class ClimateData:
 
     def show_processors(self) -> None:
         """Display available data processors."""
+
         msg = "Processors (Methods for transforming raw catalog data):"
         logger.info(msg)
         logger.info("%s", "-" * len(msg))
@@ -773,11 +884,31 @@ class ClimateData:
             print("%s" % ("-" * len(msg)))
         except Exception:
             logger.debug("Failed to print processors header to stdout")
+
         try:
-            for processor in self._factory.get_processors():
+            # Get current catalog from query
+            current_catalog = self._query.get("catalog", UNSET)
+
+            # Get valid processors (filtered by catalog if specified)
+            if current_catalog is not UNSET:
+                valid_processors = self._factory.get_valid_processors(current_catalog)
+                logger.info("Showing processors valid for catalog: %s", current_catalog)
+            else:
+                # No catalog specified - show all processors from registry
+                valid_processors = sorted(
+                    list(self._factory._processing_step_registry.keys())
+                )
+                logger.info("Showing all processors")
+
+            for processor in valid_processors:
                 logger.info("%s", processor)
+                try:
+                    print(processor)
+                except Exception:
+                    pass
 
             logger.info("\n")
+
         except Exception as e:
             logger.error("Error retrieving processors: %s", e, exc_info=True)
 
@@ -853,13 +984,28 @@ class ClimateData:
             ("show_grid_label_options", "Grid Labels (Spatial Resolution)"),
             ("show_variable_options", "Variables"),
             ("show_installation_options", "Installations"),
+            ("show_station_id_options", "Station IDs"),
+            ("show_network_id_options", "Network IDs"),
             ("show_processors", "Processors"),
             ("show_station_options", "Stations"),
         ]
 
         for method_name, section_title in option_methods:
             try:
-                getattr(self, method_name)()
+                if method_name == "show_station_id_options":
+                    # Truncate station IDs in show_all to keep output manageable
+                    self.show_station_id_options(limit_per_group=15)
+                    # Let users know how to see all stations
+                    truncation_msg = (
+                        "Use show_station_id_options() to see all station options."
+                    )
+                    try:
+                        logger.info("%s", truncation_msg)
+                        print(truncation_msg)
+                    except Exception:
+                        pass
+                else:
+                    getattr(self, method_name)()
             except Exception as e:
                 logger.error(
                     "Error displaying %s: %s", section_title.lower(), e, exc_info=True
@@ -870,7 +1016,9 @@ class ClimateData:
         logger.info("%s", "=" * 60)
         self.show_query()
 
-    def _show_options(self, option_type: str, title: str) -> None:
+    def _show_options(
+        self, option_type: str, title: str, limit_per_group: Optional[int] = None
+    ) -> None:
         """Helper method to display options with consistent formatting.
 
         Parameters
@@ -879,6 +1027,10 @@ class ClimateData:
             The type of option to display.
         title : str
             The title for the options display.
+        limit_per_group : int, optional
+            If provided, limits the number of items shown per group.
+            For station_id, groups by network and shows this many per network.
+            If None, shows all options (default).
 
         """
         logger.info("%s:", title)
@@ -896,8 +1048,29 @@ class ClimateData:
                 logger.info("No options available with current parameters")
 
             else:
-                max_len = max(len(option) for option in options)
-                for option in sorted(options):
+                sorted_options = sorted(options)
+                total_count = len(sorted_options)
+
+                # Set limit to requested value or total count, whichever is smaller
+                limit = (
+                    min(limit_per_group, total_count)
+                    if limit_per_group is not None
+                    else total_count
+                )
+                display_options = sorted_options[:limit]
+
+                # Warn user of truncation if limit_per_group was set
+                if limit < total_count:
+                    truncation_msg = f"Showing {limit} of {total_count} total options"
+                    try:
+                        logger.info("%s", truncation_msg)
+                        print(truncation_msg)
+                    except Exception:
+                        pass
+
+                # Display options
+                max_len = max(len(option) for option in display_options)
+                for option in display_options:
                     formatted = self._format_option(
                         option, option_type, spacing=4 + max_len - len(option)
                     )
