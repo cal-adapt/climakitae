@@ -4,17 +4,25 @@ DataProcessor MetricCalc
 
 import gc
 import logging
-from typing import Any, Dict, Iterable, Union
+import time as time_module
+from typing import Any, Iterable
 
-import dask
-import dask.config
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import xarray as xr
-from dask.diagnostics.progress import ProgressBar
 
-from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
+from climakitae.core.constants import (
+    _NEW_ATTRS_KEY,
+    BYTES_TO_GB_FACTOR,
+    BYTES_TO_MB_FACTOR,
+    MEDIUM_ARRAY_THRESHOLD_BYTES,
+    MIN_VALID_DATA_POINTS,
+    PERCENTILE_TO_QUANTILE_FACTOR,
+    RETURN_VALUE_PRECISION,
+    SMALL_ARRAY_THRESHOLD_BYTES,
+    UNSET,
+)
 from climakitae.explore.threshold_tools import _get_distr_func, _get_fitted_distr
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
@@ -23,33 +31,7 @@ from climakitae.new_core.processors.abc_data_processor import (
 )
 from climakitae.new_core.processors.processor_utils import _get_block_maxima_optimized
 
-# Constants for data size thresholds and processing
-BYTES_TO_MB_FACTOR = 1e6  # Conversion factor from bytes to megabytes
-BYTES_TO_GB_FACTOR = 1e9  # Conversion factor from bytes to gigabytes
-SMALL_ARRAY_THRESHOLD_BYTES = 1e7  # 10MB threshold for small arrays
-MEDIUM_ARRAY_THRESHOLD_BYTES = 1e9  # 1GB threshold for medium arrays
-PERCENTILE_TO_QUANTILE_FACTOR = 100.0  # Convert percentiles to quantiles
-MIN_VALID_DATA_POINTS = 3  # Minimum data points required for statistical fitting
-DEFAULT_YEARLY_CHUNK_DAYS = 365  # Default chunk size for yearly data
-YEARLY_CHUNK_DIVISOR = 10  # Divisor for calculating yearly chunk size
-DEFAULT_SIM_CHUNK_SIZE = 2  # Default chunk size for simulations
-DEFAULT_SPATIAL_CHUNK_SIZE = 50  # Default chunk size for spatial dimensions
-NUMERIC_PRECISION_DECIMAL_PLACES = 2  # Decimal places for numeric output formatting
-RETURN_VALUE_PRECISION = 5  # Decimal places for return value rounding
-MB_TO_BYTES_FACTOR = 1000  # Conversion factor from MB to bytes
-
-# Constants for adaptive batch sizing
-MEDIUM_DASK_BATCH_SIZE = 50  # Batch size for medium Dask arrays
-LARGE_DATASET_MIN_BATCH_SIZE = 10  # Minimum batch size for large datasets
-LARGE_DATASET_MAX_BATCH_SIZE = 200  # Maximum batch size for large datasets
-MEMORY_PER_SIM_MB_ESTIMATE = (
-    100  # Estimated memory usage per simulation in MB (more aggressive)
-)
-TARGET_MEMORY_USAGE_FRACTION = 0.85  # Target fraction of available memory to use
-
-# Check if extreme value analysis dependencies are available
-# The required functions are imported from threshold_tools above
-EXTREME_VALUE_ANALYSIS_AVAILABLE = True
+logger = logging.getLogger(__name__)
 
 
 @register_processor("metric_calc", priority=7500)
@@ -130,7 +112,7 @@ class MetricCalc(DataProcessor):
     - When both percentiles and metrics are calculated, the results are combined into a single output
     """
 
-    def __init__(self, value: Dict[str, Any]):
+    def __init__(self, value: dict[str, Any]):
         """
         Initialize the processor.
 
@@ -171,11 +153,6 @@ class MetricCalc(DataProcessor):
 
     def _setup_one_in_x_parameters(self):
         """Setup parameters for 1-in-X calculations."""
-        if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
-            raise ValueError(
-                "Extreme value analysis functions are not available. Please check climakitae installation."
-            )
-
         # Type guard to ensure one_in_x_config is not None
         if self.one_in_x_config is UNSET:
             raise ValueError(
@@ -210,11 +187,9 @@ class MetricCalc(DataProcessor):
 
     def execute(
         self,
-        result: Union[
-            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
-        ],
-        context: Dict[str, Any],
-    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        result: xr.Dataset | xr.DataArray | Iterable[xr.Dataset | xr.DataArray],
+        context: dict[str, Any],
+    ) -> xr.Dataset | xr.DataArray | Iterable[xr.Dataset | xr.DataArray]:
         """
         Run the processor
 
@@ -230,50 +205,38 @@ class MetricCalc(DataProcessor):
 
         Returns
         -------
-        Union[xr.Dataset, xr.DataArray, Iterable[xr.Dataset | xr.DataArray]]
+        xr.Dataset | xr.DataArray | Iterable[xr.Dataset | xr.DataArray]
             The data with calculated metrics. This can be a single Dataset/DataArray or
             an iterable of them.
         """
+        # Select processing function based on configuration
+        process_fn = (
+            self._calculate_one_in_x_single
+            if self.one_in_x_config is not UNSET
+            else self._calculate_metrics_single
+        )
+
         ret = None
 
         match result:
             case xr.Dataset() | xr.DataArray():
-                if self.one_in_x_config is not UNSET:
-                    ret = self._calculate_one_in_x_single(result)
-                else:
-                    ret = self._calculate_metrics_single(result)
+                ret = process_fn(result)
             case dict():
                 if not result:
                     raise ValueError(
                         "Metric calculation operation failed to produce valid results on empty arguments."
                     )
-                if self.one_in_x_config is not UNSET:
-                    ret = {
-                        key: self._calculate_one_in_x_single(value)
-                        for key, value in result.items()
-                    }
-                else:
-                    ret = {
-                        key: self._calculate_metrics_single(value)
-                        for key, value in result.items()
-                    }
+                ret = {key: process_fn(value) for key, value in result.items()}
             case list() | tuple():
                 if not result:
                     raise ValueError(
                         "Metric calculation operation failed to produce valid results on empty arguments."
                     )
-                if self.one_in_x_config is not UNSET:
-                    processed_data = [
-                        self._calculate_one_in_x_single(item)
-                        for item in result
-                        if isinstance(item, (xr.Dataset, xr.DataArray))
-                    ]
-                else:
-                    processed_data = [
-                        self._calculate_metrics_single(item)
-                        for item in result
-                        if isinstance(item, (xr.Dataset, xr.DataArray))
-                    ]
+                processed_data = [
+                    process_fn(item)
+                    for item in result
+                    if isinstance(item, (xr.Dataset, xr.DataArray))
+                ]
                 ret = type(result)(processed_data) if processed_data else None
             case _:
                 raise TypeError(
@@ -289,8 +252,8 @@ class MetricCalc(DataProcessor):
         return ret
 
     def _calculate_metrics_single(
-        self, data: Union[xr.Dataset, xr.DataArray]
-    ) -> Union[xr.Dataset, xr.DataArray]:
+        self, data: xr.Dataset | xr.DataArray
+    ) -> xr.Dataset | xr.DataArray:
         """
         Calculate metrics on a single Dataset or DataArray.
 
@@ -425,9 +388,7 @@ class MetricCalc(DataProcessor):
             # Should not reach here, but return the first result as fallback
             return results[0] if results else data
 
-    def _calculate_one_in_x_single(
-        self, data: Union[xr.Dataset, xr.DataArray]
-    ) -> xr.Dataset:
+    def _calculate_one_in_x_single(self, data: xr.Dataset | xr.DataArray) -> xr.Dataset:
         """
         Calculate 1-in-X return values on a single Dataset or DataArray.
 
@@ -443,9 +404,6 @@ class MetricCalc(DataProcessor):
         xr.Dataset
             Dataset with return_value and p_values DataArrays.
         """
-        if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
-            raise ValueError("Extreme value analysis functions are not available")
-
         ### The DataArray may have missing gridcells, since the WRF grid is not lat/lon, or the clipping may have may this DataArray an irregular shape.
         ### To resolve this, we will select all the valid gridcells from `data`, pass them through the calculation, and then re-insert them back into the original grid shape with NaNs where appropriate.
 
@@ -464,25 +422,24 @@ class MetricCalc(DataProcessor):
 
         # Smart memory management for Dask arrays
         if hasattr(data_array, "chunks") and data_array.chunks is not None:
-            print("Detected Dask array - using optimized chunked processing...")
+            logger.info("Detected Dask array - using optimized chunked processing...")
             # Only compute if the array is small enough, otherwise process in chunks
             total_size = data_array.nbytes  # Estimate bytes (assuming float64)
-            print(
-                f"Total size of data array: {total_size / BYTES_TO_MB_FACTOR:.{NUMERIC_PRECISION_DECIMAL_PLACES}f} MB"
+            logger.info(
+                "Total size of data array: %.2f MB",
+                total_size / BYTES_TO_MB_FACTOR,
             )
 
             # Use different strategies based on data size
-            if (
-                total_size < SMALL_ARRAY_THRESHOLD_BYTES
-            ):  # Less than 10MB - load into memory
-                print("Small array detected - loading into memory...")
+            if total_size < SMALL_ARRAY_THRESHOLD_BYTES:
+                logger.info("Small array detected - loading into memory...")
                 data_array = data_array.compute()
-            elif (
-                total_size < MEDIUM_ARRAY_THRESHOLD_BYTES
-            ):  # 10MB - 1GB - use chunked processing with Dask
-                print("Medium array detected - using Dask-aware chunked processing...")
-            else:  # > 1GB - use Dask optimization
-                print("Large array detected - using Dask optimization...")
+            elif total_size < MEDIUM_ARRAY_THRESHOLD_BYTES:
+                logger.info(
+                    "Medium array detected - using Dask-aware chunked processing..."
+                )
+            else:
+                logger.info("Large array detected - using Dask optimization...")
 
         # Check if we have a time dimension, and add dummy time if needed
         if "time" not in data_array.dims:
@@ -491,8 +448,10 @@ class MetricCalc(DataProcessor):
         # Apply variable-specific preprocessing
         data_array = self._preprocess_variable_for_one_in_x(data_array, var_name)
 
-        print(
-            f"Calculating 1-in-{self.return_periods} year return values using {self.distribution} distribution..."
+        logger.info(
+            "Calculating 1-in-%s year return values using %s distribution...",
+            self.return_periods,
+            self.distribution,
         )
         return self._calculate_one_in_x_vectorized(data_array)
 
@@ -605,9 +564,6 @@ class MetricCalc(DataProcessor):
         This method processes simulations in sequential batches to manage memory,
         while still using vectorized operations within each batch.
         """
-        if not EXTREME_VALUE_ANALYSIS_AVAILABLE:
-            raise ValueError("Extreme value analysis functions are not available")
-
         # Configure block maxima extraction
         kwargs = {
             "extremes_type": self.extremes_type,
@@ -630,18 +586,23 @@ class MetricCalc(DataProcessor):
         n_batches = int(np.ceil(n_sims / batch_size))
         sim_batches = np.array_split(sim_indices, n_batches)
 
-        print(
-            f"\nProcessing {n_sims} simulations in {n_batches} sequential batches "
-            f"(batch size: {batch_size})...\n"
+        logger.info(
+            "Processing %d simulations in %d sequential batches (batch size: %d)...",
+            n_sims,
+            n_batches,
+            batch_size,
         )
 
         # Process each batch sequentially and collect results
         batch_results = []
 
         for batch_idx, batch_indices in enumerate(sim_batches):
-            print(
-                f"Batch {batch_idx + 1}/{n_batches}: "
-                f"simulations {batch_indices[0]+1}-{batch_indices[-1]+1}"
+            logger.info(
+                "Batch %d/%d: simulations %d-%d",
+                batch_idx + 1,
+                n_batches,
+                batch_indices[0] + 1,
+                batch_indices[-1] + 1,
             )
 
             # Select simulations for this batch
@@ -658,11 +619,11 @@ class MetricCalc(DataProcessor):
             gc.collect()
 
         # Combine all batch results along the simulation dimension
-        print("=" * 60)
-        print(f"All batches complete. Combining {len(batch_results)} batch results...")
+        logger.info(
+            "All batches complete. Combining %d batch results...", len(batch_results)
+        )
         combined_ds = xr.concat(batch_results, dim="sim")
-        print(f"Final result shape: {dict(combined_ds.dims)}")
-        print("=" * 60)
+        logger.info("Final result shape: %s", dict(combined_ds.dims))
 
         return combined_ds
 
@@ -723,23 +684,25 @@ class MetricCalc(DataProcessor):
                 1,  # At least 1 simulation
                 min(
                     estimated_batch_size,
-                    20,  # Cap at 10 simulations per batch for memory safety
+                    20,  # Cap at 20 simulations per batch for memory safety
                     n_sims,  # Don't exceed total simulations
                 ),
             )
 
-            print(
-                f"Memory analysis: {available_memory_gb:.1f}GB available, "
-                f"~{elements_per_sim:,} elements/sim, "
-                f"~{estimated_memory_per_sim_mb:.0f}MB estimated/sim, "
-                f"batch size: {batch_size}"
+            logger.info(
+                "Memory analysis: %.1fGB available, ~%d elements/sim, "
+                "~%.0fMB estimated/sim, batch size: %d",
+                available_memory_gb,
+                elements_per_sim,
+                estimated_memory_per_sim_mb,
+                batch_size,
             )
 
             return batch_size
 
         except ImportError:
             # Fallback if psutil not available - use very conservative batch size
-            print("psutil not available, using conservative batch size of 2")
+            logger.warning("psutil not available, using conservative batch size of 2")
             return min(2, len(data_array.sim))
 
     def _process_simulation_batch(
@@ -794,13 +757,15 @@ class MetricCalc(DataProcessor):
         else:
             # Small enough to process all at once
             # Step 1: Extract block maxima (keep as dask if possible)
-            print(f"  → Extracting block maxima...", end=" ", flush=True)
+            logger.info("Extracting block maxima...")
             step_start = time_module.time()
             block_maxima = _get_block_maxima_optimized(
                 batch_data, **block_maxima_kwargs
             )
             block_maxima = block_maxima.squeeze()
-            print(f"({time_module.time() - step_start:.1f}s)")
+            logger.debug(
+                "Block maxima extraction took %.1fs", time_module.time() - step_start
+            )
 
             # Show block maxima shape (estimate without computing)
             n_years = block_maxima.sizes.get(
@@ -813,8 +778,11 @@ class MetricCalc(DataProcessor):
                     if d not in ["time", "time_delta", "sim"]
                 ]
             )
-            print(
-                f"  → Block maxima shape: {dict(block_maxima.sizes)} ({n_years} years × {spatial_size} gridcells)"
+            logger.info(
+                "Block maxima shape: %s (%d years × %d gridcells)",
+                dict(block_maxima.sizes),
+                n_years,
+                spatial_size,
             )
 
             # Determine the time dimension to reduce over
@@ -824,8 +792,10 @@ class MetricCalc(DataProcessor):
             n_fits = int(
                 np.prod([s for d, s in block_maxima.sizes.items() if d != time_dim])
             )
-            print(
-                f"  → Fitting {self.distribution.upper()} distributions to {n_fits:,} locations..."
+            logger.info(
+                "Fitting %s distributions to %d locations...",
+                self.distribution.upper(),
+                n_fits,
             )
 
             return_values, p_values = self._fit_distributions_vectorized(
@@ -840,17 +810,22 @@ class MetricCalc(DataProcessor):
         return_values = return_values.assign_coords(one_in_x=self.return_periods)
 
         # Step 4: Create result dataset
-        print(f"  → Creating result dataset...", end=" ", flush=True)
+        logger.info("Creating result dataset...")
         step_start = time_module.time()
         result_ds = self._create_one_in_x_result_dataset(
             return_values, p_values, batch_data
         )
-        print(f"({time_module.time() - step_start:.1f}s)")
+        logger.debug(
+            "Result dataset creation took %.1fs", time_module.time() - step_start
+        )
 
         # Batch summary
         batch_elapsed = time_module.time() - batch_start
-        print(
-            f"  ✓ Batch {batch_num}/{total_batches} complete ({batch_elapsed:.1f}s total)\n"
+        logger.info(
+            "Batch %d/%d complete (%.1fs total)",
+            batch_num,
+            total_batches,
+            batch_elapsed,
         )
 
         return result_ds
@@ -897,98 +872,6 @@ class MetricCalc(DataProcessor):
 
         return return_values, p_values
 
-    def _fit_with_spatial_batching(
-        self,
-        block_maxima: xr.DataArray,
-        time_dim: str,
-        spatial_dim: str,
-        batch_size: int,
-    ) -> tuple[xr.DataArray, xr.DataArray]:
-        """
-        Fit distributions with spatial batching to manage memory.
-
-        Parameters
-        ----------
-        block_maxima : xr.DataArray
-            Block maxima data with time and spatial dimensions
-        time_dim : str
-            Name of the time dimension
-        spatial_dim : str
-            Name of the spatial dimension to batch over
-        batch_size : int
-            Number of spatial points to process at once
-
-        Returns
-        -------
-        tuple[xr.DataArray, xr.DataArray]
-            Return values and p-values arrays
-        """
-        n_spatial = block_maxima.sizes[spatial_dim]
-        n_batches = int(np.ceil(n_spatial / batch_size))
-
-        print(
-            f"    Processing {n_spatial} spatial points in {n_batches} chunks of {batch_size}..."
-        )
-
-        return_values_list = []
-        p_values_list = []
-
-        # Compute block maxima once (it's small after yearly aggregation)
-        print(f"    Computing block maxima to memory...", end=" ", flush=True)
-        if hasattr(block_maxima.data, "compute"):
-            block_maxima_computed = block_maxima.compute()
-        else:
-            block_maxima_computed = block_maxima
-        print(f"done")
-
-        for i in range(n_batches):
-            start_idx = i * batch_size
-            end_idx = min((i + 1) * batch_size, n_spatial)
-
-            # Select spatial chunk
-            chunk_data = block_maxima_computed.isel(
-                {spatial_dim: slice(start_idx, end_idx)}
-            )
-
-            # Apply the return value fitting function (pure numpy, no dask)
-            chunk_return_values, chunk_p_values = xr.apply_ufunc(
-                self._fit_return_values_1d,
-                chunk_data,
-                kwargs={
-                    "return_periods": self.return_periods,
-                    "distr": self.distribution,
-                    "get_p_value": self.goodness_of_fit_test,
-                },
-                input_core_dims=[[time_dim]],
-                output_core_dims=[["one_in_x"], []],
-                output_sizes={"one_in_x": len(self.return_periods)},
-                output_dtypes=("float", "float"),
-                vectorize=True,
-            )
-
-            return_values_list.append(chunk_return_values)
-            p_values_list.append(chunk_p_values)
-
-            # Progress update every 5 chunks
-            if (i + 1) % 5 == 0 or i == n_batches - 1:
-                print(
-                    f"    Chunk {i+1}/{n_batches} complete ({end_idx}/{n_spatial} points)"
-                )
-
-            # Garbage collect periodically
-            if (i + 1) % 10 == 0:
-                gc.collect()
-
-        # Concatenate results along spatial dimension
-        return_values = xr.concat(return_values_list, dim=spatial_dim)
-        p_values = xr.concat(p_values_list, dim=spatial_dim)
-
-        # Clean up
-        del return_values_list, p_values_list
-        gc.collect()
-
-        return return_values, p_values
-
     def _fit_with_early_spatial_batching(
         self,
         batch_data: xr.DataArray,
@@ -1019,15 +902,15 @@ class MetricCalc(DataProcessor):
         tuple[xr.DataArray, xr.DataArray]
             Return values and p-values arrays
         """
-        import time as time_module
-
         n_spatial = batch_data.sizes[spatial_dim]
         n_batches = int(np.ceil(n_spatial / batch_size))
 
-        print(
-            f"  → Processing {n_spatial} spatial points in {n_batches} chunks of {batch_size}..."
+        logger.info(
+            "Processing %d spatial points in %d chunks of %d (early spatial batching)...",
+            n_spatial,
+            n_batches,
+            batch_size,
         )
-        print(f"    (Early spatial batching to avoid loading all raw data at once)")
 
         return_values_list = []
         p_values_list = []
@@ -1082,13 +965,18 @@ class MetricCalc(DataProcessor):
                 elapsed = time_module.time() - step_start
                 rate = (end_idx) / elapsed if elapsed > 0 else 0
                 remaining = (n_spatial - end_idx) / rate if rate > 0 else 0
-                print(
-                    f"    Chunk {i+1}/{n_batches}: {end_idx}/{n_spatial} points "
-                    f"({elapsed:.1f}s elapsed, ~{remaining:.0f}s remaining)"
+                logger.debug(
+                    "Chunk %d/%d: %d/%d points (%.1fs elapsed, ~%.0fs remaining)",
+                    i + 1,
+                    n_batches,
+                    end_idx,
+                    n_spatial,
+                    elapsed,
+                    remaining,
                 )
 
         # Concatenate results along spatial dimension
-        print(f"  → Concatenating {n_batches} chunk results...")
+        logger.info("Concatenating %d chunk results...", n_batches)
         return_values = xr.concat(return_values_list, dim=spatial_dim)
         p_values = xr.concat(p_values_list, dim=spatial_dim)
 
@@ -1097,7 +985,7 @@ class MetricCalc(DataProcessor):
         gc.collect()
 
         total_time = time_module.time() - step_start
-        print(f"  → Spatial processing complete ({total_time:.1f}s total)")
+        logger.info("Spatial processing complete (%.1fs total)", total_time)
 
         return return_values, p_values
 
@@ -1120,12 +1008,9 @@ class MetricCalc(DataProcessor):
             Preprocessed data array
         """
         # Apply precipitation-specific preprocessing
-        if (
-            "precipitation" in var_name.lower()
-            or "pr" in var_name.lower()
-            or var_name.lower() in ["precipitation (total)", "precipitation"]
-        ):
-
+        var_lower = var_name.lower()
+        is_precipitation = "precipitation" in var_lower or var_lower == "pr"
+        if is_precipitation:
             preprocessing = self.variable_preprocessing.get("precipitation", {})
 
             # Aggregate to daily if needed and requested
@@ -1142,7 +1027,7 @@ class MetricCalc(DataProcessor):
 
         return data
 
-    def update_context(self, context: Dict[str, Any]):
+    def update_context(self, context: dict[str, Any]):
         """
         Update the context with information about the transformation.
 
@@ -1271,7 +1156,7 @@ class MetricCalc(DataProcessor):
     def _create_one_in_x_result_dataset(
         self,
         ret_vals: xr.DataArray,
-        p_vals: Union[xr.DataArray, None],
+        p_vals: xr.DataArray | None,
         data_array: xr.DataArray,
     ) -> xr.Dataset:
         """
@@ -1281,7 +1166,7 @@ class MetricCalc(DataProcessor):
         ----------
         ret_vals : xr.DataArray
             Return values DataArray
-        p_vals : xr.DataArray
+        p_vals : xr.DataArray | None
             P-values DataArray
         data_array : xr.DataArray
             Input data array for attributes
@@ -1306,72 +1191,3 @@ class MetricCalc(DataProcessor):
         )
 
         return result
-
-    def _get_dask_scheduler(self) -> str:
-        """
-        Detect if a distributed client is available and return the appropriate scheduler.
-
-        Returns
-        -------
-        str
-            'distributed' if a dask.distributed client is active, otherwise 'threads'
-        """
-        try:
-            from dask.distributed import get_client
-
-            client = get_client()
-            # Check if client is actually connected
-            if client.status == "running":
-                return "distributed"
-        except (ImportError, ValueError):
-            # No distributed client available
-            pass
-        return "threads"
-
-    def _get_optimal_chunks(self, data_array: xr.DataArray) -> dict:
-        """
-        Calculate optimal chunk sizes for Dask arrays.
-
-        Parameters
-        ----------
-        data_array : xr.DataArray
-            Input data array
-
-        Returns
-        -------
-        dict
-            Dictionary of optimal chunk sizes by dimension
-        """
-        if not hasattr(data_array, "chunks") or data_array.chunks is None:
-            return {}
-
-        # Calculate optimal chunks based on data characteristics
-        optimal_chunks = {}
-
-        # For time dimension, use yearly chunks if possible
-        if "time" in data_array.dims:
-            time_size = data_array.sizes["time"]
-            # Aim for roughly yearly chunks (DEFAULT_YEARLY_CHUNK_DAYS days) but adapt to data size
-            yearly_chunk = min(
-                time_size,
-                max(DEFAULT_YEARLY_CHUNK_DAYS, time_size // YEARLY_CHUNK_DIVISOR),
-            )
-            optimal_chunks["time"] = yearly_chunk
-
-        # For simulation dimension, process a few at a time
-        if "sim" in data_array.dims:
-            sim_size = data_array.sizes["sim"]
-            sim_chunk = min(
-                sim_size, DEFAULT_SIM_CHUNK_SIZE
-            )  # Process DEFAULT_SIM_CHUNK_SIZE simulations at a time
-            optimal_chunks["sim"] = sim_chunk
-
-        # For spatial dimensions, keep chunks reasonably sized
-        spatial_dims = [dim for dim in data_array.dims if dim not in ["time", "sim"]]
-        for dim in spatial_dims:
-            dim_size = data_array.sizes[dim]
-            # Keep spatial chunks smaller to avoid memory issues
-            spatial_chunk = min(dim_size, DEFAULT_SPATIAL_CHUNK_SIZE)
-            optimal_chunks[dim] = spatial_chunk
-
-        return optimal_chunks
