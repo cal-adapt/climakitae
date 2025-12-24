@@ -7,21 +7,16 @@ from __future__ import annotations
 import logging
 import os
 import pprint
-import warnings
 from typing import Any, List, Tuple, Union
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
-from climakitae.new_core.param_validation.abc_param_validation import (
-    register_processor_validator,
-)
-from climakitae.new_core.param_validation.param_validation_tools import (
-    _get_closest_options,
-)
+from climakitae.new_core.param_validation.abc_param_validation import \
+    register_processor_validator
+from climakitae.new_core.param_validation.param_validation_tools import \
+    _get_closest_options
 from climakitae.new_core.processors.processor_utils import (
-    find_station_match,
-    is_station_identifier,
-)
+    find_station_match, is_station_identifier)
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -85,8 +80,7 @@ def validate_clip_param(
                 f"\n\nInvalid parameter type for Clip processor. "
                 f"\nExpected str, list, tuple, or dict, but got {type(value).__name__}. "
                 f"\nValid examples: 'CA', ['CA', 'OR'], ((32.0, 42.0), (-125.0, -114.0)), "
-                f"or {{'boundaries': ['CA', 'OR'], 'separated': True}}",
-                stacklevel=999,
+                f"or {{'boundaries': ['CA', 'OR'], 'separated': True}}"
             )
 
     return False
@@ -156,13 +150,17 @@ def _validate_string_param(value: str) -> bool:
             return True
 
         # Station validation failed - check if it might be a boundary instead
-        # Suppress warnings from boundary validation since we already warned about station
-        import contextlib
-
-        with contextlib.redirect_stderr(None):
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                boundary_result = _validate_boundary_key_string(cleaned_value)
+        # We temporarily raise the log level to suppress warnings during
+        # boundary validation since we may issue our own more specific warning
+        clip_logger = logging.getLogger(
+            "climakitae.new_core.param_validation.clip_param_validator"
+        )
+        original_level = clip_logger.level
+        clip_logger.setLevel(logging.ERROR)
+        try:
+            boundary_result = _validate_boundary_key_string(cleaned_value)
+        finally:
+            clip_logger.setLevel(original_level)
 
         if boundary_result:
             # Provide helpful message that it's not a station but could be a boundary
@@ -267,8 +265,7 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
                 logger.warning(
                     "\n\nNo valid boundary keys found in the provided list. "
                     "\nPlease provide valid boundary keys such as ['CA', 'OR', 'WA'] or "
-                    "\n['Los Angeles County', 'Orange County'].",
-                    stacklevel=999,
+                    "\n['Los Angeles County', 'Orange County']."
                 )
                 return False
         case tuple():
@@ -422,8 +419,7 @@ def _validate_tuple_param(
                 f"\nor a tuple of tuples/lists with two numeric values each. "
                 f"\nPoint Example: (35.0, -120.0) "
                 f"\nBounds Example: ((32.0, 42.0), (-125.0, -114.0))"
-                f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})",
-                stacklevel=999,
+                f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})"
             )
             return False
         # Check if bounds is an invalid type (not tuple, list, float, or int)
@@ -433,8 +429,7 @@ def _validate_tuple_param(
                 f"or a tuple of tuples/lists with two numeric values each. "
                 f"\nPoint Example: (35.0, -120.0) "
                 f"\nBounds Example: ((32.0, 42.0), (-125.0, -114.0))"
-                f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})",
-                stacklevel=999,
+                f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})"
             )
             return False
 
@@ -447,16 +442,14 @@ def _validate_tuple_param(
         except (ValueError, TypeError):
             logger.warning(
                 f"\n\nCoordinate bounds must be numeric. Invalid {name} bounds: {bounds}. "
-                f"\nBoth values must be convertible to float.",
-                stacklevel=999,
+                f"\nBoth values must be convertible to float."
             )
             return False
         finally:
             if min_val is None or max_val is None:
                 logger.warning(
                     f"\n\nCoordinate bounds must be numeric. Invalid {name} bounds: {bounds}. "
-                    f"\nBoth values must be provided.",
-                    stacklevel=999,
+                    f"\nBoth values must be provided."
                 )
                 return False
 
@@ -465,16 +458,14 @@ def _validate_tuple_param(
             if not (-90.0 <= min_val <= 90.0) or not (-90.0 <= max_val <= 90.0):
                 logger.warning(
                     f"\n\nLatitude values must be between -90 and 90 degrees. "
-                    f"\nGot latitude bounds: ({min_val}, {max_val})",
-                    stacklevel=999,
+                    f"\nGot latitude bounds: ({min_val}, {max_val})"
                 )
                 return False
         else:  # longitude
             if not (-180.0 <= min_val <= 180.0) or not (-180.0 <= max_val <= 180.0):
                 logger.warning(
                     f"\n\nLongitude values must be between -180 and 180 degrees. "
-                    f"\nGot longitude bounds: ({min_val}, {max_val})",
-                    stacklevel=999,
+                    f"\nGot longitude bounds: ({min_val}, {max_val})"
                 )
                 return False
 
@@ -482,8 +473,7 @@ def _validate_tuple_param(
         if min_val > max_val:
             logger.warning(
                 f"\n\nMinimum {name} must be less than or equal to maximum {name}. "
-                f"\nGot {name} bounds: ({min_val}, {max_val})",
-                stacklevel=999,
+                f"\nGot {name} bounds: ({min_val}, {max_val})"
             )
             return False
 
@@ -571,10 +561,7 @@ def _validate_station_identifier(value: str) -> bool:
 
     except Exception as e:
         logger.error("Error validating station identifier: %s", str(e), exc_info=True)
-        logger.warning(
-            f"Error validating station identifier: {str(e)}",
-            stacklevel=999,
-        )
+        logger.warning(f"Error validating station identifier: {str(e)}")
         return False
 
 

@@ -10,9 +10,8 @@ import warnings
 import pytest
 
 from climakitae.core.constants import UNSET
-from climakitae.new_core.param_validation.update_attributes_param_validator import (
-    validate_update_attributes_param,
-)
+from climakitae.new_core.param_validation.update_attributes_param_validator import \
+    validate_update_attributes_param
 
 # Suppress known external warnings that are not relevant to our tests
 warnings.filterwarnings(
@@ -90,9 +89,8 @@ class TestUpdateAttributesValidatorRegistration:
         Tests that the validator function is correctly registered with the
         processor validation system under the "update_attributes" key.
         """
-        from climakitae.new_core.param_validation.abc_param_validation import (
-            _PROCESSOR_VALIDATOR_REGISTRY,
-        )
+        from climakitae.new_core.param_validation.abc_param_validation import \
+            _PROCESSOR_VALIDATOR_REGISTRY
 
         # Verify that the update_attributes validator is registered
         assert "update_attributes" in _PROCESSOR_VALIDATOR_REGISTRY

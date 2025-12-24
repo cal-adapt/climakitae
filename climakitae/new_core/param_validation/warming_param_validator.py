@@ -10,11 +10,9 @@ from typing import Any
 from climakitae.core.constants import UNSET
 from climakitae.core.paths import GWL_1850_1900_TIMEIDX_FILE
 from climakitae.new_core.data_access.data_access import DataCatalog
-from climakitae.new_core.param_validation.abc_param_validation import (
-    register_processor_validator,
-)
+from climakitae.new_core.param_validation.abc_param_validation import \
+    register_processor_validator
 from climakitae.util.utils import read_csv_file
-
 
 # Module logger
 logger = logging.getLogger(__name__)

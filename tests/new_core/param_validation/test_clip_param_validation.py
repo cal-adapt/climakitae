@@ -14,6 +14,7 @@ Tests cover:
 - Boundary key validation with case sensitivity
 """
 
+import logging
 import os
 import tempfile
 from unittest.mock import MagicMock, patch
@@ -22,16 +23,9 @@ import pandas as pd
 import pytest
 
 from climakitae.new_core.param_validation.clip_param_validator import (
-    _is_file_path_like,
-    _validate_boundary_key_string,
-    _validate_dict_param,
-    _validate_list_param,
-    _validate_station_identifier,
-    _validate_string_param,
-    _validate_tuple_param,
-    _warn_about_case_sensitivity,
-    validate_clip_param,
-)
+    _is_file_path_like, _validate_boundary_key_string, _validate_dict_param,
+    _validate_list_param, _validate_station_identifier, _validate_string_param,
+    _validate_tuple_param, _warn_about_case_sensitivity, validate_clip_param)
 
 
 class TestValidateClipParam:
@@ -162,18 +156,17 @@ class TestValidateStringParam:
         "climakitae.new_core.param_validation.clip_param_validator.is_station_identifier"
     )
     def test_validate_station_like_but_is_boundary_returns_true(
-        self, mock_is_station, mock_validate_station, mock_validate_boundary
+        self, mock_is_station, mock_validate_station, mock_validate_boundary, caplog
     ):
         """Test _validate_string_param with station-like string that's actually a boundary."""
         mock_is_station.return_value = True
         mock_validate_station.return_value = False
         mock_validate_boundary.return_value = True
 
-        with pytest.warns(
-            UserWarning, match="looks like a station identifier but was not found"
-        ):
+        with caplog.at_level(logging.WARNING):
             result = _validate_string_param("Kern")
             assert result is True
+            assert "looks like a station identifier but was not found" in caplog.text
 
     @patch(
         "climakitae.new_core.param_validation.clip_param_validator._validate_boundary_key_string"

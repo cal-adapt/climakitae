@@ -9,9 +9,8 @@ import warnings
 
 import pytest
 
-from climakitae.new_core.param_validation.concat_param_validator import (
-    validate_concat_param,
-)
+from climakitae.new_core.param_validation.concat_param_validator import \
+    validate_concat_param
 
 # Suppress known external warnings that are not relevant to our tests
 warnings.filterwarnings(

@@ -13,11 +13,8 @@ import pytest
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.warming_param_validator import (
-    _check_input_types,
-    _check_query,
-    _check_wl_values,
-    validate_warming_level_param,
-)
+    _check_input_types, _check_query, _check_wl_values,
+    validate_warming_level_param)
 
 
 @pytest.fixture

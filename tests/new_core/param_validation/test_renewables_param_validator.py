@@ -9,9 +9,8 @@ import warnings
 from unittest.mock import MagicMock
 
 from climakitae.core.constants import UNSET
-from climakitae.new_core.param_validation.renewables_param_validator import (
-    RenewablesValidator,
-)
+from climakitae.new_core.param_validation.renewables_param_validator import \
+    RenewablesValidator
 
 # Suppress known external warnings that are not relevant to our tests
 warnings.filterwarnings(
@@ -73,9 +72,9 @@ class TestRenewablesValidatorValidation:
         class method and returns the expected result.
         """
         from unittest.mock import patch
-        from climakitae.new_core.param_validation.abc_param_validation import (
-            ParameterValidator,
-        )
+
+        from climakitae.new_core.param_validation.abc_param_validation import \
+            ParameterValidator
 
         # Create mock DataCatalog
         mock_data_catalog = MagicMock()
@@ -108,10 +107,10 @@ class TestRenewablesValidatorRegistration:
         when it is applied, simulating the registration process.
         """
         from unittest.mock import patch
+
         from climakitae.core.constants import CATALOG_REN_ENERGY_GEN
-        from climakitae.new_core.param_validation.abc_param_validation import (
-            register_catalog_validator,
-        )
+        from climakitae.new_core.param_validation.abc_param_validation import \
+            register_catalog_validator
 
         # Create a mock registry to test registration in isolation
         mock_registry = {}
@@ -147,9 +146,9 @@ class TestRenewablesValidatorRegistration:
         the parent _is_valid_query method returns None.
         """
         from unittest.mock import patch
-        from climakitae.new_core.param_validation.abc_param_validation import (
-            ParameterValidator,
-        )
+
+        from climakitae.new_core.param_validation.abc_param_validation import \
+            ParameterValidator
 
         # Create mock DataCatalog
         mock_data_catalog = MagicMock()
