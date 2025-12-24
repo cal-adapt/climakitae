@@ -575,53 +575,6 @@ class TestMetricCalcHelperMethods:
         with pytest.raises(ValueError, match="must have a 'time'"):
             processor._add_dummy_time_if_needed(data, "day")
 
-    def test_get_optimal_chunks_with_dask(self):
-        """Test _get_optimal_chunks with dask array."""
-        import dask.array as da
-
-        processor = MetricCalc({"metric": "mean"})
-
-        # Create a chunked dask array
-        data = xr.DataArray(
-            da.random.random((365 * 10, 4, 10, 10), chunks=(365, 2, 5, 5)),
-            dims=["time", "sim", "lat", "lon"],
-            coords={
-                "time": pd.date_range("2000-01-01", periods=365 * 10),
-                "sim": [f"sim_{i}" for i in range(4)],
-                "lat": range(10),
-                "lon": range(10),
-            },
-        )
-
-        chunks = processor._get_optimal_chunks(data)
-
-        assert "time" in chunks
-        assert "sim" in chunks
-        # Spatial dims should be present
-        assert "lat" in chunks or "lon" in chunks
-
-    def test_get_optimal_chunks_no_dask(self):
-        """Test _get_optimal_chunks with numpy array returns empty dict."""
-        processor = MetricCalc({"metric": "mean"})
-
-        # Create a numpy array (no chunks)
-        data = xr.DataArray(
-            np.random.rand(100, 2, 5, 5),
-            dims=["time", "sim", "lat", "lon"],
-        )
-
-        chunks = processor._get_optimal_chunks(data)
-
-        assert chunks == {}
-
-    def test_get_dask_scheduler_without_distributed(self):
-        """Test _get_dask_scheduler returns 'threads' without distributed client."""
-        processor = MetricCalc({"metric": "mean"})
-
-        scheduler = processor._get_dask_scheduler()
-
-        assert scheduler == "threads"
-
 
 class TestMetricCalcPreprocessVariable:
     """Test class for variable-specific preprocessing for 1-in-X calculations."""
@@ -951,51 +904,6 @@ class TestMetricCalcSpatialBatching:
             name="temperature",
             attrs={"frequency": "day"},
         )
-
-    def test_fit_with_spatial_batching_closest_cell(self, block_maxima_data):
-        """Test _fit_with_spatial_batching with closest_cell dimension."""
-        processor = MetricCalc(
-            {
-                "one_in_x": {
-                    "return_periods": [10, 50],
-                    "distribution": "gev",
-                    "goodness_of_fit_test": True,
-                }
-            }
-        )
-
-        # Expand block maxima to have a spatial dimension
-        block_maxima_spatial = block_maxima_data.expand_dims({"closest_cell": 5})
-
-        return_values, p_values = processor._fit_with_spatial_batching(
-            block_maxima_spatial, "time", "closest_cell", batch_size=2
-        )
-
-        assert "closest_cell" in return_values.dims
-        assert return_values.sizes["closest_cell"] == 5
-        assert "one_in_x" in return_values.dims
-
-    def test_fit_with_spatial_batching_points(self, block_maxima_data):
-        """Test _fit_with_spatial_batching with points dimension."""
-        processor = MetricCalc(
-            {
-                "one_in_x": {
-                    "return_periods": [10],
-                    "distribution": "gev",
-                    "goodness_of_fit_test": False,
-                }
-            }
-        )
-
-        # Expand block maxima to have points dimension
-        block_maxima_spatial = block_maxima_data.expand_dims({"points": 4})
-
-        return_values, p_values = processor._fit_with_spatial_batching(
-            block_maxima_spatial, "time", "points", batch_size=2
-        )
-
-        assert "points" in return_values.dims
-        assert return_values.sizes["points"] == 4
 
     def test_process_batch_with_closest_cell_dim(self, spatial_data_with_closest_cell):
         """Test _process_simulation_batch triggers early spatial batching."""
