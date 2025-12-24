@@ -11,6 +11,7 @@ from .export_param_validator import validate_export_param
 from .filter_unadjusted_models_param_validator import (
     validate_filter_unadjusted_models_param,
 )
+from .hdp_param_validator import HDPValidator
 from .metric_calc_param_validator import validate_metric_calc_param
 from .renewables_param_validator import RenewablesValidator
 from .time_slice_param_validator import validate_time_slice_param

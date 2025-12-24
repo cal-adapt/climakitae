@@ -76,10 +76,7 @@ class Concat(DataProcessor):
     ) -> Union[xr.Dataset, xr.DataArray]:
         """Concatenate multiple datasets along a specified dimension.
 
-        If the dimension is "time", this method will first extend the time domain
-        of SSP scenarios by prepending historical data, then concatenate along a
-        "sim" dimension. Otherwise, it concatenates datasets along the specified
-        dimension using their source_id values.
+        Routes to appropriate concatenation method based on catalog type.
 
         Parameters
         ----------
@@ -107,6 +104,107 @@ class Concat(DataProcessor):
                 "Concat.execute received single dataset/dataarray, returning as-is"
             )
             return result
+
+        # Route to appropriate concat method based on catalog
+        # Check context for catalog type (more reliable than catalog object attribute)
+        catalog_type = context.get("catalog", context.get("_catalog_key"))
+        if catalog_type == "hdp":
+            return self._execute_hdp_concat(result, context)
+        else:
+            return self._execute_gridded_concat(result, context)
+
+    def _execute_hdp_concat(
+        self,
+        result: Union[
+            Dict[str, Union[xr.Dataset, xr.DataArray]],
+            Iterable[Union[xr.Dataset, xr.DataArray]],
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray]:
+        """Concatenate HDP station data along station dimension.
+
+        Simpler concatenation for HDP catalog - just concatenates along
+        the station dimension without complex attribute extraction.
+
+        Parameters
+        ----------
+        result : Union[Dict[str, Union[xr.Dataset, xr.DataArray]], Iterable[Union[xr.Dataset, xr.DataArray]]]
+            The datasets to be concatenated.
+        context : dict
+            The context for the processor.
+
+        Returns
+        -------
+        Union[xr.Dataset, xr.DataArray]
+            A single dataset with concatenated station data.
+
+        """
+        logger.debug("Using HDP concatenation logic")
+        datasets_to_concat = []
+        station_ids = []
+
+        # Convert result to list of datasets
+        if isinstance(result, dict):
+            datasets = list(result.values())
+        else:
+            datasets = list(result)
+
+        # Simple concatenation along station_id dimension
+        # (station already renamed to station_id in data_access.get_data)
+        for dataset in datasets:
+            if not isinstance(dataset, (xr.Dataset, xr.DataArray)):
+                continue
+
+            datasets_to_concat.append(dataset)
+
+            # Collect station IDs for context
+            station_vals = dataset.station_id.values
+            if hasattr(station_vals, "__iter__") and not isinstance(station_vals, str):
+                station_ids.extend([str(s) for s in station_vals])
+            else:
+                station_ids.append(str(station_vals))
+
+        if not datasets_to_concat:
+            raise ValueError("No valid datasets found for HDP concatenation")
+
+        # Simple concatenation along station_id dimension
+        concatenated = xr.concat(
+            datasets_to_concat,
+            dim="station_id",
+            join="outer",
+        )
+
+        logger.info("Concatenated HDP datasets along station_id dimension.")
+        self.update_context(context, station_ids)
+        return concatenated
+
+    def _execute_gridded_concat(
+        self,
+        result: Union[
+            Dict[str, Union[xr.Dataset, xr.DataArray]],
+            Iterable[Union[xr.Dataset, xr.DataArray]],
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray]:
+        """Concatenate gridded climate data with time domain extension.
+
+        Complex concatenation for data/renewables catalogs - handles time domain
+        extension, member IDs, and attribute extraction.
+
+        Parameters
+        ----------
+        result : Union[Dict[str, Union[xr.Dataset, xr.DataArray]], Iterable[Union[xr.Dataset, xr.DataArray]]]
+            The datasets to be concatenated.
+        context : dict
+            The context for the processor.
+
+        Returns
+        -------
+        Union[xr.Dataset, xr.DataArray]
+            A single dataset with concatenated data.
+
+        """
+        logger.debug("Using gridded data concatenation logic")
 
         # Special handling for time dimension concatenation
         if self.dim_name == "time" and isinstance(result, dict):
