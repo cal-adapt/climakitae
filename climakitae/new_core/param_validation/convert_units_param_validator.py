@@ -8,8 +8,9 @@ import logging
 from typing import Any, Iterable
 
 from climakitae.core.constants import UNIT_OPTIONS, UNSET
-from climakitae.new_core.param_validation.abc_param_validation import \
-    register_processor_validator
+from climakitae.new_core.param_validation.abc_param_validation import (
+    register_processor_validator,
+)
 
 # Module logger
 logger = logging.getLogger(__name__)

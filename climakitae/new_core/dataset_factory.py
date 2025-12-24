@@ -292,7 +292,7 @@ class DatasetFactory:
                     if proc_name not in query[PROC_KEY]:
                         query[PROC_KEY][proc_name] = default_value
             except Exception as e:
-                logger.warning(f"Could not get default processors: {e}")
+                logger.warning("Could not get default processors: %s", e)
 
         # Process all processors in query[PROC_KEY]
         for key, value in query[PROC_KEY].items():

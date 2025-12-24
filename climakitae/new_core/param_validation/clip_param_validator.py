@@ -11,12 +11,16 @@ from typing import Any, List, Tuple, Union
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
-from climakitae.new_core.param_validation.abc_param_validation import \
-    register_processor_validator
-from climakitae.new_core.param_validation.param_validation_tools import \
-    _get_closest_options
+from climakitae.new_core.param_validation.abc_param_validation import (
+    register_processor_validator,
+)
+from climakitae.new_core.param_validation.param_validation_tools import (
+    _get_closest_options,
+)
 from climakitae.new_core.processors.processor_utils import (
-    find_station_match, is_station_identifier)
+    find_station_match,
+    is_station_identifier,
+)
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -560,8 +564,7 @@ def _validate_station_identifier(value: str) -> bool:
         return True
 
     except Exception as e:
-        logger.error("Error validating station identifier: %s", str(e), exc_info=True)
-        logger.warning(f"Error validating station identifier: {str(e)}")
+        logger.error("Error validating station identifier: %s", e, exc_info=True)
         return False
 
 
