@@ -153,53 +153,153 @@ def _get_clean_standardyr_filename(
     return filename
 
 
-def export_profile_to_csv(
-    profile: pd.DataFrame,
-    variable: str,
-    q: float,
-    global_warming_levels: list[float],
-    station_name: str = UNSET,
-    cached_area: str = UNSET,
-    latitude: float | int = UNSET,
-    longitude: float | int = UNSET,
-    no_delta: bool = False,
-):
-    """Export profile to csv file with a descriptive file name.
+# helper functions
+def _check_cached_area(location_str: str, **kwargs: any) -> str:
+    """
+    Check cached area input to profile selections
+    """
+    cached_area = kwargs.get("cached_area")
+
+    match cached_area:
+        case str():
+            location_str = cached_area.lower()
+        case _:
+            return location_str
+    return location_str
+
+
+def _check_lat_lon(location_str: str, **kwargs: any) -> str:
+    """
+    Check latitude and longitude inputs to profile selections
+    """
+
+    latitude = kwargs.get("latitude")
+    longitude = kwargs.get("longitude")
+
+    match latitude, longitude, len(location_str):
+        # lat/lon provided, no cached area
+        case tuple(), tuple(), 0:
+            latitude = latitude[0] + 0.02
+            longitude = longitude[0] + 0.02
+
+            lat_str = str(round(latitude, 6)).replace(".", "-")
+            lon_str = str(round(abs(longitude), 6)).replace(".", "-")
+
+            location_str = f"{lat_str}N_{lon_str}W"
+        case _:
+            return location_str
+
+    return location_str
+
+
+def _check_stations(location_str: str, **kwargs: any) -> str:
+    """
+    Check station name input to profile selections
+    """
+    stations = kwargs.get("stations")
+
+    match stations, len(location_str):
+        # only station(s) provided
+        case list(), 0:
+            # if only one station in the list
+            if len(stations) == 1:
+                # if that station is a HadISD station
+                if is_HadISD(stations[0]):
+                    location_str = stations[0].lower()
+                # if not a HadISD station
+                else:
+                    raise ValueError(
+                        "If a custom station name is given, and no cached area is given, its latitude and longitude must also be provided."
+                    )
+            # if there are multiple station names
+            else:
+                # if all are HadISD stations
+                if all(is_HadISD(s) for s in stations):
+                    location_str = "_".join(s.lower() for s in stations)
+                # if at least one is not a HadISD station
+                else:
+                    raise ValueError(
+                        f"If multiple stations are given, and no other location parameters, all must be HadISD stations."
+                    )
+        # station(s) and other location parameters provided
+        case (list(), length) if length > 0:
+            # if location_str does NOT contain numbers (ie, cached area was provided)
+            if not any(char.isdigit() for char in location_str):
+                return location_str
+
+            # if only one station provided, it's custom, and location_str contains numbers (ie, lat/lon were provided)
+            if (
+                len(stations) == 1
+                and not is_HadISD(stations[0])
+                and any(char.isdigit() for char in location_str)
+            ):
+                location_str = f"{stations[0].lower()}_{location_str}"
+            else:
+                return location_str
+        # no station(s), other location parameters provided
+        case (object(), length) if length > 0:
+            return location_str
+        case _:
+            raise TypeError(
+                "Location must be provided as either `station_name` or `cached_area` or `latitude` plus `longitude`."
+            )
+
+    return location_str
+
+
+def export_profile_to_csv(profile, **kwargs):
+    """
+    Export profile to csv file with a descriptive file name.
 
     Each warming level is saved in a separate file.
 
     Parameters
     ----------
-    profile : pd.DataFrame
+    profile: pd.DataFrame
         Standard year profile with MultiIndex columns
-    variable : str
-        Name of variable used in profile
-    q : float
-        Percentile used in profile
-    global_warming_levels : list[float]
-        List of global warming levels in profile
-    latitude : float | int, optional
-        Latitude coordinate from profile location
-    longitude : float | int, optional
-        Longitude coordinate from profile location
-    station_name : str, optional
-        Name of HadISD station or custom location used in profile
-    cached_area : str, optional
-        Name of cached area used in profile
-    coord_name : str, optional
-        Name of location, used with latitude and longitude
-    no_delta : bool, optional
-        True if no_delta=True when generating profile
+
+    **kwargs : dict
+        Keyword arguments for data selection. Allowed keys:
+            variable : str
+                Name of variable used in profile
+            q : float
+                Percentile used in profile
+            global_warming_levels : list[float]
+                List of global warming levels in profile
+            latitude : tuple(float | int), optional
+                Latitude coordinate range from profile location
+            longitude : tuple(float | int), optional
+                Longitude coordinate range from profile location
+            station_name : list[str], optional
+                Name of HadISD station(s) or custom location used in profile
+            cached_area : str, optional
+                Name of cached area used in profile
+            no_delta : bool, default False, optional
+                True if no_delta=True when generating profile
 
     Notes
     -----
-    `station_name` can be used with `latitude` and `longitude` as long as
-    `station_name` is not set to a HadISD station.
 
-    If `cached_area` is set along with `latitude` and `longitude`,
-    `latitude` and `longitude` take priority and `cached_area` will be dropped.
+    The function prioritizes location parameters in the following order:
+    1. cached_area
+    2. latitude/longitude
+    3. stations
+    Each parameter will override the lower-priority ones if provided. So if cached_area
+    is given, lat/lon and stations are ignored. If lat/lon are given, stations are
+    ignored. If stations are given, they are used only if neither cached_area nor lat/lon
+    are provided. With the exception of the case in which a single custom station name is
+    given. That name will be included in the filename only if lat/lon are given, and no
+    cached area.
 
     """
+
+    # Get required parameter values
+    variable = kwargs.get("variable")
+    q = kwargs.get("q")
+    global_warming_levels = kwargs.get("warming_level")
+
+    # Handle no_delta input
+    no_delta = kwargs.get("no_delta", False)
 
     # Get variable id string to use in file name
     variable_descriptions = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
@@ -208,35 +308,11 @@ def export_profile_to_csv(
         & (variable_descriptions["timescale"] == "hourly")
     ]["variable_id"].item()
 
-    # Get location string based on combination of
-    # location variables
+    # Get location string based on combination of location variables
+    func_list = [_check_cached_area, _check_lat_lon, _check_stations]
     location_str = ""
-    match station_name, cached_area, latitude, longitude:
-        # Station name and lat/lon
-        case str(), object(), float() | int(), float() | int():
-            if is_HadISD(station_name):
-                raise ValueError(
-                    "Do not set `latitude` and `longitude` when using a HadISD station for `station_name`. Change `station_name` value if using custom location."
-                )
-            lat_str = str(round(latitude, 6)).replace(".", "-")
-            lon_str = str(round(abs(longitude), 6)).replace(".", "-")
-            location_str = f"{station_name.lower()}_{lat_str}N_{lon_str}W"
-        # Lat lon only
-        case object(), object(), float() | int(), float() | int():
-            lat_str = str(round(latitude, 6)).replace(".", "-")
-            lon_str = str(round(abs(longitude), 6)).replace(".", "-")
-            location_str = f"{lat_str}N_{lon_str}W"
-        # Only station name
-        case str(), object(), object(), object():
-            location_str = station_name.lower()
-        # Only cached area
-        case object(), str(), object(), object():
-            location_str = cached_area.lower()
-        # Something else
-        case _:
-            raise TypeError(
-                "Location must be provided as either `station_name` or `cached_area` or `latitude` plus `longitude`."
-            )
+    for func in func_list:
+        location_str = func(location_str, **kwargs)
 
     # Check profile MultiIndex to pull out data by Global Warming Level
     match profile.keys().nlevels:
