@@ -188,7 +188,9 @@ class TestClipUpdateContext:
 
     def test_update_context_multi_point_extracted(self):
         """Test context update for multi-point clipping with separated=True (extracted points)."""
-        clip = Clip({"points": [(37.7749, -122.4194), (34.0522, -118.2437)], "separated": True})
+        clip = Clip(
+            {"points": [(37.7749, -122.4194), (34.0522, -118.2437)], "separated": True}
+        )
         context = {}
 
         clip.update_context(context)
@@ -1442,15 +1444,23 @@ class TestClipDataToPointsAsMask:
 
         # Verify result is clipped to bounding box (smaller than input)
         # The bbox should encompass all points plus 1-cell padding
-        assert result["temp"].shape[1] < self.dataset_valid["temp"].shape[1]  # lat dimension
-        assert result["temp"].shape[2] < self.dataset_valid["temp"].shape[2]  # lon dimension
+        assert (
+            result["temp"].shape[1] < self.dataset_valid["temp"].shape[1]
+        )  # lat dimension
+        assert (
+            result["temp"].shape[2] < self.dataset_valid["temp"].shape[2]
+        )  # lon dimension
 
         # Verify the lat/lon range covers the input points (with padding)
         lat_min, lat_max = result.lat.values.min(), result.lat.values.max()
         lon_min, lon_max = result.lon.values.min(), result.lon.values.max()
         for lat, lon in point_list:
-            assert lat_min <= lat <= lat_max, f"Point lat {lat} outside range [{lat_min}, {lat_max}]"
-            assert lon_min <= lon <= lon_max, f"Point lon {lon} outside range [{lon_min}, {lon_max}]"
+            assert (
+                lat_min <= lat <= lat_max
+            ), f"Point lat {lat} outside range [{lat_min}, {lat_max}]"
+            assert (
+                lon_min <= lon <= lon_max
+            ), f"Point lon {lon} outside range [{lon_min}, {lon_max}]"
 
     def test_mask_with_nan_fill(self):
         """Test mask clipping fills NaN cells with 3x3 neighborhood average."""
@@ -1530,7 +1540,9 @@ class TestClipInitExtractPoints:
 
     def test_init_points_dict_separated_true(self):
         """Test initialization with dict points and separated=True sets extract_points."""
-        clip = Clip({"points": [(37.7749, -122.4194), (34.0522, -118.2437)], "separated": True})
+        clip = Clip(
+            {"points": [(37.7749, -122.4194), (34.0522, -118.2437)], "separated": True}
+        )
 
         assert clip.is_multi_point is True
         assert clip.extract_points is True
@@ -1538,7 +1550,9 @@ class TestClipInitExtractPoints:
 
     def test_init_points_dict_separated_false(self):
         """Test initialization with dict points and separated=False (default behavior)."""
-        clip = Clip({"points": [(37.7749, -122.4194), (34.0522, -118.2437)], "separated": False})
+        clip = Clip(
+            {"points": [(37.7749, -122.4194), (34.0522, -118.2437)], "separated": False}
+        )
 
         assert clip.is_multi_point is True
         assert clip.extract_points is False
@@ -1552,11 +1566,13 @@ class TestClipInitExtractPoints:
 
     def test_init_points_with_persist(self):
         """Test initialization with dict points and persist flag."""
-        clip = Clip({
-            "points": [(37.7749, -122.4194), (34.0522, -118.2437)],
-            "separated": True,
-            "persist": True
-        })
+        clip = Clip(
+            {
+                "points": [(37.7749, -122.4194), (34.0522, -118.2437)],
+                "separated": True,
+                "persist": True,
+            }
+        )
 
         assert clip.is_multi_point is True
         assert clip.extract_points is True

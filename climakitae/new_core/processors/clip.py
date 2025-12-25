@@ -1157,7 +1157,11 @@ class Clip(DataProcessor):
 
         # Create unique set of (lat_idx, lon_idx) pairs to avoid duplicates
         unique_indices = list(set(zip(lat_indices, lon_indices)))
-        logger.debug("Found %d unique grid cells from %d input points", len(unique_indices), len(point_list))
+        logger.debug(
+            "Found %d unique grid cells from %d input points",
+            len(unique_indices),
+            len(point_list),
+        )
 
         # Get a sample variable to check for NaN values and create mask
         if isinstance(dataset, xr.Dataset):
@@ -1215,7 +1219,10 @@ class Clip(DataProcessor):
 
         # Handle points that need 3x3 averaging
         if needs_averaging:
-            logger.info("Computing 3x3 neighborhood averages for %d points", len(needs_averaging))
+            logger.info(
+                "Computing 3x3 neighborhood averages for %d points",
+                len(needs_averaging),
+            )
 
             for lat_idx, lon_idx in needs_averaging:
                 # Define 3x3 neighborhood bounds
@@ -1237,13 +1244,13 @@ class Clip(DataProcessor):
                 if isinstance(masked_data, xr.Dataset):
                     for var in masked_data.data_vars:
                         # Create indexer for this specific cell
-                        masked_data[var].loc[{lat_dim: lat_coords[lat_idx], lon_dim: lon_coords[lon_idx]}] = (
-                            neighborhood_mean[var]
-                        )
+                        masked_data[var].loc[
+                            {lat_dim: lat_coords[lat_idx], lon_dim: lon_coords[lon_idx]}
+                        ] = neighborhood_mean[var]
                 else:
-                    masked_data.loc[{lat_dim: lat_coords[lat_idx], lon_dim: lon_coords[lon_idx]}] = (
-                        neighborhood_mean
-                    )
+                    masked_data.loc[
+                        {lat_dim: lat_coords[lat_idx], lon_dim: lon_coords[lon_idx]}
+                    ] = neighborhood_mean
 
         # Clip to bounding box of the selected points (with padding for context)
         # This makes plotting and analysis more manageable
@@ -1266,13 +1273,20 @@ class Clip(DataProcessor):
         )
         logger.debug(
             "Clipped to bounding box: %s[%d:%d], %s[%d:%d]",
-            lat_dim, lat_min_idx, lat_max_idx + 1,
-            lon_dim, lon_min_idx, lon_max_idx + 1,
+            lat_dim,
+            lat_min_idx,
+            lat_max_idx + 1,
+            lon_dim,
+            lon_min_idx,
+            lon_max_idx + 1,
         )
 
         # If extract_points is True, collapse spatial dims to points dimension
         if extract_points:
-            logger.info("Extracting %d unique points along 'points' dimension", len(unique_indices))
+            logger.info(
+                "Extracting %d unique points along 'points' dimension",
+                len(unique_indices),
+            )
 
             # Extract values at each unique point from the ORIGINAL masked data
             # (before bbox clip) to get correct indices
