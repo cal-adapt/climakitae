@@ -151,7 +151,7 @@ class Clip(DataProcessor):
         - str: Single boundary key, file path, or coordinate specification
         - list: Multiple boundary keys of the same category OR list of (lat, lon) tuples
         - tuple: Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max)) or single (lat, lon) point
-        - dict: Configuration with ``boundaries`` key and optional ``separated`` flag
+        - dict: Configuration with ``boundaries`` or ``points`` key and optional flags
 
     Examples
     --------
@@ -173,8 +173,14 @@ class Clip(DataProcessor):
     Single point (closest gridcell):
     >>> clip = Clip((37.7749, -122.4194))  # Single lat, lon point
 
-    Multiple points (closest gridcells):
-    >>> clip = Clip([(37.7749, -122.4194), (34.0522, -118.2437)])  # Multiple lat, lon points
+    Multiple points as mask (default behavior):
+    >>> clip = Clip([(37.7749, -122.4194), (34.0522, -118.2437)])
+    >>> # Returns gridded data with NaN everywhere except selected points
+    >>> # Points without data are filled with 3x3 neighborhood average
+
+    Multiple points extracted to dimension:
+    >>> clip = Clip({"points": [(37.7749, -122.4194), (34.0522, -118.2437)], "separated": True})
+    >>> # Returns data with 'points' dimension containing each location's values
     """
 
     def __init__(self, value, persist: bool = False):
@@ -191,7 +197,8 @@ class Clip(DataProcessor):
             - dict: Configuration dict with options:
               - ``boundaries`` (list): Boundary names for boundary clipping
               - ``points`` (list): List of (lat, lon) tuples for multi-point clipping
-              - ``separated`` (bool): Keep boundaries as separate dimensions
+              - ``separated`` (bool): For boundaries, keep as separate dimensions.
+                For points, extract along 'points' dimension instead of returning masked grid.
               - ``persist`` (bool): Compute data to memory after clipping (recommended for
                 multi-point clipping with downstream computations like 1-in-X analysis)
         persist : bool, optional
@@ -207,6 +214,9 @@ class Clip(DataProcessor):
         self.dimension_name: str | None = None
         self.persist = persist
 
+        # Flag to extract individual points along a dimension (like old multi-point behavior)
+        self.extract_points = False
+
         if isinstance(value, dict):
             # Check for persist in dict config
             if "persist" in value:
@@ -219,6 +229,8 @@ class Clip(DataProcessor):
                 value = value["boundaries"]
             elif "points" in value:
                 # Multi-point clipping with dict config
+                # Check for separated flag - if True, extract points along a dimension
+                self.extract_points = value.get("separated", False)
                 value = value["points"]
             else:
                 # No recognized key - raise error
@@ -381,7 +393,9 @@ class Clip(DataProcessor):
                     }
                 elif self.is_multi_point:
                     ret = {
-                        key: self._clip_data_to_multiple_points(value, self.point_list)
+                        key: self._clip_data_to_points_as_mask(
+                            value, self.point_list, self.extract_points
+                        )
                         for key, value in result.items()
                     }
                 elif self.separated:
@@ -400,7 +414,9 @@ class Clip(DataProcessor):
                 if self.is_single_point:
                     ret = self._clip_data_to_point(result, self.lat, self.lon)
                 elif self.is_multi_point:
-                    ret = self._clip_data_to_multiple_points(result, self.point_list)
+                    ret = self._clip_data_to_points_as_mask(
+                        result, self.point_list, self.extract_points
+                    )
                 elif self.separated:
                     ret = self._clip_data_separated(result, self.value)
                 elif geom is not None:
@@ -417,7 +433,9 @@ class Clip(DataProcessor):
                     ret = type(result)(valid_data) if valid_data else None
                 elif self.is_multi_point:
                     clipped_data = [
-                        self._clip_data_to_multiple_points(data, self.point_list)
+                        self._clip_data_to_points_as_mask(
+                            data, self.point_list, self.extract_points
+                        )
                         for data in result
                     ]
                     # Filter out None results
@@ -493,9 +511,14 @@ class Clip(DataProcessor):
                 self.name
             ] = f"""Process '{self.name}' applied to the data. Single point clipping was done using closest gridcell to coordinates: ({self.lat}, {self.lon})."""
         elif self.is_multi_point:
-            context[_NEW_ATTRS_KEY][
-                self.name
-            ] = f"""Process '{self.name}' applied to the data. Multi-point clipping was done using closest gridcells to {len(self.point_list)} coordinate pairs, filtered for unique grid cells, and concatenated along 'closest_cell' dimension: {self.point_list}."""
+            if self.extract_points:
+                context[_NEW_ATTRS_KEY][
+                    self.name
+                ] = f"""Process '{self.name}' applied to the data. Multi-point mask clipping was done: {len(self.point_list)} coordinate pairs were indexed to the grid, points without data were filled with 3x3 neighborhood average, then extracted along 'points' dimension: {self.point_list}."""
+            else:
+                context[_NEW_ATTRS_KEY][
+                    self.name
+                ] = f"""Process '{self.name}' applied to the data. Multi-point mask clipping was done: {len(self.point_list)} coordinate pairs were indexed to the grid, points without data were filled with 3x3 neighborhood average, non-selected grid cells were set to NaN. Coordinates: {self.point_list}."""
         elif self.separated:
             # Separated mode: boundaries are clipped individually along a dimension
             dim_name = self.dimension_name or "region"
@@ -1039,6 +1062,222 @@ class Clip(DataProcessor):
         except Exception as e:
             logger.error("Error concatenating results: %s", e, exc_info=True)
             return None
+
+    @staticmethod
+    def _clip_data_to_points_as_mask(
+        dataset: xr.DataArray | xr.Dataset,
+        point_list: list[tuple[float, float]],
+        extract_points: bool = False,
+    ) -> xr.DataArray | xr.Dataset:
+        """
+        Apply a point-based mask to gridded data, preserving the grid structure.
+
+        This method treats the list of lat/lon points as a spatial mask:
+        1. Index each lat/lon to the closest grid cell
+        2. For grid cells without valid data, fill with 3x3 neighborhood average
+        3. Set all non-selected grid cells to NaN
+        4. Return the masked gridded dataset
+
+        If extract_points=True, additionally collapses the spatial dimensions to
+        a "points" dimension, returning the selected points as a 1D series.
+
+        Parameters
+        ----------
+        dataset : xr.Dataset or xr.DataArray
+            The dataset to mask
+        point_list : list[tuple[float, float]]
+            List of (lat, lon) tuples defining the mask
+        extract_points : bool, optional
+            If True, collapse spatial dimensions to a "points" dimension.
+            Default is False (return masked gridded data).
+
+        Returns
+        -------
+        xr.Dataset or xr.DataArray
+            If extract_points=False: Masked gridded dataset with NaN for non-selected cells
+            If extract_points=True: Dataset with 'points' dimension containing selected values
+        """
+        logger.info(
+            "Applying point mask to data with %d points (extract_points=%s)",
+            len(point_list),
+            extract_points,
+        )
+
+        # Identify spatial dimensions
+        if "x" in dataset.dims and "y" in dataset.dims:
+            lat_dim, lon_dim = "y", "x"
+        elif "lat" in dataset.dims and "lon" in dataset.dims:
+            lat_dim, lon_dim = "lat", "lon"
+        else:
+            raise ValueError(
+                f"Cannot identify spatial dimensions. Dataset has dims: {dataset.dims}"
+            )
+
+        # Get coordinate arrays
+        lat_coords = dataset[lat_dim].values
+        lon_coords = dataset[lon_dim].values
+
+        # Determine if we need to transform coordinates (for projected grids)
+        needs_transform = lat_dim in ["y", "x"]
+        if needs_transform:
+            try:
+                fwd_transformer = pyproj.Transformer.from_crs(
+                    "epsg:4326", dataset.rio.crs, always_xy=True
+                )
+            except Exception as e:
+                logger.warning(
+                    "Could not create coordinate transformer: %s. Using lat/lon directly.",
+                    e,
+                )
+                needs_transform = False
+
+        # Convert point coordinates and find nearest grid indices
+        lat_indices = []
+        lon_indices = []
+        valid_points = []
+
+        for lat, lon in point_list:
+            # Transform coordinates if needed
+            if needs_transform:
+                try:
+                    x_target, y_target = fwd_transformer.transform(lon, lat)
+                    lat_target, lon_target = y_target, x_target
+                except Exception:
+                    lat_target, lon_target = lat, lon
+            else:
+                lat_target, lon_target = lat, lon
+
+            # Find nearest indices
+            lat_idx = np.abs(lat_coords - lat_target).argmin()
+            lon_idx = np.abs(lon_coords - lon_target).argmin()
+
+            lat_indices.append(lat_idx)
+            lon_indices.append(lon_idx)
+            valid_points.append((lat, lon))
+
+        # Create unique set of (lat_idx, lon_idx) pairs to avoid duplicates
+        unique_indices = list(set(zip(lat_indices, lon_indices)))
+        logger.debug("Found %d unique grid cells from %d input points", len(unique_indices), len(point_list))
+
+        # Get a sample variable to check for NaN values and create mask
+        if isinstance(dataset, xr.Dataset):
+            first_var = next(iter(dataset.data_vars))
+            sample_data = dataset[first_var]
+        else:
+            sample_data = dataset
+
+        # Reduce to 2D for mask creation (take first time step, first simulation, etc.)
+        sample_2d = sample_data
+        for dim in list(sample_2d.dims):
+            if dim not in [lat_dim, lon_dim]:
+                sample_2d = sample_2d.isel({dim: 0})
+
+        # Compute if dask-backed (this is just 2D, so should be cheap)
+        if hasattr(sample_2d.data, "compute"):
+            sample_2d = sample_2d.compute()
+
+        # Create the point mask (True where we want data)
+        mask = np.zeros((len(lat_coords), len(lon_coords)), dtype=bool)
+        point_values_valid = np.zeros((len(lat_coords), len(lon_coords)), dtype=bool)
+
+        # Track which points need 3x3 averaging due to NaN at exact location
+        needs_averaging = []
+
+        for lat_idx, lon_idx in unique_indices:
+            # Check if this grid cell has valid data
+            cell_value = sample_2d.values[lat_idx, lon_idx]
+            if np.isnan(cell_value):
+                needs_averaging.append((lat_idx, lon_idx))
+            else:
+                point_values_valid[lat_idx, lon_idx] = True
+            mask[lat_idx, lon_idx] = True
+
+        logger.debug(
+            "%d points have valid data, %d need 3x3 averaging",
+            np.sum(point_values_valid),
+            len(needs_averaging),
+        )
+
+        # For points needing averaging, compute 3x3 neighborhood average
+        # We'll handle this by creating a filled version of the data
+        lat_size = len(lat_coords)
+        lon_size = len(lon_coords)
+
+        # Create xarray mask for broadcasting
+        mask_da = xr.DataArray(
+            mask,
+            dims=[lat_dim, lon_dim],
+            coords={lat_dim: lat_coords, lon_dim: lon_coords},
+        )
+
+        # Apply the mask - set non-selected cells to NaN
+        masked_data = dataset.where(mask_da)
+
+        # Handle points that need 3x3 averaging
+        if needs_averaging:
+            logger.info("Computing 3x3 neighborhood averages for %d points", len(needs_averaging))
+
+            for lat_idx, lon_idx in needs_averaging:
+                # Define 3x3 neighborhood bounds
+                lat_min = max(0, lat_idx - 1)
+                lat_max = min(lat_size, lat_idx + 2)
+                lon_min = max(0, lon_idx - 1)
+                lon_max = min(lon_size, lon_idx + 2)
+
+                # Extract neighborhood
+                neighborhood = dataset.isel(
+                    {lat_dim: slice(lat_min, lat_max), lon_dim: slice(lon_min, lon_max)}
+                )
+
+                # Compute mean of valid cells in neighborhood
+                neighborhood_mean = neighborhood.mean(dim=[lat_dim, lon_dim])
+
+                # Insert the averaged value at the target location
+                # We need to do this for each variable if Dataset
+                if isinstance(masked_data, xr.Dataset):
+                    for var in masked_data.data_vars:
+                        # Create indexer for this specific cell
+                        masked_data[var].loc[{lat_dim: lat_coords[lat_idx], lon_dim: lon_coords[lon_idx]}] = (
+                            neighborhood_mean[var]
+                        )
+                else:
+                    masked_data.loc[{lat_dim: lat_coords[lat_idx], lon_dim: lon_coords[lon_idx]}] = (
+                        neighborhood_mean
+                    )
+
+        # If extract_points is True, collapse spatial dims to points dimension
+        if extract_points:
+            logger.info("Extracting %d unique points along 'points' dimension", len(unique_indices))
+
+            # Extract values at each unique point
+            point_datasets = []
+            point_coords_lat = []
+            point_coords_lon = []
+
+            for lat_idx, lon_idx in unique_indices:
+                point_data = masked_data.isel({lat_dim: lat_idx, lon_dim: lon_idx})
+                point_datasets.append(point_data)
+                point_coords_lat.append(float(lat_coords[lat_idx]))
+                point_coords_lon.append(float(lon_coords[lon_idx]))
+
+            # Concatenate along new 'points' dimension
+            result = xr.concat(point_datasets, dim="points")
+
+            # Add coordinate information
+            result = result.assign_coords(
+                point_lat=("points", point_coords_lat),
+                point_lon=("points", point_coords_lon),
+                point_index=("points", list(range(len(unique_indices)))),
+            )
+
+            logger.info("Successfully extracted %d points", len(unique_indices))
+            return result
+
+        logger.info(
+            "Successfully created masked grid with %d selected cells",
+            len(unique_indices),
+        )
+        return masked_data
 
     def _clip_data_separated(
         self,
