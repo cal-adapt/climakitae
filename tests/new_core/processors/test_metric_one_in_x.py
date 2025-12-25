@@ -13,18 +13,17 @@ The tests validate:
 - Helper methods for time handling and result creation
 """
 
-import gc
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+from scipy import stats
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.processors.metric_calc import MetricCalc
-
 
 # =============================================================================
 # Fixtures
@@ -94,8 +93,6 @@ def block_maxima_data():
     n_sims = 2
 
     # Generate realistic annual maxima using GEV distribution
-    from scipy import stats
-
     shape, loc, scale = 0.1, 30, 5
     data = stats.genextreme.rvs(
         c=-shape, loc=loc, scale=scale, size=(n_years, n_sims), random_state=42
@@ -220,8 +217,6 @@ class TestMetricCalcFitReturnValues1d:
         )
         # Generate realistic block maxima data using GEV distribution
         np.random.seed(42)
-        from scipy import stats
-
         shape, loc, scale = 0.1, 30, 5
         self.valid_block_maxima = stats.genextreme.rvs(
             c=-shape, loc=loc, scale=scale, size=30, random_state=42
@@ -394,7 +389,7 @@ class TestMetricCalcUpdateContextOneInX:
                 }
             }
         )
-        context: Dict[str, Any] = {}
+        context: dict[str, Any] = {}
         processor.update_context(context)
 
         assert _NEW_ATTRS_KEY in context
@@ -419,7 +414,7 @@ class TestMetricCalcUpdateContextOneInX:
                 }
             }
         )
-        context: Dict[str, Any] = {}
+        context: dict[str, Any] = {}
         processor.update_context(context)
 
         description = context[_NEW_ATTRS_KEY]["metric_calc"]
@@ -606,9 +601,10 @@ class TestMetricCalcPreprocessVariable:
 
         result = processor._preprocess_variable_for_one_in_x(data, var_name)
 
-        # Should filter out trace values below threshold
-        # Note: The actual behavior depends on the implementation
-        assert result is not None
+        # Precipitation preprocessing should return valid xarray data
+        assert isinstance(result, xr.DataArray)
+        # Result should have same dimensions as input
+        assert result.dims == data.dims
 
     def test_preprocess_non_precipitation_unchanged(self):
         """Test that non-precipitation variables are not modified."""
@@ -713,19 +709,30 @@ class TestMetricCalcAdaptiveBatchSize:
 
     def test_adaptive_batch_size_psutil_import_error(self, one_in_x_da_with_sim):
         """Test fallback when psutil is not available."""
+        import sys
+
         processor = MetricCalc(
             {"one_in_x": {"return_periods": [10], "distribution": "gev"}}
         )
 
-        # Mock psutil import to raise ImportError
-        with patch.dict("sys.modules", {"psutil": None}):
-            with patch(
-                "climakitae.new_core.processors.metric_calc.MetricCalc._calculate_adaptive_batch_size"
-            ) as mock_method:
-                # Simulate the fallback behavior
-                mock_method.return_value = min(2, len(one_in_x_da_with_sim.sim))
-                batch_size = mock_method(one_in_x_da_with_sim)
+        # Temporarily remove psutil from sys.modules to simulate ImportError
+        original_psutil = sys.modules.get("psutil")
+        sys.modules["psutil"] = None  # This causes import to fail
 
+        try:
+            # Force re-import by clearing any cached reference
+            # The method has a local import that will now fail
+            batch_size = processor._calculate_adaptive_batch_size(one_in_x_da_with_sim)
+        finally:
+            # Restore psutil
+            if original_psutil is not None:
+                sys.modules["psutil"] = original_psutil
+            else:
+                sys.modules.pop("psutil", None)
+
+        # Fallback should return conservative batch size (<=2)
+        assert isinstance(batch_size, int)
+        assert batch_size >= 1
         assert batch_size <= 2
 
 
@@ -757,8 +764,6 @@ class TestMetricCalcFitDistributionsVectorized:
 
     def test_fit_distributions_vectorized_dask(self, block_maxima_data):
         """Test vectorized distribution fitting with dask array."""
-        import dask.array as da
-
         processor = MetricCalc(
             {
                 "one_in_x": {
@@ -865,7 +870,8 @@ class TestMetricCalcSpatialBatching:
         np.random.seed(42)
         n_time = 365 * 30  # 30 years of daily data
         n_sims = 2
-        n_cells = 150  # More than SPATIAL_BATCH_SIZE (100)
+        # Must exceed SPATIAL_BATCH_SIZE (100) to trigger spatial batching
+        n_cells = 150
 
         data = np.random.gumbel(loc=20, scale=5, size=(n_time, n_sims, n_cells))
         time_coords = pd.date_range("1990-01-01", periods=n_time, freq="D")
@@ -888,7 +894,8 @@ class TestMetricCalcSpatialBatching:
         np.random.seed(42)
         n_time = 365 * 30
         n_sims = 2
-        n_points = 120  # More than SPATIAL_BATCH_SIZE (100)
+        # Must exceed SPATIAL_BATCH_SIZE (100) to trigger spatial batching
+        n_points = 120
 
         data = np.random.gumbel(loc=20, scale=5, size=(n_time, n_sims, n_points))
         time_coords = pd.date_range("1990-01-01", periods=n_time, freq="D")
@@ -1022,7 +1029,7 @@ class TestMetricCalcDaskArrayHandling:
 
     def test_one_in_x_with_small_dask_array(self):
         """Test 1-in-X calculation with small dask array (< 10MB)."""
-        import dask.array as da
+        import dask.array as dask_array
 
         np.random.seed(42)
         n_time = 365 * 5  # 5 years - small dataset
@@ -1032,13 +1039,16 @@ class TestMetricCalcDaskArrayHandling:
 
         # Create small dask array
         data = (
-            da.random.random((n_time, n_sims, n_lat, n_lon), chunks=(365, 1, 3, 3)) * 10
+            dask_array.random.random(
+                (n_time, n_sims, n_lat, n_lon), chunks=(365, 1, 3, 3)
+            )
+            * 10
             + 20
         )
 
         time_coords = pd.date_range("2000-01-01", periods=n_time, freq="D")
 
-        da_xr = xr.DataArray(
+        dask_xr = xr.DataArray(
             data,
             dims=["time", "sim", "lat", "lon"],
             coords={
@@ -1061,7 +1071,7 @@ class TestMetricCalcDaskArrayHandling:
             }
         )
 
-        result = processor._calculate_one_in_x_single(da_xr)
+        result = processor._calculate_one_in_x_single(dask_xr)
 
         assert isinstance(result, xr.Dataset)
         assert "return_value" in result.data_vars
