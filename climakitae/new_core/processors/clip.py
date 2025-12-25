@@ -1245,20 +1245,54 @@ class Clip(DataProcessor):
                         neighborhood_mean
                     )
 
+        # Clip to bounding box of the selected points (with padding for context)
+        # This makes plotting and analysis more manageable
+        selected_lat_indices = [idx[0] for idx in unique_indices]
+        selected_lon_indices = [idx[1] for idx in unique_indices]
+
+        # Add 1-cell padding around bounding box for visualization context
+        bbox_padding = 1
+        lat_min_idx = max(0, min(selected_lat_indices) - bbox_padding)
+        lat_max_idx = min(lat_size - 1, max(selected_lat_indices) + bbox_padding)
+        lon_min_idx = max(0, min(selected_lon_indices) - bbox_padding)
+        lon_max_idx = min(lon_size - 1, max(selected_lon_indices) + bbox_padding)
+
+        # Clip to bounding box
+        masked_data = masked_data.isel(
+            {
+                lat_dim: slice(lat_min_idx, lat_max_idx + 1),
+                lon_dim: slice(lon_min_idx, lon_max_idx + 1),
+            }
+        )
+        logger.debug(
+            "Clipped to bounding box: %s[%d:%d], %s[%d:%d]",
+            lat_dim, lat_min_idx, lat_max_idx + 1,
+            lon_dim, lon_min_idx, lon_max_idx + 1,
+        )
+
         # If extract_points is True, collapse spatial dims to points dimension
         if extract_points:
             logger.info("Extracting %d unique points along 'points' dimension", len(unique_indices))
 
-            # Extract values at each unique point
+            # Extract values at each unique point from the ORIGINAL masked data
+            # (before bbox clip) to get correct indices
             point_datasets = []
             point_coords_lat = []
             point_coords_lon = []
 
+            # Use coordinate-based selection since we've clipped the data
+            clipped_lat_coords = masked_data[lat_dim].values
+            clipped_lon_coords = masked_data[lon_dim].values
+
             for lat_idx, lon_idx in unique_indices:
-                point_data = masked_data.isel({lat_dim: lat_idx, lon_dim: lon_idx})
+                target_lat = lat_coords[lat_idx]
+                target_lon = lon_coords[lon_idx]
+                point_data = masked_data.sel(
+                    {lat_dim: target_lat, lon_dim: target_lon}, method="nearest"
+                )
                 point_datasets.append(point_data)
-                point_coords_lat.append(float(lat_coords[lat_idx]))
-                point_coords_lon.append(float(lon_coords[lon_idx]))
+                point_coords_lat.append(float(target_lat))
+                point_coords_lon.append(float(target_lon))
 
             # Concatenate along new 'points' dimension
             result = xr.concat(point_datasets, dim="points")
@@ -1274,7 +1308,7 @@ class Clip(DataProcessor):
             return result
 
         logger.info(
-            "Successfully created masked grid with %d selected cells",
+            "Successfully created masked grid with %d selected cells (bbox clipped)",
             len(unique_indices),
         )
         return masked_data

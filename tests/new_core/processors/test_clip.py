@@ -1429,7 +1429,7 @@ class TestClipDataToPointsAsMask:
         assert valid_cells.sum() <= 3  # At most one cell valid per time step
 
     def test_mask_multiple_points(self):
-        """Test mask clipping with multiple points - outcome: gridded data with selected cells only."""
+        """Test mask clipping with multiple points - outcome: bbox-clipped gridded data."""
         point_list = [(37.0, -119.0), (35.0, -121.0), (40.0, -118.0)]
 
         result = Clip._clip_data_to_points_as_mask(
@@ -1440,8 +1440,17 @@ class TestClipDataToPointsAsMask:
         assert "lat" in result.dims
         assert "lon" in result.dims
 
-        # Verify result has same shape as input
-        assert result["temp"].shape == self.dataset_valid["temp"].shape
+        # Verify result is clipped to bounding box (smaller than input)
+        # The bbox should encompass all points plus 1-cell padding
+        assert result["temp"].shape[1] < self.dataset_valid["temp"].shape[1]  # lat dimension
+        assert result["temp"].shape[2] < self.dataset_valid["temp"].shape[2]  # lon dimension
+
+        # Verify the lat/lon range covers the input points (with padding)
+        lat_min, lat_max = result.lat.values.min(), result.lat.values.max()
+        lon_min, lon_max = result.lon.values.min(), result.lon.values.max()
+        for lat, lon in point_list:
+            assert lat_min <= lat <= lat_max, f"Point lat {lat} outside range [{lat_min}, {lat_max}]"
+            assert lon_min <= lon <= lon_max, f"Point lon {lon} outside range [{lon_min}, {lon_max}]"
 
     def test_mask_with_nan_fill(self):
         """Test mask clipping fills NaN cells with 3x3 neighborhood average."""
