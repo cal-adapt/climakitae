@@ -9,12 +9,10 @@ import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY
 from climakitae.new_core.data_access.data_access import DataCatalog
-from climakitae.new_core.param_validation.param_validation_tools import _coerce_to_dates
+from climakitae.new_core.param_validation.param_validation_tools import \
+    _coerce_to_dates
 from climakitae.new_core.processors.abc_data_processor import (
-    DataProcessor,
-    register_processor,
-)
-
+    DataProcessor, register_processor)
 
 # Module logger
 logger = logging.getLogger(__name__)

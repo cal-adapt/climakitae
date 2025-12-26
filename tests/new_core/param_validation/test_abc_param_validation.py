@@ -280,7 +280,7 @@ class TestHasValidProcesses:
 
     def test_has_valid_processes_invalid_processor(self):
         """Test _has_valid_processes with invalid processor.
-        
+
         Note: The implementation relies on individual validators to emit specific
         warnings. This test registers a validator that returns False without emitting
         a warning, which is valid behavior - the base method just returns False.

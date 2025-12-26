@@ -48,11 +48,8 @@ import geopandas as gpd
 import intake
 import pandas as pd
 
-from climakitae.core.constants import (
-    CALISO_AREA_THRESHOLD,
-    PRIORITY_UTILITIES,
-    WESTERN_STATES_LIST,
-)
+from climakitae.core.constants import (CALISO_AREA_THRESHOLD,
+                                       PRIORITY_UTILITIES, WESTERN_STATES_LIST)
 
 # Module logger
 logger = logging.getLogger(__name__)

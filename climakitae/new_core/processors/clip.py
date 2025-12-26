@@ -118,17 +118,15 @@ import numpy as np
 import pandas as pd
 import pyproj
 import xarray as xr
-
 # geodesic distance not used in immediate-neighborhood search
 from shapely.geometry import box, mapping
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
-    DataProcessor,
-    register_processor,
-)
-from climakitae.new_core.processors.processor_utils import is_station_identifier
+    DataProcessor, register_processor)
+from climakitae.new_core.processors.processor_utils import \
+    is_station_identifier
 from climakitae.util.utils import get_closest_gridcell, get_closest_gridcells
 
 # Module logger
@@ -561,9 +559,8 @@ class Clip(DataProcessor):
         ValueError
             If station is not found or catalog is not available
         """
-        from climakitae.new_core.processors.processor_utils import (
-            get_station_coordinates,
-        )
+        from climakitae.new_core.processors.processor_utils import \
+            get_station_coordinates
 
         return get_station_coordinates(station_identifier, self.catalog)
 
@@ -585,9 +582,8 @@ class Clip(DataProcessor):
         tuple[list[tuple[float, float]], list[dict]]
             List of (lat, lon) tuples and list of metadata dictionaries
         """
-        from climakitae.new_core.processors.processor_utils import (
-            convert_stations_to_points,
-        )
+        from climakitae.new_core.processors.processor_utils import \
+            convert_stations_to_points
 
         return convert_stations_to_points(station_identifiers, self.catalog)
 

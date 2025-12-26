@@ -12,24 +12,20 @@ import pandas as pd
 import scipy.stats as stats
 import xarray as xr
 
-from climakitae.core.constants import (
-    _NEW_ATTRS_KEY,
-    BYTES_TO_GB_FACTOR,
-    BYTES_TO_MB_FACTOR,
-    MEDIUM_ARRAY_THRESHOLD_BYTES,
-    MIN_VALID_DATA_POINTS,
-    PERCENTILE_TO_QUANTILE_FACTOR,
-    RETURN_VALUE_PRECISION,
-    SMALL_ARRAY_THRESHOLD_BYTES,
-    UNSET,
-)
-from climakitae.explore.threshold_tools import _get_distr_func, _get_fitted_distr
+from climakitae.core.constants import (_NEW_ATTRS_KEY, BYTES_TO_GB_FACTOR,
+                                       BYTES_TO_MB_FACTOR,
+                                       MEDIUM_ARRAY_THRESHOLD_BYTES,
+                                       MIN_VALID_DATA_POINTS,
+                                       PERCENTILE_TO_QUANTILE_FACTOR,
+                                       RETURN_VALUE_PRECISION,
+                                       SMALL_ARRAY_THRESHOLD_BYTES, UNSET)
+from climakitae.explore.threshold_tools import (_get_distr_func,
+                                                _get_fitted_distr)
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
-    DataProcessor,
-    register_processor,
-)
-from climakitae.new_core.processors.processor_utils import _get_block_maxima_optimized
+    DataProcessor, register_processor)
+from climakitae.new_core.processors.processor_utils import \
+    _get_block_maxima_optimized
 
 logger = logging.getLogger(__name__)
 

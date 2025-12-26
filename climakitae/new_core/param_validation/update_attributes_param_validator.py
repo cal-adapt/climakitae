@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from climakitae.new_core.param_validation.abc_param_validation import (
-    register_processor_validator,
-)
+from climakitae.new_core.param_validation.abc_param_validation import \
+    register_processor_validator
 
 
 @register_processor_validator("update_attributes")
