@@ -8,6 +8,7 @@ that provide the high-level interface for accessing climate data.
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+import pytest
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.user_interface import ClimateData
@@ -205,6 +206,46 @@ class TestClimateDataParameterSetters:
                 e
             )
 
+    def test_station_id_string_valid(self):
+        """Test station_id setter with valid string."""
+        result = self.climate_data.station_id("CWOP_E4369")
+        assert self.climate_data._query["station_id"] == ["CWOP_E4369"]
+        assert result is self.climate_data
+
+    def test_station_id_list_valid(self):
+        """Test station_id setter with valid list."""
+        result = self.climate_data.station_id(["CWOP_E4369", "CWOP_F5680"])
+        assert self.climate_data._query["station_id"] == ["CWOP_E4369", "CWOP_F5680"]
+        assert result is self.climate_data
+
+    def test_station_id_invalid_type(self):
+        """Test station_id setter with invalid type."""
+        try:
+            self.climate_data.station_id(123)
+            assert False, "Should have raised ValueError"
+        except ValueError as e:
+            assert "Station ID must be a non-empty string or list of strings" in str(e)
+
+    def test_network_id_string_valid(self):
+        """Test network_id setter with valid string."""
+        result = self.climate_data.network_id("ASOSAWOS")
+        assert self.climate_data._query["network_id"] == "ASOSAWOS"
+        assert result is self.climate_data
+
+    def test_network_id_list_valid(self):
+        """Test network_id setter with valid list."""
+        result = self.climate_data.network_id(["ASOSAWOS", "SCAN"])
+        assert self.climate_data._query["network_id"] == ["ASOSAWOS", "SCAN"]
+        assert result is self.climate_data
+
+    def test_network_id_invalid_type(self):
+        """Test network_id setter with invalid type."""
+        try:
+            self.climate_data.network_id(123)
+            assert False, "Should have raised ValueError"
+        except ValueError as e:
+            assert "Network ID must be a non-empty string or list of strings" in str(e)
+
     def test_processes_valid(self):
         """Test processes setter with valid input."""
         processes = {"spatial_avg": "region", "temporal_avg": "monthly"}
@@ -243,16 +284,14 @@ class TestClimateDataGet:
 
     def test_get_missing_required_parameters(self):
         """Test get method when required parameters are missing."""
-        # The current implementation has a bug where it continues execution
-        # even after validation fails. This test documents the current behavior.
         with patch("builtins.print") as mock_print:
             result = self.climate_data.get()
 
-        # Current behavior: returns a mock object instead of None (this is a bug)
-        assert result is not None  # Documents current buggy behavior
+        # Correctly returns None when validation fails
+        assert result is None
         # Should print error about missing parameters
         printed_text = "".join(str(call) for call in mock_print.call_args_list)
-        assert "ERROR: Missing required parameters" in printed_text
+        assert "Missing required parameters" in printed_text
 
     def test_get_successful_execution(self):
         """Test successful get execution."""
@@ -264,6 +303,8 @@ class TestClimateDataGet:
             "institution_id": UNSET,
             "source_id": UNSET,
             "experiment_id": UNSET,
+            "station_id": UNSET,
+            "network_id": UNSET,
             "table_id": "day",
             "grid_label": "d03",
             "variable_id": "tas",
@@ -352,19 +393,41 @@ class TestClimateDataOptionMethods:
             "catalog", "catalog options (Cloud data collections)"
         )
 
-    def test_show_processors(self):
-        """Test show_processors method."""
-        self.climate_data._factory.get_processors.return_value = [
-            "spatial_avg",
-            "temporal_avg",
-        ]
+    @pytest.mark.parametrize(
+        "catalog,expected_processors,should_call_get_valid",
+        [
+            (UNSET, ["clip", "concat"], False),  # No catalog set
+            ("hdp", ["concat", "export"], True),  # Catalog set
+        ],
+    )
+    def test_show_processors(self, catalog, expected_processors, should_call_get_valid):
+        """Test show_processors method with and without catalog."""
+        if catalog is UNSET:
+            # Mock processor registry for UNSET case
+            self.climate_data._factory._processing_step_registry = {
+                proc: (MagicMock(), 10) for proc in expected_processors
+            }
+        else:
+            # Set catalog and mock get_valid_processors
+            self.climate_data._query["catalog"] = catalog
+            self.climate_data._factory.get_valid_processors = MagicMock(
+                return_value=expected_processors
+            )
 
         with patch("builtins.print") as mock_print:
             self.climate_data.show_processors()
 
-        self.climate_data._factory.get_processors.assert_called_once()
+        # Verify get_valid_processors was called appropriately
+        if should_call_get_valid:
+            self.climate_data._factory.get_valid_processors.assert_called_once_with(
+                catalog
+            )
+
+        # Verify printed output
         printed_text = "".join(str(call) for call in mock_print.call_args_list)
         assert "Processors" in printed_text
+        for proc in expected_processors:
+            assert proc in printed_text
 
 
 class TestClimateDataConvenienceMethods:
@@ -584,6 +647,12 @@ class TestClimateDataAdditionalShowMethods:
             patch.object(self.climate_data, "show_table_id_options") as mock_table,
             patch.object(self.climate_data, "show_grid_label_options") as mock_grid,
             patch.object(self.climate_data, "show_variable_options") as mock_variable,
+            patch.object(
+                self.climate_data, "show_station_id_options"
+            ) as mock_station_id,
+            patch.object(
+                self.climate_data, "show_network_id_options"
+            ) as mock_network_id,
         ):
 
             self.climate_data.show_all_options()
@@ -597,6 +666,8 @@ class TestClimateDataAdditionalShowMethods:
             mock_table.assert_called_once()
             mock_grid.assert_called_once()
             mock_variable.assert_called_once()
+            mock_station_id.assert_called_once()
+            mock_network_id.assert_called_once()
 
     def test_show_options_private_method(self):
         """Test _show_options private method."""

@@ -47,7 +47,7 @@ def register_processor(
 
     Examples
     --------
-    @register_processor("my_processor")
+    @register_processor("my_processor", priority=10)
     class MyProcessor(DataProcessor):
         ...
 

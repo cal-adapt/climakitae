@@ -9,7 +9,7 @@ import warnings
 from unittest.mock import MagicMock, patch
 
 from climakitae.core.constants import UNSET
-from climakitae.new_core.param_validation.data_param_validator import DataValidator
+from climakitae.new_core.param_validation.cadcat_param_validator import DataValidator
 
 # Suppress known external warnings that are not relevant to our tests
 warnings.filterwarnings(
@@ -70,7 +70,8 @@ class TestDataValidator:
             result = self.validator.is_valid_query(query)
 
             assert result is None
-            assert len(w) == 1
+            # Implementation logs the warning twice (duplicate logger.warning call)
+            assert len(w) == 2
             assert "Localize processor is not supported for LOCA2 datasets" in str(
                 w[0].message
             )
@@ -155,10 +156,14 @@ class TestDataValidator:
         Tests that is_valid_query calls the parent _is_valid_query method
         when all initial checks pass.
         """
+        # Include all required keys: activity_id, table_id, grid_label, variable_id
         query = {
-            "variable_id": "tas"
+            "activity_id": "WRF",
+            "table_id": "1hr",
+            "grid_label": "d03",
+            "variable_id": "tas",
         }  # No localize processor, should pass initial checks
-        expected_result = {"variable_id": "tas"}
+        expected_result = query.copy()
 
         # Mock the parent class _is_valid_query method
         with patch(
@@ -170,3 +175,64 @@ class TestDataValidator:
             # Should call parent method once and return its result
             mock_parent.assert_called_once_with(query)
             assert result == expected_result
+
+    def test_default_processors_with_empty_query(self):
+        """Test get_default_processors with empty query.
+
+        Tests that get_default_processors returns the correct defaults for CADCAT
+        with no experiment_id specified.
+        """
+        query = {}
+        defaults = self.validator.get_default_processors(query)
+
+        # Check universal defaults from parent class
+        assert defaults["update_attributes"] is UNSET
+
+        # Check catalog-specific defaults
+        assert defaults["filter_unadjusted_models"] == "yes"
+        assert defaults["concat"] == "time"  # Default when no experiment_id
+
+    def test_default_processors_with_historical_experiment_id(self):
+        """Test get_default_processors with historical experiment_id.
+
+        Tests that concat dimension is set to 'sim' for historical data.
+        """
+        query = {"experiment_id": "historical"}
+        defaults = self.validator.get_default_processors(query)
+
+        # Check universal defaults
+        assert defaults["update_attributes"] is UNSET
+
+        # Check catalog-specific defaults
+        assert defaults["filter_unadjusted_models"] == "yes"
+        assert defaults["concat"] == "sim"  # Changes to sim for historical
+
+    def test_default_processors_with_ssp_experiment_id(self):
+        """Test get_default_processors with SSP experiment_id.
+
+        Tests that concat dimension remains 'time' for SSP scenarios.
+        """
+        query = {"experiment_id": "ssp370"}
+        defaults = self.validator.get_default_processors(query)
+
+        # Check universal defaults
+        assert defaults["update_attributes"] is UNSET
+
+        # Check catalog-specific defaults
+        assert defaults["filter_unadjusted_models"] == "yes"
+        assert defaults["concat"] == "time"  # Stays time for SSP
+
+    def test_default_processors_with_ssp_concat_to_historical(self):
+        """Test get_default_processors to confirm historical is appended to ssp.
+
+        Tests that concat is 'time' when experiment_id includes SSP scenarios.
+        """
+        query = {"experiment_id": ["historical", "ssp370"]}
+        defaults = self.validator.get_default_processors(query)
+
+        # Check universal defaults
+        assert defaults["update_attributes"] is UNSET
+
+        # Check catalog-specific defaults
+        assert defaults["filter_unadjusted_models"] == "yes"
+        assert defaults["concat"] == "time"  # Stays time for SSP

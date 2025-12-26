@@ -150,8 +150,8 @@ class DatasetFactory:
 
         """
         logger.debug("Initializing DatasetFactory")
-        self._catalog = None
-        self._catalog_df = DataCatalog().catalog_df
+        self._catalog = DataCatalog()
+        self._catalog_df = self._catalog.catalog_df
         self._validator_registry = _CATALOG_VALIDATOR_REGISTRY
         self._processing_step_registry = _PROCESSOR_REGISTRY
         logger.info(
@@ -209,10 +209,20 @@ class DatasetFactory:
         # Create and configure parameter validator
         catalog_key = self._get_catalog_key_from_query(ui_query)
         logger.info("Determined catalog key: %s", catalog_key)
+
+        # Store catalog_key in query for thread-safe access during execution
+        # This avoids storing mutable state on the singleton DataCatalog
+        ui_query["_catalog_key"] = catalog_key
+
         self._catalog = DataCatalog()
-        self._catalog.set_catalog_key(catalog_key)
-        logger.debug("Creating validator for catalog: %s", catalog_key)
-        dataset.with_param_validator(self.create_validator(catalog_key))
+        # Resolve the key to validate it (but don't store it on the singleton)
+        resolved_key = self._catalog.resolve_catalog_key(catalog_key)
+        if resolved_key is None:
+            raise ValueError(f"Invalid catalog key: {catalog_key}")
+        ui_query["_catalog_key"] = resolved_key
+
+        logger.debug("Creating validator for catalog: %s", resolved_key)
+        dataset.with_param_validator(self.create_validator(resolved_key))
 
         # Configure the appropriate catalog based on query parameters
         logger.debug("Configuring dataset with data catalog")
@@ -243,6 +253,10 @@ class DatasetFactory:
         This method determines the complete set of processing steps required
         for a query by examining explicit user requests, implicit requirements
         based on query parameters, and mandatory system processing steps.
+
+        Default processors are obtained from the catalog's validator, which
+        knows catalog-specific requirements (e.g., HDP uses station_id for
+        concatenation, climate model data uses filter_unadjusted_models).
 
         Parameters
         ----------
@@ -283,34 +297,21 @@ class DatasetFactory:
             # create empty processing step key
             query[PROC_KEY] = {}
 
-        if "filter_unadjusted_models" not in query[PROC_KEY]:
-            # add default filtering step if not present
-            query[PROC_KEY]["filter_unadjusted_models"] = "yes"
+        # Get default processors from validator
+        catalog_key = query.get("_catalog_key")
+        if catalog_key:
+            try:
+                validator = self.create_validator(catalog_key)
+                default_processors = validator.get_default_processors(query)
 
-        if "concat" not in query[PROC_KEY]:
-            # add default concatenation step if not present
-            default_concat = "time"
-            # now we check if "time" makes sense
-            value = query.get("experiment_id", UNSET)
-            match value:
-                case str():
-                    # if experiment_id is a string, check if it contains "historical"
-                    if "historical" in value.lower() or "reanalysis" in value.lower():
-                        # if it does, we can use "sim" as the default concat dimension
-                        default_concat = "sim"
-                case list() | tuple():
-                    # if experiment_id is a list or tuple, check each element
-                    # if there are no elements with "ssp" in them then we use the sim
-                    # approach
-                    if not any("ssp" in str(item).lower() for item in value):
-                        default_concat = "sim"
+                # Apply defaults for any processors not explicitly set by user
+                for proc_name, default_value in default_processors.items():
+                    if proc_name not in query[PROC_KEY]:
+                        query[PROC_KEY][proc_name] = default_value
+            except Exception as e:
+                logger.warning(f"Could not get default processors: {e}")
 
-            query[PROC_KEY]["concat"] = default_concat
-
-        if "update_attributes" not in query[PROC_KEY]:
-            # add default attribute update step if not present
-            query[PROC_KEY]["update_attributes"] = UNSET
-
+        # Process all processors in query[PROC_KEY]
         for key, value in query[PROC_KEY].items():
             if key not in self._processing_step_registry:
                 logger.warning(
@@ -319,9 +320,10 @@ class DatasetFactory:
                 )
                 continue
 
-            processor_class, priority = self._processing_step_registry[
-                key
-            ]  # get the class and priority
+            # Unpack processor info (class, priority)
+            registry_entry = self._processing_step_registry[key]
+            processor_class, priority = registry_entry[0], registry_entry[1]
+
             index = len(processing_steps)
             if not priorities:
                 priorities.append(priority)
@@ -467,7 +469,7 @@ class DatasetFactory:
         Returns
         -------
         str
-            Key for the catalog to use (e.g., "cadcat", "renewable energy generation")
+            Key for the catalog to use (e.g., "cadcat", "renewable energy generation", "hdp")
 
         """
         # search catalog for matching datasets
@@ -562,16 +564,29 @@ class DatasetFactory:
         """
         return sorted(list(self._validator_registry.keys()))
 
-    def get_processors(self) -> List[str]:
-        """Get a list of available processors.
+    def get_valid_processors(self, catalog_key: str) -> List[str]:
+        """Get a list of valid processors for a specific catalog.
+
+        Parameters
+        ----------
+        catalog_key : str
+            The catalog key to filter processors by (required).
 
         Returns
         -------
         List[str]
-            List of available processors.
+            List of processors valid for the specified catalog.
 
         """
-        return sorted(list(self._processing_step_registry.keys()))
+        all_processors = sorted(list(self._processing_step_registry.keys()))
+
+        # Get the validator for this catalog to determine invalid processors
+        validator = self.create_validator(catalog_key)
+        if validator and hasattr(validator, "invalid_processors"):
+            invalid_processors = validator.invalid_processors
+            return [p for p in all_processors if p not in invalid_processors]
+
+        return all_processors
 
     def get_stations(self) -> List[str]:
         """Get a list of available station datasets.

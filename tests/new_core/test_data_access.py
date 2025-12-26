@@ -16,11 +16,13 @@ from climakitae.core.paths import (
     BOUNDARY_CATALOG_URL,
     DATA_CATALOG_URL,
     RENEWABLES_CATALOG_URL,
+    HDP_CATALOG_URL,
 )
 from climakitae.new_core.data_access.data_access import (
     CATALOG_BOUNDARY,
     CATALOG_CADCAT,
     CATALOG_REN_ENERGY_GEN,
+    CATALOG_HDP,
     UNSET,
     DataCatalog,
     _get_closest_options,
@@ -135,9 +137,10 @@ class TestDataCatalogInitialization:
         *_, mock_open_esm, mock_open_catalog = mock_data_catalog_and_objs
 
         # Intake functions called with expected args
-        assert mock_open_esm.call_count == 2
+        assert mock_open_esm.call_count == 3
         mock_open_esm.assert_any_call(DATA_CATALOG_URL)
         mock_open_esm.assert_any_call(RENEWABLES_CATALOG_URL)
+        mock_open_esm.assert_any_call(HDP_CATALOG_URL)
         mock_open_catalog.assert_called_once_with(BOUNDARY_CATALOG_URL)
 
     def test_contains_expected_catalog_keys(self, mock_data_catalog_and_objs: Tuple):
@@ -150,6 +153,7 @@ class TestDataCatalogInitialization:
         assert catalog_instance[CATALOG_CADCAT] == mock_esm_catalog
         assert catalog_instance[CATALOG_BOUNDARY] == mock_boundary_catalog
         assert catalog_instance[CATALOG_REN_ENERGY_GEN] == mock_esm_catalog
+        assert catalog_instance[CATALOG_HDP] == mock_esm_catalog
 
     def test_contains_expected_entries(self, mock_data_catalog_and_objs: Tuple):
         """The DataCatalog should contain expected entries after initialization."""
@@ -160,6 +164,7 @@ class TestDataCatalogInitialization:
             CATALOG_CADCAT,
             CATALOG_BOUNDARY,
             CATALOG_REN_ENERGY_GEN,
+            CATALOG_HDP,
             "stations",
         ):
             assert key in catalog_instance
@@ -177,7 +182,7 @@ class TestDataCatalogInitialization:
 
         assert isinstance(df, pd.DataFrame)
         assert set(df["catalog"].unique()).issubset(
-            [CATALOG_REN_ENERGY_GEN, CATALOG_CADCAT]
+            [CATALOG_REN_ENERGY_GEN, CATALOG_CADCAT, CATALOG_HDP]
         )
 
     def test_initialized_state(self, mock_data_catalog_and_objs: Tuple):
@@ -185,7 +190,9 @@ class TestDataCatalogInitialization:
         catalog_instance, *_ = mock_data_catalog_and_objs
 
         assert catalog_instance._initialized is True
-        assert catalog_instance.catalog_key == UNSET
+        # catalog_key attribute is removed in thread-safe version
+        # Only the deprecated _catalog_key exists after using deprecated set_catalog_key()
+        assert not hasattr(catalog_instance, "catalog_key")
 
     def test_singleton_pattern(self):
         """Test that DataCatalog truly implements singleton pattern."""
@@ -211,7 +218,7 @@ class TestDataCatalogInitialization:
         assert catalog_instance.boundaries is boundaries  # Same object on second access
 
     def test_get_data_queries_correct_catalog(self, mock_data_catalog_and_objs: Tuple):
-        """Test that get_data queries the correct catalog based on catalog_key."""
+        """Test that get_data queries the correct catalog based on catalog_key parameter."""
 
         catalog_instance, mock_esm_catalog, *_ = mock_data_catalog_and_objs
 
@@ -221,8 +228,8 @@ class TestDataCatalogInitialization:
         mock_search.to_dataset_dict = mock_to_dataset
         mock_esm_catalog.search = MagicMock(return_value=mock_search)
 
-        catalog_instance.set_catalog_key("cadcat")
-        _ = catalog_instance.get_data({"variable_id": "t2max"})
+        # Use new thread-safe API: pass catalog_key directly to get_data()
+        _ = catalog_instance.get_data({"variable_id": "t2max"}, catalog_key="cadcat")
 
         # Verify the chain of calls
         mock_esm_catalog.search.assert_called_once_with(variable_id="t2max")
@@ -233,26 +240,26 @@ class TestDataCatalogCatalogKeyManagement:
     """Test setting and getting `catalog_key` in DataCatalog."""
 
     def test_get_data_with_unset_catalog_key(self, mock_data_catalog: DataCatalog):
-        """Getting data with UNSET catalog_key should raise error."""
-        with pytest.raises(KeyError):
+        """Getting data without catalog_key should raise ValueError."""
+        with pytest.raises(ValueError, match="catalog_key must be provided"):
             mock_data_catalog.get_data({"variable_id": "test"})
 
     @pytest.mark.parametrize("valid_key", ["cadcat", "boundary"])
-    def test_setting_valid_catalog_key(
+    def test_resolve_valid_catalog_key(
         self, mock_data_catalog: DataCatalog, valid_key: str
     ):
-        """Setting a valid catalog key updates the catalog_key attribute."""
-        mock_data_catalog.set_catalog_key(valid_key)
-        assert mock_data_catalog.catalog_key == valid_key
+        """Resolving a valid catalog key returns the same key."""
+        resolved = mock_data_catalog.resolve_catalog_key(valid_key)
+        assert resolved == valid_key
 
-    def test_setting_catalog_key_with_typo_warns_and_fixes(
+    def test_resolve_catalog_key_with_typo_warns_and_fixes(
         self, mock_data_catalog: DataCatalog
     ):
-        """Setting a misspelled key should warn and fallback to closest match."""
+        """Resolving a misspelled key should warn and return closest match."""
         typo = "staaations"
 
         with pytest.warns(UserWarning) as record:
-            mock_data_catalog.set_catalog_key(typo)
+            resolved = mock_data_catalog.resolve_catalog_key(typo)
 
         assert len(record) == 2
         assert str(record[0].message) == (
@@ -260,18 +267,18 @@ class TestDataCatalogCatalogKeyManagement:
             f"Attempting to find intended catalog key.\n\n."
         )
         assert str(record[1].message) == (
-            f"\n\nUsing closest match 'stations' for validator '{typo}'."
+            f"\n\nUsing closest match 'stations' for catalog '{typo}'."
         )
-        assert mock_data_catalog.catalog_key == "stations"
+        assert resolved == "stations"
 
-    def test_setting_catalog_key_with_ambiguous_match_warns(
+    def test_resolve_catalog_key_with_ambiguous_match_warns(
         self, mock_data_catalog: DataCatalog
     ):
-        """Ambiguous misspelling should warn about multiple possible matches."""
+        """Ambiguous misspelling should warn about multiple possible matches and return None."""
         too_similar_key = "cadctation"
 
         with pytest.warns(UserWarning) as record:
-            mock_data_catalog.set_catalog_key(too_similar_key)
+            resolved = mock_data_catalog.resolve_catalog_key(too_similar_key)
 
         assert len(record) == 2
         assert str(record[0].message) == (
@@ -282,18 +289,17 @@ class TestDataCatalogCatalogKeyManagement:
             f"Multiple closest matches found for '{too_similar_key}': "
             f"{['cadcat', 'stations']}. Please specify a more precise key."
         )
+        assert resolved is None
 
     def test_helpful_error_on_invalid_catalog_key(
         self, mock_data_catalog: DataCatalog, capfd: pytest.CaptureFixture
     ):
-        """Invalid catalog keys should produce helpful error messages."""
+        """Invalid catalog keys should produce helpful warning messages."""
         with pytest.warns(UserWarning) as warning_info:
-            mock_data_catalog.set_catalog_key("nonexistent")
+            resolved = mock_data_catalog.resolve_catalog_key("nonexistent")
 
-        # Check that the print statement and warnings helps the user
-        out, _ = capfd.readouterr()
-
-        assert "Available catalog keys" in out
+        # Check that the warnings help the user
+        assert resolved is None
         assert "Available options:" in str(warning_info[1].message)
         assert "cadcat" in str(warning_info[1].message)
 
@@ -358,16 +364,24 @@ class TestDataCatalogCatalogKeyManagement:
         """
         Test the resetting functionality of the mock_data_catalog.
 
-        This test verifies that:
-        1. The initial state of the catalog_key is UNSET.
-        2. The catalog_key can be set to a specific value ("cadcat").
-        3. The reset method restores the catalog_key to its initial state (UNSET).
+        With thread-safe design, reset() clears the deprecated _catalog_key
+        that is only set when using the deprecated set_catalog_key() method.
         """
-        assert mock_data_catalog.catalog_key == UNSET
-        mock_data_catalog.set_catalog_key("cadcat")
-        assert mock_data_catalog.catalog_key == "cadcat"
+        # Initially, _catalog_key should not exist
+        assert not hasattr(mock_data_catalog, "_catalog_key")
+
+        # Use deprecated set_catalog_key (which sets _catalog_key)
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mock_data_catalog.set_catalog_key("cadcat")
+
+        assert mock_data_catalog._catalog_key == "cadcat"
+
+        # Reset should clear _catalog_key
         mock_data_catalog.reset()
-        assert mock_data_catalog.catalog_key == UNSET
+        assert mock_data_catalog._catalog_key is None
 
     @pytest.mark.parametrize(
         "key, options, cutoff, expected",

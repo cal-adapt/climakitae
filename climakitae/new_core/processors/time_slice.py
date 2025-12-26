@@ -3,7 +3,6 @@ Subset data on time
 """
 
 import logging
-import warnings
 from typing import Any, Dict, Iterable, Union
 
 import xarray as xr
@@ -21,7 +20,10 @@ from climakitae.new_core.processors.abc_data_processor import (
 logger = logging.getLogger(__name__)
 
 
-@register_processor("time_slice", priority=100)
+@register_processor(
+    "time_slice",
+    priority=100,
+)
 class TimeSlice(DataProcessor):
     """
     Slice data based on time.

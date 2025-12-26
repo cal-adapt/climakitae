@@ -5046,27 +5046,30 @@ class TestExportProfile:
             gwl = [1.5]
             cached_area = "Sacramento County"
             no_delta = False
+            profile_selections = {
+                "variable": variable,
+                "q": q,
+                "warming_level": gwl,
+                "cached_area": cached_area,
+                "no_delta": no_delta,
+            }
             export_profile_to_csv(
                 self.multi_df,
-                variable,
-                q,
-                gwl,
-                cached_area=cached_area,
-                no_delta=no_delta,
+                **profile_selections,
             )
             expected_filename = "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical.csv"
             to_csv_mock.assert_called_with(expected_filename)
 
         with patch("pandas.DataFrame.to_csv") as to_csv_mock:
             gwls = [1.5, 2.0]
-            export_profile_to_csv(
-                self.multi_df_gwl,
-                variable,
-                q,
-                gwls,
-                cached_area=cached_area,
-                no_delta=no_delta,
-            )
+            profile_selections = {
+                "variable": variable,
+                "q": q,
+                "warming_level": gwls,
+                "cached_area": cached_area,
+                "no_delta": no_delta,
+            }
+            export_profile_to_csv(self.multi_df_gwl, **profile_selections)
             expected_filenames = [
                 call(
                     "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical.csv"
@@ -5085,14 +5088,14 @@ class TestExportProfile:
             gwl = [1.5]
             cached_area = "Sacramento County"
             no_delta = False
-            export_profile_to_csv(
-                self.multi_df_invalid,
-                variable,
-                q,
-                gwl,
-                cached_area=cached_area,
-                no_delta=no_delta,
-            )
+            profile_selections = {
+                "variable": variable,
+                "q": q,
+                "warming_level": gwl,
+                "cached_area": cached_area,
+                "no_delta": no_delta,
+            }
+            export_profile_to_csv(self.multi_df_invalid, **profile_selections)
 
     @pytest.mark.parametrize(
         "value,expected",

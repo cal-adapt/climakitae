@@ -190,8 +190,8 @@ class Dataset:
                 )
             valid_query = self.parameter_validator.is_valid_query(context)
             if valid_query is None:
-                logger.warning("Parameter validation failed, returning empty dataset")
-                return xr.Dataset()  # return empty dataset if validation fails
+                logger.error("Parameter validation failed")
+                return None  # return None if validation fails
             logger.info("Parameter validation successful")
 
         # Check if data access is properly configured
@@ -199,9 +199,20 @@ class Dataset:
             logger.error("Data accessor not configured")
             raise ValueError("Data accessor is not configured.")
 
+        # Extract catalog_key from context for thread-safe data access
+        catalog_key = context.get("_catalog_key")
+        if catalog_key is None:
+            logger.error("No catalog_key found in context")
+            raise ValueError(
+                "catalog_key must be provided in the query context. "
+                "This is typically set by DatasetFactory.create_dataset()."
+            )
+
         # Initialize the processing result - will be updated through pipeline steps
-        logger.debug("Retrieving data from data accessor")
-        current_result = self.data_access.get_data(valid_query)
+        logger.debug(
+            "Retrieving data from data accessor with catalog_key=%s", catalog_key
+        )
+        current_result = self.data_access.get_data(valid_query, catalog_key=catalog_key)
         logger.info("Data retrieved successfully")
 
         # Check if we have a processing pipeline
