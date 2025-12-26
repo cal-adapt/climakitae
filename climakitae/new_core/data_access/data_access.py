@@ -451,7 +451,7 @@ class DataCatalog(dict):
 
         logger.debug("Executing catalog search")
         # Detailed query log (was printed previously)
-        logger.debug("Querying %s catalog with query: %s", self.catalog_key, query)
+        logger.debug("Querying %s catalog with query: %s", effective_key, query)
 
         # Check if a distributed client is active - if so, force synchronous scheduler
         # during data loading to prevent intake_esm from sending open_dataset tasks
@@ -473,7 +473,7 @@ class DataCatalog(dict):
 
         with dask.config.set(scheduler=scheduler_override):
             result = (
-                self[self.catalog_key]
+                self[effective_key]
                 .search(**query)
                 .to_dataset_dict(
                     # Use consolidated=None for compatibility with both Zarr v2 and v3.
