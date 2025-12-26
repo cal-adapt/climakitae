@@ -21,11 +21,10 @@ from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
     register_processor,
 )
+from climakitae.new_core.processors.processor_utils import extend_time_domain
 
 # from climakitae.new_core.processors.processor_utils import _determine_is_complete_wl
 from climakitae.util.utils import _determine_is_complete_wl, read_csv_file
-from climakitae.new_core.processors.processor_utils import extend_time_domain
-
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -171,8 +170,6 @@ class WarmingLevel(DataProcessor):
         center_years = self.get_center_years(member_ids, ret.keys())
         retkeys = list(ret.keys())
 
-        dropped_slices_count = 0
-
         for key in retkeys:
             if key not in center_years:
                 del ret[key]
@@ -240,9 +237,8 @@ class WarmingLevel(DataProcessor):
             ret[key] = xr.concat(
                 slices, dim="warming_level", join="outer", fill_value=np.nan
             )
-        self.update_context(context)
 
-        print(f"Dropped slices count: {dropped_slices_count}")
+        self.update_context(context)
         return ret
 
     def update_context(self, context: Dict[str, Any]) -> Dict[str, Any]:

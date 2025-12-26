@@ -584,16 +584,64 @@ def get_closest_gridcell(
     return None
 
 
+def _transform_coords_to_data_crs_vectorized(
+    data: xr.Dataset | xr.DataArray,
+    lats: np.ndarray,
+    lons: np.ndarray,
+    lat_dim: str,
+    lon_dim: str,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Transform arrays of lat/lon coordinates to the data's CRS (vectorized).
+
+    Parameters
+    ----------
+    data : xr.Dataset | xr.DataArray
+        Gridded data with CRS information (via rioxarray).
+    lats : np.ndarray
+        Array of latitude coordinates.
+    lons : np.ndarray
+        Array of longitude coordinates.
+    lat_dim : str
+        Name of the latitude/y spatial dimension ('y' or 'lat').
+    lon_dim : str
+        Name of the longitude/x spatial dimension ('x' or 'lon').
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        Arrays of coordinates in the data's CRS as (lat_coords, lon_coords).
+
+    """
+    # Detect if user passed lat/lon or x/y projection coordinates
+    # Lat/lon values are always <= 360, projection coords (meters) are much larger
+    user_passed_latlon = np.all(np.abs(lats) <= 360) and np.all(np.abs(lons) <= 360)
+
+    if lat_dim == "y" and lon_dim == "x" and user_passed_latlon:
+        # Transform lat/lon to projection coordinates (x, y) - vectorized
+        transformer = pyproj.Transformer.from_crs(
+            crs_from="epsg:4326",
+            crs_to=data.rio.crs,
+            always_xy=True,
+        )
+        # transform returns (x, y) with always_xy=True
+        # We return (y, x) to match (lat_coord, lon_coord) order
+        x_coords, y_coords = transformer.transform(lons, lats)
+        return np.asarray(y_coords), np.asarray(x_coords)
+    return lats, lons
+
+
 def get_closest_gridcells(
     data: xr.Dataset | xr.DataArray,
     lats: Iterable[float] | float,
     lons: Iterable[float] | float,
     print_coords: bool = True,
+    bbox_buffer: int = 5,
 ) -> xr.Dataset | xr.DataArray | None:
     """Find the nearest grid cell(s) for given latitude and longitude coordinates.
 
-    This function calls get_closest_gridcell for each lat/lon pair and concatenates
-    the results along a 'points' dimension.
+    This function uses vectorized operations to efficiently find closest gridcells
+    for multiple coordinate pairs at once. For a single point, it delegates to
+    get_closest_gridcell.
 
     Parameters
     ----------
@@ -603,6 +651,12 @@ def get_closest_gridcells(
         Latitude coordinate(s).
     lons : float | Iterable[float]
         Longitude coordinate(s).
+    print_coords : bool, optional
+        Print closest coordinates for each point. Default is True.
+        Note: For large numbers of points, printing is automatically suppressed.
+    bbox_buffer : int, optional
+        Number of grid cells to add as buffer around the bounding box when
+        pre-clipping large datasets. Default is 5.
 
     Returns
     -------
@@ -614,54 +668,250 @@ def get_closest_gridcells(
     --------
     get_closest_gridcell
 
+    Notes
+    -----
+    For large datasets with many target points, this function first clips the data
+    to a bounding box around the target points. This dramatically reduces the Dask
+    task graph complexity and improves performance for downstream operations.
+
     """
-    # Convert single values to lists for uniform handling
-    if not isinstance(lats, Iterable) or isinstance(lats, str):
-        lats = [lats]
-    if not isinstance(lons, Iterable) or isinstance(lons, str):
-        lons = [lons]
+    # Convert single values to arrays for uniform handling
+    lats_arr = np.atleast_1d(np.asarray(lats))
+    lons_arr = np.atleast_1d(np.asarray(lons))
 
     # Ensure lats and lons have the same length
-    if len(lats) != len(lons):
+    if len(lats_arr) != len(lons_arr):
         raise ValueError(
-            f"lats and lons must have the same length, got {len(lats)} and {len(lons)}"
+            f"lats and lons must have the same length, got {len(lats_arr)} and {len(lons_arr)}"
         )
 
-    # Get closest gridcell for each lat/lon pair
-    gridcells = []
-    for lat, lon in zip(lats, lons):
-        gridcell = get_closest_gridcell(data, lat, lon, print_coords=print_coords)
-        if gridcell is not None:
-            gridcells.append(gridcell)
+    n_points = len(lats_arr)
+    print(f"Processing {n_points} coordinate pair(s)...")
 
-    # If no valid gridcells found, return None
-    if len(gridcells) == 0:
-        print("No valid gridcells found for the provided coordinates.")
+    # Suppress per-point printing for large numbers of points
+    if n_points > 10:
+        print_coords = False
+
+    # Identify spatial dimensions and transform all coordinates at once
+    lat_dim, lon_dim = _get_spatial_dims(data)
+    print(f"  Spatial dimensions: {lat_dim}, {lon_dim}")
+
+    lat_coords, lon_coords = _transform_coords_to_data_crs_vectorized(
+        data, lats_arr, lons_arr, lat_dim, lon_dim
+    )
+
+    # Get coordinate arrays from data
+    lat_index = data[lat_dim].to_index()
+    lon_index = data[lon_dim].to_index()
+    print(f"  Data grid size: {len(lat_index)} x {len(lon_index)}")
+
+    # OPTIMIZATION: Pre-clip to bounding box to reduce Dask task graph complexity
+    # This is critical for large datasets with many scattered points
+    lat_min_idx = lat_index.get_indexer([lat_coords.min()], method="nearest")[0]
+    lat_max_idx = lat_index.get_indexer([lat_coords.max()], method="nearest")[0]
+    lon_min_idx = lon_index.get_indexer([lon_coords.min()], method="nearest")[0]
+    lon_max_idx = lon_index.get_indexer([lon_coords.max()], method="nearest")[0]
+
+    # Add buffer and clamp to valid range
+    lat_min_idx = max(0, min(lat_min_idx, lat_max_idx) - bbox_buffer)
+    lat_max_idx = min(len(lat_index) - 1, max(lat_min_idx, lat_max_idx) + bbox_buffer)
+    lon_min_idx = max(0, min(lon_min_idx, lon_max_idx) - bbox_buffer)
+    lon_max_idx = min(len(lon_index) - 1, max(lon_min_idx, lon_max_idx) + bbox_buffer)
+
+    bbox_lat_size = lat_max_idx - lat_min_idx + 1
+    bbox_lon_size = lon_max_idx - lon_min_idx + 1
+    original_size = len(lat_index) * len(lon_index)
+    bbox_size = bbox_lat_size * bbox_lon_size
+
+    # Only pre-clip if it reduces spatial size significantly (>50% reduction)
+    if bbox_size < original_size * 0.5:
+        print(
+            f"  Pre-clipping to bounding box: {bbox_lat_size} x {bbox_lon_size} "
+            f"({bbox_size / original_size * 100:.1f}% of original)"
+        )
+        data = data.isel(
+            {
+                lat_dim: slice(lat_min_idx, lat_max_idx + 1),
+                lon_dim: slice(lon_min_idx, lon_max_idx + 1),
+            }
+        )
+        # Update indices to reference the clipped data
+        lat_index = data[lat_dim].to_index()
+        lon_index = data[lon_dim].to_index()
+
+    # Find nearest indices for all points at once (vectorized)
+    lat_indices = lat_index.get_indexer(lat_coords, method="nearest")
+    lon_indices = lon_index.get_indexer(lon_coords, method="nearest")
+
+    # Check for out-of-bounds points
+    valid_mask = (lat_indices != -1) & (lon_indices != -1)
+    if not np.any(valid_mask):
+        print("All input coordinates are OUTSIDE of data extent. Returning None.")
         return None
 
-    # If only one gridcell, return it directly
-    if len(gridcells) == 1:
-        return gridcells[0]
+    if not np.all(valid_mask):
+        n_invalid = np.sum(~valid_mask)
+        print(
+            f"  Warning: {n_invalid} point(s) are outside data extent and will be excluded."
+        )
 
-    # Concatenate multiple gridcells along 'points' dimension
-    # Note: concat adds the new dimension first, so we transpose to preserve
-    # the original dimension order (e.g., time comes before points)
-    result = xr.concat(gridcells, dim="points")
+    # Filter to valid indices only
+    valid_lat_indices = lat_indices[valid_mask]
+    valid_lon_indices = lon_indices[valid_mask]
+    valid_lats = lats_arr[valid_mask]
+    valid_lons = lons_arr[valid_mask]
+    n_valid = len(valid_lat_indices)
+    print(f"  Found {n_valid} valid point(s) within data extent")
 
-    # Get all dimensions and move 'points' to the end
+    # Check for invalid (ocean/masked) points using landmask BEFORE extracting data
+    # This avoids loading the full dataset just to check for NaNs
+    # SKIP expensive validity check for large point sets (>100 points) - the compute
+    # call triggers the entire Dask task graph which is extremely slow
+    needs_nan_handling = []
+    skip_validity_check = n_valid > 100
+
+    if skip_validity_check:
+        print(f"  Skipping validity check for {n_valid} points (too expensive)")
+    elif "landmask" in data.coords or "landmask" in getattr(data, "data_vars", {}):
+        print("  Checking landmask for valid land points...")
+        landmask = data["landmask"]
+        # Compute if dask-backed (this is just 2D, so cheap)
+        if hasattr(landmask.data, "compute"):
+            landmask = landmask.compute()
+        landmask_values = landmask.values
+
+        # Check which target points are on land vs water
+        is_land = np.array(
+            [
+                landmask_values[lat_idx, lon_idx] == 1
+                for lat_idx, lon_idx in zip(valid_lat_indices, valid_lon_indices)
+            ]
+        )
+        needs_nan_handling = list(np.where(~is_land)[0])
+        print(f"  {np.sum(is_land)}/{n_valid} points are on land")
+    else:
+        # No landmask available - create one from a single time slice
+        # Only do this for small point sets since it requires compute()
+        print("  No landmask found, checking single time slice for validity...")
+        if isinstance(data, xr.Dataset):
+            first_var = list(data.data_vars)[0]
+            check_data = data[first_var]
+        else:
+            check_data = data
+
+        # Get a single time slice to create validity mask
+        if "time" in check_data.dims:
+            single_slice = check_data.isel(time=0)
+        else:
+            single_slice = check_data
+
+        # Reduce any remaining non-spatial dims
+        for dim in list(single_slice.dims):
+            if dim not in [lat_dim, lon_dim]:
+                single_slice = single_slice.isel({dim: 0})
+
+        # Compute the validity mask (2D)
+        if hasattr(single_slice.data, "compute"):
+            single_slice = single_slice.compute()
+
+        validity_mask = ~np.isnan(single_slice.values)
+
+        # Check which target points are valid
+        is_valid = np.array(
+            [
+                validity_mask[lat_idx, lon_idx]
+                for lat_idx, lon_idx in zip(valid_lat_indices, valid_lon_indices)
+            ]
+        )
+        needs_nan_handling = list(np.where(~is_valid)[0])
+        print(f"  {np.sum(is_valid)}/{n_valid} points have valid data")
+
+    # For invalid points, find valid neighbor indices using the 2D mask
+    # This is done BEFORE extracting the full timeseries data
+    final_lat_indices = valid_lat_indices.copy()
+    final_lon_indices = valid_lon_indices.copy()
+
+    if len(needs_nan_handling) > 0:
+        print(f"  {len(needs_nan_handling)} point(s) need neighbor search...")
+
+        # Get the validity mask for neighbor searching
+        if "landmask" in data.coords or "landmask" in getattr(data, "data_vars", {}):
+            mask_2d = landmask_values == 1
+        else:
+            mask_2d = validity_mask
+
+        lat_size = data.sizes[lat_dim]
+        lon_size = data.sizes[lon_dim]
+        points_fixed = 0
+
+        for point_idx in needs_nan_handling:
+            lat_idx = int(valid_lat_indices[point_idx])
+            lon_idx = int(valid_lon_indices[point_idx])
+
+            # Search 3x3 window for valid neighbor using the 2D mask
+            found_valid = False
+            for di in range(-1, 2):
+                for dj in range(-1, 2):
+                    ni, nj = lat_idx + di, lon_idx + dj
+                    if 0 <= ni < lat_size and 0 <= nj < lon_size:
+                        if mask_2d[ni, nj]:
+                            # Found a valid neighbor - use its indices
+                            final_lat_indices[point_idx] = ni
+                            final_lon_indices[point_idx] = nj
+                            found_valid = True
+                            points_fixed += 1
+                            break
+                if found_valid:
+                    break
+
+        print(
+            f"  Fixed {points_fixed}/{len(needs_nan_handling)} points with valid neighbors"
+        )
+
+    # Now extract the full timeseries data using the corrected indices
+    print("  Extracting gridcells...")
+
+    # Use vectorized advanced indexing with DataArray indexers
+    # This is more efficient than stack+isel because it doesn't create a complex MultiIndex
+    lat_indexer = xr.DataArray(final_lat_indices, dims=["points"])
+    lon_indexer = xr.DataArray(final_lon_indices, dims=["points"])
+
+    # Select all points at once using vectorized indexing
+    result = data.isel({lat_dim: lat_indexer, lon_dim: lon_indexer})
+
+    # Add coordinate information for each point
+    actual_lats = data[lat_dim].values[final_lat_indices]
+    actual_lons = data[lon_dim].values[final_lon_indices]
+
+    # Assign coordinates to the result
+    result = result.assign_coords(
+        {
+            lat_dim: ("points", actual_lats),
+            lon_dim: ("points", actual_lons),
+        }
+    )
+
+    # Print coordinates if requested
+    if print_coords:
+        for i in range(n_valid):
+            print(
+                f"  Point {i+1}: ({valid_lats[i]:.4f}, {valid_lons[i]:.4f}) -> "
+                f"({actual_lats[i]:.4f}, {actual_lons[i]:.4f})"
+            )
+
+    # Reorder dimensions to put 'points' at the end
     if isinstance(result, xr.Dataset):
-        # For datasets, get dimensions from the first data variable
         first_var = list(result.data_vars)[0]
         all_dims = list(result[first_var].dims)
     else:
         all_dims = list(result.dims)
 
-    # Move 'points' dimension to the end
     if "points" in all_dims:
         all_dims.remove("points")
         all_dims.append("points")
         result = result.transpose(*all_dims)
 
+    print(f"Done! Extracted {n_valid} gridcell(s)")
     return result
 
 

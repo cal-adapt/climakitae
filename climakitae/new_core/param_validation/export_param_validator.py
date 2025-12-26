@@ -17,7 +17,6 @@ from climakitae.new_core.param_validation.param_validation_tools import (
     _get_closest_options,
 )
 
-
 # Module logger
 logger = logging.getLogger(__name__)
 

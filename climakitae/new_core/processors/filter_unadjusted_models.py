@@ -13,7 +13,6 @@ from climakitae.new_core.processors.abc_data_processor import (
     register_processor,
 )
 
-
 # Module logger
 logger = logging.getLogger(__name__)
 

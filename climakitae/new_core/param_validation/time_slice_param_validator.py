@@ -12,7 +12,6 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 )
 from climakitae.new_core.param_validation.param_validation_tools import _coerce_to_dates
 
-
 # Module logger
 logger = logging.getLogger(__name__)
 

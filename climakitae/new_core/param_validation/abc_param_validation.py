@@ -474,11 +474,7 @@ class ParameterValidator(ABC):
                     value, query=query
                 )  #! this call is allowed to modify the query in place
                 if not valid_value_for_processor:
-                    logger.warning(
-                        f"\n\nProcessor {key} with value {value} is not valid. "
-                        "\nPlease check the processor documentation for valid options.",
-                        stacklevel=999,
-                    )
+                    # Don't print generic message - validators should provide specific errors
                     return False
             else:
                 logger.warning(

@@ -145,3 +145,125 @@ def _validate_basic_metric_parameters(
         return False
 
     return True
+
+
+def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
+    """Validate parameters for 1-in-X calculations."""
+    if not isinstance(one_in_x_config, dict):
+        warnings.warn(
+            "\n\none_in_x configuration must be a dictionary. "
+            "\nPlease check the configuration."
+        )
+        return False
+
+    # Extract parameters with defaults
+    return_periods = one_in_x_config.get("return_periods")
+    distribution = one_in_x_config.get("distribution", "gev")
+    extremes_type = one_in_x_config.get("extremes_type", "max")
+    event_duration = one_in_x_config.get("event_duration", (1, "day"))
+    block_size = one_in_x_config.get("block_size", 1)
+    goodness_of_fit_test = one_in_x_config.get("goodness_of_fit_test", True)
+    print_goodness_of_fit = one_in_x_config.get("print_goodness_of_fit", True)
+    variable_preprocessing = one_in_x_config.get("variable_preprocessing", {})
+
+    # Validate return_periods (required parameter)
+    if return_periods is None:
+        warnings.warn(
+            "\n\nreturn_periods is required for 1-in-X calculations. "
+            "\nPlease provide a list of return periods (e.g., [10, 25, 50, 100])."
+        )
+        return False
+
+    # Convert to numpy array for validation
+    if not isinstance(return_periods, (list, np.ndarray)):
+        return_periods_array = np.array([return_periods])
+    elif isinstance(return_periods, list):
+        return_periods_array = np.array(return_periods)
+    else:
+        return_periods_array = return_periods
+
+    if not isinstance(return_periods_array, np.ndarray):
+        warnings.warn(
+            "\n\nreturn_periods must be convertible to numpy array. "
+            "\nPlease check the configuration."
+        )
+        return False
+
+    for rp in return_periods_array:
+        if not isinstance(rp, (int, float, np.integer, np.floating)) or rp < 1:
+            warnings.warn(
+                f"\n\nAll return periods must be numbers >= 1, got {rp} (type: {type(rp)}). "
+                "\nPlease check the configuration."
+            )
+            return False
+
+    # Validate distribution
+    valid_distributions = ["gev", "genpareto", "gamma"]
+    if distribution not in valid_distributions:
+        warnings.warn(
+            f"\n\nInvalid distribution '{distribution}'. "
+            f"\nSupported distributions are: {valid_distributions}"
+        )
+        return False
+
+    # Validate extremes_type
+    valid_extremes = ["max", "min"]
+    if extremes_type not in valid_extremes:
+        warnings.warn(
+            f"\n\nInvalid extremes_type '{extremes_type}'. "
+            f"\nSupported types are: {valid_extremes}"
+        )
+        return False
+
+    # Validate event_duration
+    if not isinstance(event_duration, tuple) or len(event_duration) != 2:
+        warnings.warn(
+            "\n\nevent_duration must be a tuple of (int, str). "
+            "\nExample: (1, 'day') or (6, 'hour')"
+        )
+        return False
+
+    duration_num, duration_unit = event_duration
+    if not isinstance(duration_num, int) or duration_num <= 0:
+        warnings.warn(
+            "\n\nevent_duration number must be a positive integer. "
+            "\nPlease check the configuration."
+        )
+        return False
+
+    if duration_unit not in ["hour", "day"]:
+        warnings.warn(
+            "\n\nevent_duration unit must be 'hour' or 'day'. "
+            "\nPlease check the configuration."
+        )
+        return False
+
+    # Validate block_size
+    if not isinstance(block_size, int) or block_size <= 0:
+        warnings.warn(
+            "\n\nblock_size must be a positive integer. "
+            "\nPlease check the configuration."
+        )
+        return False
+
+    # Validate boolean parameters
+    for param_name, param_value in [
+        ("goodness_of_fit_test", goodness_of_fit_test),
+        ("print_goodness_of_fit", print_goodness_of_fit),
+    ]:
+        if not isinstance(param_value, bool):
+            warnings.warn(
+                f"\n\nParameter '{param_name}' must be a boolean, got {type(param_value)}. "
+                "\nPlease check the configuration."
+            )
+            return False
+
+    # Validate variable_preprocessing
+    if not isinstance(variable_preprocessing, dict):
+        warnings.warn(
+            "\n\nvariable_preprocessing must be a dictionary. "
+            "\nPlease check the configuration."
+        )
+        return False
+
+    return True

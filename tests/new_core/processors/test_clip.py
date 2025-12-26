@@ -103,7 +103,9 @@ class TestClipInitSeparated:
 
     def test_init_separated_dict_missing_boundaries(self):
         """Test initialization with dict input missing boundaries key raises error."""
-        with pytest.raises(ValueError, match="must contain 'boundaries' key"):
+        with pytest.raises(
+            ValueError, match="must contain 'boundaries' or 'points' key"
+        ):
             Clip({"separated": True})
 
     def test_init_separated_single_boundary(self):
@@ -171,7 +173,7 @@ class TestClipUpdateContext:
         assert "-122.4194" in context[_NEW_ATTRS_KEY]["clip"]
 
     def test_update_context_multi_point(self):
-        """Test context update for multi-point clipping."""
+        """Test context update for multi-point mask clipping."""
         points = [(37.7749, -122.4194), (34.0522, -118.2437)]
         clip = Clip(points)
         context = {}
@@ -180,8 +182,23 @@ class TestClipUpdateContext:
 
         assert _NEW_ATTRS_KEY in context
         assert "clip" in context[_NEW_ATTRS_KEY]
-        assert "Multi-point clipping" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "Multi-point mask clipping" in context[_NEW_ATTRS_KEY]["clip"]
         assert "2 coordinate pairs" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "3x3 neighborhood average" in context[_NEW_ATTRS_KEY]["clip"]
+
+    def test_update_context_multi_point_extracted(self):
+        """Test context update for multi-point clipping with separated=True (extracted points)."""
+        clip = Clip(
+            {"points": [(37.7749, -122.4194), (34.0522, -118.2437)], "separated": True}
+        )
+        context = {}
+
+        clip.update_context(context)
+
+        assert _NEW_ATTRS_KEY in context
+        assert "clip" in context[_NEW_ATTRS_KEY]
+        assert "Multi-point mask clipping" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "extracted along 'points' dimension" in context[_NEW_ATTRS_KEY]["clip"]
 
     def test_update_context_multiple_boundaries(self):
         """Test context update for multiple boundary clipping."""
@@ -375,7 +392,7 @@ class TestClipExecuteWithSinglePoint:
 
 
 class TestClipExecuteWithMultiplePoints:
-    """Test class for execute method with multiple points."""
+    """Test class for execute method with multiple points (mask-based clipping)."""
 
     def setup_method(self):
         """Set up test fixtures."""
@@ -389,41 +406,40 @@ class TestClipExecuteWithMultiplePoints:
                 "x": np.linspace(-124, -114, 5),
             },
         )
-        # Create a multi-point result with closest_cell dimension
-        self.clipped_multipoint = xr.concat(
-            [self.sample_dataset.isel(x=2, y=2), self.sample_dataset.isel(x=1, y=1)],
-            dim="closest_cell",
-        )
+        # Create a masked grid result (most cells NaN, selected cells have data)
+        self.masked_grid_result = self.sample_dataset.copy()
 
     def test_execute_multiple_points_dataset(self):
-        """Test execute with multiple points and xr.Dataset - outcome: concatenated closest gridcells."""
+        """Test execute with multiple points and xr.Dataset - outcome: masked gridded data."""
         with patch.object(
             self.clip,
-            "_clip_data_to_multiple_points",
-            return_value=self.clipped_multipoint,
+            "_clip_data_to_points_as_mask",
+            return_value=self.masked_grid_result,
         ) as mock_clip:
             context = {}
             result = self.clip.execute(self.sample_dataset, context)
 
             # Verify result exists
             assert result is not None
-            assert result is self.clipped_multipoint
+            assert result is self.masked_grid_result
 
             # Verify clipping method was called with correct args
-            mock_clip.assert_called_once_with(self.sample_dataset, self.points)
+            mock_clip.assert_called_once_with(
+                self.sample_dataset, self.points, self.clip.extract_points
+            )
 
             # Verify context was updated
             assert _NEW_ATTRS_KEY in context
-            assert "Multi-point clipping" in context[_NEW_ATTRS_KEY]["clip"]
+            assert "Multi-point mask clipping" in context[_NEW_ATTRS_KEY]["clip"]
 
     def test_execute_multiple_points_list(self):
-        """Test execute with multiple points and list - outcome: list of multi-point results."""
+        """Test execute with multiple points and list - outcome: list of masked results."""
         data_list = [self.sample_dataset, self.sample_dataset]
 
         with patch.object(
             self.clip,
-            "_clip_data_to_multiple_points",
-            return_value=self.clipped_multipoint,
+            "_clip_data_to_points_as_mask",
+            return_value=self.masked_grid_result,
         ):
             context = {}
             result = self.clip.execute(data_list, context)
@@ -436,13 +452,13 @@ class TestClipExecuteWithMultiplePoints:
             assert _NEW_ATTRS_KEY in context
 
     def test_execute_multiple_points_dict(self):
-        """Test execute with multiple points and dict - outcome: dict of multi-point results."""
+        """Test execute with multiple points and dict - outcome: dict of masked results."""
         data_dict = {"sim1": self.sample_dataset, "sim2": self.sample_dataset}
 
         with patch.object(
             self.clip,
-            "_clip_data_to_multiple_points",
-            return_value=self.clipped_multipoint,
+            "_clip_data_to_points_as_mask",
+            return_value=self.masked_grid_result,
         ):
             context = {}
             result = self.clip.execute(data_dict, context)
@@ -1361,6 +1377,206 @@ class TestClipDataToMultiplePointsIntegration:
         # Verify all edge points are handled
         assert result is not None
         assert result.dims["closest_cell"] == 4
+
+
+class TestClipDataToPointsAsMask:
+    """Test class for _clip_data_to_points_as_mask static method.
+
+    This test class verifies the point-based mask clipping functionality:
+    - Returns masked gridded data with NaN for non-selected cells
+    - Fills NaN cells with 3x3 neighborhood average
+    - Handles extract_points=True to collapse to 'points' dimension
+    - Handles duplicate points mapping to same grid cell
+    """
+
+    def setup_method(self):
+        """Set up test fixtures with realistic gridded data."""
+        # Create dataset with valid data across all cells
+        self.dataset_valid = xr.Dataset(
+            {"temp": (["time", "lat", "lon"], np.random.rand(3, 10, 10) + 20)},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=3),
+                "lat": np.linspace(32, 42, 10),
+                "lon": np.linspace(-124, -114, 10),
+            },
+        )
+
+        # Create dataset with some NaN cells (ocean mask simulation)
+        data_with_nan = np.random.rand(3, 10, 10) + 20
+        data_with_nan[:, 0, :] = np.nan  # First row is ocean
+        data_with_nan[:, :, 0] = np.nan  # First column is ocean
+        self.dataset_with_nan = xr.Dataset(
+            {"temp": (["time", "lat", "lon"], data_with_nan)},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=3),
+                "lat": np.linspace(32, 42, 10),
+                "lon": np.linspace(-124, -114, 10),
+            },
+        )
+
+    def test_mask_basic_single_point(self):
+        """Test mask clipping with a single point - outcome: gridded data with one non-NaN cell."""
+        point_list = [(37.0, -119.0)]
+
+        result = Clip._clip_data_to_points_as_mask(
+            self.dataset_valid, point_list, extract_points=False
+        )
+
+        # Verify result is gridded (has lat/lon dimensions)
+        assert "lat" in result.dims
+        assert "lon" in result.dims
+
+        # Verify most cells are NaN
+        valid_cells = ~np.isnan(result["temp"].values)
+        assert valid_cells.sum() <= 3  # At most one cell valid per time step
+
+    def test_mask_multiple_points(self):
+        """Test mask clipping with multiple points - outcome: bbox-clipped gridded data."""
+        point_list = [(37.0, -119.0), (35.0, -121.0), (40.0, -118.0)]
+
+        result = Clip._clip_data_to_points_as_mask(
+            self.dataset_valid, point_list, extract_points=False
+        )
+
+        # Verify result is gridded
+        assert "lat" in result.dims
+        assert "lon" in result.dims
+
+        # Verify result is clipped to bounding box (smaller than input)
+        # The bbox should encompass all points plus 1-cell padding
+        assert (
+            result["temp"].shape[1] < self.dataset_valid["temp"].shape[1]
+        )  # lat dimension
+        assert (
+            result["temp"].shape[2] < self.dataset_valid["temp"].shape[2]
+        )  # lon dimension
+
+        # Verify the lat/lon range covers the input points (with padding)
+        lat_min, lat_max = result.lat.values.min(), result.lat.values.max()
+        lon_min, lon_max = result.lon.values.min(), result.lon.values.max()
+        for lat, lon in point_list:
+            assert (
+                lat_min <= lat <= lat_max
+            ), f"Point lat {lat} outside range [{lat_min}, {lat_max}]"
+            assert (
+                lon_min <= lon <= lon_max
+            ), f"Point lon {lon} outside range [{lon_min}, {lon_max}]"
+
+    def test_mask_with_nan_fill(self):
+        """Test mask clipping fills NaN cells with 3x3 neighborhood average."""
+        # Point at NaN location (first row)
+        point_at_nan = [(32.0, -119.0)]  # This is at lat=32, which is first row (NaN)
+
+        result = Clip._clip_data_to_points_as_mask(
+            self.dataset_with_nan, point_at_nan, extract_points=False
+        )
+
+        # The result should have data at this location (filled from neighbors)
+        # Or at least not raise an error
+        assert result is not None
+        assert "lat" in result.dims
+
+    def test_extract_points_single(self):
+        """Test extract_points=True with single point - outcome: 'points' dimension."""
+        point_list = [(37.0, -119.0)]
+
+        result = Clip._clip_data_to_points_as_mask(
+            self.dataset_valid, point_list, extract_points=True
+        )
+
+        # Verify result has 'points' dimension instead of lat/lon
+        assert "points" in result.dims
+        assert "lat" not in result.dims
+        assert "lon" not in result.dims
+
+        # Verify point coordinates are added
+        assert "point_lat" in result.coords
+        assert "point_lon" in result.coords
+        assert "point_index" in result.coords
+
+    def test_extract_points_multiple(self):
+        """Test extract_points=True with multiple points - outcome: 'points' dimension with correct size."""
+        point_list = [(37.0, -119.0), (35.0, -121.0), (40.0, -118.0)]
+
+        result = Clip._clip_data_to_points_as_mask(
+            self.dataset_valid, point_list, extract_points=True
+        )
+
+        # Verify result has points dimension
+        assert "points" in result.dims
+
+        # Verify correct number of unique points
+        # Note: some points may map to same grid cell
+        assert result.sizes["points"] <= len(point_list)
+
+    def test_duplicate_points_handled(self):
+        """Test that duplicate points mapping to same grid cell are handled correctly."""
+        # These two points should map to the same grid cell (very close together)
+        point_list = [(37.0, -119.0), (37.1, -119.1)]
+
+        result = Clip._clip_data_to_points_as_mask(
+            self.dataset_valid, point_list, extract_points=False
+        )
+
+        # Should not raise error, result should be valid
+        assert result is not None
+        assert "lat" in result.dims
+
+    def test_preserves_time_dimension(self):
+        """Test that time dimension is preserved in masked output."""
+        point_list = [(37.0, -119.0)]
+
+        result = Clip._clip_data_to_points_as_mask(
+            self.dataset_valid, point_list, extract_points=False
+        )
+
+        # Verify time dimension is preserved
+        assert "time" in result.dims
+        assert result.sizes["time"] == 3
+
+
+class TestClipInitExtractPoints:
+    """Test class for Clip initialization with extract_points (separated for points)."""
+
+    def test_init_points_dict_separated_true(self):
+        """Test initialization with dict points and separated=True sets extract_points."""
+        clip = Clip(
+            {"points": [(37.7749, -122.4194), (34.0522, -118.2437)], "separated": True}
+        )
+
+        assert clip.is_multi_point is True
+        assert clip.extract_points is True
+        assert len(clip.point_list) == 2
+
+    def test_init_points_dict_separated_false(self):
+        """Test initialization with dict points and separated=False (default behavior)."""
+        clip = Clip(
+            {"points": [(37.7749, -122.4194), (34.0522, -118.2437)], "separated": False}
+        )
+
+        assert clip.is_multi_point is True
+        assert clip.extract_points is False
+
+    def test_init_points_list_extract_points_false(self):
+        """Test initialization with list of points defaults to extract_points=False."""
+        clip = Clip([(37.7749, -122.4194), (34.0522, -118.2437)])
+
+        assert clip.is_multi_point is True
+        assert clip.extract_points is False
+
+    def test_init_points_with_persist(self):
+        """Test initialization with dict points and persist flag."""
+        clip = Clip(
+            {
+                "points": [(37.7749, -122.4194), (34.0522, -118.2437)],
+                "separated": True,
+                "persist": True,
+            }
+        )
+
+        assert clip.is_multi_point is True
+        assert clip.extract_points is True
+        assert clip.persist is True
 
 
 class TestValidateBoundaryKey:

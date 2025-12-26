@@ -607,3 +607,137 @@ class TestBiasCorrectConcatIntegration:
             # Check that result has 'sim' dimension
             assert "sim" in result["KSAC"].dims
             assert len(result["KSAC"].sim) == 2
+
+
+class TestBiasCorrectUnitsPreservation:
+    """Test that units are preserved in output DataArrays for downstream processors."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = BiasAdjustModelToStation(
+            {
+                "stations": ["KSAC"],
+            }
+        )
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    def test_output_dataarrays_have_units_attribute(self, mock_load, mock_get_closest):
+        """Test that output DataArrays have 'units' attribute for downstream processing.
+
+        The ConvertUnits processor relies on data having a 'units' attribute.
+        This test ensures that bias correction output preserves this attribute.
+        """
+        # Create input DataArray with units attribute
+        times = pd.date_range("2000-01-01", periods=10)
+        input_da = xr.DataArray(
+            np.random.rand(10) + 273.15,
+            dims=("time",),
+            coords={"time": times},
+            name="t2",
+            attrs={"units": "K", "resolution": "9 km"},
+        )
+
+        # Mock station data with units
+        station_da = xr.DataArray(
+            np.random.rand(10) + 273.15,
+            dims=("time",),
+            coords={"time": times},
+            name="KSAC",
+            attrs={"units": "K", "coordinates": (38.5, -121.5), "elevation": "10 m"},
+        )
+        station_ds = xr.Dataset({"KSAC": station_da})
+        mock_load.return_value = station_ds
+
+        # Mock get_closest_gridcell
+        mock_get_closest.return_value = input_da
+
+        # Mock _bias_correct_model_data to return data without units (simulating the bug)
+        with patch.object(
+            self.processor, "_bias_correct_model_data"
+        ) as mock_bias_correct:
+            # Return a stacked DataArray (like the real implementation does)
+            bias_corrected = xr.DataArray(
+                np.random.rand(1, 10) + 273.15,
+                dims=("station", "time"),
+                coords={"station": ["KSAC"], "time": times},
+                name="bias_corrected",
+                # Note: no 'units' attr - this simulates QDM stripping attrs
+            )
+            mock_bias_correct.return_value = bias_corrected
+
+            context = {}
+            result = self.processor.execute(input_da, context)
+
+        # Verify output is a Dataset
+        assert isinstance(result, xr.Dataset)
+
+        # Verify each data variable has the 'units' attribute
+        for var_name in result.data_vars:
+            assert "units" in result[var_name].attrs, (
+                f"DataArray '{var_name}' is missing 'units' attribute. "
+                f"This will cause ConvertUnits processor to fail."
+            )
+            # Verify units value matches input (should be 'K' for temperature)
+            assert result[var_name].attrs["units"] == "K", (
+                f"DataArray '{var_name}' has incorrect units: "
+                f"{result[var_name].attrs['units']}"
+            )
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    def test_output_has_station_coordinates_and_elevation(
+        self, mock_load, mock_get_closest
+    ):
+        """Test that output DataArrays have station metadata attributes."""
+        # Create input DataArray
+        times = pd.date_range("2000-01-01", periods=10)
+        input_da = xr.DataArray(
+            np.random.rand(10) + 273.15,
+            dims=("time",),
+            coords={"time": times},
+            name="t2",
+            attrs={"units": "K", "resolution": "9 km"},
+        )
+
+        # Mock station data with metadata
+        station_da = xr.DataArray(
+            np.random.rand(10) + 273.15,
+            dims=("time",),
+            coords={"time": times},
+            name="KSAC",
+            attrs={
+                "units": "K",
+                "coordinates": (38.5816, -121.4944),
+                "elevation": "10 m",
+            },
+        )
+        station_ds = xr.Dataset({"KSAC": station_da})
+        mock_load.return_value = station_ds
+
+        # Mock get_closest_gridcell
+        mock_get_closest.return_value = input_da
+
+        # Mock _bias_correct_model_data
+        with patch.object(
+            self.processor, "_bias_correct_model_data"
+        ) as mock_bias_correct:
+            bias_corrected = xr.DataArray(
+                np.random.rand(1, 10) + 273.15,
+                dims=("station", "time"),
+                coords={"station": ["KSAC"], "time": times},
+                name="bias_corrected",
+            )
+            mock_bias_correct.return_value = bias_corrected
+
+            context = {}
+            result = self.processor.execute(input_da, context)
+
+        # Verify output attributes
+        assert "station_coordinates" in result["KSAC"].attrs
+        assert "station_elevation" in result["KSAC"].attrs
+        assert "units" in result["KSAC"].attrs

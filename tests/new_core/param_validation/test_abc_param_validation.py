@@ -279,18 +279,20 @@ class TestHasValidProcesses:
         assert result is True
 
     def test_has_valid_processes_invalid_processor(self):
-        """Test _has_valid_processes with invalid processor."""
+        """Test _has_valid_processes with invalid processor.
+
+        Note: The implementation relies on individual validators to emit specific
+        warnings. This test registers a validator that returns False without emitting
+        a warning, which is valid behavior - the base method just returns False.
+        """
         _PROCESSOR_VALIDATOR_REGISTRY["proc1"] = lambda v, query=None: False
 
         query = {PROC_KEY: {"proc1": "invalid_value"}}
 
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            result = self.validator._has_valid_processes(query)
+        result = self.validator._has_valid_processes(query)
 
-            assert result is False
-            assert len(w) == 1
-            assert "proc1 with value invalid_value is not valid" in str(w[0].message)
+        # Validation should fail (return False) when validator returns False
+        assert result is False
 
     def test_has_valid_processes_unregistered_processor(self):
         """Test _has_valid_processes with unregistered processor."""
