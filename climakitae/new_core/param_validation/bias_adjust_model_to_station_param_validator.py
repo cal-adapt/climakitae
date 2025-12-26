@@ -47,8 +47,9 @@ import pandas as pd
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
-from climakitae.new_core.param_validation.abc_param_validation import \
-    register_processor_validator
+from climakitae.new_core.param_validation.abc_param_validation import (
+    register_processor_validator,
+)
 from climakitae.new_core.processors.processor_utils import find_station_match
 
 # Module logger

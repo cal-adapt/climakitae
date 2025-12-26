@@ -10,10 +10,12 @@ import os
 from typing import Any, Dict
 
 from climakitae.core.constants import UNSET
-from climakitae.new_core.param_validation.abc_param_validation import \
-    register_processor_validator
-from climakitae.new_core.param_validation.param_validation_tools import \
-    _get_closest_options
+from climakitae.new_core.param_validation.abc_param_validation import (
+    register_processor_validator,
+)
+from climakitae.new_core.param_validation.param_validation_tools import (
+    _get_closest_options,
+)
 
 # Module logger
 logger = logging.getLogger(__name__)

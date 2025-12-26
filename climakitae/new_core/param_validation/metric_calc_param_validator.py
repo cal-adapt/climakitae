@@ -10,8 +10,9 @@ from typing import Any
 import numpy as np
 
 from climakitae.core.constants import UNSET
-from climakitae.new_core.param_validation.abc_param_validation import \
-    register_processor_validator
+from climakitae.new_core.param_validation.abc_param_validation import (
+    register_processor_validator,
+)
 
 # Module logger
 logger = logging.getLogger(__name__)

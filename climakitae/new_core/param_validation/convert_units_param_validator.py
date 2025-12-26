@@ -8,8 +8,9 @@ import warnings
 from typing import Any, Iterable
 
 from climakitae.core.constants import UNIT_OPTIONS, UNSET
-from climakitae.new_core.param_validation.abc_param_validation import \
-    register_processor_validator
+from climakitae.new_core.param_validation.abc_param_validation import (
+    register_processor_validator,
+)
 
 # All supported units (flattened from UNIT_OPTIONS)
 ALL_SUPPORTED_UNITS = set()

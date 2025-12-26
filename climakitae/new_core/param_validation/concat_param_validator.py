@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from climakitae.new_core.param_validation.abc_param_validation import \
-    register_processor_validator
+from climakitae.new_core.param_validation.abc_param_validation import (
+    register_processor_validator,
+)
 
 # Module logger
 logger = logging.getLogger(__name__)

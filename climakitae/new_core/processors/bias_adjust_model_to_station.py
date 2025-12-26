@@ -56,7 +56,9 @@ from xsdba.adjustment import QuantileDeltaMapping
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
-    DataProcessor, register_processor)
+    DataProcessor,
+    register_processor,
+)
 from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import get_closest_gridcell
 
@@ -257,8 +259,9 @@ class BiasAdjustModelToStation(DataProcessor):
         ValueError
             If any station identifier is invalid or not found.
         """
-        from climakitae.new_core.processors.processor_utils import \
-            convert_stations_to_points
+        from climakitae.new_core.processors.processor_utils import (
+            convert_stations_to_points,
+        )
 
         # Validate all stations and get their metadata using the shared utility
         # This will raise ValueError with suggestions if any station is invalid
