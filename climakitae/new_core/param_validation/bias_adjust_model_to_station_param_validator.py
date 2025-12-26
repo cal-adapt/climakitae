@@ -562,13 +562,24 @@ def _validate_timescale_requirement(query: Dict[str, Any]) -> bool:
 
     # Check if table_id is hourly (1hr or hr)
     if table_id not in ["1hr", "hr"]:
+        import warnings
+
         msg = (
-            f"Station bias correction requires hourly data (table_id='1hr'), "
-            f"but got table_id='{table_id}'. HadISD observations are hourly and cannot "
-            f"be resampled to match other temporal resolutions. Please set "
-            f"table_id='1hr' or use .table_id('1hr') in your query."
+            f"\n\n"
+            f"╔══════════════════════════════════════════════════════════════════════╗\n"
+            f"║  Station Bias Correction Error: Hourly Data Required                 ║\n"
+            f"╠══════════════════════════════════════════════════════════════════════╣\n"
+            f"║  You requested: table_id='{table_id}'                                  \n"
+            f"║  Required:      table_id='1hr'                                       ║\n"
+            f"║                                                                      ║\n"
+            f"║  Why? HadISD station observations are recorded hourly. Bias         ║\n"
+            f"║  correction can only match hourly model data to hourly observations.║\n"
+            f"║                                                                      ║\n"
+            f"║  Fix: Change .table_id('{table_id}') to .table_id('1hr')               \n"
+            f"╚══════════════════════════════════════════════════════════════════════╝\n"
         )
-        logger.warning(msg)
+        warnings.warn(msg, UserWarning, stacklevel=4)
+        logger.error(msg)
         return False
 
     logger.debug("Timescale requirement validation passed: hourly data")
