@@ -110,7 +110,19 @@ def _wrap_with_metadata_preservation(
 
         # Preserve metadata if we found a source and the derived var exists
         if source_var and derived_var_name in result:
+            logger.debug(
+                "Preserving spatial metadata for '%s' from '%s'",
+                derived_var_name,
+                source_var,
+            )
             preserve_spatial_metadata(result, derived_var_name, source_var)
+        else:
+            logger.warning(
+                "Could not preserve metadata for '%s': source_var=%s, in_result=%s",
+                derived_var_name,
+                source_var,
+                derived_var_name in result if result is not None else "result is None",
+            )
 
         return result
 
@@ -138,7 +150,7 @@ def preserve_spatial_metadata(ds, derived_var_name: str, source_var_name: str) -
     -----
     This function modifies the dataset in-place. It copies:
     - CRS via rioxarray if available
-    - spatial_ref coordinate if present
+    - Lambert_Conformal or spatial_ref coordinate if present
     - grid_mapping attribute if present
     - Any coordinates present on the source but missing from derived
 
@@ -149,43 +161,74 @@ def preserve_spatial_metadata(ds, derived_var_name: str, source_var_name: str) -
 
     """
     if derived_var_name not in ds or source_var_name not in ds:
+        logger.debug(
+            "Cannot preserve metadata: '%s' or '%s' not in dataset",
+            derived_var_name,
+            source_var_name,
+        )
         return
 
     source = ds[source_var_name]
     derived = ds[derived_var_name]
 
-    # Copy CRS using rioxarray if available
+    # Copy grid_mapping attribute FIRST (rioxarray needs this)
+    if "grid_mapping" in source.attrs:
+        ds[derived_var_name].attrs["grid_mapping"] = source.attrs["grid_mapping"]
+        logger.debug(
+            "Copied grid_mapping='%s' to '%s'",
+            source.attrs["grid_mapping"],
+            derived_var_name,
+        )
+
+    # Copy Lambert_Conformal or other CRS coordinate if present
+    # WRF data typically uses Lambert_Conformal as the CRS coordinate
+    crs_coord_names = ["Lambert_Conformal", "spatial_ref", "crs"]
+    for crs_coord in crs_coord_names:
+        if crs_coord in ds.coords and crs_coord not in ds[derived_var_name].coords:
+            ds[derived_var_name] = ds[derived_var_name].assign_coords(
+                {crs_coord: ds.coords[crs_coord]}
+            )
+            logger.debug("Copied '%s' coordinate to '%s'", crs_coord, derived_var_name)
+
+    # Try to copy CRS using rioxarray
     try:
         import rioxarray  # noqa: F401
 
-        # Check if source has CRS
+        # Refresh reference after coord assignment
+        derived = ds[derived_var_name]
+
+        # Check if source has CRS via rioxarray
         if hasattr(source, "rio") and source.rio.crs is not None:
-            derived.rio.write_crs(source.rio.crs, inplace=True)
+            ds[derived_var_name].rio.write_crs(source.rio.crs, inplace=True)
             logger.debug(
                 "Copied CRS %s from '%s' to '%s'",
                 source.rio.crs,
                 source_var_name,
                 derived_var_name,
             )
+        elif hasattr(derived, "rio"):
+            # Try to get CRS from grid_mapping attribute
+            grid_mapping_name = derived.attrs.get("grid_mapping")
+            if grid_mapping_name and grid_mapping_name in ds.coords:
+                # rioxarray should be able to parse this now
+                try:
+                    crs = derived.rio.crs
+                    if crs is not None:
+                        logger.debug(
+                            "Derived variable '%s' has CRS from grid_mapping: %s",
+                            derived_var_name,
+                            crs,
+                        )
+                except Exception:
+                    pass
     except ImportError:
-        pass
+        logger.debug("rioxarray not available for CRS handling")
     except Exception as e:
         logger.debug("Could not copy CRS via rioxarray: %s", e)
 
-    # Copy spatial_ref coordinate if present
-    if "spatial_ref" in source.coords and "spatial_ref" not in derived.coords:
-        ds[derived_var_name] = derived.assign_coords(
-            spatial_ref=source.coords["spatial_ref"]
-        )
-        logger.debug("Copied spatial_ref coordinate to '%s'", derived_var_name)
-
-    # Copy grid_mapping attribute if present
-    if "grid_mapping" in source.attrs and "grid_mapping" not in derived.attrs:
-        ds[derived_var_name].attrs["grid_mapping"] = source.attrs["grid_mapping"]
-
-    # Copy any missing coordinates from source
+    # Copy any missing coordinates from source (lat, lon, x, y, etc.)
     for coord_name in source.coords:
-        if coord_name not in derived.coords and coord_name in ds.coords:
+        if coord_name not in ds[derived_var_name].coords and coord_name in ds.coords:
             ds[derived_var_name] = ds[derived_var_name].assign_coords(
                 {coord_name: ds.coords[coord_name]}
             )
@@ -283,18 +326,21 @@ def register_derived(
         if isinstance(depends_on, str):
             depends_on = [depends_on]
 
-        # Store metadata
+        # Wrap function to automatically preserve spatial metadata
+        # This must happen BEFORE storing in metadata so both intake-esm
+        # and _apply_derived_variable use the same wrapped function
+        wrapped_func = _wrap_with_metadata_preservation(func, variable, depends_on)
+
+        # Store metadata with the WRAPPED function
+        # This ensures _apply_derived_variable() also preserves spatial metadata
         _DERIVED_METADATA[variable] = DerivedVariableInfo(
             name=variable,
             depends_on=depends_on,
             description=description,
             units=units,
-            func=func,
+            func=wrapped_func,  # Use wrapped function, not original
             source=source,
         )
-
-        # Wrap function to automatically preserve spatial metadata
-        wrapped_func = _wrap_with_metadata_preservation(func, variable, depends_on)
 
         # Register with intake-esm
         logger.info(
@@ -381,18 +427,19 @@ def register_user_function(
     if query_extras:
         query.update(query_extras)
 
-    # Store metadata
+    # Wrap function to automatically preserve spatial metadata
+    # This must happen BEFORE storing in metadata
+    wrapped_func = _wrap_with_metadata_preservation(func, name, depends_on)
+
+    # Store metadata with the WRAPPED function
     _DERIVED_METADATA[name] = DerivedVariableInfo(
         name=name,
         depends_on=depends_on,
         description=description,
         units=units,
-        func=func,
+        func=wrapped_func,  # Use wrapped function, not original
         source="user",
     )
-
-    # Wrap function to automatically preserve spatial metadata
-    wrapped_func = _wrap_with_metadata_preservation(func, name, depends_on)
 
     # Register with intake-esm
     registry = get_registry()
