@@ -126,3 +126,13 @@ LOCA_END_YEAR = 2100
 
 WRF_START_YEAR = 1981
 WRF_END_YEAR = 2099
+
+# Constants for data size thresholds and processing (metric_calc)
+BYTES_TO_MB_FACTOR = 1e6  # Conversion factor from bytes to megabytes
+BYTES_TO_GB_FACTOR = 1e9  # Conversion factor from bytes to gigabytes
+SMALL_ARRAY_THRESHOLD_BYTES = 1e7  # 10MB threshold for small arrays
+MEDIUM_ARRAY_THRESHOLD_BYTES = 1e9  # 1GB threshold for medium arrays
+PERCENTILE_TO_QUANTILE_FACTOR = 100.0  # Convert percentiles to quantiles
+MIN_VALID_DATA_POINTS = 3  # Minimum data points required for statistical fitting
+NUMERIC_PRECISION_DECIMAL_PLACES = 2  # Decimal places for numeric output formatting
+RETURN_VALUE_PRECISION = 5  # Decimal places for return value rounding

@@ -289,5 +289,4 @@ class ConvertUnits(DataProcessor):
                 )
                 self.success = False
                 return data
-
         return data

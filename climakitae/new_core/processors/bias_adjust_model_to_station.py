@@ -691,6 +691,10 @@ class BiasAdjustModelToStation(DataProcessor):
             if "units" in first_station.attrs:
                 station_stacked.attrs["units"] = first_station.attrs["units"]
 
+        # Preserve the model data units - these will be the output units
+        # (bias correction converts obs to match gridded, so output has gridded units)
+        output_units = gridded_stacked.attrs.get("units", "K")
+
         # Convert calendars to noleap (vectorized)
         gridded_stacked = gridded_stacked.convert_calendar("noleap")
         if historical_stacked is not None:
@@ -708,7 +712,7 @@ class BiasAdjustModelToStation(DataProcessor):
         # Unstack to Dataset
         apply_output = bias_corrected_stacked.to_dataset(dim="station")
 
-        # Restore attributes
+        # Restore attributes including units
         for station_name in station_names:
             if station_name in apply_output:
                 apply_output[station_name].attrs["station_coordinates"] = (
@@ -717,6 +721,8 @@ class BiasAdjustModelToStation(DataProcessor):
                 apply_output[station_name].attrs["station_elevation"] = (
                     station_metadata[station_name]["elevation"]
                 )
+                # Preserve units from input model data for downstream processors
+                apply_output[station_name].attrs["units"] = output_units
 
         logger.info(
             "Station bias correction complete. Output shape: %s", apply_output.dims

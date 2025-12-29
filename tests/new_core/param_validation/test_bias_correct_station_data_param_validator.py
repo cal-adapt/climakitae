@@ -537,7 +537,7 @@ class TestValidateTimescaleRequirement:
     def test_invalid_non_hourly_table_ids(self, table_id):
         """Test validation with non-hourly table IDs."""
         query = {"table_id": table_id}
-        with pytest.warns(UserWarning, match="requires hourly data"):
+        with pytest.warns(UserWarning, match="Hourly Data Required"):
             result = _validate_timescale_requirement(query)
         assert result is False
 
