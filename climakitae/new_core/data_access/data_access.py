@@ -151,14 +151,30 @@ class DataCatalog(dict):
         This method sets up the catalog connections and initializes internal
         state. It only runs once due to the singleton pattern implementation.
 
+        The derived variable registry is attached to catalogs that support it,
+        enabling users to query derived variables directly.
+
         """
         if not getattr(self, "_initialized", False):
             super().__init__()
-            self[CATALOG_CADCAT] = intake.open_esm_datastore(DATA_CATALOG_URL)
+
+            # Get the derived variable registry (lazy import to avoid circular imports)
+            from climakitae.new_core.derived_variables import get_registry
+
+            self._derived_registry = get_registry()
+
+            # Open catalogs with derived variable registry attached
+            # Note: Only attach registry to catalogs with compatible schemas.
+            # The HDP catalog uses station-based schema (station_id) rather than
+            # gridded variable schema (variable_id), so skip registry attachment.
+            self[CATALOG_CADCAT] = intake.open_esm_datastore(
+                DATA_CATALOG_URL, registry=self._derived_registry
+            )
             self[CATALOG_BOUNDARY] = intake.open_catalog(BOUNDARY_CATALOG_URL)
             self[CATALOG_REN_ENERGY_GEN] = intake.open_esm_datastore(
-                RENEWABLES_CATALOG_URL
+                RENEWABLES_CATALOG_URL, registry=self._derived_registry
             )
+            # HDP catalog has different schema - no derived variable support
             self[CATALOG_HDP] = intake.open_esm_datastore(HDP_CATALOG_URL)
 
             self.catalog_df = self.merge_catalogs()
@@ -243,6 +259,27 @@ class DataCatalog(dict):
             if self._boundaries is UNSET:
                 self._boundaries = Boundaries(self.boundary)
         return self._boundaries
+
+    @property
+    def derived_registry(self):
+        """Access the derived variable registry.
+
+        The registry contains definitions for derived variables that can be
+        computed from source variables during data loading.
+
+        Returns
+        -------
+        DerivedVariableRegistry
+            The intake-esm derived variable registry attached to the catalogs.
+
+        Examples
+        --------
+        >>> catalog = DataCatalog()
+        >>> print(catalog.derived_registry)
+        DerivedVariableRegistry({'wind_speed_10m': ..., 'heat_index': ...})
+
+        """
+        return self._derived_registry
 
     def merge_catalogs(self) -> pd.DataFrame:
         """Merge the AE intake catalogs into a single DataFrame.
