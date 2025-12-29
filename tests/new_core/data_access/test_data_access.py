@@ -137,10 +137,13 @@ class TestDataCatalogInitialization:
         *_, mock_open_esm, mock_open_catalog = mock_data_catalog_and_objs
 
         # Intake functions called with expected args
+        # Note: cadcat and renewables get registry= kwarg, HDP does not
         assert mock_open_esm.call_count == 3
-        mock_open_esm.assert_any_call(DATA_CATALOG_URL)
-        mock_open_esm.assert_any_call(RENEWABLES_CATALOG_URL)
-        mock_open_esm.assert_any_call(HDP_CATALOG_URL)
+        # Extract just the URL from each call (first positional arg)
+        call_urls = [call.args[0] for call in mock_open_esm.call_args_list]
+        assert DATA_CATALOG_URL in call_urls
+        assert RENEWABLES_CATALOG_URL in call_urls
+        assert HDP_CATALOG_URL in call_urls
         mock_open_catalog.assert_called_once_with(BOUNDARY_CATALOG_URL)
 
     def test_contains_expected_catalog_keys(self, mock_data_catalog_and_objs: Tuple):
