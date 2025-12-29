@@ -470,7 +470,7 @@ class TestMetricCalcHelperMethods:
         result = processor._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
 
         assert isinstance(result, xr.Dataset)
-        assert "return_value" in result.data_vars
+        assert "return_values" in result.data_vars
         assert "p_values" in result.data_vars
         assert "groupby" in result.attrs
         assert "fitted_distr" in result.attrs
@@ -506,7 +506,7 @@ class TestMetricCalcHelperMethods:
         result = processor._create_one_in_x_result_dataset(ret_vals, None, data_array)
 
         assert isinstance(result, xr.Dataset)
-        assert "return_value" in result.data_vars
+        assert "return_values" in result.data_vars
         assert "p_values" not in result.data_vars
         assert result.attrs["fitted_distr"] == "gumbel"
 
@@ -669,7 +669,7 @@ class TestMetricCalcCalculateOneInXSingle:
         result = processor._calculate_one_in_x_single(one_in_x_ds_with_sim)
 
         assert isinstance(result, xr.Dataset)
-        assert "return_value" in result.data_vars
+        assert "return_values" in result.data_vars
         assert "one_in_x" in result.dims
 
     def test_one_in_x_with_dataarray_input(self, one_in_x_da_with_sim):
@@ -687,7 +687,7 @@ class TestMetricCalcCalculateOneInXSingle:
         result = processor._calculate_one_in_x_single(one_in_x_da_with_sim)
 
         assert isinstance(result, xr.Dataset)
-        assert "return_value" in result.data_vars
+        assert "return_values" in result.data_vars
         assert "one_in_x" in result.dims
         assert "sim" in result.dims
 
@@ -803,7 +803,7 @@ class TestMetricCalcExecuteOneInX:
         result = processor.execute(one_in_x_da_with_sim, context={})
 
         assert isinstance(result, xr.Dataset)
-        assert "return_value" in result.data_vars
+        assert "return_values" in result.data_vars
 
     def test_execute_one_in_x_with_dataset(self, one_in_x_ds_with_sim):
         """Test execute method with 1-in-X on Dataset."""
@@ -820,7 +820,7 @@ class TestMetricCalcExecuteOneInX:
         result = processor.execute(one_in_x_ds_with_sim, context={})
 
         assert isinstance(result, xr.Dataset)
-        assert "return_value" in result.data_vars
+        assert "return_values" in result.data_vars
 
     def test_execute_one_in_x_with_dict(self, one_in_x_da_with_sim):
         """Test execute method with 1-in-X on dict of DataArrays."""
@@ -942,7 +942,7 @@ class TestMetricCalcSpatialBatching:
         )
 
         assert isinstance(result, xr.Dataset)
-        assert "return_value" in result.data_vars
+        assert "return_values" in result.data_vars
         assert "closest_cell" in result.dims
 
     def test_process_batch_with_points_dim(self, spatial_data_with_points):
@@ -973,7 +973,7 @@ class TestMetricCalcSpatialBatching:
         )
 
         assert isinstance(result, xr.Dataset)
-        assert "return_value" in result.data_vars
+        assert "return_values" in result.data_vars
         assert "points" in result.dims
 
 
@@ -1021,7 +1021,7 @@ class TestMetricCalcEventDuration:
         result = processor._calculate_one_in_x_vectorized(hourly_data_with_sim)
 
         assert isinstance(result, xr.Dataset)
-        assert "return_value" in result.data_vars
+        assert "return_values" in result.data_vars
 
 
 class TestMetricCalcDaskArrayHandling:
@@ -1074,4 +1074,4 @@ class TestMetricCalcDaskArrayHandling:
         result = processor._calculate_one_in_x_single(dask_xr)
 
         assert isinstance(result, xr.Dataset)
-        assert "return_value" in result.data_vars
+        assert "return_values" in result.data_vars
