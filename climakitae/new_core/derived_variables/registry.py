@@ -70,6 +70,127 @@ class DerivedVariableInfo:
     source: str = "builtin"
 
 
+def _wrap_with_metadata_preservation(
+    func: Callable, derived_var_name: str, source_vars: List[str]
+) -> Callable:
+    """Wrap a derived variable function to automatically preserve spatial metadata.
+
+    This wrapper detects when a new variable is added to the dataset and
+    automatically copies spatial metadata (CRS, spatial_ref, grid_mapping)
+    from the first available source variable.
+
+    Parameters
+    ----------
+    func : callable
+        The original derived variable function.
+    derived_var_name : str
+        Name of the derived variable being computed.
+    source_vars : list of str
+        List of source variable names that the function depends on.
+
+    Returns
+    -------
+    callable
+        Wrapped function that preserves spatial metadata.
+
+    """
+    from functools import wraps
+
+    @wraps(func)
+    def wrapped(ds):
+        # Call the original function
+        result = func(ds)
+
+        # Find a source variable to copy metadata from
+        source_var = None
+        for var in source_vars:
+            if var in result:
+                source_var = var
+                break
+
+        # Preserve metadata if we found a source and the derived var exists
+        if source_var and derived_var_name in result:
+            preserve_spatial_metadata(result, derived_var_name, source_var)
+
+        return result
+
+    return wrapped
+
+
+def preserve_spatial_metadata(ds, derived_var_name: str, source_var_name: str) -> None:
+    """Copy spatial metadata from a source variable to a derived variable.
+
+    This function ensures that derived variables retain necessary spatial
+    metadata (CRS, spatial_ref, coordinates) from their source variables.
+    This is critical for downstream operations like clipping that require
+    CRS information.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The dataset containing both source and derived variables.
+    derived_var_name : str
+        Name of the derived variable to update.
+    source_var_name : str
+        Name of the source variable to copy metadata from.
+
+    Notes
+    -----
+    This function modifies the dataset in-place. It copies:
+    - CRS via rioxarray if available
+    - spatial_ref coordinate if present
+    - grid_mapping attribute if present
+    - Any coordinates present on the source but missing from derived
+
+    Examples
+    --------
+    >>> ds["derived"] = ds["source_a"] - ds["source_b"]
+    >>> preserve_spatial_metadata(ds, "derived", "source_a")
+
+    """
+    if derived_var_name not in ds or source_var_name not in ds:
+        return
+
+    source = ds[source_var_name]
+    derived = ds[derived_var_name]
+
+    # Copy CRS using rioxarray if available
+    try:
+        import rioxarray  # noqa: F401
+
+        # Check if source has CRS
+        if hasattr(source, "rio") and source.rio.crs is not None:
+            derived.rio.write_crs(source.rio.crs, inplace=True)
+            logger.debug(
+                "Copied CRS %s from '%s' to '%s'",
+                source.rio.crs,
+                source_var_name,
+                derived_var_name,
+            )
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.debug("Could not copy CRS via rioxarray: %s", e)
+
+    # Copy spatial_ref coordinate if present
+    if "spatial_ref" in source.coords and "spatial_ref" not in derived.coords:
+        ds[derived_var_name] = derived.assign_coords(
+            spatial_ref=source.coords["spatial_ref"]
+        )
+        logger.debug("Copied spatial_ref coordinate to '%s'", derived_var_name)
+
+    # Copy grid_mapping attribute if present
+    if "grid_mapping" in source.attrs and "grid_mapping" not in derived.attrs:
+        ds[derived_var_name].attrs["grid_mapping"] = source.attrs["grid_mapping"]
+
+    # Copy any missing coordinates from source
+    for coord_name in source.coords:
+        if coord_name not in derived.coords and coord_name in ds.coords:
+            ds[derived_var_name] = ds[derived_var_name].assign_coords(
+                {coord_name: ds.coords[coord_name]}
+            )
+
+
 def get_registry() -> DerivedVariableRegistry:
     """Get the global derived variable registry singleton.
 
@@ -172,11 +293,14 @@ def register_derived(
             source=source,
         )
 
+        # Wrap function to automatically preserve spatial metadata
+        wrapped_func = _wrap_with_metadata_preservation(func, variable, depends_on)
+
         # Register with intake-esm
         logger.info(
             "Registering derived variable '%s' depending on %s", variable, depends_on
         )
-        registry.register(variable=variable, query=query)(func)
+        registry.register(variable=variable, query=query)(wrapped_func)
 
         return func
 
@@ -267,6 +391,9 @@ def register_user_function(
         source="user",
     )
 
+    # Wrap function to automatically preserve spatial metadata
+    wrapped_func = _wrap_with_metadata_preservation(func, name, depends_on)
+
     # Register with intake-esm
     registry = get_registry()
     logger.info(
@@ -274,7 +401,7 @@ def register_user_function(
         name,
         depends_on,
     )
-    registry.register(variable=name, query=query)(func)
+    registry.register(variable=name, query=query)(wrapped_func)
 
 
 def list_derived_variables() -> Dict[str, DerivedVariableInfo]:
