@@ -35,6 +35,7 @@ dependencies = [
     "geopy",
     "intake",
     "intake-esm<=2023.11.10",
+    "ipython",
     "intake-geopandas",
     "intake-xarray",
     "matplotlib",
