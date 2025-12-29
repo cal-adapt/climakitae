@@ -332,18 +332,19 @@ def _validate_single_point(point: Any) -> bool:
         lat, lon = float(point[0]), float(point[1])
     except (ValueError, TypeError):
         logger.warning(
-            f"Point coordinates must be numeric. Got: {point}. "
-            f"Example: (37.7749, -122.4194)"
+            "Point coordinates must be numeric. Got: %s. "
+            "Example: (37.7749, -122.4194)",
+            point,
         )
         return False
 
     # Validate coordinate ranges
     if not (-90.0 <= lat <= 90.0):
-        logger.warning(f"Latitude must be between -90 and 90 degrees. Got: {lat}")
+        logger.warning("Latitude must be between -90 and 90 degrees. Got: %s", lat)
         return False
 
     if not (-180.0 <= lon <= 180.0):
-        logger.warning(f"Longitude must be between -180 and 180 degrees. Got: {lon}")
+        logger.warning("Longitude must be between -180 and 180 degrees. Got: %s", lon)
         return False
 
     return True

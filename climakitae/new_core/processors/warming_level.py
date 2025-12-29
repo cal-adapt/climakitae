@@ -7,7 +7,6 @@ to a warming level centered approach following the established template pattern.
 
 import logging
 import re
-import warnings
 from typing import Any, Dict, Iterable, Union
 
 import numpy as np
@@ -193,9 +192,11 @@ class WarmingLevel(DataProcessor):
                 )
 
                 if not is_full_wl:
-                    warnings.warn(
-                        f"\n\nIncomplete warming level for {key} at {wl}C. "
-                        "\nSkipping this warming level."
+                    logger.warning(
+                        "\n\nIncomplete warming level for %s at %sC. "
+                        "\nSkipping this warming level.",
+                        key,
+                        wl,
                     )
                     continue
 

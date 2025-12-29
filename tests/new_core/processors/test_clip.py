@@ -2933,7 +2933,7 @@ class TestClipStationExecute:
             ),
             patch.object(
                 clip,
-                "_clip_data_to_multiple_points",
+                "_clip_data_to_points_as_mask",
                 return_value=self.sample_dataset,
             ) as mock_clip_multi,
         ):

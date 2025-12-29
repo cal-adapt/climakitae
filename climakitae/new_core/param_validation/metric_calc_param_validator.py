@@ -10,8 +10,9 @@ from typing import Any
 import numpy as np
 
 from climakitae.core.constants import UNSET
-from climakitae.new_core.param_validation.abc_param_validation import \
-    register_processor_validator
+from climakitae.new_core.param_validation.abc_param_validation import (
+    register_processor_validator,
+)
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -149,7 +150,7 @@ def _validate_basic_metric_parameters(
 def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
     """Validate parameters for 1-in-X calculations."""
     if not isinstance(one_in_x_config, dict):
-        warnings.warn(
+        logger.warning(
             "\n\none_in_x configuration must be a dictionary. "
             "\nPlease check the configuration."
         )
@@ -167,7 +168,7 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
 
     # Validate return_periods (required parameter)
     if return_periods is None:
-        warnings.warn(
+        logger.warning(
             "\n\nreturn_periods is required for 1-in-X calculations. "
             "\nPlease provide a list of return periods (e.g., [10, 25, 50, 100])."
         )
@@ -182,7 +183,7 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
         return_periods_array = return_periods
 
     if not isinstance(return_periods_array, np.ndarray):
-        warnings.warn(
+        logger.warning(
             "\n\nreturn_periods must be convertible to numpy array. "
             "\nPlease check the configuration."
         )
@@ -190,33 +191,37 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
 
     for rp in return_periods_array:
         if not isinstance(rp, (int, float, np.integer, np.floating)) or rp < 1:
-            warnings.warn(
-                f"\n\nAll return periods must be numbers >= 1, got {rp} (type: {type(rp)}). "
-                "\nPlease check the configuration."
+            logger.warning(
+                "\n\nAll return periods must be numbers >= 1, got %s (type: %s). "
+                "\nPlease check the configuration.",
+                rp,
+                type(rp),
             )
             return False
 
     # Validate distribution
     valid_distributions = ["gev", "genpareto", "gamma"]
     if distribution not in valid_distributions:
-        warnings.warn(
-            f"\n\nInvalid distribution '{distribution}'. "
-            f"\nSupported distributions are: {valid_distributions}"
+        logger.warning(
+            "\n\nInvalid distribution '%s'. " "\nSupported distributions are: %s",
+            distribution,
+            valid_distributions,
         )
         return False
 
     # Validate extremes_type
     valid_extremes = ["max", "min"]
     if extremes_type not in valid_extremes:
-        warnings.warn(
-            f"\n\nInvalid extremes_type '{extremes_type}'. "
-            f"\nSupported types are: {valid_extremes}"
+        logger.warning(
+            "\n\nInvalid extremes_type '%s'. " "\nSupported types are: %s",
+            extremes_type,
+            valid_extremes,
         )
         return False
 
     # Validate event_duration
     if not isinstance(event_duration, tuple) or len(event_duration) != 2:
-        warnings.warn(
+        logger.warning(
             "\n\nevent_duration must be a tuple of (int, str). "
             "\nExample: (1, 'day') or (6, 'hour')"
         )
@@ -224,14 +229,14 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
 
     duration_num, duration_unit = event_duration
     if not isinstance(duration_num, int) or duration_num <= 0:
-        warnings.warn(
+        logger.warning(
             "\n\nevent_duration number must be a positive integer. "
             "\nPlease check the configuration."
         )
         return False
 
     if duration_unit not in ["hour", "day"]:
-        warnings.warn(
+        logger.warning(
             "\n\nevent_duration unit must be 'hour' or 'day'. "
             "\nPlease check the configuration."
         )
@@ -239,7 +244,7 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
 
     # Validate block_size
     if not isinstance(block_size, int) or block_size <= 0:
-        warnings.warn(
+        logger.warning(
             "\n\nblock_size must be a positive integer. "
             "\nPlease check the configuration."
         )
@@ -251,15 +256,17 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
         ("print_goodness_of_fit", print_goodness_of_fit),
     ]:
         if not isinstance(param_value, bool):
-            warnings.warn(
-                f"\n\nParameter '{param_name}' must be a boolean, got {type(param_value)}. "
-                "\nPlease check the configuration."
+            logger.warning(
+                "\n\nParameter '%s' must be a boolean, got %s. "
+                "\nPlease check the configuration.",
+                param_name,
+                type(param_value),
             )
             return False
 
     # Validate variable_preprocessing
     if not isinstance(variable_preprocessing, dict):
-        warnings.warn(
+        logger.warning(
             "\n\nvariable_preprocessing must be a dictionary. "
             "\nPlease check the configuration."
         )
