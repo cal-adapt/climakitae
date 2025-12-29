@@ -189,7 +189,7 @@ def calc_wind_chill(ds):
 
 
 @register_derived(
-    variable="diurnal_temperature_range",
+    variable="diurnal_temperature_range_loca",
     query={"variable_id": ["tasmax", "tasmin"]},
     description="Daily temperature range (maximum minus minimum)",
     units="K",
