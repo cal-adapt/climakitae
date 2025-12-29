@@ -2,10 +2,12 @@
 Unit tests for climakitae/new_core/processors/export.py.
 """
 
-import pytest
 from unittest.mock import patch
-import xarray as xr
+
 import numpy as np
+import pytest
+import xarray as xr
+
 from climakitae.new_core.processors.export import Export
 
 

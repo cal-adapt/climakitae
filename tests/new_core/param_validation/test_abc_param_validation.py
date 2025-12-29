@@ -14,9 +14,12 @@ import pytest
 
 from climakitae.core.constants import PROC_KEY, UNSET
 from climakitae.new_core.param_validation.abc_param_validation import (
-    _CATALOG_VALIDATOR_REGISTRY, _PROCESSOR_VALIDATOR_REGISTRY,
-    ParameterValidator, register_catalog_validator,
-    register_processor_validator)
+    _CATALOG_VALIDATOR_REGISTRY,
+    _PROCESSOR_VALIDATOR_REGISTRY,
+    ParameterValidator,
+    register_catalog_validator,
+    register_processor_validator,
+)
 
 # Suppress known external warnings that are not relevant to our tests
 warnings.filterwarnings(

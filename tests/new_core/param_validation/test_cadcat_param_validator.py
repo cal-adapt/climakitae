@@ -9,8 +9,7 @@ import warnings
 from unittest.mock import MagicMock, patch
 
 from climakitae.core.constants import UNSET
-from climakitae.new_core.param_validation.cadcat_param_validator import \
-    DataValidator
+from climakitae.new_core.param_validation.cadcat_param_validator import DataValidator
 
 # Suppress known external warnings that are not relevant to our tests
 warnings.filterwarnings(

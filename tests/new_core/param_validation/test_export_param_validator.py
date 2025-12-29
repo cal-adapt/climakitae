@@ -28,14 +28,24 @@ import pytest
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.export_param_validator import (
-    _check_file_conflicts, _check_wildcard_files, _infer_file_format,
-    _is_path_safe, _predict_export_filenames, _suggest_alternative_filename,
-    _validate_boolean_params, _validate_export_method_param,
-    _validate_file_format_param, _validate_filename_param,
-    _validate_filename_template_param, _validate_format_mode_compatibility,
-    _validate_mode_param, _warn_about_similar_files,
-    suggest_export_alternatives, validate_export_output_path,
-    validate_export_param)
+    _check_file_conflicts,
+    _check_wildcard_files,
+    _infer_file_format,
+    _is_path_safe,
+    _predict_export_filenames,
+    _suggest_alternative_filename,
+    _validate_boolean_params,
+    _validate_export_method_param,
+    _validate_file_format_param,
+    _validate_filename_param,
+    _validate_filename_template_param,
+    _validate_format_mode_compatibility,
+    _validate_mode_param,
+    _warn_about_similar_files,
+    suggest_export_alternatives,
+    validate_export_output_path,
+    validate_export_param,
+)
 
 
 class TestValidateExportParam:
@@ -710,8 +720,9 @@ class TestValidatorRegistration:
 
     def test_export_validator_is_registered(self):
         """Test that export validator is registered in the registry."""
-        from climakitae.new_core.param_validation.abc_param_validation import \
-            _PROCESSOR_VALIDATOR_REGISTRY
+        from climakitae.new_core.param_validation.abc_param_validation import (
+            _PROCESSOR_VALIDATOR_REGISTRY,
+        )
 
         assert "export" in _PROCESSOR_VALIDATOR_REGISTRY
         assert _PROCESSOR_VALIDATOR_REGISTRY["export"] is validate_export_param

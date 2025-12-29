@@ -9,8 +9,9 @@ import warnings
 
 import pytest
 
-from climakitae.new_core.param_validation.filter_unadjusted_models_param_validator import \
-    validate_filter_unadjusted_models_param
+from climakitae.new_core.param_validation.filter_unadjusted_models_param_validator import (
+    validate_filter_unadjusted_models_param,
+)
 
 # Suppress known external warnings that are not relevant to our tests
 warnings.filterwarnings(

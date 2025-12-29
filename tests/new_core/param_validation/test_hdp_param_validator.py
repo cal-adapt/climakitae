@@ -9,9 +9,7 @@ import warnings
 from unittest.mock import MagicMock, patch
 
 from climakitae.core.constants import UNSET
-from climakitae.new_core.param_validation.hdp_param_validator import (
-    HDPValidator,
-)
+from climakitae.new_core.param_validation.hdp_param_validator import HDPValidator
 
 # Suppress known external warnings that are not relevant to our tests
 warnings.filterwarnings(
@@ -357,6 +355,7 @@ class TestHDPValidatorStationIdValidation:
     def test_query_with_all_valid_station_ids_passes(self):
         """Test that query with all valid station_ids passes."""
         import pandas as pd
+
         from climakitae.new_core.param_validation.abc_param_validation import (
             ParameterValidator,
         )

@@ -16,7 +16,7 @@ from tqdm.auto import tqdm  # Progress bar
 from climakitae.core.constants import UNSET
 from climakitae.core.data_interface import DataInterface, get_data
 from climakitae.core.paths import VARIABLE_DESCRIPTIONS_CSV_PATH
-from climakitae.explore.typical_meteorological_year import match_str_to_wl, is_HadISD
+from climakitae.explore.typical_meteorological_year import is_HadISD, match_str_to_wl
 from climakitae.util.utils import julianDay_to_date, read_csv_file
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects

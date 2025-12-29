@@ -15,14 +15,14 @@ import xarray as xr
 from climakitae.core.paths import (
     BOUNDARY_CATALOG_URL,
     DATA_CATALOG_URL,
-    RENEWABLES_CATALOG_URL,
     HDP_CATALOG_URL,
+    RENEWABLES_CATALOG_URL,
 )
 from climakitae.new_core.data_access.data_access import (
     CATALOG_BOUNDARY,
     CATALOG_CADCAT,
-    CATALOG_REN_ENERGY_GEN,
     CATALOG_HDP,
+    CATALOG_REN_ENERGY_GEN,
     UNSET,
     DataCatalog,
     _get_closest_options,

@@ -10,8 +10,9 @@ import warnings
 import pandas as pd
 import pytest
 
-from climakitae.new_core.param_validation.time_slice_param_validator import \
-    validate_time_slice_param
+from climakitae.new_core.param_validation.time_slice_param_validator import (
+    validate_time_slice_param,
+)
 
 
 class TestValidateTimeSliceParam:

@@ -10,7 +10,10 @@ import pytest
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.convert_units_param_validator import (
-    _check_input_types, _check_unit_validity, validate_convert_units_param)
+    _check_input_types,
+    _check_unit_validity,
+    validate_convert_units_param,
+)
 
 
 class TestCheckInputTypes:
