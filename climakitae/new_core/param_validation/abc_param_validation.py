@@ -357,6 +357,9 @@ class ParameterValidator(ABC):
         self.populate_catalog_keys(query)
 
         # Check if variable_id is a derived variable
+        # Note: We keep the derived variable name in the query and let intake-esm
+        # handle the search. The registry attached to the catalog will automatically
+        # find source variables and compute the derived variable.
         derived_var_name = None
         original_variable_id = self.all_catalog_keys.get("variable_id", UNSET)
         if original_variable_id is not UNSET:
@@ -369,9 +372,9 @@ class ParameterValidator(ABC):
                     derived_name,
                     source_vars,
                 )
-                # Substitute source variables for catalog search
-                self.all_catalog_keys["variable_id"] = source_vars
                 derived_var_name = derived_name
+                # Don't substitute - intake-esm's registry handles this automatically
+                # Just track it for metadata purposes
 
         # check if the catalog keys can be found
         try:
@@ -385,13 +388,12 @@ class ParameterValidator(ABC):
         if len(subset) != 0:
             logger.info("Found %d datasets matching your query.", len(subset))
             logger.info("Checking processes ...")
-            # Restore derived variable name if applicable
+            # Track derived variable for metadata/context
             if derived_var_name:
                 self.all_catalog_keys["_derived_variable"] = derived_var_name
                 self.all_catalog_keys["_source_variables"] = source_vars
-                # Keep source vars for catalog search but note the derived var
                 logger.info(
-                    "Query will compute derived variable '%s' from source data",
+                    "Query will compute derived variable '%s' via intake-esm registry",
                     derived_var_name,
                 )
             return self.all_catalog_keys if self._has_valid_processes(query) else None
@@ -485,12 +487,12 @@ class ParameterValidator(ABC):
         if not df.empty:
             logger.info("Found up to %d datasets matching your query.", len(df))
             logger.info("Checking processes ...")
-            # Restore derived variable info if applicable
+            # Track derived variable for metadata/context
             if derived_var_name:
                 self.all_catalog_keys["_derived_variable"] = derived_var_name
                 self.all_catalog_keys["_source_variables"] = source_vars
                 logger.info(
-                    "Query will compute derived variable '%s' from source data",
+                    "Query will compute derived variable '%s' via intake-esm registry",
                     derived_var_name,
                 )
             return self.all_catalog_keys if self._has_valid_processes(query) else None

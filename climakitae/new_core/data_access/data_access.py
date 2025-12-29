@@ -508,7 +508,61 @@ class DataCatalog(dict):
                 result[key] = result[key].rename({"station": "station_id"})
                 logger.debug("Renamed station → station_id for dataset %s", key)
 
+        # Apply derived variable computation if requested
+        derived_var = query.get("_derived_variable")
+        if derived_var:
+            result = self._apply_derived_variable(result, derived_var)
+
         return result
+
+    def _apply_derived_variable(
+        self, datasets: Dict[str, xr.Dataset], derived_var_name: str
+    ) -> Dict[str, xr.Dataset]:
+        """Apply a derived variable function to all datasets.
+
+        Parameters
+        ----------
+        datasets : dict[str, xr.Dataset]
+            Dictionary of datasets to apply the derived variable to.
+        derived_var_name : str
+            Name of the derived variable to compute.
+
+        Returns
+        -------
+        dict[str, xr.Dataset]
+            Dictionary of datasets with the derived variable computed.
+
+        """
+        from climakitae.new_core.derived_variables import list_derived_variables
+
+        derived_vars = list_derived_variables()
+        if derived_var_name not in derived_vars:
+            logger.warning(
+                "Derived variable '%s' not found in registry", derived_var_name
+            )
+            return datasets
+
+        info = derived_vars[derived_var_name]
+        func = info.func
+
+        logger.info("Computing derived variable '%s'", derived_var_name)
+        for key in datasets:
+            try:
+                # The registered function should add the derived variable to the dataset
+                datasets[key] = func(datasets[key])
+                logger.debug(
+                    "Computed '%s' for dataset %s", derived_var_name, key
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to compute derived variable '%s' for dataset %s: %s",
+                    derived_var_name,
+                    key,
+                    e,
+                )
+                raise
+
+        return datasets
 
     def list_clip_boundaries(self) -> dict[str, list[str]]:
         """List all available boundary options for clipping operations.
