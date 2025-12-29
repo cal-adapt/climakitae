@@ -552,6 +552,7 @@ class ClimateData:
         ----------
         variable : str
             The variable identifier (e.g., "tasmax", "pr", "cf").
+            Can also be a registered derived variable name.
 
         Returns
         -------
@@ -565,6 +566,112 @@ class ClimateData:
             raise ValueError("Variable must be a non-empty string")
         self._query["variable_id"] = variable.strip()
         logger.info("Variable set to: %s", variable.strip())
+        return self
+
+    def derived_variable(
+        self,
+        name: str,
+        depends_on: list[str],
+        func: Any,
+        description: str = "",
+        units: str = "",
+        **query_extras,
+    ) -> "ClimateData":
+        """Register and query a user-defined derived variable.
+
+        This method registers a custom function that computes a new variable
+        from existing source variables, then sets that variable as the query target.
+        The computation happens during data loading (not as a post-processor).
+
+        Parameters
+        ----------
+        name : str
+            Name for the new derived variable. This becomes queryable like any
+            other variable in the catalog.
+        depends_on : list of str
+            List of source variable IDs required for the computation
+            (e.g., ['tasmax', 'tasmin'] or ['t2', 'rh']).
+        func : callable
+            Function that takes an xarray.Dataset and returns a modified Dataset
+            with the new variable added. The function signature should be:
+            ``func(ds: xr.Dataset) -> xr.Dataset``
+        description : str, optional
+            Human-readable description of what this variable represents.
+        units : str, optional
+            Expected units of the derived variable.
+        **query_extras
+            Additional query constraints (e.g., table_id='day').
+
+        Returns
+        -------
+        ClimateData
+            The current instance for method chaining.
+
+        Examples
+        --------
+        Define and query a custom temperature range variable:
+
+        >>> def calc_temp_range(ds):
+        ...     ds['temp_range'] = ds.tasmax - ds.tasmin
+        ...     ds['temp_range'].attrs = {'units': 'K', 'long_name': 'Daily Range'}
+        ...     return ds
+        ...
+        >>> data = (cd
+        ...     .catalog("cadcat")
+        ...     .activity_id("LOCA2")
+        ...     .table_id("day")
+        ...     .grid_label("d03")
+        ...     .derived_variable(
+        ...         name='temp_range',
+        ...         depends_on=['tasmax', 'tasmin'],
+        ...         func=calc_temp_range,
+        ...         description='Daily temperature range',
+        ...         units='K'
+        ...     )
+        ...     .get())
+
+        Notes
+        -----
+        - Registration is permanent for the Python session
+        - The function must add the variable to the dataset and return it
+        - Set appropriate attributes (units, long_name) on the new variable
+        - For complex post-load transformations, use processors instead
+
+        See Also
+        --------
+        show_derived_variables : View all registered derived variables
+        climakitae.new_core.derived_variables : Module documentation
+
+        """
+        from climakitae.new_core.derived_variables import register_user_function
+        from climakitae.new_core.param_validation.derived_variable_param_validator import (
+            validate_derived_variable_params,
+        )
+
+        logger.debug(
+            "Registering derived variable '%s' depending on %s", name, depends_on
+        )
+
+        # Validate parameters
+        if not validate_derived_variable_params(
+            name, depends_on, func, query_extras or None
+        ):
+            logger.warning("Derived variable validation failed, continuing anyway")
+
+        # Register the function
+        register_user_function(
+            name=name,
+            depends_on=depends_on,
+            func=func,
+            description=description,
+            units=units,
+            query_extras=query_extras or None,
+        )
+
+        # Set as the query variable
+        self._query["variable_id"] = name
+        logger.info("Derived variable '%s' registered and set as query target", name)
+
         return self
 
     def station_id(self, station_id: str | list[str]) -> "ClimateData":
@@ -867,6 +974,71 @@ class ClimateData:
 
         self._show_options("variable_id", msg)
 
+    def show_derived_variables(self) -> None:
+        """Display all registered derived variables.
+
+        Shows both builtin and user-registered derived variables with their
+        dependencies and descriptions.
+
+        Examples
+        --------
+        >>> cd = ClimateData()
+        >>> cd.show_derived_variables()
+        Derived Variables (computed from source variables during loading):
+        ------------------------------------------------------------------
+        wind_speed_10m      depends on: u10, v10
+        heat_index          depends on: t2, rh
+        ...
+
+        """
+        from climakitae.new_core.derived_variables import list_derived_variables
+
+        msg = "Derived Variables (computed from source variables during loading):"
+        logger.info(msg)
+        logger.info("%s", "-" * len(msg))
+        try:
+            print(msg)
+            print("%s" % ("-" * len(msg)))
+        except Exception:
+            pass
+
+        try:
+            derived_vars = list_derived_variables()
+            if not derived_vars:
+                no_vars_msg = "No derived variables registered"
+                logger.info(no_vars_msg)
+                try:
+                    print(no_vars_msg)
+                except Exception:
+                    pass
+            else:
+                # Find max name length for alignment
+                max_name_len = max(len(name) for name in derived_vars.keys())
+
+                for name, info in sorted(derived_vars.items()):
+                    deps_str = ", ".join(info.depends_on)
+                    source_tag = f"[{info.source}]" if info.source == "user" else ""
+                    spacing = " " * (max_name_len - len(name) + 2)
+
+                    line = f"{name}{spacing}depends on: {deps_str} {source_tag}"
+                    if info.description:
+                        line += f"\n{' ' * (max_name_len + 2)}  └─ {info.description}"
+
+                    logger.info(line)
+                    try:
+                        print(line)
+                    except Exception:
+                        pass
+
+            logger.info("\n")
+            try:
+                print()
+            except Exception:
+                pass
+
+        except Exception as e:
+            logger.error("Error retrieving derived variables: %s", e, exc_info=True)
+
     def show_processors(self) -> None:
         """Display available data processors."""
 
@@ -969,6 +1141,7 @@ class ClimateData:
             ("show_table_id_options", "Table IDs (Temporal Resolution)"),
             ("show_grid_label_options", "Grid Labels (Spatial Resolution)"),
             ("show_variable_options", "Variables"),
+            ("show_derived_variables", "Derived Variables"),
             ("show_installation_options", "Installations"),
             ("show_station_id_options", "Station IDs"),
             ("show_network_id_options", "Network IDs"),
