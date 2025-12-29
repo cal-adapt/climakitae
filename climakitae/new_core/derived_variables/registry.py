@@ -169,7 +169,6 @@ def preserve_spatial_metadata(ds, derived_var_name: str, source_var_name: str) -
         return
 
     source = ds[source_var_name]
-    derived = ds[derived_var_name]
 
     # Collect attributes to copy (copy grid_mapping first as rioxarray needs it)
     attrs_to_copy = {}
@@ -210,6 +209,9 @@ def preserve_spatial_metadata(ds, derived_var_name: str, source_var_name: str) -
         # Check if source has CRS via rioxarray
         if hasattr(source, "rio") and source.rio.crs is not None:
             ds[derived_var_name].rio.write_crs(source.rio.crs, inplace=True)
+            # Re-apply attrs since rio.write_crs wipes them out!
+            if attrs_to_copy:
+                ds[derived_var_name].attrs.update(attrs_to_copy)
             logger.debug(
                 "Copied CRS %s from '%s' to '%s'",
                 source.rio.crs,
@@ -236,18 +238,13 @@ def preserve_spatial_metadata(ds, derived_var_name: str, source_var_name: str) -
     except Exception as e:
         logger.debug("Could not copy CRS via rioxarray: %s", e)
 
-    # Copy any missing coordinates from source (lat, lon, x, y, etc.)
-    # Note: This can create new DataArrays, so we need to track attrs
-    additional_coords = {}
-    for coord_name in source.coords:
-        if coord_name not in ds[derived_var_name].coords and coord_name in ds.coords:
-            additional_coords[coord_name] = ds.coords[coord_name]
-
-    if additional_coords:
-        ds[derived_var_name] = ds[derived_var_name].assign_coords(additional_coords)
-        # Re-apply attributes since assign_coords creates a new object
-        if attrs_to_copy:
-            ds[derived_var_name].attrs.update(attrs_to_copy)
+    # NOTE: We intentionally do NOT copy spatial coordinates (lat, lon, x, y) here.
+    # When derived variables are computed via arithmetic (e.g., ds.t2max - ds.t2min),
+    # xarray automatically propagates coordinates from the operands. Re-adding them
+    # via assign_coords can corrupt the dimension structure, especially for 2D
+    # coordinates like lat(y,x) and lon(y,x) in WRF data.
+    # Only CRS-related metadata (Lambert_Conformal, grid_mapping attr) needs explicit
+    # preservation, which is handled above.
 
 
 def get_registry() -> DerivedVariableRegistry:

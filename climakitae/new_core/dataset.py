@@ -223,13 +223,15 @@ class Dataset:
 
         # Execute each step in the pipeline in sequence
         logger.info("Executing %d processing steps", len(self.processing_pipeline))
+
         try:
             for i, step in enumerate(self.processing_pipeline, 1):
+                step_name = getattr(step, "name", type(step).__name__)
                 logger.debug(
                     "Executing processing step %d/%d: %s",
                     i,
                     len(self.processing_pipeline),
-                    getattr(step, "name", type(step).__name__),
+                    step_name,
                 )
 
                 # Some steps might need access to the data_access component
@@ -242,10 +244,11 @@ class Dataset:
                 # Execute the current step
                 # context is updated in place by the step
                 current_result = step.execute(current_result, context)
+
                 if current_result is None:
                     logger.warning(
                         "Processing step %s returned None",
-                        getattr(step, "name", type(step).__name__),
+                        step_name,
                     )
                 logger.debug("Processing step %d completed successfully", i)
 

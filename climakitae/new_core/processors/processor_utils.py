@@ -985,6 +985,18 @@ def extend_time_domain(
                 hist_common = hist_data.sel(member_id=common_members)
                 data_common = data.sel(member_id=common_members)
 
+            # Capture variable-level attrs and spatial coords BEFORE concat
+            orig_var_attrs = {}
+            orig_spatial_coords = {}
+            if isinstance(data, xr.Dataset):
+                orig_var_attrs = {var: dict(data[var].attrs) for var in data.data_vars}
+                spatial_coord_names = ["Lambert_Conformal", "x", "y"]
+                orig_spatial_coords = {
+                    name: data.coords[name]
+                    for name in spatial_coord_names
+                    if name in data.coords
+                }
+
             if isinstance(data, xr.Dataset) and isinstance(hist_common, xr.Dataset):
                 extended_data = xr.concat([hist_common, data_common], **concat_kwargs)  # type: ignore
             elif isinstance(data, xr.DataArray) and isinstance(
@@ -1000,8 +1012,21 @@ def extend_time_domain(
                 else:  # data is DataArray
                     if isinstance(hist_common, xr.Dataset):
                         data_common = data_common.to_dataset()
-                    extended_data = xr.concat([hist_common, data], **concat_kwargs)  # type: ignore            # Preserve SSP attributes
+                    extended_data = xr.concat([hist_common, data], **concat_kwargs)  # type: ignore
+
+            # Preserve SSP attributes (dataset-level)
             extended_data.attrs.update(data.attrs)
+
+            # Restore variable-level attrs (including grid_mapping)
+            if isinstance(extended_data, xr.Dataset):
+                for var, var_attrs in orig_var_attrs.items():
+                    if var in extended_data.data_vars:
+                        extended_data[var].attrs.update(var_attrs)
+
+            # Restore spatial coordinates (Lambert_Conformal, etc.)
+            for coord_name, coord_val in orig_spatial_coords.items():
+                if coord_name not in extended_data.coords:
+                    extended_data = extended_data.assign_coords({coord_name: coord_val})
             # add key attr indicating historical data was prepended
             extended_data.attrs["historical_prepended"] = True
             ret[key] = extended_data
