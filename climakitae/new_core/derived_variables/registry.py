@@ -171,24 +171,34 @@ def preserve_spatial_metadata(ds, derived_var_name: str, source_var_name: str) -
     source = ds[source_var_name]
     derived = ds[derived_var_name]
 
-    # Copy grid_mapping attribute FIRST (rioxarray needs this)
+    # Collect attributes to copy (copy grid_mapping first as rioxarray needs it)
+    attrs_to_copy = {}
     if "grid_mapping" in source.attrs:
-        ds[derived_var_name].attrs["grid_mapping"] = source.attrs["grid_mapping"]
-        logger.debug(
-            "Copied grid_mapping='%s' to '%s'",
-            source.attrs["grid_mapping"],
-            derived_var_name,
-        )
+        attrs_to_copy["grid_mapping"] = source.attrs["grid_mapping"]
 
     # Copy Lambert_Conformal or other CRS coordinate if present
     # WRF data typically uses Lambert_Conformal as the CRS coordinate
     crs_coord_names = ["Lambert_Conformal", "spatial_ref", "crs"]
+    coords_to_add = {}
     for crs_coord in crs_coord_names:
         if crs_coord in ds.coords and crs_coord not in ds[derived_var_name].coords:
-            ds[derived_var_name] = ds[derived_var_name].assign_coords(
-                {crs_coord: ds.coords[crs_coord]}
+            coords_to_add[crs_coord] = ds.coords[crs_coord]
+            logger.debug(
+                "Will copy '%s' coordinate to '%s'", crs_coord, derived_var_name
             )
-            logger.debug("Copied '%s' coordinate to '%s'", crs_coord, derived_var_name)
+
+    # Apply coordinate changes (this creates a new DataArray, losing attrs)
+    if coords_to_add:
+        ds[derived_var_name] = ds[derived_var_name].assign_coords(coords_to_add)
+
+    # Now copy attributes AFTER coordinate assignment (since assign_coords makes new obj)
+    if attrs_to_copy:
+        ds[derived_var_name].attrs.update(attrs_to_copy)
+        logger.debug(
+            "Copied grid_mapping='%s' to '%s'",
+            attrs_to_copy.get("grid_mapping"),
+            derived_var_name,
+        )
 
     # Try to copy CRS using rioxarray
     try:
@@ -227,11 +237,17 @@ def preserve_spatial_metadata(ds, derived_var_name: str, source_var_name: str) -
         logger.debug("Could not copy CRS via rioxarray: %s", e)
 
     # Copy any missing coordinates from source (lat, lon, x, y, etc.)
+    # Note: This can create new DataArrays, so we need to track attrs
+    additional_coords = {}
     for coord_name in source.coords:
         if coord_name not in ds[derived_var_name].coords and coord_name in ds.coords:
-            ds[derived_var_name] = ds[derived_var_name].assign_coords(
-                {coord_name: ds.coords[coord_name]}
-            )
+            additional_coords[coord_name] = ds.coords[coord_name]
+
+    if additional_coords:
+        ds[derived_var_name] = ds[derived_var_name].assign_coords(additional_coords)
+        # Re-apply attributes since assign_coords creates a new object
+        if attrs_to_copy:
+            ds[derived_var_name].attrs.update(attrs_to_copy)
 
 
 def get_registry() -> DerivedVariableRegistry:

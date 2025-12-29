@@ -153,6 +153,36 @@ class WarmingLevel(DataProcessor):
         # extend the time domain of all ssp scenarios to 1980-2100
         ret = extend_time_domain(ret)
 
+        # Capture attributes and spatial coordinates BEFORE transformations
+        # These operations (swap_dims, assign_coords, expand_dims, concat) create
+        # new objects and can lose attributes like 'grid_mapping' needed for CRS
+        preserved_attrs = {}
+        preserved_coords = {}
+        for key, data in ret.items():
+            # Store attrs for each data variable
+            if isinstance(data, xr.Dataset):
+                preserved_attrs[key] = {
+                    "dataset": dict(data.attrs),
+                    "variables": {
+                        var: dict(data[var].attrs) for var in data.data_vars
+                    },
+                }
+                # Store spatial coordinates (Lambert_Conformal, x, y, etc.)
+                spatial_coords = ["Lambert_Conformal", "x", "y", "lat", "lon"]
+                preserved_coords[key] = {
+                    name: data.coords[name]
+                    for name in spatial_coords
+                    if name in data.coords
+                }
+            else:
+                preserved_attrs[key] = {"data": dict(data.attrs)}
+                spatial_coords = ["Lambert_Conformal", "x", "y", "lat", "lon"]
+                preserved_coords[key] = {
+                    name: data.coords[name]
+                    for name in spatial_coords
+                    if name in data.coords
+                }
+
         # first, extract the member IDs from the data
         member_ids = []
         logger.debug(
@@ -240,6 +270,29 @@ class WarmingLevel(DataProcessor):
             ret[key] = xr.concat(
                 slices, dim="warming_level", join="outer", fill_value=np.nan
             )
+
+            # Restore preserved attributes and spatial coordinates
+            # The transformations above create new objects and lose attrs like 'grid_mapping'
+            if key in preserved_attrs:
+                saved = preserved_attrs[key]
+                if isinstance(ret[key], xr.Dataset):
+                    # Restore dataset-level attrs
+                    if "dataset" in saved:
+                        ret[key].attrs.update(saved["dataset"])
+                    # Restore variable-level attrs (including grid_mapping)
+                    if "variables" in saved:
+                        for var, var_attrs in saved["variables"].items():
+                            if var in ret[key].data_vars:
+                                ret[key][var].attrs.update(var_attrs)
+                elif "data" in saved:
+                    ret[key].attrs.update(saved["data"])
+
+            # Restore spatial coordinates (Lambert_Conformal, etc.)
+            if key in preserved_coords:
+                for coord_name, coord_val in preserved_coords[key].items():
+                    if coord_name not in ret[key].coords:
+                        ret[key] = ret[key].assign_coords({coord_name: coord_val})
+
         self.update_context(context)
 
         print(f"Dropped slices count: {dropped_slices_count}")

@@ -357,10 +357,10 @@ class ParameterValidator(ABC):
         self.populate_catalog_keys(query)
 
         # Check if variable_id is a derived variable
-        # Note: We keep the derived variable name in the query and let intake-esm
-        # handle the search. The registry attached to the catalog will automatically
-        # find source variables and compute the derived variable.
+        # For derived variables, we need to search for source variables in the catalog,
+        # then compute the derived variable during data loading.
         derived_var_name = None
+        source_vars = None
         original_variable_id = self.all_catalog_keys.get("variable_id", UNSET)
         if original_variable_id is not UNSET:
             is_derived, source_vars, derived_name = self._check_derived_variable(
@@ -373,8 +373,13 @@ class ParameterValidator(ABC):
                     source_vars,
                 )
                 derived_var_name = derived_name
-                # Don't substitute - intake-esm's registry handles this automatically
-                # Just track it for metadata purposes
+                # Keep derived variable name as variable_id for catalog search
+                # intake-esm registry will automatically expand to search for
+                # all source variables via its query parameter
+                logger.info(
+                    "Searching catalog with derived variable '%s' (registry will expand)",
+                    derived_name,
+                )
 
         # check if the catalog keys can be found
         try:

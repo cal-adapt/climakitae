@@ -550,9 +550,7 @@ class DataCatalog(dict):
             try:
                 # The registered function should add the derived variable to the dataset
                 datasets[key] = func(datasets[key])
-                logger.debug(
-                    "Computed '%s' for dataset %s", derived_var_name, key
-                )
+                logger.debug("Computed '%s' for dataset %s", derived_var_name, key)
             except Exception as e:
                 logger.error(
                     "Failed to compute derived variable '%s' for dataset %s: %s",
