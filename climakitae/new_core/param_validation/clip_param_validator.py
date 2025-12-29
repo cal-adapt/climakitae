@@ -305,17 +305,113 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
     return True
 
 
+def _validate_single_point(point: Any) -> bool:
+    """
+    Validate a single (lat, lon) point tuple.
+
+    Parameters
+    ----------
+    point : Any
+        Point to validate. Expected to be a tuple/list of 2 numeric values.
+
+    Returns
+    -------
+    bool
+        True if the point is valid, False otherwise
+    """
+    # Check structure
+    if not isinstance(point, (tuple, list)):
+        logger.warning(
+            f"Point must be a tuple or list, got {type(point).__name__}. "
+            f"Example: (37.7749, -122.4194)"
+        )
+        return False
+
+    if len(point) != 2:
+        logger.warning(
+            f"Point must have exactly 2 elements (lat, lon), got {len(point)}. "
+            f"Example: (37.7749, -122.4194)"
+        )
+        return False
+
+    # Validate numeric values
+    try:
+        lat, lon = float(point[0]), float(point[1])
+    except (ValueError, TypeError):
+        logger.warning(
+            f"Point coordinates must be numeric. Got: {point}. "
+            f"Example: (37.7749, -122.4194)"
+        )
+        return False
+
+    # Validate coordinate ranges
+    if not (-90.0 <= lat <= 90.0):
+        logger.warning(f"Latitude must be between -90 and 90 degrees. Got: {lat}")
+        return False
+
+    if not (-180.0 <= lon <= 180.0):
+        logger.warning(f"Longitude must be between -180 and 180 degrees. Got: {lon}")
+        return False
+
+    return True
+
+
+def _validate_points_list(points: Any) -> bool:
+    """
+    Validate a list of (lat, lon) point tuples.
+
+    Parameters
+    ----------
+    points : Any
+        List of points to validate.
+
+    Returns
+    -------
+    bool
+        True if all points are valid, False otherwise
+    """
+    if not isinstance(points, list):
+        logger.warning(
+            f"'points' must be a list of (lat, lon) tuples, got {type(points).__name__}. "
+            f"Example: {{'points': [(37.7749, -122.4194), (34.0522, -118.2437)]}}"
+        )
+        return False
+
+    if len(points) == 0:
+        logger.warning(
+            "Empty points list is not valid. Please provide at least one (lat, lon) tuple. "
+            f"Example: {{'points': [(37.7749, -122.4194)]}}"
+        )
+        return False
+
+    # Validate each point
+    invalid_points = []
+    for i, point in enumerate(points):
+        if not _validate_single_point(point):
+            invalid_points.append(f"index {i}: {point}")
+
+    if invalid_points:
+        logger.warning(
+            f"Found {len(invalid_points)} invalid points: {', '.join(invalid_points)}"
+        )
+        return False
+
+    return True
+
+
 def _validate_dict_param(value: dict) -> bool:
     """
     Validate a dict parameter for the Clip processor.
 
-    Dict parameters enable advanced clipping features like separated mode.
-    Required structure: {"boundaries": [...], "separated": bool}
+    Dict parameters enable advanced clipping features like separated mode
+    for both boundaries and points.
 
     Parameters
     ----------
     value : dict
-        Dictionary with clipping configuration
+        Dictionary with clipping configuration. Must contain either:
+        - {"boundaries": [...], "separated": bool}
+        - {"points": [(lat, lon), ...], "separated": bool}
 
     Returns
     -------
@@ -328,18 +424,73 @@ def _validate_dict_param(value: dict) -> bool:
     True
     >>> _validate_dict_param({"boundaries": ["CA"]})  # separated defaults to False
     True
+    >>> _validate_dict_param({"points": [(37.7749, -122.4194)], "separated": True})
+    True
     """
     logger.debug("_validate_dict_param called with: %s", value)
 
-    # Check for required 'boundaries' key
-    if "boundaries" not in value:
+    # Check for required key - either 'boundaries' or 'points'
+    has_boundaries = "boundaries" in value
+    has_points = "points" in value
+
+    if not has_boundaries and not has_points:
         msg = (
-            "Dict parameter for Clip must contain 'boundaries' key with a list of boundary names. "
-            "Example: {'boundaries': ['CA', 'OR', 'WA'], 'separated': True}"
+            "Dict parameter for Clip must contain 'boundaries' or 'points' key. "
+            "Examples:\n"
+            "  {'boundaries': ['CA', 'OR', 'WA'], 'separated': True}\n"
+            "  {'points': [(37.7749, -122.4194), (34.0522, -118.2437)], 'separated': True}"
         )
         logger.warning(msg)
         return False
 
+    if has_boundaries and has_points:
+        msg = (
+            "Dict parameter for Clip cannot contain both 'boundaries' and 'points' keys. "
+            "Please use only one."
+        )
+        logger.warning(msg)
+        return False
+
+    # Validate 'separated' if present (common to both modes)
+    if "separated" in value:
+        separated = value["separated"]
+        if not isinstance(separated, bool):
+            msg = f"'separated' must be a boolean (True or False), got {type(separated).__name__}."
+            logger.warning(msg)
+            return False
+
+    # Handle 'points' mode
+    if has_points:
+        points = value["points"]
+
+        # Validate points list
+        if not _validate_points_list(points):
+            return False
+
+        # Warn if only one point is provided with separated=True
+        if value.get("separated", False) and len(points) == 1:
+            msg = (
+                "Using 'separated': True with a single point has no effect. "
+                "Consider removing the 'separated' option or adding more points."
+            )
+            logger.warning(msg)
+            # Still valid, just a warning
+
+        # Check for unknown keys
+        known_keys = {"points", "separated", "persist"}
+        unknown_keys = set(value.keys()) - known_keys
+        if unknown_keys:
+            msg = (
+                f"Unknown keys in clip dict parameter: {unknown_keys}. "
+                f"Valid keys for points mode are: {known_keys}"
+            )
+            logger.warning(msg)
+            # Still valid, just a warning
+
+        logger.debug("Points dict parameter validated successfully")
+        return True
+
+    # Handle 'boundaries' mode
     boundaries = value["boundaries"]
 
     # Validate boundaries is a list
@@ -376,7 +527,7 @@ def _validate_dict_param(value: dict) -> bool:
         # Still valid, just a warning
 
     # Check for unknown keys
-    known_keys = {"boundaries", "separated"}
+    known_keys = {"boundaries", "separated", "persist"}
     unknown_keys = set(value.keys()) - known_keys
     if unknown_keys:
         msg = (

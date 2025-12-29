@@ -15,7 +15,6 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 )
 from climakitae.util.utils import read_csv_file
 
-
 # Module logger
 logger = logging.getLogger(__name__)
 
