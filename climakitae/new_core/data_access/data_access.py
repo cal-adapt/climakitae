@@ -27,6 +27,7 @@ import logging
 import threading
 from typing import Any, Dict, Optional
 
+import dask
 import geopandas as gpd
 import intake
 import intake_esm
@@ -36,8 +37,8 @@ import xarray as xr
 from climakitae.core.constants import (
     CATALOG_BOUNDARY,
     CATALOG_CADCAT,
-    CATALOG_REN_ENERGY_GEN,
     CATALOG_HDP,
+    CATALOG_REN_ENERGY_GEN,
     UNSET,
 )
 
@@ -46,9 +47,9 @@ logger = logging.getLogger(__name__)
 from climakitae.core.paths import (
     BOUNDARY_CATALOG_URL,
     DATA_CATALOG_URL,
+    HDP_CATALOG_URL,
     RENEWABLES_CATALOG_URL,
     STATIONS_CSV_PATH,
-    HDP_CATALOG_URL,
 )
 from climakitae.new_core.data_access.boundaries import Boundaries
 from climakitae.util.utils import read_csv_file
@@ -486,19 +487,41 @@ class DataCatalog(dict):
         logger.debug("Querying %s catalog with query: %s", effective_key, search_query)
 
         logger.debug("Executing catalog search")
-        result = (
-            self[effective_key]
-            .search(**search_query)
-            .to_dataset_dict(
-                # Use consolidated=None for compatibility with both Zarr v2 and v3.
-                # - True: requires consolidated metadata (fails on Zarr v3 without it)
-                # - False: always reads metadata from individual arrays
-                # - None: uses consolidated if available, falls back to individual reads
-                zarr_kwargs={"consolidated": None},
-                storage_options={"anon": True},
-                progressbar=False,
+        # Detailed query log (was printed previously)
+        logger.debug("Querying %s catalog with query: %s", effective_key, query)
+
+        # Check if a distributed client is active - if so, force synchronous scheduler
+        # during data loading to prevent intake_esm from sending open_dataset tasks
+        # to the cluster (workers may not have data access). The data remains lazy
+        # (dask arrays) - we're only forcing the metadata/catalog operations to run locally.
+        scheduler_override = None
+        try:
+            from dask.distributed import get_client
+
+            client = get_client()
+            if client.status == "running":
+                scheduler_override = "synchronous"
+                logger.debug(
+                    "Distributed client detected, using synchronous scheduler for data loading"
+                )
+        except (ImportError, ValueError):
+            # No distributed client active, use default scheduler
+            pass
+
+        with dask.config.set(scheduler=scheduler_override):
+            result = (
+                self[effective_key]
+                .search(**query)
+                .to_dataset_dict(
+                    # Use consolidated=None for compatibility with both Zarr v2 and v3.
+                    # - True: requires consolidated metadata (fails on Zarr v3 without it)
+                    # - False: always reads metadata from individual arrays
+                    # - None: uses consolidated if available, falls back to individual reads
+                    zarr_kwargs={"consolidated": None},
+                    storage_options={"anon": True},
+                    progressbar=False,
+                )
             )
-        )
         logger.info("Retrieved %d dataset(s) from catalog", len(result))
         logger.debug("Retrieved datasets: %s", list(result.keys()))
 
