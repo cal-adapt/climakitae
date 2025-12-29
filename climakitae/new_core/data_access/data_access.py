@@ -477,20 +477,18 @@ class DataCatalog(dict):
 
         logger.info("Querying %s catalog", effective_key)
         logger.debug("Query parameters: %s", query)
-        logger.debug("Querying %s catalog with query: %s", effective_key, query)
-        # if any(isinstance(v, list) for v in query.values()):
-        #     # query contains a list, which is not supported by intake
-        #     for key, value in query.items():
-        #         if isinstance(value, list):
-        #             # Convert list to a comma-separated string
-        #             query[key] = ",".join(value)
+
+        # Strip internal metadata keys that shouldn't be passed to catalog search
+        # These are used internally for derived variable handling
+        internal_keys = {"_derived_variable", "_source_variables", "_catalog_key"}
+        search_query = {k: v for k, v in query.items() if k not in internal_keys}
+
+        logger.debug("Querying %s catalog with query: %s", effective_key, search_query)
 
         logger.debug("Executing catalog search")
-        # Detailed query log (was printed previously)
-        logger.debug("Querying %s catalog with query: %s", effective_key, query)
         result = (
             self[effective_key]
-            .search(**query)
+            .search(**search_query)
             .to_dataset_dict(
                 # Use consolidated=None for compatibility with both Zarr v2 and v3.
                 # - True: requires consolidated metadata (fails on Zarr v3 without it)
