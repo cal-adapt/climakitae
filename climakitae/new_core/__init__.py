@@ -26,12 +26,13 @@ Example
 
 Notes
 -----
-This module initializes boundary data lookups on import to enable the
-``show_boundaries()`` functionality. This may add a small delay to the
-initial import.
+This module provides lazy-loaded access to boundary data. The DataCatalog
+singleton is created on first access, and boundary data is only loaded
+when explicitly requested (e.g., via ``show_boundary_options()``).
 """
 
 from .data_access.data_access import DataCatalog
 
+# Lazy singleton access - DataCatalog is created on first use
+# Boundary data is NOT loaded at import time for performance
 CATALOG = DataCatalog()
-CATALOG.list_clip_boundaries()
