@@ -22,6 +22,7 @@ Example Usage:
 """
 
 import copy
+import functools
 import logging
 import sys
 import traceback
@@ -34,6 +35,43 @@ from climakitae.util.utils import read_csv_file
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+
+def _with_info_verbosity(method):
+    """Decorator that temporarily sets verbosity to INFO for show_* methods.
+
+    This ensures that show_* methods always produce visible output regardless
+    of the current verbosity setting. The original verbosity is restored after
+    the method completes.
+
+    Parameters
+    ----------
+    method : callable
+        The method to wrap.
+
+    Returns
+    -------
+    callable
+        The wrapped method.
+
+    """
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        original_verbosity = self._verbosity
+        try:
+            # Temporarily set to INFO level (0) if currently more restrictive
+            if original_verbosity < 0:
+                self._verbosity = 0
+                self._configure_logging()
+            return method(self, *args, **kwargs)
+        finally:
+            # Restore original verbosity
+            if original_verbosity != self._verbosity:
+                self._verbosity = original_verbosity
+                self._configure_logging()
+
+    return wrapper
 
 
 class ClimateData:
@@ -791,6 +829,7 @@ class ClimateData:
         return True
 
     # Query inspection methods
+    @_with_info_verbosity
     def show_query(self) -> None:
         """Display the current query configuration."""
         msg = "Current Query:"
@@ -810,32 +849,39 @@ class ClimateData:
                 logger.debug("Failed to print %s to stdout", key)
 
     # Option exploration methods
+    @_with_info_verbosity
     def show_catalog_options(self) -> None:
         """Display available catalog options."""
         self._show_options("catalog", "catalog options (Cloud data collections)")
 
+    @_with_info_verbosity
     def show_installation_options(self) -> None:
         """Display available installation options."""
         self._show_options(
             "installation", "installation options (Renewable energy generation types)"
         )
 
+    @_with_info_verbosity
     def show_activity_id_options(self) -> None:
         """Display available activity ID options."""
         self._show_options("activity_id", "activity_id options (Downscaling methods)")
 
+    @_with_info_verbosity
     def show_institution_id_options(self) -> None:
         """Display available institution ID options."""
         self._show_options("institution_id", "institution_id options (Data producers)")
 
+    @_with_info_verbosity
     def show_source_id_options(self) -> None:
         """Display available source ID options."""
         self._show_options("source_id", "source_id options (Climate model simulations)")
 
+    @_with_info_verbosity
     def show_experiment_id_options(self) -> None:
         """Display available experiment ID options."""
         self._show_options("experiment_id", "experiment_id options (Simulation runs)")
 
+    @_with_info_verbosity
     def show_station_id_options(self, limit_per_group: Optional[int] = None) -> None:
         """Display available station ID options.
 
@@ -850,18 +896,22 @@ class ClimateData:
             limit_per_group=limit_per_group,
         )
 
+    @_with_info_verbosity
     def show_network_id_options(self) -> None:
         """Display available network ID options."""
         self._show_options("network_id", "network_id options (Weather network names)")
 
+    @_with_info_verbosity
     def show_table_id_options(self) -> None:
         """Display available table ID options (Temporal resolutions)."""
         self._show_options("table_id", "table_id options (Temporal resolutions)")
 
+    @_with_info_verbosity
     def show_grid_label_options(self) -> None:
         """Display available grid label options (Spatial resolutions)."""
         self._show_options("grid_label", "grid_label options (Spatial resolutions)")
 
+    @_with_info_verbosity
     def show_variable_options(self) -> None:
         """Display available variable options."""
         current_query = {k: v for k, v in self._query.items() if v is not UNSET}
@@ -873,6 +923,7 @@ class ClimateData:
 
         self._show_options("variable_id", msg)
 
+    @_with_info_verbosity
     def show_processors(self) -> None:
         """Display available data processors."""
 
@@ -912,6 +963,7 @@ class ClimateData:
         except Exception as e:
             logger.error("Error retrieving processors: %s", e, exc_info=True)
 
+    @_with_info_verbosity
     def show_station_options(self) -> None:
         """Display available station options for data retrieval."""
         msg = "Stations (Available weather stations for localization):"
@@ -935,6 +987,7 @@ class ClimateData:
         except Exception as e:
             logger.error("Error retrieving stations: %s", e, exc_info=True)
 
+    @_with_info_verbosity
     def show_boundary_options(self, boundary_type=UNSET) -> None:
         """Display available boundaries for spatial queries.
 
@@ -967,6 +1020,7 @@ class ClimateData:
         except Exception as e:
             logger.error("Error retrieving boundaries: %s", e, exc_info=True)
 
+    @_with_info_verbosity
     def show_all_options(self) -> None:
         """Display all available options for exploration."""
         data_title = "CAL ADAPT DATA -- ALL AVAILABLE OPTIONS USING CLIMAKITAE"
