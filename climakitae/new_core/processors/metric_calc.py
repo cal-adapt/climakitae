@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import xarray as xr
+from tqdm.auto import tqdm
 
 from climakitae.core.constants import (
     _NEW_ATTRS_KEY,
@@ -596,7 +597,15 @@ class MetricCalc(DataProcessor):
         # Process each batch sequentially and collect results
         batch_results = []
 
-        for batch_idx, batch_indices in enumerate(sim_batches):
+        # Use tqdm progress bar when logger is too quiet to show INFO messages
+        use_tqdm = logger.getEffectiveLevel() > logging.INFO
+        batch_iter = (
+            tqdm(enumerate(sim_batches), total=n_batches, desc="Processing batches")
+            if use_tqdm
+            else enumerate(sim_batches)
+        )
+
+        for batch_idx, batch_indices in batch_iter:
             logger.info(
                 "Batch %d/%d: simulations %d-%d",
                 batch_idx + 1,
@@ -917,7 +926,15 @@ class MetricCalc(DataProcessor):
 
         step_start = time_module.time()
 
-        for i in range(n_batches):
+        # Use tqdm progress bar when logger is too quiet to show INFO messages
+        use_tqdm = logger.getEffectiveLevel() > logging.INFO
+        spatial_iter = (
+            tqdm(range(n_batches), desc="Spatial chunks")
+            if use_tqdm
+            else range(n_batches)
+        )
+
+        for i in spatial_iter:
             start_idx = i * batch_size
             end_idx = min((i + 1) * batch_size, n_spatial)
 
@@ -1177,9 +1194,9 @@ class MetricCalc(DataProcessor):
             Final result dataset with return_value and p_values
         """
         if p_vals is not None:
-            result = xr.Dataset({"return_value": ret_vals, "p_values": p_vals})
+            result = xr.Dataset({"return_values": ret_vals, "p_values": p_vals})
         else:
-            result = xr.Dataset({"return_value": ret_vals})
+            result = xr.Dataset({"return_values": ret_vals})
 
         # Add attributes
         result.attrs.update(
