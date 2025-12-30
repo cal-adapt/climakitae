@@ -12,6 +12,8 @@ humidity
     Relative humidity, dew point, and specific humidity.
 temperature
     Heat index, wind chill, and degree days.
+compound_extremes
+    Compound extreme event indices (CHTDEI, CHTREI).
 
 Notes
 -----
@@ -22,6 +24,11 @@ their own function with the same variable name.
 """
 
 # Import all builtin modules to trigger registration
-from climakitae.new_core.derived_variables.builtin import humidity, temperature, wind
+from climakitae.new_core.derived_variables.builtin import (
+    compound_extremes,
+    humidity,
+    temperature,
+    wind,
+)
 
-__all__ = ["wind", "humidity", "temperature"]
+__all__ = ["wind", "humidity", "temperature", "compound_extremes"]
