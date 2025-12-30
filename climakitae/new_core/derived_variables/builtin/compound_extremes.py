@@ -23,7 +23,10 @@ import numpy as np
 import xarray as xr
 from scipy import stats
 
-from climakitae.new_core.derived_variables.registry import register_derived
+from climakitae.new_core.derived_variables.registry import (
+    preserve_spatial_metadata,
+    register_derived,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -212,15 +215,19 @@ def calc_chtdei_chtrei(ds):
     # Detect variable names (handle both WRF and LOCA naming)
     if "t2max" in ds:
         tmax = ds.t2max
+        tmax_name = "t2max"
     elif "tasmax" in ds:
         tmax = ds.tasmax
+        tmax_name = "tasmax"
     else:
         raise ValueError("Dataset must contain 't2max' or 'tasmax' variable")
 
     if "prec" in ds:
         precip = ds.prec
+        precip_name = "prec"
     elif "pr" in ds:
         precip = ds.pr
+        precip_name = "pr"
     else:
         raise ValueError("Dataset must contain 'prec' or 'pr' variable")
 
@@ -361,5 +368,9 @@ def calc_chtdei_chtrei(ds):
         "derived_by": "climakitae (based on Li et al. 2023)",
         "reference": "https://doi.org/10.1038/s41612-023-00413-3",
     }
+
+    # Preserve CRS/grid_mapping and related spatial metadata via registry helper
+    preserve_spatial_metadata(ds, "chtdei", tmax_name)
+    preserve_spatial_metadata(ds, "chtrei", precip_name)
 
     return ds
