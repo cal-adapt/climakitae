@@ -388,7 +388,7 @@ class TestClimateDataOptionMethods:
             self.climate_data.show_catalog_options()
 
         mock_show.assert_called_once_with(
-            "catalog", "catalog options (Cloud data collections)"
+            "catalog", "catalog options (Cloud data collections)", limit_per_group=None
         )
 
     @pytest.mark.parametrize(
@@ -545,6 +545,7 @@ class TestClimateDataAdditionalShowMethods:
             mock_show.assert_called_once_with(
                 "installation",
                 "installation options (Renewable energy generation types)",
+                limit_per_group=None,
             )
 
     def test_show_activity_id_options(self):
@@ -552,7 +553,7 @@ class TestClimateDataAdditionalShowMethods:
         with patch.object(self.climate_data, "_show_options") as mock_show:
             self.climate_data.show_activity_id_options()
             mock_show.assert_called_once_with(
-                "activity_id", "activity_id options (Downscaling methods)"
+                "activity_id", "activity_id options (Downscaling methods)", limit_per_group=None
             )
 
     def test_show_institution_id_options(self):
@@ -560,7 +561,7 @@ class TestClimateDataAdditionalShowMethods:
         with patch.object(self.climate_data, "_show_options") as mock_show:
             self.climate_data.show_institution_id_options()
             mock_show.assert_called_once_with(
-                "institution_id", "institution_id options (Data producers)"
+                "institution_id", "institution_id options (Data producers)", limit_per_group=None
             )
 
     def test_show_source_id_options(self):
@@ -568,7 +569,7 @@ class TestClimateDataAdditionalShowMethods:
         with patch.object(self.climate_data, "_show_options") as mock_show:
             self.climate_data.show_source_id_options()
             mock_show.assert_called_once_with(
-                "source_id", "source_id options (Climate model simulations)"
+                "source_id", "source_id options (Climate model simulations)", limit_per_group=None
             )
 
     def test_show_experiment_id_options(self):
@@ -576,7 +577,7 @@ class TestClimateDataAdditionalShowMethods:
         with patch.object(self.climate_data, "_show_options") as mock_show:
             self.climate_data.show_experiment_id_options()
             mock_show.assert_called_once_with(
-                "experiment_id", "experiment_id options (Simulation runs)"
+                "experiment_id", "experiment_id options (Simulation runs)", limit_per_group=None
             )
 
     def test_show_table_id_options(self):
@@ -584,7 +585,7 @@ class TestClimateDataAdditionalShowMethods:
         with patch.object(self.climate_data, "_show_options") as mock_show:
             self.climate_data.show_table_id_options()
             mock_show.assert_called_once_with(
-                "table_id", "table_id options (Temporal resolutions)"
+                "table_id", "table_id options (Temporal resolutions)", limit_per_group=None
             )
 
     def test_show_grid_label_options(self):
@@ -592,14 +593,14 @@ class TestClimateDataAdditionalShowMethods:
         with patch.object(self.climate_data, "_show_options") as mock_show:
             self.climate_data.show_grid_label_options()
             mock_show.assert_called_once_with(
-                "grid_label", "grid_label options (Spatial resolutions)"
+                "grid_label", "grid_label options (Spatial resolutions)", limit_per_group=None
             )
 
     def test_show_variable_options(self):
         """Test show_variable_options method."""
         with patch.object(self.climate_data, "_show_options") as mock_show:
             self.climate_data.show_variable_options()
-            mock_show.assert_called_once_with("variable_id", "Variables")
+            mock_show.assert_called_once_with("variable_id", "Variables", limit_per_group=None)
 
     def test_show_station_options(self):
         """Test show_station_options method."""
@@ -1035,5 +1036,5 @@ class TestClimateDataShowOptionsExceptionHandling:
             self.climate_data.show_variable_options()
 
         mock_show.assert_called_once_with(
-            "variable_id", "Variables (constrained by current query):"
+            "variable_id", "Variables (constrained by current query):", limit_per_group=None
         )
