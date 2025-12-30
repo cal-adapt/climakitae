@@ -843,70 +843,92 @@ class ClimateData:
     @_with_info_verbosity
     def show_catalog_options(self, show_n: Optional[int] = None) -> None:
         """Display available catalog options.
-        
-        Parameters
-        ----------
-        show_n : int, optional
-            Maximum number of options to display. If None (default), shows all options.
-        """
-        self._show_options("catalog", "catalog options (Cloud data collections)", limit_per_group=show_n)
 
-    @_with_info_verbosity
-    def show_installation_options(self, show_n: Optional[int] = None) -> None:
-        """Display available installation options.
-        
         Parameters
         ----------
         show_n : int, optional
             Maximum number of options to display. If None (default), shows all options.
         """
         self._show_options(
-            "installation", "installation options (Renewable energy generation types)", limit_per_group=show_n
+            "catalog",
+            "catalog options (Cloud data collections)",
+            limit_per_group=show_n,
+        )
+
+    @_with_info_verbosity
+    def show_installation_options(self, show_n: Optional[int] = None) -> None:
+        """Display available installation options.
+
+        Parameters
+        ----------
+        show_n : int, optional
+            Maximum number of options to display. If None (default), shows all options.
+        """
+        self._show_options(
+            "installation",
+            "installation options (Renewable energy generation types)",
+            limit_per_group=show_n,
         )
 
     @_with_info_verbosity
     def show_activity_id_options(self, show_n: Optional[int] = None) -> None:
         """Display available activity ID options.
-        
+
         Parameters
         ----------
         show_n : int, optional
             Maximum number of options to display. If None (default), shows all options.
         """
-        self._show_options("activity_id", "activity_id options (Downscaling methods)", limit_per_group=show_n)
+        self._show_options(
+            "activity_id",
+            "activity_id options (Downscaling methods)",
+            limit_per_group=show_n,
+        )
 
     @_with_info_verbosity
     def show_institution_id_options(self, show_n: Optional[int] = None) -> None:
         """Display available institution ID options.
-        
+
         Parameters
         ----------
         show_n : int, optional
             Maximum number of options to display. If None (default), shows all options.
         """
-        self._show_options("institution_id", "institution_id options (Data producers)", limit_per_group=show_n)
+        self._show_options(
+            "institution_id",
+            "institution_id options (Data producers)",
+            limit_per_group=show_n,
+        )
 
     @_with_info_verbosity
     def show_source_id_options(self, show_n: Optional[int] = None) -> None:
         """Display available source ID options.
-        
+
         Parameters
         ----------
         show_n : int, optional
             Maximum number of options to display. If None (default), shows all options.
         """
-        self._show_options("source_id", "source_id options (Climate model simulations)", limit_per_group=show_n)
+        self._show_options(
+            "source_id",
+            "source_id options (Climate model simulations)",
+            limit_per_group=show_n,
+        )
 
     @_with_info_verbosity
     def show_experiment_id_options(self, show_n: Optional[int] = None) -> None:
         """Display available experiment ID options.
-        
+
         Parameters
         ----------
         show_n : int, optional
             Maximum number of options to display. If None (default), shows all options.
         """
-        self._show_options("experiment_id", "experiment_id options (Simulation runs)", limit_per_group=show_n)
+        self._show_options(
+            "experiment_id",
+            "experiment_id options (Simulation runs)",
+            limit_per_group=show_n,
+        )
 
     @_with_info_verbosity
     def show_station_id_options(self, show_n: Optional[int] = None) -> None:
@@ -926,40 +948,52 @@ class ClimateData:
     @_with_info_verbosity
     def show_network_id_options(self, show_n: Optional[int] = None) -> None:
         """Display available network ID options.
-        
+
         Parameters
         ----------
         show_n : int, optional
             Maximum number of options to display. If None (default), shows all options.
         """
-        self._show_options("network_id", "network_id options (Weather network names)", limit_per_group=show_n)
+        self._show_options(
+            "network_id",
+            "network_id options (Weather network names)",
+            limit_per_group=show_n,
+        )
 
     @_with_info_verbosity
     def show_table_id_options(self, show_n: Optional[int] = None) -> None:
         """Display available table ID options (Temporal resolutions).
-        
+
         Parameters
         ----------
         show_n : int, optional
             Maximum number of options to display. If None (default), shows all options.
         """
-        self._show_options("table_id", "table_id options (Temporal resolutions)", limit_per_group=show_n)
+        self._show_options(
+            "table_id",
+            "table_id options (Temporal resolutions)",
+            limit_per_group=show_n,
+        )
 
     @_with_info_verbosity
     def show_grid_label_options(self, show_n: Optional[int] = None) -> None:
         """Display available grid label options (Spatial resolutions).
-        
+
         Parameters
         ----------
         show_n : int, optional
             Maximum number of options to display. If None (default), shows all options.
         """
-        self._show_options("grid_label", "grid_label options (Spatial resolutions)", limit_per_group=show_n)
+        self._show_options(
+            "grid_label",
+            "grid_label options (Spatial resolutions)",
+            limit_per_group=show_n,
+        )
 
     @_with_info_verbosity
     def show_variable_options(self, show_n: Optional[int] = None) -> None:
         """Display available variable options.
-        
+
         Parameters
         ----------
         show_n : int, optional
@@ -977,7 +1011,7 @@ class ClimateData:
     @_with_info_verbosity
     def show_processors(self, show_n: Optional[int] = None) -> None:
         """Display available data processors.
-        
+
         Parameters
         ----------
         show_n : int, optional
@@ -1023,7 +1057,7 @@ class ClimateData:
     @_with_info_verbosity
     def show_station_options(self, show_n: Optional[int] = None) -> None:
         """Display available station options for data retrieval.
-        
+
         Parameters
         ----------
         show_n : int, optional
@@ -1056,7 +1090,9 @@ class ClimateData:
             logger.error("Error retrieving stations: %s", e, exc_info=True)
 
     @_with_info_verbosity
-    def show_boundary_options(self, boundary_type=UNSET, show_n: Optional[int] = None) -> None:
+    def show_boundary_options(
+        self, boundary_type=UNSET, show_n: Optional[int] = None
+    ) -> None:
         """Display available boundaries for spatial queries.
 
         Parameters
@@ -1090,7 +1126,9 @@ class ClimateData:
 
                 # Warn user of truncation if show_n was set
                 if limit < total_count:
-                    truncation_msg = f"Showing {limit} of {total_count} total boundaries"
+                    truncation_msg = (
+                        f"Showing {limit} of {total_count} total boundaries"
+                    )
                     logger.info("%s", truncation_msg)
 
                 for boundary in display_boundaries:
@@ -1148,7 +1186,9 @@ class ClimateData:
                 if limit is not None:
                     method(show_n=limit)
                     # Let users know how to see all options
-                    hint_msg = f"Use {method_name}() to see all {section_title.lower()}."
+                    hint_msg = (
+                        f"Use {method_name}() to see all {section_title.lower()}."
+                    )
                     logger.info("%s", hint_msg)
                 else:
                     method()

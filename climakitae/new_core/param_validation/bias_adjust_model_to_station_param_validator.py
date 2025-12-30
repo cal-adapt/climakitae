@@ -561,20 +561,12 @@ def _validate_timescale_requirement(query: Dict[str, Any]) -> bool:
     # Check if table_id is hourly (1hr or hr)
     if table_id not in ["1hr", "hr"]:
         msg = (
-            "\\n\\n"
-            "╔══════════════════════════════════════════════════════════════════════╗\\n"
-            "║  Station Bias Correction Error: Hourly Data Required                 ║\\n"
-            "╠══════════════════════════════════════════════════════════════════════╣\\n"
-            "║  You requested: table_id='%s'                                          \\n"
-            "║  Required:      table_id='1hr'                                       ║\\n"
-            "║                                                                      ║\\n"
-            "║  Why? HadISD station observations are recorded hourly. Bias         ║\\n"
-            "║  correction can only match hourly model data to hourly observations.║\\n"
-            "║                                                                      ║\\n"
-            "║  Fix: Change .table_id('%s') to .table_id('1hr')                       \\n"
-            "╚══════════════════════════════════════════════════════════════════════╝\\n"
+            f"\n\nStation bias correction requires hourly data (table_id='1hr' or '1hr'), "
+            f"but got table_id='{table_id}'. HadISD station observations are recorded hourly, "
+            f"and bias correction can only match hourly model data to hourly observations. "
+            f"Please use .table_id('1hr') in your query.\n\n"
         )
-        logger.error(msg, table_id, table_id)
+        logger.warning(msg)
         return False
 
     logger.debug("Timescale requirement validation passed: hourly data")
@@ -607,10 +599,10 @@ def _validate_downscaling_method_requirement(query: Dict[str, Any]) -> bool:
     # Check if activity_id is WRF (Dynamical downscaling)
     if activity_id != "WRF":
         msg = (
-            f"Station bias correction only supports WRF dynamical downscaling "
+            f"\n\nStation bias correction only supports WRF dynamical downscaling "
             f"(activity_id='WRF'), but got activity_id='{activity_id}'. Bias correction "
             f"parameters are calibrated for WRF data only. Please set activity_id='WRF' "
-            f"or use .activity_id('WRF') in your query."
+            f"or use .activity_id('WRF') in your query.\n\n"
         )
         logger.warning(msg)
         return False
@@ -645,9 +637,9 @@ def _validate_resolution_requirement(query: Dict[str, Any]) -> bool:
     # Check if grid_label is 3km (d03)
     if grid_label == "d03":
         msg = (
-            "Station bias correction does not support 3km resolution (grid_label='d03'). "
+            "\n\nStation bias correction does not support 3km resolution (grid_label='d03'). "
             "Only 9km (grid_label='d02') and 45km (grid_label='d01') resolutions are "
-            "supported. Please use grid_label='d02' (9km) or grid_label='d01' (45km)."
+            "supported. Please use grid_label='d02' (9km) or grid_label='d01' (45km).\n\n"
         )
         logger.warning(msg)
         return False
@@ -700,9 +692,9 @@ def _validate_scenario_resolution_compatibility(query: Dict[str, Any]) -> bool:
             scenario_names = {"ssp245": "SSP 2-4.5", "ssp585": "SSP 5-8.5"}
             invalid_names = [scenario_names.get(s, s) for s in invalid_scenarios]
             msg = (
-                f"3km resolution (grid_label='d03') is not compatible with "
+                f"\n\n3km resolution (grid_label='d03') is not compatible with "
                 f"{', '.join(invalid_names)} scenario(s). Please use 9km (grid_label='d02') "
-                f"or 45km (grid_label='d01') resolution for these scenarios."
+                f"or 45km (grid_label='d01') resolution for these scenarios.\n\n"
             )
             logger.warning(msg)
             return False
@@ -731,9 +723,9 @@ def _validate_institution_id_requirement(query: Dict[str, Any]) -> bool:
 
     if institution_id != "UCLA":
         msg = (
-            "Station bias correction requires 'institution_id' to be set to 'UCLA' in the query. "
+            "\n\nStation bias correction requires 'institution_id' to be set to 'UCLA' in the query. "
             "Please specify an institution_id using .institution_id('UCLA') "
-            "in your query."
+            "in your query.\n\n"
         )
         logger.warning(msg)
         return False
@@ -752,8 +744,8 @@ def _validate_catalog_requirement(query: Dict[str, Any]) -> bool:
 
     if catalog is None:
         msg = (
-            "Station bias correction requires 'catalog' to be set to 'cadcat' in the query. "
-            "Please specify .catalog('cadcat') in your query."
+            "\n\nStation bias correction requires 'catalog' to be set to 'cadcat' in the query. "
+            "Please specify .catalog('cadcat') in your query.\n\n"
         )
         logger.warning(msg)
         return False
@@ -771,8 +763,8 @@ def _validate_catalog_requirement(query: Dict[str, Any]) -> bool:
     invalid = [c for c in catalogs if c != "cadcat"]
     if invalid:
         msg = (
-            f"Station bias correction requires 'catalog' == 'cadcat', but got: "
-            f"{', '.join(map(str, set(invalid)))}. Please set .catalog('cadcat')."
+            f"\n\nStation bias correction requires 'catalog' == 'cadcat', but got: "
+            f"{', '.join(map(str, set(invalid)))}. Please set .catalog('cadcat').\n\n"
         )
         logger.warning(msg)
         return False
