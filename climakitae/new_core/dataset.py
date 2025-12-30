@@ -243,7 +243,9 @@ class Dataset:
 
                 # Execute the current step
                 # context is updated in place by the step
+                logger.debug("BEFORE:\n%s", current_result)
                 current_result = step.execute(current_result, context)
+                logger.debug("AFTER:\n%s", current_result)
 
                 if current_result is None:
                     logger.warning(
