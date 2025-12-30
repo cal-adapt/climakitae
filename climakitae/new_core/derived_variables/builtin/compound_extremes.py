@@ -243,11 +243,11 @@ def calc_chtdei_chtrei(ds):
 
     # Step 2: Group by summer and calculate X and Y using xarray groupby
     logger.debug("Grouping by summer seasons")
-    
+
     # X: Total number of compound event days per year (using groupby)
     chtde_X = chtde_days.groupby("time.year").sum(dim="time")
     chtre_X = chtre_days.groupby("time.year").sum(dim="time")
-    
+
     # Y: Maximum consecutive days (max duration) per year
     # Need to compute this using apply along time dimension for each year
     def max_consecutive_duration(group):
@@ -260,63 +260,63 @@ def calc_chtdei_chtrei(ds):
             dask="parallelized",
             output_dtypes=[float],
         )
-    
+
     logger.debug("Calculating maximum consecutive day durations")
     chtde_Y = chtde_days.groupby("time.year").apply(max_consecutive_duration)
     chtre_Y = chtre_days.groupby("time.year").apply(max_consecutive_duration)
 
-    # Step 3: Calculate severity indices using copulas  
+    # Step 3: Calculate severity indices using copulas
     logger.debug("Fitting copulas and calculating severity indices")
-    
+
     # Define function to compute copula severity at each location
     def compute_chtdei(x, y):
         """Compute CHTDEI using Clayton copula for a single location time series."""
-        x = np.array(x)
-        y = np.array(y)
-        
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
+
         # Skip if no events
         if np.all(x == 0) and np.all(y == 0):
-            return np.full_like(x, np.nan)
-        
+            return np.full(x.shape, np.nan, dtype=float)
+
         # Calculate marginal CDFs
         u = _gringorten_cdf(x)
         v = _gringorten_cdf(y)
-        
+
         # Fit Clayton copula
         theta = _fit_clayton_copula(u, v)
-        
+
         # Calculate PI for each year
-        result = np.zeros_like(x, dtype=float)
+        result = np.full(x.shape, np.nan, dtype=float)
         for t in range(len(x)):
             C = _clayton_copula(u[t], v[t], theta)
             result[t] = 1 - u[t] - v[t] + C
-        
+
         return result
-    
+
     def compute_chtrei(x, y):
         """Compute CHTREI using Gumbel copula for a single location time series."""
-        x = np.array(x)
-        y = np.array(y)
-        
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
+
         # Skip if no events
         if np.all(x == 0) and np.all(y == 0):
-            return np.full_like(x, np.nan)
-        
+            return np.full(x.shape, np.nan, dtype=float)
+
         # Calculate marginal CDFs
         u = _gringorten_cdf(x)
         v = _gringorten_cdf(y)
-        
+
         # Fit Gumbel copula
         theta = _fit_gumbel_copula(u, v)
-        
+
         # Calculate PI for each year
-        result = np.zeros_like(x, dtype=float)
+        result = np.full(x.shape, np.nan, dtype=float)
         for t in range(len(x)):
             C = _gumbel_copula(u[t], v[t], theta)
             result[t] = 1 - u[t] - v[t] + C
-        
+
         return result
-    
+
     # Apply copula calculation using xarray's apply_ufunc
     chtdei = xr.apply_ufunc(
         compute_chtdei,
@@ -329,7 +329,7 @@ def calc_chtdei_chtrei(ds):
         output_dtypes=[float],
         dask_gufunc_kwargs={"allow_rechunk": True},
     )
-    
+
     chtrei = xr.apply_ufunc(
         compute_chtrei,
         chtre_X,
@@ -341,7 +341,7 @@ def calc_chtdei_chtrei(ds):
         output_dtypes=[float],
         dask_gufunc_kwargs={"allow_rechunk": True},
     )
-    
+
     # Add to dataset
     logger.debug("Adding CHTDEI and CHTREI to dataset")
     ds["chtdei"] = chtdei
