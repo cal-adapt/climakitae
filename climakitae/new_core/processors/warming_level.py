@@ -187,7 +187,11 @@ class WarmingLevel(DataProcessor):
                     continue
 
                 # Coerce center year to plain int to avoid Timestamp arithmetic errors
-                center_year = pd.Timestamp(year).year if isinstance(year, pd.Timestamp) else int(year)
+                center_year = (
+                    pd.Timestamp(year).year
+                    if isinstance(year, pd.Timestamp)
+                    else int(year)
+                )
 
                 start_year = center_year - self.warming_level_window
                 end_year = center_year + self.warming_level_window - 1
@@ -225,7 +229,7 @@ class WarmingLevel(DataProcessor):
                 # Add simulation and centered_year coordinates
                 da_slice = da_slice.assign_coords(
                     simulation=key,
-                    centered_year=( ["warming_level"], [center_year]),
+                    centered_year=(["warming_level"], [center_year]),
                 )
 
                 slices.append(da_slice)
