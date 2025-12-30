@@ -3166,11 +3166,11 @@ class TestClipGeographicCoordinates:
         # Grid coordinates (y/x) are in meters, lat/lon are geographic
         y_vals = np.array([4176113.66, 4179113.66, 4182113.66])  # Grid y in meters
         x_vals = np.array([1393911.73, 1396911.73, 1399911.73])  # Grid x in meters
-        
+
         # Geographic coordinates (what user provides)
         lat_vals = np.array([34.05, 34.08, 34.11])  # Geographic latitude
         lon_vals = np.array([-118.25, -118.22, -118.19])  # Geographic longitude
-        
+
         self.wrf_dataset = xr.Dataset(
             {
                 "t2max": (["time", "y", "x"], np.random.rand(2, 3, 3)),
@@ -3183,7 +3183,7 @@ class TestClipGeographicCoordinates:
                 "x": x_vals,  # Grid coordinates in meters
             },
         )
-        
+
         # User-provided point (geographic coordinates)
         self.user_lat = 34.05
         self.user_lon = -118.25
@@ -3192,33 +3192,35 @@ class TestClipGeographicCoordinates:
         """Test that point_lat/point_lon contain geographic coords, not grid coords."""
         # Use separated=True to get points dimension and point_lat/point_lon coords
         clip = Clip({"points": [(self.user_lat, self.user_lon)], "separated": True})
-        
+
         # Execute clipping
         context = {}
         result = clip.execute(self.wrf_dataset, context)
-        
+
         # Verify result has points dimension
         assert "points" in result.dims
         assert len(result.points) == 1
-        
+
         # CRITICAL: Check that point_lat/point_lon contain GEOGRAPHIC coordinates
         # (not grid y/x values like 4176113.66)
         assert "point_lat" in result.coords
         assert "point_lon" in result.coords
-        
+
         point_lat = float(result["point_lat"].values[0])
         point_lon = float(result["point_lon"].values[0])
-        
+
         # Values should be geographic (degrees), not grid (meters)
         assert 30 < point_lat < 40, f"point_lat {point_lat} not in geographic range"
         assert -125 < point_lon < -110, f"point_lon {point_lon} not in geographic range"
-        
+
         # Should match user-provided coordinates (within grid resolution)
-        assert abs(point_lat - self.user_lat) < 0.5, \
-            f"point_lat {point_lat} doesn't match user input {self.user_lat}"
-        assert abs(point_lon - self.user_lon) < 0.5, \
-            f"point_lon {point_lon} doesn't match user input {self.user_lon}"
-        
+        assert (
+            abs(point_lat - self.user_lat) < 0.5
+        ), f"point_lat {point_lat} doesn't match user input {self.user_lat}"
+        assert (
+            abs(point_lon - self.user_lon) < 0.5
+        ), f"point_lon {point_lon} doesn't match user input {self.user_lon}"
+
         # Should NOT contain grid coordinate values
         assert point_lat != 4176113.66, "point_lat contains grid y coordinate!"
         assert point_lon != 1393911.73, "point_lon contains grid x coordinate!"
@@ -3230,17 +3232,17 @@ class TestClipGeographicCoordinates:
             (34.0, -122.0),  # First grid cell
             (38.0, -118.0),  # Far enough away to hit different cell
         ]
-        
+
         # Expand dataset to cover both points with enough resolution
         # Grid spacing of 0.5 degrees to ensure points hit different cells
         y_vals = np.linspace(4100000, 4220000, 20)
         x_vals = np.linspace(1350000, 1450000, 20)
-        
+
         # Create proper 2D lat/lon grids
         lat_1d = np.linspace(33.5, 38.5, 20)
         lon_1d = np.linspace(-122.5, -117.5, 20)
         lon_2d, lat_2d = np.meshgrid(lon_1d, lat_1d)
-        
+
         dataset = xr.Dataset(
             {
                 "t2max": (["time", "y", "x"], np.random.rand(2, 20, 20)),
@@ -3253,28 +3255,36 @@ class TestClipGeographicCoordinates:
                 "x": x_vals,
             },
         )
-        
+
         # Use separated=True to extract points
         clip = Clip({"points": points, "separated": True})
         context = {}
         result = clip.execute(dataset, context)
-        
+
         # Check that we got points dimension
         assert "points" in result.dims
         # At least 1 point should be extracted (might be 2 if both hit unique cells)
-        assert len(result.points) >= 1, f"Expected at least 1 point, got {len(result.points)}"
-        
+        assert (
+            len(result.points) >= 1
+        ), f"Expected at least 1 point, got {len(result.points)}"
+
         # Verify ALL extracted points have geographic coordinates
         for i in range(len(result.points)):
             point_lat = float(result["point_lat"].values[i])
             point_lon = float(result["point_lon"].values[i])
-            
+
             # CRITICAL: Coordinates should be geographic (degrees), not grid (meters)
-            assert 30 < point_lat < 40, \
-                f"Point {i} lat {point_lat} not in geographic range (30-40°)"
-            assert -125 < point_lon < -115, \
-                f"Point {i} lon {point_lon} not in geographic range (-125 to -115°)"
-            
+            assert (
+                30 < point_lat < 40
+            ), f"Point {i} lat {point_lat} not in geographic range (30-40°)"
+            assert (
+                -125 < point_lon < -115
+            ), f"Point {i} lon {point_lon} not in geographic range (-125 to -115°)"
+
             # Should NOT be grid coordinates (which are in millions)
-            assert point_lat < 1000, f"Point {i} lat {point_lat} looks like grid coordinate!"
-            assert abs(point_lon) < 1000, f"Point {i} lon {point_lon} looks like grid coordinate!"
+            assert (
+                point_lat < 1000
+            ), f"Point {i} lat {point_lat} looks like grid coordinate!"
+            assert (
+                abs(point_lon) < 1000
+            ), f"Point {i} lon {point_lon} looks like grid coordinate!"

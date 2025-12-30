@@ -920,59 +920,71 @@ class TestExportPointsDimension:
         processor = Export(
             {"filename": "output", "separated": True, "location_based_naming": True}
         )
-        
+
         filenames_used = []
-        
+
         def track_filename(data):
             filenames_used.append(processor.filename)
-        
+
         mock_export.side_effect = track_filename
-        
+
         processor._split_and_export_closest_cells(self.points_ds)
-        
+
         # Should call export_single twice (once per point)
         assert mock_export.call_count == 2
-        
+
         # Verify filenames contain geographic coordinates
         assert len(filenames_used) == 2
-        assert any("34" in filename and "118" in filename for filename in filenames_used)
-        assert any("37" in filename and "122" in filename for filename in filenames_used)
+        assert any(
+            "34" in filename and "118" in filename for filename in filenames_used
+        )
+        assert any(
+            "37" in filename and "122" in filename for filename in filenames_used
+        )
 
     @patch("climakitae.new_core.processors.export.Export.export_single")
     def test_split_and_export_uses_point_lat_lon_coords(self, mock_export):
         """Test that export uses point_lat/point_lon coordinates for filenames."""
         processor = Export(
-            {"filename": "point_export", "separated": True, "location_based_naming": True}
+            {
+                "filename": "point_export",
+                "separated": True,
+                "location_based_naming": True,
+            }
         )
-        
+
         filenames_used = []
-        
+
         def track_filename(data):
             filenames_used.append(processor.filename)
-        
+
         mock_export.side_effect = track_filename
-        
+
         processor._split_and_export_closest_cells(self.points_ds)
-        
+
         # Both filenames should be present
         assert len(filenames_used) == 2
-        
+
         # Check that filenames contain lat/lon coordinates (not grid coordinates)
         # Filenames should look like: point_export_34041N_118239W
         for filename in filenames_used:
             # Should contain N/S and W/E indicators (geographic format)
-            assert "N" in filename or "S" in filename, \
-                f"Filename {filename} missing N/S indicator"
-            assert "W" in filename or "E" in filename, \
-                f"Filename {filename} missing W/E indicator"
-            
+            assert (
+                "N" in filename or "S" in filename
+            ), f"Filename {filename} missing N/S indicator"
+            assert (
+                "W" in filename or "E" in filename
+            ), f"Filename {filename} missing W/E indicator"
+
             # Should NOT contain million-scale numbers (grid coordinates)
             # Extract numbers from filename
             import re
-            numbers = re.findall(r'\d+', filename)
+
+            numbers = re.findall(r"\d+", filename)
             for num in numbers:
-                assert int(num) < 100000, \
-                    f"Filename {filename} contains grid coordinate {num}"
+                assert (
+                    int(num) < 100000
+                ), f"Filename {filename} contains grid coordinate {num}"
 
 
 class TestClipExportIntegration:
@@ -981,13 +993,13 @@ class TestClipExportIntegration:
     def test_wrf_points_clip_to_export_geographic_coordinates(self):
         """Test full WRF clip→export flow preserves geographic coordinates in filenames."""
         from climakitae.new_core.processors.clip import Clip
-        
+
         # Create WRF-style dataset with Lambert Conformal projection
         y_vals = np.array([4176113.66, 4179113.66, 4182113.66])
         x_vals = np.array([1393911.73, 1396911.73, 1399911.73])
         lat_vals = np.array([34.05, 34.08, 34.11])
         lon_vals = np.array([-118.25, -118.22, -118.19])
-        
+
         wrf_dataset = xr.Dataset(
             {
                 "t2max": (["time", "y", "x"], np.random.rand(2, 3, 3)),
@@ -1000,61 +1012,68 @@ class TestClipExportIntegration:
                 "x": x_vals,
             },
         )
-        
+
         # User-provided points (geographic coordinates)
         user_points = [(34.05, -118.25)]
-        
+
         # Step 1: Clip to points with separated=True
         clip_processor = Clip({"points": user_points, "separated": True})
         context = {}
         clipped_data = clip_processor.execute(wrf_dataset, context)
-        
+
         # Verify clip produced points dimension with geographic coords
         assert "points" in clipped_data.dims
         assert "point_lat" in clipped_data.coords
         assert "point_lon" in clipped_data.coords
-        
+
         point_lat = float(clipped_data["point_lat"].values[0])
         point_lon = float(clipped_data["point_lon"].values[0])
-        
+
         # Coordinates should be geographic
         assert 30 < point_lat < 40
         assert -125 < point_lon < -110
-        
+
         # Step 2: Export with location-based naming
-        export_processor = Export({
-            "filename": "wrf_point_export",
-            "separated": True,
-            "location_based_naming": True
-        })
-        
+        export_processor = Export(
+            {
+                "filename": "wrf_point_export",
+                "separated": True,
+                "location_based_naming": True,
+            }
+        )
+
         filenames_used = []
-        
+
         def track_filename(data):
             filenames_used.append(export_processor.filename)
-        
-        with patch.object(export_processor, "export_single", side_effect=track_filename):
+
+        with patch.object(
+            export_processor, "export_single", side_effect=track_filename
+        ):
             export_processor._split_and_export_closest_cells(clipped_data)
-        
+
         # Verify filename contains geographic coordinates
         assert len(filenames_used) == 1
         filename = filenames_used[0]
-        
+
         # Should contain N/S and W/E indicators
         assert "N" in filename, f"Filename {filename} missing N indicator"
         assert "W" in filename, f"Filename {filename} missing W indicator"
-        
+
         # Should contain coordinate values close to user input
         assert "34" in filename, f"Filename {filename} missing latitude"
         assert "118" in filename, f"Filename {filename} missing longitude"
-        
+
         # Should NOT contain grid coordinates (million-scale numbers)
         import re
-        numbers = re.findall(r'\d+', filename)
+
+        numbers = re.findall(r"\d+", filename)
         for num in numbers:
-            assert int(num) < 100000, \
-                f"Filename {filename} contains grid coordinate value {num}"
-        
+            assert (
+                int(num) < 100000
+            ), f"Filename {filename} contains grid coordinate value {num}"
+
         # Expected format: wrf_point_export_34041N_118239W or similar
-        assert filename.startswith("wrf_point_export_"), \
-            f"Filename {filename} doesn't have expected prefix"
+        assert filename.startswith(
+            "wrf_point_export_"
+        ), f"Filename {filename} doesn't have expected prefix"
