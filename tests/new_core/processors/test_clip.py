@@ -3155,3 +3155,119 @@ class TestClipDataSeparatedIntegration:
             assert result is not None
             assert "state" in result.dims
             assert len(result.state) == 1
+
+
+class TestClipGeographicCoordinates:
+    """Test that clip processor stores geographic coordinates, not grid coordinates."""
+
+    def setup_method(self):
+        """Set up test fixtures with WRF-style projected data."""
+        # Create WRF-style dataset with Lambert Conformal projection
+        # Grid coordinates (y/x) are in meters, lat/lon are geographic
+        y_vals = np.array([4176113.66, 4179113.66, 4182113.66])  # Grid y in meters
+        x_vals = np.array([1393911.73, 1396911.73, 1399911.73])  # Grid x in meters
+        
+        # Geographic coordinates (what user provides)
+        lat_vals = np.array([34.05, 34.08, 34.11])  # Geographic latitude
+        lon_vals = np.array([-118.25, -118.22, -118.19])  # Geographic longitude
+        
+        self.wrf_dataset = xr.Dataset(
+            {
+                "t2max": (["time", "y", "x"], np.random.rand(2, 3, 3)),
+                "lat": (["y", "x"], np.broadcast_to(lat_vals[:, None], (3, 3))),
+                "lon": (["y", "x"], np.broadcast_to(lon_vals, (3, 3))),
+            },
+            coords={
+                "time": pd.date_range("2020-01-01", periods=2),
+                "y": y_vals,  # Grid coordinates in meters
+                "x": x_vals,  # Grid coordinates in meters
+            },
+        )
+        
+        # User-provided point (geographic coordinates)
+        self.user_lat = 34.05
+        self.user_lon = -118.25
+
+    def test_clip_to_points_stores_geographic_not_grid_coordinates(self):
+        """Test that point_lat/point_lon contain geographic coords, not grid coords."""
+        # Use separated=True to get points dimension and point_lat/point_lon coords
+        clip = Clip({"points": [(self.user_lat, self.user_lon)], "separated": True})
+        
+        # Execute clipping
+        context = {}
+        result = clip.execute(self.wrf_dataset, context)
+        
+        # Verify result has points dimension
+        assert "points" in result.dims
+        assert len(result.points) == 1
+        
+        # CRITICAL: Check that point_lat/point_lon contain GEOGRAPHIC coordinates
+        # (not grid y/x values like 4176113.66)
+        assert "point_lat" in result.coords
+        assert "point_lon" in result.coords
+        
+        point_lat = float(result["point_lat"].values[0])
+        point_lon = float(result["point_lon"].values[0])
+        
+        # Values should be geographic (degrees), not grid (meters)
+        assert 30 < point_lat < 40, f"point_lat {point_lat} not in geographic range"
+        assert -125 < point_lon < -110, f"point_lon {point_lon} not in geographic range"
+        
+        # Should match user-provided coordinates (within grid resolution)
+        assert abs(point_lat - self.user_lat) < 0.5, \
+            f"point_lat {point_lat} doesn't match user input {self.user_lat}"
+        assert abs(point_lon - self.user_lon) < 0.5, \
+            f"point_lon {point_lon} doesn't match user input {self.user_lon}"
+        
+        # Should NOT contain grid coordinate values
+        assert point_lat != 4176113.66, "point_lat contains grid y coordinate!"
+        assert point_lon != 1393911.73, "point_lon contains grid x coordinate!"
+
+    def test_clip_to_multiple_points_stores_all_geographic_coordinates(self):
+        """Test that multiple points all get geographic coordinates stored."""
+        points = [
+            (34.05, -118.25),  # Los Angeles
+            (37.77, -122.42),  # San Francisco
+        ]
+        
+        # Expand dataset to cover both points
+        y_vals = np.linspace(4100000, 4220000, 10)
+        x_vals = np.linspace(1350000, 1450000, 10)
+        lat_vals = np.linspace(34.0, 38.0, 10)
+        lon_vals = np.linspace(-122.5, -118.0, 10)
+        
+        dataset = xr.Dataset(
+            {
+                "t2max": (["time", "y", "x"], np.random.rand(2, 10, 10)),
+                "lat": (["y", "x"], np.broadcast_to(lat_vals[:, None], (10, 10))),
+                "lon": (["y", "x"], np.broadcast_to(lon_vals, (10, 10))),
+            },
+            coords={
+                "time": pd.date_range("2020-01-01", periods=2),
+                "y": y_vals,
+                "x": x_vals,
+            },
+        )
+        
+        # Use separated=True to extract points
+        clip = Clip({"points": points, "separated": True})
+        context = {}
+        result = clip.execute(dataset, context)
+        
+        # Check all points
+        assert "points" in result.dims
+        assert len(result.points) == 2
+        
+        for i, (expected_lat, expected_lon) in enumerate(points):
+            point_lat = float(result["point_lat"].values[i])
+            point_lon = float(result["point_lon"].values[i])
+            
+            # All coordinates should be geographic
+            assert 30 < point_lat < 40, f"Point {i} lat {point_lat} not geographic"
+            assert -125 < point_lon < -110, f"Point {i} lon {point_lon} not geographic"
+            
+            # Should match user input
+            assert abs(point_lat - expected_lat) < 1.0, \
+                f"Point {i} lat {point_lat} doesn't match {expected_lat}"
+            assert abs(point_lon - expected_lon) < 1.0, \
+                f"Point {i} lon {point_lon} doesn't match {expected_lon}"
