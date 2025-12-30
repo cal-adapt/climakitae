@@ -5,6 +5,7 @@ Unit tests for climakitae/new_core/processors/export.py.
 from unittest.mock import patch
 
 import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 
@@ -863,3 +864,101 @@ class TestExportSingle:
         """Test export_single with invalid input type."""
         with pytest.raises(TypeError, match="Expected xr.Dataset or xr.DataArray"):
             self.processor.export_single("invalid_type")
+
+
+class TestExportPointsDimension:
+    """Test class for export processor handling of 'points' dimension."""
+
+    def setup_method(self):
+        """Set up test fixtures with points dimension."""
+        # Create dataset with 'points' dimension (from clip processor)
+        self.points_ds = xr.Dataset(
+            {"temp": (["points", "time"], np.random.rand(2, 3))},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=3),
+                "point_lat": ("points", [34.05, 37.77]),
+                "point_lon": ("points", [-118.25, -122.42]),
+                "point_index": ("points", [0, 1]),
+            },
+        )
+
+    def test_has_closest_cell_dimension_with_points(self):
+        """Test _has_closest_cell_dimension returns True for 'points' dimension."""
+        processor = Export({})
+        assert processor._has_closest_cell_dimension(self.points_ds) is True
+
+    def test_has_closest_cell_dimension_with_closest_cell(self):
+        """Test _has_closest_cell_dimension returns True for 'closest_cell' dimension."""
+        # Dataset with closest_cell dimension (from old clip code path)
+        closest_cell_ds = xr.Dataset(
+            {"temp": (["closest_cell", "time"], np.random.rand(2, 3))},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=3),
+                "target_lats": ("closest_cell", [34.05, 37.77]),
+                "target_lons": ("closest_cell", [-118.25, -122.42]),
+            },
+        )
+        processor = Export({})
+        assert processor._has_closest_cell_dimension(closest_cell_ds) is True
+
+    def test_has_closest_cell_dimension_with_neither(self):
+        """Test _has_closest_cell_dimension returns False when neither dimension exists."""
+        regular_ds = xr.Dataset(
+            {"temp": (["time", "lat", "lon"], np.random.rand(3, 2, 2))},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=3),
+                "lat": [34.0, 35.0],
+                "lon": [-118.0, -117.0],
+            },
+        )
+        processor = Export({})
+        assert processor._has_closest_cell_dimension(regular_ds) is False
+
+    @patch("climakitae.new_core.processors.export.Export.export_single")
+    def test_split_and_export_closest_cells_with_points_dimension(self, mock_export):
+        """Test _split_and_export_closest_cells handles 'points' dimension correctly."""
+        processor = Export(
+            {"filename": "output", "separated": True, "location_based_naming": True}
+        )
+        
+        processor._split_and_export_closest_cells(self.points_ds)
+        
+        # Should call export_single twice (once per point)
+        assert mock_export.call_count == 2
+        
+        # Verify filenames contain geographic coordinates
+        call_args_list = [call[0][1] for call in mock_export.call_args_list]
+        assert any("34" in filename and "118" in filename for filename in call_args_list)
+        assert any("37" in filename and "122" in filename for filename in call_args_list)
+
+    @patch("climakitae.new_core.processors.export.Export.export_single")
+    def test_split_and_export_uses_point_lat_lon_coords(self, mock_export):
+        """Test that export uses point_lat/point_lon coordinates for filenames."""
+        processor = Export(
+            {"filename": "point_export", "separated": True, "location_based_naming": True}
+        )
+        
+        processor._split_and_export_closest_cells(self.points_ds)
+        
+        # Extract generated filenames
+        filenames = [call[0][1] for call in mock_export.call_args_list]
+        
+        # Both filenames should be present
+        assert len(filenames) == 2
+        
+        # Check that filenames contain lat/lon coordinates (not grid coordinates)
+        # Filenames should look like: point_export_34041N_118239W
+        for filename in filenames:
+            # Should contain N/S and W/E indicators (geographic format)
+            assert "N" in filename or "S" in filename, \
+                f"Filename {filename} missing N/S indicator"
+            assert "W" in filename or "E" in filename, \
+                f"Filename {filename} missing W/E indicator"
+            
+            # Should NOT contain million-scale numbers (grid coordinates)
+            # Extract numbers from filename
+            import re
+            numbers = re.findall(r'\d+', filename)
+            for num in numbers:
+                assert int(num) < 100000, \
+                    f"Filename {filename} contains grid coordinate {num}"
