@@ -921,15 +921,22 @@ class TestExportPointsDimension:
             {"filename": "output", "separated": True, "location_based_naming": True}
         )
         
+        filenames_used = []
+        
+        def track_filename(data):
+            filenames_used.append(processor.filename)
+        
+        mock_export.side_effect = track_filename
+        
         processor._split_and_export_closest_cells(self.points_ds)
         
         # Should call export_single twice (once per point)
         assert mock_export.call_count == 2
         
         # Verify filenames contain geographic coordinates
-        call_args_list = [call[0][1] for call in mock_export.call_args_list]
-        assert any("34" in filename and "118" in filename for filename in call_args_list)
-        assert any("37" in filename and "122" in filename for filename in call_args_list)
+        assert len(filenames_used) == 2
+        assert any("34" in filename and "118" in filename for filename in filenames_used)
+        assert any("37" in filename and "122" in filename for filename in filenames_used)
 
     @patch("climakitae.new_core.processors.export.Export.export_single")
     def test_split_and_export_uses_point_lat_lon_coords(self, mock_export):
@@ -938,17 +945,21 @@ class TestExportPointsDimension:
             {"filename": "point_export", "separated": True, "location_based_naming": True}
         )
         
+        filenames_used = []
+        
+        def track_filename(data):
+            filenames_used.append(processor.filename)
+        
+        mock_export.side_effect = track_filename
+        
         processor._split_and_export_closest_cells(self.points_ds)
         
-        # Extract generated filenames
-        filenames = [call[0][1] for call in mock_export.call_args_list]
-        
         # Both filenames should be present
-        assert len(filenames) == 2
+        assert len(filenames_used) == 2
         
         # Check that filenames contain lat/lon coordinates (not grid coordinates)
         # Filenames should look like: point_export_34041N_118239W
-        for filename in filenames:
+        for filename in filenames_used:
             # Should contain N/S and W/E indicators (geographic format)
             assert "N" in filename or "S" in filename, \
                 f"Filename {filename} missing N/S indicator"
