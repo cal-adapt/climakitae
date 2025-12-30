@@ -1292,15 +1292,39 @@ class Clip(DataProcessor):
             clipped_lat_coords = masked_data[lat_dim].values
             clipped_lon_coords = masked_data[lon_dim].values
 
+            # Create a mapping from (lat_idx, lon_idx) to the original point_list lat/lon
+            idx_to_latlon = {}
+            for lat, lon in point_list:
+                # Transform coordinates if needed (same logic as above)
+                if needs_transform:
+                    try:
+                        x_target, y_target = fwd_transformer.transform(lon, lat)
+                        lat_target, lon_target = y_target, x_target
+                    except Exception:
+                        lat_target, lon_target = lat, lon
+                else:
+                    lat_target, lon_target = lat, lon
+
+                # Find nearest indices
+                lat_idx = np.abs(lat_coords - lat_target).argmin()
+                lon_idx = np.abs(lon_coords - lon_target).argmin()
+                idx_to_latlon[(lat_idx, lon_idx)] = (lat, lon)
+
             for lat_idx, lon_idx in unique_indices:
-                target_lat = lat_coords[lat_idx]
-                target_lon = lon_coords[lon_idx]
+                target_grid_lat = lat_coords[lat_idx]
+                target_grid_lon = lon_coords[lon_idx]
                 point_data = masked_data.sel(
-                    {lat_dim: target_lat, lon_dim: target_lon}, method="nearest"
+                    {lat_dim: target_grid_lat, lon_dim: target_grid_lon},
+                    method="nearest",
                 )
                 point_datasets.append(point_data)
-                point_coords_lat.append(float(target_lat))
-                point_coords_lon.append(float(target_lon))
+
+                # Use the original geographic lat/lon from point_list, not grid coordinates
+                original_lat, original_lon = idx_to_latlon.get(
+                    (lat_idx, lon_idx), (target_grid_lat, target_grid_lon)
+                )
+                point_coords_lat.append(float(original_lat))
+                point_coords_lon.append(float(original_lon))
 
             # Concatenate along new 'points' dimension
             result = xr.concat(point_datasets, dim="points")
