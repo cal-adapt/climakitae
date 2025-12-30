@@ -185,8 +185,16 @@ class WarmingLevel(DataProcessor):
                     msg = f"No warming level data found for {key} at {wl}C. Skipping this warming level."
                     logger.warning(msg)
                     continue
-                start_year = year - self.warming_level_window
-                end_year = year + self.warming_level_window - 1
+
+                # Coerce center year to plain int to avoid Timestamp arithmetic errors
+                center_year = (
+                    pd.Timestamp(year).year
+                    if isinstance(year, pd.Timestamp)
+                    else int(year)
+                )
+
+                start_year = center_year - self.warming_level_window
+                end_year = center_year + self.warming_level_window - 1
 
                 is_full_wl = _determine_is_complete_wl(
                     start_year, end_year, key, context["activity_id"], wl
@@ -221,7 +229,7 @@ class WarmingLevel(DataProcessor):
                 # Add simulation and centered_year coordinates
                 da_slice = da_slice.assign_coords(
                     simulation=key,
-                    centered_year=(["warming_level"], [year]),
+                    centered_year=(["warming_level"], [center_year]),
                 )
 
                 slices.append(da_slice)
