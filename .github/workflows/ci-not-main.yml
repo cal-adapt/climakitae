@@ -2,8 +2,8 @@
 # Based on code from: https://github.com/epassaro/cache-conda-envs/blob/main/.github/workflows/ci.yml
 # Based on code from: https://github.com/marketplace/actions/setup-miniconda
 # Runs on all branches except main (see ci-main.yml)
-# Runs basic tests on every push and PR
-# Runs advanced tests on each push/PR when "Advanced Testing" label is present
+# Runs basic tests on every push (non-main)
+# Pull request workflows (with advanced) are in ci-not-main-pr.yml
 
 name: ci-not-main
 
@@ -12,9 +12,7 @@ on:
     branches-ignore:
       - main
   pull_request:
-    branches-ignore:
-      - main
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [synchronize, reopened, labeled, unlabeled]
 
 jobs:
   lint:
@@ -31,14 +29,10 @@ jobs:
         python-version: ["3.12", "3.13"]
       fail-fast: false
     defaults:
-      run:
-        shell: bash -l {0}
-    steps:
-      - name: Checkout project
-        uses: actions/checkout@v4
-      - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
+      on:
+        push:
+          branches-ignore:
+            - main
           python-version: ${{ matrix.python-version }}
       - name: Install uv
         run: |
@@ -54,36 +48,3 @@ jobs:
           uv run python -c "import climakitae; print(f'climakitae version: {climakitae.__version__}')"
       - name: Test with pytest (Basic)
         run: uv run python -m pytest --no-header -vv -m "not advanced"
-  test-advanced:
-    name: test-advanced (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    if: github.event.pull_request && contains(github.event.pull_request.labels.*.name, 'Advanced Testing')
-    strategy:
-      matrix:
-        python-version: ["3.12", "3.13"]
-      fail-fast: false
-    defaults:
-      run:
-        shell: bash -l {0}
-    steps:
-      - name: Checkout project
-        uses: actions/checkout@v4
-      - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install uv
-        run: |
-          python -m pip install --upgrade pip
-          pip install uv
-      - name: Create uv virtual environment
-        run: uv venv --python ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: uv pip install -e ".[dev]"
-      - name: Verify installation
-        run: |
-          uv run python --version
-          uv run python -c "import climakitae; print(f'climakitae version: {climakitae.__version__}')"
-      - name: Test with pytest (Advanced)
-        run: uv run python -m pytest --no-header -vv -m "advanced"
