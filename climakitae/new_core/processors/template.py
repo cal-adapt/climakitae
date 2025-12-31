@@ -1,11 +1,39 @@
 """Template for a DataProcessor subclass in climakitae.
 
-This module provides a template for implementing custom data processors that can be registered and used within the climakitae data processing pipeline. Processors are designed to transform, filter, or otherwise process xarray data objects in a modular and extensible way.
+This module provides a template for implementing custom data processors that can
+be registered and used within the climakitae data processing pipeline. Processors
+are designed to transform, filter, or otherwise process xarray data objects in a
+modular and extensible way.
 
-Classes
+Example
 -------
-Template : Example processor template for subsetting data.
+To create a new processor based on this template:
 
+1. Copy this file to a new file with your processor name
+2. Rename the class and update the registration key
+3. Implement the ``execute`` method with your processing logic
+4. Update the docstrings to describe your specific processor
+
+>>> @register_processor("my_processor", priority=50)
+... class MyProcessor(DataProcessor):
+...     def execute(self, result, context):
+...         # Your processing logic here
+...         return result
+
+Notes
+-----
+Processors are registered via the ``@register_processor`` decorator with a unique
+key and priority. Priority determines execution order (lower executes first).
+
+See Also
+--------
+climakitae.new_core.processors.abc_data_processor : Abstract base class
+climakitae.new_core.processors.time_slice : Example processor implementation
+
+Warning
+-------
+This is a template file for documentation and development purposes. It is
+registered with the processor registry but has no-op execute behavior.
 """
 
 from typing import Any, Dict, Iterable, Union
@@ -83,6 +111,10 @@ class Template(DataProcessor):
             The processed or sliced data. This can be a single Dataset/DataArray or an iterable of them.
 
         """
+        # Template: pass through data unchanged
+        # Replace this with your processing logic
+        self.update_context(context)
+        return result
 
     def update_context(self, context: Dict[str, Any]):
         """Update the context with information about the transformation.

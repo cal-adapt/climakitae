@@ -431,9 +431,10 @@ class Export(DataProcessor):
         """
         match result:
             case xr.Dataset() | xr.DataArray():
+                has_closest_cell = self._has_closest_cell_dimension(result)
                 # Check if this is multi-point data with closest_cell dimension
                 # that should be split into separate files
-                if self.separated and self._has_closest_cell_dimension(result):
+                if self.separated and has_closest_cell:
                     self._split_and_export_closest_cells(result)
                 else:
                     # Single dataset - export directly
@@ -787,7 +788,7 @@ class Export(DataProcessor):
         self, data: Union[xr.Dataset, xr.DataArray]
     ) -> bool:
         """
-        Check if data has a closest_cell dimension (from multi-point clipping).
+        Check if data has a closest_cell or points dimension (from multi-point clipping).
 
         Parameters
         ----------
@@ -797,55 +798,86 @@ class Export(DataProcessor):
         Returns
         -------
         bool
-            True if data has a 'closest_cell' dimension with size > 1.
+            True if data has a 'closest_cell' or 'points' dimension with size > 1.
         """
         if not hasattr(data, "dims"):
             return False
-        return "closest_cell" in data.dims and data.sizes.get("closest_cell", 0) > 1
+
+        # Check for either 'closest_cell' or 'points' dimension
+        has_closest_cell = "closest_cell" in data.dims
+        has_points = "points" in data.dims
+
+        closest_cell_size = data.sizes.get("closest_cell", 0)
+        points_size = data.sizes.get("points", 0)
+
+        # Return True if either dimension exists with size > 1
+        result = (has_closest_cell and closest_cell_size > 1) or (
+            has_points and points_size > 1
+        )
+
+        return result
 
     def _split_and_export_closest_cells(self, data: Union[xr.Dataset, xr.DataArray]):
         """
-        Split data along closest_cell dimension and export each slice separately.
+        Split data along closest_cell or points dimension and export each slice separately.
 
         This handles multi-point clip results where data has a 'closest_cell'
-        dimension. Each slice is exported with appropriate naming based on
+        or 'points' dimension. Each slice is exported with appropriate naming based on
         the `location_based_naming` setting:
 
-        - location_based_naming=True: Uses target_lats/target_lons coordinates
-          if available, otherwise falls back to index-based naming
+        - location_based_naming=True: Uses target_lats/target_lons or point_lat/point_lon
+          coordinates if available, otherwise falls back to index-based naming
         - location_based_naming=False: Uses index-based naming (0, 1, 2...)
 
         Parameters
         ----------
         data : xr.Dataset | xr.DataArray
-            Data with a 'closest_cell' dimension to split and export.
+            Data with a 'closest_cell' or 'points' dimension to split and export.
 
         Notes
         -----
         The clip processor adds `target_lats` and `target_lons` coordinates
-        along the `closest_cell` dimension, which are used for location-based
+        along the `closest_cell` dimension, or `point_lat` and `point_lon`
+        coordinates along the `points` dimension, which are used for location-based
         naming when available.
         """
-        n_points = data.sizes["closest_cell"]
+        # Determine which dimension to use
+        if "closest_cell" in data.dims:
+            point_dim = "closest_cell"
+            lat_coord_name = "target_lats"
+            lon_coord_name = "target_lons"
+        elif "points" in data.dims:
+            point_dim = "points"
+            lat_coord_name = "point_lat"
+            lon_coord_name = "point_lon"
+        else:
+            logger.warning("No multi-point dimension found, skipping split export")
+            return
+
+        n_points = data.sizes[point_dim]
         original_filename = self.filename
 
         # Check for target coordinate availability (added by clip processor)
         has_target_coords = (
-            hasattr(data, "target_lats")
-            and hasattr(data, "target_lons")
-            and "closest_cell" in data.target_lats.dims
+            hasattr(data, lat_coord_name)
+            and hasattr(data, lon_coord_name)
+            and point_dim in getattr(data, lat_coord_name).dims
         )
 
         try:
             for idx in range(n_points):
-                # Select this slice along closest_cell
-                slice_data = data.isel(closest_cell=idx)
+                # Select this slice along the point dimension
+                slice_data = data.isel({point_dim: idx})
 
                 # Determine filename suffix
                 if self.location_based_naming and has_target_coords:
                     # Use target coordinates from clip processor
-                    lat_val = float(data.target_lats.isel(closest_cell=idx).values)
-                    lon_val = float(data.target_lons.isel(closest_cell=idx).values)
+                    lat_val = float(
+                        getattr(data, lat_coord_name).isel({point_dim: idx}).values
+                    )
+                    lon_val = float(
+                        getattr(data, lon_coord_name).isel({point_dim: idx}).values
+                    )
                     # Format: replace decimal point with hyphen for filesystem safety
                     # Use absolute values and add N/S, E/W suffixes
                     lat_str = str(round(abs(lat_val), 6)).replace(".", "-")

@@ -6,6 +6,7 @@ that handle block maxima extraction, effective sample size calculations,
 and time domain extension operations.
 """
 
+import logging
 from unittest.mock import patch
 
 import dask.array as da
@@ -647,8 +648,7 @@ class TestExtractBlockExtremesVectorized:
 class TestCheckEffectiveSampleSizeOptimized:
     """Test class for _check_effective_sample_size_optimized function."""
 
-    @patch("builtins.print")
-    def test_ess_check_calculation_error(self, mock_print):
+    def test_ess_check_calculation_error(self, caplog):
         """Test ESS check when calculation raises a ValueError or RuntimeError."""
         # Create data that will trigger an error in ESS calculation
         problematic_data = TestDataFactory.create_climate_dataset(
@@ -658,16 +658,17 @@ class TestCheckEffectiveSampleSizeOptimized:
         ).rename({"lat": "x", "lon": "y"})
 
         # Mock the ESS calculation to raise an exception
-        with patch(
-            "climakitae.new_core.processors.processor_utils._calc_average_ess_gridded_optimized",
-            side_effect=ValueError("Calculation failed"),
+        with (
+            patch(
+                "climakitae.new_core.processors.processor_utils._calc_average_ess_gridded_optimized",
+                side_effect=ValueError("Calculation failed"),
+            ),
+            caplog.at_level(logging.WARNING),
         ):
             _check_effective_sample_size_optimized(problematic_data, block_size=1)
 
-        # Should print warning about calculation failure
-        mock_print.assert_called()
-        printed_text = str(mock_print.call_args_list)
-        assert "WARNING: Could not calculate effective sample size" in printed_text
+        # Should log warning about calculation failure
+        assert "Could not calculate effective sample size" in caplog.text
 
     @patch("builtins.print")
     def test_ess_check_gridded_data(self, _mock_print):
@@ -690,20 +691,17 @@ class TestCheckEffectiveSampleSizeOptimized:
         # Function should run without errors
         assert isinstance(sample_timeseries_dataset, xr.DataArray)
 
-    @patch("builtins.print")
-    def test_ess_check_unsupported_dimensions(self, mock_print):
+    def test_ess_check_unsupported_dimensions(self, caplog):
         """Test ESS check with unsupported dimensions."""
         # Create data with unsupported dimensions (lat/lon instead of x/y)
         unsupported_data = TestDataFactory.create_climate_dataset(
             time_periods=10, lat_points=3, lon_points=3
         )  # Uses lat/lon dimensions, not x/y
 
-        _check_effective_sample_size_optimized(unsupported_data, block_size=1)
+        with caplog.at_level(logging.WARNING):
+            _check_effective_sample_size_optimized(unsupported_data, block_size=1)
 
-        mock_print.assert_called()
-        printed_text = str(mock_print.call_args_list)
-        assert "WARNING" in printed_text
-        assert "effective sample size can only be checked" in printed_text
+        assert "effective sample size can only be checked" in caplog.text
 
 
 class TestCalcAverageEssGriddedOptimized:

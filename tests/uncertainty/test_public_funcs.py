@@ -16,11 +16,11 @@ from climakitae.explore.uncertainty import (
     weighted_temporal_mean,
 )
 from tests.uncertainty.fixtures import (
-    mock_data_for_clipping,
+    mock_data_for_clipping,  # noqa: F401
     mock_data_for_warm_level,
     mock_multi_ens_dataset,
     wrf_dataset,
-)  # noqa: F401
+)
 
 
 def test_get_warm_level_input_validation():

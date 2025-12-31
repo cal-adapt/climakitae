@@ -156,9 +156,10 @@ class TestDataValidator:
         Tests that is_valid_query calls the parent _is_valid_query method
         when all initial checks pass.
         """
-        # Include all required keys: activity_id, table_id, grid_label, variable_id
+        # Include all required keys: activity_id, institution_id, table_id, grid_label, variable_id
         query = {
             "activity_id": "WRF",
+            "institution_id": "UCLA",
             "table_id": "1hr",
             "grid_label": "d03",
             "variable_id": "tas",

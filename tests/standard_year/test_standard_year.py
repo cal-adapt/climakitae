@@ -14,12 +14,6 @@ import pytest
 import xarray as xr
 
 from climakitae.explore.standard_year_profile import (
-    retrieve_profile_data,
-    get_climate_profile,
-    compute_profile,
-    get_profile_units,
-    get_profile_metadata,
-    set_profile_metadata,
     _compute_difference_profile,
     _compute_mixed_index_difference,
     _compute_multiindex_difference,

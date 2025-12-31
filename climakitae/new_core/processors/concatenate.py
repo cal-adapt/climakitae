@@ -1,7 +1,6 @@
 """Concat DataProcessor"""
 
 import logging
-import warnings
 from typing import Any, Dict, Iterable, List, Union
 
 import xarray as xr

@@ -287,7 +287,7 @@ class MetricCalc(DataProcessor):
         valid_dims = [dim for dim in dims_to_check if dim in available_dims]
 
         if not valid_dims:
-            logging.warning(
+            logger.warning(
                 "None of the specified dimensions %s exist in the data. "
                 "Available dimensions: %s",
                 dims_to_check,

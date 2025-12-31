@@ -124,6 +124,7 @@ class DataValidator(ParameterValidator):
         initial_checks = [
             self._check_query_for_wrf_and_localize(query),
             self._check_query_for_required_keys(query),
+            self._check_wrf_requires_institution_id(query),
         ]
         if not all(initial_checks):
             logger.warning("Initial validation checks failed: %s", initial_checks)
@@ -184,7 +185,6 @@ class DataValidator(ParameterValidator):
                     " Please specify '.activity_id(WRF)' in your query."
                 )
                 logger.warning(msg)
-                logger.warning(msg)
                 return False
             if query.get("variable_id", "") != "t2":
                 msg = (
@@ -192,6 +192,34 @@ class DataValidator(ParameterValidator):
                     " Please specify '.variable_id('t2')' in your query."
                 )
                 logger.warning(msg)
+                return False
+        return True
+
+    def _check_wrf_requires_institution_id(self, query: Dict[str, Any]) -> bool:
+        """Check if WRF activity_id requires institution_id.
+
+        When activity_id is "WRF", institution_id must be specified.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The query to check.
+
+        Returns
+        -------
+        bool
+            True if institution_id is set when activity_id is WRF, False otherwise.
+
+        """
+        activity_id = query.get("activity_id", UNSET)
+        if activity_id == "WRF":
+            institution_id = query.get("institution_id", UNSET)
+            if institution_id is UNSET:
+                msg = (
+                    "When using activity_id='WRF', you must also specify institution_id. "
+                    "Please add '.institution_id(\"UCLA\")' to your query. "
+                    "The default/recommended value is 'UCLA'."
+                )
                 logger.warning(msg)
                 return False
         return True

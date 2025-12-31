@@ -134,14 +134,12 @@ def _validate_experimental_id_param(
             if closest:
                 logger.warning(
                     f"\n\nExperiment ID '{v}' not found."
-                    f"\nDid you mean any of the following '{closest[0]}'?",
-                    stacklevel=999,
+                    f"\nDid you mean any of the following '{closest[0]}'?"
                 )
             else:
                 logger.warning(
                     f"\n\nExperiment ID '{v}' not found."
-                    "\nPlease check the available experiment IDs.",
-                    stacklevel=999,
+                    "\nPlease check the available experiment IDs."
                 )
             return False
 
@@ -153,8 +151,7 @@ def _validate_experimental_id_param(
                     closest = _get_closest_options(v, valid_experiment_ids)
                     if closest:
                         logger.warning(
-                            f"Experiment ID '{v}' not found. Did you mean '{closest[0]}'?",
-                            stacklevel=999,
+                            f"Experiment ID '{v}' not found. Did you mean '{closest[0]}'?"
                         )
 
                     ret = False
