@@ -162,6 +162,11 @@ class Concat(DataProcessor):
             join="outer",
         )
 
+        # Drop "simulation" coordinate if it exists (distinct from "sim" dimension)
+        if "simulation" in concatenated.coords:
+            concatenated = concatenated.drop_vars("simulation")
+            logger.debug("Dropped 'simulation' coordinate from concatenated dataset.")
+
         logger.info("Concatenated HDP datasets along station_id dimension.")
         self.update_context(context, station_ids)
         return concatenated
@@ -375,6 +380,11 @@ class Concat(DataProcessor):
             raise
 
         logger.info("Concatenated datasets along '%s' dimension.", self.dim_name)
+
+        # Drop "simulation" coordinate if it exists (distinct from "sim" dimension)
+        if "simulation" in concatenated.coords:
+            concatenated = concatenated.drop_vars("simulation")
+            logger.debug("Dropped 'simulation' coordinate from concatenated dataset.")
 
         # Fix centered_year coordinate if it was assigned per-simulation in warming_level processor
         # After concatenating along 'sim', we need to reconstruct it as 2D (sim, warming_level)
