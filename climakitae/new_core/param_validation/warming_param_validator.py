@@ -61,11 +61,51 @@ def validate_warming_level_param(
         logger.warning(msg)
         return False
 
+    # check that catalog is "cadcat"
+    if not _check_catalog(query):
+        return False
+
     # validate query
     if not _check_query(query):
         return False
 
     if not _check_wl_values(value, query):
+        return False
+
+    return True
+
+
+def _check_catalog(query: Any) -> bool:
+    """
+    Validates that the catalog is "cadcat" (warming levels only supported for cadcat).
+
+    Parameters
+    ----------
+    query : Any
+        The query dictionary that may contain a 'catalog' key.
+
+    Returns
+    -------
+    bool
+        True if the catalog is "cadcat", False otherwise.
+    """
+    logger.debug("_check_catalog called with query: %s", query)
+
+    if not isinstance(query, dict):
+        return False
+
+    catalog = query.get("catalog", UNSET)
+    if catalog is UNSET:
+        # If catalog is not specified, assume it will default to cadcat
+        return True
+
+    if catalog != "cadcat":
+        msg = (
+            f"Warming level processor is not supported for '{catalog}' catalog. "
+            "Warming levels are only available for 'cadcat' (Cal-Adapt climate data). "
+            "Please use time_slice processor instead to specify a time range."
+        )
+        logger.warning(msg)
         return False
 
     return True

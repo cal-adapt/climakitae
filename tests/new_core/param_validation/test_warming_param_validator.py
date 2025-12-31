@@ -13,6 +13,7 @@ import pytest
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.warming_param_validator import (
+    _check_catalog,
     _check_input_types,
     _check_query,
     _check_wl_values,
@@ -109,6 +110,47 @@ class TestCheckInputTypes:
         ):
             result = _check_input_types(value)
             assert result is False
+
+
+class TestCheckCatalog:
+    """Test class for _check_catalog function."""
+
+    def test_check_catalog_valid_cadcat(self):
+        """Test _check_catalog with valid 'cadcat' catalog."""
+        query = {"catalog": "cadcat"}
+        result = _check_catalog(query)
+        assert result is True
+
+    def test_check_catalog_unset_defaults_to_valid(self):
+        """Test _check_catalog with UNSET catalog (assumes cadcat default)."""
+        query = {"activity_id": "WRF"}  # No catalog key
+        result = _check_catalog(query)
+        assert result is True
+
+    def test_check_catalog_invalid_renewables(self):
+        """Test _check_catalog with invalid 'renewable energy generation' catalog."""
+        query = {"catalog": "renewable energy generation"}
+        with pytest.warns(
+            UserWarning,
+            match="Warming level processor is not supported for 'renewable energy generation' catalog",
+        ):
+            result = _check_catalog(query)
+            assert result is False
+
+    def test_check_catalog_invalid_hdp(self):
+        """Test _check_catalog with invalid 'hdp' catalog."""
+        query = {"catalog": "hdp"}
+        with pytest.warns(
+            UserWarning,
+            match="Warming level processor is not supported for 'hdp' catalog",
+        ):
+            result = _check_catalog(query)
+            assert result is False
+
+    def test_check_catalog_invalid_not_dict(self):
+        """Test _check_catalog with non-dictionary input."""
+        result = _check_catalog("not a dict")
+        assert result is False
 
 
 class TestCheckQuery:
