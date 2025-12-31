@@ -12,8 +12,6 @@ on:
     branches-ignore:
       - main
   pull_request:
-    branches-ignore:
-      - main
     types: [synchronize, reopened, labeled, unlabeled]
 
 jobs:
