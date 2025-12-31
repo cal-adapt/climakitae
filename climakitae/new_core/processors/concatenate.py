@@ -3,6 +3,7 @@
 import logging
 from typing import Any, Dict, Iterable, List, Union
 
+import numpy as np
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, CATALOG_REN_ENERGY_GEN, UNSET
@@ -389,6 +390,58 @@ class Concat(DataProcessor):
             raise
 
         logger.info("Concatenated datasets along '%s' dimension.", self.dim_name)
+
+        # Fix centered_year coordinate if it was assigned per-simulation in warming_level processor
+        # After concatenating along 'sim', we need to reconstruct it as 2D (sim, warming_level)
+        if "_sim_centered_years" in context and "sim" in concatenated.dims and "warming_level" in concatenated.dims:
+            logger.debug("Reconstructing centered_year coordinate from warming_level processor")
+            sim_centered_years = context.get("_sim_centered_years", {})
+            
+            if sim_centered_years:
+                sim_names = list(concatenated.sim.values)
+                warming_levels = list(concatenated.warming_level.values)
+                
+                # Build 2D centered_year array indexed by (sim, warming_level)
+                cy_2d = np.full((len(sim_names), len(warming_levels)), np.nan)
+                
+                for i, sim_name in enumerate(sim_names):
+                    # Try to find matching key in sim_centered_years
+                    # sim_name might be like 'WRF_UCLA_EC-Earth3_ssp370_day_d03_r1i1p1f1'
+                    # while sim_centered_years keys are like 'WRF.UCLA.EC-Earth3.ssp370.day.d03.r1i1p1f1'
+                    matching_key = None
+                    sim_name_dots = sim_name.replace("_", ".")
+                    
+                    for key in sim_centered_years.keys():
+                        if key.replace(".", "_") == sim_name or sim_name_dots == key:
+                            matching_key = key
+                            break
+                    
+                    if matching_key and matching_key in sim_centered_years:
+                        cy_values = sim_centered_years[matching_key]
+                        # Fill in the values for this simulation
+                        for j, cy_val in enumerate(cy_values):
+                            if j < len(warming_levels):
+                                cy_2d[i, j] = cy_val
+                        logger.debug(
+                            "Assigned centered_years for sim %s (key=%s): %s",
+                            sim_name,
+                            matching_key,
+                            cy_values,
+                        )
+                    else:
+                        logger.debug(
+                            "Could not find matching key for sim %s in sim_centered_years",
+                            sim_name,
+                        )
+                
+                # Assign as 2D coordinate
+                concatenated.coords["centered_year"] = (["sim", "warming_level"], cy_2d)
+                logger.debug(
+                    "Successfully created 2D centered_year coordinate with shape %s",
+                    cy_2d.shape,
+                )
+            else:
+                logger.debug("sim_centered_years is empty in context")
 
         self.update_context(context, attr_ids)
 
