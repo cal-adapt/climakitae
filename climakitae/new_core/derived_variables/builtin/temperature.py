@@ -258,3 +258,67 @@ def calc_diurnal_temperature_range_wrf(ds):
         "derived_by": "climakitae",
     }
     return ds
+
+
+@register_derived(
+    variable="effective_temp_sce",
+    query={"variable_id": ["t2max", "t2min"]},
+    description="Daily temperature range from WRF data (maximum minus minimum)",
+    units="K",
+    source="builtin",
+)
+def calc_effective_temp_sce(ds):
+    """
+    Calculate effective temperature index using min and max temperature data.
+
+    Teff = 0.7*Tmax0 + 0.003*Tmin0*Tmax1 + 0.002*Tmin1*Tmax2
+
+    Where:
+    - Tmax0: current day max temperature
+    - Tmin0: current day min temperature
+    - Tmax1: 1-day lag max temperature
+    - Tmin1: 1-day lag min temperature
+    - Tmax2: 2-day lag max temperature
+
+    Parameters
+    ----------
+    min_temp : xr.DataArray or xr.Dataset
+        Minimum temperature data with time or time_delta dimension
+    max_temp : xr.DataArray or xr.Dataset
+        Maximum temperature data with time or time_delta dimension
+
+    Returns
+    -------
+    xr.DataArray or xr.Dataset
+        Effective temperature index (Teff)
+
+    Notes
+    -----
+    The first two time steps will contain NaN values due to lagging.
+    """
+    # Determine which temporal dimension is present
+    if "time_delta" in ds.t2max.dims:
+        time_dim = "time_delta"
+    elif "time" in ds.t2max.dims:
+        time_dim = "time"
+    else:
+        raise ValueError("Data must have either 'time' or 'time_delta' dimension")
+
+    # Create lagged versions using the appropriate dimension
+    tmax0 = ds.t2max  # Current day
+    tmin0 = ds.t2min  # Current day
+    tmax1 = ds.t2max.shift({time_dim: 1})  # 1-day lag
+    tmin1 = ds.t2min.shift({time_dim: 1})  # 1-day lag
+    tmax2 = ds.t2max.shift({time_dim: 2})  # 2-day lag
+    # Calculate effective temperature
+    teff = 0.7 * tmax0 + 0.003 * tmin0 * tmax1 + 0.002 * tmin1 * tmax2
+
+    ds["effective_temp_sce"] = teff
+    ds["effective_temp_sce"].attrs = {
+        "units": "K",
+        "long_name": "SCE Effective Temperature Index",
+        "comment": "Effective temperature index calculated using min and max temperatures",
+        "derived_from": "t2max, t2min",
+        "derived_by": "climakitae",
+    }
+    return ds
