@@ -58,7 +58,7 @@ jobs:
     name: test-advanced (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: contains(github.event.pull_request.labels.*.name, 'Advanced Testing')
+    if: github.event.pull_request && contains(github.event.pull_request.labels.*.name, 'Advanced Testing')
     strategy:
       matrix:
         python-version: ["3.12", "3.13"]
