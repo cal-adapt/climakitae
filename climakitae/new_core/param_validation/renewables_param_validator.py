@@ -99,7 +99,65 @@ class RenewablesValidator(ParameterValidator):
         return defaults
 
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
+        """Catalog specific validation for the query.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The query to validate.
+
+        Returns
+        -------
+        Dict[str, Any] | None
+            The validated query if valid, None otherwise.
+
+        Notes
+        -----
+        A list of checks that are performed on the query:
+
+        1. Check if the query contains the warming_level processor.
+            Warming level is not supported for renewables datasets.
+
+        """
         logger.debug("Validating renewables query: %s", query)
+        initial_checks = [
+            self._check_query_for_warming_level_processor(query),
+        ]
+        if not all(initial_checks):
+            logger.warning("Initial validation checks failed: %s", initial_checks)
+            return None
         result = super()._is_valid_query(query)
         logger.info("Renewables query validation result: %s", bool(result))
         return result
+
+    def _check_query_for_warming_level_processor(self, query: Dict[str, Any]) -> bool:
+        """Check if the query contains the warming_level processor.
+
+        Warming level subsetting is not supported for renewable energy datasets
+        since renewables data is not necessarily aligned with the same warming
+        level trajectories as climate model data.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The query to check.
+
+        Returns
+        -------
+        bool
+            True if the query does not contain warming_level processor,
+            False otherwise.
+
+        """
+        logger.debug(
+            "Checking for warming_level processor in query: %s",
+            query.get("processes"),
+        )
+        if "warming_level" in query.get("processes", {}).keys():
+            msg = (
+                "Warming level processor is not supported for renewable energy datasets. "
+                "Please use time_slice processor instead to specify a time range."
+            )
+            logger.warning(msg)
+            return False
+        return True
