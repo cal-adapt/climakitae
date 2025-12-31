@@ -697,20 +697,44 @@ class MetricCalc(DataProcessor):
             shape_without_sim.pop(sim_dim_idx)
             elements_per_sim = np.prod(shape_without_sim)
 
-            # Memory per sim: input data + block maxima (~1/365th the size) + distribution fitting overhead
-            # Use float32 = 4 bytes
-            bytes_per_element = 4
-            input_size_per_sim_mb = (
-                elements_per_sim * bytes_per_element
-            ) / BYTES_TO_MB_FACTOR
+            # Determine actual dtype size (don't assume float32)
+            dtype_size = data_array.dtype.itemsize
 
-            # Block maxima reduces time dimension significantly (10950 days -> ~30 years)
-            # But we need multiple copies: input, block maxima, intermediate arrays
-            # Estimate 5x overhead for safe processing
-            estimated_memory_per_sim_mb = input_size_per_sim_mb * 5
+            # Check if data is dask-backed for more accurate estimation
+            is_dask = hasattr(data_array.data, "chunks")
 
-            # Target using only 30% of available memory for safety on shared systems
-            target_memory_mb = available_memory_gb * 1000 * 0.3
+            # Memory per sim calculation:
+            # 1. Input data: elements_per_sim * dtype_size
+            # 2. Block maxima: ~1/365th of input (yearly blocks from daily data)
+            # 3. Distribution fitting: small overhead for fitted parameters
+            # 4. Intermediate arrays: 1-2x input size during computation
+
+            input_size_per_sim_mb = (elements_per_sim * dtype_size) / BYTES_TO_MB_FACTOR
+
+            # Block maxima is much smaller (time reduced from days to years)
+            # Estimate time reduction factor
+            time_size = data_array.sizes.get(
+                "time", data_array.sizes.get("time_delta", 365)
+            )
+            block_reduction_factor = min(365, time_size) / max(1, time_size / 365)
+            block_maxima_size_mb = input_size_per_sim_mb / block_reduction_factor
+
+            # For dask arrays, only block maxima needs to be in memory
+            # For non-dask, need input + block maxima + intermediates
+            if is_dask:
+                # Dask lazy evaluation: only block maxima + fitting overhead
+                estimated_memory_per_sim_mb = (
+                    block_maxima_size_mb * 2.0
+                )  # 2x for intermediate arrays
+            else:
+                # Non-dask: need input data + block maxima + intermediates
+                estimated_memory_per_sim_mb = (
+                    input_size_per_sim_mb + block_maxima_size_mb * 2.0
+                )
+
+            # Target using 70% of available memory for analysis workloads
+            # This is appropriate for dedicated analysis (not shared servers)
+            target_memory_mb = available_memory_gb * 1000 * 0.7
 
             # Calculate batch size
             if estimated_memory_per_sim_mb > 0:
@@ -720,22 +744,27 @@ class MetricCalc(DataProcessor):
             else:
                 estimated_batch_size = 1
 
-            # Clamp to reasonable bounds - be very conservative
+            # Clamp to reasonable bounds
+            # Increased cap from 20 to allow better memory utilization
             batch_size = max(
                 1,  # At least 1 simulation
                 min(
                     estimated_batch_size,
-                    20,  # Cap at 20 simulations per batch for memory safety
+                    50,  # Cap at 50 simulations per batch (increased from 20)
                     n_sims,  # Don't exceed total simulations
                 ),
             )
 
             logger.info(
                 "Memory analysis: %.1fGB available, ~%d elements/sim, "
-                "~%.0fMB estimated/sim, batch size: %d",
+                "input=%.0fMB, block_maxima=%.0fMB, estimated_total=%.0fMB/sim, "
+                "dask=%s, batch size: %d",
                 available_memory_gb,
                 elements_per_sim,
+                input_size_per_sim_mb,
+                block_maxima_size_mb,
                 estimated_memory_per_sim_mb,
+                is_dask,
                 batch_size,
             )
 
