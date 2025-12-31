@@ -61,8 +61,6 @@ class Concat(DataProcessor):
         self.name = "concat"
         self.catalog = None
         self.needs_catalog = True
-        # Log initialization
-        logger.debug("Concat processor initialized with dim_name=%s", self.dim_name)
 
     def execute(
         self,
@@ -92,17 +90,8 @@ class Concat(DataProcessor):
             A single dataset with concatenated data.
 
         """
-        logger.debug(
-            "Concat.execute called with dim_name=%s result_type=%s",
-            self.dim_name,
-            type(result).__name__,
-        )
-
         if isinstance(result, (xr.Dataset, xr.DataArray)):
             # If we receive a single dataset, just return it
-            logger.debug(
-                "Concat.execute received single dataset/dataarray, returning as-is"
-            )
             return result
 
         # Route to appropriate concat method based on catalog
@@ -139,7 +128,6 @@ class Concat(DataProcessor):
             A single dataset with concatenated station data.
 
         """
-        logger.debug("Using HDP concatenation logic")
         datasets_to_concat = []
         station_ids = []
 
@@ -204,15 +192,12 @@ class Concat(DataProcessor):
             A single dataset with concatenated data.
 
         """
-        logger.debug("Using gridded data concatenation logic")
-
         # Special handling for time dimension concatenation
         if self.dim_name == "time" and isinstance(result, dict):
             # Handle time domain extension for dictionaries
             result = extend_time_domain(result)  # type: ignore
             # After extending time domain, switch to standard sim concatenation
             self.dim_name = "sim"
-            logger.info("Time-domain extension applied; switching concat dim to 'sim'")
 
         datasets_to_concat = []
         concat_attrs = (
@@ -398,9 +383,6 @@ class Concat(DataProcessor):
             and "sim" in concatenated.dims
             and "warming_level" in concatenated.dims
         ):
-            logger.debug(
-                "Reconstructing centered_year coordinate from warming_level processor"
-            )
             sim_centered_years = context.get("_sim_centered_years", {})
 
             if sim_centered_years:

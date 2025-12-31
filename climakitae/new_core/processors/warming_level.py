@@ -172,12 +172,9 @@ class WarmingLevel(DataProcessor):
         # get center years for each key for each warming level
         center_years = self.get_center_years(member_ids, ret.keys())
         logger.debug(
-            "execute: Received center_years dict with %d keys: %s",
+            "execute: Received center_years dict with %d keys",
             len(center_years),
-            list(center_years.keys()),
         )
-        for k, v in center_years.items():
-            logger.debug("execute: center_years[%s] = %s", k, v)
 
         retkeys = list(ret.keys())
 
@@ -189,10 +186,7 @@ class WarmingLevel(DataProcessor):
         sim_centered_years = {}
 
         for key, years in center_years.items():
-            logger.debug("execute: Processing key=%s with years=%s", key, years)
-
             if not years:
-                logger.debug("execute: Skipping key=%s - no years found", key)
                 continue
 
             slices = []
@@ -200,10 +194,6 @@ class WarmingLevel(DataProcessor):
             valid_center_years = []  # Track center years for valid warming levels
 
             for year, wl in zip(years, self.warming_levels):
-                logger.debug(
-                    "execute: Processing key=%s, year=%s, wl=%s", key, year, wl
-                )
-
                 if year is None or pd.isna(year):
                     msg = f"No warming level data found for {key} at {wl}C. Skipping this warming level."
                     logger.warning(msg)
@@ -219,15 +209,6 @@ class WarmingLevel(DataProcessor):
                 start_year = center_year - self.warming_level_window
                 end_year = center_year + self.warming_level_window - 1
 
-                logger.debug(
-                    "execute: key=%s, wl=%s -> center_year=%s, start_year=%s, end_year=%s",
-                    key,
-                    wl,
-                    center_year,
-                    start_year,
-                    end_year,
-                )
-
                 is_full_wl = _determine_is_complete_wl(
                     start_year, end_year, key, context["activity_id"], wl
                 )
@@ -242,13 +223,6 @@ class WarmingLevel(DataProcessor):
                     continue
 
                 da_slice = ret[key].sel(time=slice(f"{start_year}", f"{end_year}"))
-                logger.debug(
-                    "execute: Sliced data for key=%s from %s to %s, shape=%s",
-                    key,
-                    start_year,
-                    end_year,
-                    da_slice.sizes,
-                )
 
                 # Drop February 29th if it exists
                 is_feb29 = (da_slice.time.dt.month == 2) & (da_slice.time.dt.day == 29)
@@ -258,13 +232,6 @@ class WarmingLevel(DataProcessor):
                 # This ensures each warming level has the correct time_delta length
                 length = da_slice.sizes["time"]
                 time_delta = range(-length // 2, length // 2)
-
-                logger.debug(
-                    "execute: key=%s, wl=%s -> time_delta length=%s",
-                    key,
-                    wl,
-                    length,
-                )
 
                 # Replace time dimension with time_delta
                 da_slice = da_slice.swap_dims({"time": "time_delta"})
@@ -300,26 +267,18 @@ class WarmingLevel(DataProcessor):
             ret[key] = xr.concat(
                 slices, dim="warming_level", join="outer", fill_value=np.nan
             )
-            logger.debug(
-                "execute: Concatenated %d slices for key=%s, result shape=%s",
-                len(slices),
-                key,
-                ret[key].sizes,
-            )
 
             # Store center years for this simulation key
             # DO NOT assign as coordinate here - it will be broadcast incorrectly
             # Store in sim_centered_years dict to be reconstructed in concatenate processor
             sim_centered_years[key] = valid_center_years
-            logger.debug(
-                "execute: Stored center_years for key=%s: %s",
-                key,
-                valid_center_years,
-            )
 
-        # Now handle centered_year as a proper 2D coordinate indexed by (sim, warming_level)
-        # This will be set after concatenation in the next step
+        # Store center years in context for reconstruction after concatenation
         context["_sim_centered_years"] = sim_centered_years
+        logger.debug(
+            "execute: Stored %d simulation center year mappings in context",
+            len(sim_centered_years),
+        )
 
         self.update_context(context)
         return ret
@@ -426,20 +385,12 @@ class WarmingLevel(DataProcessor):
         center_years = {}
 
         logger.debug(
-            "get_center_years: Starting with warming_levels=%s", self.warming_levels
-        )
-        logger.debug(
-            "get_center_years: Number of keys=%d, number of member_ids=%d",
+            "get_center_years: Computing center years for %d keys",
             len(list(keys)),
-            len(list(member_ids)),
         )
 
         # cols are key.join("_"), values are warming levels, index is time
         for key, member_id in zip(keys, member_ids):
-            logger.debug(
-                "get_center_years: Processing key=%s, member_id=%s", key, member_id
-            )
-
             if member_id is None:
                 logger.debug(
                     "get_center_years: Skipping key=%s (member_id is None)", key
@@ -448,7 +399,6 @@ class WarmingLevel(DataProcessor):
 
             # build the key for the warming level table
             key_list = key.split(".")
-            logger.debug("get_center_years: key_list=%s", key_list)
 
             if key not in center_years:
                 center_years[key] = []
