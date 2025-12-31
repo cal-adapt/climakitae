@@ -315,6 +315,7 @@ def calc_effective_temp_sce(ds):
     ds["effective_temp_sce"] = (
         0.7 * tmax0 + 0.003 * tmin0 * tmax1 + 0.002 * tmin1 * tmax2
     )
+    ds["effective_temp_sce"] = (ds["effective_temp_sce"] - 32) * 5 / 9 + 273.15
     ds["effective_temp_sce"].attrs = {
         "units": "K",
         "long_name": "SCE Effective Temperature Index",
