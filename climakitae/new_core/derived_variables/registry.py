@@ -59,6 +59,9 @@ class DerivedVariableInfo:
         The function that computes the derived variable.
     source : str
         Where this variable was registered from ('builtin' or 'user').
+    drop_dependencies : bool
+        Whether to remove source variables after computing derived variable.
+        Default: True (keep only the derived variable in the output).
 
     """
 
@@ -68,16 +71,21 @@ class DerivedVariableInfo:
     units: str
     func: Callable
     source: str = "builtin"
+    drop_dependencies: bool = True
 
 
 def _wrap_with_metadata_preservation(
-    func: Callable, derived_var_name: str, source_vars: List[str]
+    func: Callable,
+    derived_var_name: str,
+    source_vars: List[str],
+    drop_dependencies: bool = True,
 ) -> Callable:
-    """Wrap a derived variable function to automatically preserve spatial metadata.
+    """Wrap a derived variable function to preserve metadata and optionally drop dependencies.
 
     This wrapper detects when a new variable is added to the dataset and
     automatically copies spatial metadata (CRS, spatial_ref, grid_mapping)
-    from the first available source variable.
+    from the first available source variable. Optionally removes source variables
+    after computation.
 
     Parameters
     ----------
@@ -87,11 +95,13 @@ def _wrap_with_metadata_preservation(
         Name of the derived variable being computed.
     source_vars : list of str
         List of source variable names that the function depends on.
+    drop_dependencies : bool, optional
+        Whether to remove source variables after computation. Default: True.
 
     Returns
     -------
     callable
-        Wrapped function that preserves spatial metadata.
+        Wrapped function that preserves spatial metadata and optionally drops dependencies.
 
     """
     from functools import wraps
@@ -123,6 +133,17 @@ def _wrap_with_metadata_preservation(
                 source_var,
                 derived_var_name in result if result is not None else "result is None",
             )
+
+        # Drop source variables if requested
+        if drop_dependencies and result is not None:
+            vars_to_drop = [v for v in source_vars if v in result.data_vars]
+            if vars_to_drop:
+                logger.debug(
+                    "Dropping dependency variables after computing '%s': %s",
+                    derived_var_name,
+                    vars_to_drop,
+                )
+                result = result.drop_vars(vars_to_drop)
 
         return result
 
@@ -280,6 +301,7 @@ def register_derived(
     description: str = "",
     units: str = "",
     source: str = "builtin",
+    drop_dependencies: bool = True,
 ) -> Callable:
     """Decorator to register a derived variable function.
 
@@ -301,6 +323,10 @@ def register_derived(
         Expected units of the derived variable.
     source : str, optional
         Where this variable was registered from. Default is 'builtin'.
+    drop_dependencies : bool, optional
+        Whether to remove source variables from the output after computing the
+        derived variable. Default: True (only return the derived variable).
+        Set to False to keep source variables alongside the derived variable.
 
     Returns
     -------
@@ -321,6 +347,17 @@ def register_derived(
     ...     ds['wind_speed'].attrs = {'units': 'm/s', 'long_name': 'Wind Speed'}
     ...     return ds
 
+    >>> # Keep source variables alongside derived variable
+    >>> @register_derived(
+    ...     variable='temp_range',
+    ...     query={'variable_id': ['tasmax', 'tasmin']},
+    ...     description='Daily temperature range',
+    ...     drop_dependencies=False  # Keep tasmax and tasmin
+    ... )
+    ... def calc_temp_range(ds):
+    ...     ds['temp_range'] = ds.tasmax - ds.tasmin
+    ...     return ds
+
     Notes
     -----
     The decorated function must:
@@ -328,6 +365,9 @@ def register_derived(
     - Add the derived variable to the dataset
     - Return the modified dataset
     - Set appropriate attributes (units, long_name) on the new variable
+
+    By default, source variables are dropped to reduce output size. Set
+    drop_dependencies=False to keep them for downstream analysis.
 
     """
 
@@ -342,7 +382,9 @@ def register_derived(
         # Wrap function to automatically preserve spatial metadata
         # This must happen BEFORE storing in metadata so both intake-esm
         # and _apply_derived_variable use the same wrapped function
-        wrapped_func = _wrap_with_metadata_preservation(func, variable, depends_on)
+        wrapped_func = _wrap_with_metadata_preservation(
+            func, variable, depends_on, drop_dependencies=drop_dependencies
+        )
 
         # Store metadata with the WRAPPED function
         # This ensures _apply_derived_variable() also preserves spatial metadata
@@ -353,6 +395,7 @@ def register_derived(
             units=units,
             func=wrapped_func,  # Use wrapped function, not original
             source=source,
+            drop_dependencies=drop_dependencies,
         )
 
         # Register with intake-esm
@@ -373,6 +416,7 @@ def register_user_function(
     description: str = "",
     units: str = "",
     query_extras: Optional[Dict[str, Any]] = None,
+    drop_dependencies: bool = True,
 ) -> None:
     """Register a user-defined derived variable at runtime.
 
@@ -395,6 +439,10 @@ def register_user_function(
         Expected units of the derived variable.
     query_extras : dict, optional
         Additional query constraints beyond variable_id (e.g., table_id, experiment_id).
+    drop_dependencies : bool, optional
+        Whether to remove source variables from the output after computing the
+        derived variable. Default: True (only return the derived variable).
+        Set to False to keep source variables alongside the derived variable.
 
     Raises
     ------
@@ -442,7 +490,9 @@ def register_user_function(
 
     # Wrap function to automatically preserve spatial metadata
     # This must happen BEFORE storing in metadata
-    wrapped_func = _wrap_with_metadata_preservation(func, name, depends_on)
+    wrapped_func = _wrap_with_metadata_preservation(
+        func, name, depends_on, drop_dependencies=drop_dependencies
+    )
 
     # Store metadata with the WRAPPED function
     _DERIVED_METADATA[name] = DerivedVariableInfo(
@@ -452,6 +502,7 @@ def register_user_function(
         units=units,
         func=wrapped_func,  # Use wrapped function, not original
         source="user",
+        drop_dependencies=drop_dependencies,
     )
 
     # Register with intake-esm
