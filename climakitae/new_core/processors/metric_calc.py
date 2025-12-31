@@ -719,22 +719,25 @@ class MetricCalc(DataProcessor):
             block_reduction_factor = min(365, time_size) / max(1, time_size / 365)
             block_maxima_size_mb = input_size_per_sim_mb / block_reduction_factor
 
-            # For dask arrays, only block maxima needs to be in memory
+            # For dask arrays, input gets pulled in chunks during compute
+            # GEV fitting is compute-heavy and needs substantial working memory
             # For non-dask, need input + block maxima + intermediates
             if is_dask:
-                # Dask lazy evaluation: only block maxima + fitting overhead
+                # Dask: input chunks + block maxima + GEV fitting working memory
+                # GEV fitting can require significant working memory (3-5x block maxima)
+                # Conservative estimate: ~2.5x input for compute-intensive fitting
                 estimated_memory_per_sim_mb = (
-                    block_maxima_size_mb * 2.0
-                )  # 2x for intermediate arrays
+                    input_size_per_sim_mb * 0.5 + block_maxima_size_mb * 3.0
+                )  # Partial input + substantial fitting overhead
             else:
                 # Non-dask: need input data + block maxima + intermediates
                 estimated_memory_per_sim_mb = (
                     input_size_per_sim_mb + block_maxima_size_mb * 2.0
                 )
 
-            # Target using 70% of available memory for analysis workloads
-            # This is appropriate for dedicated analysis (not shared servers)
-            target_memory_mb = available_memory_gb * 1000 * 0.7
+            # Target using 50% of available memory for GEV fitting workloads
+            # GEV is compute-intensive; leave headroom for OS and other processes
+            target_memory_mb = available_memory_gb * 1000 * 0.5
 
             # Calculate batch size
             if estimated_memory_per_sim_mb > 0:

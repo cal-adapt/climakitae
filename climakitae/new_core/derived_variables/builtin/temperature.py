@@ -304,12 +304,12 @@ def calc_effective_temp_sce(ds):
     else:
         raise ValueError("Data must have either 'time' or 'time_delta' dimension")
 
-    # Create lagged versions using the appropriate dimension
-    tmax0 = ds.t2max  # Current day
-    tmin0 = ds.t2min  # Current day
-    tmax1 = ds.t2max.shift({time_dim: 1})  # 1-day lag
-    tmin1 = ds.t2min.shift({time_dim: 1})  # 1-day lag
-    tmax2 = ds.t2max.shift({time_dim: 2})  # 2-day lag
+    # Create lagged versions in Fahrenheit using the appropriate dimension
+    tmax0 = (ds.t2max - 273.15) * 9 / 5 + 32  # Current day
+    tmin0 = (ds.t2min - 273.15) * 9 / 5 + 32  # Current day
+    tmax1 = tmax0.shift({time_dim: 1})  # 1-day lag
+    tmin1 = tmin0.shift({time_dim: 1})  # 1-day lag
+    tmax2 = tmax0.shift({time_dim: 2})  # 2-day lag
 
     # Calculate effective temperature
     ds["effective_temp_sce"] = (
