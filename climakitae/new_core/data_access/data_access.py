@@ -568,6 +568,15 @@ class DataCatalog(dict):
 
         logger.info("Computing derived variable '%s'", derived_var_name)
         for key in datasets:
+            # Check if intake-esm already computed the derived variable
+            if derived_var_name in datasets[key].data_vars:
+                logger.debug(
+                    "Derived variable '%s' already exists in dataset %s (computed by intake-esm)",
+                    derived_var_name,
+                    key,
+                )
+                continue
+
             try:
                 # The registered function should add the derived variable to the dataset
                 datasets[key] = func(datasets[key])
