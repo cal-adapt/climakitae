@@ -263,7 +263,7 @@ def calc_diurnal_temperature_range_wrf(ds):
 @register_derived(
     variable="effective_temp_sce",
     query={"variable_id": ["t2max", "t2min"]},
-    description="Daily temperature range from WRF data (maximum minus minimum)",
+    description="Effective temperature index derived by SCE",
     units="K",
     source="builtin",
 )
@@ -310,10 +310,11 @@ def calc_effective_temp_sce(ds):
     tmax1 = ds.t2max.shift({time_dim: 1})  # 1-day lag
     tmin1 = ds.t2min.shift({time_dim: 1})  # 1-day lag
     tmax2 = ds.t2max.shift({time_dim: 2})  # 2-day lag
-    # Calculate effective temperature
-    teff = 0.7 * tmax0 + 0.003 * tmin0 * tmax1 + 0.002 * tmin1 * tmax2
 
-    ds["effective_temp_sce"] = teff
+    # Calculate effective temperature
+    ds["effective_temp_sce"] = (
+        0.7 * tmax0 + 0.003 * tmin0 * tmax1 + 0.002 * tmin1 * tmax2
+    )
     ds["effective_temp_sce"].attrs = {
         "units": "K",
         "long_name": "SCE Effective Temperature Index",
