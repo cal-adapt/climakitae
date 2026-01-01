@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![DOI:10.5281/zenodo.18110321](http://zenodo.org/badge/doi/10.5281/zenodo.18110321.svg)](https://doi.org/10.5281/zenodo.18110321)
+[![DOI:10.5281/zenodo.18111936](https://zenodo.org/badge/DOI/10.5281/zenodo.18111936.svg)](https://doi.org/10.5281/zenodo.18111936)
 
 
 **A powerful Python toolkit for climate data analysis and retrieval from the Cal-Adapt Analytics Engine (AE).**
