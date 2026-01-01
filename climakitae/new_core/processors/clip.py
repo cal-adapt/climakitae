@@ -592,56 +592,84 @@ class Clip(DataProcessor):
         return convert_stations_to_points(station_identifiers, self.catalog)
 
     @staticmethod
-    def _clip_data_with_geom(data: xr.DataArray | xr.Dataset, gdf: gpd.GeoDataFrame):
+    def _ensure_data_crs(data: xr.DataArray | xr.Dataset) -> xr.DataArray | xr.Dataset:
         """
-        Clip the data using a bounding box.
+        Ensure the data has a CRS set, inferring it from the data structure if needed.
+
+        This method checks if the data already has a CRS and, if not, determines
+        the appropriate CRS based on the data structure (WRF Lambert Conformal
+        vs LOCA2/lat-lon).
 
         Parameters
         ----------
-        data : xr.Dataset | Iterable[xr.Dataset]
+        data : xr.DataArray | xr.Dataset
+            The data to check/set CRS on.
+
+        Returns
+        -------
+        xr.DataArray | xr.Dataset
+            The data with CRS set.
+
+        Raises
+        ------
+        ValueError
+            If WRF data is missing required CF convention attributes.
+        """
+        if data.rio.crs is not None:
+            return data
+
+        # Check if this is WRF data with Lambert Conformal projection
+        if "Lambert_Conformal" in data.coords:
+            # WRF data: try spatial_ref attribute first, then build from CF attrs
+            spatial_ref = data["Lambert_Conformal"].attrs.get("spatial_ref")
+            if spatial_ref:
+                return data.rio.write_crs(spatial_ref, inplace=True)
+            else:
+                # Build CRS from CF convention attributes
+                attrs = data["Lambert_Conformal"].attrs
+                try:
+                    crs = pyproj.CRS.from_cf(
+                        {
+                            "grid_mapping_name": attrs["grid_mapping_name"],
+                            "latitude_of_projection_origin": attrs[
+                                "latitude_of_projection_origin"
+                            ],
+                            "longitude_of_central_meridian": attrs[
+                                "longitude_of_central_meridian"
+                            ],
+                            "standard_parallel": attrs["standard_parallel"],
+                            "earth_radius": attrs["earth_radius"],
+                        }
+                    )
+                    return data.rio.write_crs(crs, inplace=True)
+                except KeyError as e:
+                    raise ValueError(
+                        f"Lambert_Conformal coordinate found but missing required "
+                        f"CF convention attribute: {e}"
+                    )
+        else:
+            # LOCA2 or other lat/lon data: use WGS84/EPSG:4326
+            return data.rio.write_crs("epsg:4326", inplace=True)
+
+    @staticmethod
+    def _clip_data_with_geom(data: xr.DataArray | xr.Dataset, gdf: gpd.GeoDataFrame):
+        """
+        Clip the data using a geometry.
+
+        Parameters
+        ----------
+        data : xr.Dataset | xr.DataArray
             The data to be clipped.
         gdf : gpd.GeoDataFrame
             The GeoDataFrame containing the geometry
 
         Returns
         -------
-        xr.Dataset | Iterable[xr.Dataset]
+        xr.Dataset | xr.DataArray
             The clipped data.
         """
         # Ensure data has CRS set
-        if data.rio.crs is None:
-            # Check if this is WRF data with Lambert Conformal projection
-            if "Lambert_Conformal" in data.coords:
-                # WRF data: try spatial_ref attribute first, then build from CF attrs
-                spatial_ref = data["Lambert_Conformal"].attrs.get("spatial_ref")
-                if spatial_ref:
-                    data = data.rio.write_crs(spatial_ref, inplace=True)
-                else:
-                    # Build CRS from CF convention attributes
-                    attrs = data["Lambert_Conformal"].attrs
-                    try:
-                        crs = pyproj.CRS.from_cf(
-                            {
-                                "grid_mapping_name": attrs["grid_mapping_name"],
-                                "latitude_of_projection_origin": attrs[
-                                    "latitude_of_projection_origin"
-                                ],
-                                "longitude_of_central_meridian": attrs[
-                                    "longitude_of_central_meridian"
-                                ],
-                                "standard_parallel": attrs["standard_parallel"],
-                                "earth_radius": attrs["earth_radius"],
-                            }
-                        )
-                        data = data.rio.write_crs(crs, inplace=True)
-                    except KeyError as e:
-                        raise ValueError(
-                            f"Lambert_Conformal coordinate found but missing required "
-                            f"CF convention attribute: {e}"
-                        )
-            else:
-                # LOCA2 or other lat/lon data: use WGS84/EPSG:4326
-                data = data.rio.write_crs("epsg:4326", inplace=True)
+        data = Clip._ensure_data_crs(data)
 
         # Ensure GeoDataFrame has CRS set (boundaries are always in EPSG:4326)
         if gdf.crs is None:
@@ -1440,18 +1468,30 @@ class Clip(DataProcessor):
             "Batch retrieved %d geometries from %s", len(all_geometries), category
         )
 
-        # --- End batch optimization ---
+        # --- CRS optimization: set up CRS once before the loop ---
+        # Ensure data has CRS set (do this once, not N times)
+        data = self._ensure_data_crs(data)
+
+        # Reproject all geometries to match data CRS once
+        if all_geometries.crs != data.rio.crs:
+            all_geometries = all_geometries.to_crs(data.rio.crs)
+            logger.debug("Reprojected all geometries to %s", data.rio.crs)
+
+        # --- End CRS optimization ---
 
         clipped_results = []
         valid_boundary_names = []
 
         for boundary_key, (idx, geom_row) in zip(valid_keys, all_geometries.iterrows()):
             try:
-                # Create single-row GeoDataFrame for clipping
-                single_geom = gpd.GeoDataFrame([geom_row], crs=all_geometries.crs)
-
-                # Clip the data
-                clipped = self._clip_data_with_geom(data, single_geom)
+                # Clip directly using the pre-reprojected geometry
+                # Skip CRS checks since we've already handled them
+                clipped = data.rio.clip(
+                    [mapping(geom_row.geometry)],
+                    all_geometries.crs,
+                    drop=True,
+                    all_touched=True,
+                )
 
                 if clipped is not None:
                     clipped_results.append(clipped)

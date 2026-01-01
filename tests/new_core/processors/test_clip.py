@@ -3055,6 +3055,11 @@ class TestClipDataSeparatedIntegration:
                 )
             }
         )
+        # Write CRS to the sample dataset so _ensure_data_crs doesn't need to infer it
+        self.sample_dataset = self.sample_dataset.rio.write_crs("EPSG:4326")
+        self.sample_dataset = self.sample_dataset.rio.set_spatial_dims(
+            x_dim="lon", y_dim="lat"
+        )
 
         self.clip = Clip({"boundaries": ["CA", "OR"], "separated": True})
 
@@ -3082,22 +3087,9 @@ class TestClipDataSeparatedIntegration:
 
     def test_clip_data_separated_successful(self):
         """Test _clip_data_separated with successful clipping."""
-        clipped_ca = self.sample_dataset.copy()
-        clipped_or = self.sample_dataset.copy()
-        clipped_or = self.sample_dataset.copy()
-
         with (
             patch.object(self.clip, "_infer_dimension_name", return_value="state"),
-            patch.object(
-                self.clip,
-                "_get_boundary_geometry",
-                side_effect=[MagicMock(), MagicMock()],
-            ),
-            patch.object(
-                self.clip,
-                "_clip_data_with_geom",
-                side_effect=[clipped_ca, clipped_or],
-            ),
+            patch.object(self.clip, "_get_boundary_category", return_value="states"),
         ):
             result = self.clip._clip_data_separated(self.sample_dataset, ["CA", "OR"])
 
@@ -3107,29 +3099,24 @@ class TestClipDataSeparatedIntegration:
 
     def test_clip_data_separated_no_valid_results(self):
         """Test _clip_data_separated raises error when no valid results."""
+        # Update boundary_dict to not include INVALID
+        self.mock_catalog.boundaries.boundary_dict.return_value = {
+            "states": {"CA": 0, "OR": 1},  # No INVALID key
+        }
+
         with (
             patch.object(self.clip, "_infer_dimension_name", return_value="state"),
-            patch.object(
-                self.clip,
-                "_get_boundary_geometry",
-                side_effect=ValueError("Not found"),
-            ),
+            patch.object(self.clip, "_get_boundary_category", return_value="states"),
         ):
-            with pytest.raises(ValueError, match="No valid clipped data"):
+            with pytest.raises(ValueError, match="No valid boundary keys found"):
                 self.clip._clip_data_separated(self.sample_dataset, ["INVALID"])
 
     def test_clip_data_separated_partial_failure(self):
-        """Test _clip_data_separated continues when some boundaries fail."""
-        clipped_ca = self.sample_dataset.copy()
-
+        """Test _clip_data_separated continues when some boundaries fail (invalid keys skipped)."""
+        # boundary_dict only has CA, not INVALID - INVALID will be skipped with warning
         with (
             patch.object(self.clip, "_infer_dimension_name", return_value="state"),
-            patch.object(
-                self.clip,
-                "_get_boundary_geometry",
-                side_effect=[MagicMock(), ValueError("Not found")],
-            ),
-            patch.object(self.clip, "_clip_data_with_geom", return_value=clipped_ca),
+            patch.object(self.clip, "_get_boundary_category", return_value="states"),
         ):
             result = self.clip._clip_data_separated(
                 self.sample_dataset, ["CA", "INVALID"]
@@ -3144,37 +3131,40 @@ class TestClipDataSeparatedIntegration:
         """Test _clip_data_separated handles concatenation errors."""
         with (
             patch.object(self.clip, "_infer_dimension_name", return_value="state"),
-            patch.object(self.clip, "_get_boundary_geometry", return_value=MagicMock()),
-            patch.object(
-                self.clip, "_clip_data_with_geom", return_value=self.sample_dataset
-            ),
+            patch.object(self.clip, "_get_boundary_category", return_value="states"),
             patch("xarray.concat", side_effect=Exception("Concat failed")),
         ):
             with pytest.raises(ValueError, match="Failed to concatenate"):
                 self.clip._clip_data_separated(self.sample_dataset, ["CA"])
 
     def test_clip_data_separated_clip_returns_none(self):
-        """Test _clip_data_separated skips boundaries where clip returns None."""
-        clipped_ca = self.sample_dataset.copy()
+        """Test _clip_data_separated skips boundaries where clip fails."""
+        # Create a geometry that doesn't overlap with the data at all
+        # to simulate a clip that returns no valid data
+        from shapely.geometry import box
+
+        # Update states_gdf with one non-overlapping geometry (outside data extent)
+        self.mock_states_gdf = gpd.GeoDataFrame(
+            {"abbrevs": ["CA", "OR"], "name": ["California", "Oregon"]},
+            geometry=[
+                box(-125, 32, -114, 42),  # CA overlaps with data
+                box(0, 0, 1, 1),  # OR is completely outside data extent
+            ],
+            index=[0, 1],
+            crs="EPSG:4326",
+        )
+        self.mock_catalog.boundaries._us_states = self.mock_states_gdf
 
         with (
             patch.object(self.clip, "_infer_dimension_name", return_value="state"),
-            patch.object(
-                self.clip,
-                "_get_boundary_geometry",
-                side_effect=[MagicMock(), MagicMock()],
-            ),
-            patch.object(
-                self.clip,
-                "_clip_data_with_geom",
-                side_effect=[clipped_ca, None],  # Second clip returns None
-            ),
+            patch.object(self.clip, "_get_boundary_category", return_value="states"),
         ):
             result = self.clip._clip_data_separated(self.sample_dataset, ["CA", "OR"])
 
-            # Should succeed with just CA
+            # Should succeed with just CA (OR clip will raise NoDataInBounds)
             assert result is not None
             assert "state" in result.dims
+            # Only CA should be in the result since OR is outside bounds
             assert len(result.state) == 1
 
 
