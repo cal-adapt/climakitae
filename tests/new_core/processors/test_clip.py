@@ -3057,12 +3057,33 @@ class TestClipDataSeparatedIntegration:
         )
 
         self.clip = Clip({"boundaries": ["CA", "OR"], "separated": True})
+
+        # Create mock catalog with proper boundaries structure
         self.mock_catalog = MagicMock()
+
+        # Create a mock GeoDataFrame for states
+        from shapely.geometry import box
+
+        self.mock_states_gdf = gpd.GeoDataFrame(
+            {"abbrevs": ["CA", "OR"], "name": ["California", "Oregon"]},
+            geometry=[box(-125, 32, -114, 42), box(-125, 42, -114, 46)],
+            index=[0, 1],
+            crs="EPSG:4326",
+        )
+
+        # Set up the mock catalog boundaries
+        self.mock_catalog.boundaries.boundary_dict.return_value = {
+            "states": {"CA": 0, "OR": 1},
+            "CA counties": {},
+        }
+        self.mock_catalog.boundaries._us_states = self.mock_states_gdf
+
         self.clip.set_data_accessor(self.mock_catalog)
 
     def test_clip_data_separated_successful(self):
         """Test _clip_data_separated with successful clipping."""
         clipped_ca = self.sample_dataset.copy()
+        clipped_or = self.sample_dataset.copy()
         clipped_or = self.sample_dataset.copy()
 
         with (

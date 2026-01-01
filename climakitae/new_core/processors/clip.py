@@ -1385,16 +1385,73 @@ class Clip(DataProcessor):
 
         logger.debug("Using dimension name: %s", dim_name)
 
+        # --- Batch geometry retrieval optimization ---
+        # Get boundary_dict once (cached) and determine category from first key
+        boundary_dict = self.catalog.boundaries.boundary_dict()  # type: ignore
+        category = self._get_boundary_category(boundary_keys[0])
+
+        if category is None:
+            raise ValueError(
+                f"Could not determine category for boundary key: {boundary_keys[0]}"
+            )
+
+        # Get the lookup dict for this category and the full DataFrame
+        lookup = boundary_dict.get(category, {})
+        boundaries = self.catalog.boundaries  # type: ignore
+        category_df_map = {
+            "states": boundaries._us_states,
+            "CA counties": boundaries._ca_counties,
+            "CA watersheds": boundaries._ca_watersheds,
+            "CA Electric Load Serving Entities (IOU & POU)": boundaries._ca_utilities,
+            "CA Electricity Demand Forecast Zones": boundaries._ca_forecast_zones,
+            "CA Electric Balancing Authority Areas": boundaries._ca_electric_balancing_areas,
+            "CA Census Tracts": boundaries._ca_census_tracts,
+        }
+        category_df = category_df_map.get(category)
+
+        if category_df is None:
+            raise ValueError(f"Unknown boundary category: {category}")
+
+        # Validate all keys and get their indices in one pass
+        valid_keys = []
+        indices = []
+        for key in boundary_keys:
+            if key in lookup:
+                valid_keys.append(key)
+                indices.append(lookup[key])
+            else:
+                logger.warning(
+                    "Boundary key '%s' not found in %s, skipping", key, category
+                )
+
+        if not indices:
+            raise ValueError(
+                f"No valid boundary keys found in category '{category}': {boundary_keys}"
+            )
+
+        # Batch retrieve all geometries at once
+        all_geometries = category_df.loc[indices]
+        if not isinstance(all_geometries, gpd.GeoDataFrame):
+            all_geometries = gpd.GeoDataFrame(all_geometries)
+        if all_geometries.crs is None:
+            all_geometries = all_geometries.set_crs(epsg=4326)
+
+        logger.debug(
+            "Batch retrieved %d geometries from %s", len(all_geometries), category
+        )
+
+        # --- End batch optimization ---
+
         clipped_results = []
         valid_boundary_names = []
 
-        for boundary_key in boundary_keys:
+        for boundary_key, (idx, geom_row) in zip(valid_keys, all_geometries.iterrows()):
             try:
-                # Get geometry for this boundary
-                geom = self._get_boundary_geometry(boundary_key)
+                # Create single-row GeoDataFrame for clipping
+                single_geom = gpd.GeoDataFrame([geom_row], crs=all_geometries.crs)
 
                 # Clip the data
-                clipped = self._clip_data_with_geom(data, geom)
+                clipped = self._clip_data_with_geom(data, single_geom)
 
                 if clipped is not None:
                     clipped_results.append(clipped)
