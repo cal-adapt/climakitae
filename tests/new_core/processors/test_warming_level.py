@@ -408,53 +408,62 @@ class TestWarmingLevelExecute:
             assert isinstance(cy, (int, np.integer))
             assert 1981 <= cy <= 2100
 
-    def test_execute_specific_months(self, request, full_processor):
-        """Test that execute correctly selects specific months for warming level calculation."""
+    @pytest.mark.parametrize(
+        "data_fixture,test_key,months,context,ret_key",
+        [
+            (
+                "test_dataarray_dict_loca_daily",
+                "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03",
+                [6, 7, 8],
+                {"activity_id": "LOCA2"},
+                "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03.r1i1p1f1",
+            ),
+            (
+                "test_dataarray_dict_wrf_hourly",
+                "WRF.UCLA.EC-Earth3.historical.1hr.d03",
+                [3, 4, 5],
+                {"activity_id": "WRF"},
+                "WRF.UCLA.EC-Earth3.ssp370.1hr.d03.r1i1p1f1",
+            ),
+        ],
+    )
+    def test_execute_specific_months(
+        self,
+        request,
+        full_processor,
+        data_fixture,
+        test_key,
+        months,
+        context,
+        ret_key,
+    ):
+        """Test execute selects specific months for daily and hourly data."""
+        test_result = request.getfixturevalue(data_fixture)
 
-        # Helper function to test warming level execution for different data frequencies
-        def test_warming_level_execution(test_result, test_key, context, ret_key):
-            ret = full_processor.execute(result=test_result, context=context)
-            # Check that the warming_level coordinate matches the processor's warming_levels
-            assert (
-                ret[ret_key].warming_level.values == full_processor.warming_levels
-            ).all()
-            # Check the length of the time_delta dimension
-            first_year = str(test_result[test_key].isel(time=0).time.dt.year.item())
-            # Find the number of elements in the first year of `ret[key]` for specified months
-            timesteps_per_year = (
-                test_result[test_key]
-                .sel(time=slice(first_year, first_year))
-                .where(
-                    test_result[test_key].time.dt.month.isin(
-                        full_processor.warming_level_months
-                    ),
-                    drop=True,
-                )
-                .time.size
-            )
-            assert (
-                len(ret[ret_key].time_delta)
-                == timesteps_per_year * full_processor.warming_level_window * 2
-            )
+        full_processor.warming_level_months = months
+        ret = full_processor.execute(result=test_result, context=context)
 
-        # Test with daily data
-        test_result_daily = request.getfixturevalue("test_dataarray_dict_loca_daily")
-        test_key_daily = "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03"
-        full_processor.warming_level_months = [6, 7, 8]  # Set specific months
-        context_daily = {"activity_id": "LOCA2"}
-        ret_key_daily = "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03.r1i1p1f1"
-        test_warming_level_execution(
-            test_result_daily, test_key_daily, context_daily, ret_key_daily
+        assert (
+            ret[ret_key].warming_level.values == full_processor.warming_levels
+        ).all()
+
+        first_year = str(test_result[test_key].isel(time=0).time.dt.year.item())
+
+        timesteps_per_year = (
+            test_result[test_key]
+            .sel(time=slice(first_year, first_year))
+            .where(
+                test_result[test_key].time.dt.month.isin(
+                    full_processor.warming_level_months
+                ),
+                drop=True,
+            )
+            .time.size
         )
 
-        # Test with hourly data
-        test_result_hourly = request.getfixturevalue("test_dataarray_dict_wrf_hourly")
-        test_key_hourly = "WRF.UCLA.EC-Earth3.historical.1hr.d03"
-        full_processor.warming_level_months = [3, 4, 5]  # Set specific months
-        context_hourly = {"activity_id": "WRF"}
-        ret_key_hourly = "WRF.UCLA.EC-Earth3.ssp370.1hr.d03.r1i1p1f1"
-        test_warming_level_execution(
-            test_result_hourly, test_key_hourly, context_hourly, ret_key_hourly
+        assert (
+            len(ret[ret_key].time_delta)
+            == timesteps_per_year * full_processor.warming_level_window * 2
         )
 
     def test_execute_loca_correct(self, request, full_processor):
