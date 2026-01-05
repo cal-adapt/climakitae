@@ -77,7 +77,9 @@ class WarmingLevel(DataProcessor):
         # Extract configuration parameters
         self.warming_levels = value.get("warming_levels", [2.0])
         self.warming_level_window = value.get("warming_level_window", 15)
-        self.months = value.get("months", list(range(1, 13)))
+        self.warming_level_months = value.get(
+            "warming_level_months", list(range(1, 13))
+        )
 
         # Initialize instance variables
         self.name = "warming_level_simple"
@@ -230,7 +232,9 @@ class WarmingLevel(DataProcessor):
                 da_slice = da_slice.where(~is_feb29, drop=True)
 
                 # Only grab specific months of time, if specified
-                da_slice = da_slice.sel(time=da_slice.time.dt.month.isin(self.months))
+                da_slice = da_slice.sel(
+                    time=da_slice.time.dt.month.isin(self.warming_level_months)
+                )
 
                 # Create time_delta specific to this slice's length
                 # This ensures each warming level has the correct time_delta length

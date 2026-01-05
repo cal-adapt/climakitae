@@ -408,6 +408,38 @@ class TestWarmingLevelExecute:
             assert isinstance(cy, (int, np.integer))
             assert 1981 <= cy <= 2100
 
+    def test_execute_specific_months(self, request, full_processor):
+        """Test that execute correctly selects specific months for warming level calculation."""
+        test_result = request.getfixturevalue("test_dataarray_dict")
+        test_key = "WRF.UCLA.EC-Earth3.ssp370.day.d03"
+        # Set specific months (e.g., June, July, August)
+        full_processor.warming_level_months = [6, 7, 8]
+        context = {"activity_id": "WRF"}
+        ret = full_processor.execute(result=test_result, context=context)
+        ret_key = "WRF.UCLA.EC-Earth3.ssp370.day.d03.r1i1p1f1"
+
+        # Check that the warming_level coordinate matches the processor's warming_levels
+        assert (
+            ret[ret_key].warming_level.values == full_processor.warming_levels
+        ).all()
+        # Check the length of the time_delta dimension
+        first_year = str(test_result[test_key].isel(time=0).time.dt.year.item())
+        # Find the number of elements in the first year of `ret[key]` for specified months
+        timesteps_per_year = (
+            test_result[test_key]
+            .sel(time=slice(first_year, first_year))
+            .sel(
+                time=test_result[test_key].time.dt.month.isin(
+                    full_processor.warming_level_months
+                )
+            )
+            .time.size
+        )
+        assert (
+            len(ret[ret_key].time_delta)
+            == timesteps_per_year * full_processor.warming_level_window * 2
+        )
+
     def test_execute_loca_correct(self, request, full_processor):
         """Test that execute works correctly for LOCA data."""
         test_result = request.getfixturevalue("test_dataarray_dict_loca")
