@@ -438,14 +438,14 @@ class TestWarmingLevelExecute:
             )
 
         # Test with daily data
-        # test_result_daily = request.getfixturevalue("test_dataarray_dict_loca_daily")
-        # test_key_daily = "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03"
-        # full_processor.warming_level_months = [6, 7, 8]  # Set specific months
-        # context_daily = {"activity_id": "LOCA2"}
-        # ret_key_daily = "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03.r1i1p1f1"
-        # test_warming_level_execution(
-        #     test_result_daily, test_key_daily, context_daily, ret_key_daily
-        # )
+        test_result_daily = request.getfixturevalue("test_dataarray_dict_loca_daily")
+        test_key_daily = "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03"
+        full_processor.warming_level_months = [6, 7, 8]  # Set specific months
+        context_daily = {"activity_id": "LOCA2"}
+        ret_key_daily = "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03.r1i1p1f1"
+        test_warming_level_execution(
+            test_result_daily, test_key_daily, context_daily, ret_key_daily
+        )
 
         # Test with hourly data
         test_result_hourly = request.getfixturevalue("test_dataarray_dict_wrf_hourly")
