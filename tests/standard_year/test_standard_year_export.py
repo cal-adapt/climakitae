@@ -204,56 +204,105 @@ class TestExportProfile:
             ),
         ],
     )
-    def test__get_clean_standardyr_filename(self, value, expected):
+    def test_get_clean_standardyr_filename(self, value, expected):
         """Test that file name is correctly formatted based on given inputs."""
         assert _get_clean_standardyr_filename(**value) == expected
 
-    def test_check_cached_area(self, value):
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            (
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                },
+                "34-4041N_121-516W",
+            ),
+            (
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "latitude": 34.4041,
+                },
+                "sacramento executive airport (ksac)",
+            ),
+            (
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                },
+                "sacramento executive airport (ksac)",
+            ),
+            (
+                {
+                    "stations": ["Custom Station Name"],
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                },
+                "custom station name_34-4041N_121-516W",
+            ),
+            (
+                {
+                    "stations": [
+                        "Sacramento Executive Airport (KSAC)",
+                        "Santa Barbara Municipal Airport (KSBA)",
+                    ],
+                },
+                "sacramento executive airport (ksac)_santa barbara municipal airport (ksba)",
+            ),
+            (
+                {
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                {
+                    "latitude": 34.4041,
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                {
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                },
+                "34-4041N_121-516W",
+            ),
+            (
+                {
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+        ],
+    )
+    def test_check_cached_area(self, value, expected_intermediate):
         """Test that the location string is correctly formatted based on given inputs."""
-        with patch("pandas.DataFrame.to_csv") as to_csv_mock:
-            variable = "Air Temperature at 2m"
-            q = 0.5
-            gwl = [1.5]
-            cached_area = "Sacramento County"
-            no_delta = False
-            profile_selections = {
-                "variable": variable,
-                "q": q,
-                "warming_level": gwl,
-                "cached_area": cached_area,
-                "no_delta": no_delta,
-            }
-            _check_cached_area(
-                self.multi_df,
-                **profile_selections,
-            )
-            expected_filename = "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical.csv"
-            to_csv_mock.assert_called_with(expected_filename)
+        assert _check_cached_area(**value) == expected_intermediate
 
-        with patch("pandas.DataFrame.to_csv") as to_csv_mock:
-            gwls = [1.5, 2.0]
-            profile_selections = {
-                "variable": variable,
-                "q": q,
-                "warming_level": gwls,
-                "cached_area": cached_area,
-                "no_delta": no_delta,
-            }
-            export_profile_to_csv(self.multi_df_gwl, **profile_selections)
-            expected_filenames = [
-                call(
-                    "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical.csv"
-                ),
-                call(
-                    "stdyr_t2_50ptile_sacramento_county_mid-century_delta_from_historical.csv"
-                ),
-            ]
-            to_csv_mock.assert_has_calls(expected_filenames)
-
-    def test_checked_lat_lon(self, value, expected):
+    def test_check_lat_lon(self, value, expected_intermediate):
         """Test that file name is correctly formatted based on given inputs."""
-        assert _get_clean_standardyr_filename(**value) == expected
+        assert _check_lat_lon(**value) == expected_intermediate
 
-    def test_check_stations(self, value, expected):
+    def test_check_stations(self, value, expected_intermediate):
         """Test that file name is correctly formatted based on given inputs."""
-        assert _get_clean_standardyr_filename(**value) == expected
+        assert _check_stations(**value) == expected_intermediate
