@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from climakitae.core.constants import _NEW_ATTRS_KEY
+from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1981_2010_TIMEIDX_FILE
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
@@ -77,9 +77,7 @@ class WarmingLevel(DataProcessor):
         # Extract configuration parameters
         self.warming_levels = value.get("warming_levels", [2.0])
         self.warming_level_window = value.get("warming_level_window", 15)
-        self.warming_level_months = value.get(
-            "warming_level_months", list(range(1, 13))
-        )
+        self.warming_level_months = value.get("warming_level_months", UNSET)
 
         # Initialize instance variables
         self.name = "warming_level_simple"
@@ -232,9 +230,10 @@ class WarmingLevel(DataProcessor):
                 da_slice = da_slice.where(~is_feb29, drop=True)
 
                 # Only grab specific months of time, if specified
-                da_slice = da_slice.sel(
-                    time=da_slice.time.dt.month.isin(self.warming_level_months)
-                )
+                if self.warming_level_months is not UNSET:
+                    da_slice = da_slice.sel(
+                        time=da_slice.time.dt.month.isin(self.warming_level_months)
+                    )
 
                 # Create time_delta specific to this slice's length
                 # This ensures each warming level has the correct time_delta length
