@@ -29,15 +29,23 @@ class TimeSlice(DataProcessor):
 
     Parameters
     ----------
-    value : tuple(date-like, date-like)
-        The value to subset the data by. This should be a tuple of two
-        date-like values.
+    value : iterable of date-like or dict
+        Either:
+
+        - An iterable of two date-like objects specifying the start and end
+          dates for the time slice, or
+        - A dictionary with a required ``"dates"`` key and an optional
+          ``"seasons"`` key.
+
+        The ``"dates"`` value must be an iterable of two date-like objects.
+        The ``"seasons"`` value, if provided, must be an iterable of seasons.
 
     Methods
     -------
     _coerce_to_dates(value: tuple) -> tuple[pd.Timestamp, pd.Timestamp]
         Coerce the values to date-like objects.
-
+    _subset_time_and_season(obj: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray
+        Subset the data based on time and seasons if provided.
     """
 
     def __init__(self, value: Iterable[Any]):
@@ -46,8 +54,16 @@ class TimeSlice(DataProcessor):
 
         Parameters
         ----------
-        value : Iterable(date-like, date-like)
-            The value to subset the data by.
+        value : iterable of date-like or dict
+            Either:
+
+            - An iterable of two date-like objects specifying the start and end
+            dates for the time slice, or
+            - A dictionary with a required ``"dates"`` key and an optional
+            ``"seasons"`` key.
+
+            The ``"dates"`` value must be an iterable of two date-like objects.
+            The ``"seasons"`` value, if provided, must be an iterable of seasons.
         """
         if not isinstance(value, dict):
             value = {"dates": value}
