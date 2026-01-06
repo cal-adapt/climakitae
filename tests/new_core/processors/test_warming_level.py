@@ -143,10 +143,15 @@ class TestWarmingLevelProcessorInitialization:
     def test_custom_initialization(self):
         """Test custom initialization."""
         processor = WarmingLevel(
-            value={"warming_levels": [1.5, 3.0], "warming_level_window": 10}
+            value={
+                "warming_levels": [1.5, 3.0],
+                "warming_level_window": 10,
+                "warming_level_months": [1, 2],
+            }
         )
         assert processor.warming_levels == [1.5, 3.0]
         assert processor.warming_level_window == 10
+        assert processor.warming_level_months == [1, 2]
 
 
 class TestWarmingLevelUpdateContext:
