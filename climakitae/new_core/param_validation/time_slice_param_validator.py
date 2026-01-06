@@ -7,6 +7,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
 )
@@ -36,12 +37,27 @@ def validate_time_slice_param(value: tuple[Any, Any], **kwargs) -> bool:
         "validate_time_slice_param called with value=%s kwargs=%s", value, kwargs
     )
 
-    if not isinstance(value, tuple) or len(value) != 2:
+    time_slice = value.get("dates", None)
+    season_filter = value.get("seasons", UNSET)
+
+    if not isinstance(time_slice, tuple) or len(time_slice) != 2:
         msg = "Time Slice Processor expects a tuple of two date-like values. Please check the configuration."
         logger.warning(msg)
         return False
+    if season_filter is not UNSET:
+        if not isinstance(season_filter, list) or not all(
+            isinstance(season, str)
+            for season in season_filter
+            or all(season in ["DJF", "MAM", "JJA", "SON"] for season in season_filter)
+        ):
+            msg = (
+                "If provided, 'seasons' parameter must be a list of season names "
+                "(e.g., ['DJF', 'MAM']). Please check the configuration."
+            )
+            logger.warning(msg)
+            return False
     try:
-        value = _coerce_to_dates(value)
+        value = _coerce_to_dates(time_slice)
     except ValueError as e:
         msg = f"Invalid date-like values provided: {e}. Expected a tuple of two date-like values."
         logger.warning(msg)

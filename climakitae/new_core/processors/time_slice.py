@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, Union
 
 import xarray as xr
 
-from climakitae.core.constants import _NEW_ATTRS_KEY
+from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.param_validation_tools import _coerce_to_dates
 from climakitae.new_core.processors.abc_data_processor import (
@@ -49,7 +49,8 @@ class TimeSlice(DataProcessor):
         value : Iterable(date-like, date-like)
             The value to subset the data by.
         """
-        self.value = _coerce_to_dates(value)
+        self.value = _coerce_to_dates(value.get("dates"))
+        self.seasons = value.get("seasons", UNSET)
         logger.debug("TimeSlice initialized with value=%s", self.value)
         self.name = "time_slice"
 
@@ -84,26 +85,23 @@ class TimeSlice(DataProcessor):
             self.value,
             type(result).__name__,
         )
+
         match result:
             case dict():  # most likely case at top
                 subset_data = {}
                 for key, value in result.items():
-                    subset_data[key] = value.sel(
-                        time=slice(self.value[0], self.value[1])
-                    )
+                    subset_data[key] = self._subset_time_and_season(value)
                 self.update_context(context)
                 return subset_data
 
             case xr.DataArray() | xr.Dataset():
                 self.update_context(context)
-                return result.sel(time=slice(self.value[0], self.value[1]))
+                return self._subset_time_and_season(self, result)
 
             case list() | tuple():
                 subset_data = []
                 for value in result:
-                    subset_data.append(
-                        value.sel(time=slice(self.value[0], self.value[1]))
-                    )
+                    subset_data.append(self._subset_time_and_season(value))
                 # return as the same type as the input
                 self.update_context(context)
                 return type(result)(subset_data)
@@ -136,3 +134,13 @@ class TimeSlice(DataProcessor):
     def set_data_accessor(self, catalog: DataCatalog):
         # Placeholder for setting data accessor
         pass
+
+    def _subset_time_and_season(
+        self,
+        obj: Union[xr.Dataset, xr.DataArray],
+    ) -> Union[xr.Dataset, xr.DataArray]:
+        """Subset the data based on time and seasons if provided."""
+        obj = obj.sel(time=slice(self.value[0], self.value[1]))
+        if self.seasons is not None:
+            obj = obj.where(obj.time.dt.season.isin(self.seasons), drop=True)
+        return obj
