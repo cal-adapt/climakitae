@@ -36,14 +36,18 @@ def validate_time_slice_param(value: tuple[Any, Any], **kwargs) -> bool:
     logger.debug(
         "validate_time_slice_param called with value=%s kwargs=%s", value, kwargs
     )
-
-    time_slice = value.get("dates", None)
-    season_filter = value.get("seasons", UNSET)
+    if isinstance(value, dict):
+        time_slice = value.get("dates", None)
+        season_filter = value.get("seasons", UNSET)
+    else:
+        time_slice = value
+        season_filter = UNSET
 
     if not isinstance(time_slice, tuple) or len(time_slice) != 2:
         msg = "Time Slice Processor expects a tuple of two date-like values. Please check the configuration."
         logger.warning(msg)
         return False
+
     if season_filter is not UNSET:
         if (
             not isinstance(season_filter, list)

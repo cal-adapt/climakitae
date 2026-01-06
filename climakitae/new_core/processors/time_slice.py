@@ -49,6 +49,8 @@ class TimeSlice(DataProcessor):
         value : Iterable(date-like, date-like)
             The value to subset the data by.
         """
+        if not isinstance(value, dict):
+            value = {"dates": value}
         self.value = _coerce_to_dates(value.get("dates"))
         self.seasons = value.get("seasons", UNSET)
         logger.debug("TimeSlice initialized with value=%s", self.value)
@@ -141,6 +143,6 @@ class TimeSlice(DataProcessor):
     ) -> Union[xr.Dataset, xr.DataArray]:
         """Subset the data based on time and seasons if provided."""
         obj = obj.sel(time=slice(self.value[0], self.value[1]))
-        if self.seasons is not None:
+        if self.seasons is not UNSET:
             obj = obj.where(obj.time.dt.season.isin(self.seasons), drop=True)
         return obj
