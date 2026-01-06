@@ -332,8 +332,7 @@ class ParameterValidator(ABC):
         except ValueError as e:
             # no datasets found or invalid query
             logger.warning(
-                f"Query did not match any datasets: {e}\n\nSearching for close matches...",
-                stacklevel=999,
+                f"Query did not match any datasets: {e}\n\nSearching for close matches..."
             )
         if len(subset) != 0:
             logger.info("Found %d datasets matching your query.", len(subset))
@@ -353,8 +352,7 @@ class ParameterValidator(ABC):
             # check if the key is in the catalog
             if key not in df.columns:
                 logger.warning(
-                    f"Key {key} not found in catalog. Did you specify the correct catalog?",
-                    stacklevel=999,
+                    f"Key {key} not found in catalog. Did you specify the correct catalog?"
                 )
                 continue  # skip to the next key
 
@@ -365,8 +363,7 @@ class ParameterValidator(ABC):
                 ):
                     logger.warning(
                         f"Experiment ID {value} is not valid. "
-                        "Please check the available options using `show_experiment_id_options()`.",
-                        stacklevel=999,
+                        "Please check the available options using `show_experiment_id_options()`."
                     )
                 else:
                     self.all_catalog_keys[key] = value
@@ -394,16 +391,14 @@ class ParameterValidator(ABC):
                     if closest_options is not None:
                         # probably a typo in the value
                         logger.warning(
-                            f"\n\nDid you mean one of these options for {key}: {closest_options}?",
-                            stacklevel=999,
+                            f"\n\nDid you mean one of these options for {key}: {closest_options}?"
                         )
                     else:
                         # no close matches found
                         logger.warning(
                             f"\n\nNo close matches found for {key} = {value}. "
                             "\nBased on your query, the available options for this key are: "
-                            f"{remaining_key_values}.",
-                            stacklevel=999,
+                            f"{remaining_key_values}."
                         )
                 else:
                     # the value is in the catalog, but no datasets were found
@@ -418,8 +413,7 @@ class ParameterValidator(ABC):
                         f"\nThis is constrained by the earlier key {last_key} = {self.all_catalog_keys[last_key]}. "
                         f"\nPlease check your query and try again. "
                         f"\n\nTo explore available options, "
-                        f"\n please use the `show_*_options()` methods.",
-                        stacklevel=999,
+                        f"\n please use the `show_*_options()` methods."
                     )
                 break
             # else:
@@ -476,15 +470,13 @@ class ParameterValidator(ABC):
                 if not valid_value_for_processor:
                     logger.warning(
                         f"\n\nProcessor {key} with value {value} is not valid. "
-                        "\nPlease check the processor documentation for valid options.",
-                        stacklevel=999,
+                        "\nPlease check the processor documentation for valid options."
                     )
                     return False
             else:
                 logger.warning(
                     f"\n\nProcessor {key} is not registered. "
-                    "\nThis processor input has not been validated.",
-                    stacklevel=999,
+                    "\nThis processor input has not been validated."
                 )
 
         return True

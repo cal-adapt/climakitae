@@ -1,7 +1,7 @@
 """Shared data and paths between multiple unit tests."""
 
-import os
 import logging
+import os
 import warnings
 
 import numpy as np

@@ -15,10 +15,11 @@ warnings.filterwarnings("ignore", message="IProgress not found")  # tqdm
 warnings.filterwarnings("ignore", message="pkg_resources is deprecated")  # intake_esm
 warnings.filterwarnings("ignore", category=FutureWarning, module="xarray")  # xarray
 
+from climakitae._version import __version__  # noqa: E402
+
 # Import submodules after configuring filters (noqa: E402 suppresses linter warnings)
 from climakitae.core.data_export import export, remove_zarr  # noqa: E402
 from climakitae.core.data_load import load  # noqa: E402
-from climakitae._version import __version__  # noqa: E402
 from climakitae.new_core.user_interface import ClimateData  # noqa: E402
 
 __all__ = (

@@ -14,6 +14,7 @@ Tests cover:
 - Boundary key validation with case sensitivity
 """
 
+import logging
 import os
 import tempfile
 from unittest.mock import MagicMock, patch
@@ -162,18 +163,17 @@ class TestValidateStringParam:
         "climakitae.new_core.param_validation.clip_param_validator.is_station_identifier"
     )
     def test_validate_station_like_but_is_boundary_returns_true(
-        self, mock_is_station, mock_validate_station, mock_validate_boundary
+        self, mock_is_station, mock_validate_station, mock_validate_boundary, caplog
     ):
         """Test _validate_string_param with station-like string that's actually a boundary."""
         mock_is_station.return_value = True
         mock_validate_station.return_value = False
         mock_validate_boundary.return_value = True
 
-        with pytest.warns(
-            UserWarning, match="looks like a station identifier but was not found"
-        ):
+        with caplog.at_level(logging.WARNING):
             result = _validate_string_param("Kern")
             assert result is True
+            assert "looks like a station identifier but was not found" in caplog.text
 
     @patch(
         "climakitae.new_core.param_validation.clip_param_validator._validate_boundary_key_string"
@@ -704,9 +704,11 @@ class TestValidateDictParam:
         result = _validate_dict_param({"boundaries": ["CA", "NV"]})
         assert result is True
 
-    def test_validate_dict_missing_boundaries_key(self):
-        """Test _validate_dict_param with dict missing boundaries key."""
-        with pytest.warns(UserWarning, match="must contain 'boundaries' key"):
+    def test_validate_dict_missing_boundaries_or_points_key(self):
+        """Test _validate_dict_param with dict missing both boundaries and points key."""
+        with pytest.warns(
+            UserWarning, match="must contain 'boundaries' or 'points' key"
+        ):
             result = _validate_dict_param({"separated": True})
             assert result is False
 
@@ -748,3 +750,68 @@ class TestValidateDictParam:
         with pytest.warns(UserWarning, match="Empty list"):
             result = _validate_dict_param({"boundaries": []})
             assert result is False
+
+    # --- Tests for points mode ---
+
+    def test_validate_dict_valid_points(self):
+        """Test _validate_dict_param with valid points list."""
+        result = _validate_dict_param(
+            {"points": [(37.7749, -122.4194), (34.0522, -118.2437)]}
+        )
+        assert result is True
+
+    def test_validate_dict_valid_points_with_separated(self):
+        """Test _validate_dict_param with valid points and separated=True."""
+        result = _validate_dict_param(
+            {"points": [(37.7749, -122.4194), (34.0522, -118.2437)], "separated": True}
+        )
+        assert result is True
+
+    def test_validate_dict_single_point_with_separated_warns(self):
+        """Test _validate_dict_param with single point and separated=True warns."""
+        with pytest.warns(UserWarning, match="single point has no effect"):
+            result = _validate_dict_param(
+                {"points": [(37.7749, -122.4194)], "separated": True}
+            )
+            assert result is True  # Still valid, just warns
+
+    def test_validate_dict_empty_points_list(self):
+        """Test _validate_dict_param with empty points list."""
+        with pytest.warns(UserWarning, match="Empty points list"):
+            result = _validate_dict_param({"points": []})
+            assert result is False
+
+    def test_validate_dict_points_not_list(self):
+        """Test _validate_dict_param with points that is not a list."""
+        with pytest.warns(UserWarning, match="'points' must be a list"):
+            result = _validate_dict_param({"points": (37.7749, -122.4194)})
+            assert result is False
+
+    def test_validate_dict_points_invalid_point_format(self):
+        """Test _validate_dict_param with invalid point format in points list."""
+        with pytest.warns(UserWarning, match="Point must have exactly 2 elements"):
+            result = _validate_dict_param({"points": [(37.7749, -122.4194, 100.0)]})
+            assert result is False
+
+    def test_validate_dict_points_invalid_coordinate_values(self):
+        """Test _validate_dict_param with invalid coordinate values."""
+        with pytest.warns(UserWarning, match="Latitude must be between"):
+            result = _validate_dict_param({"points": [(100.0, -122.4194)]})
+            assert result is False
+
+    def test_validate_dict_both_boundaries_and_points(self):
+        """Test _validate_dict_param with both boundaries and points keys fails."""
+        with pytest.warns(UserWarning, match="cannot contain both"):
+            result = _validate_dict_param(
+                {"boundaries": ["CA"], "points": [(37.7749, -122.4194)]}
+            )
+            assert result is False
+
+    def test_validate_dict_points_with_numpy_floats(self):
+        """Test _validate_dict_param with numpy float coordinates."""
+        import numpy as np
+
+        result = _validate_dict_param(
+            {"points": [(np.float64(37.7749), np.float64(-122.4194))]}
+        )
+        assert result is True

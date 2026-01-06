@@ -21,8 +21,8 @@ the interactive GUI selection interface.
 """
 
 import difflib
-import warnings
 import threading
+import warnings
 from typing import List, Union
 
 import geopandas as gpd

@@ -7,7 +7,6 @@ from __future__ import annotations
 import logging
 import os
 import pprint
-import warnings
 from typing import Any, List, Tuple, Union
 
 from climakitae.core.constants import UNSET
@@ -69,7 +68,6 @@ def validate_clip_param(
     if value is None or value is UNSET:
         msg = "Clip parameter cannot be None. Please provide a valid boundary key, list of keys, file path, or coordinate bounds."
         logger.warning(msg)
-        logger.warning(msg)
         return False
 
     match value:
@@ -86,8 +84,7 @@ def validate_clip_param(
                 f"\n\nInvalid parameter type for Clip processor. "
                 f"\nExpected str, list, tuple, or dict, but got {type(value).__name__}. "
                 f"\nValid examples: 'CA', ['CA', 'OR'], ((32.0, 42.0), (-125.0, -114.0)), "
-                f"or {{'boundaries': ['CA', 'OR'], 'separated': True}}",
-                stacklevel=999,
+                f"or {{'boundaries': ['CA', 'OR'], 'separated': True}}"
             )
 
     return False
@@ -129,7 +126,6 @@ def _validate_string_param(value: str) -> bool:
             "Please provide a valid boundary key (e.g., 'CA'), file path, station code (e.g., 'KSAC'), or coordinate bounds."
         )
         logger.warning(msg)
-        logger.warning(msg)
         return False
 
     # Clean the string
@@ -142,7 +138,6 @@ def _validate_string_param(value: str) -> bool:
             return True
         else:
             msg = f"File path '{cleaned_value}' does not exist. Please provide a valid file path to a shapefile or other geospatial data."
-            logger.warning(msg)
             logger.warning(msg)
             return False
 
@@ -159,13 +154,17 @@ def _validate_string_param(value: str) -> bool:
             return True
 
         # Station validation failed - check if it might be a boundary instead
-        # Suppress warnings from boundary validation since we already warned about station
-        import contextlib
-
-        with contextlib.redirect_stderr(None):
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                boundary_result = _validate_boundary_key_string(cleaned_value)
+        # We temporarily raise the log level to suppress warnings during
+        # boundary validation since we may issue our own more specific warning
+        clip_logger = logging.getLogger(
+            "climakitae.new_core.param_validation.clip_param_validator"
+        )
+        original_level = clip_logger.level
+        clip_logger.setLevel(logging.ERROR)
+        try:
+            boundary_result = _validate_boundary_key_string(cleaned_value)
+        finally:
+            clip_logger.setLevel(original_level)
 
         if boundary_result:
             # Provide helpful message that it's not a station but could be a boundary
@@ -213,7 +212,6 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
     if not value or value is UNSET:
         msg = "Empty list is not valid for clip parameters. Please provide a list of boundary keys (e.g., ['CA', 'OR', 'WA'])."
         logger.warning(msg)
-        logger.warning(msg)
         return False
 
     # Check for mixed types (should all be the same type)
@@ -221,7 +219,6 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
     if mixed_types:
         unique_types = set([type(item).__name__ for item in mixed_types])
         msg = f"All items in clip parameter list must be the same type. Found {len(unique_types)} different types: {', '.join(set(unique_types))}."
-        logger.warning(msg)
         logger.warning(msg)
         return False
 
@@ -266,15 +263,13 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
             if invalid_items:
                 msg = f"Found {len(invalid_items)} invalid items in clip parameter list: {', '.join(invalid_items)}."
                 logger.warning(msg)
-                logger.warning(msg)
                 return False
 
             if not valid_items:
                 logger.warning(
                     "\n\nNo valid boundary keys found in the provided list. "
                     "\nPlease provide valid boundary keys such as ['CA', 'OR', 'WA'] or "
-                    "\n['Los Angeles County', 'Orange County'].",
-                    stacklevel=999,
+                    "\n['Los Angeles County', 'Orange County']."
                 )
                 return False
         case tuple():
@@ -290,7 +285,6 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
             if invalid_items:
                 msg = f"Found {len(invalid_items)} invalid items in clip parameter list: {', '.join(invalid_items)}."
                 logger.warning(msg)
-                logger.warning(msg)
                 return False
 
     # Check for duplicates
@@ -299,7 +293,101 @@ def _validate_list_param(value: List[Any]) -> Union[List[str], None]:
     if len(unique) != len(value):
         msg = f"Duplicate boundary keys found in the list. Original list: {value} Unique list: {unique}. Please remove duplicates."
         logger.warning(msg)
-        logger.warning(msg)
+        return False
+
+    return True
+
+
+def _validate_single_point(point: Any) -> bool:
+    """
+    Validate a single (lat, lon) point tuple.
+
+    Parameters
+    ----------
+    point : Any
+        Point to validate. Expected to be a tuple/list of 2 numeric values.
+
+    Returns
+    -------
+    bool
+        True if the point is valid, False otherwise
+    """
+    # Check structure
+    if not isinstance(point, (tuple, list)):
+        logger.warning(
+            f"Point must be a tuple or list, got {type(point).__name__}. "
+            f"Example: (37.7749, -122.4194)"
+        )
+        return False
+
+    if len(point) != 2:
+        logger.warning(
+            f"Point must have exactly 2 elements (lat, lon), got {len(point)}. "
+            f"Example: (37.7749, -122.4194)"
+        )
+        return False
+
+    # Validate numeric values
+    try:
+        lat, lon = float(point[0]), float(point[1])
+    except (ValueError, TypeError):
+        logger.warning(
+            "Point coordinates must be numeric. Got: %s. "
+            "Example: (37.7749, -122.4194)",
+            point,
+        )
+        return False
+
+    # Validate coordinate ranges
+    if not (-90.0 <= lat <= 90.0):
+        logger.warning("Latitude must be between -90 and 90 degrees. Got: %s", lat)
+        return False
+
+    if not (-180.0 <= lon <= 180.0):
+        logger.warning("Longitude must be between -180 and 180 degrees. Got: %s", lon)
+        return False
+
+    return True
+
+
+def _validate_points_list(points: Any) -> bool:
+    """
+    Validate a list of (lat, lon) point tuples.
+
+    Parameters
+    ----------
+    points : Any
+        List of points to validate.
+
+    Returns
+    -------
+    bool
+        True if all points are valid, False otherwise
+    """
+    if not isinstance(points, list):
+        logger.warning(
+            f"'points' must be a list of (lat, lon) tuples, got {type(points).__name__}. "
+            f"Example: {{'points': [(37.7749, -122.4194), (34.0522, -118.2437)]}}"
+        )
+        return False
+
+    if len(points) == 0:
+        logger.warning(
+            "Empty points list is not valid. Please provide at least one (lat, lon) tuple. "
+            f"Example: {{'points': [(37.7749, -122.4194)]}}"
+        )
+        return False
+
+    # Validate each point
+    invalid_points = []
+    for i, point in enumerate(points):
+        if not _validate_single_point(point):
+            invalid_points.append(f"index {i}: {point}")
+
+    if invalid_points:
+        logger.warning(
+            f"Found {len(invalid_points)} invalid points: {', '.join(invalid_points)}"
+        )
         return False
 
     return True
@@ -309,13 +397,15 @@ def _validate_dict_param(value: dict) -> bool:
     """
     Validate a dict parameter for the Clip processor.
 
-    Dict parameters enable advanced clipping features like separated mode.
-    Required structure: {"boundaries": [...], "separated": bool}
+    Dict parameters enable advanced clipping features like separated mode
+    for both boundaries and points.
 
     Parameters
     ----------
     value : dict
-        Dictionary with clipping configuration
+        Dictionary with clipping configuration. Must contain either:
+        - {"boundaries": [...], "separated": bool}
+        - {"points": [(lat, lon), ...], "separated": bool}
 
     Returns
     -------
@@ -328,18 +418,73 @@ def _validate_dict_param(value: dict) -> bool:
     True
     >>> _validate_dict_param({"boundaries": ["CA"]})  # separated defaults to False
     True
+    >>> _validate_dict_param({"points": [(37.7749, -122.4194)], "separated": True})
+    True
     """
     logger.debug("_validate_dict_param called with: %s", value)
 
-    # Check for required 'boundaries' key
-    if "boundaries" not in value:
+    # Check for required key - either 'boundaries' or 'points'
+    has_boundaries = "boundaries" in value
+    has_points = "points" in value
+
+    if not has_boundaries and not has_points:
         msg = (
-            "Dict parameter for Clip must contain 'boundaries' key with a list of boundary names. "
-            "Example: {'boundaries': ['CA', 'OR', 'WA'], 'separated': True}"
+            "Dict parameter for Clip must contain 'boundaries' or 'points' key. "
+            "Examples:\n"
+            "  {'boundaries': ['CA', 'OR', 'WA'], 'separated': True}\n"
+            "  {'points': [(37.7749, -122.4194), (34.0522, -118.2437)], 'separated': True}"
         )
         logger.warning(msg)
         return False
 
+    if has_boundaries and has_points:
+        msg = (
+            "Dict parameter for Clip cannot contain both 'boundaries' and 'points' keys. "
+            "Please use only one."
+        )
+        logger.warning(msg)
+        return False
+
+    # Validate 'separated' if present (common to both modes)
+    if "separated" in value:
+        separated = value["separated"]
+        if not isinstance(separated, bool):
+            msg = f"'separated' must be a boolean (True or False), got {type(separated).__name__}."
+            logger.warning(msg)
+            return False
+
+    # Handle 'points' mode
+    if has_points:
+        points = value["points"]
+
+        # Validate points list
+        if not _validate_points_list(points):
+            return False
+
+        # Warn if only one point is provided with separated=True
+        if value.get("separated", False) and len(points) == 1:
+            msg = (
+                "Using 'separated': True with a single point has no effect. "
+                "Consider removing the 'separated' option or adding more points."
+            )
+            logger.warning(msg)
+            # Still valid, just a warning
+
+        # Check for unknown keys
+        known_keys = {"points", "separated", "persist"}
+        unknown_keys = set(value.keys()) - known_keys
+        if unknown_keys:
+            msg = (
+                f"Unknown keys in clip dict parameter: {unknown_keys}. "
+                f"Valid keys for points mode are: {known_keys}"
+            )
+            logger.warning(msg)
+            # Still valid, just a warning
+
+        logger.debug("Points dict parameter validated successfully")
+        return True
+
+    # Handle 'boundaries' mode
     boundaries = value["boundaries"]
 
     # Validate boundaries is a list
@@ -376,7 +521,7 @@ def _validate_dict_param(value: dict) -> bool:
         # Still valid, just a warning
 
     # Check for unknown keys
-    known_keys = {"boundaries", "separated"}
+    known_keys = {"boundaries", "separated", "persist"}
     unknown_keys = set(value.keys()) - known_keys
     if unknown_keys:
         msg = (
@@ -417,7 +562,6 @@ def _validate_tuple_param(
     if len(value) != 2:
         msg = f"Coordinate bounds tuple must have exactly 2 elements: ((lat_min, lat_max), (lon_min, lon_max)). Got {len(value)} elements."
         logger.warning(msg)
-        logger.warning(msg)
         return False
 
     lat_bounds, lon_bounds = value
@@ -431,8 +575,7 @@ def _validate_tuple_param(
                 f"\nor a tuple of tuples/lists with two numeric values each. "
                 f"\nPoint Example: (35.0, -120.0) "
                 f"\nBounds Example: ((32.0, 42.0), (-125.0, -114.0))"
-                f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})",
-                stacklevel=999,
+                f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})"
             )
             return False
         # Check if bounds is an invalid type (not tuple, list, float, or int)
@@ -442,8 +585,7 @@ def _validate_tuple_param(
                 f"or a tuple of tuples/lists with two numeric values each. "
                 f"\nPoint Example: (35.0, -120.0) "
                 f"\nBounds Example: ((32.0, 42.0), (-125.0, -114.0))"
-                f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})",
-                stacklevel=999,
+                f"\nGot {name} bounds: {bounds} (type: {type(bounds).__name__})"
             )
             return False
 
@@ -456,16 +598,14 @@ def _validate_tuple_param(
         except (ValueError, TypeError):
             logger.warning(
                 f"\n\nCoordinate bounds must be numeric. Invalid {name} bounds: {bounds}. "
-                f"\nBoth values must be convertible to float.",
-                stacklevel=999,
+                f"\nBoth values must be convertible to float."
             )
             return False
         finally:
             if min_val is None or max_val is None:
                 logger.warning(
                     f"\n\nCoordinate bounds must be numeric. Invalid {name} bounds: {bounds}. "
-                    f"\nBoth values must be provided.",
-                    stacklevel=999,
+                    f"\nBoth values must be provided."
                 )
                 return False
 
@@ -474,16 +614,14 @@ def _validate_tuple_param(
             if not (-90.0 <= min_val <= 90.0) or not (-90.0 <= max_val <= 90.0):
                 logger.warning(
                     f"\n\nLatitude values must be between -90 and 90 degrees. "
-                    f"\nGot latitude bounds: ({min_val}, {max_val})",
-                    stacklevel=999,
+                    f"\nGot latitude bounds: ({min_val}, {max_val})"
                 )
                 return False
         else:  # longitude
             if not (-180.0 <= min_val <= 180.0) or not (-180.0 <= max_val <= 180.0):
                 logger.warning(
                     f"\n\nLongitude values must be between -180 and 180 degrees. "
-                    f"\nGot longitude bounds: ({min_val}, {max_val})",
-                    stacklevel=999,
+                    f"\nGot longitude bounds: ({min_val}, {max_val})"
                 )
                 return False
 
@@ -491,8 +629,7 @@ def _validate_tuple_param(
         if min_val > max_val:
             logger.warning(
                 f"\n\nMinimum {name} must be less than or equal to maximum {name}. "
-                f"\nGot {name} bounds: ({min_val}, {max_val})",
-                stacklevel=999,
+                f"\nGot {name} bounds: ({min_val}, {max_val})"
             )
             return False
 
@@ -520,7 +657,6 @@ def _validate_station_identifier(value: str) -> bool:
 
         if stations_df is None or len(stations_df) == 0:
             msg = "Station data is not available. Cannot validate station identifier."
-            logger.warning(msg)
             logger.warning(msg)
             return False
 
@@ -573,7 +709,6 @@ def _validate_station_identifier(value: str) -> bool:
                 f"{'... and more' if len(match) > 5 else ''}\n\nPlease use a more specific identifier (4-character code like 'KSAC')."
             )
             logger.warning(msg)
-            logger.warning(msg)
             return False
 
         # Valid station found
@@ -581,11 +716,7 @@ def _validate_station_identifier(value: str) -> bool:
         return True
 
     except Exception as e:
-        logger.error("Error validating station identifier: %s", str(e), exc_info=True)
-        logger.warning(
-            f"Error validating station identifier: {str(e)}",
-            stacklevel=999,
-        )
+        logger.error("Error validating station identifier: %s", e, exc_info=True)
         return False
 
 
@@ -695,7 +826,6 @@ def _warn_about_case_sensitivity(value: str) -> bool:
             f"\n\n{pprint.pformat(boundary_list, indent=4, width=80)}"
         )
         logger.warning(msg)
-        logger.warning(msg)
         return False
 
     if suggestions:
@@ -707,7 +837,6 @@ def _warn_about_case_sensitivity(value: str) -> bool:
             hint = "\nNote: County names typically end with 'County' (e.g., 'Los Angeles County')."
 
         msg = f"Boundary key '{value}' may have case sensitivity issues. Did you mean any of the following options: {suggestions}. Boundary keys are typically case-sensitive. {hint}"
-        logger.warning(msg)
         logger.warning(msg)
         return False
 

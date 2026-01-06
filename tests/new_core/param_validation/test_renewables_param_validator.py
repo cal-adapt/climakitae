@@ -73,6 +73,7 @@ class TestRenewablesValidatorValidation:
         class method and returns the expected result.
         """
         from unittest.mock import patch
+
         from climakitae.new_core.param_validation.abc_param_validation import (
             ParameterValidator,
         )
@@ -108,6 +109,7 @@ class TestRenewablesValidatorRegistration:
         when it is applied, simulating the registration process.
         """
         from unittest.mock import patch
+
         from climakitae.core.constants import CATALOG_REN_ENERGY_GEN
         from climakitae.new_core.param_validation.abc_param_validation import (
             register_catalog_validator,
@@ -147,6 +149,7 @@ class TestRenewablesValidatorRegistration:
         the parent _is_valid_query method returns None.
         """
         from unittest.mock import patch
+
         from climakitae.new_core.param_validation.abc_param_validation import (
             ParameterValidator,
         )

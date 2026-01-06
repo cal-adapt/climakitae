@@ -18,9 +18,9 @@ from climakitae.core.data_export import write_tmy_file
 from climakitae.core.data_interface import get_data
 from climakitae.tools.derived_variables import compute_relative_humidity
 from climakitae.util.utils import (
+    add_dummy_time_to_wl,
     convert_to_local_time,
     get_closest_gridcell,
-    add_dummy_time_to_wl,
 )
 
 WEIGHTS_PER_VAR = {
