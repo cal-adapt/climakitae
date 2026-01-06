@@ -96,7 +96,7 @@ class TimeSlice(DataProcessor):
 
             case xr.DataArray() | xr.Dataset():
                 self.update_context(context)
-                return self._subset_time_and_season(self, result)
+                return self._subset_time_and_season(result)
 
             case list() | tuple():
                 subset_data = []

@@ -45,14 +45,16 @@ def validate_time_slice_param(value: tuple[Any, Any], **kwargs) -> bool:
         logger.warning(msg)
         return False
     if season_filter is not UNSET:
-        if not isinstance(season_filter, list) or not all(
-            isinstance(season, str)
-            for season in season_filter
-            or all(season in ["DJF", "MAM", "JJA", "SON"] for season in season_filter)
+        if (
+            not isinstance(season_filter, list)
+            or not all([isinstance(season, str) for season in season_filter])
+            or not all(
+                season in ["DJF", "MAM", "JJA", "SON"] for season in season_filter
+            )
         ):
             msg = (
-                "If provided, 'seasons' parameter must be a list of season names "
-                "(e.g., ['DJF', 'MAM']). Please check the configuration."
+                "\nIf provided, 'seasons' parameter must be a list of season names "
+                "(e.g., ['DJF', 'MAM', 'JJA', 'SON']). Please check the configuration."
             )
             logger.warning(msg)
             return False
@@ -62,5 +64,4 @@ def validate_time_slice_param(value: tuple[Any, Any], **kwargs) -> bool:
         msg = f"Invalid date-like values provided: {e}. Expected a tuple of two date-like values."
         logger.warning(msg)
         return False
-
     return True  # All parameters are valid
