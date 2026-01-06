@@ -5,6 +5,7 @@ This module contains comprehensive unit tests for the TimeSlice processor
 parameter validation functionality.
 """
 
+import logging
 import warnings
 
 import pandas as pd
@@ -88,3 +89,24 @@ class TestValidateTimeSliceParam:
 
         assert result is False
         assert len(w) == 1  # Ensure a warning was raised
+
+    def test_validate_time_slice_param_with_seasons(self):
+        """Test validate_time_slice_param with seasons parameter."""
+        value = {
+            "dates": ("2000-01-01", "2000-12-31"),
+            "seasons": ["DJF", "MAM"],
+        }
+        result = validate_time_slice_param(value)
+        assert result is True
+
+    def test_validate_time_slice_param_with_invalid_seasons(self, caplog):
+        """Test validate_time_slice_param with invalid seasons parameter."""
+        value = {
+            "dates": ("2000-01-01", "2000-12-31"),
+            "seasons": ["INVALID_SEASON", "AMJ"],
+        }
+        with caplog.at_level(logging.WARNING):
+            result = validate_time_slice_param(value)
+            assert "'seasons' parameter must be a list of season names" in caplog.text
+
+        assert result is False
