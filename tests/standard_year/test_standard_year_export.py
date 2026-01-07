@@ -208,6 +208,10 @@ class TestExportProfile:
         """Test that file name is correctly formatted based on given inputs."""
         assert _get_clean_standardyr_filename(**value) == expected
 
+
+class TestExportProfile:
+    """Integration test"""
+
     @pytest.mark.parametrize(
         "value,expected",
         [
@@ -296,11 +300,29 @@ class TestExportProfile:
         ],
     )
     def test_location_string_construction(self, value, expected):
-        """Test behavior """
+        """Test behavior"""
         func_list = [_check_cached_area, _check_lat_lon, _check_stations]
         location_str = ""
-        
+
         for func in func_list:
             location_str = func(location_str, **value)
-        
+
         assert location_str == expected
+
+
+class TestCheckCachedArea:
+    def test_check_cached_area(self, value, expected):
+        """Test that location string is correctly formatted based on given inputs."""
+        assert _check_cached_area(**value) == expected
+
+
+class TestCheckCachedArea:
+    def test_check_lat_lon(self, value, expected):
+        """Test that location string is correctly formatted based on given inputs."""
+        assert _check_lat_lon(**value) == expected
+
+
+class TestCheckCachedArea:
+    def test_check_stations(self, value, expected):
+        """Test that location string is correctly formatted based on given inputs."""
+        assert _check_stations(**value) == expected
