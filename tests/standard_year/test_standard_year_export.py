@@ -295,14 +295,12 @@ class TestExportProfile:
             ),
         ],
     )
-    def test_check_cached_area(self, value, expected_intermediate):
-        """Test that the location string is correctly formatted based on given inputs."""
-        assert _check_cached_area(**value) == expected_intermediate
-
-    def test_check_lat_lon(self, value, expected_intermediate):
-        """Test that file name is correctly formatted based on given inputs."""
-        assert _check_lat_lon(**value) == expected_intermediate
-
-    def test_check_stations(self, value, expected_intermediate):
-        """Test that file name is correctly formatted based on given inputs."""
-        assert _check_stations(**value) == expected_intermediate
+    def test_location_string_construction(self, value, expected):
+        """Test behavior """
+        func_list = [_check_cached_area, _check_lat_lon, _check_stations]
+        location_str = ""
+        
+        for func in func_list:
+            location_str = func(location_str, **value)
+        
+        assert location_str == expected
