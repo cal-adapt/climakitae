@@ -349,10 +349,12 @@ def _export_to_netcdf(data: xr.DataArray | xr.Dataset, save_name: str):
 
     # Chunk data if it is not chunked
     if _data.chunks is None:
-         _data = _data.chunk()
+        _data = _data.chunk()
 
     # Export to NetCDF with ProgressBar
-    delayed_write = _data.to_netcdf(path, format="NETCDF4", engine="netcdf4", encoding=encoding, compute=False)
+    delayed_write = _data.to_netcdf(
+        path, format="NETCDF4", engine="netcdf4", encoding=encoding, compute=False
+    )
     with ProgressBar():
         delayed_write.compute()
 
