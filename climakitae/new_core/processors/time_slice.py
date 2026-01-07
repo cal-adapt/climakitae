@@ -39,6 +39,7 @@ class TimeSlice(DataProcessor):
 
         The ``"dates"`` value must be an iterable of two date-like objects.
         The ``"seasons"`` value, if provided, must be an iterable of seasons.
+        The seasons should be one of the following strings: ``"DJF"``, ``"MAM"``, ``"JJA"``, ``"SON"``.
 
     Methods
     -------
@@ -64,6 +65,7 @@ class TimeSlice(DataProcessor):
 
             The ``"dates"`` value must be an iterable of two date-like objects.
             The ``"seasons"`` value, if provided, must be an iterable of seasons.
+            The seasons should be one of the following strings: ``"DJF"``, ``"MAM"``, ``"JJA"``, ``"SON"``.
         """
         if not isinstance(value, dict):
             value = {"dates": value}
