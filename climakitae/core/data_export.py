@@ -347,9 +347,8 @@ def _export_to_netcdf(data: xr.DataArray | xr.Dataset, save_name: str):
     for var in _data.data_vars:
         validate_attrs(_data[var])
 
-    # Chunk data if it is not chunked
-    if _data.chunks is None:
-        _data = _data.chunk()
+    # Unify chunks
+    _data = _data.unify_chunks()
 
     # Export to NetCDF with ProgressBar
     delayed_write = _data.to_netcdf(
