@@ -140,7 +140,7 @@ class TestExportProfile:
             export_profile_to_csv(self.multi_df_invalid, **profile_selections)
 
     @pytest.mark.parametrize(
-        "value,expected",
+        "input_value,expected",
         [
             (
                 {
@@ -204,16 +204,17 @@ class TestExportProfile:
             ),
         ],
     )
-    def test_get_clean_standardyr_filename(self, value, expected):
+    def test_get_clean_standardyr_filename(self, input_value, expected):
         """Test that file name is correctly formatted based on given inputs."""
-        assert _get_clean_standardyr_filename(**value) == expected
+        assert _get_clean_standardyr_filename(**input_value) == expected
 
 
-class TestExportProfile:
-    """Integration test"""
+class TestChainedExportHelpers:
+    """Integration test covering the behavior of export helper function that are used in succession to
+    construct a string of climate profile location information"""
 
     @pytest.mark.parametrize(
-        "value,expected",
+        "input_value,expected",
         [
             (
                 {
@@ -299,30 +300,404 @@ class TestExportProfile:
             ),
         ],
     )
-    def test_location_string_construction(self, value, expected):
+    def test_location_string_construction(self, input_value, expected):
         """Test behavior"""
         func_list = [_check_cached_area, _check_lat_lon, _check_stations]
         location_str = ""
 
         for func in func_list:
-            location_str = func(location_str, **value)
+            location_str = func(location_str, **input_value)
 
         assert location_str == expected
 
 
 class TestCheckCachedArea:
-    def test_check_cached_area(self, value, expected):
+    """Test location string construction"""
+
+    @pytest.mark.parametrize(
+        "input_value,expected",
+        [
+            (
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                },
+                "",
+            ),
+            (
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "latitude": 34.4041,
+                },
+                "",
+            ),
+            (
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                },
+                "",
+            ),
+            (
+                {
+                    "stations": ["Custom Station Name"],
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                },
+                "",
+            ),
+            (
+                {
+                    "stations": ["Custom Station Name"],
+                },
+                "",
+            ),
+            (
+                {
+                    "stations": [
+                        "Sacramento Executive Airport (KSAC)",
+                        "Santa Barbara Municipal Airport (KSBA)",
+                    ],
+                },
+                "",
+            ),
+            (
+                {
+                    "stations": [
+                        "Custom Name 1",
+                        "Custom Name 2",
+                    ],
+                },
+                "",
+            ),
+            (
+                {
+                    "stations": [
+                        "Custom Station Name",
+                        "Santa Barbara Municipal Airport (KSBA)",
+                    ],
+                },
+                "",
+            ),
+            (
+                {
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                {
+                    "latitude": 34.4041,
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                {
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                },
+                "",
+            ),
+            (
+                {
+                    "latitude": 34.4041,
+                },
+                "",
+            ),
+            (
+                {
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+        ],
+    )
+    def test_check_cached_area(self, input_value, expected):
         """Test that location string is correctly formatted based on given inputs."""
-        assert _check_cached_area(**value) == expected
+        location_str = ""
+        assert _check_cached_area(location_str, **input_value) == expected
 
 
-class TestCheckCachedArea:
+class TestCheckLatLon:
+    """Test location string construction"""
+
+    @pytest.mark.parametrize(
+        "input_string,input_value,expected",
+        [
+            (
+                "",
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                },
+                "34-4041N_121-516W",
+            ),
+            (
+                "",
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "latitude": 34.4041,
+                },
+                "",
+            ),
+            (
+                "los angeles county",
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                "los angeles county",
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                "",
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                },
+                "",
+            ),
+            (
+                "",
+                {
+                    "stations": ["Custom Station Name"],
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                },
+                "34-4041N_121-516W",
+            ),
+            (
+                "",
+                {
+                    "stations": ["Custom Station Name"],
+                },
+                "",
+            ),
+            (
+                "",
+                {
+                    "stations": [
+                        "Sacramento Executive Airport (KSAC)",
+                        "Santa Barbara Municipal Airport (KSBA)",
+                    ],
+                },
+                "",
+            ),
+            (
+                "",
+                {
+                    "stations": [
+                        "Custom Name 1",
+                        "Custom Name 2",
+                    ],
+                },
+                "",
+            ),
+            (
+                "",
+                {
+                    "stations": [
+                        "Custom Station Name",
+                        "Santa Barbara Municipal Airport (KSBA)",
+                    ],
+                },
+                "",
+            ),
+            (
+                "los angeles county",
+                {
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                "los angeles county",
+                {
+                    "latitude": 34.4041,
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                "",
+                {
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                },
+                "34-4041N_121-516W",
+            ),
+            (
+                "",
+                {
+                    "latitude": 34.4041,
+                },
+                "",
+            ),
+            (
+                "los angeles county",
+                {
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+        ],
+    )
     def test_check_lat_lon(self, value, expected):
         """Test that location string is correctly formatted based on given inputs."""
         assert _check_lat_lon(**value) == expected
 
 
-class TestCheckCachedArea:
+class TestCheckStations:
+    """Test location string construction"""
+
+    @pytest.mark.parametrize(
+        "input_string,input_value,expected",
+        [
+            (
+                "34-4041N_121-516W",
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                },
+                "34-4041N_121-516W",
+            ),
+            (
+                "",
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "latitude": 34.4041,
+                },
+                "sacramento executive airport (ksac)",
+            ),
+            (
+                "los angeles county",
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                "los angeles county",
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                "",
+                {
+                    "stations": ["Sacramento Executive Airport (KSAC)"],
+                },
+                "sacramento executive airport (ksac)",
+            ),
+            (
+                "34-4041N_121-516W",
+                {
+                    "stations": ["Custom Station Name"],
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                },
+                "custom station name_34-4041N_121-516W",
+            ),
+            (
+                "",
+                {
+                    "stations": [
+                        "Sacramento Executive Airport (KSAC)",
+                        "Santa Barbara Municipal Airport (KSBA)",
+                    ],
+                },
+                "sacramento executive airport (ksac)_santa barbara municipal airport (ksba)",
+            ),
+            (
+                "los angeles county",
+                {
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                "los angeles county",
+                {
+                    "latitude": 34.4041,
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+            (
+                "34-4041N_121-516W",
+                {
+                    "latitude": 34.4041,
+                    "longitude": -121.516,
+                },
+                "34-4041N_121-516W",
+            ),
+            (
+                "los angeles county",
+                {
+                    "cached_area": "Los Angeles County",
+                },
+                "los angeles county",
+            ),
+        ],
+    )
     def test_check_stations(self, value, expected):
         """Test that location string is correctly formatted based on given inputs."""
         assert _check_stations(**value) == expected
+
+
+class TestErrorRaisedForIf:
+    """Test location string construction"""
+
+
+class TestErrorRaisedForIf:
+    """Test location string construction"""
+
+
+class TestErrorRaisedForIf:
+    """Test location string construction"""
+
+
+class TestErrorRaisedForIf:
+    """Test location string construction"""
+
+
+class TestErrorRaisedForIf:
+    """Test location string construction"""
