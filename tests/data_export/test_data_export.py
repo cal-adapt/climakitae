@@ -301,6 +301,7 @@ class TestHiddenFunctions:
             format="NETCDF4",
             engine="netcdf4",
             encoding={"data": {"zlib": True, "complevel": 6}},
+            compute=False,
         )
 
     @patch("shutil.disk_usage", return_value=(1.3e-8, 1.3e-8, 1.3e-8))
