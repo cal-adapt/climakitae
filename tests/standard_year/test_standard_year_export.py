@@ -682,22 +682,64 @@ class TestCheckStations:
         """Test that location string is correctly formatted based on given inputs."""
         assert _check_stations(**value) == expected
 
+    def test_check_stations_raises_error_for_invalid_input(self):
+        """Test that _check_stations raises TypeError for incomplete profile parameters."""
 
-class TestErrorRaisedForIf:
-    """Test location string construction"""
+        invalid_profile_selections =                 {
+                    "latitude": 34.4041,
+                },
+        with pytest.raises(
+            TypeError,
+            match="Location must be provided as either `station_name` or `cached_area` or `latitude` plus `longitude`",
+        ):
+            _check_stations("",invalid_profile_selections)
 
+    def test_check_stations_raises_error_for_custom_list(self):
+        """Test that _check_stations raises ValueError for list of custom station names."""
 
-class TestErrorRaisedForIf:
-    """Test location string construction"""
+        invalid_profile_selections = (
+            {
+                "stations": [
+                    "Custom Name 1",
+                    "Custom Name 2",
+                ],
+            },
+        )
+        with pytest.raises(
+            ValueError,
+            match="If multiple stations are given, all must be HadISD stations.",
+        ):
+            _check_stations("", invalid_profile_selections)
 
+    def test_check_stations_raises_error_for_mixed_list(self):
+        """Test that _check_stations raises ValueError for list of custom and HadISD station names."""
 
-class TestErrorRaisedForIf:
-    """Test location string construction"""
+        invalid_profile_selections = (
+            {
+                "stations": [
+                    "Custom Station Name",
+                    "Santa Barbara Municipal Airport (KSBA)",
+                ],
+            },
+        )
+        with pytest.raises(
+            ValueError,
+            match="If multiple stations are given, all must be HadISD stations.",
+        ):
+            _check_stations("", invalid_profile_selections)
 
+    def test_check_stations_raises_error_for_custom_station_without_coordinates(self):
+        """Test that _check_stations raises ValueError for a custom station provided without its associated latitude and longitude."""
 
-class TestErrorRaisedForIf:
-    """Test location string construction"""
-
-
-class TestErrorRaisedForIf:
-    """Test location string construction"""
+        invalid_profile_selections = (
+            {
+                "stations": [
+                    "Custom Station Name",
+                ],
+            },
+        )
+        with pytest.raises(
+            ValueError,
+            match="If a custom station name if given, its latitude and longitude must also be provided.",
+        ):
+            _check_stations("", invalid_profile_selections)
