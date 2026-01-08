@@ -4972,6 +4972,3 @@ class TestRetrieveProfileDataWithStations:
                     assert (
                         kwargs["longitude"] == explicit_lon
                     ), "Should use explicit longitude"
-
-
-
