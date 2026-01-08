@@ -219,23 +219,38 @@ class TestChainedExportHelpers:
             (
                 {
                     "stations": ["Sacramento Executive Airport (KSAC)"],
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                 },
                 "34-4041N_121-516W",
             ),
             (
                 {
                     "stations": ["Sacramento Executive Airport (KSAC)"],
-                    "latitude": 34.4041,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
                 },
                 "sacramento executive airport (ksac)",
             ),
             (
                 {
                     "stations": ["Sacramento Executive Airport (KSAC)"],
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                     "cached_area": "Los Angeles County",
                 },
                 "los angeles county",
@@ -256,8 +271,14 @@ class TestChainedExportHelpers:
             (
                 {
                     "stations": ["Custom Station Name"],
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                 },
                 "custom station name_34-4041N_121-516W",
             ),
@@ -272,23 +293,38 @@ class TestChainedExportHelpers:
             ),
             (
                 {
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                     "cached_area": "Los Angeles County",
                 },
                 "los angeles county",
             ),
             (
                 {
-                    "latitude": 34.4041,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
                     "cached_area": "Los Angeles County",
                 },
                 "los angeles county",
             ),
             (
                 {
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                 },
                 "34-4041N_121-516W",
             ),
@@ -319,24 +355,38 @@ class TestCheckCachedArea:
         [
             (
                 {
-                    "stations": ["Sacramento Executive Airport (KSAC)"],
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                 },
                 "",
             ),
             (
                 {
                     "stations": ["Sacramento Executive Airport (KSAC)"],
-                    "latitude": 34.4041,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
                 },
                 "",
             ),
             (
                 {
                     "stations": ["Sacramento Executive Airport (KSAC)"],
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                     "cached_area": "Los Angeles County",
                 },
                 "los angeles county",
@@ -357,8 +407,14 @@ class TestCheckCachedArea:
             (
                 {
                     "stations": ["Custom Station Name"],
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                 },
                 "",
             ),
@@ -397,29 +453,47 @@ class TestCheckCachedArea:
             ),
             (
                 {
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                     "cached_area": "Los Angeles County",
                 },
                 "los angeles county",
             ),
             (
                 {
-                    "latitude": 34.4041,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
                     "cached_area": "Los Angeles County",
                 },
                 "los angeles county",
             ),
             (
                 {
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                 },
                 "",
             ),
             (
                 {
-                    "latitude": 34.4041,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
                 },
                 "",
             ),
@@ -447,8 +521,14 @@ class TestCheckLatLon:
                 "",
                 {
                     "stations": ["Sacramento Executive Airport (KSAC)"],
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                 },
                 "34-4041N_121-516W",
             ),
@@ -456,7 +536,10 @@ class TestCheckLatLon:
                 "",
                 {
                     "stations": ["Sacramento Executive Airport (KSAC)"],
-                    "latitude": 34.4041,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
                 },
                 "",
             ),
@@ -464,8 +547,14 @@ class TestCheckLatLon:
                 "los angeles county",
                 {
                     "stations": ["Sacramento Executive Airport (KSAC)"],
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                     "cached_area": "Los Angeles County",
                 },
                 "los angeles county",
@@ -489,8 +578,14 @@ class TestCheckLatLon:
                 "",
                 {
                     "stations": ["Custom Station Name"],
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                 },
                 "34-4041N_121-516W",
             ),
@@ -534,8 +629,14 @@ class TestCheckLatLon:
             (
                 "los angeles county",
                 {
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                     "cached_area": "Los Angeles County",
                 },
                 "los angeles county",
@@ -543,7 +644,10 @@ class TestCheckLatLon:
             (
                 "los angeles county",
                 {
-                    "latitude": 34.4041,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
                     "cached_area": "Los Angeles County",
                 },
                 "los angeles county",
@@ -551,15 +655,24 @@ class TestCheckLatLon:
             (
                 "",
                 {
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                 },
                 "34-4041N_121-516W",
             ),
             (
                 "",
                 {
-                    "latitude": 34.4041,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
                 },
                 "",
             ),
@@ -572,9 +685,9 @@ class TestCheckLatLon:
             ),
         ],
     )
-    def test_check_lat_lon(self, value, expected):
+    def test_check_lat_lon(self, input_string, input_value, expected):
         """Test that location string is correctly formatted based on given inputs."""
-        assert _check_lat_lon(**value) == expected
+        assert _check_lat_lon(input_string, **input_value) == expected
 
 
 class TestCheckStations:
@@ -587,8 +700,14 @@ class TestCheckStations:
                 "34-4041N_121-516W",
                 {
                     "stations": ["Sacramento Executive Airport (KSAC)"],
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                 },
                 "34-4041N_121-516W",
             ),
@@ -596,7 +715,10 @@ class TestCheckStations:
                 "",
                 {
                     "stations": ["Sacramento Executive Airport (KSAC)"],
-                    "latitude": 34.4041,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
                 },
                 "sacramento executive airport (ksac)",
             ),
@@ -604,8 +726,14 @@ class TestCheckStations:
                 "los angeles county",
                 {
                     "stations": ["Sacramento Executive Airport (KSAC)"],
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                     "cached_area": "Los Angeles County",
                 },
                 "los angeles county",
@@ -629,8 +757,14 @@ class TestCheckStations:
                 "34-4041N_121-516W",
                 {
                     "stations": ["Custom Station Name"],
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                 },
                 "custom station name_34-4041N_121-516W",
             ),
@@ -647,8 +781,14 @@ class TestCheckStations:
             (
                 "los angeles county",
                 {
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                     "cached_area": "Los Angeles County",
                 },
                 "los angeles county",
@@ -656,7 +796,10 @@ class TestCheckStations:
             (
                 "los angeles county",
                 {
-                    "latitude": 34.4041,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
                     "cached_area": "Los Angeles County",
                 },
                 "los angeles county",
@@ -664,8 +807,14 @@ class TestCheckStations:
             (
                 "34-4041N_121-516W",
                 {
-                    "latitude": 34.4041,
-                    "longitude": -121.516,
+                    "latitude": (
+                        34.4041 - 0.02,
+                        34.4041 + 0.02,
+                    ),
+                    "longitude": (
+                        -121.516 - 0.02,
+                        -121.516 + 0.02,
+                    ),
                 },
                 "34-4041N_121-516W",
             ),
@@ -678,68 +827,62 @@ class TestCheckStations:
             ),
         ],
     )
-    def test_check_stations(self, value, expected):
+    def test_check_stations(self, input_string, input_value, expected):
         """Test that location string is correctly formatted based on given inputs."""
-        assert _check_stations(**value) == expected
+        assert _check_stations(input_string, **input_value) == expected
 
     def test_check_stations_raises_error_for_invalid_input(self):
         """Test that _check_stations raises TypeError for incomplete profile parameters."""
 
-        invalid_profile_selections =                 {
-                    "latitude": 34.4041,
-                },
+        invalid_profile_selections = {
+            "latitude": 34.4041,
+        }
         with pytest.raises(
             TypeError,
             match="Location must be provided as either `station_name` or `cached_area` or `latitude` plus `longitude`",
         ):
-            _check_stations("",invalid_profile_selections)
+            _check_stations("", **invalid_profile_selections)
 
     def test_check_stations_raises_error_for_custom_list(self):
         """Test that _check_stations raises ValueError for list of custom station names."""
 
-        invalid_profile_selections = (
-            {
-                "stations": [
-                    "Custom Name 1",
-                    "Custom Name 2",
-                ],
-            },
-        )
+        invalid_profile_selections = {
+            "stations": [
+                "Custom Name 1",
+                "Custom Name 2",
+            ],
+        }
         with pytest.raises(
             ValueError,
-            match="If multiple stations are given, all must be HadISD stations.",
+            match="If multiple stations are given, and no other location parameters, all must be HadISD stations.",
         ):
-            _check_stations("", invalid_profile_selections)
+            _check_stations("", **invalid_profile_selections)
 
     def test_check_stations_raises_error_for_mixed_list(self):
         """Test that _check_stations raises ValueError for list of custom and HadISD station names."""
 
-        invalid_profile_selections = (
-            {
-                "stations": [
-                    "Custom Station Name",
-                    "Santa Barbara Municipal Airport (KSBA)",
-                ],
-            },
-        )
+        invalid_profile_selections = {
+            "stations": [
+                "Custom Station Name",
+                "Santa Barbara Municipal Airport (KSBA)",
+            ],
+        }
         with pytest.raises(
             ValueError,
-            match="If multiple stations are given, all must be HadISD stations.",
+            match="If multiple stations are given, and no other location parameters, all must be HadISD stations.",
         ):
-            _check_stations("", invalid_profile_selections)
+            _check_stations("", **invalid_profile_selections)
 
     def test_check_stations_raises_error_for_custom_station_without_coordinates(self):
         """Test that _check_stations raises ValueError for a custom station provided without its associated latitude and longitude."""
 
-        invalid_profile_selections = (
-            {
-                "stations": [
-                    "Custom Station Name",
-                ],
-            },
-        )
+        invalid_profile_selections = {
+            "stations": [
+                "Custom Station Name",
+            ],
+        }
         with pytest.raises(
             ValueError,
-            match="If a custom station name if given, its latitude and longitude must also be provided.",
+            match="If a custom station name is given, and no cached area is given, its latitude and longitude must also be provided.",
         ):
-            _check_stations("", invalid_profile_selections)
+            _check_stations("", **invalid_profile_selections)
