@@ -348,7 +348,7 @@ class TestChainedExportHelpers:
 
 
 class TestCheckCachedArea:
-    """Test location string construction"""
+    """Test location string construction by _check_cached_area()"""
 
     @pytest.mark.parametrize(
         "input_value,expected",
@@ -512,7 +512,7 @@ class TestCheckCachedArea:
 
 
 class TestCheckLatLon:
-    """Test location string construction"""
+    """Test location string construction by _check_lat_lon()"""
 
     @pytest.mark.parametrize(
         "input_string,input_value,expected",
@@ -691,7 +691,7 @@ class TestCheckLatLon:
 
 
 class TestCheckStations:
-    """Test location string construction"""
+    """Test location string construction by _check_stations()"""
 
     @pytest.mark.parametrize(
         "input_string,input_value,expected",
@@ -832,7 +832,7 @@ class TestCheckStations:
         assert _check_stations(input_string, **input_value) == expected
 
     def test_check_stations_raises_error_for_invalid_input(self):
-        """Test that _check_stations raises TypeError for incomplete profile parameters."""
+        """Test that _check_stations() raises TypeError for incomplete profile parameters."""
 
         invalid_profile_selections = {
             "latitude": 34.4041,
@@ -844,7 +844,7 @@ class TestCheckStations:
             _check_stations("", **invalid_profile_selections)
 
     def test_check_stations_raises_error_for_custom_list(self):
-        """Test that _check_stations raises ValueError for list of custom station names."""
+        """Test that _check_stations() raises ValueError for list of custom station names."""
 
         invalid_profile_selections = {
             "stations": [
@@ -859,7 +859,7 @@ class TestCheckStations:
             _check_stations("", **invalid_profile_selections)
 
     def test_check_stations_raises_error_for_mixed_list(self):
-        """Test that _check_stations raises ValueError for list of custom and HadISD station names."""
+        """Test that _check_stations() raises ValueError for list of custom and HadISD station names."""
 
         invalid_profile_selections = {
             "stations": [
@@ -874,7 +874,7 @@ class TestCheckStations:
             _check_stations("", **invalid_profile_selections)
 
     def test_check_stations_raises_error_for_custom_station_without_coordinates(self):
-        """Test that _check_stations raises ValueError for a custom station provided without its associated latitude and longitude."""
+        """Test that _check_stations() raises ValueError for a custom station provided without its associated latitude and longitude."""
 
         invalid_profile_selections = {
             "stations": [
