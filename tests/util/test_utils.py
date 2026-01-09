@@ -28,6 +28,7 @@ from climakitae.util.utils import (  # stack_sims_across_locs, # TODO: Uncomment
     downscaling_method_to_activity_id,
     get_closest_gridcell,
     get_closest_gridcells,
+    get_wrf_crs,
     julianDay_to_date,
     read_csv_file,
     readable_bytes,
@@ -1298,6 +1299,12 @@ class TestUtils:
             assert scenario_ssp == ["SSP 2-4.5", "SSP 3-7.0", "SSP 5-8.5"]
             assert scenario_historical == ["Historical Climate"]
 
+    def test_get_wrf_crs(self):
+        """Check that wrf crs is correctly returned."""
+        wrf_crs = get_wrf_crs()
+        assert isinstance(wrf_crs, str)
+        assert len(wrf_crs) == 613
+
 
 class TestReprojectData:
     """
@@ -1318,7 +1325,7 @@ class TestReprojectData:
 
         # Patch the actual accessor property to return our mock
         with (
-            patch("rioxarray.open_rasterio", autospec=True),
+            -patch("rioxarray.open_rasterio", autospec=True),
             patch.object(
                 xr.DataArray,
                 "rio",
