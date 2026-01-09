@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, Union
 
 import xarray as xr
 
-from climakitae.core.constants import _NEW_ATTRS_KEY
+from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.param_validation_tools import _coerce_to_dates
 from climakitae.new_core.processors.abc_data_processor import (
@@ -29,15 +29,24 @@ class TimeSlice(DataProcessor):
 
     Parameters
     ----------
-    value : tuple(date-like, date-like)
-        The value to subset the data by. This should be a tuple of two
-        date-like values.
+    value : iterable of date-like or dict
+        Either:
+
+        - An iterable of two date-like objects specifying the start and end
+          dates for the time slice, or
+        - A dictionary with a required "dates" key and an optional
+          "seasons" key.
+
+        The "dates" value must be an iterable of two date-like objects.
+        The "seasons" value, if provided, must be an iterable of seasons or a string of a single season.
+        Allowed season inputs are: "DJF", "MAM", "JJA", "SON"
 
     Methods
     -------
     _coerce_to_dates(value: tuple) -> tuple[pd.Timestamp, pd.Timestamp]
         Coerce the values to date-like objects.
-
+    _subset_time_and_season(obj: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray
+        Subset the data based on time and seasons if provided.
     """
 
     def __init__(self, value: Iterable[Any]):
@@ -46,10 +55,21 @@ class TimeSlice(DataProcessor):
 
         Parameters
         ----------
-        value : Iterable(date-like, date-like)
-            The value to subset the data by.
+        Either:
+
+        - An iterable of two date-like objects specifying the start and end
+          dates for the time slice, or
+        - A dictionary with a required "dates" key and an optional
+          "seasons" key.
+
+        The "dates" value must be an iterable of two date-like objects.
+        The "seasons" value, if provided, must be an iterable of seasons or a string of a single season.
+        Allowed season inputs are: "DJF", "MAM", "JJA", "SON"
         """
-        self.value = _coerce_to_dates(value)
+        if not isinstance(value, dict):
+            value = {"dates": value}
+        self.value = _coerce_to_dates(value.get("dates"))
+        self.seasons = value.get("seasons", UNSET)
         logger.debug("TimeSlice initialized with value=%s", self.value)
         self.name = "time_slice"
 
@@ -84,26 +104,23 @@ class TimeSlice(DataProcessor):
             self.value,
             type(result).__name__,
         )
+
         match result:
             case dict():  # most likely case at top
                 subset_data = {}
                 for key, value in result.items():
-                    subset_data[key] = value.sel(
-                        time=slice(self.value[0], self.value[1])
-                    )
+                    subset_data[key] = self._subset_time_and_season(value)
                 self.update_context(context)
                 return subset_data
 
             case xr.DataArray() | xr.Dataset():
                 self.update_context(context)
-                return result.sel(time=slice(self.value[0], self.value[1]))
+                return self._subset_time_and_season(result)
 
             case list() | tuple():
                 subset_data = []
                 for value in result:
-                    subset_data.append(
-                        value.sel(time=slice(self.value[0], self.value[1]))
-                    )
+                    subset_data.append(self._subset_time_and_season(value))
                 # return as the same type as the input
                 self.update_context(context)
                 return type(result)(subset_data)
@@ -136,3 +153,13 @@ class TimeSlice(DataProcessor):
     def set_data_accessor(self, catalog: DataCatalog):
         # Placeholder for setting data accessor
         pass
+
+    def _subset_time_and_season(
+        self,
+        obj: Union[xr.Dataset, xr.DataArray],
+    ) -> Union[xr.Dataset, xr.DataArray]:
+        """Subset the data based on time and seasons if provided."""
+        obj = obj.sel(time=slice(self.value[0], self.value[1]))
+        if self.seasons is not UNSET:
+            obj = obj.where(obj.time.dt.season.isin(self.seasons), drop=True)
+        return obj
