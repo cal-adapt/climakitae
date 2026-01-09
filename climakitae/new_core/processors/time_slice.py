@@ -34,12 +34,12 @@ class TimeSlice(DataProcessor):
 
         - An iterable of two date-like objects specifying the start and end
           dates for the time slice, or
-        - A dictionary with a required ``"dates"`` key and an optional
-          ``"seasons"`` key.
+        - A dictionary with a required "dates" key and an optional
+          "seasons" key.
 
-        The ``"dates"`` value must be an iterable of two date-like objects.
-        The ``"seasons"`` value, if provided, must be an iterable of seasons.
-        The seasons should be one of the following strings: ``"DJF"``, ``"MAM"``, ``"JJA"``, ``"SON"``.
+        The "dates" value must be an iterable of two date-like objects.
+        The "seasons" value, if provided, must be an iterable of seasons or a string of a single season.
+        Allowed season inputs are: "DJF", "MAM", "JJA", "SON"
 
     Methods
     -------
@@ -55,17 +55,16 @@ class TimeSlice(DataProcessor):
 
         Parameters
         ----------
-        value : iterable of date-like or dict
-            Either:
+        Either:
 
-            - An iterable of two date-like objects specifying the start and end
-            dates for the time slice, or
-            - A dictionary with a required ``"dates"`` key and an optional
-            ``"seasons"`` key.
+        - An iterable of two date-like objects specifying the start and end
+          dates for the time slice, or
+        - A dictionary with a required "dates" key and an optional
+          "seasons" key.
 
-            The ``"dates"`` value must be an iterable of two date-like objects.
-            The ``"seasons"`` value, if provided, must be an iterable of seasons.
-            The seasons should be one of the following strings: ``"DJF"``, ``"MAM"``, ``"JJA"``, ``"SON"``.
+        The "dates" value must be an iterable of two date-like objects.
+        The "seasons" value, if provided, must be an iterable of seasons or a string of a single season.
+        Allowed season inputs are: "DJF", "MAM", "JJA", "SON"
         """
         if not isinstance(value, dict):
             value = {"dates": value}
