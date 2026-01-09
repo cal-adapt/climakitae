@@ -1303,7 +1303,7 @@ class TestUtils:
         """Check that wrf crs is correctly returned."""
         wrf_crs = get_wrf_crs()
         assert isinstance(wrf_crs, str)
-        assert wrf_crs[0:6] == "PROJCS"
+        assert wrf_crs[282:313] == '["Lambert_Conformal_Conic_2SP"]'
 
 
 class TestReprojectData:
