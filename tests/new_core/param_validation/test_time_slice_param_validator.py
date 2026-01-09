@@ -99,6 +99,15 @@ class TestValidateTimeSliceParam:
         result = validate_time_slice_param(value)
         assert result is True
 
+    def test_validate_time_slice_param_with_single_season(self):
+        """Test validate_time_slice_param with a single season string."""
+        value = {
+            "dates": ("2000-01-01", "2000-12-31"),
+            "seasons": "JJA",
+        }
+        result = validate_time_slice_param(value)
+        assert result is True
+
     def test_validate_time_slice_param_with_invalid_seasons(self, caplog):
         """Test validate_time_slice_param with invalid seasons parameter."""
         value = {

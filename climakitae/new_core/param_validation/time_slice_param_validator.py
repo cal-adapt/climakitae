@@ -49,19 +49,22 @@ def validate_time_slice_param(value: tuple[Any, Any], **kwargs) -> bool:
         return False
 
     if season_filter is not UNSET:
-        if (
-            not isinstance(season_filter, list)
-            or not all([isinstance(season, str) for season in season_filter])
-            or not all(
-                season in ["DJF", "MAM", "JJA", "SON"] for season in season_filter
-            )
-        ):
-            msg = (
-                "\nIf provided, 'seasons' parameter must be a list of season names "
-                "(e.g., ['DJF', 'MAM', 'JJA', 'SON']). Please check the configuration."
-            )
-            logger.warning(msg)
-            return False
+        msg = (
+            "\nIf provided, 'seasons' parameter must be a list of season names or a single season name. "
+            "(e.g., ['DJF', 'MAM', 'JJA', 'SON']). Please check the configuration."
+        )
+        if isinstance(season_filter, (list, tuple)):
+            if not all(
+                isinstance(season, str) and season in ["DJF", "MAM", "JJA", "SON"]
+                for season in season_filter
+            ):
+                logger.warning(msg)
+                return False
+        if isinstance(season_filter, str):
+            if season_filter not in ["DJF", "MAM", "JJA", "SON"]:
+                logger.warning(msg)
+                return False
+
     try:
         value = _coerce_to_dates(time_slice)
     except ValueError as e:
