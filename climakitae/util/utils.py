@@ -1534,6 +1534,7 @@ def add_dummy_time_to_wl(wl_da: xr.DataArray, freq_name="daily") -> xr.DataArray
             "hourly": "h",
             "daily": "D",
             "day": "D",
+            "mon": "MS",
             "monthly": "MS",
         }
 
