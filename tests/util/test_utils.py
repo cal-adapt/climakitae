@@ -1008,7 +1008,7 @@ class TestUtils:
             result_time_delta.time.values, expected_hourly.values
         )
 
-        # Test 2: DataArray with time_delta dimension and new core
+        # Test 3: DataArray with time_delta dimension and new core
         # frequency label
         time_delta = np.arange(-5, 6)
         data = np.random.rand(len(time_delta), 2)
