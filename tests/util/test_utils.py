@@ -1325,7 +1325,7 @@ class TestReprojectData:
 
         # Patch the actual accessor property to return our mock
         with (
-            -patch("rioxarray.open_rasterio", autospec=True),
+            patch("rioxarray.open_rasterio", autospec=True),
             patch.object(
                 xr.DataArray,
                 "rio",
