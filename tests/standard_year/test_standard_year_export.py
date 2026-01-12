@@ -82,6 +82,7 @@ class TestExportProfile:
         )
 
     def test_export_profile_to_csv(self):
+        """Tests that the correct filename is generated, including for each dataset of multiple warming levels."""
         with patch("pandas.DataFrame.to_csv") as to_csv_mock:
             variable = "Air Temperature at 2m"
             q = 0.5
@@ -124,7 +125,7 @@ class TestExportProfile:
 
     def test_export_profile_to_csv_invalid_profile(self):
         """Test that error is raised by profile with invalid index format."""
-        with patch("pandas.DataFrame.to_csv") as to_csv_mock, pytest.raises(ValueError):
+        with pytest.raises(ValueError):
             variable = "Air Temperature at 2m"
             q = 0.5
             gwl = [1.5]
@@ -205,7 +206,7 @@ class TestExportProfile:
         ],
     )
     def test_get_clean_standardyr_filename(self, input_value, expected):
-        """Test that file name is correctly formatted based on given inputs."""
+        """Test that filename is correctly formatted based on given inputs."""
         assert _get_clean_standardyr_filename(**input_value) == expected
 
 
@@ -337,7 +338,7 @@ class TestChainedExportHelpers:
         ],
     )
     def test_location_string_construction(self, input_value, expected):
-        """Test behavior"""
+        """Test changed behavior of location string helper functions."""
         func_list = [_check_cached_area, _check_lat_lon, _check_stations]
         location_str = ""
 
