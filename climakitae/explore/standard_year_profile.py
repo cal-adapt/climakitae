@@ -351,6 +351,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         - latitude (Optional) : float or tuple
         - longitude (Optional) : float or tuple
         - stations (Optional) : list[str], default None
+        - warming_level_window (Optional): int in range (5,25)
         - units (Optional) : str, default "degF"
         - no_delta (optional) : bool, default False, if True, do not retrieve historical data, return raw future profile
 
@@ -409,6 +410,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         "variable": (str, "Air Temperature at 2m"),
         "resolution": (str, "3 km"),
         "warming_level": (list, [1.2]),
+        "warming_level_window": (int, None),
         "cached_area": ((str, list), None),
         "latitude": ((float, tuple), None),
         "longitude": ((float, tuple), None),
@@ -520,6 +522,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         ),
         "approach": "Warming Level",
         "warming_level": [1.2],
+        "warming_level_window": kwargs.get('warming_level_window', None),
         "cached_area": kwargs.get("cached_area", None),
         "latitude": kwargs.get("latitude", None),
         "longitude": kwargs.get("longitude", None),
@@ -557,6 +560,7 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
         - latitude (Optional) : float or tuple
         - longitude (Optional) : float or tuple
         - stations (Optional) : list[str], default None
+        - warming_level_window (Optional): int in range (5,25)
         - days_in_year (Optional) : int, default 365
         - q (Optional) : float | list[float], default 0.5, quantile for profile calculation
         - no_delta (optional) : bool, default False, if True, do not apply baseline subtraction, return raw future profile
@@ -583,6 +587,7 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
     days_in_year = kwargs.pop("days_in_year", 365)
     q = kwargs.pop("q", 0.5)
     no_delta = kwargs.get("no_delta", False)
+    warming_level_window = kwargs.get('warming_level_window', False)
 
     # Retrieve the climate data
     print("📊 Retrieving climate data...")
