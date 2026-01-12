@@ -160,7 +160,7 @@ def _get_clean_standardyr_filename(
     if warming_level_window is None:
         window_str = ""
     else:
-        window_str = "_{warming_level_window}yr_window"
+        window_str = f"_{warming_level_window}yr_window"
 
     filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}_{clean_gwl_name}{delta_str}{window_str}.csv"
     return filename
