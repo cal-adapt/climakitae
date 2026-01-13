@@ -426,7 +426,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         "variable": (str, "Air Temperature at 2m"),
         "resolution": (str, "3 km"),
         "warming_level": (list, [1.2]),
-        "warming_level_window": (int, None),
+        "warming_level_window": (int, None,(5,25)),
         "cached_area": ((str, list), None),
         "latitude": ((float, tuple), None),
         "longitude": ((float, tuple), None),
@@ -465,6 +465,12 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
                 raise TypeError(
                     f"Parameter '{key}' must be of type {expected_type.__name__}, "
                     f"got {type(value).__name__}"
+                )
+        if key == 'warming_level_window':
+            if value not in range(5,26):
+                raise ValueError(
+                    f"Parameter {key} must be in range 5-25, "
+                    f"got {value}"
                 )
 
     # Validate location parameters
