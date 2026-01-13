@@ -158,8 +158,10 @@ def _get_clean_standardyr_filename(
         delta_str = "_delta_from_historical"
 
     if warming_level_window is None:
-        window_str = ""
+        # default 15yr window
+        window_str = "_15yr_window"
     else:
+        # custom window size provided
         window_str = f"_{warming_level_window}yr_window"
 
     filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}_{clean_gwl_name}{delta_str}{window_str}.csv"
@@ -363,7 +365,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         - variable (Optional) : str, default "Air Temperature at 2m"
         - resolution (Optional) : str, default "3 km"
         - warming_levels (Optional) : List[float], default [1.2]
-        - warming_level_window (Optional): int in range (5,25)
+        - warming_level_window (Optional): int in range [5,25]
         - cached_area (Optional) : str or List[str]
         - latitude (Optional) : float or tuple
         - longitude (Optional) : float or tuple
@@ -426,7 +428,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         "variable": (str, "Air Temperature at 2m"),
         "resolution": (str, "3 km"),
         "warming_level": (list, [1.2]),
-        "warming_level_window": (int, None,(5,25)),
+        "warming_level_window": (int, None),
         "cached_area": ((str, list), None),
         "latitude": ((float, tuple), None),
         "longitude": ((float, tuple), None),
@@ -466,12 +468,11 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
                     f"Parameter '{key}' must be of type {expected_type.__name__}, "
                     f"got {type(value).__name__}"
                 )
-        # Check that warming_level_window is between 5 and 25
-        if key == 'warming_level_window':
-            if value not in range(5,26):
+        # check that warming_level_window is between 5 and 25
+        if key == "warming_level_window":
+            if value not in range(5, 26):
                 raise ValueError(
-                    f"Parameter {key} must be in range 5-25, "
-                    f"got {value}"
+                    f"Parameter '{key}' must be between 5 and 25," f"got {value}"
                 )
 
     # Validate location parameters
@@ -578,7 +579,7 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
         - variable (Optional) : str, default "Air Temperature at 2m"
         - resolution (Optional) : str, default "3 km"
         - warming_level (Required) : List[float], default [1.2]
-        - warming_level_window (Optional): int in range (5,25)
+        - warming_level_window (Optional): int in range [5,25]
         - cached_area (Optional) : str or List[str]
         - units (Optional) : str, default "degF"
         - latitude (Optional) : float or tuple

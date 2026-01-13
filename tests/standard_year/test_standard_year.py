@@ -91,11 +91,11 @@ class TestRetrieveProfileData:
             retrieve_profile_data(invalid_param="test", another_invalid=123)
 
 # ##!! test for invalid warming_level_window inputs
-#     def test_retrieve_profile_data_with_invalid_parameters_raises_error(self):
-#         """Test that retrieve_profile_data raises error for invalid parameter keys."""
-#         # Execute and verify outcome: should raise ValueError for invalid keys
-#         with pytest.raises(ValueError, match="Invalid input"):
-#             retrieve_profile_data(invalid_param="test", another_invalid=123)
+    def test_retrieve_profile_data_with_invalid_parameters_raises_error(self):
+        """Test that retrieve_profile_data raises error for invalid parameter keys."""
+        # Execute and verify outcome: should raise ValueError for invalid keys
+        with pytest.raises(ValueError, match="Invalid input"):
+            retrieve_profile_data(invalid_param="test", another_invalid=123)
 
     def test_retrieve_profile_data_with_no_delta_returns_none_historic(self):
         """Test that retrieve_profile_data returns None for historic when no_delta=True."""
