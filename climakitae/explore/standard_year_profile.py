@@ -466,6 +466,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
                     f"Parameter '{key}' must be of type {expected_type.__name__}, "
                     f"got {type(value).__name__}"
                 )
+        # Check that warming_level_window is between 5 and 25
         if key == 'warming_level_window':
             if value not in range(5,26):
                 raise ValueError(
