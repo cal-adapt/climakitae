@@ -126,6 +126,22 @@ class TestTimeSliceExecute:
         assert ds_result["var1"].values.tolist() == [[1, 2], [3, 4]]
         assert ds_result["var2"].values.tolist() == [[10, 20], [30, 40]]
 
+    def test_time_slice_with_seasons(
+        self,
+        test_dataarray: xr.DataArray,
+    ) -> None:
+        """Test slicing with seasons specified."""
+        processor = TimeSlice(
+            value={
+                "dates": ("2000-01-01", "2000-12-31"),
+                "seasons": ["MAM", "JJA"],
+            }
+        )
+        result = processor.execute(test_dataarray, context={})
+        assert result.time.size == 1
+        assert result.space.size == 2
+        assert result.values.tolist() == [[3, 4]]
+
     def test_time_slice_invalid_type(
         self,
         processor: TimeSlice,
