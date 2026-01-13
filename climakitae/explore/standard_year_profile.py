@@ -472,7 +472,8 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         if key == "warming_level_window":
             if value not in range(5, 26):
                 raise ValueError(
-                    f"Parameter '{key}' must be between 5 and 25," f"got {value}"
+                    f"Parameter '{key}' must be an integer between 5 and 25, "
+                    f"got {value}"
                 )
 
     # Validate location parameters
