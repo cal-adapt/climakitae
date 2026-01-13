@@ -137,7 +137,6 @@ def _get_clean_standardyr_filename(
         Single gwl for csv file name
     warming_level_window: int
         Years around Global Warming Level (+/-) (e.g. 15 means a 30yr window)
-
     no_delta : bool
         no_delta value used to generate profile
 
