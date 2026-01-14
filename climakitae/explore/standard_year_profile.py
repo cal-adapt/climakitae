@@ -157,11 +157,12 @@ def _get_clean_standardyr_filename(
         delta_str = "_delta_from_historical"
 
     if warming_level_window is None:
-        # default 15yr window
-        window_str = "_15yr_window"
+        # default 30yr window (corresponds to default 15)
+        window_str = "_30yr_window"
     else:
         # custom window size provided
-        window_str = f"_{warming_level_window}yr_window"
+        window = warming_level_window * 2
+        window_str = f"_{window}yr_window"
 
     filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}_{clean_gwl_name}{delta_str}{window_str}.csv"
     return filename
