@@ -90,6 +90,19 @@ class TestRetrieveProfileData:
         with pytest.raises(ValueError, match="Invalid input"):
             retrieve_profile_data(invalid_param="test", another_invalid=123)
 
+    def test_retrieve_profile_data_with_float_warming_level_window_raises_error(self):
+        """Test that retrieve_profile_data raises error for a warming_level_window input outside of range 5-25"""
+
+        with pytest.raises(ValueError):
+            retrieve_profile_data(
+                variable="Air Temperature at 2m",
+                resolution="3 km",
+                warming_level=[1.5],
+                cached_area="bay area",
+                units="degC",
+                warming_level_window=2,
+            )
+
     def test_retrieve_profile_data_with_no_delta_returns_none_historic(self):
         """Test that retrieve_profile_data returns None for historic when no_delta=True."""
         # Setup mock return value
