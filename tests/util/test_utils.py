@@ -28,7 +28,6 @@ from climakitae.util.utils import (  # stack_sims_across_locs, # TODO: Uncomment
     downscaling_method_to_activity_id,
     get_closest_gridcell,
     get_closest_gridcells,
-    get_wrf_crs,
     julianDay_to_date,
     read_csv_file,
     readable_bytes,
@@ -1298,12 +1297,6 @@ class TestUtils:
             # Verify that it returns all SSPs and Historical Climate for Warming Level approach
             assert scenario_ssp == ["SSP 2-4.5", "SSP 3-7.0", "SSP 5-8.5"]
             assert scenario_historical == ["Historical Climate"]
-
-    def test_get_wrf_crs(self):
-        """Check that wrf crs is correctly returned."""
-        wrf_crs = get_wrf_crs()
-        assert isinstance(wrf_crs, str)
-        assert wrf_crs[282:313] == '["Lambert_Conformal_Conic_2SP"]'
 
 
 class TestReprojectData:

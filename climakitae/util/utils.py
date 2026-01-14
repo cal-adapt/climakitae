@@ -1978,39 +1978,3 @@ def _determine_is_complete_wl(
         return False
 
     return True
-
-
-def get_wrf_crs() -> str:
-    """
-    Returns the WRF coordinate reference system in WKT format.
-
-    The WKT can be used to set the CRS of an xarray dataset or
-    dataarray using rio. For example, to set the CRS of a WRF
-    dataset, use `ds.rio.write_crs(get_wrf_crs())`.
-
-    Returns
-    -------
-    str
-        WKT representation of WRF projection.
-    """
-    wrf_crs = """
-        PROJCS["undefined",
-        GEOGCS["undefined",
-            DATUM["undefined",
-            SPHEROID["undefined",6370000,0]
-            ],
-            PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],
-            UNIT["degree",0.0174532925199433]
-        ],
-        PROJECTION["Lambert_Conformal_Conic_2SP"],
-        PARAMETER["standard_parallel_1",30],
-        PARAMETER["standard_parallel_2",60],
-        PARAMETER["latitude_of_origin",38],
-        PARAMETER["central_meridian",-70],
-        PARAMETER["false_easting",0],
-        PARAMETER["false_northing",0],
-        UNIT["metre",1,AUTHORITY["EPSG","9001"]],
-        AXIS["Easting",EAST],
-        AXIS["Northing",NORTH]
-        ]"""
-    return wrf_crs
