@@ -100,7 +100,7 @@ class TestExportProfile:
                 self.multi_df,
                 **profile_selections,
             )
-            expected_filename = "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical_15yr_window.csv"
+            expected_filename = "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical_30yr_window.csv"
             to_csv_mock.assert_called_with(expected_filename)
 
         with patch("pandas.DataFrame.to_csv") as to_csv_mock:
@@ -115,10 +115,10 @@ class TestExportProfile:
             export_profile_to_csv(self.multi_df_gwl, **profile_selections)
             expected_filenames = [
                 call(
-                    "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical_15yr_window.csv"
+                    "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical_30yr_window.csv"
                 ),
                 call(
-                    "stdyr_t2_50ptile_sacramento_county_mid-century_delta_from_historical_15yr_window.csv"
+                    "stdyr_t2_50ptile_sacramento_county_mid-century_delta_from_historical_30yr_window.csv"
                 ),
             ]
             to_csv_mock.assert_has_calls(expected_filenames)
@@ -152,7 +152,7 @@ class TestExportProfile:
                     "no_delta": False,
                     "warming_level_window": None,
                 },
-                "stdyr_t2_50ptile_sacramento_county_present-day_delta_from_historical_15yr_window.csv",
+                "stdyr_t2_50ptile_sacramento_county_present-day_delta_from_historical_30yr_window.csv",
             ),
             (
                 {
@@ -163,7 +163,7 @@ class TestExportProfile:
                     "no_delta": True,
                     "warming_level_window": None,
                 },
-                "stdyr_t2_50ptile_sacramento_county_present-day_15yr_window.csv",
+                "stdyr_t2_50ptile_sacramento_county_present-day_30yr_window.csv",
             ),
             (
                 {
@@ -174,7 +174,7 @@ class TestExportProfile:
                     "no_delta": True,
                     "warming_level_window": None,
                 },
-                "stdyr_t2_50ptile_35-5N_122-5W_present-day_15yr_window.csv",
+                "stdyr_t2_50ptile_35-5N_122-5W_present-day_30yr_window.csv",
             ),
             (
                 {
@@ -185,7 +185,7 @@ class TestExportProfile:
                     "no_delta": True,
                     "warming_level_window": None,
                 },
-                "stdyr_t2_50ptile_san_diego_lindbergh_field_ksan_late-century_15yr_window.csv",
+                "stdyr_t2_50ptile_san_diego_lindbergh_field_ksan_late-century_30yr_window.csv",
             ),
             (
                 {
@@ -196,7 +196,7 @@ class TestExportProfile:
                     "no_delta": True,
                     "warming_level_window": None,
                 },
-                "stdyr_prec_50ptile_35-5N_122-5W_mid-late-century_15yr_window.csv",
+                "stdyr_prec_50ptile_35-5N_122-5W_mid-late-century_30yr_window.csv",
             ),
             (
                 {
@@ -207,7 +207,7 @@ class TestExportProfile:
                     "no_delta": False,
                     "warming_level_window": None,
                 },
-                "stdyr_prec_75ptile_35-5N_122-5W_late-century_delta_from_historical_15yr_window.csv",
+                "stdyr_prec_75ptile_35-5N_122-5W_late-century_delta_from_historical_30yr_window.csv",
             ),
             (
                 {
@@ -218,7 +218,7 @@ class TestExportProfile:
                     "no_delta": False,
                     "warming_level_window": 5,
                 },
-                "stdyr_prec_75ptile_35-5N_122-5W_late-century_delta_from_historical_5yr_window.csv",
+                "stdyr_prec_75ptile_35-5N_122-5W_late-century_delta_from_historical_10yr_window.csv",
             ),
         ],
     )
