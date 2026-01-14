@@ -136,3 +136,24 @@ PERCENTILE_TO_QUANTILE_FACTOR = 100.0  # Convert percentiles to quantiles
 MIN_VALID_DATA_POINTS = 3  # Minimum data points required for statistical fitting
 NUMERIC_PRECISION_DECIMAL_PLACES = 2  # Decimal places for numeric output formatting
 RETURN_VALUE_PRECISION = 5  # Decimal places for return value rounding
+
+# WKT representation of WRF coordinate system
+WRF_CRS = """PROJCS["undefined",
+        GEOGCS["undefined",
+            DATUM["undefined",
+            SPHEROID["undefined",6370000,0]
+            ],
+            PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],
+            UNIT["degree",0.0174532925199433]
+        ],
+        PROJECTION["Lambert_Conformal_Conic_2SP"],
+        PARAMETER["standard_parallel_1",30],
+        PARAMETER["standard_parallel_2",60],
+        PARAMETER["latitude_of_origin",38],
+        PARAMETER["central_meridian",-70],
+        PARAMETER["false_easting",0],
+        PARAMETER["false_northing",0],
+        UNIT["metre",1,AUTHORITY["EPSG","9001"]],
+        AXIS["Easting",EAST],
+        AXIS["Northing",NORTH]
+        ]"""

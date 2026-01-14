@@ -1008,7 +1008,33 @@ class TestUtils:
             result_time_delta.time.values, expected_hourly.values
         )
 
-        # Test 3: DataArray with months_from_center dimension
+        # Test 3: DataArray with time_delta dimension and new core
+        # frequency label
+        time_delta = np.arange(-5, 6)
+        data = np.random.rand(len(time_delta), 2)
+        da_time_delta = xr.DataArray(
+            data,
+            dims=["time_delta", "simulation"],
+            coords={
+                "time_delta": time_delta,
+                "simulation": ["sim1", "sim2"],
+            },
+        )
+        # Add frequency attribute required for time_delta dimension
+        da_time_delta.attrs["frequency"] = "1hr"
+
+        result_time_delta = add_dummy_time_to_wl(da_time_delta)
+
+        # Check that time dimension replaced time_delta
+        assert "time_delta" not in result_time_delta.dims
+        assert "time" in result_time_delta.dims
+        # Check that timestamps are hourly frequency
+        expected_hourly = pd.date_range("2000-01-01", periods=len(time_delta), freq="h")
+        np.testing.assert_array_equal(
+            result_time_delta.time.values, expected_hourly.values
+        )
+
+        # Test 4: DataArray with months_from_center dimension
         months = np.arange(-3, 4)
         data = np.random.rand(len(months), 3)
         da_months = xr.DataArray(
@@ -1029,7 +1055,7 @@ class TestUtils:
         expected_months = pd.date_range("2000-01-01", periods=len(months), freq="MS")
         np.testing.assert_array_equal(result_months.time.values, expected_months.values)
 
-        # Test 4: DataArray with hours_from_center dimension
+        # Test 5: DataArray with hours_from_center dimension
         hours = np.arange(-12, 13)
         data = np.random.rand(len(hours))
         da_hours = xr.DataArray(
