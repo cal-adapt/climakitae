@@ -52,7 +52,7 @@ class MetricCalc(DataProcessor):
 
         Basic Metrics:
         - metric (str, optional): Metric to calculate. Supported values:
-          "min", "max", "mean", "median". Default: "mean"
+          "min", "max", "mean", "median", "sum". Default: "mean"
         - percentiles (list, optional): List of percentiles to calculate (0-100).
           Default: None
         - percentiles_only (bool, optional): If True and percentiles are specified,
@@ -331,6 +331,9 @@ class MetricCalc(DataProcessor):
                     dim=calc_dim, keep_attrs=True, skipna=self.skipna
                 ),
                 "median": lambda x: x.median(
+                    dim=calc_dim, keep_attrs=True, skipna=self.skipna
+                ),
+                "sum": lambda x: x.sum(
                     dim=calc_dim, keep_attrs=True, skipna=self.skipna
                 ),
             }
