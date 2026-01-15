@@ -76,7 +76,7 @@ def _validate_basic_metric_parameters(
     skipna: bool,
 ) -> bool:
     """Validate parameters for basic metric calculations."""
-    valid_metrics = ["min", "max", "mean", "median"]
+    valid_metrics = ["min", "max", "mean", "median", "sum"]
 
     # Validate metric
     if metric not in valid_metrics:
