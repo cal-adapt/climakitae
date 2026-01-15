@@ -2024,7 +2024,6 @@ def get_data(
         Only valid for approach = "Warming Level" and data_type = "Stations"
     warming_level_window : int in range (5,25), optional
         Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
-        Only valid for approach = "Warming Level" and data_type = "Stations"
     warming_level_months : list of int, optional
         Months of year for which to perform warming level computation
         Default to all months in a year: [1,2,3,4,5,6,7,8,9,10,11,12]
