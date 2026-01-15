@@ -6,7 +6,7 @@ for testing.
 
 import datetime
 import os
-from unittest.mock import mock_open, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import numpy as np
 import pandas as pd
@@ -85,7 +85,6 @@ class TestExportFunctions:
         test_format = "NetCDF"
         path = os.path.join(os.getcwd(), test_filename + ".nc")
         export.export(test_ds, test_filename, test_format)
-
         mock_to_netcdf.assert_called_once_with(
             path,
             format="NETCDF4",
@@ -94,7 +93,26 @@ class TestExportFunctions:
                 "time": {"_FillValue": None},
                 "data": {"zlib": True, "complevel": 6},
             },
+            compute=False,
         )
+
+    @patch("climakitae.core.data_export.ProgressBar")
+    @patch("xarray.core.dataset.Dataset.to_netcdf")
+    def test_export_netcdf_progressbar(self, mock_to_netcdf, mock_progressbar, test_ds):
+        test_filename = "test"
+        test_format = "NetCDF"
+
+        # Mocking the ProgressBar
+        mock_context = MagicMock()
+        mock_progressbar.return_value.__enter__.return_value = mock_context
+
+        # Calling export
+        export.export(test_ds, test_filename, test_format)
+
+        # Asserting ProgressBar was used
+        mock_progressbar.assert_called_once()
+        mock_progressbar.return_value.__enter__.assert_called_once()
+        mock_progressbar.return_value.__exit__.assert_called_once()
 
     @patch("xarray.core.dataset.Dataset.to_zarr")
     def test_export_zarr(self, mock_to_zarr, test_array):
@@ -102,8 +120,25 @@ class TestExportFunctions:
         test_format = "Zarr"
         path = os.path.join(os.getcwd(), test_filename + ".zarr")
         export.export(test_array, test_filename, test_format)
-
         mock_to_zarr.assert_called_once_with(path, encoding={})
+
+    @patch("climakitae.core.data_export.ProgressBar")
+    @patch("xarray.core.dataset.Dataset.to_zarr")
+    def test_export_zarr_progressbar(self, mock_to_zarr, mock_progressbar, test_array):
+        test_filename = "test"
+        test_format = "Zarr"
+
+        # Mocking the ProgressBar
+        mock_context = MagicMock()
+        mock_progressbar.return_value.__enter__.return_value = mock_context
+
+        # Calling export
+        export.export(test_array, test_filename, test_format)
+
+        # Asserting ProgressBar was used
+        mock_progressbar.assert_called_once()
+        mock_progressbar.return_value.__enter__.assert_called_once()
+        mock_progressbar.return_value.__exit__.assert_called_once()
 
     @patch("builtins.open")
     def test_export_csv(self, mock_open, test_array):
@@ -266,6 +301,7 @@ class TestHiddenFunctions:
             format="NETCDF4",
             engine="netcdf4",
             encoding={"data": {"zlib": True, "complevel": 6}},
+            compute=False,
         )
 
     @patch("shutil.disk_usage", return_value=(1.3e-8, 1.3e-8, 1.3e-8))
