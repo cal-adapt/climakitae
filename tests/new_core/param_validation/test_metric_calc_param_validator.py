@@ -27,6 +27,7 @@ class TestValidateBasicMetricParameters:
             ("median", [10, 50, 90], True, ["time", "lat"], False, True),
             ("max", None, False, "lat", True, True),
             ("min", np.array([0, 100]), False, "lon", False, True),
+            ("sum", None, False, ["lat", "lon"], True, True),
         ],
     )
     def test_valid_cases(
@@ -62,7 +63,7 @@ class TestValidateBasicMetricParameters:
     @pytest.mark.parametrize(
         "metric, warning_msg",
         [
-            ("sum", "Invalid metric"),
+            ("mode", "Invalid metric"),
         ],
     )
     def test_invalid_metric(self, metric, warning_msg, caplog):
