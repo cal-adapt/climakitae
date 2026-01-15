@@ -83,6 +83,7 @@ def load(xr_da: xr.DataArray, progress_bar: bool = False) -> xr.DataArray:
     """
 
     # Check if data is already loaded into memory
+    xr_da = xr_da.unify_chunks()
     if xr_da.chunks is None:
         print("Your data is already loaded into memory")
         return xr_da
