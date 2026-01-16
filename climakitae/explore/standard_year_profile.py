@@ -370,11 +370,16 @@ def _handle_approach_params(**kwargs):
             # If approach="Time" and centered_year is provided
             # get warming level based on year
             # and set warming_level to this value
-            new_warming_level = _get_gwl_from_year(centered_year)
-            print(
-                f"Corresponding warming level for 'centered_year'={centered_year} is {new_warming_level}."
-            )
-            kwargs["warming_level"] = new_warming_level
+            if centered_year not in range(2015, 2100):
+                raise ValueError(
+                    f"Only years 2015-2099 are valid inputs for 'centered_year'. Received {centered_year}."
+                )
+            else:
+                new_warming_level = _get_gwl_from_year(centered_year)
+                print(
+                    f"Corresponding warming level for 'centered_year'={centered_year} is {new_warming_level}."
+                )
+                kwargs["warming_level"] = new_warming_level
         case "Time", object(), _, _:
             raise ValueError(
                 "If 'approach' = 'Time', 'centered_year' must be provided."
@@ -382,7 +387,7 @@ def _handle_approach_params(**kwargs):
         case object() | "Warming Level", _, _, _:
             if isinstance(centered_year, int):
                 raise ValueError(
-                    "If 'centered_year' provided, 'approach' must be 'Time'."
+                    f"If 'centered_year' provided, 'approach' must be 'Time'. Received '{approach}.'"
                 )
             else:
                 None
@@ -405,6 +410,8 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         Keyword arguments for data selection. Allowed keys:
         - variable (Optional) : str, default "Air Temperature at 2m"
         - resolution (Optional) : str, default "3 km"
+        - approach (Optional) : str, "Warming Level" or "Time"
+        - centered (Optional) : int
         - warming_levels (Optional) : List[float], default [1.2]
         - warming_level_window (Optional): int in range [5,25]
         - cached_area (Optional) : str or List[str]
@@ -468,6 +475,8 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
     ALLOWED_INPUTS = {
         "variable": (str, "Air Temperature at 2m"),
         "resolution": (str, "3 km"),
+        "approach": (str, "Warming Level"),
+        "centered_year": (int, None),
         "warming_level": (list, [1.2]),
         "warming_level_window": (int, None),
         "cached_area": ((str, list), None),
@@ -588,7 +597,8 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
                 else None  # otherwise default to None and let get_data decide
             ),
         ),
-        "approach": "Warming Level",
+        "approach": kwargs.get("approach", "Warming Level"),
+        "centered_year": kwargs.get("centered_year", None),
         "warming_level": [1.2],
         "warming_level_window": kwargs.get("warming_level_window", None),
         "cached_area": kwargs.get("cached_area", None),
@@ -622,8 +632,8 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
         Keyword arguments for data selection. Allowed keys:
         - variable (Optional) : str, default "Air Temperature at 2m"
         - resolution (Optional) : str, default "3 km"
-        - approach (Optional): str, "Time" or "Warming Level"
-        - centered_year (Optional): int
+        - approach (Optional) : str, "Warming Level" or "Time"
+        - centered (Optional) : int
         - warming_level (Required) : List[float], default [1.2]
         - warming_level_window (Optional): int in range [5,25]
         - cached_area (Optional) : str or List[str]
