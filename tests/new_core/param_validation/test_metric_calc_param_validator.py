@@ -205,14 +205,26 @@ class TestValidateBasicMetricParameters:
             "metric": "mean",
             "dim": "time",
         }
+        param_dict_dim2 = {
+            "metric": "mean",
+            "dim": ["time", "lat"],
+        }
         param_dict_dims = {
             "metric": "mean",
             "dims": ["time", "lat"],
         }
+        param_dict_dims2 = {
+            "metric": "mean",
+            "dims": "time",
+        }
         result_dim = validate_metric_calc_param(param_dict_dim)
         result_dims = validate_metric_calc_param(param_dict_dims)
+        result_dim2 = validate_metric_calc_param(param_dict_dim2)
+        result_dims2 = validate_metric_calc_param(param_dict_dims2)
         assert result_dim is True
         assert result_dims is True
+        assert result_dim2 is True
+        assert result_dims2 is True
 
 
 class TestValidateMetricCalcParam:
