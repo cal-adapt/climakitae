@@ -18,6 +18,7 @@ from climakitae.core.data_interface import DataInterface, get_data
 from climakitae.core.paths import VARIABLE_DESCRIPTIONS_CSV_PATH
 from climakitae.explore.typical_meteorological_year import is_HadISD, match_str_to_wl
 from climakitae.util.utils import julianDay_to_date, read_csv_file
+from climakitae.util.warming_levels import get_gwl_at_year
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 
@@ -352,6 +353,46 @@ def export_profile_to_csv(profile, **kwargs):
             )
 
 
+def _get_gwl_from_year(centered_year):
+    gwl_options = get_gwl_at_year(centered_year, "SSP 3-7.0")
+    return float(gwl_options.loc["SSP 3-7.0", "Mean"])
+
+
+def _handle_approach_params(**kwargs):
+
+    approach = kwargs.get("approach")
+    centered_year = kwargs.get("centered_year")
+    warming_level = kwargs.get("warming_level")
+    warming_level_window = kwargs.get("warming_level_window")
+
+    match approach, centered_year, warming_level, warming_level_window:
+        case "Time", int(), _, _:
+            # If approach="Time" and centered_year is provided
+            # get warming level based on year
+            # and set warming_level to this value
+            new_warming_level = _get_gwl_from_year(centered_year)
+            print(
+                f"Corresponding warming level for 'centered_year'={centered_year} is {new_warming_level}."
+            )
+            kwargs["warming_level"] = new_warming_level
+        case "Time", object(), _, _:
+            raise ValueError(
+                "If 'approach' = 'Time', 'centered_year' must be provided."
+            )
+        case object() | "Warming Level", _, _, _:
+            if isinstance(centered_year, int):
+                raise ValueError(
+                    "If 'centered_year' provided, 'approach' must be 'Time'."
+                )
+            else:
+                None
+        case _:
+            raise ValueError(
+                "Only 'Time' or 'Warming Level' accepted as inputs for 'approach'."
+            )
+    return kwargs
+
+
 def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
     """
     Backend function for retrieving data needed for computing climate profiles.
@@ -475,6 +516,8 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
                     f"Parameter '{key}' must be an integer between 5 and 25, "
                     f"got {value}"
                 )
+    # Validate approach parameters
+    kwargs = _handle_approach_params(**kwargs)
 
     # Validate location parameters
     # the bahavior will be to use cached_area if provided
