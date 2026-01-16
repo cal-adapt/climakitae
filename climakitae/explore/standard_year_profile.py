@@ -579,6 +579,8 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
         Keyword arguments for data selection. Allowed keys:
         - variable (Optional) : str, default "Air Temperature at 2m"
         - resolution (Optional) : str, default "3 km"
+        - approach (Optional): str, "Time" or "Warming Level"
+        - centered_year (Optional): int
         - warming_level (Required) : List[float], default [1.2]
         - warming_level_window (Optional): int in range [5,25]
         - cached_area (Optional) : str or List[str]
