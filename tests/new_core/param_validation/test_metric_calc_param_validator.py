@@ -199,6 +199,21 @@ class TestValidateBasicMetricParameters:
         assert result is False
         assert warning_msg in caplog.text
 
+    def test_dim_or_dims_both_work(self):
+        """Test that both 'dim' and 'dims' keys work in parameter dictionary."""
+        param_dict_dim = {
+            "metric": "mean",
+            "dim": "time",
+        }
+        param_dict_dims = {
+            "metric": "mean",
+            "dims": ["time", "lat"],
+        }
+        result_dim = validate_metric_calc_param(param_dict_dim)
+        result_dims = validate_metric_calc_param(param_dict_dims)
+        assert result_dim is True
+        assert result_dims is True
+
 
 class TestValidateMetricCalcParam:
     """Unit tests for the validate_metric_calc_param function."""

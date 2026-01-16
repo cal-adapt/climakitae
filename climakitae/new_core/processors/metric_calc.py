@@ -143,7 +143,9 @@ class MetricCalc(DataProcessor):
         self.metric = value.get("metric", "mean")
         self.percentiles = value.get("percentiles", UNSET)
         self.percentiles_only = value.get("percentiles_only", False)
-        self.dim = value.get("dim", "time")
+
+        # Allow either `dim` or `dims` for flexibility
+        self.dim = value.get("dims", value.get("dim", "time"))
         self.keepdims = value.get("keepdims", False)
         self.skipna = value.get("skipna", True)
 
