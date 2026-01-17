@@ -362,39 +362,38 @@ def _handle_approach_params(**kwargs):
 
     approach = kwargs.get("approach")
     centered_year = kwargs.get("centered_year")
-    warming_level = kwargs.get("warming_level")
-    warming_level_window = kwargs.get("warming_level_window")
 
-    match approach, centered_year, warming_level, warming_level_window:
-        case "Time", int(), _, _:
-            # If approach="Time" and centered_year is provided
-            # get warming level based on year
-            # and set warming_level to this value
-            if centered_year not in range(2015, 2100):
-                raise ValueError(
-                    f"Only years 2015-2099 are valid inputs for 'centered_year'. Received {centered_year}."
-                )
-            else:
-                new_warming_level = _get_gwl_from_year(centered_year)
-                print(
-                    f"Corresponding warming level for 'centered_year'={centered_year} is {new_warming_level}."
-                )
-                kwargs["warming_level"] = new_warming_level
-        case "Time", object(), _, _:
-            raise ValueError(
-                "If 'approach' = 'Time', 'centered_year' must be provided."
-            )
-        case object() | "Warming Level", _, _, _:
-            if isinstance(centered_year, int):
-                raise ValueError(
-                    f"If 'centered_year' provided, 'approach' must be 'Time'. Received '{approach}.'"
-                )
-            else:
-                None
-        case _:
-            raise ValueError(
-                "Only 'Time' or 'Warming Level' accepted as inputs for 'approach'."
-            )
+    # match approach, centered_year:
+    #     case "Time", int():
+    #         # If approach="Time" and centered_year is provided
+    #         # get warming level based on year
+    #         # and set warming_level to this value
+    #         if centered_year not in range(2015, 2100):
+    #             raise ValueError(
+    #                 f"Only years 2015-2099 are valid inputs for 'centered_year'. Received {centered_year}."
+    #             )
+    #         else:
+    #             new_warming_level = _get_gwl_from_year(centered_year)
+    #             print(
+    #                 f"Corresponding warming level for 'centered_year'={centered_year} is {new_warming_level}."
+    #             )
+    #             kwargs["warming_level"] = new_warming_level
+    #     case "Time", object():
+    #         raise ValueError(
+    #             "If 'approach' = 'Time', 'centered_year' must be provided."
+    #         )
+    #     case object() | "Warming Level", _:
+    #         if isinstance(centered_year, int):
+    #             raise ValueError(
+    #                 f"If 'centered_year' provided, 'approach' must be 'Time'. Received '{approach}.'"
+    #             )
+    #         else:
+    #             None
+    #     case str() as s if s not in ['Time','Warming Level']:
+    #         raise ValueError(
+    #             f"Only 'Time' or 'Warming Level' accepted as inputs for 'approach'. Received '{approach}'."
+    #         )
+            
     return kwargs
 
 
