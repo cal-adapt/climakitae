@@ -49,7 +49,7 @@ Key Features
   reproducibility and provenance
 
 Data Types Supported
--------------------
+--------------------
 - xarray.Dataset
 - xarray.DataArray
 - Dictionary of datasets/arrays

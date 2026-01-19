@@ -1,7 +1,7 @@
 """Temperature-related derived variables.
 
 This module provides derived variables for temperature calculations including
-heat index, wind chill, and apparent temperature.
+heat index, wind chill, apparent temperature, and degree days.
 
 Derived Variables
 -----------------
@@ -13,6 +13,14 @@ apparent_temperature
     Apparent temperature combining temperature, humidity, and wind effects.
 diurnal_temperature_range
     Daily temperature range (tasmax - tasmin).
+HDD_wrf
+    Heating degree days from WRF data (base 65°F).
+CDD_wrf
+    Cooling degree days from WRF data (base 65°F).
+HDD_loca
+    Heating degree days from LOCA2 data (base 65°F).
+CDD_loca
+    Cooling degree days from LOCA2 data (base 65°F).
 
 """
 
@@ -261,66 +269,200 @@ def calc_diurnal_temperature_range_wrf(ds):
 
 
 @register_derived(
-    variable="effective_temp_sce",
+    variable="HDD_wrf",
     query={"variable_id": ["t2max", "t2min"]},
-    description="Effective temperature index derived by SCE",
+    description="Heating degree days from WRF data (base 65°F)",
     units="K",
     source="builtin",
 )
-def calc_effective_temp_sce(ds):
-    """
-    Calculate effective temperature index using min and max temperature data.
-
-    Teff = 0.7*Tmax0 + 0.003*Tmin0*Tmax1 + 0.002*Tmin1*Tmax2
-
-    Where:
-    - Tmax0: current day max temperature
-    - Tmin0: current day min temperature
-    - Tmax1: 1-day lag max temperature
-    - Tmin1: 1-day lag min temperature
-    - Tmax2: 2-day lag max temperature
+def calc_hdd_wrf(ds):
+    """Calculate heating degree days from WRF temperature data.
 
     Parameters
     ----------
-    min_temp : xr.DataArray or xr.Dataset
-        Minimum temperature data with time or time_delta dimension
-    max_temp : xr.DataArray or xr.Dataset
-        Maximum temperature data with time or time_delta dimension
+    ds : xr.Dataset
+        Dataset containing:
+        - 't2max': Daily maximum 2m temperature (K)
+        - 't2min': Daily minimum 2m temperature (K)
 
     Returns
     -------
-    xr.DataArray or xr.Dataset
-        Effective temperature index (Teff)
+    xr.Dataset
+        Dataset with 'HDD_wrf' variable added (K).
 
     Notes
     -----
-    The first two time steps will contain NaN values due to lagging.
+    Heating degree days (HDD) represent the energy demand for heating.
+    Calculated as max(0, threshold - average_temp) where threshold is 65°F (291.48K)
+    and average_temp is (t2max + t2min) / 2.
+
     """
-    # Determine which temporal dimension is present
-    if "time_delta" in ds.t2max.dims:
-        time_dim = "time_delta"
-    elif "time" in ds.t2max.dims:
-        time_dim = "time"
-    else:
-        raise ValueError("Data must have either 'time' or 'time_delta' dimension")
+    logger.debug("Computing HDD_wrf from t2max and t2min")
 
-    # Create lagged versions in Fahrenheit using the appropriate dimension
-    tmax0 = (ds.t2max - 273.15) * 9 / 5 + 32  # Current day
-    tmin0 = (ds.t2min - 273.15) * 9 / 5 + 32  # Current day
-    tmax1 = tmax0.shift({time_dim: 1})  # 1-day lag
-    tmin1 = tmin0.shift({time_dim: 1})  # 1-day lag
-    tmax2 = tmax0.shift({time_dim: 2})  # 2-day lag
+    # Calculate daily average temperature
+    t_avg = (ds.t2max + ds.t2min) / 2
 
-    # Calculate effective temperature
-    ds["effective_temp_sce"] = (
-        0.7 * tmax0 + 0.003 * tmin0 * tmax1 + 0.002 * tmin1 * tmax2
-    )
-    ds["effective_temp_sce"] = (ds["effective_temp_sce"] - 32) * 5 / 9 + 273.15
-    ds["effective_temp_sce"].attrs = {
+    # Threshold: 65°F = 291.48K
+    threshold_k = 65 * 5 / 9 + 273.15  # 291.48K
+
+    # HDD = max(0, threshold - avg_temp)
+    ds["HDD_wrf"] = np.maximum(0, threshold_k - t_avg)
+    ds["HDD_wrf"].attrs = {
         "units": "K",
-        "long_name": "SCE Effective Temperature Index",
-        "comment": "Effective temperature index calculated using min and max temperatures",
+        "long_name": "Heating Degree Days (WRF)",
+        "comment": "Heating degree days calculated from daily average temperature with base 65°F (291.48K)",
         "derived_from": "t2max, t2min",
         "derived_by": "climakitae",
+        "threshold": "65°F (291.48K)",
+    }
+    return ds
+
+
+@register_derived(
+    variable="CDD_wrf",
+    query={"variable_id": ["t2max", "t2min"]},
+    description="Cooling degree days from WRF data (base 65°F)",
+    units="K",
+    source="builtin",
+)
+def calc_cdd_wrf(ds):
+    """Calculate cooling degree days from WRF temperature data.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset containing:
+        - 't2max': Daily maximum 2m temperature (K)
+        - 't2min': Daily minimum 2m temperature (K)
+
+    Returns
+    -------
+    xr.Dataset
+        Dataset with 'CDD_wrf' variable added (K).
+
+    Notes
+    -----
+    Cooling degree days (CDD) represent the energy demand for cooling.
+    Calculated as max(0, average_temp - threshold) where threshold is 65°F (291.48K)
+    and average_temp is (t2max + t2min) / 2.
+
+    """
+    logger.debug("Computing CDD_wrf from t2max and t2min")
+
+    # Calculate daily average temperature
+    t_avg = (ds.t2max + ds.t2min) / 2
+
+    # Threshold: 65°F = 291.48K
+    threshold_k = 291.48
+
+    # CDD = max(0, avg_temp - threshold)
+    ds["CDD_wrf"] = np.maximum(0, t_avg - threshold_k)
+    ds["CDD_wrf"].attrs = {
+        "units": "K",
+        "long_name": "Cooling Degree Days (WRF)",
+        "comment": "Cooling degree days calculated from daily average temperature with base 65°F (291.48K)",
+        "derived_from": "t2max, t2min",
+        "derived_by": "climakitae",
+        "threshold": "65°F (291.48K)",
+    }
+    return ds
+
+
+@register_derived(
+    variable="HDD_loca",
+    query={"variable_id": ["tasmax", "tasmin"]},
+    description="Heating degree days from LOCA2 data (base 65°F)",
+    units="K",
+    source="builtin",
+)
+def calc_hdd_loca(ds):
+    """Calculate heating degree days from LOCA2 temperature data.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset containing:
+        - 'tasmax': Daily maximum temperature (K)
+        - 'tasmin': Daily minimum temperature (K)
+
+    Returns
+    -------
+    xr.Dataset
+        Dataset with 'HDD_loca' variable added (K).
+
+    Notes
+    -----
+    Heating degree days (HDD) represent the energy demand for heating.
+    Calculated as max(0, threshold - average_temp) where threshold is 65°F (291.48K)
+    and average_temp is (tasmax + tasmin) / 2.
+
+    """
+    logger.debug("Computing HDD_loca from tasmax and tasmin")
+
+    # Calculate daily average temperature
+    t_avg = (ds.tasmax + ds.tasmin) / 2
+
+    # Threshold: 65°F = 291.48K
+    threshold_k = 291.48
+
+    # HDD = max(0, threshold - avg_temp)
+    ds["HDD_loca"] = np.maximum(0, threshold_k - t_avg)
+    ds["HDD_loca"].attrs = {
+        "units": "K",
+        "long_name": "Heating Degree Days (LOCA2)",
+        "comment": "Heating degree days calculated from daily average temperature with base 65°F (291.48K)",
+        "derived_from": "tasmax, tasmin",
+        "derived_by": "climakitae",
+        "threshold": "65°F (291.48K)",
+    }
+    return ds
+
+
+@register_derived(
+    variable="CDD_loca",
+    query={"variable_id": ["tasmax", "tasmin"]},
+    description="Cooling degree days from LOCA2 data (base 65°F)",
+    units="K",
+    source="builtin",
+)
+def calc_cdd_loca(ds):
+    """Calculate cooling degree days from LOCA2 temperature data.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset containing:
+        - 'tasmax': Daily maximum temperature (K)
+        - 'tasmin': Daily minimum temperature (K)
+
+    Returns
+    -------
+    xr.Dataset
+        Dataset with 'CDD_loca' variable added (K).
+
+    Notes
+    -----
+    Cooling degree days (CDD) represent the energy demand for cooling.
+    Calculated as max(0, average_temp - threshold) where threshold is 65°F (291.48K)
+    and average_temp is (tasmax + tasmin) / 2.
+
+    """
+    logger.debug("Computing CDD_loca from tasmax and tasmin")
+
+    # Calculate daily average temperature
+    t_avg = (ds.tasmax + ds.tasmin) / 2
+
+    # Threshold: 65°F = 291.48K
+    threshold_k = 291.48
+
+    # CDD = max(0, avg_temp - threshold)
+    ds["CDD_loca"] = np.maximum(0, t_avg - threshold_k)
+    ds["CDD_loca"].attrs = {
+        "units": "K",
+        "long_name": "Cooling Degree Days (LOCA2)",
+        "comment": "Cooling degree days calculated from daily average temperature with base 65°F (291.48K)",
+        "derived_from": "tasmax, tasmin",
+        "derived_by": "climakitae",
+        "threshold": "65°F (291.48K)",
     }
     return ds

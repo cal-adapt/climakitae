@@ -562,12 +562,13 @@ class DataInterface:
 
 class DataParameters(param.Parameterized):
     """Python param object to hold data parameters for use in panel GUI.
+
     Call DataParameters when you want to select and retrieve data from the
     climakitae data catalog without using the ckg.Select GUI. ckg.Select uses
     this class to store selections and retrieve data.
 
-    DataParameters calls DataInterface, a singleton class that makes the connection
-    to the intake-esm data store in S3 bucket.
+    DataParameters calls DataInterface, a singleton class that makes the
+    connection to the intake-esm data store in S3 bucket.
 
     Attributes
     ----------
@@ -1969,9 +1970,10 @@ def get_data(
     enable_hidden_vars: bool = False,
     **kwargs,
 ) -> xr.DataArray:
-    # Need to add error handing for bad variable input
-    """Retrieve formatted data from the Analytics Engine data catalog using a simple function.
-    Contrasts with DataParameters().retrieve(), which retrieves data from the user inputs in climakitaegui's selections GUI.
+    """Retrieve formatted data from the Analytics Engine data catalog.
+
+    Contrasts with DataParameters().retrieve(), which retrieves data from
+    the user inputs in climakitaegui's selections GUI.
 
     Parameters
     ----------
@@ -2040,11 +2042,16 @@ def get_data(
 
     Returns
     -------
-    data : xr.DataArray
+    xr.DataArray
+        The requested climate data, or None if an error occurred.
 
     Notes
     -----
-    Errors aren't raised by the function. Rather, an appropriate informative message is printed, and the function returns None. This is due to the fact that the AE Jupyter Hub raises a strange Pieces Mismatch Error for some bad inputs; instead, that error is ignored and a more informative error message is printed instead.
+    Errors aren't raised by the function. Rather, an appropriate informative
+    message is printed, and the function returns None. This is due to the fact
+    that the AE Jupyter Hub raises a strange Pieces Mismatch Error for some bad
+    inputs; instead, that error is ignored and a more informative error message
+    is printed instead.
 
     """
 
