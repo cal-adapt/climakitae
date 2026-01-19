@@ -373,9 +373,15 @@ def _handle_approach_params(**kwargs):
                     f"Only years 2015-2099 are valid inputs for 'centered_year'. Received {centered_year}."
                 )
             else:
+                print(
+                    "You have chosen to produce a time-based Standard Year climate profile. \n"
+                    f"The corresponding global warming level for input centered year {centered_year} will now "
+                    "be determined and used to produce the profile."
+                )
                 new_warming_level = _get_gwl_from_year(centered_year)
                 print(
-                    f"Corresponding warming level for 'centered_year'={centered_year} is {new_warming_level}."
+                    f"Corresponding warming level for 'centered_year'={centered_year} is {new_warming_level}. \n"
+                    "Now producing the Standard Year climate profile at this warming level."
                 )
                 kwargs["warming_level"] = new_warming_level
         case "Time", object():
