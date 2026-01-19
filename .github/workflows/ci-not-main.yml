@@ -2,7 +2,8 @@
 # Based on code from: https://github.com/epassaro/cache-conda-envs/blob/main/.github/workflows/ci.yml
 # Based on code from: https://github.com/marketplace/actions/setup-miniconda
 # Runs on all branches except main (see ci-main.yml)
-# Runs basic tests on push event and advanced tests on label assignment
+# Runs basic tests on every push (non-main)
+# Pull request workflows (with advanced) are in ci-not-main-pr.yml
 
 name: ci-not-main
 
@@ -11,8 +12,7 @@ on:
     branches-ignore:
       - main
   pull_request:
-    types:
-      - labeled
+    types: [synchronize, reopened, labeled, unlabeled]
 
 jobs:
   lint:
@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: psf/black@stable
-  test:
+  test-basic:
     name: test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -28,16 +28,8 @@ jobs:
       matrix:
         python-version: ["3.12", "3.13"]
       fail-fast: false
-    defaults:
-      run:
-        shell: bash -l {0}
     steps:
-      - name: Checkout project
-        uses: actions/checkout@v4
-      - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+      - uses: actions/checkout@v3
       - name: Install uv
         run: |
           python -m pip install --upgrade pip
@@ -52,6 +44,3 @@ jobs:
           uv run python -c "import climakitae; print(f'climakitae version: {climakitae.__version__}')"
       - name: Test with pytest (Basic)
         run: uv run python -m pytest --no-header -vv -m "not advanced"
-      - name: Test with pytest (Advanced)
-        if: github.event.label.name == 'Advanced Testing'
-        run: uv run python -m pytest --no-header -vv -m "advanced"

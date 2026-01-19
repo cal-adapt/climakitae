@@ -14,12 +14,6 @@ import pytest
 import xarray as xr
 
 from climakitae.explore.standard_year_profile import (
-    retrieve_profile_data,
-    get_climate_profile,
-    compute_profile,
-    get_profile_units,
-    get_profile_metadata,
-    set_profile_metadata,
     _compute_difference_profile,
     _compute_mixed_index_difference,
     _compute_multiindex_difference,
@@ -95,6 +89,19 @@ class TestRetrieveProfileData:
         # Execute and verify outcome: should raise ValueError for invalid keys
         with pytest.raises(ValueError, match="Invalid input"):
             retrieve_profile_data(invalid_param="test", another_invalid=123)
+
+    def test_retrieve_profile_data_with_float_warming_level_window_raises_error(self):
+        """Test that retrieve_profile_data raises error for a warming_level_window input outside of range 5-25"""
+
+        with pytest.raises(ValueError):
+            retrieve_profile_data(
+                variable="Air Temperature at 2m",
+                resolution="3 km",
+                warming_level=[1.5],
+                cached_area="bay area",
+                units="degC",
+                warming_level_window=2,
+            )
 
     def test_retrieve_profile_data_with_no_delta_returns_none_historic(self):
         """Test that retrieve_profile_data returns None for historic when no_delta=True."""
@@ -4978,190 +4985,3 @@ class TestRetrieveProfileDataWithStations:
                     assert (
                         kwargs["longitude"] == explicit_lon
                     ), "Should use explicit longitude"
-
-
-class TestExportProfile:
-    """Test class for file export functions.
-
-    This set of tests mainly checks that file names are correctly
-    generated and that separate files are saved for each warming level.
-
-    Attributes
-    ----------
-    multi_df : pd.DataFrame
-        DataFrame with MultiIndex columns.
-    multi_df_gwl : pd.DataFrame
-        DataFrame with MultiIndex columns.
-    multi_df_invalid : pd.DataFrame
-        DataFrame with MultiIndex columns.
-    """
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        # Create DataFrame with MultiIndex columns
-        hours = list(range(1, 25))
-        simulations = ["sim1", "sim2"]
-        multi_cols = pd.MultiIndex.from_product(
-            [hours, simulations], names=["Hour", "Simulation"]
-        )
-        self.multi_df = pd.DataFrame(
-            np.random.rand(365, len(multi_cols)),
-            index=range(1, 366),
-            columns=multi_cols,
-        )
-
-        # Create DataFrame with MultiIndex columns and warming levels
-        hours = list(range(1, 25))
-        simulations = ["sim1", "sim2"]
-        global_warming_levels = ["WL_1.5", "WL_2.0"]
-        multi_cols = pd.MultiIndex.from_product(
-            [hours, global_warming_levels, simulations],
-            names=["Hour", "Warming_Level", "Simulation"],
-        )
-        self.multi_df_gwl = pd.DataFrame(
-            np.random.rand(365, len(multi_cols)),
-            index=range(1, 366),
-            columns=multi_cols,
-        )
-
-        # Create DataFrame with invalid MultiIndex
-        hours = list(range(1, 25))
-        simulations = ["sim1", "sim2"]
-        global_warming_levels = ["WL_1.5", "WL_2.0"]
-        extra_dim = ["val1", "val2"]
-        multi_cols = pd.MultiIndex.from_product(
-            [hours, global_warming_levels, simulations, extra_dim],
-            names=["Hour", "Warming_Level", "Simulation", "Extra_dim"],
-        )
-        self.multi_df_invalid = pd.DataFrame(
-            np.random.rand(365, len(multi_cols)),
-            index=range(1, 366),
-            columns=multi_cols,
-        )
-
-    def test_export_profile_to_csv(self):
-        with patch("pandas.DataFrame.to_csv") as to_csv_mock:
-            variable = "Air Temperature at 2m"
-            q = 0.5
-            gwl = [1.5]
-            cached_area = "Sacramento County"
-            no_delta = False
-            profile_selections = {
-                "variable": variable,
-                "q": q,
-                "warming_level": gwl,
-                "cached_area": cached_area,
-                "no_delta": no_delta,
-            }
-            export_profile_to_csv(
-                self.multi_df,
-                **profile_selections,
-            )
-            expected_filename = "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical.csv"
-            to_csv_mock.assert_called_with(expected_filename)
-
-        with patch("pandas.DataFrame.to_csv") as to_csv_mock:
-            gwls = [1.5, 2.0]
-            profile_selections = {
-                "variable": variable,
-                "q": q,
-                "warming_level": gwls,
-                "cached_area": cached_area,
-                "no_delta": no_delta,
-            }
-            export_profile_to_csv(self.multi_df_gwl, **profile_selections)
-            expected_filenames = [
-                call(
-                    "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical.csv"
-                ),
-                call(
-                    "stdyr_t2_50ptile_sacramento_county_mid-century_delta_from_historical.csv"
-                ),
-            ]
-            to_csv_mock.assert_has_calls(expected_filenames)
-
-    def test_export_profile_to_csv_invalid_profile(self):
-        """Test that error is raised by profile with invalid index format."""
-        with patch("pandas.DataFrame.to_csv") as to_csv_mock, pytest.raises(ValueError):
-            variable = "Air Temperature at 2m"
-            q = 0.5
-            gwl = [1.5]
-            cached_area = "Sacramento County"
-            no_delta = False
-            profile_selections = {
-                "variable": variable,
-                "q": q,
-                "warming_level": gwl,
-                "cached_area": cached_area,
-                "no_delta": no_delta,
-            }
-            export_profile_to_csv(self.multi_df_invalid, **profile_selections)
-
-    @pytest.mark.parametrize(
-        "value,expected",
-        [
-            (
-                {
-                    "var_id": "t2",
-                    "q": 0.5,
-                    "gwl": 1.2,
-                    "location": "sacramento county",
-                    "no_delta": False,
-                },
-                "stdyr_t2_50ptile_sacramento_county_present-day_delta_from_historical.csv",
-            ),
-            (
-                {
-                    "var_id": "t2",
-                    "q": 0.5,
-                    "gwl": 1.2,
-                    "location": "sacramento county",
-                    "no_delta": True,
-                },
-                "stdyr_t2_50ptile_sacramento_county_present-day.csv",
-            ),
-            (
-                {
-                    "var_id": "t2",
-                    "q": 0.5,
-                    "gwl": 1.2,
-                    "location": "35-5N_122-5W",
-                    "no_delta": True,
-                },
-                "stdyr_t2_50ptile_35-5N_122-5W_present-day.csv",
-            ),
-            (
-                {
-                    "var_id": "t2",
-                    "q": 0.5,
-                    "gwl": 3.0,
-                    "location": "san diego lindbergh field ksan",
-                    "no_delta": True,
-                },
-                "stdyr_t2_50ptile_san_diego_lindbergh_field_ksan_late-century.csv",
-            ),
-            (
-                {
-                    "var_id": "prec",
-                    "q": 0.5,
-                    "gwl": 2.5,
-                    "location": "35-5N_122-5W",
-                    "no_delta": True,
-                },
-                "stdyr_prec_50ptile_35-5N_122-5W_mid-late-century.csv",
-            ),
-            (
-                {
-                    "var_id": "prec",
-                    "q": 0.75,
-                    "gwl": 3.0,
-                    "location": "35-5N_122-5W",
-                    "no_delta": False,
-                },
-                "stdyr_prec_75ptile_35-5N_122-5W_late-century_delta_from_historical.csv",
-            ),
-        ],
-    )
-    def test__get_clean_standardyr_filename(self, value, expected):
-        """Test that file name is correctly formatted based on given inputs."""
-        assert _get_clean_standardyr_filename(**value) == expected

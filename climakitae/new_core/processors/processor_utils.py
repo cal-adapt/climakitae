@@ -565,13 +565,6 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
                 "You provided data with the following dimensions: %s.",
                 da.dims,
             )
-            try:
-                print(
-                    "WARNING: The effective sample size can only be checked for timeseries or spatial data. "
-                    f"You provided data with the following dimensions: {da.dims}."
-                )
-            except Exception:
-                pass
             return
 
         if average_ess < MIN_ESS_THRESHOLD:
@@ -582,21 +575,8 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
                 round(average_ess, 2),
                 MIN_ESS_THRESHOLD,
             )
-            try:
-                print(
-                    "WARNING: The average effective sample size in your data is "
-                    f"{round(average_ess,2)} per block, which is lower than the recommended threshold of {MIN_ESS_THRESHOLD}."
-                )
-            except Exception:
-                pass
     except (ValueError, RuntimeError) as e:
         logger.warning("Could not calculate effective sample size: %s", e)
-        try:
-            # Keep the legacy printed WARNING prefix so unit tests that capture stdout
-            # continue to see the expected message.
-            print(f"WARNING: Could not calculate effective sample size: {e}")
-        except Exception:
-            pass
 
 
 def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> float:

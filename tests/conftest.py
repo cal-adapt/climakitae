@@ -1,7 +1,7 @@
 """Shared data and paths between multiple unit tests."""
 
-import os
 import logging
+import os
 import warnings
 
 import numpy as np
@@ -250,7 +250,7 @@ def test_dataarray_time_2010_2015_histrecon_wrf_3km_hourly_temp_gridded_area(roo
 
 
 @pytest.fixture
-def test_dataarray_dict():
+def test_dataarray_dict_wrf_yearly():
     """Create test datasets using xarray for warming_level.py tests."""
     xr_dict = {}
     member_id = ["r1i1p1f1"]
@@ -284,7 +284,42 @@ def test_dataarray_dict():
 
 
 @pytest.fixture
-def test_dataarray_dict_loca():
+def test_dataarray_dict_wrf_hourly():
+    """Create test datasets using xarray for warming_level.py tests with mocked WRF hourly data."""
+    xr_dict = {}
+    member_id = ["r1i1p1f1"]
+    hist_time = pd.date_range(
+        start="1980-01-01", end="2015-01-01", freq="h", inclusive="left"
+    )  # hourly frequency
+    ssp_time = pd.date_range(
+        start="2015-01-01", end="2101-01-01", freq="h", inclusive="left"
+    )  # hourly frequency
+    hist_periods = len(hist_time)
+    y = [0]
+    x = [0]
+
+    for periods, timestamps in zip(
+        [len(hist_time), len(ssp_time)], [hist_time, ssp_time]
+    ):
+        ds = xr.Dataset(
+            {"t2": (("member_id", "y", "x", "time"), np.zeros((1, 1, 1, periods)))},
+            coords={
+                "member_id": member_id,
+                "y": y,
+                "x": x,
+                "time": timestamps,
+            },
+        )
+        if timestamps is hist_time:
+            xr_dict["WRF.UCLA.EC-Earth3.historical.1hr.d03"] = ds
+        else:
+            xr_dict["WRF.UCLA.EC-Earth3.ssp370.1hr.d03"] = ds
+
+    return xr_dict
+
+
+@pytest.fixture
+def test_dataarray_dict_loca_yearly():
     """Create test datasets using xarray for warming_level.py tests."""
     xr_dict = {}
     member_id = ["r1i1p1f1"]
@@ -295,6 +330,40 @@ def test_dataarray_dict_loca():
     ssp_time = pd.date_range(
         "2015-01-01", periods=ssp_periods, freq="YS"
     )  # yearly start
+    y = [0]
+    x = [0]
+
+    for pair in zip([hist_periods, ssp_periods], [hist_time, ssp_time]):
+        periods, timestamps = pair
+        ds = xr.Dataset(
+            {"t2": (("member_id", "y", "x", "time"), np.zeros((1, 1, 1, periods)))},
+            coords={
+                "member_id": member_id,
+                "y": y,
+                "x": x,
+                "time": timestamps,
+            },
+        )
+        if periods == hist_periods:
+            xr_dict["LOCA2.UCLA.ACCESS-CM2.historical.day.d03"] = ds
+        else:
+            xr_dict["LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03"] = ds
+
+    return xr_dict
+
+
+@pytest.fixture
+def test_dataarray_dict_loca_daily():
+    """Create test datasets using xarray for warming_level.py tests with daily frequency."""
+    xr_dict = {}
+    member_id = ["r1i1p1f1"]
+    hist_periods, ssp_periods = 65 * 365, 86 * 365  # daily periods
+    hist_time = pd.date_range(
+        "1950-01-01", periods=hist_periods, freq="D"
+    )  # daily frequency
+    ssp_time = pd.date_range(
+        "2015-01-01", periods=ssp_periods, freq="D"
+    )  # daily frequency
     y = [0]
     x = [0]
 

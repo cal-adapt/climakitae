@@ -77,10 +77,7 @@ import xarray as xr
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import ParameterValidator
-from climakitae.new_core.processors.abc_data_processor import (
-    _PROCESSOR_REGISTRY,
-    DataProcessor,
-)
+from climakitae.new_core.processors.abc_data_processor import DataProcessor
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -120,7 +117,9 @@ class Dataset:
     Raises
     ------
     TypeError
-        If provided components don't match expected types or lack required methods.
+        If provided components don't match expected types.
+    AttributeError
+        If provided components lack required methods.
     ValueError
         If required components are missing during execution.
     RuntimeError
@@ -352,12 +351,13 @@ class Dataset:
             If the step is not an instance of DataProcessor.
         AttributeError
             If the step does not have 'execute', 'update_context', or 'set_data_accessor' methods.
-        TypeError
-            If the step is not callable.
 
         """
+        if not isinstance(step, DataProcessor):
+            raise TypeError("Processing step must be an instance of DataProcessor.")
+
         if not hasattr(step, "execute") or not callable(getattr(step, "execute")):
-            raise TypeError("Processing step must have an 'execute' method.")
+            raise AttributeError("Processing step must have an 'execute' method.")
 
         if not hasattr(step, "update_context") or not callable(
             getattr(step, "update_context")
@@ -369,7 +369,9 @@ class Dataset:
         if not hasattr(step, "set_data_accessor") or not callable(
             getattr(step, "set_data_accessor")
         ):
-            raise TypeError("Processing step must have a 'set_data_accessor' method.")
+            raise AttributeError(
+                "Processing step must have a 'set_data_accessor' method."
+            )
 
         if self.processing_pipeline is UNSET:
             self.processing_pipeline = []

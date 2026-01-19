@@ -25,13 +25,14 @@ class TestClimateDataInit:
         mock_factory.return_value = mock_factory_instance
         mock_read_csv.return_value = pd.DataFrame()
 
-        with patch("builtins.print") as mock_print:
+        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
             climate_data = ClimateData()
 
         assert hasattr(climate_data, "_factory")
         assert hasattr(climate_data, "_query")
         assert hasattr(climate_data, "var_desc")
-        mock_print.assert_called_with("✅ Ready to query! ")
+        # The implementation uses logger.info for the ready message
+        mock_logger.info.assert_any_call("✅ Ready to query!")
 
     @patch("climakitae.new_core.user_interface.read_csv_file")
     @patch("climakitae.new_core.user_interface.DatasetFactory")
@@ -39,18 +40,15 @@ class TestClimateDataInit:
         """Test initialization when DatasetFactory raises an exception."""
         mock_factory.side_effect = Exception("Factory error")
 
-        with (
-            patch("builtins.print") as mock_print,
-            patch(
-                "climakitae.new_core.user_interface.traceback.format_exc",
-                return_value="Traceback info",
-            ),
-        ):
+        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
             climate_data = ClimateData()
 
-        # Should handle the error gracefully
-        mock_print.assert_any_call("❌ Setup failed: Factory error")
-        mock_print.assert_any_call("Error details: Traceback info")
+        # Should handle the error gracefully using logger.error
+        # The implementation uses logger.error with exc_info=True
+        mock_logger.error.assert_called_once()
+        call_args = mock_logger.error.call_args
+        assert "❌ Setup failed:" in call_args[0][0]
+        assert "Factory error" in str(call_args)
 
 
 class TestClimateDataParameterSetters:
@@ -318,12 +316,12 @@ class TestClimateDataGet:
         mock_dataset.execute.return_value = expected_data
         self.climate_data._factory.create_dataset.return_value = mock_dataset
 
-        with patch("builtins.print") as mock_print:
+        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
             result = self.climate_data.get()
 
         assert result is expected_data
-        printed_text = "".join(str(call) for call in mock_print.call_args_list)
-        assert "✅ Data retrieval successful!" in printed_text
+        # The implementation uses logger.info for success message
+        mock_logger.info.assert_any_call("✅ Data retrieval successful!")
 
 
 class TestClimateDataValidation:
@@ -347,7 +345,7 @@ class TestClimateDataValidation:
 
     def test_validate_all_required_present(self):
         """Test validation when all required parameters are present."""
-        self.climate_data._query = {
+        query = {
             "catalog": "climate",
             "installation": UNSET,
             "activity_id": UNSET,
@@ -360,7 +358,7 @@ class TestClimateDataValidation:
             "processes": UNSET,
         }
 
-        result = self.climate_data._validate_required_parameters()
+        result = self.climate_data._validate_required_parameters(query)
         assert result is True
 
 
@@ -390,7 +388,7 @@ class TestClimateDataOptionMethods:
             self.climate_data.show_catalog_options()
 
         mock_show.assert_called_once_with(
-            "catalog", "catalog options (Cloud data collections)"
+            "catalog", "catalog options (Cloud data collections)", limit_per_group=None
         )
 
     @pytest.mark.parametrize(
@@ -547,6 +545,7 @@ class TestClimateDataAdditionalShowMethods:
             mock_show.assert_called_once_with(
                 "installation",
                 "installation options (Renewable energy generation types)",
+                limit_per_group=None,
             )
 
     def test_show_activity_id_options(self):
@@ -554,7 +553,9 @@ class TestClimateDataAdditionalShowMethods:
         with patch.object(self.climate_data, "_show_options") as mock_show:
             self.climate_data.show_activity_id_options()
             mock_show.assert_called_once_with(
-                "activity_id", "activity_id options (Downscaling methods)"
+                "activity_id",
+                "activity_id options (Downscaling methods)",
+                limit_per_group=None,
             )
 
     def test_show_institution_id_options(self):
@@ -562,7 +563,9 @@ class TestClimateDataAdditionalShowMethods:
         with patch.object(self.climate_data, "_show_options") as mock_show:
             self.climate_data.show_institution_id_options()
             mock_show.assert_called_once_with(
-                "institution_id", "institution_id options (Data producers)"
+                "institution_id",
+                "institution_id options (Data producers)",
+                limit_per_group=None,
             )
 
     def test_show_source_id_options(self):
@@ -570,7 +573,9 @@ class TestClimateDataAdditionalShowMethods:
         with patch.object(self.climate_data, "_show_options") as mock_show:
             self.climate_data.show_source_id_options()
             mock_show.assert_called_once_with(
-                "source_id", "source_id options (Climate model simulations)"
+                "source_id",
+                "source_id options (Climate model simulations)",
+                limit_per_group=None,
             )
 
     def test_show_experiment_id_options(self):
@@ -578,7 +583,9 @@ class TestClimateDataAdditionalShowMethods:
         with patch.object(self.climate_data, "_show_options") as mock_show:
             self.climate_data.show_experiment_id_options()
             mock_show.assert_called_once_with(
-                "experiment_id", "experiment_id options (Simulation runs)"
+                "experiment_id",
+                "experiment_id options (Simulation runs)",
+                limit_per_group=None,
             )
 
     def test_show_table_id_options(self):
@@ -586,7 +593,9 @@ class TestClimateDataAdditionalShowMethods:
         with patch.object(self.climate_data, "_show_options") as mock_show:
             self.climate_data.show_table_id_options()
             mock_show.assert_called_once_with(
-                "table_id", "table_id options (Temporal resolutions)"
+                "table_id",
+                "table_id options (Temporal resolutions)",
+                limit_per_group=None,
             )
 
     def test_show_grid_label_options(self):
@@ -594,14 +603,18 @@ class TestClimateDataAdditionalShowMethods:
         with patch.object(self.climate_data, "_show_options") as mock_show:
             self.climate_data.show_grid_label_options()
             mock_show.assert_called_once_with(
-                "grid_label", "grid_label options (Spatial resolutions)"
+                "grid_label",
+                "grid_label options (Spatial resolutions)",
+                limit_per_group=None,
             )
 
     def test_show_variable_options(self):
         """Test show_variable_options method."""
         with patch.object(self.climate_data, "_show_options") as mock_show:
             self.climate_data.show_variable_options()
-            mock_show.assert_called_once_with("variable_id", "Variables")
+            mock_show.assert_called_once_with(
+                "variable_id", "Variables", limit_per_group=None
+            )
 
     def test_show_station_options(self):
         """Test show_station_options method."""
@@ -750,3 +763,294 @@ class TestClimateDataAdditionalMethods:
         # All parameters should be reset to UNSET
         assert self.climate_data._query["catalog"] is UNSET
         assert self.climate_data._query["variable_id"] is UNSET
+
+
+class TestClimateDataVerbosity:
+    """Test class for verbosity and logging configuration."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        mock_factory_instance = MagicMock()
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                return_value=mock_factory_instance,
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
+        ):
+            self.climate_data = ClimateData()
+
+    def test_verbosity_invalid_type(self):
+        """Test verbosity setter with invalid type raises ValueError."""
+        try:
+            self.climate_data.verbosity("not_an_int")
+            assert False, "Should have raised ValueError"
+        except ValueError as e:
+            assert "Verbosity level must be an integer" in str(e)
+
+    def test_verbosity_valid_levels(self):
+        """Test verbosity setter with valid integer levels."""
+        # Test various valid levels
+        result = self.climate_data.verbosity(-2)
+        assert result is self.climate_data
+
+        result = self.climate_data.verbosity(-1)
+        assert result is self.climate_data
+
+        result = self.climate_data.verbosity(0)
+        assert result is self.climate_data
+
+        result = self.climate_data.verbosity(1)
+        assert result is self.climate_data
+
+
+class TestClimateDataExperimentIdEdgeCases:
+    """Test class for experiment_id edge cases."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        mock_factory_instance = MagicMock()
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                return_value=mock_factory_instance,
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
+        ):
+            self.climate_data = ClimateData()
+
+    def test_experiment_id_empty_string(self):
+        """Test experiment_id with empty string raises ValueError."""
+        try:
+            self.climate_data.experiment_id("")
+            assert False, "Should have raised ValueError"
+        except ValueError as e:
+            assert "Experiment ID must be a non-empty string" in str(e)
+
+    def test_experiment_id_list_with_empty_string(self):
+        """Test experiment_id list containing empty string raises ValueError."""
+        try:
+            self.climate_data.experiment_id(["historical", ""])
+            assert False, "Should have raised ValueError"
+        except ValueError as e:
+            assert "Each experiment ID must be a non-empty string" in str(e)
+
+    def test_experiment_id_list_with_non_string(self):
+        """Test experiment_id list containing non-string raises ValueError."""
+        try:
+            self.climate_data.experiment_id(["historical", 123])
+            assert False, "Should have raised ValueError"
+        except ValueError as e:
+            assert "Each experiment ID must be a non-empty string" in str(e)
+
+
+class TestClimateDataGetErrorHandling:
+    """Test class for get() error handling paths."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        mock_factory_instance = MagicMock()
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                return_value=mock_factory_instance,
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
+        ):
+            self.climate_data = ClimateData()
+            self.climate_data._factory = mock_factory_instance
+
+    def test_get_dataset_creation_error(self):
+        """Test get() when dataset creation raises an error."""
+        self.climate_data._query = {
+            "catalog": "climate",
+            "installation": UNSET,
+            "activity_id": UNSET,
+            "institution_id": UNSET,
+            "source_id": UNSET,
+            "experiment_id": UNSET,
+            "table_id": "day",
+            "grid_label": "d03",
+            "variable_id": "tas",
+            "processes": UNSET,
+        }
+
+        self.climate_data._factory.create_dataset.side_effect = ValueError(
+            "Dataset creation failed"
+        )
+
+        result = self.climate_data.get()
+
+        assert result is None
+
+    def test_get_dataset_execute_error(self):
+        """Test get() when dataset execution raises an error."""
+        self.climate_data._query = {
+            "catalog": "climate",
+            "installation": UNSET,
+            "activity_id": UNSET,
+            "institution_id": UNSET,
+            "source_id": UNSET,
+            "experiment_id": UNSET,
+            "table_id": "day",
+            "grid_label": "d03",
+            "variable_id": "tas",
+            "processes": UNSET,
+        }
+
+        mock_dataset = MagicMock()
+        mock_dataset.execute.side_effect = RuntimeError("Execution failed")
+        self.climate_data._factory.create_dataset.return_value = mock_dataset
+
+        result = self.climate_data.get()
+
+        # Should return None (data not assigned before exception)
+        assert result is None
+
+
+class TestClimateDataFormatOption:
+    """Test class for _format_option method."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        mock_factory_instance = MagicMock()
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                return_value=mock_factory_instance,
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
+        ):
+            self.climate_data = ClimateData()
+
+    def test_format_option_grid_label_d01(self):
+        """Test _format_option with grid_label d01."""
+        result = self.climate_data._format_option("d01", "grid_label")
+        assert result == "d01 (45 km)"
+
+    def test_format_option_grid_label_d02(self):
+        """Test _format_option with grid_label d02."""
+        result = self.climate_data._format_option("d02", "grid_label")
+        assert result == "d02 ( 9 km)"
+
+    def test_format_option_grid_label_d03(self):
+        """Test _format_option with grid_label d03."""
+        result = self.climate_data._format_option("d03", "grid_label")
+        assert result == "d03 ( 3 km)"
+
+    def test_format_option_grid_label_unknown(self):
+        """Test _format_option with unknown grid_label."""
+        result = self.climate_data._format_option("d99", "grid_label")
+        assert result == "d99 (Unknown)"
+
+    def test_format_option_variable_id_found(self):
+        """Test _format_option with variable_id that exists in var_desc."""
+        self.climate_data.var_desc = pd.DataFrame(
+            {"variable_id": ["tas"], "display_name": ["Air Temperature"]}
+        )
+        result = self.climate_data._format_option("tas", "variable_id", spacing=4)
+        assert "tas:" in result
+        assert "Air Temperature" in result
+
+    def test_format_option_variable_id_not_found(self):
+        """Test _format_option with variable_id not in var_desc."""
+        self.climate_data.var_desc = pd.DataFrame(
+            {"variable_id": ["tas"], "display_name": ["Air Temperature"]}
+        )
+        result = self.climate_data._format_option("unknown_var", "variable_id")
+        assert "unknown_var:" in result
+        assert "No description available" in result
+
+
+class TestClimateDataShowOptionsExceptionHandling:
+    """Test class for exception handling in show_* methods."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        mock_factory_instance = MagicMock()
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                return_value=mock_factory_instance,
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
+        ):
+            self.climate_data = ClimateData()
+            self.climate_data._factory = mock_factory_instance
+
+    def test_show_processors_exception(self):
+        """Test show_processors handles exception gracefully."""
+        self.climate_data._factory.get_processors.side_effect = Exception(
+            "Processor error"
+        )
+
+        # Should not raise, just log the error
+        self.climate_data.show_processors()
+
+    def test_show_station_options_exception(self):
+        """Test show_station_options handles exception gracefully."""
+        self.climate_data._factory.get_stations.side_effect = Exception("Station error")
+
+        # Should not raise, just log the error
+        self.climate_data.show_station_options()
+
+    def test_show_boundary_options_with_type(self):
+        """Test show_boundary_options with specific boundary_type parameter."""
+        self.climate_data._factory.get_boundaries.return_value = ["CA", "NV"]
+
+        with patch("builtins.print"):
+            self.climate_data.show_boundary_options(boundary_type="us_states")
+
+        self.climate_data._factory.get_boundaries.assert_called_with("us_states")
+
+    def test_show_boundary_options_exception(self):
+        """Test show_boundary_options handles exception gracefully."""
+        self.climate_data._factory.get_boundaries.side_effect = Exception(
+            "Boundary error"
+        )
+
+        # Should not raise, just log the error
+        self.climate_data.show_boundary_options()
+
+    def test_show_options_exception(self):
+        """Test _show_options handles exception gracefully."""
+        self.climate_data._factory.get_catalog_options.side_effect = Exception(
+            "Options error"
+        )
+
+        # Should not raise, just log the error
+        with patch("builtins.print"):
+            self.climate_data._show_options("catalog", "Test Options")
+
+    def test_show_variable_options_with_query(self):
+        """Test show_variable_options with existing query parameters."""
+        self.climate_data._query["catalog"] = "cadcat"
+
+        with patch.object(self.climate_data, "_show_options") as mock_show:
+            self.climate_data.show_variable_options()
+
+        mock_show.assert_called_once_with(
+            "variable_id",
+            "Variables (constrained by current query):",
+            limit_per_group=None,
+        )

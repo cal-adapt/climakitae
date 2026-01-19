@@ -16,7 +16,7 @@ from tqdm.auto import tqdm  # Progress bar
 from climakitae.core.constants import UNSET
 from climakitae.core.data_interface import DataInterface, get_data
 from climakitae.core.paths import VARIABLE_DESCRIPTIONS_CSV_PATH
-from climakitae.explore.typical_meteorological_year import match_str_to_wl, is_HadISD
+from climakitae.explore.typical_meteorological_year import is_HadISD, match_str_to_wl
 from climakitae.util.utils import julianDay_to_date, read_csv_file
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
@@ -115,7 +115,12 @@ def _convert_stations_to_lat_lon(
 
 
 def _get_clean_standardyr_filename(
-    var_id: str, q: float, location: str, gwl: float, no_delta: bool
+    var_id: str,
+    q: float,
+    location: str,
+    gwl: float,
+    warming_level_window: int | None,
+    no_delta: bool,
 ) -> str:
     """
     Standardizes filename export for standard year files
@@ -130,6 +135,8 @@ def _get_clean_standardyr_filename(
         String describing profile location
     gwl : float
         Single gwl for csv file name
+    warming_level_window: int
+        Years around Global Warming Level (+/-) (e.g. 15 means a 30yr window)
     no_delta : bool
         no_delta value used to generate profile
 
@@ -149,7 +156,15 @@ def _get_clean_standardyr_filename(
     else:
         delta_str = "_delta_from_historical"
 
-    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}_{clean_gwl_name}{delta_str}.csv"
+    if warming_level_window is None:
+        # default 30yr window (corresponds to default 15)
+        window_str = "_30yr_window"
+    else:
+        # custom window size provided
+        window = warming_level_window * 2
+        window_str = f"_{window}yr_window"
+
+    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}_{clean_gwl_name}{delta_str}{window_str}.csv"
     return filename
 
 
@@ -266,6 +281,8 @@ def export_profile_to_csv(profile, **kwargs):
                 Percentile used in profile
             global_warming_levels : list[float]
                 List of global warming levels in profile
+            warming_level_winow: int in range (5,25), optional
+                Years around Global Warming Level (+/-) (e.g. 15 means a 30yr window)
             latitude : tuple(float | int), optional
                 Latitude coordinate range from profile location
             longitude : tuple(float | int), optional
@@ -298,8 +315,9 @@ def export_profile_to_csv(profile, **kwargs):
     q = kwargs.get("q")
     global_warming_levels = kwargs.get("warming_level")
 
-    # Handle no_delta input
+    # Handle no_delta wand warming_level_window inputs
     no_delta = kwargs.get("no_delta", False)
+    warming_level_window = kwargs.get("warming_level_window", None)
 
     # Get variable id string to use in file name
     variable_descriptions = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
@@ -319,13 +337,13 @@ def export_profile_to_csv(profile, **kwargs):
         case 2:  # Single WL
             gwl = global_warming_levels[0]
             filename = _get_clean_standardyr_filename(
-                var_id, q, location_str, gwl, no_delta
+                var_id, q, location_str, gwl, warming_level_window, no_delta
             )
             profile.to_csv(filename)
         case 3:  # Multiple WL (WL included in MultiIndex)
             for gwl in global_warming_levels:  # Single file per WL
                 filename = _get_clean_standardyr_filename(
-                    var_id, q, location_str, gwl, no_delta
+                    var_id, q, location_str, gwl, warming_level_window, no_delta
                 )
                 profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(filename)
         case _:
@@ -347,6 +365,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         - variable (Optional) : str, default "Air Temperature at 2m"
         - resolution (Optional) : str, default "3 km"
         - warming_levels (Optional) : List[float], default [1.2]
+        - warming_level_window (Optional): int in range [5,25]
         - cached_area (Optional) : str or List[str]
         - latitude (Optional) : float or tuple
         - longitude (Optional) : float or tuple
@@ -409,6 +428,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         "variable": (str, "Air Temperature at 2m"),
         "resolution": (str, "3 km"),
         "warming_level": (list, [1.2]),
+        "warming_level_window": (int, None),
         "cached_area": ((str, list), None),
         "latitude": ((float, tuple), None),
         "longitude": ((float, tuple), None),
@@ -447,6 +467,13 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
                 raise TypeError(
                     f"Parameter '{key}' must be of type {expected_type.__name__}, "
                     f"got {type(value).__name__}"
+                )
+        # check that warming_level_window is between 5 and 25
+        if key == "warming_level_window":
+            if value not in range(5, 26):
+                raise ValueError(
+                    f"Parameter '{key}' must be an integer between 5 and 25, "
+                    f"got {value}"
                 )
 
     # Validate location parameters
@@ -520,6 +547,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
         ),
         "approach": "Warming Level",
         "warming_level": [1.2],
+        "warming_level_window": kwargs.get("warming_level_window", None),
         "cached_area": kwargs.get("cached_area", None),
         "latitude": kwargs.get("latitude", None),
         "longitude": kwargs.get("longitude", None),
@@ -552,6 +580,7 @@ def get_climate_profile(**kwargs) -> pd.DataFrame:
         - variable (Optional) : str, default "Air Temperature at 2m"
         - resolution (Optional) : str, default "3 km"
         - warming_level (Required) : List[float], default [1.2]
+        - warming_level_window (Optional): int in range [5,25]
         - cached_area (Optional) : str or List[str]
         - units (Optional) : str, default "degF"
         - latitude (Optional) : float or tuple

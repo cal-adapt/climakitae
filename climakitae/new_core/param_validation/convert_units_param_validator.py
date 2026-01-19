@@ -4,13 +4,16 @@ Validator for parameters provided to Convert Units Processor.
 
 from __future__ import annotations
 
-import warnings
+import logging
 from typing import Any, Iterable
 
 from climakitae.core.constants import UNIT_OPTIONS, UNSET
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
 )
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # All supported units (flattened from UNIT_OPTIONS)
 ALL_SUPPORTED_UNITS = set()
@@ -77,9 +80,9 @@ def _check_input_types(value: str | Iterable[str]) -> bool:
     if isinstance(value, str):
         return True
 
-    warnings.warn(
-        "\n\nConvert Units Processor expects a string. "
-        f"\nReceived type: {type(value)}"
+    logger.warning(
+        "Convert Units Processor expects a string. Received type: %s",
+        type(value),
     )
     return False
 
@@ -103,9 +106,10 @@ def _check_unit_validity(value: str | Iterable[str]) -> bool:
     for unit in units_to_check:
         if unit not in ALL_SUPPORTED_UNITS:
             supported_units_str = ", ".join(sorted(ALL_SUPPORTED_UNITS))
-            warnings.warn(
-                f"\n\nUnsupported unit: '{unit}'. "
-                f"\nSupported units are: {supported_units_str}"
+            logger.warning(
+                "Unsupported unit: '%s'. Supported units are: %s",
+                unit,
+                supported_units_str,
             )
             return False
 

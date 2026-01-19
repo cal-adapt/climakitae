@@ -15,6 +15,7 @@ import pytz
 import requests
 import xarray as xr
 from timezonefinder import TimezoneFinder
+from dask.diagnostics import ProgressBar
 
 from climakitae.core.paths import (
     EXPORT_S3_BUCKET,
@@ -345,7 +346,17 @@ def _export_to_netcdf(data: xr.DataArray | xr.Dataset, save_name: str):
     # Validate data variable attributes
     for var in _data.data_vars:
         validate_attrs(_data[var])
-    _data.to_netcdf(path, format="NETCDF4", engine="netcdf4", encoding=encoding)
+
+    # Unify chunks
+    _data = _data.unify_chunks()
+
+    # Export to NetCDF with ProgressBar
+    delayed_write = _data.to_netcdf(
+        path, format="NETCDF4", engine="netcdf4", encoding=encoding, compute=False
+    )
+    with ProgressBar():
+        delayed_write.compute()
+
     print(
         (
             "Saved! You can find your file in the panel to the left"
@@ -400,7 +411,8 @@ def _export_to_zarr(data: xr.DataArray | xr.Dataset, save_name: str, mode: str):
         encoding = _fillvalue_encoding(data)
         chunks = {k: v[0] for k, v in data.chunks.items()}
         data = data.chunk(chunks)
-        data.to_zarr(path, encoding=encoding)
+        with ProgressBar():
+            data.to_zarr(path, encoding=encoding)
 
     def _write_zarr_to_s3(
         display_path: str, path: str, save_name: str, data: xr.Dataset

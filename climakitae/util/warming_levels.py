@@ -8,7 +8,6 @@ import intake
 import numpy as np
 import pandas as pd
 import xarray as xr
-import warnings
 
 from climakitae.core.paths import (
     DATA_CATALOG_URL,

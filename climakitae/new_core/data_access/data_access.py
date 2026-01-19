@@ -342,39 +342,41 @@ class DataCatalog(dict):
             return key
 
         logger.warning(
-            f"\n\nCatalog key '{key}' not found."
-            f"\nAttempting to find intended catalog key.\n\n",
-            stacklevel=999,
+            "\n\nCatalog key '%s' not found."
+            "\nAttempting to find intended catalog key.\n\n",
+            key,
         )
         logger.info("Available catalog keys: %s", list(self.keys()))
         closest = _get_closest_options(key, list(self.keys()))
         if not closest:
             logger.warning(
-                f"No catalog found for '{key}'. "
-                f"Available options: {list(self.keys())}",
-                stacklevel=999,
+                "No catalog found for '%s'. Available options: %s",
+                key,
+                list(self.keys()),
             )
             return None
 
         match len(closest):
             case 0:
                 logger.warning(
-                    f"No catalog found for '{key}'. "
-                    f"Available options: {list(self.keys())}",
-                    stacklevel=999,
+                    "No catalog found for '%s'. Available options: %s",
+                    key,
+                    list(self.keys()),
                 )
                 return None
             case 1:
                 logger.warning(
-                    f"\n\nUsing closest match '{closest[0]}' for catalog '{key}'.",
-                    stacklevel=999,
+                    "\n\nUsing closest match '%s' for catalog '%s'.",
+                    closest[0],
+                    key,
                 )
                 return closest[0]
             case _:
                 logger.warning(
-                    f"Multiple closest matches found for '{key}': {closest}. "
+                    "Multiple closest matches found for '%s': %s. "
                     "Please specify a more precise key.",
-                    stacklevel=999,
+                    key,
+                    closest,
                 )
                 return None
 

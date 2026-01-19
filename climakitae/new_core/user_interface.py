@@ -22,6 +22,7 @@ Example Usage:
 """
 
 import copy
+import functools
 import logging
 import sys
 import traceback
@@ -34,6 +35,43 @@ from climakitae.util.utils import read_csv_file
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+
+def _with_info_verbosity(method):
+    """Decorator that temporarily sets verbosity to INFO for show_* methods.
+
+    This ensures that show_* methods always produce visible output regardless
+    of the current verbosity setting. The original verbosity is restored after
+    the method completes.
+
+    Parameters
+    ----------
+    method : callable
+        The method to wrap.
+
+    Returns
+    -------
+    callable
+        The wrapped method.
+
+    """
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        original_verbosity = self._verbosity
+        try:
+            # Temporarily set to INFO level (0) if currently more restrictive
+            if original_verbosity < 0:
+                self._verbosity = 0
+                self._configure_logging()
+            return method(self, *args, **kwargs)
+        finally:
+            # Restore original verbosity
+            if original_verbosity != self._verbosity:
+                self._verbosity = original_verbosity
+                self._configure_logging()
+
+    return wrapper
 
 
 class ClimateData:
@@ -156,10 +194,10 @@ class ClimateData:
             Path to log file. If None, logs to stdout. Default is None.
         verbosity : int, optional
             Logging verbosity level:
-            - 0: No logging (default)
-            - 1: WARNING level
-            - 2: INFO level
-            - 3: DEBUG level
+            - <= -2: Effectively silent (no logs)
+            - -1: WARNING level
+            - 0: INFO level (default)
+            - > 0: DEBUG level
             Default is 0.
 
         """
@@ -176,12 +214,7 @@ class ClimateData:
             logger.info("ClimateData initialization successful")
             logger.info("✅ Ready to query!")
         except Exception as e:
-            logger.error("Setup failed: %s", str(e), exc_info=True)
-            logger.error("❌ Setup failed: %s", str(e))
-            # Emit the traceback at ERROR level so user-facing callers and
-            # test harnesses that bridge logging->warnings/print capture it
-            # as part of the failure output.
-            logger.error("Error details: %s", traceback.format_exc())
+            logger.error("❌ Setup failed: %s", str(e), exc_info=True)
             return
 
     def _reset_query(self) -> "ClimateData":
@@ -466,13 +499,19 @@ class ClimateData:
 
         Parameters
         ----------
-        experiment_id : str
-            The experiment ID (e.g., "historical", "ssp245").
+        experiment_id : str or list of str
+            The experiment ID (e.g., "historical", "ssp245") or a list of
+            experiment IDs to query multiple scenarios at once.
 
         Returns
         -------
         ClimateData
             The current instance for method chaining.
+
+        Examples
+        --------
+        >>> cd.experiment_id("ssp245")  # Single experiment
+        >>> cd.experiment_id(["historical", "ssp245", "ssp370"])  # Multiple
 
         """
         logger.debug("Setting experiment_id to: %s", experiment_id)
@@ -809,9 +848,9 @@ class ClimateData:
         # This allows concurrent calls to get() without corrupting each other
         query_snapshot = copy.deepcopy(self._query)
 
-        # Validate required parameters
+        # Validate required parameters using the snapshot for thread-safety
         logger.debug("Validating required parameters")
-        if not self._validate_required_parameters():
+        if not self._validate_required_parameters(query_snapshot):
             logger.warning("Required parameter validation failed")
             self._reset_query()
             return None
@@ -851,8 +890,13 @@ class ClimateData:
         self._reset_query()
         return data
 
-    def _validate_required_parameters(self) -> bool:
+    def _validate_required_parameters(self, query: Dict[str, Any]) -> bool:
         """Validate that all required parameters are set.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The query dictionary to validate (should be a snapshot for thread-safety).
 
         Returns
         -------
@@ -873,7 +917,7 @@ class ClimateData:
         missing_params = []
 
         for param in required_params:
-            if self._query[param] is UNSET:
+            if query[param] is UNSET:
                 missing_params.append(param)
 
         if missing_params:
@@ -892,79 +936,176 @@ class ClimateData:
         return True
 
     # Query inspection methods
+    @_with_info_verbosity
     def show_query(self) -> None:
         """Display the current query configuration."""
         msg = "Current Query:"
         logger.info(msg)
         logger.info("%s", "-" * len(msg))
-        try:
-            print(msg)
-            print("%s" % ("-" * len(msg)))
-        except Exception:
-            pass
         for key, value in self._query.items():
             display_value = value if value is not UNSET else "UNSET"
             logger.info("%s: %s", key, display_value)
-            try:
-                print(f"{key}: {display_value}")
-            except Exception:
-                pass
 
     # Option exploration methods
-    def show_catalog_options(self) -> None:
-        """Display available catalog options."""
-        self._show_options("catalog", "catalog options (Cloud data collections)")
+    @_with_info_verbosity
+    def show_catalog_options(self, show_n: Optional[int] = None) -> None:
+        """Display available catalog options.
 
-    def show_installation_options(self) -> None:
-        """Display available installation options."""
+        Parameters
+        ----------
+        show_n : int, optional
+            Maximum number of options to display. If None (default), shows all options.
+        """
         self._show_options(
-            "installation", "installation options (Renewable energy generation types)"
+            "catalog",
+            "catalog options (Cloud data collections)",
+            limit_per_group=show_n,
         )
 
-    def show_activity_id_options(self) -> None:
-        """Display available activity ID options."""
-        self._show_options("activity_id", "activity_id options (Downscaling methods)")
+    @_with_info_verbosity
+    def show_installation_options(self, show_n: Optional[int] = None) -> None:
+        """Display available installation options.
 
-    def show_institution_id_options(self) -> None:
-        """Display available institution ID options."""
-        self._show_options("institution_id", "institution_id options (Data producers)")
+        Parameters
+        ----------
+        show_n : int, optional
+            Maximum number of options to display. If None (default), shows all options.
+        """
+        self._show_options(
+            "installation",
+            "installation options (Renewable energy generation types)",
+            limit_per_group=show_n,
+        )
 
-    def show_source_id_options(self) -> None:
-        """Display available source ID options."""
-        self._show_options("source_id", "source_id options (Climate model simulations)")
+    @_with_info_verbosity
+    def show_activity_id_options(self, show_n: Optional[int] = None) -> None:
+        """Display available activity ID options.
 
-    def show_experiment_id_options(self) -> None:
-        """Display available experiment ID options."""
-        self._show_options("experiment_id", "experiment_id options (Simulation runs)")
+        Parameters
+        ----------
+        show_n : int, optional
+            Maximum number of options to display. If None (default), shows all options.
+        """
+        self._show_options(
+            "activity_id",
+            "activity_id options (Downscaling methods)",
+            limit_per_group=show_n,
+        )
 
-    def show_station_id_options(self, limit_per_group: Optional[int] = None) -> None:
+    @_with_info_verbosity
+    def show_institution_id_options(self, show_n: Optional[int] = None) -> None:
+        """Display available institution ID options.
+
+        Parameters
+        ----------
+        show_n : int, optional
+            Maximum number of options to display. If None (default), shows all options.
+        """
+        self._show_options(
+            "institution_id",
+            "institution_id options (Data producers)",
+            limit_per_group=show_n,
+        )
+
+    @_with_info_verbosity
+    def show_source_id_options(self, show_n: Optional[int] = None) -> None:
+        """Display available source ID options.
+
+        Parameters
+        ----------
+        show_n : int, optional
+            Maximum number of options to display. If None (default), shows all options.
+        """
+        self._show_options(
+            "source_id",
+            "source_id options (Climate model simulations)",
+            limit_per_group=show_n,
+        )
+
+    @_with_info_verbosity
+    def show_experiment_id_options(self, show_n: Optional[int] = None) -> None:
+        """Display available experiment ID options.
+
+        Parameters
+        ----------
+        show_n : int, optional
+            Maximum number of options to display. If None (default), shows all options.
+        """
+        self._show_options(
+            "experiment_id",
+            "experiment_id options (Simulation runs)",
+            limit_per_group=show_n,
+        )
+
+    @_with_info_verbosity
+    def show_station_id_options(self, show_n: Optional[int] = None) -> None:
         """Display available station ID options.
 
         Parameters
         ----------
-        limit_per_group : int, optional
+        show_n : int, optional
             Maximum number of stations to display. If None (default), shows all stations.
         """
         self._show_options(
             "station_id",
             "station_id options (Weather station names)",
-            limit_per_group=limit_per_group,
+            limit_per_group=show_n,
         )
 
-    def show_network_id_options(self) -> None:
-        """Display available network ID options."""
-        self._show_options("network_id", "network_id options (Weather network names)")
+    @_with_info_verbosity
+    def show_network_id_options(self, show_n: Optional[int] = None) -> None:
+        """Display available network ID options.
 
-    def show_table_id_options(self) -> None:
-        """Display available table ID options (Temporal resolutions)."""
-        self._show_options("table_id", "table_id options (Temporal resolutions)")
+        Parameters
+        ----------
+        show_n : int, optional
+            Maximum number of options to display. If None (default), shows all options.
+        """
+        self._show_options(
+            "network_id",
+            "network_id options (Weather network names)",
+            limit_per_group=show_n,
+        )
 
-    def show_grid_label_options(self) -> None:
-        """Display available grid label options (Spatial resolutions)."""
-        self._show_options("grid_label", "grid_label options (Spatial resolutions)")
+    @_with_info_verbosity
+    def show_table_id_options(self, show_n: Optional[int] = None) -> None:
+        """Display available table ID options (Temporal resolutions).
 
-    def show_variable_options(self) -> None:
-        """Display available variable options."""
+        Parameters
+        ----------
+        show_n : int, optional
+            Maximum number of options to display. If None (default), shows all options.
+        """
+        self._show_options(
+            "table_id",
+            "table_id options (Temporal resolutions)",
+            limit_per_group=show_n,
+        )
+
+    @_with_info_verbosity
+    def show_grid_label_options(self, show_n: Optional[int] = None) -> None:
+        """Display available grid label options (Spatial resolutions).
+
+        Parameters
+        ----------
+        show_n : int, optional
+            Maximum number of options to display. If None (default), shows all options.
+        """
+        self._show_options(
+            "grid_label",
+            "grid_label options (Spatial resolutions)",
+            limit_per_group=show_n,
+        )
+
+    @_with_info_verbosity
+    def show_variable_options(self, show_n: Optional[int] = None) -> None:
+        """Display available variable options.
+
+        Parameters
+        ----------
+        show_n : int, optional
+            Maximum number of options to display. If None (default), shows all options.
+        """
         current_query = {k: v for k, v in self._query.items() if v is not UNSET}
         msg = ""
         if current_query:
@@ -972,84 +1113,21 @@ class ClimateData:
         else:
             msg = "Variables"
 
-        self._show_options("variable_id", msg)
+        self._show_options("variable_id", msg, limit_per_group=show_n)
 
-    def show_derived_variables(self) -> None:
-        """Display all registered derived variables.
+    @_with_info_verbosity
+    def show_processors(self, show_n: Optional[int] = None) -> None:
+        """Display available data processors.
 
-        Shows both builtin and user-registered derived variables with their
-        dependencies and descriptions.
-
-        Examples
-        --------
-        >>> cd = ClimateData()
-        >>> cd.show_derived_variables()
-        Derived Variables (computed from source variables during loading):
-        ------------------------------------------------------------------
-        wind_speed_10m      depends on: u10, v10
-        heat_index          depends on: t2, rh
-        ...
-
+        Parameters
+        ----------
+        show_n : int, optional
+            Maximum number of processors to display. If None (default), shows all processors.
         """
-        from climakitae.new_core.derived_variables import list_derived_variables
-
-        msg = "Derived Variables (computed from source variables during loading):"
-        logger.info(msg)
-        logger.info("%s", "-" * len(msg))
-        try:
-            print(msg)
-            print("%s" % ("-" * len(msg)))
-        except Exception:
-            pass
-
-        try:
-            derived_vars = list_derived_variables()
-            if not derived_vars:
-                no_vars_msg = "No derived variables registered"
-                logger.info(no_vars_msg)
-                try:
-                    print(no_vars_msg)
-                except Exception:
-                    pass
-            else:
-                # Find max name length for alignment
-                max_name_len = max(len(name) for name in derived_vars.keys())
-
-                for name, info in sorted(derived_vars.items()):
-                    deps_str = ", ".join(info.depends_on)
-                    source_tag = f"[{info.source}]" if info.source == "user" else ""
-                    spacing = " " * (max_name_len - len(name) + 2)
-
-                    line = f"{name}{spacing}depends on: {deps_str} {source_tag}"
-                    if info.description:
-                        line += f"\n{' ' * (max_name_len + 2)}  └─ {info.description}"
-
-                    logger.info(line)
-                    try:
-                        print(line)
-                    except Exception:
-                        pass
-
-            logger.info("\n")
-            try:
-                print()
-            except Exception:
-                pass
-
-        except Exception as e:
-            logger.error("Error retrieving derived variables: %s", e, exc_info=True)
-
-    def show_processors(self) -> None:
-        """Display available data processors."""
 
         msg = "Processors (Methods for transforming raw catalog data):"
         logger.info(msg)
         logger.info("%s", "-" * len(msg))
-        try:
-            print(msg)
-            print("%s" % ("-" * len(msg)))
-        except Exception:
-            pass
 
         try:
             # Get current catalog from query
@@ -1066,71 +1144,131 @@ class ClimateData:
                 )
                 logger.info("Showing all processors")
 
-            for processor in valid_processors:
+            total_count = len(valid_processors)
+            limit = min(show_n, total_count) if show_n is not None else total_count
+            display_processors = valid_processors[:limit]
+
+            # Warn user of truncation if show_n was set
+            if limit < total_count:
+                truncation_msg = f"Showing {limit} of {total_count} total processors"
+                logger.info("%s", truncation_msg)
+
+            for processor in display_processors:
                 logger.info("%s", processor)
-                try:
-                    print(processor)
-                except Exception:
-                    pass
 
             logger.info("\n")
 
         except Exception as e:
             logger.error("Error retrieving processors: %s", e, exc_info=True)
 
-    def show_station_options(self) -> None:
-        """Display available station options for data retrieval."""
+    @_with_info_verbosity
+    def show_station_options(self, show_n: Optional[int] = None) -> None:
+        """Display available station options for data retrieval.
+
+        Parameters
+        ----------
+        show_n : int, optional
+            Maximum number of stations to display. If None (default), shows all stations.
+        """
         msg = "Stations (Available weather stations for localization):"
         logger.info(msg)
         logger.info("%s", "-" * len(msg))
-        try:
-            print(msg)
-            print("%s" % ("-" * len(msg)))
-        except Exception:
-            pass
         try:
             stations = self._factory.get_stations()
             if not stations:
                 logger.info("No stations available with current parameters")
 
             else:
-                for station in sorted(stations):
+                sorted_stations = sorted(stations)
+                total_count = len(sorted_stations)
+                limit = min(show_n, total_count) if show_n is not None else total_count
+                display_stations = sorted_stations[:limit]
+
+                # Warn user of truncation if show_n was set
+                if limit < total_count:
+                    truncation_msg = f"Showing {limit} of {total_count} total stations"
+                    logger.info("%s", truncation_msg)
+
+                for station in display_stations:
                     logger.info("%s", station)
 
                 logger.info("\n")
         except Exception as e:
             logger.error("Error retrieving stations: %s", e, exc_info=True)
 
-    def show_boundary_options(self, type=UNSET) -> None:
-        """Display available boundaries for spatial queries."""
-        if type is UNSET:
-            msg = "Boundary Types (call again with option type='...' to see options for any type):"
+    @_with_info_verbosity
+    def show_boundary_options(
+        self, boundary_type=UNSET, show_n: Optional[int] = None
+    ) -> None:
+        """Display available boundaries for spatial queries.
+
+        Parameters
+        ----------
+        boundary_type : str, optional
+            The type of boundary to display (e.g., "ca_counties", "ca_watersheds").
+            If not specified, displays available boundary types.
+        show_n : int, optional
+            Maximum number of boundaries to display. If None (default), shows all boundaries.
+
+        """
+        if boundary_type is UNSET:
+            msg = "Boundary Types (call again with boundary_type='...' to see options):"
         else:
             msg = "Available {} Boundaries:".format(
-                " ".join([x.capitalize() for x in type.split("_")])
+                " ".join([x.capitalize() for x in boundary_type.split("_")])
             )
         logger.info(msg)
         logger.info("%s", "-" * len(msg))
 
         try:
-            boundaries = self._factory.get_boundaries(type)
+            boundaries = self._factory.get_boundaries(boundary_type)
             if not boundaries:
                 logger.info("No boundaries available with current parameters")
 
             else:
-                for boundary in sorted(boundaries):
+                sorted_boundaries = sorted(boundaries)
+                total_count = len(sorted_boundaries)
+                limit = min(show_n, total_count) if show_n is not None else total_count
+                display_boundaries = sorted_boundaries[:limit]
+
+                # Warn user of truncation if show_n was set
+                if limit < total_count:
+                    truncation_msg = (
+                        f"Showing {limit} of {total_count} total boundaries"
+                    )
+                    logger.info("%s", truncation_msg)
+
+                for boundary in display_boundaries:
                     logger.info("%s", boundary)
 
                 logger.info("\n")
         except Exception as e:
             logger.error("Error retrieving boundaries: %s", e, exc_info=True)
 
+    @_with_info_verbosity
     def show_all_options(self) -> None:
         """Display all available options for exploration."""
         data_title = "CAL ADAPT DATA -- ALL AVAILABLE OPTIONS USING CLIMAKITAE"
         logger.info("%s", "=" * len(data_title))
         logger.info(data_title)
         logger.info("%s", "=" * len(data_title))
+
+        # Define truncation limits for show_all to keep output manageable
+        truncation_limits = {
+            "show_catalog_options": None,  # Small list, show all
+            "show_activity_id_options": None,  # Small list, show all
+            "show_institution_id_options": 10,
+            "show_source_id_options": 10,
+            "show_experiment_id_options": None,  # Small list, show all
+            "show_table_id_options": None,  # Small list, show all
+            "show_grid_label_options": None,  # Small list, show all
+            "show_variable_options": 15,
+            "show_installation_options": None,  # Small list, show all
+            "show_station_id_options": 15,
+            "show_network_id_options": None,  # Small list, show all
+            "show_processors": 10,
+            "show_station_options": 15,
+        }
 
         option_methods = [
             ("show_catalog_options", "Catalogs"),
@@ -1151,20 +1289,17 @@ class ClimateData:
 
         for method_name, section_title in option_methods:
             try:
-                if method_name == "show_station_id_options":
-                    # Truncate station IDs in show_all to keep output manageable
-                    self.show_station_id_options(limit_per_group=15)
-                    # Let users know how to see all stations
-                    truncation_msg = (
-                        "Use show_station_id_options() to see all station options."
+                limit = truncation_limits.get(method_name)
+                method = getattr(self, method_name)
+                if limit is not None:
+                    method(show_n=limit)
+                    # Let users know how to see all options
+                    hint_msg = (
+                        f"Use {method_name}() to see all {section_title.lower()}."
                     )
-                    try:
-                        logger.info("%s", truncation_msg)
-                        print(truncation_msg)
-                    except Exception:
-                        pass
+                    logger.info("%s", hint_msg)
                 else:
-                    getattr(self, method_name)()
+                    method()
             except Exception as e:
                 logger.error(
                     "Error displaying %s: %s", section_title.lower(), e, exc_info=True
@@ -1195,12 +1330,6 @@ class ClimateData:
         logger.info("%s:", title)
         logger.info("%s", "-" * (len(title) + 1))
         try:
-            # Print header for backward compatibility/tests
-            try:
-                print(f"{title}:")
-                print("%s" % ("-" * (len(title) + 1)))
-            except Exception:
-                pass
             current_query = {k: v for k, v in self._query.items() if v is not UNSET}
             options = self._factory.get_catalog_options(option_type, current_query)
             if not options:
@@ -1221,11 +1350,7 @@ class ClimateData:
                 # Warn user of truncation if limit_per_group was set
                 if limit < total_count:
                     truncation_msg = f"Showing {limit} of {total_count} total options"
-                    try:
-                        logger.info("%s", truncation_msg)
-                        print(truncation_msg)
-                    except Exception:
-                        pass
+                    logger.info("%s", truncation_msg)
 
                 # Display options
                 max_len = max(len(option) for option in display_options)
@@ -1265,20 +1390,44 @@ class ClimateData:
     def load_query(self, query_params: Dict[str, Any]) -> "ClimateData":
         """Load query parameters from a dictionary.
 
+        Uses the individual setter methods to ensure validation is applied
+        to each parameter. Unknown keys are silently ignored.
+
         Parameters
         ----------
         query_params : Dict[str, Any]
-            Dictionary of query parameters to load.
+            Dictionary of query parameters to load. Supported keys:
+            catalog, installation, activity_id, institution_id, source_id,
+            experiment_id, table_id, grid_label, variable_id, processes.
 
         Returns
         -------
         ClimateData
             The current instance with loaded parameters.
 
+        Raises
+        ------
+        ValueError
+            If any parameter value fails validation.
+
         """
+        # Map query keys to their setter methods
+        setters = {
+            "catalog": self.catalog,
+            "installation": self.installation,
+            "activity_id": self.activity_id,
+            "institution_id": self.institution_id,
+            "source_id": self.source_id,
+            "experiment_id": self.experiment_id,
+            "table_id": self.table_id,
+            "grid_label": self.grid_label,
+            "variable_id": self.variable,
+            "processes": self.processes,
+        }
+
         for key, value in query_params.items():
-            if key in self._query:
-                self._query[key] = value
+            if key in setters and value is not UNSET:
+                setters[key](value)
         return self
 
     def _format_option(self, option: str, option_type: str, spacing: int = 0) -> str:
@@ -1290,6 +1439,9 @@ class ClimateData:
             The option string to format.
         option_type : str
             The type of option being formatted.
+        spacing : int, optional
+            Number of spaces to add between option name and description
+            for alignment. Default is 0.
 
         Returns
         -------

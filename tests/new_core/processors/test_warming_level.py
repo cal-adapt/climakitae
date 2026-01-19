@@ -143,10 +143,15 @@ class TestWarmingLevelProcessorInitialization:
     def test_custom_initialization(self):
         """Test custom initialization."""
         processor = WarmingLevel(
-            value={"warming_levels": [1.5, 3.0], "warming_level_window": 10}
+            value={
+                "warming_levels": [1.5, 3.0],
+                "warming_level_window": 10,
+                "warming_level_months": [1, 2],
+            }
         )
         assert processor.warming_levels == [1.5, 3.0]
         assert processor.warming_level_window == 10
+        assert processor.warming_level_months == [1, 2]
 
 
 class TestWarmingLevelUpdateContext:
@@ -322,7 +327,7 @@ class TestWarmingLevelExecute:
 
     def test_execute_updates_context(self, request, full_processor):
         """Test that execute updates context with warming level information."""
-        test_result = request.getfixturevalue("test_dataarray_dict")
+        test_result = request.getfixturevalue("test_dataarray_dict_wrf_yearly")
         context = {"activity_id": "WRF"}
         _ = full_processor.execute(result=test_result, context=context)
         assert full_processor.name in context[_NEW_ATTRS_KEY][full_processor.name]
@@ -330,7 +335,7 @@ class TestWarmingLevelExecute:
 
     def test_execute_skips_missing_center_years(self, request, full_processor):
         """Test that execute skips keys with no valid center years and warns."""
-        data = request.getfixturevalue("test_dataarray_dict")
+        data = request.getfixturevalue("test_dataarray_dict_wrf_yearly")
         ssp_key = "WRF.UCLA.EC-Earth3.ssp370.day.d03.r1i1p1f1"
 
         with (
@@ -349,7 +354,7 @@ class TestWarmingLevelExecute:
 
     def test_execute_skips_warming_level(self, request, full_processor):
         """Test that execute skips warming levels if there is no warming level found for a certain key."""
-        data = request.getfixturevalue("test_dataarray_dict")
+        data = request.getfixturevalue("test_dataarray_dict_wrf_yearly")
         # Editing warming levels to include one that will be skipped
         full_processor.warming_levels = [1.5, 5.8, 2.0]
         with (
@@ -365,19 +370,23 @@ class TestWarmingLevelExecute:
 
     def test_execute_dims_correct(self, request, full_processor):
         """Test that execute returns a dict with expected keys and types."""
-        test_result = request.getfixturevalue("test_dataarray_dict")
-        ret = full_processor.execute(result=test_result, context={"activity_id": "WRF"})
+        test_result = request.getfixturevalue("test_dataarray_dict_wrf_yearly")
+        context = {"activity_id": "WRF"}
+        ret = full_processor.execute(result=test_result, context=context)
         for key in ret:
             assert isinstance(ret[key], xr.Dataset)
             assert "warming_level" in ret[key].dims
             assert "time_delta" in ret[key].dims
-            assert "centered_year" in ret[key].coords
+        # centered_year is now stored in context for later reconstruction by concatenate processor
+        assert "_sim_centered_years" in context
+        assert len(context["_sim_centered_years"]) > 0
 
     def test_execute_years_correct(self, request, full_processor):
         """Test that execute manipulates the data to have correct dims and years."""
-        test_result = request.getfixturevalue("test_dataarray_dict")
+        test_result = request.getfixturevalue("test_dataarray_dict_wrf_yearly")
         test_key = "WRF.UCLA.EC-Earth3.ssp370.day.d03"
-        ret = full_processor.execute(result=test_result, context={"activity_id": "WRF"})
+        context = {"activity_id": "WRF"}
+        ret = full_processor.execute(result=test_result, context=context)
         ret_key = "WRF.UCLA.EC-Earth3.ssp370.day.d03.r1i1p1f1"
 
         # Check that the warming_level coordinate matches the processor's warming_levels
@@ -394,18 +403,81 @@ class TestWarmingLevelExecute:
             len(ret[ret_key].time_delta)
             == timesteps_per_year * full_processor.warming_level_window * 2
         )
-        assert isinstance(ret[ret_key].centered_year.item(), int)
-        # Check that the centered_year is within expected range
-        assert 1981 <= ret[ret_key].centered_year.item() <= 2100
+        # centered_year values are now stored in context for reconstruction by concatenate processor
+        assert "_sim_centered_years" in context
+        sim_centered_years = context["_sim_centered_years"]
+        assert ret_key in sim_centered_years
+        center_years = sim_centered_years[ret_key]
+        assert len(center_years) == len(full_processor.warming_levels)
+        for cy in center_years:
+            assert isinstance(cy, (int, np.integer))
+            assert 1981 <= cy <= 2100
+
+    @pytest.mark.parametrize(
+        "data_fixture,test_key,months,context,ret_key",
+        [
+            (
+                "test_dataarray_dict_loca_daily",
+                "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03",
+                [6, 7, 8],
+                {"activity_id": "LOCA2"},
+                "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03.r1i1p1f1",
+            ),
+            (
+                "test_dataarray_dict_wrf_hourly",
+                "WRF.UCLA.EC-Earth3.historical.1hr.d03",
+                [3, 4, 5],
+                {"activity_id": "WRF"},
+                "WRF.UCLA.EC-Earth3.ssp370.1hr.d03.r1i1p1f1",
+            ),
+        ],
+    )
+    def test_execute_specific_months(
+        self,
+        request,
+        full_processor,
+        data_fixture,
+        test_key,
+        months,
+        context,
+        ret_key,
+    ):
+        """Test execute selects specific months for daily and hourly data."""
+        test_result = request.getfixturevalue(data_fixture)
+
+        full_processor.warming_level_months = months
+        ret = full_processor.execute(result=test_result, context=context)
+
+        assert (
+            ret[ret_key].warming_level.values == full_processor.warming_levels
+        ).all()
+
+        first_year = str(test_result[test_key].isel(time=0).time.dt.year.item())
+
+        timesteps_per_year = (
+            test_result[test_key]
+            .sel(time=slice(first_year, first_year))
+            .where(
+                test_result[test_key].time.dt.month.isin(
+                    full_processor.warming_level_months
+                ),
+                drop=True,
+            )
+            .time.size
+        )
+
+        assert (
+            len(ret[ret_key].time_delta)
+            == timesteps_per_year * full_processor.warming_level_window * 2
+        )
 
     def test_execute_loca_correct(self, request, full_processor):
         """Test that execute works correctly for LOCA data."""
-        test_result = request.getfixturevalue("test_dataarray_dict_loca")
+        test_result = request.getfixturevalue("test_dataarray_dict_loca_yearly")
         # The test fixture creates data for ACCESS-CM2 model
         test_key = "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03"
-        ret = full_processor.execute(
-            result=test_result, context={"activity_id": "LOCA2"}
-        )
+        context = {"activity_id": "LOCA2"}
+        ret = full_processor.execute(result=test_result, context=context)
         ret_key = "LOCA2.UCLA.ACCESS-CM2.ssp585.day.d03.r1i1p1f1"
 
         # Check that the warming_level coordinate matches the processor's warming_levels
@@ -422,13 +494,20 @@ class TestWarmingLevelExecute:
             len(ret[ret_key].time_delta)
             == timesteps_per_year * full_processor.warming_level_window * 2
         )
-        assert isinstance(ret[ret_key].centered_year.item(), int)
-        # Check that the centered_year is within expected range
-        assert 1981 <= ret[ret_key].centered_year.item() <= 2100
+        # centered_year values are now stored in context for reconstruction by concatenate processor
+        assert "_sim_centered_years" in context
+        sim_centered_years = context["_sim_centered_years"]
+        assert ret_key in sim_centered_years
+        center_years = sim_centered_years[ret_key]
+        assert len(center_years) == len(full_processor.warming_levels)
+        for cy in center_years:
+            assert isinstance(cy, (int, np.integer))
+            # Check that the centered_year is within expected range
+            assert 1981 <= cy <= 2100
 
     def test_execute_edge_case_years(self, request, edge_case_processor):
         """Test that execute handles edge case warming levels and years correctly."""
-        test_result = request.getfixturevalue("test_dataarray_dict_loca")
+        test_result = request.getfixturevalue("test_dataarray_dict_loca_yearly")
         with pytest.warns(
             UserWarning,
         ) as record:

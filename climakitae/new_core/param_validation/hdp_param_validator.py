@@ -148,7 +148,7 @@ class HDPValidator(ParameterValidator):
         """
         for processor in query.get("processors", []):
             if processor in self.invalid_processors:
-                logger.warning(f"Invalid processor for HDP data: {processor}")
+                logger.warning("Invalid processor for HDP data: %s", processor)
                 return False
         return True
 
@@ -184,7 +184,7 @@ class HDPValidator(ParameterValidator):
                 "Please specify which weather station network to query. "
                 "station_id is optional and can be used to filter to specific stations."
             )
-            logger.warning(msg, stacklevel=999)
+            logger.warning(msg)
             return False
 
         # Ensure network_id is a single value, not a list
@@ -194,7 +194,7 @@ class HDPValidator(ParameterValidator):
                     "network_id cannot be an empty list. "
                     "Please specify a single weather station network."
                 )
-                logger.warning(msg, stacklevel=999)
+                logger.warning(msg)
                 return False
             elif len(network_id) > 1:
                 msg = (
@@ -204,7 +204,7 @@ class HDPValidator(ParameterValidator):
                     "mixing data from different networks with potentially different "
                     "time periods and data characteristics."
                 )
-                logger.warning(msg, stacklevel=999)
+                logger.warning(msg)
                 return False
             else:
                 # Convert single-item list to string
@@ -258,7 +258,7 @@ class HDPValidator(ParameterValidator):
                     f"{sorted(missing_station_ids)}. "
                     f"Please verify your station IDs and try again."
                 )
-                logger.warning(msg, stacklevel=999)
+                logger.warning(msg)
                 return False
 
             logger.debug(
@@ -268,5 +268,5 @@ class HDPValidator(ParameterValidator):
 
         except Exception as e:
             msg = f"Error validating station_ids: {e}"
-            logger.warning(msg, stacklevel=999)
+            logger.warning(msg)
             return False

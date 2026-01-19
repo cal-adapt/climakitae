@@ -431,9 +431,10 @@ class Export(DataProcessor):
         """
         match result:
             case xr.Dataset() | xr.DataArray():
+                has_closest_cell = self._has_closest_cell_dimension(result)
                 # Check if this is multi-point data with closest_cell dimension
                 # that should be split into separate files
-                if self.separated and self._has_closest_cell_dimension(result):
+                if self.separated and has_closest_cell:
                     self._split_and_export_closest_cells(result)
                 else:
                     # Single dataset - export directly
@@ -787,7 +788,7 @@ class Export(DataProcessor):
         self, data: Union[xr.Dataset, xr.DataArray]
     ) -> bool:
         """
-        Check if data has a closest_cell dimension (from multi-point clipping).
+        Check if data has a closest_cell or points dimension (from multi-point clipping).
 
         Parameters
         ----------
@@ -797,11 +798,24 @@ class Export(DataProcessor):
         Returns
         -------
         bool
-            True if data has a 'closest_cell' dimension with size > 1.
+            True if data has a 'closest_cell' or 'points' dimension with size > 1.
         """
         if not hasattr(data, "dims"):
             return False
-        return "closest_cell" in data.dims and data.sizes.get("closest_cell", 0) > 1
+
+        # Check for either 'closest_cell' or 'points' dimension
+        has_closest_cell = "closest_cell" in data.dims
+        has_points = "points" in data.dims
+
+        closest_cell_size = data.sizes.get("closest_cell", 0)
+        points_size = data.sizes.get("points", 0)
+
+        # Return True if either dimension exists with size > 1
+        result = (has_closest_cell and closest_cell_size > 1) or (
+            has_points and points_size > 1
+        )
+
+        return result
 
     def _split_and_export_closest_cells(self, data: Union[xr.Dataset, xr.DataArray]):
         """
@@ -839,7 +853,7 @@ class Export(DataProcessor):
         else:
             logger.warning("No multi-point dimension found, skipping split export")
             return
-        
+
         n_points = data.sizes[point_dim]
         original_filename = self.filename
 
@@ -858,8 +872,12 @@ class Export(DataProcessor):
                 # Determine filename suffix
                 if self.location_based_naming and has_target_coords:
                     # Use target coordinates from clip processor
-                    lat_val = float(getattr(data, lat_coord_name).isel({point_dim: idx}).values)
-                    lon_val = float(getattr(data, lon_coord_name).isel({point_dim: idx}).values)
+                    lat_val = float(
+                        getattr(data, lat_coord_name).isel({point_dim: idx}).values
+                    )
+                    lon_val = float(
+                        getattr(data, lon_coord_name).isel({point_dim: idx}).values
+                    )
                     # Format: replace decimal point with hyphen for filesystem safety
                     # Use absolute values and add N/S, E/W suffixes
                     lat_str = str(round(abs(lat_val), 6)).replace(".", "-")
