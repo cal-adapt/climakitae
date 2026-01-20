@@ -384,6 +384,7 @@ def _handle_approach_params(**kwargs):
                     "Now producing the Standard Year climate profile at this warming level."
                 )
                 kwargs["warming_level"] = new_warming_level
+                kwargs['approach'] = 'Warming Level'
         case "Time", object():
             raise ValueError(
                 "If 'approach' = 'Time', 'centered_year' must be provided."
@@ -532,6 +533,8 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
                 )
     # Validate approach parameters
     kwargs = _handle_approach_params(**kwargs)
+    print("kwargs after approach handling:")
+    print(kwargs)
 
     # Validate location parameters
     # the bahavior will be to use cached_area if provided
@@ -602,14 +605,16 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
                 else None  # otherwise default to None and let get_data decide
             ),
         ),
-        "approach": kwargs.get("approach", "Warming Level"),
-        "centered_year": kwargs.get("centered_year", None),
+        "approach": "Warming Level",
         "warming_level": [1.2],
         "warming_level_window": kwargs.get("warming_level_window", None),
         "cached_area": kwargs.get("cached_area", None),
         "latitude": kwargs.get("latitude", None),
         "longitude": kwargs.get("longitude", None),
     }
+    #!
+    print("historic data params")
+    print(get_data_params)
 
     historic_data = None
     if not no_delta:
@@ -618,6 +623,9 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
 
     # Update with any user-provided parameters for future data retrieval
     get_data_params.update(kwargs)
+    #!
+    print("future data params")
+    print(get_data_params)
     future_data = get_data(**get_data_params)
 
     return historic_data, future_data
