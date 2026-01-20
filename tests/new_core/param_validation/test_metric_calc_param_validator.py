@@ -27,6 +27,7 @@ class TestValidateBasicMetricParameters:
             ("median", [10, 50, 90], True, ["time", "lat"], False, True),
             ("max", None, False, "lat", True, True),
             ("min", np.array([0, 100]), False, "lon", False, True),
+            ("sum", None, False, ["lat", "lon"], True, True),
         ],
     )
     def test_valid_cases(
@@ -62,7 +63,7 @@ class TestValidateBasicMetricParameters:
     @pytest.mark.parametrize(
         "metric, warning_msg",
         [
-            ("sum", "Invalid metric"),
+            ("mode", "Invalid metric"),
         ],
     )
     def test_invalid_metric(self, metric, warning_msg, caplog):
@@ -197,6 +198,33 @@ class TestValidateBasicMetricParameters:
             )
         assert result is False
         assert warning_msg in caplog.text
+
+    def test_dim_or_dims_both_work(self):
+        """Test that both 'dim' and 'dims' keys work in parameter dictionary."""
+        param_dict_dim = {
+            "metric": "mean",
+            "dim": "time",
+        }
+        param_dict_dim2 = {
+            "metric": "mean",
+            "dim": ["time", "lat"],
+        }
+        param_dict_dims = {
+            "metric": "mean",
+            "dims": ["time", "lat"],
+        }
+        param_dict_dims2 = {
+            "metric": "mean",
+            "dims": "time",
+        }
+        result_dim = validate_metric_calc_param(param_dict_dim)
+        result_dims = validate_metric_calc_param(param_dict_dims)
+        result_dim2 = validate_metric_calc_param(param_dict_dim2)
+        result_dims2 = validate_metric_calc_param(param_dict_dims2)
+        assert result_dim is True
+        assert result_dims is True
+        assert result_dim2 is True
+        assert result_dims2 is True
 
 
 class TestValidateMetricCalcParam:
