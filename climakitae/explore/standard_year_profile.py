@@ -642,9 +642,6 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
         "latitude": kwargs.get("latitude", None),
         "longitude": kwargs.get("longitude", None),
     }
-    #!
-    print("historic data params")
-    print(get_data_params)
 
     historic_data = None
     if not no_delta:
@@ -653,9 +650,6 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
 
     # Update with any user-provided parameters for future data retrieval
     get_data_params.update(kwargs)
-    #!
-    print("future data params")
-    print(get_data_params)
     future_data = get_data(**get_data_params)
 
     return historic_data, future_data

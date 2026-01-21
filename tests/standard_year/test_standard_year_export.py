@@ -1,8 +1,13 @@
 """
-Unit tests for climakitae/explore/standard_year_profile.py
+Unit tests for climakitae/explore/standard_year_profile.py export functions
 
-This module contains comprehensive unit tests for the Standard Year and climate
-profile computation functions that provide climate profile analysis.
+This module contains unit and integration tests for Standard Year profile export functions:
+
+- export_profile_to_csv()
+- _get_clean_standardyr_filename()
+- _check_cached_area()
+- _check_lat_lon()
+- _check_stations()
 
 """
 
