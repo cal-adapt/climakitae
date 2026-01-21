@@ -363,6 +363,7 @@ def _handle_approach_params(**kwargs: any) -> any:
 
     approach = kwargs.get("approach")
     centered_year = kwargs.get("centered_year")
+    warming_levels = kwargs.get("warming_levels", None)
 
     match approach, centered_year:
         case "Time", int():
@@ -372,6 +373,11 @@ def _handle_approach_params(**kwargs: any) -> any:
             if centered_year not in range(2015, 2100):
                 raise ValueError(
                     f"Only years 2015-2099 are valid inputs for 'centered_year'. Received {centered_year}."
+                )
+            #!
+            elif warming_levels is not None:
+                raise ValueError(
+                    f"Do not input warming level(s) if using time-based approach."
                 )
             else:
                 print(
