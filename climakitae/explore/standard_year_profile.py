@@ -263,7 +263,7 @@ def _check_stations(location_str: str, **kwargs: any) -> str:
     return location_str
 
 
-def export_profile_to_csv(profile, **kwargs):
+def export_profile_to_csv(profile: pd.DataFrame, **kwargs: any) -> None:
     """
     Export profile to csv file with a descriptive file name.
 
@@ -353,12 +353,13 @@ def export_profile_to_csv(profile, **kwargs):
             )
 
 
-def _get_gwl_from_year(centered_year):
+def _get_gwl_from_year(centered_year: int) -> int:
     gwl_options = get_gwl_at_year(centered_year, "SSP 3-7.0")
-    return float(gwl_options.loc["SSP 3-7.0", "Mean"])
+    new_gwl = float(gwl_options.loc["SSP 3-7.0", "Mean"])
+    return [new_gwl]
 
 
-def _handle_approach_params(**kwargs):
+def _handle_approach_params(**kwargs: any) -> any:
 
     approach = kwargs.get("approach")
     centered_year = kwargs.get("centered_year")
@@ -384,7 +385,7 @@ def _handle_approach_params(**kwargs):
                     "Now producing the Standard Year climate profile at this warming level."
                 )
                 kwargs["warming_level"] = new_warming_level
-                kwargs['approach'] = 'Warming Level'
+                kwargs["approach"] = "Warming Level"
         case "Time", object():
             raise ValueError(
                 "If 'approach' = 'Time', 'centered_year' must be provided."
@@ -606,8 +607,10 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
             ),
         ),
         "approach": "Warming Level",
-        "warming_level": [1.2],
-        "warming_level_window": kwargs.get("warming_level_window", None),
+        "warming_level": [1.2],  # Historic global warming level
+        "warming_level_window": kwargs.get(
+            "warming_level_window", None
+        ),  # Use user input warming level window, if provided
         "cached_area": kwargs.get("cached_area", None),
         "latitude": kwargs.get("latitude", None),
         "longitude": kwargs.get("longitude", None),
