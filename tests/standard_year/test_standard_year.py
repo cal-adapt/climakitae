@@ -102,6 +102,32 @@ class TestRetrieveProfileData:
                 units="degC",
                 warming_level_window=2,
             )
+    #!
+    def test_retrieve_profile_data_with_invalid_approach_raises_error(self):
+        """Test that retrieve_profile_data raises error for a warming_level_window input outside of range 5-25"""
+
+        with pytest.raises(ValueError):
+            retrieve_profile_data(
+                variable="Air Temperature at 2m",
+                resolution="3 km",
+                warming_level=[1.5],
+                cached_area="bay area",
+                units="degC",
+                warming_level_window=2,
+            )
+    #!
+    def test_retrieve_profile_data_with_invalid_centered_year_raises_error(self):
+        """Test that retrieve_profile_data raises error for a warming_level_window input outside of range 5-25"""
+
+        with pytest.raises(ValueError):
+            retrieve_profile_data(
+                variable="Air Temperature at 2m",
+                resolution="3 km",
+                warming_level=[1.5],
+                cached_area="bay area",
+                units="degC",
+                warming_level_window=2,
+            )
 
     def test_retrieve_profile_data_with_no_delta_returns_none_historic(self):
         """Test that retrieve_profile_data returns None for historic when no_delta=True."""
