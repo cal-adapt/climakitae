@@ -7,6 +7,7 @@ be returned.
 """
 
 from typing import Tuple
+from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
@@ -170,7 +171,7 @@ def _get_clean_standardyr_filename(
 
 
 # helper functions
-def _check_cached_area(location_str: str, **kwargs: any) -> str:
+def _check_cached_area(location_str: str, **kwargs: Any) -> str:
     """
     Check cached area input to profile selections
     """
@@ -184,7 +185,7 @@ def _check_cached_area(location_str: str, **kwargs: any) -> str:
     return location_str
 
 
-def _check_lat_lon(location_str: str, **kwargs: any) -> str:
+def _check_lat_lon(location_str: str, **kwargs: Any) -> str:
     """
     Check latitude and longitude inputs to profile selections
     """
@@ -208,7 +209,7 @@ def _check_lat_lon(location_str: str, **kwargs: any) -> str:
     return location_str
 
 
-def _check_stations(location_str: str, **kwargs: any) -> str:
+def _check_stations(location_str: str, **kwargs: Any) -> str:
     """
     Check station name input to profile selections
     """
@@ -263,7 +264,7 @@ def _check_stations(location_str: str, **kwargs: any) -> str:
     return location_str
 
 
-def export_profile_to_csv(profile: pd.DataFrame, **kwargs: any) -> None:
+def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
     """
     Export profile to csv file with a descriptive file name.
 
@@ -352,18 +353,39 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: any) -> None:
                 f"Profile MultiIndex should have two or three levels. Found {profile.keys().nlevels} levels."
             )
 
+def _handle_approach_params(**kwargs: Any) -> Any:
+    """
+    Helper function that
+    1. performs validation on variables related to approach ('approach','centered_year','warming_level')
+    2. carries out the time-based approach, for valid user inputs
 
-def _get_gwl_from_year(centered_year: int) -> int:
-    gwl_options = get_gwl_at_year(centered_year, "SSP 3-7.0")
-    new_gwl = float(gwl_options.loc["SSP 3-7.0", "Mean"])
-    return [new_gwl]
+    Parameters
+    ----------
+    **kwargs : dict
+        Keyword arguments for data selection. Allowed keys:
+        - variable (Optional) : str, default "Air Temperature at 2m"
+        - resolution (Optional) : str, default "3 km"
+        - approach (Optional) : str, "Warming Level" or "Time"
+        - centered (Optional) : int
+        - warming_levels (Optional) : List[float], default [1.2]
+        - warming_level_window (Optional): int in range [5,25]
+        - cached_area (Optional) : str or List[str]
+        - latitude (Optional) : float or tuple
+        - longitude (Optional) : float or tuple
+        - stations (Optional) : list[str], default None
+        - units (Optional) : str, default "degF"
+        - no_delta (optional) : bool, default False, if True, do not retrieve historical data, return raw future profile
 
+    Returns
+    -------
+    **kwargs : dict
+        Arguments with updated :approach" and "warming_level" inputs.
 
-def _handle_approach_params(**kwargs: any) -> any:
+    """
 
     approach = kwargs.get("approach")
     centered_year = kwargs.get("centered_year")
-    warming_levels = kwargs.get("warming_levels", None)
+    warming_level = kwargs.get("warming_level", None)
 
     match approach, centered_year:
         case "Time", int():
@@ -374,18 +396,19 @@ def _handle_approach_params(**kwargs: any) -> any:
                 raise ValueError(
                     f"Only years 2015-2099 are valid inputs for 'centered_year'. Received {centered_year}."
                 )
-            #!
-            elif warming_levels is not None:
+            elif warming_level is not None:
                 raise ValueError(
-                    f"Do not input warming level(s) if using time-based approach."
+                    f"Do not input warming level(s) if using a time-based approach."
                 )
             else:
                 print(
-                    "You have chosen to produce a time-based Standard Year climate profile. \n"
-                    f"The corresponding global warming level for input centered year {centered_year} will now "
+                    f"You have chosen to produce a time-based Standard Year climate profile centered around {centered_year}. \n"
+                    "Standard year functionality for time-based profiles identifies the closest warming level at that centered year.\n"
+                    f"The corresponding global warming level for input centered year {centered_year} will now \n"
                     "be determined and used to produce the profile."
                 )
-                new_warming_level = _get_gwl_from_year(centered_year)
+                gwl_options = get_gwl_at_year(centered_year, "SSP 3-7.0")
+                new_warming_level = [float(gwl_options.loc["SSP 3-7.0", "Mean"])]
                 print(
                     f"Corresponding warming level for 'centered_year'={centered_year} is {new_warming_level}. \n"
                     "Now producing the Standard Year climate profile at this warming level."
@@ -393,9 +416,7 @@ def _handle_approach_params(**kwargs: any) -> any:
                 kwargs["warming_level"] = new_warming_level
                 kwargs["approach"] = "Warming Level"
         case "Time", object():
-            raise ValueError(
-                "If 'approach' = 'Time', 'centered_year' must be provided."
-            )
+            raise ValueError("If 'approach'='Time', 'centered_year' must be provided.")
         case None | "Warming Level", _:
             if isinstance(centered_year, int):
                 raise ValueError(
@@ -411,7 +432,7 @@ def _handle_approach_params(**kwargs: any) -> any:
     return kwargs
 
 
-def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
+def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
     """
     Backend function for retrieving data needed for computing climate profiles.
 
@@ -538,7 +559,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
                     f"Parameter '{key}' must be an integer between 5 and 25, "
                     f"got {value}"
                 )
-    # Validate approach parameters
+    # Validate/setting approach parameters
     kwargs = _handle_approach_params(**kwargs)
     print("kwargs after approach handling:")
     print(kwargs)
@@ -640,7 +661,7 @@ def retrieve_profile_data(**kwargs: any) -> Tuple[xr.Dataset, xr.Dataset]:
     return historic_data, future_data
 
 
-def get_climate_profile(**kwargs) -> pd.DataFrame:
+def get_climate_profile(**kwargs: Any) -> pd.DataFrame:
     """
     High-level function to compute standard year climate profiles using warming level data.
 
