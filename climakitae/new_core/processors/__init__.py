@@ -10,6 +10,7 @@ from .bias_adjust_model_to_station import BiasAdjustModelToStation
 from .clip import Clip
 from .concatenate import Concat
 from .convert_units import ConvertUnits
+from .drop_leap_days import DropLeapDays
 from .export import Export
 from .filter_unadjusted_models import FilterUnAdjustedModels
 from .metric_calc import MetricCalc
@@ -21,6 +22,7 @@ __all__ = [
     "Concat",
     "ConvertUnits",
     "Clip",
+    "DropLeapDays",
     "Export",
     "FilterUnAdjustedModels",
     "BiasAdjustModelToStation",
