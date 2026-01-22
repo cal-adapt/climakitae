@@ -123,6 +123,8 @@ def _get_clean_standardyr_filename(
     gwl: float,
     warming_level_window: int | None,
     no_delta: bool,
+    approach: str | None,
+    centered_year: int | None,
 ) -> str:
     """
     Standardizes filename export for standard year files
@@ -141,6 +143,12 @@ def _get_clean_standardyr_filename(
         Years around Global Warming Level (+/-) (e.g. 15 means a 30yr window)
     no_delta : bool
         no_delta value used to generate profile
+    approach (Optional) : str, "Warming Level" or "Time"
+        The climate profile approach to use, either
+            - "Time" (which is actually a warming level approach, but centered on an input) or
+            - "Warming Level" (default)
+    centered_year (Optional) : int in range [2015,2099]
+        For approach="Time", the year for which to find a corresponding warming level
 
     Returns
     -------
@@ -152,7 +160,13 @@ def _get_clean_standardyr_filename(
     clean_loc_name = location.replace(" ", "_").replace("(", "").replace(")", "")
     clean_q_name = f"{q:.2f}".split(".")[1].lower()
     clean_var_name = var_id.lower()
-    clean_gwl_name = match_str_to_wl(gwl).lower().replace(".", "pt")
+
+    if gwl is None:
+        clean_gwl_name = ""
+    else:
+        clean_gwl_name = match_str_to_wl(gwl).lower().replace(".", "pt")
+        clean_gwl_name = f"_{clean_gwl_name}"
+
     if no_delta:
         delta_str = ""
     else:
@@ -166,7 +180,17 @@ def _get_clean_standardyr_filename(
         window = warming_level_window * 2
         window_str = f"_{window}yr_window"
 
-    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}_{clean_gwl_name}{delta_str}{window_str}.csv"
+    if approach is None:
+        approach_str = ""
+    else:
+        approach_str = approach.lower().replace(" ", "_")
+
+    if centered_year is None:
+        centered_year_str = ""
+    else:
+        centered_year_str = f"_{centered_year}"
+
+    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}{clean_gwl_name}{delta_str}{window_str}_{approach_str}{centered_year_str}.csv"
     return filename
 
 
@@ -295,6 +319,12 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 Name of cached area used in profile
             no_delta : bool, default False, optional
                 True if no_delta=True when generating profile
+            approach (Optional) : str, "Warming Level" or "Time"
+                The climate profile approach to use, either
+                    - "Time" (which is actually a warming level approach, but centered on an input) or
+                    - "Warming Level" (default)
+            centered_year (Optional) : int in range [2015,2099]
+                For approach="Time", the year for which to find a corresponding warming level
 
     Notes
     -----
@@ -315,11 +345,13 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
     # Get required parameter values
     variable = kwargs.get("variable")
     q = kwargs.get("q")
-    global_warming_levels = kwargs.get("warming_level")
 
-    # Handle no_delta wand warming_level_window inputs
+    # Handle warming_level, no_delta, warming_level_window, approach, and centered_year inputs
     no_delta = kwargs.get("no_delta", False)
     warming_level_window = kwargs.get("warming_level_window", None)
+    approach = kwargs.get("approach", None)
+    centered_year = kwargs.get("centered_year", None)
+    global_warming_levels = kwargs.get("warming_level", None)
 
     # Get variable id string to use in file name
     variable_descriptions = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
@@ -337,21 +369,39 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
     # Check profile MultiIndex to pull out data by Global Warming Level
     match profile.keys().nlevels:
         case 2:  # Single WL
-            gwl = global_warming_levels[0]
+            if global_warming_levels is None:
+                gwl = global_warming_levels
+            else:
+                gwl = global_warming_levels[0]
             filename = _get_clean_standardyr_filename(
-                var_id, q, location_str, gwl, warming_level_window, no_delta
+                var_id,
+                q,
+                location_str,
+                gwl,
+                warming_level_window,
+                no_delta,
+                approach,
+                centered_year,
             )
             profile.to_csv(filename)
         case 3:  # Multiple WL (WL included in MultiIndex)
             for gwl in global_warming_levels:  # Single file per WL
                 filename = _get_clean_standardyr_filename(
-                    var_id, q, location_str, gwl, warming_level_window, no_delta
+                    var_id,
+                    q,
+                    location_str,
+                    gwl,
+                    warming_level_window,
+                    no_delta,
+                    approach,
+                    centered_year,
                 )
                 profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(filename)
         case _:
             raise ValueError(
                 f"Profile MultiIndex should have two or three levels. Found {profile.keys().nlevels} levels."
             )
+
 
 def _handle_approach_params(**kwargs: Any) -> Any:
     """
@@ -366,7 +416,7 @@ def _handle_approach_params(**kwargs: Any) -> Any:
         - variable (Optional) : str, default "Air Temperature at 2m"
         - resolution (Optional) : str, default "3 km"
         - approach (Optional) : str, "Warming Level" or "Time"
-        - centered (Optional) : int
+        - centered_year (Optional) : int in range [2015,2099]
         - warming_levels (Optional) : List[float], default [1.2]
         - warming_level_window (Optional): int in range [5,25]
         - cached_area (Optional) : str or List[str]
@@ -559,10 +609,8 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
                     f"Parameter '{key}' must be an integer between 5 and 25, "
                     f"got {value}"
                 )
-    # Validate/setting approach parameters
+    # Validate and update approach parameters
     kwargs = _handle_approach_params(**kwargs)
-    print("kwargs after approach handling:")
-    print(kwargs)
 
     # Validate location parameters
     # the bahavior will be to use cached_area if provided
