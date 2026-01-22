@@ -538,17 +538,67 @@ class DataCatalog(dict):
         # removal of source variables.
         derived_var = query.get("_derived_variable")
         if derived_var:
-            # If intake-esm already produced the derived variable for every
-            # returned dataset, skip re-application. Otherwise, apply the
-            # derived function to datasets that are missing it.
-            try:
-                all_present = all(derived_var in ds.data_vars for ds in result.values())
-            except Exception:
-                all_present = False
+            # Check if derived variable was already computed. The variable may
+            # exist under the registered name OR the user's function may have
+            # created a variable with a different name. We detect this by
+            # checking if dependencies are missing (indicating the function ran).
+            source_vars_from_query = query.get("_source_variables") or []
 
-            if all_present:
+            def _should_skip_application(ds, derived_name, source_vars):
+                """Determine if derived variable application should be skipped.
+
+                Returns True if:
+                - The derived variable already exists by exact name, OR
+                - The source dependencies are missing (indicating computation happened)
+                """
+                # Exact match - derived variable exists
+                if derived_name in ds.data_vars:
+                    return True, "exact_match"
+
+                # Check if dependencies are missing - this indicates the function
+                # already ran and dropped them (common with drop_dependencies=True)
+                if source_vars:
+                    missing_deps = [v for v in source_vars if v not in ds.data_vars]
+                    if missing_deps:
+                        # Dependencies are missing - function likely already ran
+                        return True, f"missing_deps:{missing_deps}"
+
+                return False, None
+
+            try:
+                skip_reasons = {}
+                for key, ds in result.items():
+                    should_skip, reason = _should_skip_application(
+                        ds, derived_var, source_vars_from_query
+                    )
+                    skip_reasons[key] = (should_skip, reason)
+
+                all_skip = all(skip for skip, _ in skip_reasons.values())
+            except Exception:
+                all_skip = False
+                skip_reasons = {}
+
+            if all_skip:
+                # Log detailed reason for skipping
+                for key, (_, reason) in skip_reasons.items():
+                    if reason == "exact_match":
+                        logger.debug(
+                            "Derived variable '%s' already exists in dataset %s",
+                            derived_var,
+                            key,
+                        )
+                    elif reason and reason.startswith("missing_deps"):
+                        # Warn if variable name doesn't match but function ran
+                        logger.debug(
+                            "Derived variable '%s' not found by name in dataset %s, "
+                            "but dependencies are missing (%s) - assuming function already ran. "
+                            "Consider naming your output variable to match the registered name.",
+                            derived_var,
+                            key,
+                            reason,
+                        )
                 logger.debug(
-                    "Derived variable '%s' already computed by intake-esm for all datasets; skipping re-application",
+                    "Skipping derived variable '%s' re-application for all datasets",
                     derived_var,
                 )
             else:
@@ -663,11 +713,14 @@ class DataCatalog(dict):
 
         info = derived_vars[derived_var_name]
         func = info.func
+        depends_on = info.depends_on
 
         logger.info("Computing derived variable '%s'", derived_var_name)
         for key in datasets:
+            ds = datasets[key]
+
             # Check if intake-esm already computed the derived variable
-            if derived_var_name in datasets[key].data_vars:
+            if derived_var_name in ds.data_vars:
                 logger.debug(
                     "Derived variable '%s' already exists in dataset %s (computed by intake-esm)",
                     derived_var_name,
@@ -675,9 +728,26 @@ class DataCatalog(dict):
                 )
                 continue
 
+            # Check if dependencies are missing - this indicates the function
+            # already ran (with drop_dependencies=True) but created a variable
+            # with a different name than registered. Skip to avoid crash.
+            missing_deps = [v for v in depends_on if v not in ds.data_vars]
+            if missing_deps:
+                logger.warning(
+                    "Cannot compute derived variable '%s' for dataset %s: "
+                    "missing dependencies %s. This may indicate the function "
+                    "already ran but created a variable with a different name. "
+                    "Consider naming your output variable to match '%s'.",
+                    derived_var_name,
+                    key,
+                    missing_deps,
+                    derived_var_name,
+                )
+                continue
+
             try:
                 # The registered function should add the derived variable to the dataset
-                datasets[key] = func(datasets[key])
+                datasets[key] = func(ds)
                 logger.debug("Computed '%s' for dataset %s", derived_var_name, key)
             except Exception as e:
                 logger.error(
