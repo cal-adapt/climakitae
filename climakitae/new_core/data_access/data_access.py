@@ -531,10 +531,28 @@ class DataCatalog(dict):
                 result[key] = result[key].rename({"station": "station_id"})
                 logger.debug("Renamed station → station_id for dataset %s", key)
 
-        # Apply derived variable computation if requested
+        # Apply derived variable computation if requested. If the intake-esm
+        # registry was attached it may already have computed the derived
+        # variable during `to_dataset_dict`. Avoid blindly re-applying the
+        # derived function to prevent double-computation and accidental
+        # removal of source variables.
         derived_var = query.get("_derived_variable")
         if derived_var:
-            result = self._apply_derived_variable(result, derived_var)
+            # If intake-esm already produced the derived variable for every
+            # returned dataset, skip re-application. Otherwise, apply the
+            # derived function to datasets that are missing it.
+            try:
+                all_present = all(derived_var in ds.data_vars for ds in result.values())
+            except Exception:
+                all_present = False
+
+            if all_present:
+                logger.debug(
+                    "Derived variable '%s' already computed by intake-esm for all datasets; skipping re-application",
+                    derived_var,
+                )
+            else:
+                result = self._apply_derived_variable(result, derived_var)
 
         return result
 

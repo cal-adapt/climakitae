@@ -134,8 +134,10 @@ def _wrap_with_metadata_preservation(
                 derived_var_name in result if result is not None else "result is None",
             )
 
-        # Drop source variables if requested
-        if drop_dependencies and result is not None:
+        # Drop source variables only if the derived variable was actually added
+        # and dropping was requested. This prevents accidentally removing source
+        # variables when the derived function did not produce the expected output.
+        if drop_dependencies and result is not None and derived_var_name in result.data_vars:
             vars_to_drop = [v for v in source_vars if v in result.data_vars]
             if vars_to_drop:
                 logger.debug(
