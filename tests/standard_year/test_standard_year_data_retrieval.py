@@ -78,34 +78,6 @@ class TestRetrieveProfileData:
                 warming_level_window=2,
             )
 
-    #!
-    def test_retrieve_profile_data_with_invalid_approach_raises_error(self):
-        """Test that retrieve_profile_data raises error for a warming_level_window input outside of range 5-25"""
-
-        with pytest.raises(ValueError):
-            retrieve_profile_data(
-                variable="Air Temperature at 2m",
-                resolution="3 km",
-                warming_level=[1.5],
-                cached_area="bay area",
-                units="degC",
-                warming_level_window=2,
-            )
-
-    #!
-    def test_retrieve_profile_data_with_invalid_centered_year_raises_error(self):
-        """Test that retrieve_profile_data raises error for a warming_level_window input outside of range 5-25"""
-
-        with pytest.raises(ValueError):
-            retrieve_profile_data(
-                variable="Air Temperature at 2m",
-                resolution="3 km",
-                warming_level=[1.5],
-                cached_area="bay area",
-                units="degC",
-                warming_level_window=2,
-            )
-
     def test_retrieve_profile_data_with_no_delta_returns_none_historic(self):
         """Test that retrieve_profile_data returns None for historic when no_delta=True."""
         # Setup mock return value
@@ -368,3 +340,100 @@ class TestRetrieveProfileDataWithStations:
                     assert (
                         kwargs["longitude"] == explicit_lon
                     ), "Should use explicit longitude"
+
+
+# class TestHandleApproachParams:
+#     """Test class for _handle_approach_params function.
+
+#     Tests the function's ability to update parameters for valid inputs
+
+#     """
+
+#     def test_retrieve_profile_data_returns_tuple(self):
+#         """Test that retrieve_profile_data returns a tuple of two datasets."""
+
+#     @pytest.mark.parametrize(
+#         "input_value,expected",
+#         [
+#             (
+#                 {
+#                     "var_id": "t2",
+#                     "q": 0.5,
+#                     "gwl": 1.2,
+#                     "location": "sacramento county",
+#                     "no_delta": False,
+#                     "warming_level_window": None,
+#                 },
+#                 "stdyr_t2_50ptile_sacramento_county_present-day_delta_from_historical_30yr_window.csv",
+#             ),
+#             (
+#                 {
+#                     "var_id": "t2",
+#                     "q": 0.5,
+#                     "gwl": 1.2,
+#                     "location": "sacramento county",
+#                     "no_delta": True,
+#                     "warming_level_window": None,
+#                 },
+#                 "stdyr_t2_50ptile_sacramento_county_present-day_30yr_window.csv",
+#             ),
+#             (
+#                 {
+#                     "var_id": "t2",
+#                     "q": 0.5,
+#                     "gwl": 1.2,
+#                     "location": "35-5N_122-5W",
+#                     "no_delta": True,
+#                     "warming_level_window": None,
+#                 },
+#                 "stdyr_t2_50ptile_35-5N_122-5W_present-day_30yr_window.csv",
+#             ),
+#             (
+#                 {
+#                     "var_id": "t2",
+#                     "q": 0.5,
+#                     "gwl": 3.0,
+#                     "location": "san diego lindbergh field ksan",
+#                     "no_delta": True,
+#                     "warming_level_window": None,
+#                 },
+#                 "stdyr_t2_50ptile_san_diego_lindbergh_field_ksan_late-century_30yr_window.csv",
+#             ),
+#             (
+#                 {
+#                     "var_id": "prec",
+#                     "q": 0.5,
+#                     "gwl": 2.5,
+#                     "location": "35-5N_122-5W",
+#                     "no_delta": True,
+#                     "warming_level_window": None,
+#                 },
+#                 "stdyr_prec_50ptile_35-5N_122-5W_mid-late-century_30yr_window.csv",
+#             ),
+#             (
+#                 {
+#                     "var_id": "prec",
+#                     "q": 0.75,
+#                     "gwl": 3.0,
+#                     "location": "35-5N_122-5W",
+#                     "no_delta": False,
+#                     "warming_level_window": None,
+#                 },
+#                 "stdyr_prec_75ptile_35-5N_122-5W_late-century_delta_from_historical_30yr_window.csv",
+#             ),
+#             (
+#                 {
+#                     "var_id": "prec",
+#                     "q": 0.75,
+#                     "gwl": 3.0,
+#                     "location": "35-5N_122-5W",
+#                     "no_delta": False,
+#                     "warming_level_window": 5,
+#                 },
+#                 "stdyr_prec_75ptile_35-5N_122-5W_late-century_delta_from_historical_10yr_window.csv",
+#             ),
+#         ],
+#     )
+#     def test_get_clean_standardyr_filename(self, input_value, expected):
+#         """Test that filename is correctly formatted based on given inputs."""
+#         assert _get_clean_standardyr_filename(**input_value) == expected
