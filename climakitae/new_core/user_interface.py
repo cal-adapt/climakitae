@@ -1116,6 +1116,72 @@ class ClimateData:
         self._show_options("variable_id", msg, limit_per_group=show_n)
 
     @_with_info_verbosity
+    def show_derived_variables(self) -> None:
+        """Display all registered derived variables.
+
+        Shows both builtin and user-registered derived variables with their
+        dependencies and descriptions.
+
+        Examples
+        --------
+        >>> cd = ClimateData()
+        >>> cd.show_derived_variables()
+        Derived Variables (computed from source variables during loading):
+        ------------------------------------------------------------------
+        wind_speed_10m      depends on: u10, v10
+        heat_index          depends on: t2, rh
+        ...
+
+        """
+        from climakitae.new_core.derived_variables import list_derived_variables
+
+        msg = "Derived Variables (computed from source variables during loading):"
+        logger.info(msg)
+        logger.info("%s", "-" * len(msg))
+        try:
+            print(msg)
+            print("%s" % ("-" * len(msg)))
+        except Exception:
+            pass
+
+        try:
+            derived_vars = list_derived_variables()
+            if not derived_vars:
+                no_vars_msg = "No derived variables registered"
+                logger.info(no_vars_msg)
+                try:
+                    print(no_vars_msg)
+                except Exception:
+                    pass
+            else:
+                # Find max name length for alignment
+                max_name_len = max(len(name) for name in derived_vars.keys())
+
+                for name, info in sorted(derived_vars.items()):
+                    deps_str = ", ".join(info.depends_on)
+                    source_tag = f"[{info.source}]" if info.source == "user" else ""
+                    spacing = " " * (max_name_len - len(name) + 2)
+
+                    line = f"{name}{spacing}depends on: {deps_str} {source_tag}"
+                    if info.description:
+                        line += f"\n{' ' * (max_name_len + 2)}  └─ {info.description}"
+
+                    logger.info(line)
+                    try:
+                        print(line)
+                    except Exception:
+                        pass
+
+            logger.info("\n")
+            try:
+                print()
+            except Exception:
+                pass
+
+        except Exception as e:
+            logger.error("Error retrieving derived variables: %s", e, exc_info=True)
+
+    @_with_info_verbosity
     def show_processors(self, show_n: Optional[int] = None) -> None:
         """Display available data processors.
 

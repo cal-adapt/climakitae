@@ -270,7 +270,7 @@ def calc_diurnal_temperature_range_wrf(ds):
 
 @register_derived(
     variable="HDD_wrf",
-    query={"variable_id": ["t2max", "t2min"]},
+    query={"variable_id": ["t2"]},
     description="Heating degree days from WRF data (base 65°F)",
     units="K",
     source="builtin",
@@ -300,18 +300,19 @@ def calc_hdd_wrf(ds):
     logger.debug("Computing HDD_wrf from t2max and t2min")
 
     # Calculate daily average temperature
-    t_avg = (ds.t2max + ds.t2min) / 2
+    t_avg = ds.t2
 
     # Threshold: 65°F = 291.48K
-    threshold_k = 65 * 5 / 9 + 273.15  # 291.48K
+    threshold_k = 291.483  # 291.48K
 
     # HDD = max(0, threshold - avg_temp)
     ds["HDD_wrf"] = np.maximum(0, threshold_k - t_avg)
+    ds["HDD_wrf"] = (ds["HDD_wrf"] > 0).astype(int)  # Binary mask data
     ds["HDD_wrf"].attrs = {
         "units": "K",
         "long_name": "Heating Degree Days (WRF)",
         "comment": "Heating degree days calculated from daily average temperature with base 65°F (291.48K)",
-        "derived_from": "t2max, t2min",
+        "derived_from": "t2",
         "derived_by": "climakitae",
         "threshold": "65°F (291.48K)",
     }
@@ -320,7 +321,7 @@ def calc_hdd_wrf(ds):
 
 @register_derived(
     variable="CDD_wrf",
-    query={"variable_id": ["t2max", "t2min"]},
+    query={"variable_id": ["t2"]},
     description="Cooling degree days from WRF data (base 65°F)",
     units="K",
     source="builtin",
@@ -350,18 +351,19 @@ def calc_cdd_wrf(ds):
     logger.debug("Computing CDD_wrf from t2max and t2min")
 
     # Calculate daily average temperature
-    t_avg = (ds.t2max + ds.t2min) / 2
+    t_avg = ds.t2
 
     # Threshold: 65°F = 291.48K
-    threshold_k = 291.48
+    threshold_k = 291.483
 
     # CDD = max(0, avg_temp - threshold)
     ds["CDD_wrf"] = np.maximum(0, t_avg - threshold_k)
+    ds["CDD_wrf"] = (ds["CDD_wrf"] > 0).astype(int)  # Binary mask data
     ds["CDD_wrf"].attrs = {
         "units": "K",
         "long_name": "Cooling Degree Days (WRF)",
         "comment": "Cooling degree days calculated from daily average temperature with base 65°F (291.48K)",
-        "derived_from": "t2max, t2min",
+        "derived_from": "t2",
         "derived_by": "climakitae",
         "threshold": "65°F (291.48K)",
     }
@@ -407,6 +409,7 @@ def calc_hdd_loca(ds):
 
     # HDD = max(0, threshold - avg_temp)
     ds["HDD_loca"] = np.maximum(0, threshold_k - t_avg)
+    ds["HDD_loca"] = (ds["HDD_loca"] > 0).astype(int)  # Binary mask data
     ds["HDD_loca"].attrs = {
         "units": "K",
         "long_name": "Heating Degree Days (LOCA2)",
@@ -457,6 +460,7 @@ def calc_cdd_loca(ds):
 
     # CDD = max(0, avg_temp - threshold)
     ds["CDD_loca"] = np.maximum(0, t_avg - threshold_k)
+    ds["CDD_loca"] = (ds["CDD_loca"] > 0).astype(int)  # Binary mask data
     ds["CDD_loca"].attrs = {
         "units": "K",
         "long_name": "Cooling Degree Days (LOCA2)",

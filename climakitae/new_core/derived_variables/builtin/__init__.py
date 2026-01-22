@@ -25,10 +25,9 @@ their own function with the same variable name.
 
 # Import all builtin modules to trigger registration
 from climakitae.new_core.derived_variables.builtin import (
-    compound_extremes,
     humidity,
     temperature,
     wind,
 )
 
-__all__ = ["wind", "humidity", "temperature", "compound_extremes"]
+__all__ = ["wind", "humidity", "temperature"]
