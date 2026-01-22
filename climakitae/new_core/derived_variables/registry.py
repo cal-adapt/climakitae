@@ -108,36 +108,65 @@ def _wrap_with_metadata_preservation(
 
     @wraps(func)
     def wrapped(ds):
+        # Capture variables present before calling the function so we can detect
+        # which variables (if any) the function actually added.
+        before_vars = set(ds.data_vars) if ds is not None else set()
+
         # Call the original function
         result = func(ds)
 
-        # Find a source variable to copy metadata from
+        # Determine newly-added variables (robust to functions that name the
+        # derived variable differently than the registered name)
+        after_vars = set(result.data_vars) if result is not None else set()
+        added_vars = after_vars - before_vars
+
+        # Prefer source variable lookup on the original input dataset (ds).
+        # Fall back to checking the result in case the function mutated names.
         source_var = None
         for var in source_vars:
-            if var in result:
+            if ds is not None and var in ds:
                 source_var = var
                 break
+        if source_var is None:
+            for var in source_vars:
+                if var in result:
+                    source_var = var
+                    break
 
-        # Preserve metadata if we found a source and the derived var exists
-        if source_var and derived_var_name in result:
-            logger.debug(
-                "Preserving spatial metadata for '%s' from '%s'",
-                derived_var_name,
-                source_var,
-            )
-            preserve_spatial_metadata(result, derived_var_name, source_var)
+        # Determine the target variable(s) that should receive preserved metadata.
+        # Use the registered name if present; otherwise use any newly-added vars.
+        target_vars = set()
+        if result is not None and derived_var_name in result.data_vars:
+            target_vars.add(derived_var_name)
+        if not target_vars and added_vars:
+            target_vars.update(added_vars)
+
+        if source_var and target_vars:
+            for target in sorted(target_vars):
+                logger.debug(
+                    "Preserving spatial metadata for registered '%s' -> actual '%s' from '%s'",
+                    derived_var_name,
+                    target,
+                    source_var,
+                )
+                preserve_spatial_metadata(result, target, source_var)
         else:
             logger.warning(
-                "Could not preserve metadata for '%s': source_var=%s, in_result=%s",
+                "Could not preserve metadata for '%s': source_var=%s, targets=%s",
                 derived_var_name,
                 source_var,
-                derived_var_name in result if result is not None else "result is None",
+                list(target_vars) if target_vars else None,
             )
 
         # Drop source variables only if the derived variable was actually added
-        # and dropping was requested. This prevents accidentally removing source
-        # variables when the derived function did not produce the expected output.
-        if drop_dependencies and result is not None and derived_var_name in result.data_vars:
+        # (or some new variable was added) and dropping was requested. This
+        # prevents accidentally removing source variables when the derived
+        # function did not produce the expected output.
+        if (
+            drop_dependencies
+            and result is not None
+            and (derived_var_name in result.data_vars or bool(added_vars))
+        ):
             vars_to_drop = [v for v in source_vars if v in result.data_vars]
             if vars_to_drop:
                 logger.debug(

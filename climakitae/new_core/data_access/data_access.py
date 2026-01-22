@@ -554,6 +554,84 @@ class DataCatalog(dict):
             else:
                 result = self._apply_derived_variable(result, derived_var)
 
+            # Post-retrieval fallback: ensure derived variable has spatial metadata
+            # (CRS or grid_mapping). Intake-esm or the wrapped function may not
+            # always successfully copy CRS metadata (name mismatches or upstream
+            # behavior). If the derived variable exists but lacks CRS/grid_mapping,
+            # attempt to copy metadata from source variables listed in the query
+            # or from the registry metadata as a fallback.
+            try:
+                from climakitae.new_core.derived_variables.registry import (
+                    preserve_spatial_metadata,
+                    get_derived_variable_info,
+                )
+
+                source_vars_from_query = query.get("_source_variables") or []
+
+                for key, ds in list(result.items()):
+                    if derived_var not in ds.data_vars:
+                        # nothing to do for this dataset
+                        continue
+
+                    da = ds[derived_var]
+                    has_crs = False
+                    try:
+                        if hasattr(da, "rio") and da.rio.crs is not None:
+                            has_crs = True
+                    except Exception:
+                        has_crs = False
+
+                    has_grid_mapping = bool(da.attrs.get("grid_mapping"))
+
+                    if has_crs or has_grid_mapping:
+                        # metadata present
+                        continue
+
+                    # Determine candidate source variables
+                    candidates = (
+                        list(source_vars_from_query) if source_vars_from_query else []
+                    )
+                    if not candidates:
+                        info = get_derived_variable_info(derived_var)
+                        if info:
+                            candidates = list(info.depends_on)
+
+                    # Pick the first source var present in the dataset
+                    source_var = None
+                    for sv in candidates:
+                        if sv in ds:
+                            source_var = sv
+                            break
+
+                    if source_var:
+                        try:
+                            preserve_spatial_metadata(ds, derived_var, source_var)
+                            logger.debug(
+                                "Post-retrieval: preserved metadata for '%s' in dataset %s from '%s'",
+                                derived_var,
+                                key,
+                                source_var,
+                            )
+                        except Exception as e:
+                            logger.debug(
+                                "Post-retrieval: failed to preserve metadata for '%s' in dataset %s: %s",
+                                derived_var,
+                                key,
+                                e,
+                            )
+                    else:
+                        logger.debug(
+                            "Post-retrieval: no source variable available to preserve metadata for '%s' in dataset %s",
+                            derived_var,
+                            key,
+                        )
+            except Exception:
+                # Be defensive: failures here should not bring down data retrieval.
+                logger.debug(
+                    "Derived-variable post-retrieval metadata fallback failed",
+                    exc_info=True,
+                )
+
         return result
 
     def _apply_derived_variable(
