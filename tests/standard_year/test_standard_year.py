@@ -43,6 +43,7 @@ from climakitae.explore.standard_year_profile import (
     set_profile_metadata,
 )
 
+
 class TestGetClimateProfile:
     """Test class for get_climate_profile function.
 
