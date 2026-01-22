@@ -275,7 +275,7 @@ def calc_diurnal_temperature_range_wrf(ds):
     units="K",
     source="builtin",
 )
-def calc_hdd_wrf(ds):
+def calc_hdd_wrf(ds, threshold_k=291.483, threshold_c=None, threshold_f=None):
     """Calculate heating degree days from WRF temperature data.
 
     Parameters
@@ -302,8 +302,12 @@ def calc_hdd_wrf(ds):
     # Calculate daily average temperature
     t_avg = ds.t2
 
-    # Threshold: 65°F = 291.48K
-    threshold_k = 291.483  # 291.48K
+    # user may override threshold in K, C, or F
+    # C or F may be not None, but both cannot be set
+    if threshold_c is not None:
+        threshold_k = threshold_c + 273.15
+    elif threshold_f is not None:
+        threshold_k = (threshold_f - 32) * 5 / 9 + 273.15
 
     # HDD = max(0, threshold - avg_temp)
     ds["HDD_wrf"] = np.maximum(0, threshold_k - t_avg)
@@ -311,10 +315,10 @@ def calc_hdd_wrf(ds):
     ds["HDD_wrf"].attrs = {
         "units": "K",
         "long_name": "Heating Degree Days (WRF)",
-        "comment": "Heating degree days calculated from daily average temperature with base 65°F (291.48K)",
+        "comment": f"Heating degree days calculated from daily average temperature with base {threshold_k} K",
         "derived_from": "t2",
         "derived_by": "climakitae",
-        "threshold": "65°F (291.48K)",
+        "threshold": f"{threshold_k} K",
     }
     return ds
 
@@ -326,7 +330,7 @@ def calc_hdd_wrf(ds):
     units="K",
     source="builtin",
 )
-def calc_cdd_wrf(ds):
+def calc_cdd_wrf(ds, threshold_k=291.483, threshold_c=None, threshold_f=None):
     """Calculate cooling degree days from WRF temperature data.
 
     Parameters
@@ -353,8 +357,12 @@ def calc_cdd_wrf(ds):
     # Calculate daily average temperature
     t_avg = ds.t2
 
-    # Threshold: 65°F = 291.48K
-    threshold_k = 291.483
+    # user may override threshold in K, C, or F
+    # C or F may be not None, but both cannot be set
+    if threshold_c is not None:
+        threshold_k = threshold_c + 273.15
+    elif threshold_f is not None:
+        threshold_k = (threshold_f - 32) * 5 / 9 + 273.15
 
     # CDD = max(0, avg_temp - threshold)
     ds["CDD_wrf"] = np.maximum(0, t_avg - threshold_k)
@@ -362,10 +370,10 @@ def calc_cdd_wrf(ds):
     ds["CDD_wrf"].attrs = {
         "units": "K",
         "long_name": "Cooling Degree Days (WRF)",
-        "comment": "Cooling degree days calculated from daily average temperature with base 65°F (291.48K)",
+        "comment": f"Cooling degree days calculated from daily average temperature with base {threshold_k} K",
         "derived_from": "t2",
         "derived_by": "climakitae",
-        "threshold": "65°F (291.48K)",
+        "threshold": f"{threshold_k} K",
     }
     return ds
 
@@ -377,7 +385,7 @@ def calc_cdd_wrf(ds):
     units="K",
     source="builtin",
 )
-def calc_hdd_loca(ds):
+def calc_hdd_loca(ds, threshold_k=291.48, threshold_c=None, threshold_f=None):
     """Calculate heating degree days from LOCA2 temperature data.
 
     Parameters
@@ -404,8 +412,12 @@ def calc_hdd_loca(ds):
     # Calculate daily average temperature
     t_avg = (ds.tasmax + ds.tasmin) / 2
 
-    # Threshold: 65°F = 291.48K
-    threshold_k = 291.48
+    # user may override threshold in K, C, or F
+    # C or F may be not None, but both cannot be set
+    if threshold_c is not None:
+        threshold_k = threshold_c + 273.15
+    elif threshold_f is not None:
+        threshold_k = (threshold_f - 32) * 5 / 9 + 273.15
 
     # HDD = max(0, threshold - avg_temp)
     ds["HDD_loca"] = np.maximum(0, threshold_k - t_avg)
@@ -413,10 +425,10 @@ def calc_hdd_loca(ds):
     ds["HDD_loca"].attrs = {
         "units": "K",
         "long_name": "Heating Degree Days (LOCA2)",
-        "comment": "Heating degree days calculated from daily average temperature with base 65°F (291.48K)",
+        "comment": f"Heating degree days calculated from daily average temperature with base {threshold_k} K",
         "derived_from": "tasmax, tasmin",
         "derived_by": "climakitae",
-        "threshold": "65°F (291.48K)",
+        "threshold": f"{threshold_k} K",
     }
     return ds
 
@@ -428,7 +440,7 @@ def calc_hdd_loca(ds):
     units="K",
     source="builtin",
 )
-def calc_cdd_loca(ds):
+def calc_cdd_loca(ds, threshold_k=291.48, threshold_c=None, threshold_f=None):
     """Calculate cooling degree days from LOCA2 temperature data.
 
     Parameters
@@ -455,8 +467,12 @@ def calc_cdd_loca(ds):
     # Calculate daily average temperature
     t_avg = (ds.tasmax + ds.tasmin) / 2
 
-    # Threshold: 65°F = 291.48K
-    threshold_k = 291.48
+    # user may override threshold in K, C, or F
+    # C or F may be not None, but both cannot be set
+    if threshold_c is not None:
+        threshold_k = threshold_c + 273.15
+    elif threshold_f is not None:
+        threshold_k = (threshold_f - 32) * 5 / 9 + 273.15
 
     # CDD = max(0, avg_temp - threshold)
     ds["CDD_loca"] = np.maximum(0, t_avg - threshold_k)
@@ -464,9 +480,9 @@ def calc_cdd_loca(ds):
     ds["CDD_loca"].attrs = {
         "units": "K",
         "long_name": "Cooling Degree Days (LOCA2)",
-        "comment": "Cooling degree days calculated from daily average temperature with base 65°F (291.48K)",
+        "comment": f"Cooling degree days calculated from daily average temperature with base {threshold_k} K",
         "derived_from": "tasmax, tasmin",
         "derived_by": "climakitae",
-        "threshold": "65°F (291.48K)",
+        "threshold": f"{threshold_k} K",
     }
     return ds
