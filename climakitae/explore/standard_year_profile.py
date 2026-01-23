@@ -482,7 +482,7 @@ def _handle_approach_params(**kwargs: Any) -> Any:
     return kwargs
 
 
-def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
+def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset, Any]:
     """
     Backend function for retrieving data needed for computing climate profiles.
 
@@ -683,8 +683,8 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
         "approach": "Warming Level",
         "warming_level": [1.2],  # Historic global warming level
         "warming_level_window": kwargs.get(
-            "warming_level_window", None
-        ),  # Use user input warming level window, if provided
+            "warming_level_window", 15
+        ),  # Use user input warming level window, if provided. Otherwise, default to 15. 
         "cached_area": kwargs.get("cached_area", None),
         "latitude": kwargs.get("latitude", None),
         "longitude": kwargs.get("longitude", None),
@@ -699,7 +699,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
     get_data_params.update(kwargs)
     future_data = get_data(**get_data_params)
 
-    return historic_data, future_data
+    return historic_data, future_data, get_data_params
 
 
 def get_climate_profile(**kwargs: Any) -> pd.DataFrame:
@@ -757,9 +757,33 @@ def get_climate_profile(**kwargs: Any) -> pd.DataFrame:
     with tqdm(
         total=2 if not no_delta else 1, desc="Data retrieval", unit="dataset"
     ) as pbar:
-        historic_data, future_data = retrieve_profile_data(**kwargs)
+        historic_data, future_data, final_params = retrieve_profile_data(**kwargs)
         pbar.update(2)
-    
+
+    #!
+    # Notify users of default values being used in the absence of input parameters
+    # relevant for warming_level_window and warming_level
+    input_warming_level = kwargs.get("warming_level", None)
+    updated_warming_level = final_params.get("warming_level", None)
+
+    input_warming_level_window = kwargs.get("warming_level_window", None)
+    updated_warming_level_window = final_params.get("warming_level_window", None)
+
+    match input_warming_level, input_warming_level_window:
+        case None, None:
+            print(
+                f"No 'warming_level' and 'warming_level_window' provided. \n Proceeding with default values \n'warming_level'= {updated_warming_level} \n 'warming_level_window' = {updated_warming_level_window}"
+            )
+        case None, int():
+            print(
+                f"No 'warming_level' provided. \n Proceeding with default value \n'warming_level'= {updated_warming_level}"
+            )
+        case list(), None:
+            print(
+                f"No 'warming_level_window' provided. \n Proceeding with default value \n'warming_level_window'= {updated_warming_level_window}"
+            )
+        case _:
+            None
 
     # catch invalid selections that return None
     if future_data is None and historic_data is None:
