@@ -246,14 +246,14 @@ class TestDropLeapDaysMultipleLeapYears:
             "2001-02-28", "2001-03-01",  # 2001 is not a leap year
         ])
         dataarray = xr.DataArray(
-            data=list(range(1, 10)),
+            data=list(range(1, 9)),  # 8 values to match 8 dates
             dims=["time"],
             coords={"time": dates},
         )
 
         result = processor.execute(dataarray, context={})
 
-        # Should have 7 timestamps (9 original - 2 leap days)
-        assert result.time.size == 7
+        # Should have 6 timestamps (8 original - 2 leap days)
+        assert result.time.size == 6
         # Verify no Feb 29 dates remain
         assert not any((result.time.dt.month == 2) & (result.time.dt.day == 29))
