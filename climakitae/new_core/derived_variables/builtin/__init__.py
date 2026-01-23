@@ -12,8 +12,6 @@ humidity
     Relative humidity, dew point, and specific humidity.
 temperature
     Heat index, wind chill, and degree days.
-compound_extremes
-    Compound extreme event indices (CHTDEI, CHTREI).
 
 Notes
 -----

@@ -204,7 +204,7 @@ def calc_wind_chill(ds):
     units="K",
     source="builtin",
 )
-def calc_diurnal_temperature_range(ds):
+def calc_diurnal_temperature_range_loca(ds):
     """Calculate diurnal (daily) temperature range.
 
     Parameters
@@ -217,13 +217,13 @@ def calc_diurnal_temperature_range(ds):
     Returns
     -------
     xr.Dataset
-        Dataset with 'diurnal_temperature_range' variable added (K).
+        Dataset with 'diurnal_temperature_range_loca' variable added (K).
 
     """
-    logger.debug("Computing diurnal_temperature_range from tasmax and tasmin")
+    logger.debug("Computing diurnal_temperature_range_loca from tasmax and tasmin")
 
-    ds["diurnal_temperature_range"] = ds.tasmax - ds.tasmin
-    ds["diurnal_temperature_range"].attrs = {
+    ds["diurnal_temperature_range_loca"] = ds.tasmax - ds.tasmin
+    ds["diurnal_temperature_range_loca"].attrs = {
         "units": "K",
         "long_name": "Diurnal Temperature Range",
         "comment": "Daily maximum minus daily minimum temperature",

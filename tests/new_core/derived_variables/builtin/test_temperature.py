@@ -3,7 +3,7 @@ import numpy as np
 from climakitae.new_core.derived_variables.builtin.temperature import (
     calc_heat_index,
     calc_wind_chill,
-    calc_diurnal_temperature_range,
+    calc_diurnal_temperature_range_loca,
     calc_diurnal_temperature_range_wrf,
     calc_hdd_wrf,
     calc_cdd_wrf,
@@ -99,7 +99,7 @@ def test_wind_chill_formula(wrf_dataset):
 
 def test_diurnal_ranges_and_degree_days(loca_dataset, wrf_dataset):
     loca = loca_dataset.copy()
-    out_loca = calc_diurnal_temperature_range(loca.copy())
+    out_loca = calc_diurnal_temperature_range_loca(loca.copy())
     assert np.allclose(
         out_loca.diurnal_temperature_range.values, (loca.tasmax - loca.tasmin).values
     )
