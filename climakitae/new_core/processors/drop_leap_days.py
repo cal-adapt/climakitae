@@ -102,6 +102,9 @@ class DropLeapDays(DataProcessor):
                 # Pass through unchanged
                 return result
             case _:
+                logger.error(
+                    "Invalid value for DropLeapDays processor, must be 'yes' or 'no'"
+                )
                 raise ValueError(
                     f"Invalid value for {self.name} processor: {self.value}. "
                     f"Valid values are: {', '.join(self.valid_values)}."
@@ -193,6 +196,11 @@ class DropLeapDays(DataProcessor):
             logger.debug("No time dimension found, returning data unchanged")
             return obj
 
-        # Create mask for non-leap days (not Feb 29)
-        is_not_leap_day = ~((obj.time.dt.month == 2) & (obj.time.dt.day == 29))
-        return obj.sel(time=is_not_leap_day)
+        # Create a boolean mask for leap days
+        is_leap_day = (obj.time.dt.month == 2) & (obj.time.dt.day == 29)
+        import pdb
+
+        pdb.set_trace()
+        return obj.drop_sel(time=is_leap_day)
+        # is_not_leap_day = ~((obj.time.dt.month == 2) & (obj.time.dt.day == 29))
+        # return obj.sel(time=is_not_leap_day)
