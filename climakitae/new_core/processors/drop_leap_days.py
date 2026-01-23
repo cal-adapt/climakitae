@@ -196,20 +196,13 @@ class DropLeapDays(DataProcessor):
             logger.debug("No time dimension found, returning data unchanged")
             return obj
 
-        import pdb
-
-        pdb.set_trace()
         # Create a boolean mask for leap days
         leap_days = obj.sel(
             time=(obj.time.dt.month == 2) & (obj.time.dt.day == 29)
         ).time
 
         # Dropping leap days from `obj`
-        return obj.drop_sel(time=leap_days)
+        if len(leap_days) > 0:
+            return obj.drop_sel(time=leap_days)
 
-        import pdb
-
-        pdb.set_trace()
-        return obj.drop_sel(time=is_leap_day)
-        # is_not_leap_day = ~((obj.time.dt.month == 2) & (obj.time.dt.day == 29))
-        # return obj.sel(time=is_not_leap_day)
+        return obj
