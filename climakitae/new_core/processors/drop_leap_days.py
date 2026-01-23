@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 @register_processor(
     "drop_leap_days",
-    priority=150,
+    priority=1,
 )
 class DropLeapDays(DataProcessor):
     """
