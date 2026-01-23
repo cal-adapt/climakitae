@@ -121,10 +121,15 @@ class DropLeapDays(DataProcessor):
                 for key, value in result.items():
                     processed_data[key] = self._drop_leap_days(value)
                 self.update_context(context)
+                logger.info(
+                    "Dropped leap days from %d data entries",
+                    len(processed_data),
+                )
                 return processed_data
 
             case xr.DataArray() | xr.Dataset():
                 self.update_context(context)
+                logger.info("Dropped leap days from data")
                 return self._drop_leap_days(result)
 
             case list() | tuple():
@@ -132,6 +137,10 @@ class DropLeapDays(DataProcessor):
                 for value in result:
                     processed_data.append(self._drop_leap_days(value))
                 self.update_context(context)
+                logger.info(
+                    "Dropped leap days from %d data entries",
+                    len(processed_data),
+                )
                 return type(result)(processed_data)
 
             case _:
