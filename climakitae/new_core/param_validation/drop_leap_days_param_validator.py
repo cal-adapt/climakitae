@@ -11,9 +11,7 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 
 
 @register_processor_validator("drop_leap_days")
-def validate_drop_leap_days_param(
-    value: str, **kwargs: Any
-) -> bool:  # noqa: ARG001
+def validate_drop_leap_days_param(value: str, **kwargs: Any) -> bool:  # noqa: ARG001
     """Validate the parameters provided to the DropLeapDays Processor.
 
     Parameters
