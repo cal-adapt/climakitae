@@ -180,6 +180,10 @@ class DataCatalog(dict):
 
             self.catalog_df = self.merge_catalogs()
             stations_df = read_csv_file(STATIONS_CSV_PATH)
+            # Convert string columns to object dtype to avoid StringDtype issues in pandas 2.2+
+            for col in stations_df.select_dtypes(include=['string', 'object']).columns:
+                if col not in ['LON_X', 'LAT_Y']:
+                    stations_df[col] = stations_df[col].astype('object')
             self["stations"] = gpd.GeoDataFrame(
                 stations_df,
                 crs="EPSG:4326",

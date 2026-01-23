@@ -71,10 +71,11 @@ class TestBiasCorrectStationDataPreprocessing:
         ds.elevation.attrs["units"] = "m"
 
         # Create station metadata GeoDataFrame
+        # Use object dtype for string columns to avoid StringDtype issues in pandas 2.2+
         stations_gdf = gpd.GeoDataFrame(
             {
-                "station id": [1234],
-                "station": ["KSAC"],
+                "station id": pd.Series([1234], dtype='object'),
+                "station": pd.Series(["KSAC"], dtype='object'),
                 "geometry": [Point(-121.5, 38.5)],
             }
         )
@@ -108,8 +109,12 @@ class TestBiasCorrectStationDataLoading:
         proc = self.ProcClass({"stations": ["KSAC"]})
 
         # Provide a minimal catalog with stations table
+        # Use object dtype for string columns to avoid StringDtype issues in pandas 2.2+
         proc.catalog = {
-            "stations": pd.DataFrame({"station id": [1234], "station": ["KSAC"]})
+            "stations": pd.DataFrame({
+                "station id": pd.Series([1234], dtype='object'),
+                "station": pd.Series(["KSAC"], dtype='object')
+            })
         }
 
         # Mock convert_stations_to_points
