@@ -507,10 +507,9 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
 
     Returns
     -------
-    Tuple[xr.Dataset, xr.Dataset]
-        (historic_data, future_data) - Historical data at 1.2°C warming,
+    Tuple[xr.Dataset, xr.Dataset, Dict]
+        (historic_data, future_data, get_data_params) - Historical data at 1.2°C warming,
         and future data at specified warming levels.
-
     Raises
     ------
     ValueError
@@ -760,6 +759,7 @@ def get_climate_profile(**kwargs: Any) -> pd.DataFrame:
     ) as pbar:
         historic_data, future_data = retrieve_profile_data(**kwargs)
         pbar.update(2)
+    
 
     # catch invalid selections that return None
     if future_data is None and historic_data is None:
