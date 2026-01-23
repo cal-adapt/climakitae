@@ -133,9 +133,9 @@ class DropLeapDays(DataProcessor):
         if _NEW_ATTRS_KEY not in context:
             context[_NEW_ATTRS_KEY] = {}
 
-        context[_NEW_ATTRS_KEY][self.name] = (
-            "Leap days (February 29) have been removed from the data."
-        )
+        context[_NEW_ATTRS_KEY][
+            self.name
+        ] = "Leap days (February 29) have been removed from the data."
 
     def set_data_accessor(self, catalog: DataCatalog):
         """Set the data accessor for the processor (not used)."""

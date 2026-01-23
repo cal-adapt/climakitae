@@ -240,11 +240,18 @@ class TestDropLeapDaysMultipleLeapYears:
     ) -> None:
         """Test dropping leap days across multiple leap years."""
         # Create dates spanning multiple leap years
-        dates = pd.to_datetime([
-            "2000-02-28", "2000-02-29", "2000-03-01",  # 2000 is a leap year
-            "2004-02-28", "2004-02-29", "2004-03-01",  # 2004 is a leap year
-            "2001-02-28", "2001-03-01",  # 2001 is not a leap year
-        ])
+        dates = pd.to_datetime(
+            [
+                "2000-02-28",
+                "2000-02-29",
+                "2000-03-01",  # 2000 is a leap year
+                "2004-02-28",
+                "2004-02-29",
+                "2004-03-01",  # 2004 is a leap year
+                "2001-02-28",
+                "2001-03-01",  # 2001 is not a leap year
+            ]
+        )
         dataarray = xr.DataArray(
             data=list(range(1, 9)),  # 8 values to match 8 dates
             dims=["time"],
