@@ -49,11 +49,11 @@ def test_heat_index_high_temp_high_rh(wrf_dataset):
         + c2 * t_f
         + c3 * rh
         + c4 * t_f * rh
-        + c5 * t_f ** 2
-        + c6 * rh ** 2
-        + c7 * t_f ** 2 * rh
-        + c8 * t_f * rh ** 2
-        + c9 * t_f ** 2 * rh ** 2
+        + c5 * t_f**2
+        + c6 * rh**2
+        + c7 * t_f**2 * rh
+        + c8 * t_f * rh**2
+        + c9 * t_f**2 * rh**2
     )
 
     low_rh_mask = (rh < 13) & (t_f >= 80) & (t_f <= 112)
@@ -79,15 +79,15 @@ def test_wind_chill_formula(wrf_dataset):
 
     out = calc_wind_chill(ds.copy())
 
-    wind_speed_ms = np.sqrt(ds.u10.values ** 2 + ds.v10.values ** 2)
+    wind_speed_ms = np.sqrt(ds.u10.values**2 + ds.v10.values**2)
     wind_speed_mph = wind_speed_ms * 2.237
     t_f = (ds.t2 - 273.15) * 9.0 / 5.0 + 32.0
 
     wind_chill_f = (
         35.74
         + 0.6215 * t_f
-        - 35.75 * (wind_speed_mph ** 0.16)
-        + 0.4275 * t_f * (wind_speed_mph ** 0.16)
+        - 35.75 * (wind_speed_mph**0.16)
+        + 0.4275 * t_f * (wind_speed_mph**0.16)
     )
 
     valid_mask = (t_f <= 50) & (wind_speed_mph > 3)
@@ -100,11 +100,15 @@ def test_wind_chill_formula(wrf_dataset):
 def test_diurnal_ranges_and_degree_days(loca_dataset, wrf_dataset):
     loca = loca_dataset.copy()
     out_loca = calc_diurnal_temperature_range(loca.copy())
-    assert np.allclose(out_loca.diurnal_temperature_range.values, (loca.tasmax - loca.tasmin).values)
+    assert np.allclose(
+        out_loca.diurnal_temperature_range.values, (loca.tasmax - loca.tasmin).values
+    )
 
     wrf = wrf_dataset.copy()
     out_wrf = calc_diurnal_temperature_range_wrf(wrf.copy())
-    assert np.allclose(out_wrf.diurnal_temperature_range_wrf.values, (wrf.t2max - wrf.t2min).values)
+    assert np.allclose(
+        out_wrf.diurnal_temperature_range_wrf.values, (wrf.t2max - wrf.t2min).values
+    )
 
     # HDD / CDD for WRF using t2
     wrf2 = wrf_dataset.copy()

@@ -53,7 +53,9 @@ def test_register_user_function_success_and_drop_flag():
     reg._DERIVED_METADATA.clear()
     reg._DERIVED_REGISTRY = None
 
-    reg.register_user_function("myvar", ["t2"], make_myvar, description="d", units="K", drop_dependencies=False)
+    reg.register_user_function(
+        "myvar", ["t2"], make_myvar, description="d", units="K", drop_dependencies=False
+    )
 
     assert reg.is_derived_variable("myvar")
     info = reg.get_derived_variable_info("myvar")
@@ -73,7 +75,13 @@ def test_register_derived_decorator_and_wrapping():
     reg._DERIVED_METADATA.clear()
     reg._DERIVED_REGISTRY = None
 
-    @reg.register_derived(variable="tmp_range", query={"variable_id": ["t2"]}, description="range", units="K", drop_dependencies=False)
+    @reg.register_derived(
+        variable="tmp_range",
+        query={"variable_id": ["t2"]},
+        description="range",
+        units="K",
+        drop_dependencies=False,
+    )
     def tmp_range(ds):
         ds = ds.copy()
         ds["tmp_range"] = ds["t2"] + 1
@@ -86,7 +94,12 @@ def test_register_derived_decorator_and_wrapping():
     assert info.source == "builtin"
 
     # call wrapped function via metadata and ensure it preserves source when drop_dependencies=False
-    ds = xr.Dataset({"t2": ("time", np.array([291.0])),}, coords={"time": [0]})
+    ds = xr.Dataset(
+        {
+            "t2": ("time", np.array([291.0])),
+        },
+        coords={"time": [0]},
+    )
     out = info.func(ds.copy())
     assert "tmp_range" in out.data_vars
     assert "t2" in out.data_vars
@@ -111,6 +124,7 @@ def test_preserve_spatial_metadata_copies_coords_and_attrs():
     assert "Lambert_Conformal" in ds["derived"].coords
     assert ds["derived"].attrs.get("grid_mapping") == "gridmap"
 
+
 def test_wrap_with_ds_and_result_having_data_vars():
     # Wrapper should detect added vars when both ds and result have data_vars
     def fn(ds):
@@ -118,7 +132,9 @@ def test_wrap_with_ds_and_result_having_data_vars():
         ds["newvar"] = ds["t2"] * 2
         return ds
 
-    wrapped = reg._wrap_with_metadata_preservation(fn, "newvar", ["t2"], drop_dependencies=True)
+    wrapped = reg._wrap_with_metadata_preservation(
+        fn, "newvar", ["t2"], drop_dependencies=True
+    )
     ds = xr.Dataset({"t2": ("time", np.array([290.0]))}, coords={"time": [0]})
     result = wrapped(ds)
     assert "newvar" in result.data_vars
@@ -133,7 +149,9 @@ def test_wrap_source_var_lookup_from_original_ds():
         ds["derived"] = ds["t2"] + 1
         return ds
 
-    wrapped = reg._wrap_with_metadata_preservation(fn, "derived", ["t2"], drop_dependencies=False)
+    wrapped = reg._wrap_with_metadata_preservation(
+        fn, "derived", ["t2"], drop_dependencies=False
+    )
     ds = xr.Dataset({"t2": ("time", np.array([290.0]))}, coords={"time": [0]})
     ds["t2"].attrs["grid_mapping"] = "crs"
     result = wrapped(ds)
@@ -149,7 +167,9 @@ def test_wrap_multiple_added_vars_iteration():
         ds["var2"] = ds["t2"] + 2
         return ds
 
-    wrapped = reg._wrap_with_metadata_preservation(fn, "var1", ["t2"], drop_dependencies=True)
+    wrapped = reg._wrap_with_metadata_preservation(
+        fn, "var1", ["t2"], drop_dependencies=True
+    )
     ds = xr.Dataset({"t2": ("time", np.array([290.0]))}, coords={"time": [0]})
     ds["t2"].attrs["grid_mapping"] = "test_grid"
     result = wrapped(ds)
@@ -187,7 +207,7 @@ def test_preserve_spatial_metadata_lambert_conformal_coord():
 
 def test_preserve_spatial_metadata_rioxarray_grid_mapping_crs():
     """Test preserve_spatial_metadata with rioxarray when derived has grid_mapping.
-    
+
     This test covers lines 274-291 in registry.py, where the derived variable
     has a grid_mapping attribute and we try to parse CRS from it, both when
     it succeeds and when it raises an exception.
@@ -204,7 +224,7 @@ def test_preserve_spatial_metadata_rioxarray_grid_mapping_crs():
     derived = xr.DataArray(np.array([0.0]), dims=("time",), coords={"time": times})
 
     ds = xr.Dataset({"source": src, "derived": derived}, coords={"time": times})
-    
+
     # Add a grid_mapping coordinate with CRS-parseable content
     ds.coords["Lambert_Conformal"] = xr.DataArray(
         0,
@@ -215,36 +235,38 @@ def test_preserve_spatial_metadata_rioxarray_grid_mapping_crs():
             "latitude_of_projection_origin": 40.0,
             "false_easting": 0.0,
             "false_northing": 0.0,
-        }
+        },
     )
-    
+
     # Set grid_mapping on derived variable (not source, to test the elif branch)
     ds["derived"].attrs["grid_mapping"] = "Lambert_Conformal"
 
     # This exercises lines 274-286 (successful CRS parsing)
     reg.preserve_spatial_metadata(ds, "derived", "source")
-    
+
     # If successful, derived should still have the grid_mapping
     assert ds["derived"].attrs.get("grid_mapping") == "Lambert_Conformal"
-    
+
     # Test 2: Exception during CRS access (lines 286-291)
     # Use mock to make .rio.crs raise an exception
     from unittest.mock import PropertyMock, patch
-    
+
     src2 = xr.DataArray(np.array([1.0]), dims=("time",), coords={"time": times})
     derived2 = xr.DataArray(np.array([0.0]), dims=("time",), coords={"time": times})
     ds2 = xr.Dataset({"source": src2, "derived": derived2}, coords={"time": times})
-    
+
     ds2.coords["crs_coord"] = xr.DataArray(0)
     ds2["derived"].attrs["grid_mapping"] = "crs_coord"
-    
+
     # Mock .rio.crs to raise an exception when accessed
-    with patch.object(type(ds2["derived"].rio), "crs", new_callable=PropertyMock) as mock_crs:
+    with patch.object(
+        type(ds2["derived"].rio), "crs", new_callable=PropertyMock
+    ) as mock_crs:
         mock_crs.side_effect = RuntimeError("Simulated CRS parsing error")
-        
+
         # This should exercise lines 286-291 (exception handler)
         # The function should handle the exception gracefully and not crash
         reg.preserve_spatial_metadata(ds2, "derived", "source")
-    
+
     # Function should complete without error despite CRS parsing failure
     assert ds2["derived"].attrs.get("grid_mapping") == "crs_coord"

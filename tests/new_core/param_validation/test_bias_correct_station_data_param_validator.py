@@ -194,7 +194,7 @@ class TestValidateBiasCorrectStationDataParam:
         """Test that missing query returns False."""
         mock_get_metadata.return_value = self.mock_station_metadata
         mock_find_station.return_value = "Sacramento Executive Airport (KSAC)"
-        
+
         value = {"stations": ["KSAC"]}
         result = validate_bias_correction_station_data_param(value, query=None)
         assert result is False

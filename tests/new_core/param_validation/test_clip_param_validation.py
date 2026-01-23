@@ -43,7 +43,7 @@ def mock_boundaries():
         "counties": ["Los Angeles County", "San Francisco County", "Kern"],
         "electric_utilities": ["PG&E", "SCE", "SDG&E"],
     }
-    
+
     with patch(
         "climakitae.new_core.param_validation.clip_param_validator.DataCatalog"
     ) as mock_catalog:
@@ -275,7 +275,9 @@ class TestValidateListParam:
             result = _validate_list_param(["CA", "   ", "NV"])
             assert result is False
 
-    def test_validate_list_with_invalid_boundary_keys_returns_false(self, mock_boundaries):
+    def test_validate_list_with_invalid_boundary_keys_returns_false(
+        self, mock_boundaries
+    ):
         """Test _validate_list_param with invalid boundary keys warns but continues."""
         # INVALID_KEY doesn't match any boundaries and triggers a warning,
         # but the validation logic currently treats False (returned by

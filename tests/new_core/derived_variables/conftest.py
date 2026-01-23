@@ -48,7 +48,11 @@ def loca_dataset():
             "tasmax": (("time", "lat", "lon"), tasmax),
             "tasmin": (("time", "lat", "lon"), tasmin),
         },
-        coords={"time": time, "lat": np.linspace(32, 42, 2), "lon": np.linspace(-125, -114, 2)},
+        coords={
+            "time": time,
+            "lat": np.linspace(32, 42, 2),
+            "lon": np.linspace(-125, -114, 2),
+        },
     )
     return ds
 
@@ -60,7 +64,10 @@ def wind_dataset():
     u10 = np.linspace(-2.0, 2.0, num=np.prod(shape)).reshape(shape)
     v10 = np.linspace(1.0, -1.0, num=np.prod(shape)).reshape(shape)
 
-    ds = xr.Dataset({"u10": (("time", "y", "x"), u10), "v10": (("time", "y", "x"), v10)}, coords={"time": time, "y": np.arange(2), "x": np.arange(2)})
+    ds = xr.Dataset(
+        {"u10": (("time", "y", "x"), u10), "v10": (("time", "y", "x"), v10)},
+        coords={"time": time, "y": np.arange(2), "x": np.arange(2)},
+    )
     return ds
 
 

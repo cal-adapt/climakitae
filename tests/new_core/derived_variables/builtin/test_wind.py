@@ -10,7 +10,7 @@ def test_wind_speed_and_direction(wind_dataset):
     ds = wind_dataset.copy()
 
     out_speed = calc_wind_speed_10m(ds.copy())
-    expected_speed = np.sqrt(ds.u10.values ** 2 + ds.v10.values ** 2)
+    expected_speed = np.sqrt(ds.u10.values**2 + ds.v10.values**2)
     assert np.allclose(out_speed.wind_speed_10m.values, expected_speed)
 
     out_dir = calc_wind_direction_10m(ds.copy())
