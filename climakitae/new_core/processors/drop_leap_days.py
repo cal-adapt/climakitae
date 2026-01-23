@@ -32,8 +32,8 @@ class DropLeapDays(DataProcessor):
 
     Parameters
     ----------
-    value : bool
-        If True, drop leap days. If False, pass through data unchanged.
+    value : str
+        If "yes", drop leap days. If "no", pass through data unchanged.
 
     Methods
     -------
@@ -45,17 +45,18 @@ class DropLeapDays(DataProcessor):
         Set the data accessor for the processor (not used).
     """
 
-    def __init__(self, value: bool = True):
+    def __init__(self, value: str = "yes"):
         """
         Initialize the DropLeapDays processor.
 
         Parameters
         ----------
-        value : bool, optional
-            If True, drop leap days. If False, pass through data unchanged.
-            Default is True.
+        value : str, optional
+            If "yes", drop leap days. If "no", pass through data unchanged.
+            Default is "yes".
         """
-        self.value = value
+        self.valid_values = ["yes", "no"]
+        self.value = value.lower()
         self.name = "drop_leap_days"
         logger.debug("DropLeapDays initialized with value=%s", self.value)
 
@@ -82,6 +83,11 @@ class DropLeapDays(DataProcessor):
         Union[xr.Dataset, xr.DataArray, Iterable[xr.Dataset | xr.DataArray]]
             The processed data with leap days removed. This can be a single
             Dataset/DataArray or an iterable of them.
+
+        Raises
+        ------
+        ValueError
+            If the value is not one of the valid values.
         """
         logger.debug(
             "DropLeapDays.execute called with value=%s result_type=%s",
@@ -89,10 +95,26 @@ class DropLeapDays(DataProcessor):
             type(result).__name__,
         )
 
-        if not self.value:
-            # Pass through unchanged if disabled
-            return result
+        match self.value:
+            case "yes":
+                return self._process_data(result, context)
+            case "no":
+                # Pass through unchanged
+                return result
+            case _:
+                raise ValueError(
+                    f"Invalid value for {self.name} processor: {self.value}. "
+                    f"Valid values are: {', '.join(self.valid_values)}."
+                )
 
+    def _process_data(
+        self,
+        result: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        context: Dict[str, Any],
+    ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        """Process data by removing leap days."""
         match result:
             case dict():
                 processed_data = {}

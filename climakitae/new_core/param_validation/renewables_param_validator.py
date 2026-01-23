@@ -76,6 +76,9 @@ class RenewablesValidator(ParameterValidator):
         # Add default filtering for climate model data
         defaults["filter_unadjusted_models"] = "yes"
 
+        # Drop leap days by default
+        defaults["drop_leap_days"] = "yes"
+
         # Set default concatenation
         concat_dim = "time"
 

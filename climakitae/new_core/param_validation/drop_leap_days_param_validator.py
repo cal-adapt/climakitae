@@ -1,75 +1,53 @@
-"""
-Validator for parameters provided to Drop Leap Days Processor.
-"""
+"""Validator for parameters provided to DropLeapDays Processor."""
 
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
 )
 
-# Module logger
-logger = logging.getLogger(__name__)
-
 
 @register_processor_validator("drop_leap_days")
 def validate_drop_leap_days_param(
-    value: bool,
-    **kwargs: Any,
-) -> bool:
-    """
-    Validate the parameters provided to the Drop Leap Days Processor.
-
-    This function checks the value provided to the Drop Leap Days Processor
-    and ensures that it meets the expected criteria. Will raise a user warning
-    and return False if the value is not valid.
+    value: str, **kwargs: Any
+) -> bool:  # noqa: ARG001
+    """Validate the parameters provided to the DropLeapDays Processor.
 
     Parameters
     ----------
-    value : bool
-        Whether to drop leap days. Must be a boolean value (True or False).
+    value : str
+        The value to control leap day dropping behavior. Supported values:
+        "yes" (default): Drop leap days (February 29)
+        "no": Keep leap days
 
     Returns
     -------
     bool
-        True if the parameter is valid, False otherwise.
+        True if all parameters are valid, False otherwise
+
     """
-    # kwargs unused but required for signature compatibility
-    del kwargs
+    # Module logger
+    logger = logging.getLogger(__name__)
 
-    if value is UNSET:
-        # UNSET is valid - processor will use default behavior
-        return True
-
-    if not _check_input_type(value):
+    if not isinstance(value, str):
+        msg = (
+            "\n\nDropLeapDays Processor expects a string value. "
+            "\nPlease check the configuration."
+        )
+        logger.warning(msg)
         return False
 
-    return True
+    valid_values = ["yes", "no"]
 
+    if value.lower() not in valid_values:
+        msg = (
+            f"\n\nInvalid value '{value}' for DropLeapDays Processor. "
+            f"\nSupported values are: {valid_values}"
+        )
+        logger.warning(msg)
+        return False
 
-def _check_input_type(value: Any) -> bool:
-    """
-    Check if the input value is a boolean.
-
-    Parameters
-    ----------
-    value : Any
-        The value to check.
-
-    Returns
-    -------
-    bool
-        True if the input type is valid (boolean), False otherwise.
-    """
-    if isinstance(value, bool):
-        return True
-
-    logger.warning(
-        "Drop Leap Days Processor expects a boolean (True or False). Received type: %s",
-        type(value).__name__,
-    )
-    return False
+    return True  # All parameters are valid

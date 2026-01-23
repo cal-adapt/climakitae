@@ -16,13 +16,13 @@ from climakitae.new_core.processors.drop_leap_days import DropLeapDays
 @pytest.fixture
 def processor():
     """Fixture to create a DropLeapDays processor instance."""
-    yield DropLeapDays(value=True)
+    yield DropLeapDays(value="yes")
 
 
 @pytest.fixture
 def processor_disabled():
     """Fixture to create a disabled DropLeapDays processor instance."""
-    yield DropLeapDays(value=False)
+    yield DropLeapDays(value="no")
 
 
 @pytest.fixture
@@ -92,20 +92,27 @@ class TestDropLeapDaysInit:
     def test_init_default(self):
         """Test default initialization of DropLeapDays processor."""
         processor = DropLeapDays()
-        assert processor.value is True
+        assert processor.value == "yes"
         assert processor.name == "drop_leap_days"
 
     def test_init_enabled(self):
-        """Test initialization with value=True."""
-        processor = DropLeapDays(value=True)
-        assert processor.value is True
+        """Test initialization with value='yes'."""
+        processor = DropLeapDays(value="yes")
+        assert processor.value == "yes"
         assert processor.name == "drop_leap_days"
 
     def test_init_disabled(self):
-        """Test initialization with value=False."""
-        processor = DropLeapDays(value=False)
-        assert processor.value is False
+        """Test initialization with value='no'."""
+        processor = DropLeapDays(value="no")
+        assert processor.value == "no"
         assert processor.name == "drop_leap_days"
+
+    def test_init_case_insensitive(self):
+        """Test that value is case insensitive."""
+        processor = DropLeapDays(value="YES")
+        assert processor.value == "yes"
+        processor = DropLeapDays(value="No")
+        assert processor.value == "no"
 
 
 class TestDropLeapDaysExecute:
@@ -210,6 +217,12 @@ class TestDropLeapDaysExecute:
         with pytest.warns(UserWarning, match="Invalid data type for DropLeapDays"):
             result = processor.execute(42, context={})
         assert result == 42
+
+    def test_invalid_value_raises(self) -> None:
+        """Test that an invalid value raises ValueError."""
+        processor = DropLeapDays(value="invalid")
+        with pytest.raises(ValueError, match="Invalid value for drop_leap_days"):
+            processor.execute(xr.DataArray([1, 2, 3]), context={})
 
 
 class TestDropLeapDaysUpdateContext:
