@@ -684,7 +684,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset, Any]:
         "warming_level": [1.2],  # Historic global warming level
         "warming_level_window": kwargs.get(
             "warming_level_window", 15
-        ),  # Use user input warming level window, if provided. Otherwise, default to 15. 
+        ),  # Use user input warming level window, if provided. Otherwise, default to 15.
         "cached_area": kwargs.get("cached_area", None),
         "latitude": kwargs.get("latitude", None),
         "longitude": kwargs.get("longitude", None),
@@ -716,10 +716,10 @@ def get_climate_profile(**kwargs: Any) -> pd.DataFrame:
         Keyword arguments for data selection. Allowed keys:
         - variable (Optional) : str, default "Air Temperature at 2m"
         - resolution (Optional) : str, default "3 km"
-        - approach (Optional) : str, "Warming Level" or "Time"
-        - centered (Optional) : int
+        - approach (Optional) : str, "Warming Level" or "Time", default "Warming Level"
+        - centered_year (Optional) : int
         - warming_level (Required) : List[float], default [1.2]
-        - warming_level_window (Optional): int in range [5,25]
+        - warming_level_window (Optional): int in range [5,25], default 15
         - cached_area (Optional) : str or List[str]
         - units (Optional) : str, default "degF"
         - latitude (Optional) : float or tuple
@@ -760,30 +760,21 @@ def get_climate_profile(**kwargs: Any) -> pd.DataFrame:
         historic_data, future_data, final_params = retrieve_profile_data(**kwargs)
         pbar.update(2)
 
-    #!
     # Notify users of default values being used in the absence of input parameters
     # relevant for warming_level_window and warming_level
-    input_warming_level = kwargs.get("warming_level", None)
-    updated_warming_level = final_params.get("warming_level", None)
-
-    input_warming_level_window = kwargs.get("warming_level_window", None)
-    updated_warming_level_window = final_params.get("warming_level_window", None)
-
-    match input_warming_level, input_warming_level_window:
-        case None, None:
-            print(
-                f"No 'warming_level' and 'warming_level_window' provided. \n Proceeding with default values \n'warming_level'= {updated_warming_level} \n 'warming_level_window' = {updated_warming_level_window}"
-            )
-        case None, int():
-            print(
-                f"No 'warming_level' provided. \n Proceeding with default value \n'warming_level'= {updated_warming_level}"
-            )
-        case list(), None:
-            print(
-                f"No 'warming_level_window' provided. \n Proceeding with default value \n'warming_level_window'= {updated_warming_level_window}"
-            )
-        case _:
-            None
+    defaults = {
+        "warming_level": [1.2],
+        "warming_level_window": 15,
+        "approach": "Warming Level",
+        "variable": "Air Temperature at 2m",
+        "q": 0.5,
+        "resolution": "3 km",
+        "units": "degF",
+    }
+    for key, default_val in defaults.items():
+        if key not in kwargs:
+            print(f"Using default '{key}': {default_val}")
+            kwargs[key] = default_val
 
     # catch invalid selections that return None
     if future_data is None and historic_data is None:
