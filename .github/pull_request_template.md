@@ -1,5 +1,7 @@
 ## Summary of changes and related issue
 
+## Link to corresponding Jira ticket
+
 ## Testing
 - [ ] Unit tests written for new/modified code (goal: 80% coverage)
   - [ ] All public functions have unit tests
