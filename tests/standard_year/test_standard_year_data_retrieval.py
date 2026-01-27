@@ -147,7 +147,7 @@ class TestRetrieveProfileData:
             cached_area="bay area",
             units="degC",
             approach="Time",
-            centered_time='2016'
+            centered_year=2016,
         )
 
         # Verify outcome: function should complete successfully
@@ -559,7 +559,7 @@ class TestHandleApproachParams:
             ),
         ],
     )
-    def test_get_clean_standardyr_filename(self, input_value, expected):
+    def test_handle_approach_params(self, input_value, expected):
         """Test that filename is correctly formatted based on given inputs."""
         assert _handle_approach_params(**input_value) == expected
 
@@ -571,5 +571,77 @@ class TestHandleApproachParamsInvalidInputs:
 
     """
 
-    
-    # def for each value error type
+    def test_handle_approach_params_with_invalid_centered_year_raises_error(self):
+        """Test that _handle_approach_params raises error for 'centered_year' outside of 2015-2099"""
+        with pytest.raises(ValueError):
+            retrieve_profile_data(
+                variable="Air Temperature at 2m",
+                resolution="3 km",
+                cached_area="bay area",
+                units="degF",
+                approach="Time",
+                centered_year=2014,
+            )
+
+    def test_handle_approach_params_with_invalid_centered_year_raises_error(self):
+        """Test that _handle_approach_params raises error for 'warming_level' provided in addition to time-based approach inputs"""
+        with pytest.raises(ValueError):
+            retrieve_profile_data(
+                variable="Air Temperature at 2m",
+                resolution="3 km",
+                cached_area="bay area",
+                units="degF",
+                warming_level=[1.5],
+                approach="Time",
+                centered_year=2016,
+            )
+
+    def test_handle_approach_params_with_missing_centered_year_raises_error(self):
+        """Test that _handle_approach_params raises error if 'centered_year' not provided with 'approach'='Time'"""
+        with pytest.raises(ValueError):
+            retrieve_profile_data(
+                variable="Air Temperature at 2m",
+                resolution="3 km",
+                cached_area="bay area",
+                units="degF",
+                approach="Time",
+            )
+
+    def test_handle_approach_params_with_centered_year_and_warming_level_approach_raises_error(
+        self,
+    ):
+        """Test that _handle_approach_params raises error for 'centered_year' with 'approach'='Warming Level'"""
+        with pytest.raises(ValueError):
+            retrieve_profile_data(
+                variable="Air Temperature at 2m",
+                resolution="3 km",
+                cached_area="bay area",
+                units="degF",
+                approach="Warming Level",
+                centered_year=2016,
+            )
+
+    def test_handle_approach_params_with_centered_year_and_no_approach_raises_error(
+        self,
+    ):
+        """Test that _handle_approach_params raises error for 'centered_year' with no 'approach'"""
+        with pytest.raises(ValueError):
+            retrieve_profile_data(
+                variable="Air Temperature at 2m",
+                resolution="3 km",
+                cached_area="bay area",
+                units="degF",
+                centered_year=2016,
+            )
+
+    def test_handle_approach_params_with_invalid_approach_raises_error(self):
+        """Test that _handle_approach_params raises error for invalid 'approach' input"""
+        with pytest.raises(ValueError):
+            retrieve_profile_data(
+                variable="Air Temperature at 2m",
+                resolution="3 km",
+                cached_area="bay area",
+                units="degF",
+                approach="other",
+                centered_year=2016,
+            )

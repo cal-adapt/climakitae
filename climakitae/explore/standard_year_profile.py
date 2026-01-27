@@ -482,7 +482,7 @@ def _handle_approach_params(**kwargs: Any) -> Any:
     return kwargs
 
 
-def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset, Any]:
+def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
     """
     Backend function for retrieving data needed for computing climate profiles.
 
@@ -507,7 +507,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset, Any]:
 
     Returns
     -------
-    Tuple[xr.Dataset, xr.Dataset, Dict]
+    Tuple[xr.Dataset, xr.Dataset]
         (historic_data, future_data, get_data_params) - Historical data at 1.2°C warming,
         and future data at specified warming levels.
     Raises
@@ -699,7 +699,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset, Any]:
     get_data_params.update(kwargs)
     future_data = get_data(**get_data_params)
 
-    return historic_data, future_data, get_data_params
+    return historic_data, future_data
 
 
 def get_climate_profile(**kwargs: Any) -> pd.DataFrame:
@@ -757,7 +757,7 @@ def get_climate_profile(**kwargs: Any) -> pd.DataFrame:
     with tqdm(
         total=2 if not no_delta else 1, desc="Data retrieval", unit="dataset"
     ) as pbar:
-        historic_data, future_data, final_params = retrieve_profile_data(**kwargs)
+        historic_data, future_data = retrieve_profile_data(**kwargs)
         pbar.update(2)
 
     # Notify users of default values being used in the absence of input parameters
