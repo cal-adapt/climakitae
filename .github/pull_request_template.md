@@ -1,8 +1,8 @@
 ## Summary of changes and related issue
 [What's changed in this PR?]
 
-## Link to corresponding Jira ticket
-[What's the Jira ticket that describes the context for this PR?]
+## Link to corresponding Jira ticket(s)
+[What's the Jira ticket(s) that describes the context for this PR?]
 
 ## Testing
 - [ ] Unit tests written for new/modified code (goal: 80% coverage)
