@@ -11,6 +11,7 @@
   - [ ] Functions that must produce specific values have unit tests
 - [ ] Verified that notebooks utilizing affected functions still work
 - [ ] Appropriate manual testing completed
+- [ ] Tested against intended use cases
 
 ## How to Test
 [How should reviewers test these changes? Demo code snippet?]
@@ -19,9 +20,7 @@
 - [ ] Complex code includes comments explaining logic
 - [ ] Function documentation created (docstrings)
 - [ ] Public-facing documentation updated (e.g., ReadTheDocs) if applicable
-- [ ] Context of function clearly provided:
-  - [ ] Intent/purpose of the function documented
-  - [ ] Testing instructions provided (not siloed knowledge)
+- [ ] Context/purpose of functions clearly documented
 
 ## Code Quality
 - [ ] Follows PEP8 naming and style conventions
@@ -37,10 +36,6 @@
   - [ ] Type of review requested (scientific/technical/debugging)
   - [ ] Level of review detail needed
 - [ ] Reviews completed within 2 days (or reviewers notified of delays)
-
-## Functionality
-- [ ] Matches desired functionality from users/scientists
-- [ ] Tested against intended use cases
 
 ## Administrative
 - [ ] **Jira ticket linked to PR and PR linked to Jira ticket**
