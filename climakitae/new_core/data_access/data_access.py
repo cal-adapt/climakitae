@@ -152,18 +152,38 @@ class DataCatalog(dict):
         This method sets up the catalog connections and initializes internal
         state. It only runs once due to the singleton pattern implementation.
 
+        The derived variable registry is attached to catalogs that support it,
+        enabling users to query derived variables directly.
+
         """
         if not getattr(self, "_initialized", False):
             super().__init__()
-            self[CATALOG_CADCAT] = intake.open_esm_datastore(DATA_CATALOG_URL)
+
+            # Get the derived variable registry (lazy import to avoid circular imports)
+            from climakitae.new_core.derived_variables import get_registry
+
+            self._derived_registry = get_registry()
+
+            # Open catalogs with derived variable registry attached
+            # Note: Only attach registry to catalogs with compatible schemas.
+            # The HDP catalog uses station-based schema (station_id) rather than
+            # gridded variable schema (variable_id), so skip registry attachment.
+            self[CATALOG_CADCAT] = intake.open_esm_datastore(
+                DATA_CATALOG_URL, registry=self._derived_registry
+            )
             self[CATALOG_BOUNDARY] = intake.open_catalog(BOUNDARY_CATALOG_URL)
             self[CATALOG_REN_ENERGY_GEN] = intake.open_esm_datastore(
-                RENEWABLES_CATALOG_URL
+                RENEWABLES_CATALOG_URL, registry=self._derived_registry
             )
+            # HDP catalog has different schema - no derived variable support
             self[CATALOG_HDP] = intake.open_esm_datastore(HDP_CATALOG_URL)
 
             self.catalog_df = self.merge_catalogs()
             stations_df = read_csv_file(STATIONS_CSV_PATH)
+            # Convert string columns to object dtype to avoid StringDtype issues in pandas 2.2+
+            for col in stations_df.select_dtypes(include=["string", "object"]).columns:
+                if col not in ["LON_X", "LAT_Y"]:
+                    stations_df[col] = stations_df[col].astype("object")
             self["stations"] = gpd.GeoDataFrame(
                 stations_df,
                 crs="EPSG:4326",
@@ -244,6 +264,27 @@ class DataCatalog(dict):
             if self._boundaries is UNSET:
                 self._boundaries = Boundaries(self.boundary)
         return self._boundaries
+
+    @property
+    def derived_registry(self):
+        """Access the derived variable registry.
+
+        The registry contains definitions for derived variables that can be
+        computed from source variables during data loading.
+
+        Returns
+        -------
+        DerivedVariableRegistry
+            The intake-esm derived variable registry attached to the catalogs.
+
+        Examples
+        --------
+        >>> catalog = DataCatalog()
+        >>> print(catalog.derived_registry)
+        DerivedVariableRegistry({'wind_speed_10m': ..., 'heat_index': ...})
+
+        """
+        return self._derived_registry
 
     def merge_catalogs(self) -> pd.DataFrame:
         """Merge the AE intake catalogs into a single DataFrame.
@@ -443,17 +484,15 @@ class DataCatalog(dict):
 
         logger.info("Querying %s catalog", effective_key)
         logger.debug("Query parameters: %s", query)
-        logger.debug("Querying %s catalog with query: %s", effective_key, query)
-        # if any(isinstance(v, list) for v in query.values()):
-        #     # query contains a list, which is not supported by intake
-        #     for key, value in query.items():
-        #         if isinstance(value, list):
-        #             # Convert list to a comma-separated string
-        #             query[key] = ",".join(value)
+
+        # Strip internal metadata keys that shouldn't be passed to catalog search
+        # These are used internally for derived variable handling
+        internal_keys = {"_derived_variable", "_source_variables", "_catalog_key"}
+        search_query = {k: v for k, v in query.items() if k not in internal_keys}
+
+        logger.debug("Querying %s catalog with query: %s", effective_key, search_query)
 
         logger.debug("Executing catalog search")
-        # Detailed query log (was printed previously)
-        logger.debug("Querying %s catalog with query: %s", effective_key, query)
 
         # Check if a distributed client is active - if so, force synchronous scheduler
         # during data loading to prevent intake_esm from sending open_dataset tasks
@@ -476,7 +515,7 @@ class DataCatalog(dict):
         with dask.config.set(scheduler=scheduler_override):
             result = (
                 self[effective_key]
-                .search(**query)
+                .search(**search_query)
                 .to_dataset_dict(
                     # Use consolidated=None for compatibility with both Zarr v2 and v3.
                     # - True: requires consolidated metadata (fails on Zarr v3 without it)
@@ -496,7 +535,234 @@ class DataCatalog(dict):
                 result[key] = result[key].rename({"station": "station_id"})
                 logger.debug("Renamed station → station_id for dataset %s", key)
 
+        # Apply derived variable computation if requested. If the intake-esm
+        # registry was attached it may already have computed the derived
+        # variable during `to_dataset_dict`. Avoid blindly re-applying the
+        # derived function to prevent double-computation and accidental
+        # removal of source variables.
+        derived_var = query.get("_derived_variable")
+        if derived_var:
+            # Check if derived variable was already computed. The variable may
+            # exist under the registered name OR the user's function may have
+            # created a variable with a different name. We detect this by
+            # checking if dependencies are missing (indicating the function ran).
+            source_vars_from_query = query.get("_source_variables") or []
+
+            def _should_skip_application(ds, derived_name, source_vars):
+                """Determine if derived variable application should be skipped.
+
+                Returns True if:
+                - The derived variable already exists by exact name, OR
+                - The source dependencies are missing (indicating computation happened)
+                """
+                # Exact match - derived variable exists
+                if derived_name in ds.data_vars:
+                    return True, "exact_match"
+
+                # Check if dependencies are missing - this indicates the function
+                # already ran and dropped them (common with drop_dependencies=True)
+                if source_vars:
+                    missing_deps = [v for v in source_vars if v not in ds.data_vars]
+                    if missing_deps:
+                        # Dependencies are missing - function likely already ran
+                        return True, f"missing_deps:{missing_deps}"
+
+                return False, None
+
+            try:
+                skip_reasons = {}
+                for key, ds in result.items():
+                    should_skip, reason = _should_skip_application(
+                        ds, derived_var, source_vars_from_query
+                    )
+                    skip_reasons[key] = (should_skip, reason)
+
+                all_skip = all(skip for skip, _ in skip_reasons.values())
+            except Exception:
+                all_skip = False
+                skip_reasons = {}
+
+            if all_skip:
+                # Log detailed reason for skipping
+                for key, (_, reason) in skip_reasons.items():
+                    if reason == "exact_match":
+                        logger.debug(
+                            "Derived variable '%s' already exists in dataset %s",
+                            derived_var,
+                            key,
+                        )
+                    elif reason and reason.startswith("missing_deps"):
+                        # Warn if variable name doesn't match but function ran
+                        logger.debug(
+                            "Derived variable '%s' not found by name in dataset %s, "
+                            "but dependencies are missing (%s) - assuming function already ran. "
+                            "Consider naming your output variable to match the registered name.",
+                            derived_var,
+                            key,
+                            reason,
+                        )
+                logger.debug(
+                    "Skipping derived variable '%s' re-application for all datasets",
+                    derived_var,
+                )
+            else:
+                result = self._apply_derived_variable(result, derived_var)
+
+            # Post-retrieval fallback: ensure derived variable has spatial metadata
+            # (CRS or grid_mapping). Intake-esm or the wrapped function may not
+            # always successfully copy CRS metadata (name mismatches or upstream
+            # behavior). If the derived variable exists but lacks CRS/grid_mapping,
+            # attempt to copy metadata from source variables listed in the query
+            # or from the registry metadata as a fallback.
+            try:
+                from climakitae.new_core.derived_variables.registry import (
+                    preserve_spatial_metadata,
+                    get_derived_variable_info,
+                )
+
+                source_vars_from_query = query.get("_source_variables") or []
+
+                for key, ds in list(result.items()):
+                    if derived_var not in ds.data_vars:
+                        # nothing to do for this dataset
+                        continue
+
+                    da = ds[derived_var]
+                    has_crs = False
+                    try:
+                        if hasattr(da, "rio") and da.rio.crs is not None:
+                            has_crs = True
+                    except Exception:
+                        has_crs = False
+
+                    has_grid_mapping = bool(da.attrs.get("grid_mapping"))
+
+                    if has_crs or has_grid_mapping:
+                        # metadata present
+                        continue
+
+                    # Determine candidate source variables
+                    candidates = (
+                        list(source_vars_from_query) if source_vars_from_query else []
+                    )
+                    if not candidates:
+                        info = get_derived_variable_info(derived_var)
+                        if info:
+                            candidates = list(info.depends_on)
+
+                    # Pick the first source var present in the dataset
+                    source_var = None
+                    for sv in candidates:
+                        if sv in ds:
+                            source_var = sv
+                            break
+
+                    if source_var:
+                        try:
+                            preserve_spatial_metadata(ds, derived_var, source_var)
+                            logger.debug(
+                                "Post-retrieval: preserved metadata for '%s' in dataset %s from '%s'",
+                                derived_var,
+                                key,
+                                source_var,
+                            )
+                        except Exception as e:
+                            logger.debug(
+                                "Post-retrieval: failed to preserve metadata for '%s' in dataset %s: %s",
+                                derived_var,
+                                key,
+                                e,
+                            )
+                    else:
+                        logger.debug(
+                            "Post-retrieval: no source variable available to preserve metadata for '%s' in dataset %s",
+                            derived_var,
+                            key,
+                        )
+            except Exception:
+                # Be defensive: failures here should not bring down data retrieval.
+                logger.debug(
+                    "Derived-variable post-retrieval metadata fallback failed",
+                    exc_info=True,
+                )
+
         return result
+
+    def _apply_derived_variable(
+        self, datasets: Dict[str, xr.Dataset], derived_var_name: str
+    ) -> Dict[str, xr.Dataset]:
+        """Apply a derived variable function to all datasets.
+
+        Parameters
+        ----------
+        datasets : dict[str, xr.Dataset]
+            Dictionary of datasets to apply the derived variable to.
+        derived_var_name : str
+            Name of the derived variable to compute.
+
+        Returns
+        -------
+        dict[str, xr.Dataset]
+            Dictionary of datasets with the derived variable computed.
+
+        """
+        from climakitae.new_core.derived_variables import list_derived_variables
+
+        derived_vars = list_derived_variables()
+        if derived_var_name not in derived_vars:
+            logger.warning(
+                "Derived variable '%s' not found in registry", derived_var_name
+            )
+            return datasets
+
+        info = derived_vars[derived_var_name]
+        func = info.func
+        depends_on = info.depends_on
+
+        logger.info("Computing derived variable '%s'", derived_var_name)
+        for key in datasets:
+            ds = datasets[key]
+
+            # Check if intake-esm already computed the derived variable
+            if derived_var_name in ds.data_vars:
+                logger.debug(
+                    "Derived variable '%s' already exists in dataset %s (computed by intake-esm)",
+                    derived_var_name,
+                    key,
+                )
+                continue
+
+            # Check if dependencies are missing - this indicates the function
+            # already ran (with drop_dependencies=True) but created a variable
+            # with a different name than registered. Skip to avoid crash.
+            missing_deps = [v for v in depends_on if v not in ds.data_vars]
+            if missing_deps:
+                logger.warning(
+                    "Cannot compute derived variable '%s' for dataset %s: "
+                    "missing dependencies %s. This may indicate the function "
+                    "already ran but created a variable with a different name. "
+                    "Consider naming your output variable to match '%s'.",
+                    derived_var_name,
+                    key,
+                    missing_deps,
+                    derived_var_name,
+                )
+                continue
+
+            try:
+                # The registered function should add the derived variable to the dataset
+                datasets[key] = func(ds)
+                logger.debug("Computed '%s' for dataset %s", derived_var_name, key)
+            except Exception as e:
+                logger.error(
+                    "Failed to compute derived variable '%s' for dataset %s: %s",
+                    derived_var_name,
+                    key,
+                    e,
+                )
+                raise
+
+        return datasets
 
     def list_clip_boundaries(self) -> dict[str, list[str]]:
         """List all available boundary options for clipping operations.
