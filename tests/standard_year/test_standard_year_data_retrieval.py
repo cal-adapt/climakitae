@@ -470,7 +470,7 @@ class TestHandleApproachParams:
                     "warming_level_window": 5,
                     "location": "sacramento county",
                     "no_delta": False,
-                    "approach": "Warming Level",
+                    "approach": "Time",
                     "centered_year": 2016,
                 },
                 {
