@@ -567,7 +567,7 @@ class TestHandleApproachParams:
 class TestHandleApproachParamsInvalidInputs:
     """Test class for _handle_approach_params function.
 
-    Tests the function's ability to field invalid parameter combinations
+    Tests the function's ability to field invalid approach parameter combinations.
 
     """
 
