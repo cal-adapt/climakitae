@@ -443,7 +443,6 @@ class TestHandleApproachParams:
                     "no_delta": False,
                 },
             ),
-            ###
             (
                 {
                     "var_id": "t2",
@@ -484,7 +483,6 @@ class TestHandleApproachParams:
                     "warming_level": [1.12],
                 },
             ),
-            ###
             (
                 {
                     "var_id": "t2",
