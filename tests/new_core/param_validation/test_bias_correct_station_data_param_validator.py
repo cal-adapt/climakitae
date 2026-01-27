@@ -185,7 +185,7 @@ class TestValidateBiasCorrectStationDataParam:
         assert result is False
 
     def test_query_none_returns_false(self):
-        """Test that missing query returns False."""
+        """Test that missing query returns False without calling station validation."""
         value = {"stations": ["KSAC"]}
         result = validate_bias_correction_station_data_param(value, query=None)
         assert result is False

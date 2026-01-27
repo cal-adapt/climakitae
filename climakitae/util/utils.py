@@ -154,6 +154,26 @@ def _package_file_path(rel_path: str) -> str:
     return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", rel_path))
 
 
+def f_to_k(f: Union[float, Iterable[float]]) -> Union[float, "np.ndarray"]:
+    """Convert temperature from degrees Fahrenheit to Kelvin.
+
+    Accepts scalars or array-like inputs (returns numpy array for array-like).
+
+    Parameters
+    ----------
+    f : float or array-like
+        Degrees Fahrenheit.
+
+    Returns
+    -------
+    float or numpy.ndarray
+        Temperature in Kelvin.
+
+    """
+    # Use numpy to handle both scalar and array-like inputs
+    return (np.asarray(f) - 32.0) * 5.0 / 9.0 + 273.15
+
+
 def _check_has_valid_data(test_data: xr.Dataset | xr.DataArray) -> bool:
     """Check if test_data has any valid (non-null) values.
 

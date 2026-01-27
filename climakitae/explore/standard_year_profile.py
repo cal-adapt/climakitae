@@ -802,7 +802,8 @@ def _compute_simulation_paired_difference(
         print(f"      Future simulations: {list(future_sims)}")
         print(f"      Historic simulations: {list(historic_sims)}")
         # Fall back to using mean of historic
-        historic_mean = historic_profile.groupby(level="Hour", axis=1).mean()
+        # Note: axis parameter removed in pandas 2.2, use level-based groupby instead
+        historic_mean = historic_profile.T.groupby(level="Hour").mean().T
         for col in future_profile.columns:
             hour = col[0] if "Hour" in future_levels else col[-1]
             difference_profile.loc[:, col] = future_profile[col] - historic_mean[hour]

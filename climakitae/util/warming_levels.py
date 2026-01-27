@@ -37,28 +37,37 @@ def calculate_warming_level(
     window: int,
 ) -> xr.DataArray:
     """Perform warming level computation for a single warming level.
-    Assumes the data has already been stacked by simulation and scenario to create a MultiIndex dimension "all_sims" and that the invalid simulations have been removed such that the gwl_times table can be adequately parsed.
-    Internal function only; see the function _apply_warming_levels_approach for more documentation on how this function is applied internally.
-    Appropriate attributes for new dimensions are applied by the retrieval function (not here).
+
+    Assumes the data has already been stacked by simulation and scenario to
+    create a MultiIndex dimension "all_sims" and that the invalid simulations
+    have been removed such that the gwl_times table can be adequately parsed.
+
+    Internal function only; see the function _apply_warming_levels_approach for
+    more documentation on how this function is applied internally. Appropriate
+    attributes for new dimensions are applied by the retrieval function
+    (not here).
 
     Parameters
     ----------
     warming_data : xr.DataArray
-        Data object returned by _get_data_one_var, stacked by simulation/scenario, and then with invalid simulations removed.
+        Data object returned by _get_data_one_var, stacked by
+        simulation/scenario, and then with invalid simulations removed.
     gwl_times : pd.DataFrame
-        Global warming levels table indicating when each unique model/run/scenario (simulation) reaches each warming level.
+        Global warming levels table indicating when each unique
+        model/run/scenario (simulation) reaches each warming level.
     level : float
         Warming level. Must be a valid column in gwl_times table.
-    months : list[int]
+    months : list of int
         Months of the year (in integers) to compute function for.
-        i.e. for a full year, months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        For example, for a full year: ``[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]``
     window : int
-        Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
+        Years around Global Warming Level (+/-). For example, 15 means a
+        30-year window.
 
     Returns
     -------
-    warming_data : xr.DataArray
-
+    xr.DataArray
+        The warming level subset data.
     """
     # Raise error if proper processing has not been performed on the data before calling the function
     if "all_sims" not in warming_data.dims:

@@ -44,7 +44,7 @@ Examples
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional, Tuple
 
 from climakitae.core.constants import PROC_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
@@ -282,6 +282,36 @@ class ParameterValidator(ABC):
 
         """
 
+    def _check_derived_variable(
+        self, variable_id: str
+    ) -> Tuple[bool, Optional[List[str]], Optional[str]]:
+        """Check if a variable_id is a derived variable.
+
+        Parameters
+        ----------
+        variable_id : str
+            The variable ID to check.
+
+        Returns
+        -------
+        Tuple[bool, Optional[List[str]], Optional[str]]
+            A tuple of (is_derived, source_variables, derived_name):
+            - is_derived: True if this is a derived variable
+            - source_variables: List of source variable IDs needed, or None
+            - derived_name: The name of the derived variable, or None
+
+        """
+        try:
+            from climakitae.new_core.derived_variables import list_derived_variables
+
+            derived_vars = list_derived_variables()
+            if variable_id in derived_vars:
+                info = derived_vars[variable_id]
+                return True, info.depends_on, variable_id
+        except ImportError:
+            pass
+        return False, None, None
+
     def _is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         """Internal method to validate query parameters and provide user feedback.
 
@@ -325,8 +355,33 @@ class ParameterValidator(ABC):
         """
         # convert user input to keys
         self.populate_catalog_keys(query)
-        # check if the catalog keys can be found
 
+        # Check if variable_id is a derived variable
+        # For derived variables, we need to search for source variables in the catalog,
+        # then compute the derived variable during data loading.
+        derived_var_name = None
+        source_vars = None
+        original_variable_id = self.all_catalog_keys.get("variable_id", UNSET)
+        if original_variable_id is not UNSET:
+            is_derived, source_vars, derived_name = self._check_derived_variable(
+                original_variable_id
+            )
+            if is_derived:
+                logger.info(
+                    "Detected derived variable '%s' depending on %s",
+                    derived_name,
+                    source_vars,
+                )
+                derived_var_name = derived_name
+                # Keep derived variable name as variable_id for catalog search
+                # intake-esm registry will automatically expand to search for
+                # all source variables via its query parameter
+                logger.info(
+                    "Searching catalog with derived variable '%s' (registry will expand)",
+                    derived_name,
+                )
+
+        # check if the catalog keys can be found
         try:
             subset = self.catalog.search(**self.all_catalog_keys)
         except ValueError as e:
@@ -337,6 +392,14 @@ class ParameterValidator(ABC):
         if len(subset) != 0:
             logger.info("Found %d datasets matching your query.", len(subset))
             logger.info("Checking processes ...")
+            # Track derived variable for metadata/context
+            if derived_var_name:
+                self.all_catalog_keys["_derived_variable"] = derived_var_name
+                self.all_catalog_keys["_source_variables"] = source_vars
+                logger.info(
+                    "Query will compute derived variable '%s' via intake-esm registry",
+                    derived_var_name,
+                )
             return self.all_catalog_keys if self._has_valid_processes(query) else None
 
         # dataset not found
@@ -423,6 +486,14 @@ class ParameterValidator(ABC):
         if not df.empty:
             logger.info("Found up to %d datasets matching your query.", len(df))
             logger.info("Checking processes ...")
+            # Track derived variable for metadata/context
+            if derived_var_name:
+                self.all_catalog_keys["_derived_variable"] = derived_var_name
+                self.all_catalog_keys["_source_variables"] = source_vars
+                logger.info(
+                    "Query will compute derived variable '%s' via intake-esm registry",
+                    derived_var_name,
+                )
             return self.all_catalog_keys if self._has_valid_processes(query) else None
         return None
 
