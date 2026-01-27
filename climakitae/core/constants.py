@@ -127,6 +127,9 @@ LOCA_END_YEAR = 2100
 WRF_START_YEAR = 1981
 WRF_END_YEAR = 2099
 
+# Default threshold for degree day calculations (65°F in Kelvin)
+DEFAULT_DEGREE_DAY_THRESHOLD_K = 291.483
+
 # Constants for data size thresholds and processing (metric_calc)
 BYTES_TO_MB_FACTOR = 1e6  # Conversion factor from bytes to megabytes
 BYTES_TO_GB_FACTOR = 1e9  # Conversion factor from bytes to gigabytes

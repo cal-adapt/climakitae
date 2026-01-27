@@ -35,6 +35,24 @@ from climakitae.new_core.param_validation.clip_param_validator import (
 )
 
 
+@pytest.fixture
+def mock_boundaries():
+    """Fixture providing mock boundary data for validation tests."""
+    mock_boundary_dict = {
+        "states": ["CA", "NV", "OR", "WA", "AZ"],
+        "counties": ["Los Angeles County", "San Francisco County", "Kern"],
+        "electric_utilities": ["PG&E", "SCE", "SDG&E"],
+    }
+
+    with patch(
+        "climakitae.new_core.param_validation.clip_param_validator.DataCatalog"
+    ) as mock_catalog:
+        mock_catalog_instance = MagicMock()
+        mock_catalog.return_value = mock_catalog_instance
+        mock_catalog_instance.list_clip_boundaries.return_value = mock_boundary_dict
+        yield mock_boundary_dict
+
+
 class TestValidateClipParam:
     """Test class for validate_clip_param dispatcher function.
 
@@ -45,13 +63,13 @@ class TestValidateClipParam:
     not the validated value itself.
     """
 
-    def test_validate_with_valid_str_returns_true(self):
+    def test_validate_with_valid_str_returns_true(self, mock_boundaries):
         """Test validate_clip_param with valid string returns True."""
         # Valid boundary key
         result = validate_clip_param("CA")
         assert result is True
 
-    def test_validate_with_valid_list_returns_true(self):
+    def test_validate_with_valid_list_returns_true(self, mock_boundaries):
         """Test validate_clip_param with valid list returns True."""
         # Valid list of boundary keys
         result = validate_clip_param(["CA", "NV"])
@@ -75,7 +93,7 @@ class TestValidateClipParam:
             result = validate_clip_param(123)
             assert result is False
 
-    def test_validate_with_valid_dict_returns_true(self):
+    def test_validate_with_valid_dict_returns_true(self, mock_boundaries):
         """Test validate_clip_param with valid dict returns True."""
         result = validate_clip_param({"boundaries": ["CA", "OR"], "separated": True})
         assert result is True
@@ -111,7 +129,7 @@ class TestValidateStringParam:
             result = _validate_string_param("   ")
             assert result is False
 
-    def test_validate_valid_boundary_key_returns_true(self):
+    def test_validate_valid_boundary_key_returns_true(self, mock_boundaries):
         """Test _validate_string_param with valid boundary key returns True."""
         result = _validate_string_param("CA")
         assert result is True
@@ -226,7 +244,7 @@ class TestValidateListParam:
             result = _validate_list_param([])
             assert result is False
 
-    def test_validate_list_with_valid_boundaries_returns_true(self):
+    def test_validate_list_with_valid_boundaries_returns_true(self, mock_boundaries):
         """Test _validate_list_param with valid boundary keys returns True."""
         result = _validate_list_param(["CA", "NV", "OR"])
         assert result is True
@@ -239,7 +257,7 @@ class TestValidateListParam:
             result = _validate_list_param(["CA", 123, "NV"])
             assert result is False
 
-    def test_validate_list_with_duplicates_returns_false(self):
+    def test_validate_list_with_duplicates_returns_false(self, mock_boundaries):
         """Test _validate_list_param with duplicates returns False."""
         with pytest.warns(UserWarning, match="Duplicate boundary keys found"):
             result = _validate_list_param(["CA", "NV", "CA"])
@@ -257,14 +275,17 @@ class TestValidateListParam:
             result = _validate_list_param(["CA", "   ", "NV"])
             assert result is False
 
-    def test_validate_list_with_invalid_boundary_keys_returns_false(self):
-        """Test _validate_list_param with invalid boundary keys returns False."""
-        # INVALID_KEY doesn't match any boundaries but still passes through
-        # because _validate_boundary_key_string only checks basic validity
-        # This actually returns True because it just warns about case sensitivity
+    def test_validate_list_with_invalid_boundary_keys_returns_false(
+        self, mock_boundaries
+    ):
+        """Test _validate_list_param with invalid boundary keys warns but continues."""
+        # INVALID_KEY doesn't match any boundaries and triggers a warning,
+        # but the validation logic currently treats False (returned by
+        # _validate_boundary_key_string) as a valid item since it's "not None".
+        # This is lenient behavior - warnings are issued but validation passes.
         with pytest.warns(UserWarning, match="does not match any known boundary keys"):
             result = _validate_list_param(["CA", "INVALID_KEY", "NV"])
-            # Actually passes because invalid key warnings are non-blocking
+            # Currently passes with warnings (lenient validation)
             assert result is True
 
     @patch(
@@ -585,7 +606,7 @@ class TestValidateBoundaryKeyString:
     invalid characters.
     """
 
-    def test_validate_valid_boundary_key_returns_true(self):
+    def test_validate_valid_boundary_key_returns_true(self, mock_boundaries):
         """Test _validate_boundary_key_string with valid key returns True."""
         result = _validate_boundary_key_string("CA")
         assert result is True
@@ -689,17 +710,17 @@ class TestValidateDictParam:
     Tests validation of dict parameters for separated boundary clipping.
     """
 
-    def test_validate_dict_valid_with_separated_true(self):
+    def test_validate_dict_valid_with_separated_true(self, mock_boundaries):
         """Test _validate_dict_param with valid dict and separated=True."""
         result = _validate_dict_param({"boundaries": ["CA", "OR"], "separated": True})
         assert result is True
 
-    def test_validate_dict_valid_with_separated_false(self):
+    def test_validate_dict_valid_with_separated_false(self, mock_boundaries):
         """Test _validate_dict_param with valid dict and separated=False."""
         result = _validate_dict_param({"boundaries": ["CA", "OR"], "separated": False})
         assert result is True
 
-    def test_validate_dict_valid_without_separated_key(self):
+    def test_validate_dict_valid_without_separated_key(self, mock_boundaries):
         """Test _validate_dict_param with valid dict without separated key (defaults to False)."""
         result = _validate_dict_param({"boundaries": ["CA", "NV"]})
         assert result is True
@@ -724,13 +745,13 @@ class TestValidateDictParam:
             result = _validate_dict_param({"boundaries": ["CA"], "separated": "yes"})
             assert result is False
 
-    def test_validate_dict_single_boundary_with_separated_warns(self):
+    def test_validate_dict_single_boundary_with_separated_warns(self, mock_boundaries):
         """Test _validate_dict_param with single boundary and separated=True warns."""
         with pytest.warns(UserWarning, match="single boundary has no effect"):
             result = _validate_dict_param({"boundaries": ["CA"], "separated": True})
             assert result is True  # Still valid, just warns
 
-    def test_validate_dict_unknown_keys_warns(self):
+    def test_validate_dict_unknown_keys_warns(self, mock_boundaries):
         """Test _validate_dict_param with unknown keys warns but still valid."""
         with pytest.warns(UserWarning, match="Unknown keys"):
             result = _validate_dict_param(
