@@ -20,7 +20,7 @@ def get_derived_threshold(
     threshold_c: Optional[float] = None,
     threshold_f: Optional[float] = None,
 ) -> float:
-    """Resolve a degree-day threshold in Kelvin.
+    """Resolve a degree-day temperature based threshold in Kelvin.
 
     Precedence:
     1. Explicit function arguments (`threshold_k`, `threshold_c`, `threshold_f`)
@@ -38,9 +38,12 @@ def get_derived_threshold(
         Dataset that may contain attribute-based overrides.
     derived_var_name : str, optional
         Name of the derived variable to look up per-variable overrides.
-    threshold_k, threshold_c, threshold_f : optional
-        Explicit threshold values supplied by caller. If provided, these take
-        precedence.
+    threshold_k : float, optional
+        Threshold in Kelvin.
+    threshold_c : float, optional
+        Threshold in Celsius.
+    threshold_f : float, optional
+        Threshold in Fahrenheit.
 
     Returns
     -------

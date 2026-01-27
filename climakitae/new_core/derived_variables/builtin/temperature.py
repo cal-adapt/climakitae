@@ -285,6 +285,12 @@ def calc_hdd_wrf(ds, threshold_k=None, threshold_c=None, threshold_f=None):
         Dataset containing:
         - 't2max': Daily maximum 2m temperature (K)
         - 't2min': Daily minimum 2m temperature (K)
+    threshold_k : float, optional
+        Threshold for heating degree days in Kelvin.
+    threshold_c : float, optional
+        Threshold for heating degree days in Celsius.
+    threshold_f : float, optional
+        Threshold for heating degree days in Fahrenheit.
 
     Returns
     -------
@@ -342,6 +348,12 @@ def calc_cdd_wrf(ds, threshold_k=None, threshold_c=None, threshold_f=None):
         Dataset containing:
         - 't2max': Daily maximum 2m temperature (K)
         - 't2min': Daily minimum 2m temperature (K)
+    threshold_k : float, optional
+        Threshold for cooling degree days in Kelvin.
+    threshold_c : float, optional
+        Threshold for cooling degree days in Celsius.
+    threshold_f : float, optional
+        Threshold for cooling degree days in Fahrenheit.
 
     Returns
     -------
@@ -399,6 +411,12 @@ def calc_hdd_loca(ds, threshold_k=None, threshold_c=None, threshold_f=None):
         Dataset containing:
         - 'tasmax': Daily maximum temperature (K)
         - 'tasmin': Daily minimum temperature (K)
+    threshold_k : float, optional
+        Threshold for heating degree days in Kelvin.
+    threshold_c : float, optional
+        Threshold for heating degree days in Celsius.
+    threshold_f : float, optional
+        Threshold for heating degree days in Fahrenheit.
 
     Returns
     -------
@@ -456,6 +474,12 @@ def calc_cdd_loca(ds, threshold_k=None, threshold_c=None, threshold_f=None):
         Dataset containing:
         - 'tasmax': Daily maximum temperature (K)
         - 'tasmin': Daily minimum temperature (K)
+    threshold_k : float, optional
+        Threshold for cooling degree days in Kelvin.
+    threshold_c : float, optional
+        Threshold for cooling degree days in Celsius.
+    threshold_f : float, optional
+        Threshold for cooling degree days in Fahrenheit.
 
     Returns
     -------

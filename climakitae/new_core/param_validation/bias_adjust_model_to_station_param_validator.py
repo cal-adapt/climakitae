@@ -144,6 +144,13 @@ def validate_bias_correction_station_data_param(
         logger.warning(msg)
         return False
 
+    # Check if query is provided early - needed for cross-validation
+    # This MUST come before station validation to avoid accessing DataCatalog
+    # when we know the query is invalid
+    if query is None:
+        logger.debug("No query provided for cross-validation")
+        return False
+
     # Validate required keys
     required_keys = ["stations"]
     missing_keys = [key for key in required_keys if key not in value]
@@ -155,7 +162,7 @@ def validate_bias_correction_station_data_param(
         logger.warning(msg)
         return False
 
-    # Validate stations parameter
+    # Validate stations parameter (only after confirming query is not None)
     if not _validate_stations(value["stations"]):
         return False
 
@@ -178,24 +185,20 @@ def validate_bias_correction_station_data_param(
     if "kind" in value and not _validate_kind(value["kind"]):
         return False
 
-    # Cross-validate with query if provided
-    if query is not None:
-        if not _validate_catalog_requirement(query):
-            return False
-        if not _validate_variable_compatibility(query):
-            return False
-        if not _validate_timescale_requirement(query):
-            return False
-        if not _validate_downscaling_method_requirement(query):
-            return False
-        if not _validate_resolution_requirement(query):
-            return False
-        if not _validate_scenario_resolution_compatibility(query):
-            return False
-        if not _validate_institution_id_requirement(query):
-            return False
-    else:
-        logger.debug("No query provided for cross-validation")
+    # Cross-validate with query (already checked for None earlier)
+    if not _validate_catalog_requirement(query):
+        return False
+    if not _validate_variable_compatibility(query):
+        return False
+    if not _validate_timescale_requirement(query):
+        return False
+    if not _validate_downscaling_method_requirement(query):
+        return False
+    if not _validate_resolution_requirement(query):
+        return False
+    if not _validate_scenario_resolution_compatibility(query):
+        return False
+    if not _validate_institution_id_requirement(query):
         return False
 
     logger.info(
