@@ -184,13 +184,14 @@ def _get_clean_standardyr_filename(
         approach_str = ""
     else:
         approach_str = approach.lower().replace(" ", "_")
+        approach_str = f"_{approach_str}"
 
     if centered_year is None:
         centered_year_str = ""
     else:
         centered_year_str = f"_{centered_year}"
 
-    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}{clean_gwl_name}{delta_str}{window_str}_{approach_str}{centered_year_str}.csv"
+    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}{clean_gwl_name}{delta_str}{window_str}{approach_str}{centered_year_str}.csv"
     return filename
 
 
