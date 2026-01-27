@@ -773,8 +773,16 @@ def get_climate_profile(**kwargs: Any) -> pd.DataFrame:
     }
     for key, default_val in defaults.items():
         if key not in kwargs:
-            print(f"Using default '{key}': {default_val}")
-            kwargs[key] = default_val
+            if key == "warming_level":
+                # if approach=Time, then default warming level is not used
+                if kwargs.get("approach") == "Time":
+                    continue
+                else:
+                    print(f"Using default '{key}': {default_val}")
+                    kwargs[key] = default_val
+            else:
+                print(f"Using default '{key}': {default_val}")
+                kwargs[key] = default_val
 
     # catch invalid selections that return None
     if future_data is None and historic_data is None:

@@ -140,233 +140,234 @@ class TestRetrieveProfileData:
         mock_future = MagicMock(spec=xr.Dataset)
         self.mock_get_data.side_effect = [mock_historic, mock_future]
 
-        # Execute function with complex valid parameters that previously caused the bug
+        # Execute function with time-based approach
         result = retrieve_profile_data(
             variable="Air Temperature at 2m",
             resolution="3 km",
             cached_area="bay area",
             units="degC",
             approach="Time",
+            centered_time='2016'
         )
 
         # Verify outcome: function should complete successfully
-        assert isinstance(result, tuple), "Should handle complex parameters"
+        assert isinstance(result, tuple), "Should handle time-based approach"
         assert len(result) == 2, "Should return two datasets"
         historic_data, future_data = result
         assert historic_data == mock_historic, "Historic data should be returned"
         assert future_data == mock_future, "Future data should be returned"
 
 
-# class TestRetrieveProfileDataWithStations:
-#     """Test class for retrieve_profile_data with stations parameter.
+class TestRetrieveProfileDataWithStations:
+    """Test class for retrieve_profile_data with stations parameter.
 
-#     Tests that the stations parameter is correctly intercepted and converted
-#     to lat/lon coordinates with buffer before calling get_data.
+    Tests that the stations parameter is correctly intercepted and converted
+    to lat/lon coordinates with buffer before calling get_data.
 
-#     Attributes
-#     ----------
-#     mock_get_data : MagicMock
-#         Mock for get_data function.
-#     mock_stations_gdf : pd.DataFrame
-#         Mock GeoDataFrame with station data.
-#     """
+    Attributes
+    ----------
+    mock_get_data : MagicMock
+        Mock for get_data function.
+    mock_stations_gdf : pd.DataFrame
+        Mock GeoDataFrame with station data.
+    """
 
-#     def setup_method(self):
-#         """Set up test fixtures."""
-#         # Create mock stations GeoDataFrame
-#         self.mock_stations_gdf = pd.DataFrame(
-#             {
-#                 "station": [
-#                     "San Diego Lindbergh Field (KSAN)",
-#                     "Los Angeles International Airport (KLAX)",
-#                 ],
-#                 "LAT_Y": [32.7336, 33.9416],
-#                 "LON_X": [-117.1831, -118.4085],
-#             }
-#         )
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create mock stations GeoDataFrame
+        self.mock_stations_gdf = pd.DataFrame(
+            {
+                "station": [
+                    "San Diego Lindbergh Field (KSAN)",
+                    "Los Angeles International Airport (KLAX)",
+                ],
+                "LAT_Y": [32.7336, 33.9416],
+                "LON_X": [-117.1831, -118.4085],
+            }
+        )
 
-#     def test_retrieve_profile_data_converts_stations_to_lat_lon(self):
-#         """Test that stations parameter is converted to lat/lon before calling get_data."""
-#         # Setup mocks
-#         with (
-#             patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
-#             patch(
-#                 "climakitae.explore.standard_year_profile.DataInterface"
-#             ) as mock_data_interface_class,
-#             patch("builtins.print"),
-#         ):
-#             # Setup DataInterface mock
-#             mock_instance = MagicMock()
-#             mock_instance.stations_gdf = self.mock_stations_gdf
-#             mock_data_interface_class.return_value = mock_instance
+    def test_retrieve_profile_data_converts_stations_to_lat_lon(self):
+        """Test that stations parameter is converted to lat/lon before calling get_data."""
+        # Setup mocks
+        with (
+            patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
+            patch(
+                "climakitae.explore.standard_year_profile.DataInterface"
+            ) as mock_data_interface_class,
+            patch("builtins.print"),
+        ):
+            # Setup DataInterface mock
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
 
-#             # Setup get_data mock
-#             mock_dataset = MagicMock(spec=xr.Dataset)
-#             mock_get_data.return_value = mock_dataset
+            # Setup get_data mock
+            mock_dataset = MagicMock(spec=xr.Dataset)
+            mock_get_data.return_value = mock_dataset
 
-#             # Execute function with stations parameter
-#             retrieve_profile_data(
-#                 stations=["San Diego Lindbergh Field (KSAN)"], warming_level=[2.0]
-#             )
+            # Execute function with stations parameter
+            retrieve_profile_data(
+                stations=["San Diego Lindbergh Field (KSAN)"], warming_level=[2.0]
+            )
 
-#             # Verify outcome: get_data should be called with lat/lon, not stations
-#             assert mock_get_data.call_count >= 1, "Should call get_data"
+            # Verify outcome: get_data should be called with lat/lon, not stations
+            assert mock_get_data.call_count >= 1, "Should call get_data"
 
-#             # Check that lat/lon were passed in at least one call
-#             found_lat_lon = False
-#             for call in mock_get_data.call_args_list:
-#                 kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
-#                 if "latitude" in kwargs and "longitude" in kwargs:
-#                     found_lat_lon = True
-#                     # Verify stations was NOT passed
-#                     assert (
-#                         "stations" not in kwargs
-#                     ), "stations parameter should not be passed to get_data"
-#                     # Verify lat/lon are tuples with min/max
-#                     assert isinstance(
-#                         kwargs["latitude"], tuple
-#                     ), "latitude should be a tuple"
-#                     assert isinstance(
-#                         kwargs["longitude"], tuple
-#                     ), "longitude should be a tuple"
-#                     assert (
-#                         len(kwargs["latitude"]) == 2
-#                     ), "latitude should have min and max"
-#                     assert (
-#                         len(kwargs["longitude"]) == 2
-#                     ), "longitude should have min and max"
+            # Check that lat/lon were passed in at least one call
+            found_lat_lon = False
+            for call in mock_get_data.call_args_list:
+                kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
+                if "latitude" in kwargs and "longitude" in kwargs:
+                    found_lat_lon = True
+                    # Verify stations was NOT passed
+                    assert (
+                        "stations" not in kwargs
+                    ), "stations parameter should not be passed to get_data"
+                    # Verify lat/lon are tuples with min/max
+                    assert isinstance(
+                        kwargs["latitude"], tuple
+                    ), "latitude should be a tuple"
+                    assert isinstance(
+                        kwargs["longitude"], tuple
+                    ), "longitude should be a tuple"
+                    assert (
+                        len(kwargs["latitude"]) == 2
+                    ), "latitude should have min and max"
+                    assert (
+                        len(kwargs["longitude"]) == 2
+                    ), "longitude should have min and max"
 
-#             assert found_lat_lon, "At least one call should include lat/lon parameters"
+            assert found_lat_lon, "At least one call should include lat/lon parameters"
 
-#     def test_retrieve_profile_data_applies_correct_buffer_to_stations(self):
-#         """Test that stations are converted with correct 0.02 degree buffer."""
-#         # Setup mocks
-#         with (
-#             patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
-#             patch(
-#                 "climakitae.explore.standard_year_profile.DataInterface"
-#             ) as mock_data_interface_class,
-#             patch("builtins.print"),
-#         ):
-#             # Setup DataInterface mock
-#             mock_instance = MagicMock()
-#             mock_instance.stations_gdf = self.mock_stations_gdf
-#             mock_data_interface_class.return_value = mock_instance
+    def test_retrieve_profile_data_applies_correct_buffer_to_stations(self):
+        """Test that stations are converted with correct 0.02 degree buffer."""
+        # Setup mocks
+        with (
+            patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
+            patch(
+                "climakitae.explore.standard_year_profile.DataInterface"
+            ) as mock_data_interface_class,
+            patch("builtins.print"),
+        ):
+            # Setup DataInterface mock
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
 
-#             # Setup get_data mock
-#             mock_dataset = MagicMock(spec=xr.Dataset)
-#             mock_get_data.return_value = mock_dataset
+            # Setup get_data mock
+            mock_dataset = MagicMock(spec=xr.Dataset)
+            mock_get_data.return_value = mock_dataset
 
-#             # Execute function with stations parameter
-#             retrieve_profile_data(
-#                 stations=["San Diego Lindbergh Field (KSAN)"], warming_level=[2.0]
-#             )
+            # Execute function with stations parameter
+            retrieve_profile_data(
+                stations=["San Diego Lindbergh Field (KSAN)"], warming_level=[2.0]
+            )
 
-#             # Verify outcome: lat/lon should have 0.02 buffer applied
-#             # San Diego: lat=32.7336, lon=-117.1831
-#             expected_lat_min = 32.7336 - 0.02
-#             expected_lat_max = 32.7336 + 0.02
-#             expected_lon_min = -117.1831 - 0.02
-#             expected_lon_max = -117.1831 + 0.02
+            # Verify outcome: lat/lon should have 0.02 buffer applied
+            # San Diego: lat=32.7336, lon=-117.1831
+            expected_lat_min = 32.7336 - 0.02
+            expected_lat_max = 32.7336 + 0.02
+            expected_lon_min = -117.1831 - 0.02
+            expected_lon_max = -117.1831 + 0.02
 
-#             # Find the call with lat/lon
-#             for call in mock_get_data.call_args_list:
-#                 kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
-#                 if "latitude" in kwargs:
-#                     lat_bounds = kwargs["latitude"]
-#                     lon_bounds = kwargs["longitude"]
+            # Find the call with lat/lon
+            for call in mock_get_data.call_args_list:
+                kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
+                if "latitude" in kwargs:
+                    lat_bounds = kwargs["latitude"]
+                    lon_bounds = kwargs["longitude"]
 
-#                     assert (
-#                         abs(lat_bounds[0] - expected_lat_min) < 1e-6
-#                     ), "Should apply 0.02 buffer to min latitude"
-#                     assert (
-#                         abs(lat_bounds[1] - expected_lat_max) < 1e-6
-#                     ), "Should apply 0.02 buffer to max latitude"
-#                     assert (
-#                         abs(lon_bounds[0] - expected_lon_min) < 1e-6
-#                     ), "Should apply 0.02 buffer to min longitude"
-#                     assert (
-#                         abs(lon_bounds[1] - expected_lon_max) < 1e-6
-#                     ), "Should apply 0.02 buffer to max longitude"
+                    assert (
+                        abs(lat_bounds[0] - expected_lat_min) < 1e-6
+                    ), "Should apply 0.02 buffer to min latitude"
+                    assert (
+                        abs(lat_bounds[1] - expected_lat_max) < 1e-6
+                    ), "Should apply 0.02 buffer to max latitude"
+                    assert (
+                        abs(lon_bounds[0] - expected_lon_min) < 1e-6
+                    ), "Should apply 0.02 buffer to min longitude"
+                    assert (
+                        abs(lon_bounds[1] - expected_lon_max) < 1e-6
+                    ), "Should apply 0.02 buffer to max longitude"
 
-#     def test_retrieve_profile_data_cached_area_takes_priority_over_stations(self):
-#         """Test that cached_area parameter takes priority over stations."""
-#         # Setup mocks
-#         with (
-#             patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
-#             patch(
-#                 "climakitae.explore.standard_year_profile.DataInterface"
-#             ) as mock_data_interface_class,
-#             patch("builtins.print"),
-#         ):
-#             # Setup DataInterface mock
-#             mock_instance = MagicMock()
-#             mock_instance.stations_gdf = self.mock_stations_gdf
-#             mock_data_interface_class.return_value = mock_instance
+    def test_retrieve_profile_data_cached_area_takes_priority_over_stations(self):
+        """Test that cached_area parameter takes priority over stations."""
+        # Setup mocks
+        with (
+            patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
+            patch(
+                "climakitae.explore.standard_year_profile.DataInterface"
+            ) as mock_data_interface_class,
+            patch("builtins.print"),
+        ):
+            # Setup DataInterface mock
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
 
-#             # Setup get_data mock
-#             mock_dataset = MagicMock(spec=xr.Dataset)
-#             mock_get_data.return_value = mock_dataset
+            # Setup get_data mock
+            mock_dataset = MagicMock(spec=xr.Dataset)
+            mock_get_data.return_value = mock_dataset
 
-#             # Execute function with both cached_area and stations
-#             retrieve_profile_data(
-#                 cached_area="Los Angeles",
-#                 stations=["San Diego Lindbergh Field (KSAN)"],
-#                 warming_level=[2.0],
-#             )
+            # Execute function with both cached_area and stations
+            retrieve_profile_data(
+                cached_area="Los Angeles",
+                stations=["San Diego Lindbergh Field (KSAN)"],
+                warming_level=[2.0],
+            )
 
-#             # Verify outcome: cached_area should be used, stations should be ignored
-#             for call in mock_get_data.call_args_list:
-#                 kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
-#                 assert (
-#                     kwargs.get("cached_area") == "Los Angeles"
-#                 ), "Should use cached_area"
-#                 # Stations should not be converted to lat/lon when cached_area is present
-#                 # (cached_area takes priority)
+            # Verify outcome: cached_area should be used, stations should be ignored
+            for call in mock_get_data.call_args_list:
+                kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
+                assert (
+                    kwargs.get("cached_area") == "Los Angeles"
+                ), "Should use cached_area"
+                # Stations should not be converted to lat/lon when cached_area is present
+                # (cached_area takes priority)
 
-#     def test_retrieve_profile_data_explicit_lat_lon_takes_priority_over_stations(self):
-#         """Test that explicit lat/lon parameters take priority over stations."""
-#         # Setup mocks
-#         with (
-#             patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
-#             patch(
-#                 "climakitae.explore.standard_year_profile.DataInterface"
-#             ) as mock_data_interface_class,
-#             patch("builtins.print"),
-#         ):
-#             # Setup DataInterface mock
-#             mock_instance = MagicMock()
-#             mock_instance.stations_gdf = self.mock_stations_gdf
-#             mock_data_interface_class.return_value = mock_instance
+    def test_retrieve_profile_data_explicit_lat_lon_takes_priority_over_stations(self):
+        """Test that explicit lat/lon parameters take priority over stations."""
+        # Setup mocks
+        with (
+            patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
+            patch(
+                "climakitae.explore.standard_year_profile.DataInterface"
+            ) as mock_data_interface_class,
+            patch("builtins.print"),
+        ):
+            # Setup DataInterface mock
+            mock_instance = MagicMock()
+            mock_instance.stations_gdf = self.mock_stations_gdf
+            mock_data_interface_class.return_value = mock_instance
 
-#             # Setup get_data mock
-#             mock_dataset = MagicMock(spec=xr.Dataset)
-#             mock_get_data.return_value = mock_dataset
+            # Setup get_data mock
+            mock_dataset = MagicMock(spec=xr.Dataset)
+            mock_get_data.return_value = mock_dataset
 
-#             # Execute function with both explicit lat/lon and stations
-#             explicit_lat = (32.0, 34.0)
-#             explicit_lon = (-118.0, -116.0)
-#             retrieve_profile_data(
-#                 latitude=explicit_lat,
-#                 longitude=explicit_lon,
-#                 stations=["San Diego Lindbergh Field (KSAN)"],
-#                 warming_level=[2.0],
-#             )
+            # Execute function with both explicit lat/lon and stations
+            explicit_lat = (32.0, 34.0)
+            explicit_lon = (-118.0, -116.0)
+            retrieve_profile_data(
+                latitude=explicit_lat,
+                longitude=explicit_lon,
+                stations=["San Diego Lindbergh Field (KSAN)"],
+                warming_level=[2.0],
+            )
 
-#             # Verify outcome: explicit lat/lon should be used, stations should be ignored
-#             for call in mock_get_data.call_args_list:
-#                 kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
-#                 if "latitude" in kwargs:
-#                     assert (
-#                         kwargs["latitude"] == explicit_lat
-#                     ), "Should use explicit latitude"
-#                     assert (
-#                         kwargs["longitude"] == explicit_lon
-#                     ), "Should use explicit longitude"
+            # Verify outcome: explicit lat/lon should be used, stations should be ignored
+            for call in mock_get_data.call_args_list:
+                kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
+                if "latitude" in kwargs:
+                    assert (
+                        kwargs["latitude"] == explicit_lat
+                    ), "Should use explicit latitude"
+                    assert (
+                        kwargs["longitude"] == explicit_lon
+                    ), "Should use explicit longitude"
 
 
 class TestHandleApproachParams:
-    """Test class for _handle_approach_params function.
+    """Test class for _handle_approach_params helper function.
 
     Tests the function's ability to update parameters for valid inputs
 
@@ -382,84 +383,185 @@ class TestHandleApproachParams:
                 {
                     "var_id": "t2",
                     "q": 0.5,
-                    "gwl": 1.2,
-                    "location": "sacramento county",
-                    "no_delta": False,
-                    "warming_level_window": None,
-                },
-                "stdyr_t2_50ptile_sacramento_county_present-day_delta_from_historical_30yr_window.csv",
-            ),
-            (
-                {
-                    "var_id": "t2",
-                    "q": 0.5,
-                    "gwl": 1.2,
-                    "location": "sacramento county",
-                    "no_delta": True,
-                    "warming_level_window": None,
-                },
-                "stdyr_t2_50ptile_sacramento_county_present-day_30yr_window.csv",
-            ),
-            (
-                {
-                    "var_id": "t2",
-                    "q": 0.5,
-                    "gwl": 1.2,
-                    "location": "35-5N_122-5W",
-                    "no_delta": True,
-                    "warming_level_window": None,
-                },
-                "stdyr_t2_50ptile_35-5N_122-5W_present-day_30yr_window.csv",
-            ),
-            (
-                {
-                    "var_id": "t2",
-                    "q": 0.5,
-                    "gwl": 3.0,
-                    "location": "san diego lindbergh field ksan",
-                    "no_delta": True,
-                    "warming_level_window": None,
-                },
-                "stdyr_t2_50ptile_san_diego_lindbergh_field_ksan_late-century_30yr_window.csv",
-            ),
-            (
-                {
-                    "var_id": "prec",
-                    "q": 0.5,
-                    "gwl": 2.5,
-                    "location": "35-5N_122-5W",
-                    "no_delta": True,
-                    "warming_level_window": None,
-                },
-                "stdyr_prec_50ptile_35-5N_122-5W_mid-late-century_30yr_window.csv",
-            ),
-            (
-                {
-                    "var_id": "prec",
-                    "q": 0.75,
-                    "gwl": 3.0,
-                    "location": "35-5N_122-5W",
-                    "no_delta": False,
-                    "warming_level_window": None,
-                },
-                "stdyr_prec_75ptile_35-5N_122-5W_late-century_delta_from_historical_30yr_window.csv",
-            ),
-            (
-                {
-                    "var_id": "prec",
-                    "q": 0.75,
-                    "gwl": 3.0,
-                    "location": "35-5N_122-5W",
-                    "no_delta": False,
+                    "gwl": 1.5,
                     "warming_level_window": 5,
+                    "location": "sacramento county",
+                    "no_delta": False,
                 },
-                "stdyr_prec_75ptile_35-5N_122-5W_late-century_delta_from_historical_10yr_window.csv",
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 1.5,
+                    "warming_level_window": 5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                },
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 1.5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                },
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 1.5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                },
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                },
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                },
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "warming_level_window": 5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                },
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "warming_level_window": 5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                },
+            ),
+            ###
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "approach": "Time",
+                    "centered_year": 2016,
+                },
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "approach": "Warming Level",
+                    "centered_year": 2016,
+                    "warming_level": [1.12],
+                },
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "warming_level_window": 5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "approach": "Warming Level",
+                    "centered_year": 2016,
+                },
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "warming_level_window": 5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "approach": "Warming Level",
+                    "centered_year": 2016,
+                    "warming_level": [1.12],
+                },
+            ),
+            ###
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 1.5,
+                    "warming_level_window": 5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "approach": "Warming Level",
+                },
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 1.5,
+                    "warming_level_window": 5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "approach": "Warming Level",
+                },
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 1.5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "approach": "Warming Level",
+                },
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": 1.5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "approach": "Warming Level",
+                },
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "approach": "Warming Level",
+                },
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "approach": "Warming Level",
+                },
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "warming_level_window": 5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "approach": "Warming Level",
+                },
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "warming_level_window": 5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "approach": "Warming Level",
+                },
             ),
         ],
     )
     def test_get_clean_standardyr_filename(self, input_value, expected):
         """Test that filename is correctly formatted based on given inputs."""
-        assert _get_clean_standardyr_filename(**input_value) == expected
+        assert _handle_approach_params(**input_value) == expected
 
 
 class TestHandleApproachParamsInvalidInputs:
