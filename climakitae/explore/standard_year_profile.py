@@ -370,6 +370,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
     # Check profile MultiIndex to pull out data by Global Warming Level
     match profile.keys().nlevels:
         case 2:  # Single WL
+            # If time-based approach being used, do not include gwl in the filename
             if global_warming_levels is None:
                 gwl = global_warming_levels
             else:
