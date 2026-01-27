@@ -347,7 +347,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
     variable = kwargs.get("variable")
     q = kwargs.get("q")
 
-    # Handle warming_level, no_delta, warming_level_window, approach, and centered_year inputs
+    # Get warming_level, no_delta, warming_level_window, approach, and centered_year inputs
     no_delta = kwargs.get("no_delta", False)
     warming_level_window = kwargs.get("warming_level_window", None)
     approach = kwargs.get("approach", None)
@@ -431,7 +431,7 @@ def _handle_approach_params(**kwargs: Any) -> Any:
     Returns
     -------
     **kwargs : dict
-        Arguments with updated :approach" and "warming_level" inputs.
+        Arguments with updated :approach" and "warming_level" parameters
 
     """
 
@@ -440,18 +440,21 @@ def _handle_approach_params(**kwargs: Any) -> Any:
     warming_level = kwargs.get("warming_level", None)
 
     match approach, centered_year:
+        # If 'approach'="Time" and 'centered_year' is provided
         case "Time", int():
-            # If approach="Time" and centered_year is provided
-            # get warming level based on year
-            # and set warming_level to this value
+            # Throw error if 'centered_year' not in acceptable range
             if centered_year not in range(2015, 2100):
                 raise ValueError(
                     f"Only years 2015-2099 are valid inputs for 'centered_year'. Received {centered_year}."
                 )
+            # Throw error if 'warming_level' provided
             elif warming_level is not None:
                 raise ValueError(
                     f"Do not input warming level(s) if using a time-based approach."
                 )
+            # otherwise:
+            # get warming level based on year
+            # and set 'warming_level' to this value
             else:
                 print(
                     f"You have chosen to produce a time-based Standard Year climate profile centered around {centered_year}. \n"
@@ -467,15 +470,21 @@ def _handle_approach_params(**kwargs: Any) -> Any:
                 )
                 kwargs["warming_level"] = new_warming_level
                 kwargs["approach"] = "Warming Level"
+        # If 'approach'="Time" and 'centered_year' is not provided
         case "Time", object():
+            # throw error
             raise ValueError("If 'approach'='Time', 'centered_year' must be provided.")
+        # If 'approach'="Warming Level" or None
         case None | "Warming Level", _:
+            # and if 'centered_year' provided, throw error
             if isinstance(centered_year, int):
                 raise ValueError(
                     f"If 'centered_year' provided, 'approach' must be 'Time'. Received '{approach}.'"
                 )
+            # else, nothing happens - user is using warming level approach from the get-go
             else:
                 None
+        # Catches invalid 'approach' parameter inputs
         case _, _:
             raise ValueError(
                 f"Only 'Time' or 'Warming Level' accepted as inputs for 'approach'. Received '{approach}'."
