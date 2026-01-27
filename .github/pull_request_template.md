@@ -1,31 +1,46 @@
 ## Summary of changes and related issue
-[What's changed in this PR?]
 
-## Relevant motivation and context
-[Why did you change this and what applicable context is needed to understand why this change is needed?]
+## Testing
+- [ ] Unit tests written for new/modified code (goal: 80% coverage)
+  - [ ] All public functions have unit tests
+  - [ ] Private functions critical to functionality have unit tests
+  - [ ] Functions that must produce specific values have unit tests
+- [ ] Verified that notebooks utilizing affected functions still work
+- [ ] Appropriate manual testing completed
 
-## How to test 
-[How should reviewers test the changes?] 
+## How to Test
+[How should reviewers test these changes? Demo code snippet?]
 
-## Type of change
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] New tests (increased test coverage on existing functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] This change requires a documentation update
-- [ ] None of the above  
+## Documentation
+- [ ] Complex code includes comments explaining logic
+- [ ] Function documentation created (docstrings)
+- [ ] Public-facing documentation updated (e.g., ReadTheDocs) if applicable
+- [ ] Context of function clearly provided:
+  - [ ] Intent/purpose of the function documented
+  - [ ] Testing instructions provided (not siloed knowledge)
 
-## To-Do
-- [ ] Unit tests
-  - [ ] Existing unit tests are passing
-  - [ ] If relevant, new unit tests are written (required 80% unit test coverage)
-  - [ ] Advanced Testing passing (select Advanced Testing label)
-- [ ] Documentation
-  - [ ] Intent of all functions included
-  - [ ] Complex code commented
-  - [ ] Functions include [NumPy style docstrings](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html) 
-- [ ] Naming conventions followed
-  - [ ] Helper functions hidden with `_` before the name
-- [ ] Any notebooks known to utilize the affected functions are still working
-- [ ] Black formatting has been utilized
-- [ ] Tagged/notified 2 reviewers for this PR
+## Code Quality
+- [ ] Follows PEP8 naming and style conventions
+- [ ] Helper functions prefixed with underscore `_`
+- [ ] Linting completed and all issues resolved
+- [ ] Does not replicate existing functionality
+- [ ] Aligns with general coding standards of existing codebase
+- [ ] Code generalized for multiple uses (unless too complex/time-intensive)
+
+## Review Process
+- [ ] Pull Request reviewed by **two people**. (Ideally one scientist and one developer, but not required)
+- [ ] PR review instructions provided:
+  - [ ] Type of review requested (scientific/technical/debugging)
+  - [ ] Level of review detail needed
+- [ ] Reviews completed within 2 days (or reviewers notified of delays)
+
+## Functionality
+- [ ] Matches desired functionality from users/scientists
+- [ ] Tested against intended use cases
+
+## Administrative
+- [ ] **Jira ticket linked to PR and PR linked to Jira ticket**
+- [ ] Jira ticket moved to "Review" when PR created
+- [ ] PR will be merged once all criteria met
+- [ ] PR branch will be deleted after merge
+- [ ] Jira ticket will be moved to "Done" when complete
