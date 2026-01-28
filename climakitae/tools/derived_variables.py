@@ -325,3 +325,45 @@ def compute_wind_dir(
     wind_dir.name = name
     wind_dir.attrs["units"] = "degrees"
     return wind_dir
+
+
+def compute_sea_level_pressure(
+    psfc: xr.DataArray,
+    t2: xr.DataArray,
+    q2: xr.DataArray,
+    elevation: xr.DataArray,
+    name: str = "slp_derived",
+) -> xr.DataArray:
+    """Calculate sea level pressure using a standard lapse rate and hypsometric equation.
+
+    Parameters
+    ----------
+        surface_pressure : xr.DataArray
+            Surface pressure in Pascals
+        air_temperature : xr.DataArray
+            Surface air temperature in Kelvin
+        mixing_ratio : xr.DataArray
+            Surface mixing ratio
+        elevation : xr.DataArray
+            Elevation in meters
+        name : str, optional
+            Name to assign to output DataArray
+
+    Returns
+    -------
+    xr.DataArray
+        Sea level pressure in Pascals
+    """
+    # Get mean virtual temperature with standard lapse rate of 6.5 K/km
+    t_virtual_sfc = ((1 + 1.609 * q2) / (1 + q2)) * t2
+    t_virtual_mean = (2 * t_virtual_sfc + 6.5 / 1000.0 * elevation) / 2
+
+    # Adjust pressure with hypsometric equation
+    Rd = 287.052874  # gas constant for dry air, J⋅kg−1⋅K−1
+    g = 9.80665  # acceleration due to gravity, m⋅s-2
+
+    h = (Rd * t_virtual_mean) / g
+    slp = psfc * np.exp(elevation / h)
+    slp.name = name
+    slp.attrs["units"] = "Pa"
+    return slp
