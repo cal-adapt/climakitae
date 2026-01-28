@@ -354,7 +354,7 @@ def compute_sea_level_pressure(
     xr.DataArray
         Sea level pressure in Pascals
     """
-    # Get mean virtual temperature with standard lapse rate of 6.5 K/km
+    # Get mean virtual temperature with standard lapse rate of 6.5 K/km (Pauley 1998)
     t_virtual_sfc = ((1 + 1.609 * q2) / (1 + q2)) * t2
     t_virtual_mean = (2 * t_virtual_sfc + 6.5 / 1000.0 * elevation) / 2
 
