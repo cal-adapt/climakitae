@@ -342,7 +342,7 @@ def compute_sea_level_pressure(
     This function uses a fairly basic method derived from the hydrostatic balance equation
     and the equation of state. By default it uses a standard lapse rate of 6.5°K/km when
     calculating the surface virtual temperature (see Pauley 1998). Temperature is not
-    time averaged.
+    time-averaged.
 
     Parameters
     ----------
@@ -369,8 +369,8 @@ def compute_sea_level_pressure(
     t_virtual_mean = (2 * t_virtual_sfc + lapse_rate * elevation) / 2
 
     # Adjust pressure with hypsometric equation
-    Rd = 287.052874  # gas constant for dry air, J⋅kg−1⋅K−1
-    g = 9.80665  # acceleration due to gravity, m⋅s-2
+    Rd = 287.052874  # gas constant for dry air, J kg−1 K−1
+    g = 9.80665  # acceleration due to gravity, m s-2
 
     h = (Rd * t_virtual_mean) / g
     slp = psfc * np.exp(elevation / h)
