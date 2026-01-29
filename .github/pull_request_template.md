@@ -1,31 +1,40 @@
+**Please manually remove unnecessary checkboxes if they're not applicable to your PR**
+
 ## Summary of changes and related issue
 [What's changed in this PR?]
 
-## Relevant motivation and context
-[Why did you change this and what applicable context is needed to understand why this change is needed?]
+## Link to corresponding Jira ticket(s)
+[What Jira ticket(s) describe further context/detail for this PR?]
 
-## How to test 
-[How should reviewers test the changes?] 
+## Testing
+- [ ] Unit tests written for new/modified code (goal: 80% coverage)
+  - All public functions have unit tests
+  - Functions that must produce specific values have unit tests
+- [ ] Verified that notebooks utilizing affected functions still work
+- [ ] Appropriate manual testing completed
+- [ ] Advanced Testing label added to PR if this PR makes major changes to the codebase 
 
-## Type of change
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] New tests (increased test coverage on existing functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] This change requires a documentation update
-- [ ] None of the above  
+## How to Test
+[How should reviewers test these changes? Demo code snippet?]
 
-## To-Do
-- [ ] Unit tests
-  - [ ] Existing unit tests are passing
-  - [ ] If relevant, new unit tests are written (required 80% unit test coverage)
-  - [ ] Advanced Testing passing (select Advanced Testing label)
-- [ ] Documentation
-  - [ ] Intent of all functions included
-  - [ ] Complex code commented
-  - [ ] Functions include [NumPy style docstrings](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html) 
-- [ ] Naming conventions followed
-  - [ ] Helper functions hidden with `_` before the name
-- [ ] Any notebooks known to utilize the affected functions are still working
-- [ ] Black formatting has been utilized
-- [ ] Tagged/notified 2 reviewers for this PR
+## Documentation
+- [ ] Complex code includes comments explaining logic
+- [ ] Function documentation created (docstrings)
+
+## Code Quality
+- [ ] Follows PEP8 naming and style conventions
+- [ ] Helper functions prefixed with underscore `_`
+- [ ] Linting completed and all issues resolved
+- [ ] Does not replicate existing functionality
+- [ ] Aligns with general coding standards of existing codebase
+- [ ] Code generalized for multiple uses (unless too complex/time-intensive)
+
+## Review Process
+- [ ] PR review instructions provided:
+  - [ ] Type of review requested (scientific/technical/debugging)
+  - [ ] Level of review detail needed
+
+## Administrative Reminders
+  - Jira ticket moved to "Review" when PR created
+  - Jira ticket will be moved to "Done" when complete
+  - PR branch will be deleted after merge
