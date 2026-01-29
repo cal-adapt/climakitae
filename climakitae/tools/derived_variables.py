@@ -339,9 +339,10 @@ def compute_sea_level_pressure(
     """Calculate sea level pressure using a standard lapse rate and hypsometric equation.
 
     Reduction of surface pressure to sea level pressure is as much an art as a science.
-    This function uses a fairly basic method based around the hypsometric equation. By default
-    it uses a standard lapse rate of 6.5°K/km when calculating the surface virtual temperature
-    (see Pauley 1998). Temperature is not time averaged.
+    This function uses a fairly basic method derived from the hydrostatic balance equation
+    and the equation of state. By default it uses a standard lapse rate of 6.5°K/km when
+    calculating the surface virtual temperature (see Pauley 1998). Temperature is not
+    time averaged.
 
     Parameters
     ----------
