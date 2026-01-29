@@ -25,7 +25,7 @@ def test_TSP(rootdir: str) -> tst.TimeSeriesParameters:
     test_data = (
         test_data.sel({"simulation": "cesm2"})
         .sel(time=slice("2014-01-01", "2014-01-31"))
-        .resample(time="1H")
+        .resample(time="1h")
         .interpolate("linear")
     )
     test_data.attrs["frequency"] = "hourly"
