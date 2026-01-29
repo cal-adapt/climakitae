@@ -1165,9 +1165,7 @@ def get_exceedance_count(
     # --------- Sum occurances across each period ------------------------------
 
     period_len, period_type = period
-    period_indexer = str.capitalize(
-        period_type[0]
-    )  # capitalize first letter to use as indexer in resample
+    period_indexer = _get_freq_string(period_type)
     exceedance_count = events_da.resample(
         time=f"{period_len}{period_indexer}", label="left"
     ).sum()
@@ -1193,6 +1191,38 @@ def get_exceedance_count(
     exceedance_count.name = "Count"
 
     return exceedance_count
+
+
+def _get_freq_string(period_type: str) -> str:
+    """Convert period type name to pandas-compatible frequency string.
+
+    Maps time period names to their corresponding pandas frequency strings,
+    accounting for pandas 2.2+ deprecations.
+
+    Parameters
+    ----------
+    period_type : str
+        Time period name ("hour", "day", "month", "year")
+
+    Returns
+    -------
+    str
+        Pandas-compatible frequency string
+
+    Examples
+    --------
+    >>> _get_freq_string("year")
+    'YE'
+    >>> _get_freq_string("hour")
+    'h'
+    """
+    freq_map = {
+        "hour": "h",  # Changed from 'H' for pandas 2.2+
+        "day": "D",
+        "month": "M",
+        "year": "YE",  # Changed from 'Y' for pandas 2.2+
+    }
+    return freq_map.get(period_type, period_type[0].upper())
 
 
 def _is_greater(time1: tuple[int, str], time2: tuple[int, str]) -> bool:
