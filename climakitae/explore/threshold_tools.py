@@ -1195,20 +1195,20 @@ def get_exceedance_count(
 
 def _get_freq_string(period_type: str) -> str:
     """Convert period type name to pandas-compatible frequency string.
-    
+
     Maps time period names to their corresponding pandas frequency strings,
     accounting for pandas 2.2+ deprecations.
-    
+
     Parameters
     ----------
     period_type : str
         Time period name ("hour", "day", "month", "year")
-    
+
     Returns
     -------
     str
         Pandas-compatible frequency string
-    
+
     Examples
     --------
     >>> _get_freq_string("year")
@@ -1217,10 +1217,10 @@ def _get_freq_string(period_type: str) -> str:
     'h'
     """
     freq_map = {
-        "hour": "h",    # Changed from 'H' for pandas 2.2+
+        "hour": "h",  # Changed from 'H' for pandas 2.2+
         "day": "D",
         "month": "M",
-        "year": "YE",   # Changed from 'Y' for pandas 2.2+
+        "year": "YE",  # Changed from 'Y' for pandas 2.2+
     }
     return freq_map.get(period_type, period_type[0].upper())
 
