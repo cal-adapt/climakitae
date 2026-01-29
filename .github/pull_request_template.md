@@ -1,3 +1,5 @@
+**Please manually remove unnecessary checkboxes if they're not applicable to your PR**
+
 ## Summary of changes and related issue
 [What's changed in this PR?]
 
