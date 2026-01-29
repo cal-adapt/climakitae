@@ -30,6 +30,7 @@ from .cadcat_param_validator import DataValidator
 from .clip_param_validator import validate_clip_param
 from .concat_param_validator import validate_concat_param
 from .convert_units_param_validator import validate_convert_units_param
+from .drop_leap_days_param_validator import validate_drop_leap_days_param
 from .export_param_validator import validate_export_param
 from .filter_unadjusted_models_param_validator import (
     validate_filter_unadjusted_models_param,
@@ -48,6 +49,7 @@ __all__ = [
     "validate_clip_param",
     "validate_concat_param",
     "validate_convert_units_param",
+    "validate_drop_leap_days_param",
     "validate_export_param",
     "validate_filter_unadjusted_models_param",
     "validate_metric_calc_param",
