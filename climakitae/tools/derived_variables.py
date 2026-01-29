@@ -2,6 +2,7 @@
 
 import numpy as np
 import xarray as xr
+from typing import Union
 
 
 def compute_hdd_cdd(
@@ -344,11 +345,11 @@ def compute_sea_level_pressure(
 
     Parameters
     ----------
-        surface_pressure : xr.DataArray
+        psfc : xr.DataArray
             Surface pressure in Pascals
-        air_temperature : xr.DataArray
+        t2 : xr.DataArray
             Surface air temperature in Kelvin
-        mixing_ratio : xr.DataArray
+        q2 : xr.DataArray
             Surface mixing ratio
         elevation : xr.DataArray
             Elevation in meters
