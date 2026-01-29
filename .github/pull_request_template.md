@@ -34,8 +34,7 @@
   - [ ] Type of review requested (scientific/technical/debugging)
   - [ ] Level of review detail needed
 
-## Administrative
-- [ ] **Jira ticket linked to PR and PR linked to Jira ticket**
-- [ ] Jira ticket moved to "Review" when PR created
-- [ ] PR branch will be deleted after merge
-- [ ] Jira ticket will be moved to "Done" when complete
+## Administrative Reminders
+  - Jira ticket moved to "Review" when PR created
+  - Jira ticket will be moved to "Done" when complete
+  - PR branch will be deleted after merge
