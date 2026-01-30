@@ -91,7 +91,8 @@ def _cf_to_dt(ds: xr.Dataset) -> xr.Dataset:
 
     """
     if type(ds.indexes["time"]) not in [pd.core.indexes.datetimes.DatetimeIndex]:
-        datetimeindex = ds.indexes["time"].to_datetimeindex()
+        # Specify time_unit='us' to silence FutureWarning in pandas 3.0+
+        datetimeindex = ds.indexes["time"].to_datetimeindex(time_unit="us")
         ds["time"] = datetimeindex
     return ds
 

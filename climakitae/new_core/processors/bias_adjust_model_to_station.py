@@ -492,7 +492,9 @@ class BiasAdjustModelToStation(DataProcessor):
         try:
             time_index = da_adj.indexes["time"]
             if hasattr(time_index, "to_datetimeindex"):
-                da_adj["time"] = time_index.to_datetimeindex()
+                # Specify time_unit='us' to silence FutureWarning in pandas 3.0+
+                # and ensure consistent datetime resolution
+                da_adj["time"] = time_index.to_datetimeindex(time_unit="us")
             else:
                 # Fallback if to_datetimeindex not available
                 da_adj = da_adj.convert_calendar("standard", use_cftime=False)

@@ -165,7 +165,7 @@ class TestBiasCorrectStationDataBiasCorrection:
 
         # Generate realistic temperature data with seasonal cycle
         # Base temp ~15°C with ±10°C seasonal variation
-        dayofyear = obs_times.dayofyear
+        dayofyear = obs_times.day_of_year
         seasonal_temp = 15 + 10 * np.sin(2 * np.pi * (dayofyear - 80) / 365)
         # Add small random noise
         np.random.seed(42)
@@ -180,7 +180,7 @@ class TestBiasCorrectStationDataBiasCorrection:
         gr_times = pd.date_range("1980-01-01", "2014-12-31", freq="D")
 
         # Generate gridded data with similar pattern but slightly warmer (bias)
-        gr_dayofyear = gr_times.dayofyear
+        gr_dayofyear = gr_times.day_of_year
         gr_seasonal_temp = 17 + 10 * np.sin(2 * np.pi * (gr_dayofyear - 80) / 365)
         np.random.seed(43)
         gr_values = gr_seasonal_temp + np.random.randn(len(gr_times)) * 2
@@ -225,7 +225,7 @@ class TestBiasCorrectStationDataBiasCorrection:
 
         # Create observational data (5 years, daily frequency)
         obs_times = pd.date_range("1980-01-01", "1984-12-31", freq="D")
-        dayofyear = obs_times.dayofyear
+        dayofyear = obs_times.day_of_year
         seasonal_temp = 15 + 10 * np.sin(2 * np.pi * (dayofyear - 80) / 365)
         np.random.seed(42)
         obs_values = seasonal_temp + np.random.randn(len(obs_times)) * 2
@@ -239,7 +239,7 @@ class TestBiasCorrectStationDataBiasCorrection:
         n_times = len(gr_times)
 
         # Generate data for each simulation with different biases
-        gr_dayofyear = gr_times.dayofyear
+        gr_dayofyear = gr_times.day_of_year
 
         # Simulation 1: warmer bias
         sim1_temp = 17 + 10 * np.sin(2 * np.pi * (gr_dayofyear - 80) / 365)
