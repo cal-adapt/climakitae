@@ -334,6 +334,7 @@ def compute_sea_level_pressure(
     q2: xr.DataArray,
     elevation: xr.DataArray,
     lapse_rate: Union[float, xr.DataArray] = 0.0065,
+    average_t2=True,
     name: str = "slp_derived",
 ) -> xr.DataArray:
     """Calculate sea level pressure using a standard lapse rate and hypsometric equation.
@@ -341,21 +342,22 @@ def compute_sea_level_pressure(
     Reduction of surface pressure to sea level pressure is as much an art as a science.
     This function uses a fairly basic method derived from the hydrostatic balance equation
     and the equation of state. By default it uses a standard lapse rate of 6.5°K/km when
-    calculating the surface virtual temperature (see Pauley 1998). Temperature is not
-    time-averaged.
+    calculating the surface virtual temperature (see Pauley 1998).
 
     Parameters
     ----------
         psfc : xr.DataArray
-            Surface pressure in Pascals
+            Hourly surface pressure in Pascals
         t2 : xr.DataArray
-            Surface air temperature in Kelvin
+            Hourly surface air temperature in Kelvin
         q2 : xr.DataArray
-            Surface mixing ratio
+            Hourly surface mixing ratio
         elevation : xr.DataArray
             Elevation in meters
-        lapse_rate: Union[float, xr.DataArray]
+        lapse_rate : Union[float, xr.DataArray]
             Lapse rate in K/m. Default is 0.0065 K/m
+        average_t2 : bool (default True)
+            True to use 12-hour mean temperature
         name : str, optional
             Name to assign to output DataArray
 
@@ -365,6 +367,8 @@ def compute_sea_level_pressure(
         Sea level pressure in Pascals
     """
     # Get mean virtual temperature
+    if average_t2:
+        t2 = t2.rolling(time=12).mean()
     t_virtual_sfc = ((1 + 1.609 * q2) / (1 + q2)) * t2
     t_virtual_mean = (2 * t_virtual_sfc + lapse_rate * elevation) / 2
 
