@@ -338,7 +338,7 @@ def compute_sea_level_pressure(
     average_t2=True,
     name: str = "slp_derived",
 ) -> xr.DataArray:
-    """Calculate sea level pressure from surface pressure, temperature, and mixing ratio.
+    """Calculate sea level pressure from hourly surface pressure, temperature, and mixing ratio.
 
     This function uses the basic method derived from the hydrostatic balance equation
     and the equation of state. The SLP calculation method used here may not produce
@@ -355,17 +355,17 @@ def compute_sea_level_pressure(
     Parameters
     ----------
         psfc : xr.DataArray
-            Surface pressure in Pascals
+            Hourly surface pressure in Pascals
         t2 : xr.DataArray
-            Surface air temperature in Kelvin
+            Hourly surface air temperature in Kelvin
         q2 : xr.DataArray
-            Surface mixing ratio
+            Hourly surface mixing ratio
         elevation : xr.DataArray
             Elevation in meters
         lapse_rate : Union[float, xr.DataArray]
             Lapse rate in K/m. Default is 0.0065 K/m
         average_t2 : bool (default True)
-            True to use 12-hour mean temperature (hourly frequency only)
+            True to use 12-hour mean temperature
         name : str, optional
             Name to assign to output DataArray
 
@@ -387,19 +387,15 @@ def compute_sea_level_pressure(
     """
     # Get mean virtual temperature
     if average_t2:
-        if "frequency" in t2.attrs:
-            if t2.attrs["frequency"] in ["hours", "hourly", "1h"]:
-                t2 = t2.rolling(time=12).mean()
-            else:
-                print(
-                    f"Cannot do 12-hour time average for t2 frequency {t2.attrs['frequency']}."
-                )
-                print("Skipping time average.")
+        print("compute_sea_level_pressure: Using 12-timestep mean temperature.")
+        if "time" in t2.dims:
+            t2 = t2.rolling(time=12).mean()
+        elif "time_delta" in t2.dims:
+            t2 = t2.rolling(time_delta=12).mean()
         else:
-            print(
-                "Cannot determine t2 time frequency. Please add 'frequency' attribute to t2."
+            raise KeyError(
+                "No time or time_delta axis found in t2. Use `average_t2=False` for data without time axis."
             )
-            print("Skipping time average.")
 
     t_virtual_sfc = ((1 + 1.609 * q2) / (1 + q2)) * t2
     t_virtual_mean = (2 * t_virtual_sfc + lapse_rate * elevation) / 2
