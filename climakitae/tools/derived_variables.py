@@ -1,8 +1,9 @@
 """Functions for deriving frequently used variables"""
 
+from typing import Union
+
 import numpy as np
 import xarray as xr
-from typing import Union
 
 
 def compute_hdd_cdd(
