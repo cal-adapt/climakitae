@@ -354,17 +354,17 @@ def compute_sea_level_pressure(
     Parameters
     ----------
         psfc : xr.DataArray
-            Hourly surface pressure in Pascals
+            Surface pressure in Pascals
         t2 : xr.DataArray
-            Hourly surface air temperature in Kelvin
+            Surface air temperature in Kelvin
         q2 : xr.DataArray
-            Hourly surface mixing ratio
+            Surface mixing ratio
         elevation : xr.DataArray
             Elevation in meters
         lapse_rate : Union[float, xr.DataArray]
             Lapse rate in K/m. Default is 0.0065 K/m
         average_t2 : bool (default True)
-            True to use 12-hour mean temperature
+            True to use 12-hour mean temperature (hourly frequency only)
         name : str, optional
             Name to assign to output DataArray
 
@@ -386,7 +386,20 @@ def compute_sea_level_pressure(
     """
     # Get mean virtual temperature
     if average_t2:
-        t2 = t2.rolling(time=12).mean()
+        if "frequency" in t2.attrs:
+            if t2.attrs["frequency"] in ["hours", "hourly", "1h"]:
+                t2 = t2.rolling(time=12).mean()
+            else:
+                print(
+                    f"Cannot do 12-hour time average for t2 frequency {t2.attrs['frequency']}."
+                )
+                print("Skipping time average.")
+        else:
+            print(
+                "Cannot determine t2 time frequency. Please add 'frequency' attribute to t2."
+            )
+            print("Skipping time average.")
+
     t_virtual_sfc = ((1 + 1.609 * q2) / (1 + q2)) * t2
     t_virtual_mean = (2 * t_virtual_sfc + lapse_rate * elevation) / 2
 
