@@ -339,7 +339,6 @@ def compute_sea_level_pressure(
 ) -> xr.DataArray:
     """Calculate sea level pressure from surface pressure, temperature, and mixing ratio.
 
-    Reduction of surface pressure to sea level pressure (SLP) is as much an art as a science.
     This function uses the basic method derived from the hydrostatic balance equation
     and the equation of state. The SLP calculation method used here may not produce
     satisfactory results in locations with high terrain.
