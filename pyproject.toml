@@ -40,7 +40,7 @@ dependencies = [
     "intake-xarray",
     "matplotlib",
     "numcodecs<=0.14.1",
-    "numpy",
+    "numpy<2.0",
     "pandas",
     "param",
     "psutil",
