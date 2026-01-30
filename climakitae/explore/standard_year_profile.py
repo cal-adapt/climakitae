@@ -161,34 +161,29 @@ def _get_clean_standardyr_filename(
     clean_q_name = f"{q:.2f}".split(".")[1].lower()
     clean_var_name = var_id.lower()
 
-    if gwl is None:
-        clean_gwl_name = ""
-    else:
+    clean_gwl_name = ""
+    if gwl:
         clean_gwl_name = match_str_to_wl(gwl).lower().replace(".", "pt")
         clean_gwl_name = f"_{clean_gwl_name}"
 
-    if no_delta:
-        delta_str = ""
-    else:
+    delta_str = ""
+    if no_delta is False:
         delta_str = "_delta_from_historical"
 
-    if warming_level_window is None:
-        # default 30yr window (corresponds to default 15)
-        window_str = "_30yr_window"
-    else:
+    # default 30yr window (corresponds to default 15)
+    window_str = "_30yr_window"
+    if warming_level_window is not None:
         # custom window size provided
         window = warming_level_window * 2
         window_str = f"_{window}yr_window"
 
-    if approach is None:
-        approach_str = ""
-    else:
+    approach_str = ""
+    if approach is not None:
         approach_str = approach.lower().replace(" ", "_")
         approach_str = f"_{approach_str}"
 
-    if centered_year is None:
-        centered_year_str = ""
-    else:
+    centered_year_str = ""
+    if centered_year is not None:
         centered_year_str = f"_{centered_year}"
 
     filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}{clean_gwl_name}{delta_str}{window_str}{approach_str}{centered_year_str}.csv"
@@ -371,9 +366,8 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
     match profile.keys().nlevels:
         case 2:  # Single WL
             # If time-based approach being used, do not include gwl in the filename
+            gwl = global_warming_levels
             if global_warming_levels is None:
-                gwl = global_warming_levels
-            else:
                 gwl = global_warming_levels[0]
             filename = _get_clean_standardyr_filename(
                 var_id,
@@ -405,7 +399,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
             )
 
 
-def _handle_approach_params(**kwargs: Any) -> Any:
+def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """
     Helper function that
     1. performs validation on variables related to approach ('approach','centered_year','warming_level')
@@ -715,7 +709,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
     return historic_data, future_data
 
 
-def get_climate_profile(**kwargs: Any) -> pd.DataFrame:
+def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
     """
     High-level function to compute standard year climate profiles using warming level data.
 
@@ -785,17 +779,20 @@ def get_climate_profile(**kwargs: Any) -> pd.DataFrame:
         "units": "degF",
     }
     for key, default_val in defaults.items():
-        if key not in kwargs:
-            if key == "warming_level":
-                # if approach=Time, then default warming level is not used
-                if kwargs.get("approach") == "Time":
-                    continue
-                else:
-                    print(f"Using default '{key}': {default_val}")
-                    kwargs[key] = default_val
+        if key in kwargs:
+            # skip this key
+            continue
+
+        if key == "warming_level":
+            # if approach=Time, then default warming level is not used
+            if kwargs.get("approach") == "Time":
+                continue
             else:
                 print(f"Using default '{key}': {default_val}")
                 kwargs[key] = default_val
+        else:
+            print(f"Using default '{key}': {default_val}")
+            kwargs[key] = default_val
 
     # catch invalid selections that return None
     if future_data is None and historic_data is None:
