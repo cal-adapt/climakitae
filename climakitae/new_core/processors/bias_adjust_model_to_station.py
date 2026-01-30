@@ -386,123 +386,136 @@ class BiasAdjustModelToStation(DataProcessor):
         # Workaround for numpy 2.0+ read-only coordinate arrays
         # xsdba/xclim tries to modify coordinate values in add_cyclic_bounds()
         # which fails with numpy 2.0+ where arrays are read-only by default
-        # Solution: ensure all coordinates have writable underlying arrays
-        def make_coords_writable(da):
-            """Ensure all coordinate arrays are writable (numpy 2.0+ compatibility)."""
-            for coord_name in da.coords:
-                coord_vals = da.coords[coord_name].values
-                if not coord_vals.flags.writeable:
-                    # Create a writable copy of the coordinate
-                    da = da.assign_coords({coord_name: coord_vals.copy()})
-            return da
+        # Solution: monkey-patch add_cyclic_bounds to use writeable copies
+        import xsdba.utils
 
-        gridded_da = make_coords_writable(gridded_da)
-        obs_da = make_coords_writable(obs_da)
-        if historical_da is not None:
-            historical_da = make_coords_writable(historical_da)
+        _original_add_cyclic_bounds = xsdba.utils.add_cyclic_bounds
 
-        if historical_da is not None:
-            # Use provided historical data
-            # Slice to match obs data period
-            gridded_da_historical = historical_da.sel(
-                time=slice(str(obs_da.time.values[0]), str(obs_da.time.values[-1]))
-            )
-        else:
-            # Slice gridded data to match obs data period (legacy approach)
-            # This ensures we only use the overlapping historical period
-            gridded_da_historical = gridded_da.sel(
-                time=slice(str(obs_da.time.values[0]), str(obs_da.time.values[-1]))
-            )
+        def add_cyclic_bounds_writeable(da, att, cyclic_coords=True):
+            """Wrapper for add_cyclic_bounds that ensures writeable arrays."""
+            result = _original_add_cyclic_bounds(da, att, cyclic_coords=True)
+            if not cyclic_coords:
+                # Make coordinate writable before attempting modification
+                vals = result.coords[att].values
+                if not vals.flags.writeable:
+                    result = result.assign_coords({att: vals.copy()})
+                # Now do the non-cyclic adjustment with writeable array
+                vals = result.coords[att].values
+                diff = da.coords[att].diff(att)
+                vals[0] = vals[1] - diff[0].values
+                vals[-1] = vals[-2] + diff[-1].values
+            return result
 
-        # Avoid accessing .values for logging
-        logger.debug(
-            "Gridded historical shape: %s",
-            gridded_da_historical.shape,
-        )
+        # Apply monkey patch temporarily - use try/finally to ensure cleanup
+        xsdba.utils.add_cyclic_bounds = add_cyclic_bounds_writeable
+        
+        try:
+            if historical_da is not None:
+                # Use provided historical data
+                # Slice to match obs data period
+                gridded_da_historical = historical_da.sel(
+                    time=slice(str(obs_da.time.values[0]), str(obs_da.time.values[-1]))
+                )
+            else:
+                # Slice gridded data to match obs data period (legacy approach)
+                # This ensures we only use the overlapping historical period
+                gridded_da_historical = gridded_da.sel(
+                    time=slice(str(obs_da.time.values[0]), str(obs_da.time.values[-1]))
+                )
 
-        # Now slice obs data to match the gridded historical data exactly
-        # This handles any edge cases where times don't align perfectly
-        # We need to access values here for slicing, but we can do it efficiently
-        # obs_da is in memory (loaded from zarr), so accessing values is fast
-        # gridded_da_historical might be lazy.
-        # However, we need the time bounds.
-        # If gridded_da_historical is lazy, accessing time.values triggers computation.
-        # But we need it for the slice.
-        # Let's try to use the time coordinate directly if possible, or accept the cost here.
-        # But we can avoid printing it in the log if we already accessed it.
-
-        # Optimization: Use min/max of time coordinate if available without loading all values?
-        # For now, we assume we need the start/end.
-        # But we can avoid the logger call accessing it AGAIN.
-
-        t_start = str(gridded_da_historical.time.values[0])
-        t_end = str(gridded_da_historical.time.values[-1])
-
-        obs_da = obs_da.sel(time=slice(t_start, t_end))
-        logger.debug(
-            "Final obs period shape: %s",
-            obs_da.shape,
-        )
-
-        # Check if data has a 'sim' dimension from concatenation
-        # QDM must be trained and applied separately for each simulation
-        if "sim" in gridded_da.dims:
-            logger.debug("Data has 'sim' dimension, using broadcasted QDM")
-
-            # Rename 'sim' to 'simulation' to avoid conflict with xsdba internal naming
-            # xsdba uses 'sim' internally for the simulated dataset
-            data_sliced_renamed = gridded_da.rename({"sim": "simulation"})
-            hist_renamed = gridded_da_historical.rename({"sim": "simulation"})
-
+            # Avoid accessing .values for logging
             logger.debug(
-                "Training QDM with nquantiles=%s, kind=%s (broadcasted)",
-                self.nquantiles,
-                self.kind,
+                "Gridded historical shape: %s",
+                gridded_da_historical.shape,
             )
 
-            # Train QDM with broadcasting
-            # obs_da is (time), hist_renamed is (simulation, time)
-            # QDM will learn distributions for each simulation
-            QDM = QuantileDeltaMapping.train(
-                obs_da,
-                hist_renamed,
-                nquantiles=self.nquantiles,
-                group=grouper,
-                kind=self.kind,
-            )
+            # Now slice obs data to match the gridded historical data exactly
+            # This handles any edge cases where times don't align perfectly
+            # We need to access values here for slicing, but we can do it efficiently
+            # obs_da is in memory (loaded from zarr), so accessing values is fast
+            # gridded_da_historical might be lazy.
+            # However, we need the time bounds.
+            # If gridded_da_historical is lazy, accessing time.values triggers computation.
+            # But we need it for the slice.
+            # Let's try to use the time coordinate directly if possible, or accept the cost here.
+            # But we can avoid printing it in the log if we already accessed it.
 
-            # Apply QDM
-            logger.debug("Applying QDM adjustment (broadcasted)")
-            da_adj = QDM.adjust(data_sliced_renamed)
+            # Optimization: Use min/max of time coordinate if available without loading all values?
+            # For now, we assume we need the start/end.
+            # But we can avoid the logger call accessing it AGAIN.
 
-            # Rename 'simulation' back to 'sim'
-            da_adj = da_adj.rename({"simulation": "sim"})
-            da_adj.name = gridded_da_historical.name
+            t_start = str(gridded_da_historical.time.values[0])
+            t_end = str(gridded_da_historical.time.values[-1])
 
-        else:
-            # No sim dimension - train and apply QDM once
+            obs_da = obs_da.sel(time=slice(t_start, t_end))
             logger.debug(
-                "Training QDM with nquantiles=%s, kind=%s", self.nquantiles, self.kind
-            )
-            QDM = QuantileDeltaMapping.train(
-                obs_da,
-                gridded_da_historical,
-                nquantiles=self.nquantiles,
-                group=grouper,
-                kind=self.kind,
-            )
-            logger.debug("QDM training complete")
-            # No sim dimension, process as single array
-            logger.debug("Applying QDM adjustment to data_sliced")
-            logger.debug("data_sliced time dtype before QDM: %s", gridded_da.time.dtype)
-            logger.debug(
-                "data_sliced is dask array: %s", hasattr(gridded_da.data, "dask")
+                "Final obs period shape: %s",
+                obs_da.shape,
             )
 
-            da_adj = QDM.adjust(gridded_da)
-            da_adj.name = gridded_da_historical.name
+            # Check if data has a 'sim' dimension from concatenation
+            # QDM must be trained and applied separately for each simulation
+            if "sim" in gridded_da.dims:
+                logger.debug("Data has 'sim' dimension, using broadcasted QDM")
 
-            logger.debug("QDM adjustment complete (lazy)")
+                # Rename 'sim' to 'simulation' to avoid conflict with xsdba internal naming
+                # xsdba uses 'sim' internally for the simulated dataset
+                data_sliced_renamed = gridded_da.rename({"sim": "simulation"})
+                hist_renamed = gridded_da_historical.rename({"sim": "simulation"})
+
+                logger.debug(
+                    "Training QDM with nquantiles=%s, kind=%s (broadcasted)",
+                    self.nquantiles,
+                    self.kind,
+                )
+
+                # Train QDM with broadcasting
+                # obs_da is (time), hist_renamed is (simulation, time)
+                # QDM will learn distributions for each simulation
+                QDM = QuantileDeltaMapping.train(
+                    obs_da,
+                    hist_renamed,
+                    nquantiles=self.nquantiles,
+                    group=grouper,
+                    kind=self.kind,
+                )
+
+                # Apply QDM
+                logger.debug("Applying QDM adjustment (broadcasted)")
+                da_adj = QDM.adjust(data_sliced_renamed)
+
+                # Rename 'simulation' back to 'sim'
+                da_adj = da_adj.rename({"simulation": "sim"})
+                da_adj.name = gridded_da_historical.name
+
+            else:
+                # No sim dimension - train and apply QDM once
+                logger.debug(
+                    "Training QDM with nquantiles=%s, kind=%s", self.nquantiles, self.kind
+                )
+                QDM = QuantileDeltaMapping.train(
+                    obs_da,
+                    gridded_da_historical,
+                    nquantiles=self.nquantiles,
+                    group=grouper,
+                    kind=self.kind,
+                )
+                logger.debug("QDM training complete")
+                # No sim dimension, process as single array
+                logger.debug("Applying QDM adjustment to data_sliced")
+                logger.debug("data_sliced time dtype before QDM: %s", gridded_da.time.dtype)
+                logger.debug(
+                    "data_sliced is dask array: %s", hasattr(gridded_da.data, "dask")
+                )
+
+                da_adj = QDM.adjust(gridded_da)
+                da_adj.name = gridded_da_historical.name
+
+                logger.debug("QDM adjustment complete (lazy)")
+        
+        finally:
+            # Restore original add_cyclic_bounds function (always execute)
+            xsdba.utils.add_cyclic_bounds = _original_add_cyclic_bounds
 
         # Convert time back to datetime64 (from CFTime noleap)
         # This matches legacy behavior and ensures compatibility with downstream operations
