@@ -1,4 +1,7 @@
-"""Test functions for derived variables that are not loadable via get_data or new core."""
+"""Test functions for derived variables that are not loadable via get_data or new core.
+
+Currently, only compute_sea_level_pressure() needs to be tested here.
+"""
 
 import numpy as np
 import pytest
@@ -15,7 +18,7 @@ def mock_psfc() -> xr.DataArray:
     lat = 9.475632
     time_range = xr.date_range("2000-01-01 00:00", "2000-01-01 23:00", freq="h")
     da = xr.DataArray(
-        data=np.expand_dims(np.tile([[850]], 24), 0),
+        data=np.expand_dims(np.tile([[85000]], 24), 0),
         dims=["y", "x", "time"],
         coords={
             "lon": (("y", "x"), np.array([[lon]])),
@@ -124,13 +127,14 @@ def mock_lapse_rate() -> xr.DataArray:
 
 
 class TestSeaLevelPressure:
+    """Test class for compute_sea_level_pressure."""
 
     def test_defaults(self, mock_psfc, mock_t2, mock_q2, mock_elevation):
         """Test SLP calculation with default arguments for single point."""
         result = compute_sea_level_pressure(mock_psfc, mock_t2, mock_q2, mock_elevation)
         assert isinstance(result, xr.DataArray)
         # Since time averaging is default, the first valid value is time=11
-        assert approx(result[0, 0, 12].data.item(), rel=1e-4) == 900.6053
+        assert approx(result[0, 0, 12].data.item(), rel=1e-4) == 90060.53
         assert np.isnan(result[0, 0, 0:11]).all()
 
         # Check metadata
@@ -146,7 +150,7 @@ class TestSeaLevelPressure:
 
         # Should be no NaNs; because test data is constant in time, the
         # time-averaged result is same as non-time-averaged
-        assert approx(result[0, 0, 0].data.item(), rel=1e-4) == 900.6053
+        assert approx(result[0, 0, 0].data.item(), rel=1e-4) == 90060.53
         assert ~np.isnan(result).all()
 
     def test_lapse_rate(
@@ -157,13 +161,13 @@ class TestSeaLevelPressure:
         result = compute_sea_level_pressure(
             mock_psfc, mock_t2, mock_q2, mock_elevation, lapse_rate=0.007
         )
-        assert approx(result[0, 0, 11].data.item(), rel=1e-4) == 900.5833
+        assert approx(result[0, 0, 11].data.item(), rel=1e-4) == 90058.33
 
         # Lapse rate is spatial data array 9K/km
         result = compute_sea_level_pressure(
             mock_psfc, mock_t2, mock_q2, mock_elevation, lapse_rate=mock_lapse_rate
         )
-        assert approx(result[0, 0, 11].data.item(), rel=1e-4) == 900.4954
+        assert approx(result[0, 0, 11].data.item(), rel=1e-4) == 90049.54
 
     def test_no_time_axis(
         self, mock_psfc, mock_t2_no_time, mock_q2, mock_elevation, mock_lapse_rate
