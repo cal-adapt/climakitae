@@ -32,7 +32,22 @@ when explicitly requested (e.g., via ``show_boundary_options()``).
 """
 
 from .data_access.data_access import DataCatalog
+from .derived_variables import (
+    get_registry,
+    list_derived_variables,
+    register_derived,
+    register_user_function,
+)
 
 # Lazy singleton access - DataCatalog is created on first use
 # Boundary data is NOT loaded at import time for performance
 CATALOG = DataCatalog()
+
+__all__ = [
+    "DataCatalog",
+    "CATALOG",
+    "get_registry",
+    "register_derived",
+    "register_user_function",
+    "list_derived_variables",
+]

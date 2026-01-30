@@ -45,6 +45,11 @@ class MetricCalc(DataProcessor):
     and extreme value analysis for 1-in-X return period calculations.
     Multiple calculation types can be performed simultaneously.
 
+    **Multi-Variable Support**: When a Dataset with multiple variables is provided:
+    - Basic metrics (min/max/mean/median) and percentiles are calculated for all variables
+    - 1-in-X analysis processes each variable separately and prefixes results with variable names
+      (e.g., `tasmax_return_values`, `tasmin_return_values`)
+
     Parameters
     ----------
     value : dict[str, Any]
@@ -52,7 +57,7 @@ class MetricCalc(DataProcessor):
 
         Basic Metrics:
         - metric (str, optional): Metric to calculate. Supported values:
-          "min", "max", "mean", "median". Default: "mean"
+          "min", "max", "mean", "median", "sum". Default: "mean"
         - percentiles (list, optional): List of percentiles to calculate (0-100).
           Default: None
         - percentiles_only (bool, optional): If True and percentiles are specified,
@@ -143,7 +148,9 @@ class MetricCalc(DataProcessor):
         self.metric = value.get("metric", "mean")
         self.percentiles = value.get("percentiles", UNSET)
         self.percentiles_only = value.get("percentiles_only", False)
-        self.dim = value.get("dim", "time")
+
+        # Allow either `dim` or `dims` for flexibility
+        self.dim = value.get("dims", value.get("dim", "time"))
         self.keepdims = value.get("keepdims", False)
         self.skipna = value.get("skipna", True)
 
@@ -333,6 +340,9 @@ class MetricCalc(DataProcessor):
                 "median": lambda x: x.median(
                     dim=calc_dim, keep_attrs=True, skipna=self.skipna
                 ),
+                "sum": lambda x: x.sum(
+                    dim=calc_dim, keep_attrs=True, skipna=self.skipna
+                ),
             }
 
             metric_result = metric_functions[self.metric](data)
@@ -403,16 +413,43 @@ class MetricCalc(DataProcessor):
         Returns
         -------
         xr.Dataset
-            Dataset with return_value and p_values DataArrays.
+            Dataset with return_value and p_values DataArrays. For multi-variable datasets,
+            each variable's results are prefixed (e.g., `var1_return_values`, `var2_return_values`).
         """
         ### The DataArray may have missing gridcells, since the WRF grid is not lat/lon, or the clipping may have may this DataArray an irregular shape.
         ### To resolve this, we will select all the valid gridcells from `data`, pass them through the calculation, and then re-insert them back into the original grid shape with NaNs where appropriate.
 
         # Handle Dataset vs DataArray
         if isinstance(data, xr.Dataset):
-            # For datasets, process the first data variable
-            var_name = list(data.data_vars)[0]
-            data_array = data[var_name]
+            # Process all variables in the dataset
+            var_names = list(data.data_vars)
+            if len(var_names) == 0:
+                raise ValueError("Dataset has no data variables")
+
+            if len(var_names) == 1:
+                # Single variable - process as before
+                var_name = var_names[0]
+                data_array = data[var_name]
+            else:
+                # Multiple variables - process each and merge results
+                logger.info("Processing %d variables: %s", len(var_names), var_names)
+                results = []
+                for var_name in var_names:
+                    logger.info("Processing variable: %s", var_name)
+                    var_result = self._calculate_one_in_x_single(data[var_name])
+                    # Rename variables to include source variable name
+                    var_result = var_result.rename(
+                        {
+                            "return_values": f"{var_name}_return_values",
+                            "p_values": f"{var_name}_p_values",
+                        }
+                    )
+                    results.append(var_result)
+
+                # Merge all results into a single dataset
+                merged = xr.merge(results)
+                logger.info("Merged %d variable results", len(var_names))
+                return merged
         else:
             data_array = data
             var_name = str(data_array.name) if data_array.name else "data"
@@ -665,20 +702,47 @@ class MetricCalc(DataProcessor):
             shape_without_sim.pop(sim_dim_idx)
             elements_per_sim = np.prod(shape_without_sim)
 
-            # Memory per sim: input data + block maxima (~1/365th the size) + distribution fitting overhead
-            # Use float32 = 4 bytes
-            bytes_per_element = 4
-            input_size_per_sim_mb = (
-                elements_per_sim * bytes_per_element
-            ) / BYTES_TO_MB_FACTOR
+            # Determine actual dtype size (don't assume float32)
+            dtype_size = data_array.dtype.itemsize
 
-            # Block maxima reduces time dimension significantly (10950 days -> ~30 years)
-            # But we need multiple copies: input, block maxima, intermediate arrays
-            # Estimate 5x overhead for safe processing
-            estimated_memory_per_sim_mb = input_size_per_sim_mb * 5
+            # Check if data is dask-backed for more accurate estimation
+            is_dask = hasattr(data_array.data, "chunks")
 
-            # Target using only 30% of available memory for safety on shared systems
-            target_memory_mb = available_memory_gb * 1000 * 0.3
+            # Memory per sim calculation:
+            # 1. Input data: elements_per_sim * dtype_size
+            # 2. Block maxima: ~1/365th of input (yearly blocks from daily data)
+            # 3. Distribution fitting: small overhead for fitted parameters
+            # 4. Intermediate arrays: 1-2x input size during computation
+
+            input_size_per_sim_mb = (elements_per_sim * dtype_size) / BYTES_TO_MB_FACTOR
+
+            # Block maxima is much smaller (time reduced from days to years)
+            # Estimate time reduction factor
+            time_size = data_array.sizes.get(
+                "time", data_array.sizes.get("time_delta", 365)
+            )
+            block_reduction_factor = min(365, time_size) / max(1, time_size / 365)
+            block_maxima_size_mb = input_size_per_sim_mb / block_reduction_factor
+
+            # For dask arrays, input gets pulled in chunks during compute
+            # GEV fitting is compute-heavy and needs substantial working memory
+            # For non-dask, need input + block maxima + intermediates
+            if is_dask:
+                # Dask: input chunks + block maxima + GEV fitting working memory
+                # GEV fitting can require significant working memory (3-5x block maxima)
+                # Conservative estimate: ~2.5x input for compute-intensive fitting
+                estimated_memory_per_sim_mb = (
+                    input_size_per_sim_mb * 0.5 + block_maxima_size_mb * 3.0
+                )  # Partial input + substantial fitting overhead
+            else:
+                # Non-dask: need input data + block maxima + intermediates
+                estimated_memory_per_sim_mb = (
+                    input_size_per_sim_mb + block_maxima_size_mb * 2.0
+                )
+
+            # Target using 50% of available memory for GEV fitting workloads
+            # GEV is compute-intensive; leave headroom for OS and other processes
+            target_memory_mb = available_memory_gb * 1000 * 0.5
 
             # Calculate batch size
             if estimated_memory_per_sim_mb > 0:
@@ -688,22 +752,27 @@ class MetricCalc(DataProcessor):
             else:
                 estimated_batch_size = 1
 
-            # Clamp to reasonable bounds - be very conservative
+            # Clamp to reasonable bounds
+            # Increased cap from 20 to allow better memory utilization
             batch_size = max(
                 1,  # At least 1 simulation
                 min(
                     estimated_batch_size,
-                    20,  # Cap at 20 simulations per batch for memory safety
+                    50,  # Cap at 50 simulations per batch (increased from 20)
                     n_sims,  # Don't exceed total simulations
                 ),
             )
 
             logger.info(
                 "Memory analysis: %.1fGB available, ~%d elements/sim, "
-                "~%.0fMB estimated/sim, batch size: %d",
+                "input=%.0fMB, block_maxima=%.0fMB, estimated_total=%.0fMB/sim, "
+                "dask=%s, batch size: %d",
                 available_memory_gb,
                 elements_per_sim,
+                input_size_per_sim_mb,
+                block_maxima_size_mb,
                 estimated_memory_per_sim_mb,
+                is_dask,
                 batch_size,
             )
 

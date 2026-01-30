@@ -636,7 +636,9 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
         if "latitude" in kwargs or "longitude" in kwargs:
             kwargs.pop("latitude", None)
             kwargs.pop("longitude", None)
-            print("   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude")
+            print(
+                "   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude"
+            )
         if "stations" in kwargs:
             kwargs.pop("stations", None)
             print("   ⚠️  Note: Using cached_area, ignoring provided stations")
@@ -974,7 +976,8 @@ def _compute_simulation_paired_difference(
         print(f"      Future simulations: {list(future_sims)}")
         print(f"      Historic simulations: {list(historic_sims)}")
         # Fall back to using mean of historic
-        historic_mean = historic_profile.groupby(level="Hour", axis=1).mean()
+        # Note: axis parameter removed in pandas 2.2, use level-based groupby instead
+        historic_mean = historic_profile.T.groupby(level="Hour").mean().T
         for col in future_profile.columns:
             hour = col[0] if "Hour" in future_levels else col[-1]
             difference_profile.loc[:, col] = future_profile[col] - historic_mean[hour]

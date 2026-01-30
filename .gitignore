@@ -28,8 +28,9 @@ MANIFEST
 **/_version.py
 
 .github/instructions
-examples/
+**examples/*
 lithops/
+examples/
 aws/
 
 # PyInstaller

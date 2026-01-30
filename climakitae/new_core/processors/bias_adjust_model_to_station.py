@@ -674,7 +674,8 @@ class BiasAdjustModelToStation(DataProcessor):
                 historical_list.append(historical_da_closest)
 
         # Stack data along 'station' dimension
-        station_index = pd.Index(station_names, name="station")
+        # Convert to object dtype to avoid pandas 2.2 StringDtype issues with xarray
+        station_index = pd.Index(station_names, name="station", dtype=object)
 
         # Stack gridded data
         gridded_stacked = xr.concat(gridded_list, dim=station_index)
