@@ -383,6 +383,24 @@ class BiasAdjustModelToStation(DataProcessor):
         if historical_da is not None:
             historical_da = historical_da.chunk(chunks=dict(time=-1))
 
+        # Workaround for numpy 2.0+ read-only coordinate arrays
+        # xsdba/xclim tries to modify coordinate values in add_cyclic_bounds()
+        # which fails with numpy 2.0+ where arrays are read-only by default
+        # Solution: ensure all coordinates have writable underlying arrays
+        def make_coords_writable(da):
+            """Ensure all coordinate arrays are writable (numpy 2.0+ compatibility)."""
+            for coord_name in da.coords:
+                coord_vals = da.coords[coord_name].values
+                if not coord_vals.flags.writeable:
+                    # Create a writable copy of the coordinate
+                    da = da.assign_coords({coord_name: coord_vals.copy()})
+            return da
+
+        gridded_da = make_coords_writable(gridded_da)
+        obs_da = make_coords_writable(obs_da)
+        if historical_da is not None:
+            historical_da = make_coords_writable(historical_da)
+
         if historical_da is not None:
             # Use provided historical data
             # Slice to match obs data period
