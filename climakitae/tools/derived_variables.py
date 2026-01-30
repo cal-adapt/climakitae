@@ -337,12 +337,20 @@ def compute_sea_level_pressure(
     average_t2=True,
     name: str = "slp_derived",
 ) -> xr.DataArray:
-    """Calculate sea level pressure using a standard lapse rate and hypsometric equation.
+    """Calculate sea level pressure from surface pressure, temperature, and mixing ratio.
 
-    Reduction of surface pressure to sea level pressure is as much an art as a science.
-    This function uses a fairly basic method derived from the hydrostatic balance equation
-    and the equation of state. By default it uses a standard lapse rate of 6.5°K/km when
-    calculating the surface virtual temperature (see Pauley 1998).
+    Reduction of surface pressure to sea level pressure (SLP) is as much an art as a science.
+    This function uses the basic method derived from the hydrostatic balance equation
+    and the equation of state. The SLP calculation method used here may not produce
+    satisfactory results in locations with high terrain.
+
+    By default this method uses a standard lapse rate of 6.5°K/km when calculating the
+    sea level virtual temperature (see Pauley 1998). Users should consider what lapse rate is
+    appropriate for their location.
+
+    An option is provided to use a 12-hour average temperature when computing the lapse rate;
+    this option is expected to produce more moderate SLP values that are less influenced by
+    extreme temperatures.
 
     Parameters
     ----------
@@ -365,6 +373,17 @@ def compute_sea_level_pressure(
     -------
     xr.DataArray
         Sea level pressure in Pascals
+
+    Notes
+    -----
+    Virtual temperature is computed in the following way:
+    T_virtual = ((1 + 1.609 q2) / (1 + q2)) * t2
+    T_virtual_mean = (2 * T_virtual + lapse_rate * elevation) / 2
+
+    Sea level pressure is calculated as:
+    slp = psfc * np.exp(elevation / ((Rd * T_virtual_mean)/g)
+       where Rd is the specific gas constant for dry air
+       and g is the acceleration due to gravity.
     """
     # Get mean virtual temperature
     if average_t2:
@@ -373,8 +392,8 @@ def compute_sea_level_pressure(
     t_virtual_mean = (2 * t_virtual_sfc + lapse_rate * elevation) / 2
 
     # Adjust pressure with hypsometric equation
-    Rd = 287.052874  # gas constant for dry air, J kg−1 K−1
-    g = 9.80665  # acceleration due to gravity, m s-2
+    Rd = 287.04  # gas constant for dry air, J kg−1 K−1
+    g = 9.81  # acceleration due to gravity, m s-2
 
     h = (Rd * t_virtual_mean) / g
     slp = psfc * np.exp(elevation / h)
