@@ -1,8 +1,13 @@
 """
-Unit tests for climakitae/explore/standard_year_profile.py
+Unit tests for climakitae/explore/standard_year_profile.py export functions
 
-This module contains comprehensive unit tests for the Standard Year and climate
-profile computation functions that provide climate profile analysis.
+This module contains unit and integration tests for Standard Year profile export functions:
+
+- export_profile_to_csv()
+- _get_clean_standardyr_filename()
+- _check_cached_area()
+- _check_lat_lon()
+- _check_stations()
 
 """
 
@@ -151,6 +156,8 @@ class TestExportProfile:
                     "location": "sacramento county",
                     "no_delta": False,
                     "warming_level_window": None,
+                    "approach": None,
+                    "centered_year": None,
                 },
                 "stdyr_t2_50ptile_sacramento_county_present-day_delta_from_historical_30yr_window.csv",
             ),
@@ -162,6 +169,8 @@ class TestExportProfile:
                     "location": "sacramento county",
                     "no_delta": True,
                     "warming_level_window": None,
+                    "approach": None,
+                    "centered_year": None,
                 },
                 "stdyr_t2_50ptile_sacramento_county_present-day_30yr_window.csv",
             ),
@@ -173,6 +182,8 @@ class TestExportProfile:
                     "location": "35-5N_122-5W",
                     "no_delta": True,
                     "warming_level_window": None,
+                    "approach": None,
+                    "centered_year": None,
                 },
                 "stdyr_t2_50ptile_35-5N_122-5W_present-day_30yr_window.csv",
             ),
@@ -184,6 +195,8 @@ class TestExportProfile:
                     "location": "san diego lindbergh field ksan",
                     "no_delta": True,
                     "warming_level_window": None,
+                    "approach": None,
+                    "centered_year": None,
                 },
                 "stdyr_t2_50ptile_san_diego_lindbergh_field_ksan_late-century_30yr_window.csv",
             ),
@@ -195,6 +208,8 @@ class TestExportProfile:
                     "location": "35-5N_122-5W",
                     "no_delta": True,
                     "warming_level_window": None,
+                    "approach": None,
+                    "centered_year": None,
                 },
                 "stdyr_prec_50ptile_35-5N_122-5W_mid-late-century_30yr_window.csv",
             ),
@@ -206,6 +221,8 @@ class TestExportProfile:
                     "location": "35-5N_122-5W",
                     "no_delta": False,
                     "warming_level_window": None,
+                    "approach": None,
+                    "centered_year": None,
                 },
                 "stdyr_prec_75ptile_35-5N_122-5W_late-century_delta_from_historical_30yr_window.csv",
             ),
@@ -217,8 +234,101 @@ class TestExportProfile:
                     "location": "35-5N_122-5W",
                     "no_delta": False,
                     "warming_level_window": 5,
+                    "approach": None,
+                    "centered_year": None,
                 },
                 "stdyr_prec_75ptile_35-5N_122-5W_late-century_delta_from_historical_10yr_window.csv",
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": None,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "warming_level_window": None,
+                    "approach": "Time",
+                    "centered_year": 2050,
+                },
+                "stdyr_t2_50ptile_sacramento_county_delta_from_historical_30yr_window_time_2050.csv",
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": None,
+                    "location": "sacramento county",
+                    "no_delta": True,
+                    "warming_level_window": None,
+                    "approach": "Time",
+                    "centered_year": 2089,
+                },
+                "stdyr_t2_50ptile_sacramento_county_30yr_window_time_2089.csv",
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": None,
+                    "location": "35-5N_122-5W",
+                    "no_delta": True,
+                    "warming_level_window": None,
+                    "approach": "Time",
+                    "centered_year": 2020,
+                },
+                "stdyr_t2_50ptile_35-5N_122-5W_30yr_window_time_2020.csv",
+            ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "gwl": None,
+                    "location": "san diego lindbergh field ksan",
+                    "no_delta": True,
+                    "warming_level_window": None,
+                    "approach": "Time",
+                    "centered_year": 2020,
+                },
+                "stdyr_t2_50ptile_san_diego_lindbergh_field_ksan_30yr_window_time_2020.csv",
+            ),
+            (
+                {
+                    "var_id": "prec",
+                    "q": 0.5,
+                    "gwl": None,
+                    "location": "35-5N_122-5W",
+                    "no_delta": True,
+                    "warming_level_window": None,
+                    "approach": "Time",
+                    "centered_year": 2016,
+                },
+                "stdyr_prec_50ptile_35-5N_122-5W_30yr_window_time_2016.csv",
+            ),
+            (
+                {
+                    "var_id": "prec",
+                    "q": 0.75,
+                    "gwl": None,
+                    "location": "35-5N_122-5W",
+                    "no_delta": False,
+                    "warming_level_window": None,
+                    "approach": "Time",
+                    "centered_year": 2016,
+                },
+                "stdyr_prec_75ptile_35-5N_122-5W_delta_from_historical_30yr_window_time_2016.csv",
+            ),
+            (
+                {
+                    "var_id": "prec",
+                    "q": 0.75,
+                    "gwl": None,
+                    "location": "35-5N_122-5W",
+                    "no_delta": False,
+                    "warming_level_window": 5,
+                    "approach": "Time",
+                    "centered_year": 2016,
+                },
+                "stdyr_prec_75ptile_35-5N_122-5W_delta_from_historical_10yr_window_time_2016.csv",
             ),
         ],
     )
