@@ -437,9 +437,9 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
         # If 'approach'="Time" and 'centered_year' is provided
         case "Time", int():
             # Throw error if 'centered_year' not in acceptable range
-            if centered_year not in range(2015, 2100):
+            if centered_year not in range(1950, 2100):
                 raise ValueError(
-                    f"Only years 2015-2099 are valid inputs for 'centered_year'. Received {centered_year}."
+                    f"Only years 1950-2099 are valid inputs for 'centered_year'. Received {centered_year}."
                 )
             # Throw error if 'warming_level' provided
             elif warming_level is not None:
