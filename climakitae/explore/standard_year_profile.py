@@ -147,7 +147,7 @@ def _get_clean_standardyr_filename(
         The climate profile approach to use, either
             - "Time" (which is actually a warming level approach, but centered on an input) or
             - "Warming Level" (default)
-    centered_year (Optional) : int in range [2015,2099]
+    centered_year (Optional) : int in range [1950,2099]
         For approach="Time", the year for which to find a corresponding warming level
 
     Returns
@@ -319,7 +319,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 The climate profile approach to use, either
                     - "Time" (which is actually a warming level approach, but centered on an input) or
                     - "Warming Level" (default)
-            centered_year (Optional) : int in range [2015,2099]
+            centered_year (Optional) : int in range [1950,2099]
                 For approach="Time", the year for which to find a corresponding warming level
 
     Notes
@@ -412,7 +412,7 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
         - variable (Optional) : str, default "Air Temperature at 2m"
         - resolution (Optional) : str, default "3 km"
         - approach (Optional) : str, "Warming Level" or "Time"
-        - centered_year (Optional) : int in range [2015,2099]
+        - centered_year (Optional) : int in range [1950,2099]
         - warming_levels (Optional) : List[float], default [1.2]
         - warming_level_window (Optional): int in range [5,25]
         - cached_area (Optional) : str or List[str]
