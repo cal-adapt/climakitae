@@ -1,5 +1,7 @@
 """Functions for deriving frequently used variables"""
 
+from typing import Union
+
 import numpy as np
 import xarray as xr
 
@@ -325,3 +327,85 @@ def compute_wind_dir(
     wind_dir.name = name
     wind_dir.attrs["units"] = "degrees"
     return wind_dir
+
+
+def compute_sea_level_pressure(
+    psfc: xr.DataArray,
+    t2: xr.DataArray,
+    q2: xr.DataArray,
+    elevation: xr.DataArray,
+    lapse_rate: Union[float, xr.DataArray] = 0.0065,
+    average_t2=True,
+    name: str = "slp_derived",
+) -> xr.DataArray:
+    """Calculate sea level pressure from hourly surface pressure, temperature, and mixing ratio.
+
+    This function uses the basic method derived from the hydrostatic balance equation
+    and the equation of state. The SLP calculation method used here may not produce
+    satisfactory results in locations with high terrain.
+
+    By default this method uses a standard lapse rate of 6.5°K/km when calculating the
+    sea level virtual temperature (see Pauley 1998). Users should consider what lapse rate is
+    appropriate for their location.
+
+    An option is provided to use a 12-hour average temperature when computing the lapse rate;
+    this option is expected to produce more moderate SLP values that are less influenced by
+    extreme temperatures.
+
+    Parameters
+    ----------
+        psfc : xr.DataArray
+            Hourly surface pressure in Pascals
+        t2 : xr.DataArray
+            Hourly surface air temperature in Kelvin
+        q2 : xr.DataArray
+            Hourly surface mixing ratio
+        elevation : xr.DataArray
+            Elevation in meters
+        lapse_rate : Union[float, xr.DataArray]
+            Lapse rate in K/m. Default is 0.0065 K/m
+        average_t2 : bool (default True)
+            True to use 12-hour mean temperature
+        name : str, optional
+            Name to assign to output DataArray
+
+    Returns
+    -------
+    xr.DataArray
+        Sea level pressure in Pascals
+
+    Notes
+    -----
+    Virtual temperature is computed in the following way:
+    T_virtual = ((1 + 1.609 q2) / (1 + q2)) * t2
+    T_virtual_mean = (2 * T_virtual + lapse_rate * elevation) / 2
+
+    Sea level pressure is calculated as:
+    slp = psfc * np.exp(elevation / ((Rd * T_virtual_mean)/g)
+       where Rd is the specific gas constant for dry air
+       and g is the acceleration due to gravity.
+    """
+    # Get mean virtual temperature
+    if average_t2:
+        print("compute_sea_level_pressure: Using 12-timestep mean temperature.")
+        if "time" in t2.dims:
+            t2 = t2.rolling(time=12).mean()
+        elif "time_delta" in t2.dims:
+            t2 = t2.rolling(time_delta=12).mean()
+        else:
+            raise KeyError(
+                "No time or time_delta axis found in t2. Use `average_t2=False` for data without time axis."
+            )
+
+    t_virtual_sfc = ((1 + 1.609 * q2) / (1 + q2)) * t2
+    t_virtual_mean = (2 * t_virtual_sfc + lapse_rate * elevation) / 2
+
+    # Adjust pressure with hypsometric equation
+    Rd = 287.04  # gas constant for dry air, J kg−1 K−1
+    g = 9.81  # acceleration due to gravity, m s-2
+
+    h = (Rd * t_virtual_mean) / g
+    slp = psfc * np.exp(elevation / h)
+    slp.name = name
+    slp.attrs["units"] = "Pa"
+    return slp
