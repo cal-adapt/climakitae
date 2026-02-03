@@ -1,9 +1,13 @@
 """Functions for deriving frequently used variables"""
 
+import logging
 from typing import Union
 
 import numpy as np
 import xarray as xr
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 def compute_hdd_cdd(
@@ -381,13 +385,13 @@ def compute_sea_level_pressure(
     T_virtual_mean = (2 * T_virtual + lapse_rate * elevation) / 2
 
     Sea level pressure is calculated as:
-    slp = psfc * np.exp(elevation / ((Rd * T_virtual_mean)/g)
+    slp = psfc * np.exp(elevation / ((Rd * T_virtual_mean)/g))
        where Rd is the specific gas constant for dry air
        and g is the acceleration due to gravity.
     """
     # Get mean virtual temperature
     if average_t2:
-        print("compute_sea_level_pressure: Using 12-timestep mean temperature.")
+        logger.info("compute_sea_level_pressure: Using 12-timestep mean temperature.")
         if "time" in t2.dims:
             t2 = t2.rolling(time=12).mean()
         elif "time_delta" in t2.dims:
