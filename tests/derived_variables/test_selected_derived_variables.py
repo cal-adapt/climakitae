@@ -121,7 +121,7 @@ def mock_lapse_rate() -> xr.DataArray:
             "lat": (("y", "x"), np.array([[lat]])),
         },
     )
-    da.name = "elevation"
+    da.name = "lapse_rate"
     da.attrs = {"units": "m"}
     return da
 
