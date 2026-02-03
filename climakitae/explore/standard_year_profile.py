@@ -432,6 +432,7 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
     approach = kwargs.get("approach")
     centered_year = kwargs.get("centered_year")
     warming_level = kwargs.get("warming_level", None)
+    scenario = kwargs.get("scenario","SSP 3-7.0")
 
     match approach, centered_year:
         # If 'approach'="Time" and 'centered_year' is provided
@@ -456,8 +457,8 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
                     f"The corresponding global warming level for input centered year {centered_year} will now \n"
                     "be determined and used to produce the profile."
                 )
-                gwl_options = get_gwl_at_year(centered_year, "SSP 3-7.0")
-                new_warming_level = [float(gwl_options.loc["SSP 3-7.0", "Mean"])]
+                gwl_options = get_gwl_at_year(centered_year, scenario)
+                new_warming_level = [float(gwl_options.loc[scenario, "Mean"])]
                 print(
                     f"Corresponding warming level for 'centered_year'={centered_year} is {new_warming_level}. \n"
                     "Now producing the Standard Year climate profile at this warming level."
@@ -725,6 +726,7 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         - resolution (Optional) : str, default "3 km"
         - approach (Optional) : str, "Warming Level" or "Time", default "Warming Level"
         - centered_year (Optional) : int
+        - scenario (Optional) : str, default "SSP 3-7.0"
         - warming_level (Required) : List[float], default [1.2]
         - warming_level_window (Optional): int in range [5,25], default 15
         - cached_area (Optional) : str or List[str]
@@ -773,6 +775,7 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         "warming_level": [1.2],
         "warming_level_window": 15,
         "approach": "Warming Level",
+        "scenario": "SSP 3-7.0",
         "variable": "Air Temperature at 2m",
         "q": 0.5,
         "resolution": "3 km",
