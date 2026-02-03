@@ -335,7 +335,7 @@ def compute_sea_level_pressure(
     q2: xr.DataArray,
     elevation: xr.DataArray,
     lapse_rate: Union[float, xr.DataArray] = 0.0065,
-    average_t2=True,
+    average_t2: bool = True,
     name: str = "slp_derived",
 ) -> xr.DataArray:
     """Calculate sea level pressure from hourly surface pressure, temperature, and mixing ratio.
