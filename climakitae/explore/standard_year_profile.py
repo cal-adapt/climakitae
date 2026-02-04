@@ -488,6 +488,45 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
     return kwargs
 
 
+def _filter_ba_models(
+    data: xr.DataArray,
+    scenario: str
+) -> xr.DataArray:
+    """
+    Filter data to include only bias-adjusted WRF models.
+    This function filters the input data to retain only simulations that correspond to
+    bias-adjusted Weather Research and Forecasting (WRF) models when dynamical
+    downscaling with bias adjustment is requested and historical reconstruction is
+    not being used.
+
+    Parameters
+    ----------
+    data : xr.DataArray
+        Input climate data array containing simulation data across multiple models.
+    scenario : str
+    Returns
+    -------
+    xr.DataArray
+        Filtered data array containing only bias-adjusted WRF model simulations
+        when conditions are met, otherwise returns the original data unchanged.
+
+    """
+    # Filter only for BC-WRF models
+    # This check is to see which simulations have these BC models as the root part
+    # of their simulation name, which is to accomodate for simulation names being
+    # the same across SSPs.
+    
+    data = data.sel(
+        simulation=[
+            sim
+            for sim in data.simulation.values
+            if scenario in sim
+        ]
+    )
+
+    return data
+
+
 def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
     """
     Backend function for retrieving data needed for computing climate profiles.
@@ -566,6 +605,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
         "resolution": (str, "3 km"),
         "approach": (str, "Warming Level"),
         "centered_year": (int, None),
+        "scenario": (str, "SSP 3-7.0"),
         "warming_level": (list, [1.2]),
         "warming_level_window": (int, None),
         "cached_area": ((str, list), None),
@@ -706,6 +746,8 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
     # Update with any user-provided parameters for future data retrieval
     get_data_params.update(kwargs)
     future_data = get_data(**get_data_params)
+
+    # Filter models
 
     return historic_data, future_data
 
