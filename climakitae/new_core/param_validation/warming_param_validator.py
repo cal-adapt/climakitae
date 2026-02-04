@@ -205,7 +205,7 @@ def _check_query(query: Any) -> bool:
     time_slice = query.get("processes", {}).get("time_slice", UNSET)
     if time_slice is not UNSET:
         msg = "Warming level approach does not support 'time_slice' in the query. Only pass in the 'warming_level' or 'time_slice' processor."  # It will be ignored."
-        logger.warning(msg)
+        logger.error(msg)
         return False
 
     return True
