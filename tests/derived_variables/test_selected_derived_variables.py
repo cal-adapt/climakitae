@@ -154,7 +154,10 @@ class TestSeaLevelPressure:
         self, mock_psfc, mock_t2_no_time, mock_q2, mock_elevation, mock_lapse_rate
     ):
         """Test that error is thrown when average_t2 is True with no time axis."""
-        with pytest.raises(KeyError):
+        with pytest.raises(
+            KeyError,
+            match="No time or time_delta axis found in t2. Use `average_t2=False` for data without time axis.",
+        ):
             result = compute_sea_level_pressure(
                 mock_psfc, mock_t2_no_time, mock_q2, mock_elevation
             )
