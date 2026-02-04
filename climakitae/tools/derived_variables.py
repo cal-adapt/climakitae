@@ -345,7 +345,7 @@ def compute_sea_level_pressure(
     """Calculate sea level pressure from hourly surface pressure, temperature, and mixing ratio.
 
     This function uses the basic method derived from the hydrostatic balance equation
-    and the equation of state. The SLP calculation method used here may not produce
+    and the equation of state (Hess 1979). The SLP calculation method used here may not produce
     satisfactory results in locations with high terrain.
 
     By default this method uses a standard lapse rate of 6.5°K/km when calculating the
@@ -388,6 +388,11 @@ def compute_sea_level_pressure(
     slp = psfc * np.exp(elevation / ((Rd * T_virtual_mean)/g))
        where Rd is the specific gas constant for dry air
        and g is the acceleration due to gravity.
+
+    References
+    ----------
+    Hess, S. L., 1979: Introduction to Theoretical Meteorology. Robert E. Krieger Publishing Company, 362 pp.
+    Pauley, P. M., 1998: An Example of Uncertainty in Sea Level Pressure Reduction. Wea. Forecasting, 13, 833–850, https://doi.org/10.1175/1520-0434(1998)013<0833:AEOUIS>2.0.CO;2.
     """
     # Get mean virtual temperature
     if average_t2:
