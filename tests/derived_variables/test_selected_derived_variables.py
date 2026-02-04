@@ -12,118 +12,99 @@ from climakitae.tools.derived_variables import compute_sea_level_pressure
 
 
 @pytest.fixture
-def mock_psfc() -> xr.DataArray:
-    # Single grid point surface pressure
-    lon = -123.521255
-    lat = 9.475632
-    time_range = xr.date_range("2000-01-01 00:00", "2000-01-01 23:00", freq="h")
-    da = xr.DataArray(
-        data=np.expand_dims(np.tile([[85000]], 24), 0),
-        dims=["y", "x", "time"],
-        coords={
-            "lon": (("y", "x"), np.array([[lon]])),
-            "lat": (("y", "x"), np.array([[lat]])),
-            "time": (("time"), time_range),
-        },
-    )
-    da.name = "surface pressure"
-    da.attrs = {"units": "Pa"}
+def coords():
+    return {
+        "lon": -123.521255,
+        "lat": 9.475632,
+        "time_range": xr.date_range("2000-01-01 00:00", "2000-01-01 23:00", freq="h"),
+    }
+
+
+def _make_dataarray(data, coords, name, units, include_time=True, time_dim="time"):
+    """Helper to create consistent mock DataArrays."""
+    if include_time:
+        if time_dim == "time":
+            time_coord = coords["time_range"]
+        elif time_dim == "time_delta":
+            time_coord = [-1000 + h for h in range(0, len(coords["time_range"]))]
+        da = xr.DataArray(
+            data=np.expand_dims(np.tile([[data]], 24), 0),
+            dims=["y", "x", time_dim],
+            coords={
+                "lon": (("y", "x"), np.array([[coords["lon"]]])),
+                "lat": (("y", "x"), np.array([[coords["lat"]]])),
+                time_dim: ((time_dim), time_coord),
+            },
+        )
+    else:
+        da = xr.DataArray(
+            data=np.array([[data]]),
+            dims=["y", "x"],
+            coords={
+                "lon": (("y", "x"), np.array([[coords["lon"]]])),
+                "lat": (("y", "x"), np.array([[coords["lat"]]])),
+            },
+        )
+    da.name = name
+    da.attrs = {"units": units}
     return da
 
 
 @pytest.fixture
-def mock_t2() -> xr.DataArray:
-    # Single grid point air temperature
-    lon = -123.521255
-    lat = 9.475632
-    time_range = xr.date_range("2000-01-01 00:00", "2000-01-01 23:00", freq="h")
-    da = xr.DataArray(
-        data=np.expand_dims(np.tile([[293.15]], 24), 0),
-        dims=["y", "x", "time"],
-        coords={
-            "lon": (("y", "x"), np.array([[lon]])),
-            "lat": (("y", "x"), np.array([[lat]])),
-            "time": (("time"), time_range),
-        },
-    )
-    da.name = "Air Temperature at 2m"
-    da.attrs = {"units": "K"}
-    return da
+def mock_psfc(coords) -> xr.DataArray:
+    return _make_dataarray(85000, coords, "surface pressure", "Pa")
 
 
 @pytest.fixture
-def mock_t2_no_time() -> xr.DataArray:
-    # Single grid point air temperature
-    lon = -123.521255
-    lat = 9.475632
-    time_range = xr.date_range("2000-01-01 00:00", "2000-01-01 23:00", freq="h")
-    da = xr.DataArray(
-        data=np.array([[293.15]]),
-        dims=["y", "x"],
-        coords={
-            "lon": (("y", "x"), np.array([[lon]])),
-            "lat": (("y", "x"), np.array([[lat]])),
-        },
-    )
-    da.name = "Air Temperature at 2m"
-    da.attrs = {"units": "K"}
-    return da
+def mock_t2(coords) -> xr.DataArray:
+    return _make_dataarray(293.15, coords, "Air Temperature at 2m", "K")
 
 
 @pytest.fixture
-def mock_q2() -> xr.DataArray:
-    # Single grid point mixing ratio
-    lon = -123.521255
-    lat = 9.475632
-    time_range = xr.date_range("2000-01-01 00:00", "2000-01-01 23:00", freq="h")
-    da = xr.DataArray(
-        data=np.expand_dims(np.tile([[0.004]], 24), 0),
-        dims=["y", "x", "time"],
-        coords={
-            "lon": (("y", "x"), np.array([[lon]])),
-            "lat": (("y", "x"), np.array([[lat]])),
-            "time": (("time"), time_range),
-        },
+def mock_t2_no_time(coords) -> xr.DataArray:
+    return _make_dataarray(
+        293.15, coords, "Air Temperature at 2m", "K", include_time=False
     )
-    da.name = "Water Vapor Mixing Ratio at 2m"
-    da.attrs = {"units": "kg kg-1"}
-    return da
 
 
 @pytest.fixture
-def mock_elevation() -> xr.DataArray:
-    # Single grid point elevation
-    lon = -123.521255
-    lat = 9.475632
-    da = xr.DataArray(
-        data=np.array([[500]]),
-        dims=["y", "x"],
-        coords={
-            "lon": (("y", "x"), np.array([[lon]])),
-            "lat": (("y", "x"), np.array([[lat]])),
-        },
-    )
-    da.name = "elevation"
-    da.attrs = {"units": "m"}
-    return da
+def mock_q2(coords) -> xr.DataArray:
+    return _make_dataarray(0.004, coords, "Water Vapor Mixing Ratio at 2m", "kg kg-1")
 
 
 @pytest.fixture
-def mock_lapse_rate() -> xr.DataArray:
-    # Single grid point lapse rate as array
-    lon = -123.521255
-    lat = 9.475632
-    da = xr.DataArray(
-        data=np.array([[0.009]]),
-        dims=["y", "x"],
-        coords={
-            "lon": (("y", "x"), np.array([[lon]])),
-            "lat": (("y", "x"), np.array([[lat]])),
-        },
+def mock_psfc_time_delta(coords) -> xr.DataArray:
+    return _make_dataarray(
+        85000, coords, "surface pressure", "Pa", time_dim="time_delta"
     )
-    da.name = "lapse_rate"
-    da.attrs = {"units": "m"}
-    return da
+
+
+@pytest.fixture
+def mock_t2_time_delta(coords) -> xr.DataArray:
+    return _make_dataarray(
+        293.15, coords, "Air Temperature at 2m", "K", time_dim="time_delta"
+    )
+
+
+@pytest.fixture
+def mock_q2_time_delta(coords) -> xr.DataArray:
+    return _make_dataarray(
+        0.004,
+        coords,
+        "Water Vapor Mixing Ratio at 2m",
+        "kg kg-1",
+        time_dim="time_delta",
+    )
+
+
+@pytest.fixture
+def mock_lapse_rate(coords) -> xr.DataArray:
+    return _make_dataarray(0.009, coords, "lapse rate", "K/m", include_time=False)
+
+
+@pytest.fixture
+def mock_elevation(coords) -> xr.DataArray:
+    return _make_dataarray(500, coords, "elevation", "m", include_time=False)
 
 
 class TestSeaLevelPressure:
@@ -177,3 +158,20 @@ class TestSeaLevelPressure:
             result = compute_sea_level_pressure(
                 mock_psfc, mock_t2_no_time, mock_q2, mock_elevation
             )
+
+    def test_with_time_delta(
+        self,
+        mock_psfc_time_delta,
+        mock_t2_time_delta,
+        mock_q2_time_delta,
+        mock_elevation,
+        mock_lapse_rate,
+    ):
+        """Test that slp works with time_delta dimension."""
+        result = compute_sea_level_pressure(
+            mock_psfc_time_delta, mock_t2_time_delta, mock_q2_time_delta, mock_elevation
+        )
+        assert isinstance(result, xr.DataArray)
+        # Since time averaging is default, the first valid value is time=11
+        assert approx(result[0, 0, 12].data.item(), rel=1e-4) == 90060.53
+        assert np.isnan(result[0, 0, 0:11]).all()
