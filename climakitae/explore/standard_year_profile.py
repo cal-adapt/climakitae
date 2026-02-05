@@ -125,6 +125,7 @@ def _get_clean_standardyr_filename(
     no_delta: bool,
     approach: str | None,
     centered_year: int | None,
+    scenario: str | None,
 ) -> str:
     """
     Standardizes filename export for standard year files
@@ -149,6 +150,8 @@ def _get_clean_standardyr_filename(
             - "Warming Level" (default)
     centered_year (Optional) : int in range 1980,2099]
         For approach="Time", the year for which to find a corresponding warming level
+    time_profile_scenario (Optional) : str, default "SSP 3-7.0"
+        SSP scenario from ["SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
 
     Returns
     -------
@@ -172,21 +175,28 @@ def _get_clean_standardyr_filename(
 
     # default 30yr window (corresponds to default 15)
     window_str = "_30yr_window"
-    if warming_level_window is not None:
+    if warming_level_window:
         # custom window size provided
         window = warming_level_window * 2
         window_str = f"_{window}yr_window"
 
     approach_str = ""
-    if approach is not None:
+    if approach:
         approach_str = approach.lower().replace(" ", "_")
         approach_str = f"_{approach_str}"
 
     centered_year_str = ""
-    if centered_year is not None:
+    if centered_year:
         centered_year_str = f"_{centered_year}"
 
-    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}{clean_gwl_name}{delta_str}{window_str}{approach_str}{centered_year_str}.csv"
+    scenario_str = ""
+    if scenario:
+        scenario_str = (
+            scenario.lower().replace("-", "").replace(" ", "").replace(".", "")
+        )
+        scenario_str = f"_{scenario_str}"
+
+    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}{clean_gwl_name}{delta_str}{window_str}{approach_str}{centered_year_str}{scenario_str}.csv"
     return filename
 
 
@@ -321,6 +331,8 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                     - "Warming Level" (default)
             centered_year (Optional) : int in range [1980,2099]
                 For approach="Time", the year for which to find a corresponding warming level
+            time_profile_scenario (Optional) : str, default "SSP 3-7.0"
+                SSP scenario from ["SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
 
     Notes
     -----
@@ -342,12 +354,13 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
     variable = kwargs.get("variable")
     q = kwargs.get("q")
 
-    # Get warming_level, no_delta, warming_level_window, approach, and centered_year inputs
+    # Get warming_level, no_delta, warming_level_window, approach, centered_year inputs, and scenario
     no_delta = kwargs.get("no_delta", False)
     warming_level_window = kwargs.get("warming_level_window", None)
     approach = kwargs.get("approach", None)
     centered_year = kwargs.get("centered_year", None)
     global_warming_levels = kwargs.get("warming_level", None)
+    scenario = kwargs.get("time_profile_scenario", "ssp370")
 
     # Get variable id string to use in file name
     variable_descriptions = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
@@ -378,6 +391,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 no_delta,
                 approach,
                 centered_year,
+                scenario,
             )
             profile.to_csv(filename)
         case 3:  # Multiple WL (WL included in MultiIndex)
@@ -413,6 +427,7 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
         - resolution (Optional) : str, default "3 km"
         - approach (Optional) : str, "Warming Level" or "Time"
         - centered_year (Optional) : int in range [1980,2099]
+        - scenario (Optional): str, default "SSP 3-7.0"
         - warming_levels (Optional) : List[float], default [1.2]
         - warming_level_window (Optional): int in range [5,25]
         - cached_area (Optional) : str or List[str]
@@ -432,11 +447,11 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
     approach = kwargs.get("approach")
     centered_year = kwargs.get("centered_year")
     warming_level = kwargs.get("warming_level", None)
-    scenario = kwargs.get("scenario","SSP 3-7.0")
+    scenario = kwargs.get("scenario", "SSP 3-7.0")
 
-    match approach, centered_year:
+    match approach, centered_year, scenario:
         # If 'approach'="Time" and 'centered_year' is provided
-        case "Time", int():
+        case "Time", int(), _:
             # Throw error if 'centered_year' not in acceptable range
             if centered_year not in range(1980, 2100):
                 raise ValueError(
@@ -452,8 +467,10 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
             # and set 'warming_level' to this value
             else:
                 print(
-                    f"You have chosen to produce a time-based Standard Year climate profile centered around {centered_year}. \n"
-                    "Standard year functionality for time-based profiles identifies the closest warming level at that centered year.\n"
+                    f"You have chosen to produce a time-based Standard Year climate profile centered around {centered_year} \n"
+                    f"and using scenario {scenario} \n"
+                    "Standard year functionality for time-based profiles identifies the closest warming level at that centered year \n"
+                    "for either the input SSP scenario or default 'SSP 3-7.0' if no scenario input is provided."
                     f"The corresponding global warming level for input centered year {centered_year} will now \n"
                     "be determined and used to produce the profile."
                 )
@@ -465,12 +482,13 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
                 )
                 kwargs["warming_level"] = new_warming_level
                 kwargs["approach"] = "Warming Level"
+
         # If 'approach'="Time" and 'centered_year' is not provided
-        case "Time", object():
+        case "Time", object(), _:
             # throw error
             raise ValueError("If 'approach'='Time', 'centered_year' must be provided.")
         # If 'approach'="Warming Level" or None
-        case None | "Warming Level", _:
+        case None | "Warming Level", _, _:
             # and if 'centered_year' provided, throw error
             if isinstance(centered_year, int):
                 raise ValueError(
@@ -479,8 +497,13 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
             # else, nothing happens - user is using warming level approach from the get-go
             else:
                 None
+            # check if scenario provided
+            if isinstance(scenario, str):
+                raise ValueError(
+                    f"If 'scenario' provided, 'approach' must be 'Time'. Received '{approach}.'"
+                )
         # Catches invalid 'approach' parameter inputs
-        case _, _:
+        case _, _, _:
             raise ValueError(
                 f"Only 'Time' or 'Warming Level' accepted as inputs for 'approach'. Received '{approach}'."
             )
@@ -488,40 +511,30 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
     return kwargs
 
 
-def _filter_ba_models(
-    data: xr.DataArray,
-    scenario: str
-) -> xr.DataArray:
+def _filter_by_ssp(data: xr.Dataset, scenario: str) -> xr.Dataset:
     """
-    Filter data to include only bias-adjusted WRF models.
-    This function filters the input data to retain only simulations that correspond to
-    bias-adjusted Weather Research and Forecasting (WRF) models when dynamical
-    downscaling with bias adjustment is requested and historical reconstruction is
-    not being used.
+    This function filters the input data to retain only simulations that correspond to the user's input SSP
+    Only applied for time-based SY profiles
 
     Parameters
     ----------
-    data : xr.DataArray
+    data : xr.Dataset
         Input climate data array containing simulation data across multiple models.
     scenario : str
+        SSP scenario from ["SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
     Returns
     -------
-    xr.DataArray
-        Filtered data array containing only bias-adjusted WRF model simulations
-        when conditions are met, otherwise returns the original data unchanged.
+    xr.Dataset
+        Filtered data array containing only desired model
 
     """
-    # Filter only for BC-WRF models
-    # This check is to see which simulations have these BC models as the root part
-    # of their simulation name, which is to accomodate for simulation names being
-    # the same across SSPs.
-    
+    # Modify scenario input (ex: "SSP 2-4.5") to match
+    # the SSP string in simulation names (ex: "ssp245")
+    scenario = scenario.lower().replace("-", "").replace(" ", "").replace(".", "")
+
+    # Keep only simulations
     data = data.sel(
-        simulation=[
-            sim
-            for sim in data.simulation.values
-            if scenario in sim
-        ]
+        simulation=[sim for sim in data.simulation.values if scenario in sim]
     )
 
     return data
@@ -565,7 +578,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
     >>> historic_data, future_data = retrieve_profile_data(
     ...     variable="Air Temperature at 2m",
     ...     resolution="45 km",
-    ...     scenario=["SSP 3-7.0"],
+    ...     time_profile_scenario="SSP 2-4.5",
     ...     warming_level=[1.5, 2.0, 3.0],
     ...     units="degF"
     ... )
@@ -605,7 +618,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
         "resolution": (str, "3 km"),
         "approach": (str, "Warming Level"),
         "centered_year": (int, None),
-        "scenario": (str, "SSP 3-7.0"),
+        "time_profile_scenario": (str, "SSP 3-7.0"),
         "warming_level": (list, [1.2]),
         "warming_level_window": (int, None),
         "cached_area": ((str, list), None),
@@ -654,6 +667,14 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
                     f"Parameter '{key}' must be an integer between 5 and 25, "
                     f"got {value}"
                 )
+        # check that time_profile_scenario is within ["SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
+        if key == "time_profile_scenario":
+            if value not in ["SSP 3-7.0", "SSP 2-4.5", "SSP 5-8.5"]:
+                raise ValueError(
+                    f"Parameter '{key}' must be 'SSP 3-7.0', 'SSP 2-4.5', or 'SSP 5-8.5', "
+                    f"got {value}"
+                )
+
     # Validate and update approach parameters
     kwargs = _handle_approach_params(**kwargs)
 
@@ -671,9 +692,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
         if "latitude" in kwargs or "longitude" in kwargs:
             kwargs.pop("latitude", None)
             kwargs.pop("longitude", None)
-            print(
-                "   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude"
-            )
+            print("   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude")
         if "stations" in kwargs:
             kwargs.pop("stations", None)
             print("   ⚠️  Note: Using cached_area, ignoring provided stations")
@@ -747,7 +766,11 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
     get_data_params.update(kwargs)
     future_data = get_data(**get_data_params)
 
-    # Filter models
+    # Filter models by input scenario, if specified by user
+    scenario = kwargs.get("time_profile_scenario", None)
+    if scenario is not None:
+        historic_data = _filter_by_ssp(historic_data, scenario)
+        future_data = _filter_by_ssp(future_data, scenario)
 
     return historic_data, future_data
 
@@ -768,7 +791,7 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         - resolution (Optional) : str, default "3 km"
         - approach (Optional) : str, "Warming Level" or "Time", default "Warming Level"
         - centered_year (Optional) : int
-        - scenario (Optional) : str, default "SSP 3-7.0"
+        - time_profile_scenario (Optional) : str, default "SSP 3-7.0"
         - warming_level (Required) : List[float], default [1.2]
         - warming_level_window (Optional): int in range [5,25], default 15
         - cached_area (Optional) : str or List[str]
@@ -817,7 +840,7 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         "warming_level": [1.2],
         "warming_level_window": 15,
         "approach": "Warming Level",
-        "scenario": "SSP 3-7.0",
+        "time_profile_scenario": "SSP 3-7.0",
         "variable": "Air Temperature at 2m",
         "q": 0.5,
         "resolution": "3 km",

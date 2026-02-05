@@ -643,3 +643,34 @@ class TestHandleApproachParamsInvalidInputs:
                 approach="other",
                 centered_year=2016,
             )
+
+
+class TestFilterBySSP:
+    def test_filter_by_ssp_returns_dataframe(self):
+        """Test that get_climate_profile returns a pandas DataFrame."""
+        # Setup mock datasets with proper data_vars
+        mock_historic_data = MagicMock(spec=xr.Dataset)
+        mock_historic_data.data_vars = {"tasmax": MagicMock()}
+        mock_future_data = MagicMock(spec=xr.Dataset)
+        mock_future_data.data_vars = {"tasmax": MagicMock()}
+
+        self.mock_retrieve_profile_data.return_value = (
+            mock_historic_data,
+            mock_future_data,
+        )
+
+        # Create mock profile DataFrames
+        mock_future_profile = pd.DataFrame(np.random.rand(365, 24))
+        mock_historic_profile = pd.DataFrame(np.random.rand(365, 24))
+        self.mock_compute_profile.side_effect = [
+            mock_future_profile,
+            mock_historic_profile,
+        ]
+
+        # Execute function
+        result = get_climate_profile(warming_level=[2.0])
+
+        # Verify outcome: returns a DataFrame
+        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        assert result.shape[0] > 0, "DataFrame should have rows"
+        assert result.shape[1] > 0, "DataFrame should have columns"
