@@ -204,7 +204,7 @@ def _check_query(query: Any) -> bool:
 
     time_slice = query.get("processes", {}).get("time_slice", UNSET)
     if time_slice is not UNSET:
-        msg = 'The warming_level and time_slice processors cannot be used concurrently.'
+        msg = "The warming_level and time_slice processors cannot be used concurrently."
         logger.error(msg)
         return False
 
