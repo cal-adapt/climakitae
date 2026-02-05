@@ -464,7 +464,9 @@ class BiasAdjustModelToStation(DataProcessor):
         else:
             # No sim dimension - train and apply QDM once
             logger.debug(
-                "Training QDM with nquantiles=%s, kind=%s", self.nquantiles, self.kind
+                "Training QDM with nquantiles=%s, kind=%s",
+                self.nquantiles,
+                self.kind,
             )
             QDM = QuantileDeltaMapping.train(
                 obs_da,
@@ -476,7 +478,9 @@ class BiasAdjustModelToStation(DataProcessor):
             logger.debug("QDM training complete")
             # No sim dimension, process as single array
             logger.debug("Applying QDM adjustment to data_sliced")
-            logger.debug("data_sliced time dtype before QDM: %s", gridded_da.time.dtype)
+            logger.debug(
+                "data_sliced time dtype before QDM: %s", gridded_da.time.dtype
+            )
             logger.debug(
                 "data_sliced is dask array: %s", hasattr(gridded_da.data, "dask")
             )
@@ -492,7 +496,9 @@ class BiasAdjustModelToStation(DataProcessor):
         try:
             time_index = da_adj.indexes["time"]
             if hasattr(time_index, "to_datetimeindex"):
-                da_adj["time"] = time_index.to_datetimeindex()
+                # Specify time_unit='us' to silence FutureWarning in pandas 3.0+
+                # and ensure consistent datetime resolution
+                da_adj["time"] = time_index.to_datetimeindex(time_unit="us")
             else:
                 # Fallback if to_datetimeindex not available
                 da_adj = da_adj.convert_calendar("standard", use_cftime=False)
