@@ -447,7 +447,7 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
     approach = kwargs.get("approach")
     centered_year = kwargs.get("centered_year")
     warming_level = kwargs.get("warming_level", None)
-    scenario = kwargs.get("scenario", "SSP 3-7.0")
+    scenario = kwargs.get("scenario", None)
 
     match approach, centered_year, scenario:
         # If 'approach'="Time" and 'centered_year' is provided
@@ -466,13 +466,13 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
             # get warming level based on year
             # and set 'warming_level' to this value
             else:
+                if scenario is None:
+                    scenario = "SSP 3-7.0"
                 print(
-                    f"You have chosen to produce a time-based Standard Year climate profile centered around {centered_year} \n"
-                    f"and using scenario {scenario} \n"
-                    "Standard year functionality for time-based profiles identifies the closest warming level at that centered year \n"
-                    "for either the input SSP scenario or default 'SSP 3-7.0' if no scenario input is provided."
-                    f"The corresponding global warming level for input centered year {centered_year} will now \n"
-                    "be determined and used to produce the profile."
+                    f"You have chosen to produce a time-based Standard Year climate profile centered around {centered_year} and using scenario {scenario}. \n"
+                    "Standard year functionality for time-based profiles identifies the closest warming level at that centered year for either \n"
+                    "the input SSP scenario or default 'SSP 3-7.0' if no scenario input is provided. \n"
+                    f"The corresponding global warming level for input centered year {centered_year} will now be determined and used to produce the profile.\n"
                 )
                 gwl_options = get_gwl_at_year(centered_year, scenario)
                 new_warming_level = [float(gwl_options.loc[scenario, "Mean"])]
@@ -766,11 +766,15 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
     get_data_params.update(kwargs)
     future_data = get_data(**get_data_params)
 
-    # Filter models by input scenario, if specified by user
-    scenario = kwargs.get("time_profile_scenario", None)
-    if scenario is not None:
-        historic_data = _filter_by_ssp(historic_data, scenario)
+    # Filter models by input scenario, if time-based approach specified
+    centered_year = kwargs.get("centered_year", None)
+    if centered_year is not None:
+        scenario = kwargs.get(
+            "time_profile_scenario", "SSP 3-7.0"
+        )  # default to "SSP 3-7.0"
         future_data = _filter_by_ssp(future_data, scenario)
+        if historic_data is not None:
+            historic_data = _filter_by_ssp(historic_data, scenario)
 
     return historic_data, future_data
 
@@ -833,7 +837,6 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
     ) as pbar:
         historic_data, future_data = retrieve_profile_data(**kwargs)
         pbar.update(2)
-
     # Notify users of default values being used in the absence of input parameters
     # relevant for warming_level_window and warming_level
     defaults = {
