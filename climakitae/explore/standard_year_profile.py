@@ -454,7 +454,7 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
     approach = kwargs.get("approach")
     centered_year = kwargs.get("centered_year")
     warming_level = kwargs.get("warming_level", None)
-    scenario = kwargs.get("scenario", None)
+    scenario = kwargs.get("time_profile_scenario", None)
 
     match approach, centered_year, scenario:
         # If 'approach'="Time" and 'centered_year' is provided
@@ -681,6 +681,12 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
                     f"Parameter '{key}' must be 'SSP 3-7.0', 'SSP 2-4.5', or 'SSP 5-8.5', "
                     f"got {value}"
                 )
+            if value in ["SSP 5-8.5", "SSP 2-4.5"]:
+                resolution = kwargs.get(resolution, "3 km")
+                if resolution == "3 km":
+                    raise ValueError(
+                        f"if '{key}' is {value}, resolution must be '9 km' or '45 km "
+                    )
 
     # Validate and update approach parameters
     kwargs = _handle_approach_params(**kwargs)
