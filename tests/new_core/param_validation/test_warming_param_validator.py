@@ -173,15 +173,14 @@ class TestCheckQuery:
             assert result is False
 
     def test_time_slice_not_set(self):
-        """Test that time_slice is not set."""
+        """Test that time_slice is not set when using warming level approach."""
         value = {"processes": {"time_slice": "do not set me"}}
         with pytest.warns(
             UserWarning,
-            match="Warming level approach does not support 'time_slice' in the query.",
+            match="Only pass in the 'warming_level' or 'time_slice' processor.",
         ):
             result = _check_query(value)
-            assert value["processes"] == {}
-            assert result is True
+            assert result is False
 
     @pytest.mark.parametrize("correct_activity_id", [UNSET, "WRF", "LOCA2"])
     def test_activity_id_is_valid(self, correct_activity_id):
