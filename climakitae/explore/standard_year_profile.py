@@ -853,8 +853,7 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
     ) as pbar:
         historic_data, future_data = retrieve_profile_data(**kwargs)
         pbar.update(2)
-    print("TEST: retrieved data")
-    print(future_data)
+
     # Notify users of default values being used in the absence of input parameters
     # relevant for warming_level_window and warming_level
     defaults = {
@@ -912,9 +911,6 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
     future_profile_data = _fetch_primary_data_variable(future_data)
     historic_profile_data = _fetch_primary_data_variable(historic_data)
 
-    print("TEST: result of _fetch_primary_data_variable(future_data)")
-    print(future_profile_data)
-
     # Compute profiles for both datasets
     print("⚙️  Computing climate profiles...")
 
@@ -927,8 +923,6 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         historic_profile = compute_profile(
             historic_profile_data, days_in_year=days_in_year, q=q
         )
-    print("TEST: result of compute_profile()")
-    print(future_profile)
 
     if no_delta:
         print("   ✓ No baseline subtraction requested, returning raw future profile")
@@ -1653,6 +1647,7 @@ def _construct_profile_dataframe(
             sim_label_func,
             days_in_year,
             hours,
+            hours_per_day, 
         )
     elif n_warming_levels == 1 and n_simulations > 1:
         return _create_single_wl_multi_sim_dataframe(
@@ -1693,6 +1688,7 @@ def _create_simple_dataframe(
     sim_label_func: callable,
     days_in_year: int,
     hours: np.ndarray,
+    hours_per_day: int, 
 ) -> pd.DataFrame:
     """
     Create a simple DataFrame for single warming level and single simulation.
@@ -1711,19 +1707,34 @@ def _create_simple_dataframe(
         Number of days in year
     hours : np.ndarray
         Array of hour values
+    hours_per_day : int
+        Hours per day (24)
 
     Returns
     -------
     pd.DataFrame
         Simple DataFrame with hour columns
     """
-    wl_key = f"WL_{warming_level}"
-    sim_key = sim_label_func(simulation, 0)
-    profile_matrix = profile_data[(wl_key, sim_key)]
+
+    wl = warming_level
+    sim_name = sim_label_func(simulation, 0)
+
+    # Create MultiIndex columns
+    col_tuples = [(hour, sim_name) for hour in hours]
+    multi_cols = pd.MultiIndex.from_tuples(col_tuples, names=["Hour", "Simulation"])
+
+    # Stack data
+    all_data = _stack_profile_data(
+        profile_data=profile_data,
+        hours_per_day=hours_per_day,
+        wl_names=[f"WL_{wl}"],
+        sim_names=[sim_name],
+        hour_first=True,
+    )
 
     return pd.DataFrame(
-        profile_matrix,
-        columns=hours,
+        all_data,
+        columns=multi_cols,
         index=np.arange(1, days_in_year + 1, 1),
     )
 

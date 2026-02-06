@@ -2875,6 +2875,7 @@ class TestCreateSimpleDataframe:
 
         self.sim_label_func = sim_label_func
         self.hours = np.arange(1, 25, 1)  # Hours 1-24
+        self.hours_per_day = 24
 
     def test_create_simple_dataframe_returns_dataframe(self):
         """Test _create_simple_dataframe returns pd.DataFrame."""
@@ -2886,6 +2887,7 @@ class TestCreateSimpleDataframe:
             sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
+            hours_per_day=self.hours_per_day
         )
 
         # Verify outcome: returns a pandas DataFrame
@@ -2903,6 +2905,7 @@ class TestCreateSimpleDataframe:
             sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
+            hours_per_day=self.hours_per_day
         )
 
         # Verify outcome: correct DataFrame structure
@@ -2937,6 +2940,7 @@ class TestCreateSimpleDataframe:
             sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
+            hours_per_day=self.hours_per_day,
         )
 
         # Verify outcome: maintains same structure with different data
@@ -2958,6 +2962,7 @@ class TestCreateSimpleDataframe:
             sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
+            hours_per_day=self.hours_per_day,
         )
 
         # Verify outcome: handles different simulation correctly
@@ -2988,6 +2993,7 @@ class TestCreateSimpleDataframe:
             sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
+            hours_per_day=self.hours_per_day,
         )
 
         # Verify outcome: data values are preserved correctly
@@ -3013,6 +3019,7 @@ class TestCreateSimpleDataframe:
             sim_label_func=self.sim_label_func,
             days_in_year=366,  # Leap year
             hours=self.hours,
+            hours_per_day=self.hours_per_day,
         )
 
         # Verify outcome: handles different matrix sizes correctly
@@ -3052,6 +3059,7 @@ class TestCreateSimpleDataframe:
                 sim_label_func=self.sim_label_func,
                 days_in_year=days,
                 hours=self.hours,
+                hours_per_day=self.hours_per_day,
             )
 
             # Verify outcome: correct dimensions for each scenario
