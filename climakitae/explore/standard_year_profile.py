@@ -853,6 +853,8 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
     ) as pbar:
         historic_data, future_data = retrieve_profile_data(**kwargs)
         pbar.update(2)
+    print("TEST: retrieved data")
+    print(future_data)
     # Notify users of default values being used in the absence of input parameters
     # relevant for warming_level_window and warming_level
     defaults = {
@@ -910,6 +912,9 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
     future_profile_data = _fetch_primary_data_variable(future_data)
     historic_profile_data = _fetch_primary_data_variable(historic_data)
 
+    print("TEST: result of _fetch_primary_data_variable(future_data)")
+    print(future_profile_data)
+
     # Compute profiles for both datasets
     print("⚙️  Computing climate profiles...")
 
@@ -922,6 +927,8 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         historic_profile = compute_profile(
             historic_profile_data, days_in_year=days_in_year, q=q
         )
+    print("TEST: result of compute_profile()")
+    print(future_profile)
 
     if no_delta:
         print("   ✓ No baseline subtraction requested, returning raw future profile")
