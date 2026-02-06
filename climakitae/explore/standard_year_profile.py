@@ -455,7 +455,16 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
     centered_year = kwargs.get("centered_year")
     warming_level = kwargs.get("warming_level", None)
     scenario = kwargs.get("time_profile_scenario", None)
+    resolution = kwargs.get("resolution", "3 km")
 
+    # catch invalid scenario and resolution combinations
+    if scenario in ["SSP 5-8.5", "SSP 2-4.5"]:
+        if resolution == "3 km":
+            raise ValueError(
+                f"if 'time_profile_scenario' is '{scenario}', resolution must be '9 km' or '45 km'"
+            )
+
+    # handle approach, centered year, and scenario combindations
     match approach, centered_year, scenario:
         # If 'approach'="Time" and 'centered_year' is provided
         case "Time", int(), _:
@@ -679,14 +688,8 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.Dataset, xr.Dataset]:
             if value not in ["SSP 3-7.0", "SSP 2-4.5", "SSP 5-8.5"]:
                 raise ValueError(
                     f"Parameter '{key}' must be 'SSP 3-7.0', 'SSP 2-4.5', or 'SSP 5-8.5', "
-                    f"got {value}"
+                    f"received {value}."
                 )
-            if value in ["SSP 5-8.5", "SSP 2-4.5"]:
-                resolution = kwargs.get(resolution, "3 km")
-                if resolution == "3 km":
-                    raise ValueError(
-                        f"if '{key}' is {value}, resolution must be '9 km' or '45 km "
-                    )
 
     # Validate and update approach parameters
     kwargs = _handle_approach_params(**kwargs)
@@ -856,7 +859,6 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         "warming_level": [1.2],
         "warming_level_window": 15,
         "approach": "Warming Level",
-        "time_profile_scenario": "SSP 3-7.0",
         "variable": "Air Temperature at 2m",
         "q": 0.5,
         "resolution": "3 km",
