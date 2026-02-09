@@ -41,7 +41,7 @@ dependencies = [
     "matplotlib",
     "numcodecs<=0.14.1",
     "numpy",
-    "pandas",
+    "pandas<3.0",
     "param",
     "psutil",
     "pyproj",
