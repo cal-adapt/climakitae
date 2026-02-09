@@ -2860,25 +2860,26 @@ class TestCreateSimpleDataframe:
 
     def setup_method(self):
         """Set up test fixtures."""
-        # Create mock simulation label function
-        self.mock_sim_label_func = MagicMock()
-        self.mock_sim_label_func.side_effect = lambda sim, idx: f"sim_{sim}_{idx}"
-
-        # Test parameters
         self.warming_level = 2.0
-        self.simulation = "model_A"
-        self.hours = np.arange(0, 24)
-        self.days_in_year = 365
-        self.hours_per_day = 24
+        self.simulation = "Sim1"
 
         # Create sample profile data dictionary
-        # The function expects data for each (WL_X, sim_label) combination
-        self.sample_profile_data = {}
-        sim_key = f"sim_{self.simulation}"
-        wl_key = f"WL_{self.warming_level}"
-        # Create random data for each simulation (365 days x 24 hours)
-        profile_matrix = np.random.rand(365, 24) + 20.0
-        self.sample_profile_data[(wl_key, sim_key)] = profile_matrix
+        wl_key = "WL_2.0"
+        sim_key = "Sim1"
+
+        # Create 365x24 profile matrix with realistic climate data
+        self.profile_data = {
+            (wl_key, sim_key): np.random.rand(365, 24) + 20.0  # Temperature-like data
+        }
+
+        # Simple function to get simulation labels
+        def sim_label_func(sim, sim_idx):
+            return f"Sim{sim_idx + 1}"
+
+        self.sim_label_func = sim_label_func
+        self.days_in_year = 365
+        self.hours = np.arange(1, 25, 1)  # Hours 1-24
+        self.hours_per_day = 24
 
     def test_create_simple_dataframe_returns_dataframe(self):
         """Test _create_simple_dataframe returns pd.DataFrame."""
@@ -2887,10 +2888,10 @@ class TestCreateSimpleDataframe:
             profile_data=self.profile_data,
             warming_level=self.warming_level,
             simulation=self.simulation,
-            sim_label_func=self.mock_sim_label_func,
+            sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
-            hours_per_day=self.hours_per_day
+            hours_per_day=self.hours_per_day,
         )
 
         # Verify outcome: returns a pandas DataFrame
@@ -2905,10 +2906,10 @@ class TestCreateSimpleDataframe:
             profile_data=self.profile_data,
             warming_level=self.warming_level,
             simulation=self.simulation,
-            sim_label_func=self.mock_sim_label_func,
+            sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
-            hours_per_day=self.hours_per_day
+            hours_per_day=self.hours_per_day,
         )
 
         # Verify outcome: correct MultiIndex column structure
@@ -2938,14 +2939,15 @@ class TestCreateSimpleDataframe:
         """Test _create_simple_dataframe with different warming level and simulation scenarios."""
         # Test different warming level
         different_wl = 1.5
+        different_sim = "Sim1"
         different_wl_data = {("WL_1.5", "Sim1"): np.random.rand(365, 24) + 15.0}
 
         # Execute function with different warming level
         result_wl = _create_simple_dataframe(
             profile_data=different_wl_data,
             warming_level=different_wl,
-            simulation=self.simulation,
-            sim_label_func=self.mock_sim_label_func,
+            simulation=different_sim,
+            sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
             hours_per_day=self.hours_per_day,
@@ -2967,7 +2969,7 @@ class TestCreateSimpleDataframe:
             profile_data=different_sim_data,
             warming_level=self.warming_level,
             simulation=different_sim,
-            sim_label_func=self.mock_sim_label_func,
+            sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
             hours_per_day=self.hours_per_day,
@@ -2998,7 +3000,7 @@ class TestCreateSimpleDataframe:
             profile_data=test_profile_data,
             warming_level=self.warming_level,
             simulation=self.simulation,
-            sim_label_func=self.mock_sim_label_func,
+            sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
             hours_per_day=self.hours_per_day,
@@ -3024,7 +3026,7 @@ class TestCreateSimpleDataframe:
             profile_data=leap_year_profile_data,
             warming_level=self.warming_level,
             simulation=self.simulation,
-            sim_label_func=self.mock_sim_label_func,
+            sim_label_func=self.sim_label_func,
             days_in_year=366,  # Leap year
             hours=self.hours,
             hours_per_day=self.hours_per_day,
@@ -3089,7 +3091,9 @@ class TestCreateSimpleDataframe:
             )
 
             # Verify columns remain consistent regardless of year length
-            expected_columns = np.arange(1, 25, 1)
+            expected_columns = pd.MultiIndex.from_tuples(
+                [(i, "Sim1") for i in range(1, 25)]
+            )
             np.testing.assert_array_equal(
                 result.columns.values,
                 expected_columns,
