@@ -1716,19 +1716,19 @@ def _create_simple_dataframe(
         Simple DataFrame with hour columns
     """
 
-    wl = warming_level
-    sim_name = sim_label_func(simulation, 0)
+    wl_key = warming_level
+    sim_key = sim_label_func(simulation, 0)
 
     # Create MultiIndex columns
-    col_tuples = [(hour, sim_name) for hour in hours]
+    col_tuples = [(hour, sim_key) for hour in hours]
     multi_cols = pd.MultiIndex.from_tuples(col_tuples, names=["Hour", "Simulation"])
 
     # Stack data
     all_data = _stack_profile_data(
         profile_data=profile_data,
         hours_per_day=hours_per_day,
-        wl_names=[f"WL_{wl}"],
-        sim_names=[sim_name],
+        wl_names=[f"WL_{wl_key}"],
+        sim_names=[sim_key],
         hour_first=True,
     )
 
