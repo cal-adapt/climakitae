@@ -652,7 +652,7 @@ def _get_rotated_geostrophic_wind(
     return Uearth, Vearth
 
 
-def geostrophic_wind(geopotential_height: xr.DataArray) -> tuple[xr.DataArray]:
+def compute_geostrophic_wind(geopotential_height: xr.DataArray) -> tuple[xr.DataArray]:
     """Calculate the geostrophic wind at a single point on a constant pressure surface.
 
     Currently only implemented for data on the WRF grid. This code follows the
