@@ -5,6 +5,9 @@ from typing import Union
 
 import numpy as np
 import xarray as xr
+from pyproj import Geod
+
+from climakitae.tools.derived_variables import compute_wind_dir
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -418,3 +421,276 @@ def compute_sea_level_pressure(
     slp.name = name
     slp.attrs["units"] = "Pa"
     return slp
+
+
+def _wrf_deltas(h: xr.DataArray) -> tuple[xr.DataArray]:
+    """Get the actual x and y spacing in meters.
+
+    Find the distance between lat/lon points on a great circle. Assumes a
+    spherical geoid. The returned deltas are assigned the coordinates of
+    the terminus point of the delta.
+
+    Parameters
+    ----------
+    h : xr.DataArray
+        DataArray with x and y dimensions on WRF grid
+
+    Returns
+    -------
+    Tuple[xr.DataArray]
+        X and Y direction deltas.
+    """
+    g = Geod(ellps="sphere")
+    forward_az, _, dy = g.inv(
+        h.lon[0:-1, :], h.lat[0:-1, :], h.lon[1:, :], h.lat[1:, :]
+    )
+    dy[(forward_az < -90.0) | (forward_az > 90.0)] *= -1
+
+    forward_az, _, dx = g.inv(
+        h.lon[:, 0:-1], h.lat[:, 0:-1], h.lon[:, 1:], h.lat[:, 1:]
+    )
+    dx[(forward_az < -90.0) | (forward_az > 90.0)] *= -1
+    # Convert to data array with coordinates of terminus point
+    dx = xr.DataArray(
+        data=dx,
+        dims=["y", "x"],
+        coords={
+            "y": (["y"], h.y.data),
+            "x": (["x"], h.x.data[1:]),
+            "lon": (["y", "x"], h.lon.data[:, 1:]),
+            "lat": (["y", "x"], h.lat.data[:, 1:]),
+        },
+    )
+    dy = xr.DataArray(
+        data=dy,
+        dims=["y", "x"],
+        coords={
+            "y": (["y"], h.y.data[1:]),
+            "x": (["x"], h.x.data),
+            "lon": (["y", "x"], h.lon.data[1:, :]),
+            "lat": (["y", "x"], h.lat.data[1:, :]),
+        },
+    )
+    return dx, dy
+
+
+def _align_dim(
+    da_to_update: xr.DataArray, da_to_copy: xr.DataArray, copy_dim: str
+) -> xr.DataArray:
+    """Copy `dim` dimension along with `lat` and `lon` from  da_to_copy to da_to_update.
+
+    Parameters
+    ----------
+    da_to_update : xr.DataArray
+        Will be returned with copied dimension.
+    da_to_copy : xr.DataArray
+        Dimension will be copied from this array.
+    copy_dim : str
+        Name of the dimension to copy.
+
+    Returns
+    -------
+    xr.DataArray
+    """
+    da_to_update[copy_dim] = da_to_copy[copy_dim]
+    da_to_update["lat"] = da_to_copy["lat"]
+    da_to_update["lon"] = da_to_copy["lon"]
+    return da_to_update
+
+
+def _get_spatial_derivatives(h: xr.DataArray) -> tuple[xr.DataArray]:
+    """Get the spatial derivative in the x and y direction on the WRF grid.
+
+    This code borrows heavily from Metpy.calc.tools.first_derivative. It
+    uses a method developed to take spatial derivatives on an unevenly spaced
+    grid. See the References for more information.
+
+    Parameters
+    ----------
+    h : xr.DataArray
+        Spatial data on WRF grid
+
+    Returns
+    -------
+    tuple[xr.DataArray]
+        Derivative of h with respect to x and y
+
+    References
+    ----------
+    M.K Bowen, Ronald Smith; Derivative formulae and errors for non-uniformly spaced points. Proc. A 1 July 2005; 461 (2059): 1975–1997. https://doi.org/10.1098/rspa.2004.1430
+    Metpy, 2026: first_derivative. Accessed 10 Feb 2026, https://unidata.github.io/MetPy/latest/api/generated/metpy.calc.first_derivative.html#first-derivative.
+    """
+    delta_x, delta_y = _wrf_deltas(h)
+    deltas = {"x": delta_x, "y": delta_y}
+    derivatives = []
+
+    for indexer in ["x", "y"]:
+        delta = deltas[indexer]
+        concat_axis = h.get_axis_num(indexer)
+
+        # Centered derivative
+        back_one = h.isel({indexer: slice(0, -2)})
+        center = h.isel({indexer: slice(1, -1)})
+        forward_one = h.isel({indexer: slice(2, None)})
+        # Delta has coordinates of terminus point
+        delta_0 = delta.isel({indexer: slice(0, -1)})
+        delta_1 = delta.isel({indexer: slice(1, None)})
+
+        # Align the indexer dimension to correctly add shifted slices
+        back_one = _align_dim(back_one, center, indexer)
+        forward_one = _align_dim(forward_one, center, indexer)
+        delta_0 = _align_dim(delta_0, center, indexer)
+        delta_1 = _align_dim(delta_1, center, indexer)
+
+        combined_delta = delta_0 + delta_1
+        center_derivative = (
+            (-delta_1) / (combined_delta * delta_0) * back_one
+            + (delta_1 - delta_0) / (delta_0 * delta_1) * center
+            + (delta_0) / (combined_delta * delta_1) * forward_one
+        )
+
+        # Left edge
+        center = h.isel({indexer: slice(0, 1)})
+        forward_one = h.isel({indexer: slice(1, 2)})
+        forward_two = h.isel({indexer: slice(2, 3)})
+        delta_0 = delta.isel({indexer: slice(0, 1)})
+        delta_1 = delta.isel({indexer: slice(1, 2)})
+
+        forward_one = _align_dim(forward_one, center, indexer)
+        forward_two = _align_dim(forward_two, center, indexer)
+        delta_0 = _align_dim(delta_0, center, indexer)
+        delta_1 = _align_dim(delta_1, center, indexer)
+
+        combined_delta = delta_0 + delta_1
+        left_derivative = (
+            -(combined_delta + delta_0) / (combined_delta * delta_0) * center
+            + combined_delta / (delta_0 * delta_1) * forward_one
+            - delta_0 / (combined_delta * delta_1) * forward_two
+        )
+
+        # Right edge
+        back_two = h.isel({indexer: slice(-3, -2)})
+        back_one = h.isel({indexer: slice(-2, -1)})
+        center = h.isel({indexer: slice(-1, None)})
+        delta_0 = delta.isel({indexer: slice(-2, -1)})
+        delta_1 = delta.isel({indexer: slice(-1, None)})
+
+        back_two = _align_dim(back_two, center, indexer)
+        back_one = _align_dim(back_one, center, indexer)
+        delta_0 = _align_dim(delta_0, center, indexer)
+        delta_1 = _align_dim(delta_1, center, indexer)
+
+        combined_delta = delta_0 + delta_1
+        right_derivative = (
+            delta_1 / (combined_delta * delta_0) * back_two
+            - combined_delta / (delta_0 * delta_1) * back_one
+            + (combined_delta + delta_1) / (combined_delta * delta_1) * center
+        )
+
+        # Combine into one data array
+        derivative = xr.concat(
+            [left_derivative, center_derivative, right_derivative], dim=indexer
+        )
+        derivative = xr.DataArray(
+            data=derivative.transpose(*h.dims),
+            dims=["sim", "warming_level", "time", "y", "x"],
+            coords={
+                "sim": (["sim"], h.sim.data),
+                "warming_level": (["warming_level"], h.warming_level.data),
+                "time": (["time"], h.time.data),
+                "y": (["y"], h.y.data),
+                "x": (["x"], h.x.data),
+                "lon": (["y", "x"], h.lon.data),
+                "lat": (["y", "x"], h.lat.data),
+            },
+            name="derivative",
+        )
+        derivatives.append(derivative)
+    return tuple(derivatives)
+
+
+def _get_rotated_geostrophic_wind(
+    u: xr.DataArray, v: xr.DataArray, gridlabel: str
+) -> tuple[xr.DataArray]:
+    """Convert WRF-relative winds to Earth-relative winds.
+
+    This is the code from data_load._get_Uearth and
+    data_load._get_Vearth but adapted to take u and v as parameters.
+
+    Parameters
+    ----------
+    u : xr.DataArray
+        U component of wind
+    v : xr.DataArray
+        V component of wind
+    gridlabel : str
+        Grid label (e.g. "d01")
+
+    Returns
+    -------
+    tuple[xr.DataArray]
+        Earth-relative U and V wind components
+    """
+    # Read in the appropriate file depending on the data resolution
+    # This file contains sinalpha and cosalpha for the WRF grid
+    wrf_angles_ds = xr.open_zarr(
+        "s3://cadcat/tmp/era/wrf/wrf_angles_{}.zarr/".format(gridlabel),
+        storage_options={"anon": True},
+    )
+    wrf_angles_ds = wrf_angles_ds.sel(x=u.x, y=u.y, method="nearest")
+    sinalpha = wrf_angles_ds.SINALPHA
+    cosalpha = wrf_angles_ds.COSALPHA
+
+    # Wind components
+    Uearth = u * cosalpha - v * sinalpha
+    Vearth = v * cosalpha + u * sinalpha
+
+    # Add variable name
+    Uearth.name = "u"
+    Vearth.name = "v"
+
+    return Uearth, Vearth
+
+
+def geostrophic_wind(geopotential_height: xr.DataArray) -> tuple[xr.DataArray]:
+    """Calculate the geostrophic wind at a single point on a constant pressure surface.
+
+    Currently only implemented for data on the WRF grid. This code follows the
+    MetPy code for calculating the geostrophic wind on an unevenly spaced grid.
+
+    Parameters
+    ----------
+    geopotential_height : xr.DataArray
+        Geopotential height in meters on WRF grid. May include multiple pressure levels
+
+    Returns
+    -------
+    tuple[xr.DataArray]
+        Earth-relative U and V components of the geostrophic wind.
+
+    References
+    ----------
+    Hess, S. L., 1979: Introduction to Theoretical Meteorology. Robert E. Krieger Publishing Company, 362 pp.
+    MetPy, 2026: geostrophic_wind. Accessed 10 Feb 2026, https://unidata.github.io/MetPy/latest/api/generated/metpy.calc.geostrophic_wind.html#geostrophic-wind.
+    """
+    lat_to_radian = geopotential_height.lat.data * np.pi / 180
+    omega = 7292115e-11  # rad/s
+    g = 9.81  # m/s2
+    f = 2 * omega * np.sin(lat_to_radian)
+    norm_factor = g / f
+
+    dhdx, dhdy = _get_spatial_derivatives(geopotential_height)
+
+    # These components are u and v on the WRF grid
+    geo_u, geo_v = -norm_factor * dhdy, norm_factor * dhdx
+
+    # Rotate these components to an earth-relative E/W orientation
+    geo_u_earth, geo_v_earth = _get_rotated_geostrophic_wind(geo_u, geo_v, "d01")
+
+    # Update attributes for results
+    geo_u_earth.name = "u"
+    geo_u_earth.attrs["long_name"] = "Geostrophic Wind U Component"
+    geo_v_earth.name = "v"
+    geo_v_earth.attrs["long_name"] = "Geostrophic Wind V Component"
+
+    return geo_u_earth, geo_v_earth
