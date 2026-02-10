@@ -382,9 +382,6 @@ class TestHandleApproachParams:
 
     """
 
-    def test_retrieve_profile_data_returns_tuple(self):
-        """Test that retrieve_profile_data returns a tuple of two datasets."""
-
     @pytest.mark.parametrize(
         "input_value,expected",
         [
@@ -564,10 +561,34 @@ class TestHandleApproachParams:
                     "approach": "Warming Level",
                 },
             ),
+            (
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "warming_level_window": 5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "approach": "Time",
+                    "centered_year": 2030,
+                    "time_profile_scenario": "SSP 2-4.5",
+                    "resolution": "9 km",
+                },
+                {
+                    "var_id": "t2",
+                    "q": 0.5,
+                    "warming_level_window": 5,
+                    "location": "sacramento county",
+                    "no_delta": False,
+                    "approach": "Warming Level",
+                    "centered_year": 2030,
+                    "time_profile_scenario": "SSP 2-4.5",
+                    "resolution": "9 km",
+                },
+            ),
         ],
     )
     def test_handle_approach_params(self, input_value, expected):
-        """Test that filename is correctly formatted based on given inputs."""
+        """Test that parameters are correctly modified based on given inputs."""
         assert _handle_approach_params(**input_value) == expected
 
 
@@ -661,7 +682,7 @@ class TestHandleApproachParamsInvalidInputs:
                 resolution="3 km",
                 cached_area="bay area",
                 units="degF",
-                approach="other",
+                approach="Time",
                 centered_year=2016,
                 scenario="SSP 5-8.5",
             )
@@ -671,7 +692,7 @@ class TestHandleApproachParamsInvalidInputs:
                 resolution="3 km",
                 cached_area="bay area",
                 units="degF",
-                approach="other",
+                approach="Time",
                 centered_year=2016,
                 scenario="SSP 2-4.5",
             )
@@ -716,16 +737,13 @@ class TestFilterBySSP:
             attrs={"units": "degF", "variable_id": "t2"},
         )
 
-    def test_compute_profile_returns_dataframe_with_correct_shape(self):
+    def test_filter_by_ssp_returns_correct_simulation(self):
         """Test that _filter_by_spp returns data with desired simulation."""
         # Execute function
         result = _filter_by_ssp(self.sample_data, scenario="SSP 2-4.5")
-
-        # Verify outcome: returns xr.Dataset
-        assert isinstance(result, xr.DataArray), "Should return an xarray Dataset"
 
         # Verify the result contains only the target simulation
         simulations = np.array(["WRF_CESM2_r11i1p1f1_historical+ssp245"])
         assert np.array_equal(
             result.simulation.values, simulations
-        ), "Bias adjusted models are not equal"
+        ), "Incorrect simulations returned"

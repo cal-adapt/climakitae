@@ -438,7 +438,7 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
         - resolution (Optional) : str, default "3 km"
         - approach (Optional) : str, "Warming Level" or "Time"
         - centered_year (Optional) : int in range [1980,2099]
-        - scenario (Optional): str, default "SSP 3-7.0"
+        - time_profile_scenario (Optional): str, default "SSP 3-7.0"
         - warming_levels (Optional) : List[float], default [1.2]
         - warming_level_window (Optional): int in range [5,25]
         - cached_area (Optional) : str or List[str]
