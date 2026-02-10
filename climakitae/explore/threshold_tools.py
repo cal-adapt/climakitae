@@ -49,6 +49,7 @@ def get_block_maxima(
     grouped_duration: tuple[int, str] = UNSET,
     check_ess: bool = True,
     block_size: int = 1,
+    rolling_agg: str = "sustained",
 ) -> xr.DataArray:
     """Function that converts data into block maximums, defaulting to annual maximums (default block size = 1 year).
 
@@ -77,12 +78,22 @@ def get_block_maxima(
         can be silenced with check_ess=False.
     block_size : int
         block size in years. default is 1 year.
+    rolling_agg : str
+        Aggregation method for rolling windows and groupby resamples.
+        Options: "sustained" (default, current min/max inversion behavior),
+        "sum" (cumulative, e.g. total precipitation), "mean" (average over window).
 
     Returns
     -------
     xarray.DataArray
 
     """
+    valid_rolling_aggs = ["sustained", "sum", "mean"]
+    if rolling_agg not in valid_rolling_aggs:
+        raise ValueError(
+            f"invalid rolling_agg. expected one of the following: {valid_rolling_aggs}"
+        )
+
     extremes_types = ["max", "min"]  # valid user options
     if extremes_type not in extremes_types:
         raise ValueError(
@@ -99,15 +110,24 @@ def get_block_maxima(
             )
 
         # First identify the min (max) value for each window of length `duration`
-        match extremes_type:
-            case "max":
-                # In the case of "max" events, need to first identify the minimum value
-                # in each window of the specified duration
-                da_series = da_series.rolling(time=dur_len, center=False).min("time")
-            case "min":
-                da_series = da_series.rolling(time=dur_len, center=False).max("time")
-            case _:
-                raise ValueError('extremes_type needs to be either "max" or "min"')
+        if rolling_agg == "sustained":
+            match extremes_type:
+                case "max":
+                    # In the case of "max" events, need to first identify the minimum value
+                    # in each window of the specified duration
+                    da_series = da_series.rolling(time=dur_len, center=False).min(
+                        "time"
+                    )
+                case "min":
+                    da_series = da_series.rolling(time=dur_len, center=False).max(
+                        "time"
+                    )
+                case _:
+                    raise ValueError('extremes_type needs to be either "max" or "min"')
+        elif rolling_agg == "sum":
+            da_series = da_series.rolling(time=dur_len, center=False).sum("time")
+        elif rolling_agg == "mean":
+            da_series = da_series.rolling(time=dur_len, center=False).mean("time")
 
     if groupby is not UNSET:
         # In this case, select the max (min) in each group. (This option is
@@ -119,13 +139,22 @@ def get_block_maxima(
             )
 
         # select the max (min) in each group
-        match extremes_type:
-            case "max":
-                da_series = da_series.resample(time=f"{group_len}D", label="left").max()
-            case "min":
-                da_series = da_series.resample(time=f"{group_len}D", label="left").min()
-            case _:
-                raise ValueError('extremes_type needs to be either "max" or "min"')
+        if rolling_agg == "sustained":
+            match extremes_type:
+                case "max":
+                    da_series = da_series.resample(
+                        time=f"{group_len}D", label="left"
+                    ).max()
+                case "min":
+                    da_series = da_series.resample(
+                        time=f"{group_len}D", label="left"
+                    ).min()
+                case _:
+                    raise ValueError('extremes_type needs to be either "max" or "min"')
+        elif rolling_agg == "sum":
+            da_series = da_series.resample(time=f"{group_len}D", label="left").sum()
+        elif rolling_agg == "mean":
+            da_series = da_series.resample(time=f"{group_len}D", label="left").mean()
 
     if grouped_duration is not UNSET:
         if groupby is UNSET:
@@ -141,13 +170,22 @@ def get_block_maxima(
             )
 
         # Now select the min (max) from the duration period
-        match extremes_type:
-            case "max":
-                da_series = da_series.rolling(time=dur2_len, center=False).min("time")
-            case "min":
-                da_series = da_series.rolling(time=dur2_len, center=False).max("time")
-            case _:
-                raise ValueError('extremes_type needs to be either "max" or "min"')
+        if rolling_agg == "sustained":
+            match extremes_type:
+                case "max":
+                    da_series = da_series.rolling(time=dur2_len, center=False).min(
+                        "time"
+                    )
+                case "min":
+                    da_series = da_series.rolling(time=dur2_len, center=False).max(
+                        "time"
+                    )
+                case _:
+                    raise ValueError('extremes_type needs to be either "max" or "min"')
+        elif rolling_agg == "sum":
+            da_series = da_series.rolling(time=dur2_len, center=False).sum("time")
+        elif rolling_agg == "mean":
+            da_series = da_series.rolling(time=dur2_len, center=False).mean("time")
 
     # Now select the most extreme value for each block in the series
     match extremes_type:
@@ -188,6 +226,7 @@ def get_block_maxima(
             "duration": duration,
             "groupby": groupby,
             "grouped_duration": grouped_duration,
+            "rolling_agg": rolling_agg,
             "extreme_value_extraction_method": "block maxima",
             "block_size": f"{block_size} year",
             "timeseries_type": f"block {extremes_type} series",
