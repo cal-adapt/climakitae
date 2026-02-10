@@ -178,6 +178,7 @@ def _get_block_maxima_optimized(
     block_size: int = 1,
     chunk_spatial: bool = True,
     max_memory_gb: float = 2.0,
+    rolling_agg: str = "sustained",
 ) -> xr.DataArray:
     """Optimized, vectorized, and Dask-compatible version of get_block_maxima.
 
@@ -228,12 +229,14 @@ def _get_block_maxima_optimized(
     # Process duration events using vectorized rolling operations
     if duration is not UNSET:
         da_series = _apply_duration_filter_vectorized(
-            da_series, duration, extremes_type
+            da_series, duration, extremes_type, rolling_agg=rolling_agg
         )
 
     # Process groupby events using efficient resampling
     if groupby is not UNSET:
-        da_series = _apply_groupby_filter_vectorized(da_series, groupby, extremes_type)
+        da_series = _apply_groupby_filter_vectorized(
+            da_series, groupby, extremes_type, rolling_agg=rolling_agg
+        )
 
     # Process grouped duration events
     if grouped_duration is not UNSET:
@@ -242,7 +245,7 @@ def _get_block_maxima_optimized(
                 "To use `grouped_duration` option, must first use groupby."
             )
         da_series = _apply_grouped_duration_filter_vectorized(
-            da_series, grouped_duration, extremes_type
+            da_series, grouped_duration, extremes_type, rolling_agg=rolling_agg
         )
 
     # Extract block maxima using optimized resampling
@@ -254,7 +257,7 @@ def _get_block_maxima_optimized(
 
     # Set attributes efficiently
     bms = _set_block_maxima_attributes(
-        bms, duration, groupby, grouped_duration, extremes_type, block_size
+        bms, duration, groupby, grouped_duration, extremes_type, block_size, rolling_agg
     )
 
     # Handle NaN values efficiently
@@ -324,7 +327,10 @@ def _optimize_chunking_for_block_maxima(
 
 
 def _apply_duration_filter_vectorized(
-    da: xr.DataArray, duration: tuple[int, str], extremes_type: str
+    da: xr.DataArray,
+    duration: tuple[int, str],
+    extremes_type: str,
+    rolling_agg: str = "sustained",
 ) -> xr.DataArray:
     """Apply duration filter using vectorized rolling operations.
 
@@ -367,16 +373,26 @@ def _apply_duration_filter_vectorized(
         )
 
     # Use vectorized rolling operations
-    if extremes_type == "max":
-        return da.rolling(time=dur_len, center=False).min()
-    elif extremes_type == "min":
-        return da.rolling(time=dur_len, center=False).max()
+    if rolling_agg == "sustained":
+        if extremes_type == "max":
+            return da.rolling(time=dur_len, center=False).min()
+        elif extremes_type == "min":
+            return da.rolling(time=dur_len, center=False).max()
+        else:
+            raise ValueError('extremes_type needs to be either "max" or "min"')
+    elif rolling_agg == "sum":
+        return da.rolling(time=dur_len, center=False).sum()
+    elif rolling_agg == "mean":
+        return da.rolling(time=dur_len, center=False).mean()
     else:
-        raise ValueError('extremes_type needs to be either "max" or "min"')
+        raise ValueError(f'invalid rolling_agg: "{rolling_agg}"')
 
 
 def _apply_groupby_filter_vectorized(
-    da: xr.DataArray, groupby: tuple[int, str], extremes_type: str
+    da: xr.DataArray,
+    groupby: tuple[int, str],
+    extremes_type: str,
+    rolling_agg: str = "sustained",
 ) -> xr.DataArray:
     """Apply groupby filter using efficient resampling.
 
@@ -418,16 +434,26 @@ def _apply_groupby_filter_vectorized(
     resample_rule = f"{group_len}D"
     resampler = da.resample(time=resample_rule, label="left")
 
-    if extremes_type == "max":
-        return resampler.max()
-    elif extremes_type == "min":
-        return resampler.min()
+    if rolling_agg == "sustained":
+        if extremes_type == "max":
+            return resampler.max()
+        elif extremes_type == "min":
+            return resampler.min()
+        else:
+            raise ValueError('extremes_type needs to be either "max" or "min"')
+    elif rolling_agg == "sum":
+        return resampler.sum()
+    elif rolling_agg == "mean":
+        return resampler.mean()
     else:
-        raise ValueError('extremes_type needs to be either "max" or "min"')
+        raise ValueError(f'invalid rolling_agg: "{rolling_agg}"')
 
 
 def _apply_grouped_duration_filter_vectorized(
-    da: xr.DataArray, grouped_duration: tuple[int, str], extremes_type: str
+    da: xr.DataArray,
+    grouped_duration: tuple[int, str],
+    extremes_type: str,
+    rolling_agg: str = "sustained",
 ) -> xr.DataArray:
     """Apply grouped duration filter using vectorized operations.
 
@@ -468,12 +494,19 @@ def _apply_grouped_duration_filter_vectorized(
         )
 
     # Use vectorized rolling operations
-    if extremes_type == "max":
-        return da.rolling(time=dur2_len, center=False).min()
-    elif extremes_type == "min":
-        return da.rolling(time=dur2_len, center=False).max()
+    if rolling_agg == "sustained":
+        if extremes_type == "max":
+            return da.rolling(time=dur2_len, center=False).min()
+        elif extremes_type == "min":
+            return da.rolling(time=dur2_len, center=False).max()
+        else:
+            raise ValueError('extremes_type needs to be either "max" or "min"')
+    elif rolling_agg == "sum":
+        return da.rolling(time=dur2_len, center=False).sum()
+    elif rolling_agg == "mean":
+        return da.rolling(time=dur2_len, center=False).mean()
     else:
-        raise ValueError('extremes_type needs to be either "max" or "min"')
+        raise ValueError(f'invalid rolling_agg: "{rolling_agg}"')
 
 
 def _extract_block_extremes_vectorized(
@@ -780,6 +813,7 @@ def _set_block_maxima_attributes(
     grouped_duration,
     extremes_type: str,
     block_size: int,
+    rolling_agg: str = "sustained",
 ) -> xr.DataArray:
     """Set attributes efficiently for block maxima DataArray.
 
@@ -816,6 +850,7 @@ def _set_block_maxima_attributes(
         "duration": duration,
         "groupby": groupby,
         "grouped_duration": grouped_duration,
+        "rolling_agg": rolling_agg,
         "extreme_value_extraction_method": "block maxima",
         "block_size": f"{block_size} year",
         "timeseries_type": f"block {extremes_type} series",
