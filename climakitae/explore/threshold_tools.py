@@ -140,6 +140,12 @@ def get_block_maxima(
                 "`grouped_duration` specification must be in days. example: `grouped_duration = (3, 'day')`."
             )
 
+        # Rechunk time dimension if dask-backed to ensure chunks are large enough
+        # for the rolling window. After groupby resampling, chunks may be smaller
+        # than the rolling window size, causing a ValueError.
+        if hasattr(da_series.data, "chunks"):
+            da_series = da_series.chunk(time=-1)
+
         # Now select the min (max) from the duration period
         match extremes_type:
             case "max":
