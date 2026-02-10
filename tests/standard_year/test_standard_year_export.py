@@ -105,7 +105,7 @@ class TestExportProfile:
                 self.multi_df,
                 **profile_selections,
             )
-            expected_filename = "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical_30yr_window_ssp370.csv"
+            expected_filename = "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical_30yr_window.csv"
             to_csv_mock.assert_called_with(expected_filename)
 
         with patch("pandas.DataFrame.to_csv") as to_csv_mock:
@@ -258,7 +258,7 @@ class TestExportProfile:
                     "centered_year": 2050,
                     "scenario": None,
                 },
-                "stdyr_t2_50ptile_sacramento_county_delta_from_historical_30yr_window_time_2050.csv",
+                "stdyr_t2_50ptile_sacramento_county_delta_from_historical_30yr_window_time_2050_ssp370.csv",
             ),
             (
                 {
@@ -272,7 +272,7 @@ class TestExportProfile:
                     "centered_year": 2089,
                     "scenario": None,
                 },
-                "stdyr_t2_50ptile_sacramento_county_30yr_window_time_2089.csv",
+                "stdyr_t2_50ptile_sacramento_county_30yr_window_time_2089_ssp370.csv",
             ),
             (
                 {
@@ -286,7 +286,7 @@ class TestExportProfile:
                     "centered_year": 2020,
                     "scenario": None,
                 },
-                "stdyr_t2_50ptile_35-5N_122-5W_30yr_window_time_2020.csv",
+                "stdyr_t2_50ptile_35-5N_122-5W_30yr_window_time_2020_ssp370.csv",
             ),
             (
                 {
@@ -300,7 +300,7 @@ class TestExportProfile:
                     "centered_year": 2020,
                     "scenario": None,
                 },
-                "stdyr_t2_50ptile_san_diego_lindbergh_field_ksan_30yr_window_time_2020.csv",
+                "stdyr_t2_50ptile_san_diego_lindbergh_field_ksan_30yr_window_time_2020_ssp370.csv",
             ),
             (
                 {
@@ -314,7 +314,7 @@ class TestExportProfile:
                     "centered_year": 2016,
                     "scenario": None,
                 },
-                "stdyr_prec_50ptile_35-5N_122-5W_30yr_window_time_2016.csv",
+                "stdyr_prec_50ptile_35-5N_122-5W_30yr_window_time_2016_ssp370.csv",
             ),
             (
                 {
@@ -328,7 +328,7 @@ class TestExportProfile:
                     "centered_year": 2016,
                     "scenario": None,
                 },
-                "stdyr_prec_75ptile_35-5N_122-5W_delta_from_historical_30yr_window_time_2016.csv",
+                "stdyr_prec_75ptile_35-5N_122-5W_delta_from_historical_30yr_window_time_2016_ssp370.csv",
             ),
             (
                 {
@@ -342,7 +342,49 @@ class TestExportProfile:
                     "centered_year": 2016,
                     "scenario": None,
                 },
-                "stdyr_prec_75ptile_35-5N_122-5W_delta_from_historical_10yr_window_time_2016.csv",
+                "stdyr_prec_75ptile_35-5N_122-5W_delta_from_historical_10yr_window_time_2016_ssp370.csv",
+            ),
+            (
+                {
+                    "var_id": "prec",
+                    "q": 0.75,
+                    "gwl": None,
+                    "location": "35-5N_122-5W",
+                    "no_delta": False,
+                    "warming_level_window": 5,
+                    "approach": "Time",
+                    "centered_year": 2016,
+                    "scenario": "SSP 2-4.5",
+                },
+                "stdyr_prec_75ptile_35-5N_122-5W_delta_from_historical_10yr_window_time_2016_ssp245.csv",
+            ),
+            (
+                {
+                    "var_id": "prec",
+                    "q": 0.75,
+                    "gwl": None,
+                    "location": "35-5N_122-5W",
+                    "no_delta": False,
+                    "warming_level_window": 5,
+                    "approach": "Time",
+                    "centered_year": 2016,
+                    "scenario": "SSP 5-8.5",
+                },
+                "stdyr_prec_75ptile_35-5N_122-5W_delta_from_historical_10yr_window_time_2016_ssp585.csv",
+            ),
+            (
+                {
+                    "var_id": "prec",
+                    "q": 0.75,
+                    "gwl": None,
+                    "location": "35-5N_122-5W",
+                    "no_delta": False,
+                    "warming_level_window": 5,
+                    "approach": "Time",
+                    "centered_year": 2016,
+                    "scenario": "SSP 3-7.0",
+                },
+                "stdyr_prec_75ptile_35-5N_122-5W_delta_from_historical_10yr_window_time_2016_ssp370.csv",
             ),
         ],
     )

@@ -195,6 +195,9 @@ def _get_clean_standardyr_filename(
             scenario.lower().replace("-", "").replace(" ", "").replace(".", "")
         )
         scenario_str = f"_{scenario_str}"
+    elif approach == "Time":
+        # if time-based profile being generated, include default value in filename
+        scenario_str = "_ssp370"
 
     filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}{clean_gwl_name}{delta_str}{window_str}{approach_str}{centered_year_str}{scenario_str}.csv"
     return filename
@@ -360,7 +363,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
     approach = kwargs.get("approach", None)
     centered_year = kwargs.get("centered_year", None)
     global_warming_levels = kwargs.get("warming_level", None)
-    scenario = kwargs.get("time_profile_scenario", "ssp370")
+    scenario = kwargs.get("time_profile_scenario", None)
 
     # Get variable id string to use in file name
     variable_descriptions = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
@@ -412,6 +415,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                     no_delta,
                     approach,
                     centered_year,
+                    scenario,
                 )
                 profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(filename)
         case _:
@@ -1647,7 +1651,7 @@ def _construct_profile_dataframe(
             sim_label_func,
             days_in_year,
             hours,
-            hours_per_day, 
+            hours_per_day,
         )
     elif n_warming_levels == 1 and n_simulations > 1:
         return _create_single_wl_multi_sim_dataframe(
@@ -1688,7 +1692,7 @@ def _create_simple_dataframe(
     sim_label_func: callable,
     days_in_year: int,
     hours: np.ndarray,
-    hours_per_day: int, 
+    hours_per_day: int,
 ) -> pd.DataFrame:
     """
     Create a simple DataFrame for single warming level and single simulation.

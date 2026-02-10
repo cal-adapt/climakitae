@@ -16,6 +16,7 @@ import xarray as xr
 from climakitae.explore.standard_year_profile import (
     retrieve_profile_data,
     _handle_approach_params,
+    _filter_by_ssp,
 )
 
 
@@ -139,8 +140,10 @@ class TestRetrieveProfileData:
         mock_historic = MagicMock(spec=xr.Dataset)
         mock_future = MagicMock(spec=xr.Dataset)
         self.mock_get_data.side_effect = [mock_historic, mock_future]
+        print("TEST: mock_historic")
+        print(mock_historic)
 
-        # Execute function with time-based approach
+        # Execute function with time-based approach and no scenario specified
         result = retrieve_profile_data(
             variable="Air Temperature at 2m",
             resolution="3 km",
@@ -148,6 +151,24 @@ class TestRetrieveProfileData:
             units="degC",
             approach="Time",
             centered_year=2016,
+        )
+
+        # Verify outcome: function should complete successfully
+        assert isinstance(result, tuple), "Should handle time-based approach"
+        assert len(result) == 2, "Should return two datasets"
+        historic_data, future_data = result
+        assert historic_data == mock_historic, "Historic data should be returned"
+        assert future_data == mock_future, "Future data should be returned"
+
+        # Execute function with time-based approach and scenario specified
+        result = retrieve_profile_data(
+            variable="Air Temperature at 2m",
+            resolution="9 km",
+            cached_area="bay area",
+            units="degC",
+            approach="Time",
+            centered_year=2016,
+            time_based_scenario="SSP 2-4.5",
         )
 
         # Verify outcome: function should complete successfully
@@ -644,33 +665,79 @@ class TestHandleApproachParamsInvalidInputs:
                 centered_year=2016,
             )
 
+    def test_handle_approach_params_with_invalid_scenario_raises_error(self):
+        """Test that _handle_approach_params raises error for invalid 'scenario' and "resolution" combination"""
+        with pytest.raises(ValueError):
+            retrieve_profile_data(
+                variable="Air Temperature at 2m",
+                resolution="3 km",
+                cached_area="bay area",
+                units="degF",
+                approach="other",
+                centered_year=2016,
+                scenario="SSP 5-8.5",
+            )
+        with pytest.raises(ValueError):
+            retrieve_profile_data(
+                variable="Air Temperature at 2m",
+                resolution="3 km",
+                cached_area="bay area",
+                units="degF",
+                approach="other",
+                centered_year=2016,
+                scenario="SSP 2-4.5",
+            )
+
 
 class TestFilterBySSP:
-    def test_filter_by_ssp_returns_dataframe(self):
-        """Test that get_climate_profile returns a pandas DataFrame."""
-        # Setup mock datasets with proper data_vars
-        mock_historic_data = MagicMock(spec=xr.Dataset)
-        mock_historic_data.data_vars = {"tasmax": MagicMock()}
-        mock_future_data = MagicMock(spec=xr.Dataset)
-        mock_future_data.data_vars = {"tasmax": MagicMock()}
+    """Test class for _filter_by_ssp().
 
-        self.mock_retrieve_profile_data.return_value = (
-            mock_historic_data,
-            mock_future_data,
-        )
+    Tests the core function that computes climate profiles from xarray DataArrays
+    using quantile-based analysis across multiple years of data.
 
-        # Create mock profile DataFrames
-        mock_future_profile = pd.DataFrame(np.random.rand(365, 24))
-        mock_historic_profile = pd.DataFrame(np.random.rand(365, 24))
-        self.mock_compute_profile.side_effect = [
-            mock_future_profile,
-            mock_historic_profile,
+    Attributes
+    ----------
+    sample_data : xr.DataArray
+        Sample climate data for testing.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Create smaller sample for faster testing (just enough for the algorithm)
+        time_delta = pd.date_range(
+            "2020-01-01", periods=8760, freq="h"
+        )  # 1 year of hourly data
+        warming_levels = [1.5]
+        simulations = [
+            "WRF_CESM2_r11i1p1f1_historical+ssp245",
+            "WRF_CESM2_r11i1p1f1_historical+ssp370",
+            "WRF_CESM2_r11i1p1f1_historical+ssp585",
         ]
 
-        # Execute function
-        result = get_climate_profile(warming_level=[2.0])
+        # Create test data with proper dimensions
+        data = np.random.rand(len(warming_levels), len(time_delta), len(simulations))
 
-        # Verify outcome: returns a DataFrame
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape[0] > 0, "DataFrame should have rows"
-        assert result.shape[1] > 0, "DataFrame should have columns"
+        self.sample_data = xr.DataArray(
+            data,
+            dims=["warming_level", "time_delta", "simulation"],
+            coords={
+                "warming_level": warming_levels,
+                "time_delta": time_delta,
+                "simulation": simulations,
+            },
+            attrs={"units": "degF", "variable_id": "t2"},
+        )
+
+    def test_compute_profile_returns_dataframe_with_correct_shape(self):
+        """Test that _filter_by_spp returns data with desired simulation."""
+        # Execute function
+        result = _filter_by_ssp(self.sample_data, scenario="SSP 2-4.5")
+
+        # Verify outcome: returns xr.Dataset
+        assert isinstance(result, xr.DataArray), "Should return an xarray Dataset"
+
+        # Verify the result contains only the target simulation
+        simulations = np.array(["WRF_CESM2_r11i1p1f1_historical+ssp245"])
+        assert np.array_equal(
+            result.simulation.values, simulations
+        ), "Bias adjusted models are not equal"
