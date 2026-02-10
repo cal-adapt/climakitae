@@ -2605,16 +2605,19 @@ class TestConstructProfileDataframe:
             days_in_year=365,
             hours_per_day=24,
         )
-
-        # Verify outcome: simple DataFrame structure
+        # Verify outcome: MultiIndex structure with (Hour, Simulation)
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape == (365, 24), "Should have 365 rows and 24 columns"
-        assert not isinstance(
+        assert result.shape == (
+            365,
+            24,
+        ), "Should have 365 rows and 24 columns (24*2 sims)"
+        assert isinstance(
             result.columns, pd.MultiIndex
-        ), "Should have simple column structure"
-        assert list(result.columns) == list(
-            range(1, 25)
-        ), "Columns should be hours 1-24"
+        ), "Should have MultiIndex column structure"
+        assert result.columns.names == [
+            "Hour",
+            "Simulation",
+        ], "Should have Hour and Simulation levels"
 
     def test_construct_profile_dataframe_single_wl_multi_sim(self):
         """Test _construct_profile_dataframe with single warming level and multiple simulations."""
