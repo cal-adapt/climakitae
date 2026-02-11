@@ -7,8 +7,6 @@ import numpy as np
 import xarray as xr
 from pyproj import Geod
 
-from climakitae.tools.derived_variables import compute_wind_dir
-
 # Module logger
 logger = logging.getLogger(__name__)
 
@@ -493,8 +491,8 @@ def _align_dim(
     xr.DataArray
     """
     da_to_update[copy_dim] = da_to_copy[copy_dim]
-    da_to_update["lat"] = da_to_copy["lat"]
-    da_to_update["lon"] = da_to_copy["lon"]
+    da_to_update["lat"] = (da_to_copy.lat.dims, da_to_copy["lat"].data)
+    da_to_update["lon"] = (da_to_copy.lon.dims, da_to_copy["lon"].data)
     return da_to_update
 
 
@@ -520,6 +518,11 @@ def _get_spatial_derivatives(h: xr.DataArray) -> tuple[xr.DataArray]:
     M.K Bowen, Ronald Smith; Derivative formulae and errors for non-uniformly spaced points. Proc. A 1 July 2005; 461 (2059): 1975–1997. https://doi.org/10.1098/rspa.2004.1430
     Metpy, 2026: first_derivative. Accessed 10 Feb 2026, https://unidata.github.io/MetPy/latest/api/generated/metpy.calc.first_derivative.html#first-derivative.
     """
+    if (len(h.x) < 3) or (len(h.y) < 3):
+        raise ValueError(
+            "Spatial derivative requires a minimum length of 3 on both x and y dimensions."
+        )
+
     delta_x, delta_y = _wrf_deltas(h)
     deltas = {"x": delta_x, "y": delta_y}
     derivatives = []
@@ -593,16 +596,8 @@ def _get_spatial_derivatives(h: xr.DataArray) -> tuple[xr.DataArray]:
         )
         derivative = xr.DataArray(
             data=derivative.transpose(*h.dims),
-            dims=["sim", "warming_level", "time", "y", "x"],
-            coords={
-                "sim": (["sim"], h.sim.data),
-                "warming_level": (["warming_level"], h.warming_level.data),
-                "time": (["time"], h.time.data),
-                "y": (["y"], h.y.data),
-                "x": (["x"], h.x.data),
-                "lon": (["y", "x"], h.lon.data),
-                "lat": (["y", "x"], h.lat.data),
-            },
+            dims=h.dims,
+            coords=h.coords,
             name="derivative",
         )
         derivatives.append(derivative)
@@ -642,8 +637,13 @@ def _get_rotated_geostrophic_wind(
     cosalpha = wrf_angles_ds.COSALPHA
 
     # Wind components
-    Uearth = u * cosalpha - v * sinalpha
-    Vearth = v * cosalpha + u * sinalpha
+    try:
+        Uearth = u * cosalpha - v * sinalpha
+        Vearth = v * cosalpha + u * sinalpha
+    except ValueError as e:
+        raise ValueError(
+            "Cannot multiply wind array by WRF angles array. This is likely due to the `gridlabel` parameter not matching the u and v grid type."
+        )
 
     # Add variable name
     Uearth.name = "u"
@@ -655,7 +655,7 @@ def _get_rotated_geostrophic_wind(
 def compute_geostrophic_wind(geopotential_height: xr.DataArray) -> tuple[xr.DataArray]:
     """Calculate the geostrophic wind at a single point on a constant pressure surface.
 
-    Currently only implemented for data on the WRF grid. This code follows the
+    Currently only implemented for data on the d01 WRF grid. This code follows the
     MetPy code for calculating the geostrophic wind on an unevenly spaced grid.
 
     Parameters
