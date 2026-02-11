@@ -483,8 +483,7 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
                     f"Do not input warming level(s) if using a time-based approach."
                 )
             # otherwise:
-            # get warming level based on year
-            # and set 'warming_level' to this value
+            # get warming level based on year and set 'warming_level' to this value
             else:
                 print(
                     f"You have chosen to produce a time-based Standard Year climate profile centered around {centered_year}. \n"
@@ -510,7 +509,7 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
 
                 else:
                     warming_level_scenario = scenario
-                    f"-> Using input '{warming_level_scenario}' to find corresponding warming level."
+                    f"Using input '{warming_level_scenario}' to find corresponding warming level."
 
                 gwl_options = get_gwl_at_year(centered_year, warming_level_scenario)
                 new_warming_level = [
