@@ -440,12 +440,18 @@ def _wrf_deltas(h: xr.DataArray) -> tuple[xr.DataArray]:
     """
     g = Geod(ellps="sphere")
     forward_az, _, dy = g.inv(
-        h.lon[0:-1, :], h.lat[0:-1, :], h.lon[1:, :], h.lat[1:, :]
+        h.lon.isel({"y": slice(0, -1)}),
+        h.lat.isel({"y": slice(0, -1)}),
+        h.lon.isel({"y": slice(1, None)}),
+        h.lat.isel({"y": slice(1, None)}),
     )
     dy[(forward_az < -90.0) | (forward_az > 90.0)] *= -1
 
     forward_az, _, dx = g.inv(
-        h.lon[:, 0:-1], h.lat[:, 0:-1], h.lon[:, 1:], h.lat[:, 1:]
+        h.lon.isel({"x": slice(0, -1)}),
+        h.lat.isel({"x": slice(0, -1)}),
+        h.lon.isel({"x": slice(1, None)}),
+        h.lat.isel({"x": slice(1, None)}),
     )
     dx[(forward_az < -90.0) | (forward_az > 90.0)] *= -1
     # Convert to data array with coordinates of terminus point
@@ -455,8 +461,8 @@ def _wrf_deltas(h: xr.DataArray) -> tuple[xr.DataArray]:
         coords={
             "y": (["y"], h.y.data),
             "x": (["x"], h.x.data[1:]),
-            "lon": (["y", "x"], h.lon.data[:, 1:]),
-            "lat": (["y", "x"], h.lat.data[:, 1:]),
+            "lon": (["y", "x"], h.lon.isel({"x": slice(1, None)}).data),
+            "lat": (["y", "x"], h.lat.isel({"x": slice(1, None)}).data),
         },
     )
     dy = xr.DataArray(
@@ -465,8 +471,8 @@ def _wrf_deltas(h: xr.DataArray) -> tuple[xr.DataArray]:
         coords={
             "y": (["y"], h.y.data[1:]),
             "x": (["x"], h.x.data),
-            "lon": (["y", "x"], h.lon.data[1:, :]),
-            "lat": (["y", "x"], h.lat.data[1:, :]),
+            "lon": (["y", "x"], h.lon.isel({"y": slice(1, None)}).data),
+            "lat": (["y", "x"], h.lat.isel({"y": slice(1, None)}).data),
         },
     )
     return dx, dy
@@ -652,10 +658,12 @@ def _get_rotated_geostrophic_wind(
     return Uearth, Vearth
 
 
-def compute_geostrophic_wind(geopotential_height: xr.DataArray) -> tuple[xr.DataArray]:
+def compute_geostrophic_wind(
+    geopotential_height: xr.DataArray, gridlabel="d01"
+) -> tuple[xr.DataArray]:
     """Calculate the geostrophic wind at a single point on a constant pressure surface.
 
-    Currently only implemented for data on the d01 WRF grid. This code follows the
+    Currently only implemented for data on the WRF grid. This code follows the
     MetPy code for calculating the geostrophic wind on an unevenly spaced grid.
 
     Parameters
@@ -685,7 +693,7 @@ def compute_geostrophic_wind(geopotential_height: xr.DataArray) -> tuple[xr.Data
     geo_u, geo_v = -norm_factor * dhdy, norm_factor * dhdx
 
     # Rotate these components to an earth-relative E/W orientation
-    geo_u_earth, geo_v_earth = _get_rotated_geostrophic_wind(geo_u, geo_v, "d01")
+    geo_u_earth, geo_v_earth = _get_rotated_geostrophic_wind(geo_u, geo_v, gridlabel)
 
     # Update attributes for results
     geo_u_earth.name = "u"
