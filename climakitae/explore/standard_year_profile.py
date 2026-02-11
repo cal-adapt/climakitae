@@ -465,7 +465,7 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
     if scenario in ["SSP 5-8.5", "SSP 2-4.5"]:
         if resolution == "3 km":
             raise ValueError(
-                f"if 'time_profile_scenario' is '{scenario}', resolution must be '9 km' or '45 km'"
+                f"if 'time_profile_scenario' is '{scenario}', resolution must be '9 km' or '45 km' - got {resolution}."
             )
 
     # handle approach, centered year, and scenario combindations
@@ -486,22 +486,44 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
             # get warming level based on year
             # and set 'warming_level' to this value
             else:
+                print(
+                    f"You have chosen to produce a time-based Standard Year climate profile centered around {centered_year}. \n"
+                    "Standard year functionality for time-based profiles: \n"
+                    "1. identifies the closest warming level at that centered year for either the input SSP scenario or default 'SSP 3-7.0' \n"
+                    "if no scenario input is provided. And 'historical' if 'centered_year' < 2015. \n"
+                    "2. then filters simulations by either the input SSP scenario or the default 'SSP 3-7-0'. \n"
+                )
+
+                print(
+                    f"Step 1: The corresponding global warming level for input centered year {centered_year} will now be determined.\n"
+                )
                 if centered_year < 2015:
-                    scenario = "Historical"
+                    warming_level_scenario = "Historical"
+                    if scenario is None:
+                        scenario = "SSP 3-7.0"
                 elif scenario is None:
                     scenario = "SSP 3-7.0"
+                    warming_level_scenario = scenario
+                    print(
+                        f"Using default '{warming_level_scenario}' to find corresponding warming level."
+                    )
+
+                else:
+                    warming_level_scenario = scenario
+                    f"-> Using input '{warming_level_scenario}' to find corresponding warming level."
+
+                gwl_options = get_gwl_at_year(centered_year, warming_level_scenario)
+                new_warming_level = [
+                    float(gwl_options.loc[warming_level_scenario, "Mean"])
+                ]
                 print(
-                    f"You have chosen to produce a time-based Standard Year climate profile centered around {centered_year} and using scenario {scenario}. \n"
-                    "Standard year functionality for time-based profiles identifies the closest warming level at that centered year for either \n"
-                    "the input SSP scenario or default 'SSP 3-7.0' if no scenario input is provided. And 'historical' if 'centered_year' < 2015. \n"
-                    f"The corresponding global warming level for input centered year {centered_year} will now be determined and used to produce the profile.\n"
+                    f"Corresponding warming level for 'centered_year'= {centered_year} and SSP '{warming_level_scenario}' is {new_warming_level}. \n"
                 )
-                gwl_options = get_gwl_at_year(centered_year, scenario)
-                new_warming_level = [float(gwl_options.loc[scenario, "Mean"])]
+
                 print(
-                    f"Corresponding warming level for 'centered_year'= {centered_year} is {new_warming_level}. \n"
-                    "Now producing the Standard Year climate profile at this warming level."
+                    f"Step 2: The climate profile will now be produced using SSP scenario '{scenario}' and warming level {new_warming_level}. Only models corresponding to this scenario will be used."
                 )
+
                 kwargs["warming_level"] = new_warming_level
                 kwargs["approach"] = "Warming Level"
                 kwargs["time_profile_scenario"] = scenario

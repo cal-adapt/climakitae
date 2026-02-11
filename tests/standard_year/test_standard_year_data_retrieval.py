@@ -44,7 +44,8 @@ class TestRetrieveProfileData:
         self.mock_get_data_patcher.stop()
 
     def test_retrieve_profile_data_returns_tuple(self):
-        """Test that retrieve_profile_data returns a tuple of two datasets."""
+        """Test that retrieve_profile_data returns a tuple of two datasets.
+        This is not a type test for what that tuple contains."""
         # Setup mock return values
         mock_historic = MagicMock(spec=xr.Dataset)
         mock_future = MagicMock(spec=xr.Dataset)
@@ -574,7 +575,7 @@ class TestHandleApproachParams:
                     "no_delta": False,
                     "approach": "Warming Level",
                     "centered_year": 1980,
-                    "time_profile_scenario": "Historical",
+                    "time_profile_scenario": "SSP 2-4.5",
                     "resolution": "9 km",
                     "warming_level": [0.35],
                 },
@@ -598,8 +599,8 @@ class TestHandleApproachParams:
                     "no_delta": False,
                     "approach": "Warming Level",
                     "centered_year": 1980,
-                    "time_profile_scenario": "Historical",
-                    "resolution": "9 km",
+                    "time_profile_scenario": "SSP 3-7.0",
+                    "resolution": "45 km",
                     "warming_level": [0.35],
                 },
             ),
