@@ -486,22 +486,25 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
             # get warming level based on year
             # and set 'warming_level' to this value
             else:
-                if scenario is None:
+                if centered_year < 2015:
+                    scenario = "Historical"
+                elif scenario is None:
                     scenario = "SSP 3-7.0"
                 print(
                     f"You have chosen to produce a time-based Standard Year climate profile centered around {centered_year} and using scenario {scenario}. \n"
                     "Standard year functionality for time-based profiles identifies the closest warming level at that centered year for either \n"
-                    "the input SSP scenario or default 'SSP 3-7.0' if no scenario input is provided. \n"
+                    "the input SSP scenario or default 'SSP 3-7.0' if no scenario input is provided. And 'historical' if 'centered_year' < 2015. \n"
                     f"The corresponding global warming level for input centered year {centered_year} will now be determined and used to produce the profile.\n"
                 )
                 gwl_options = get_gwl_at_year(centered_year, scenario)
                 new_warming_level = [float(gwl_options.loc[scenario, "Mean"])]
                 print(
-                    f"Corresponding warming level for 'centered_year'={centered_year} is {new_warming_level}. \n"
+                    f"Corresponding warming level for 'centered_year'= {centered_year} is {new_warming_level}. \n"
                     "Now producing the Standard Year climate profile at this warming level."
                 )
                 kwargs["warming_level"] = new_warming_level
                 kwargs["approach"] = "Warming Level"
+                kwargs["time_profile_scenario"] = scenario
 
         # If 'approach'="Time" and 'centered_year' is not provided
         case "Time", object(), _:
@@ -541,7 +544,7 @@ def _filter_by_ssp(data: xr.DataArray, scenario: str) -> xr.DataArray:
     data : xr.Dataset
         Input climate data array containing simulation data across multiple models.
     scenario : str
-        SSP scenario from ["SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
+        SSP scenario from ["Historical","SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
     Returns
     -------
     xr.Dataset
@@ -788,10 +791,16 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
 
     # Filter models by input scenario, if time-based approach specified
     centered_year = kwargs.get("centered_year", None)
+    scenario = kwargs.get("time_profile_scenario", None)
     if centered_year is not None:
-        scenario = kwargs.get(
-            "time_profile_scenario", "SSP 3-7.0"
-        )  # default to "SSP 3-7.0"
+        # if centered_year < 2015:
+        #     scenario = kwargs.get(
+        #         "time_profile_scenario", "SSP 3-7.0"
+        #     )  # default to "SSP 3-7.0"
+        # else:
+        #     scenario = kwargs.get(
+        #         "time_profile_scenario", "SSP 3-7.0"
+        #     )  # default to "SSP 3-7.0"
         future_data = _filter_by_ssp(future_data, scenario)
         if historic_data is not None:
             historic_data = _filter_by_ssp(historic_data, scenario)
