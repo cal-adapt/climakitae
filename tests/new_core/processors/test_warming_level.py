@@ -147,7 +147,7 @@ class TestWarmingLevelProcessorInitialization:
                 "warming_levels": [1.5, 3.0],
                 "warming_level_window": 10,
                 "warming_level_months": [1, 2],
-                "add_dummy_time": True
+                "add_dummy_time": True,
             }
         )
         assert processor.warming_levels == [1.5, 3.0]
