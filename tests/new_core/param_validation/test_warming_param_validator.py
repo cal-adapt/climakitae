@@ -58,6 +58,7 @@ class TestCheckInputTypes:
             "warming_levels": [1.5, 2.0],
             "warming_level_months": [1, 2, 3],
             "warming_level_window": 15,
+            "add_dummy_time": True,
         }
         result = _check_input_types(value)
         assert result is True
@@ -107,6 +108,20 @@ class TestCheckInputTypes:
         with pytest.warns(
             UserWarning,
             match="Invalid 'warming_level_window' parameter.",
+        ):
+            result = _check_input_types(value)
+            assert result is False
+
+    @pytest.mark.parametrize("wrong_type", ["True", 0])
+    def test_check_input_types_invalid_add_dummy_time(self, wrong_type):
+        """Test _check_input_types with invalid 'warming_level_window'."""
+        value = {
+            "warming_levels": [1.5, 2.0],
+            "add_dummy_time": wrong_type,
+        }
+        with pytest.warns(
+            UserWarning,
+            match="Invalid 'add_dummy_time' parameter.",
         ):
             result = _check_input_types(value)
             assert result is False
