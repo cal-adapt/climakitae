@@ -268,6 +268,11 @@ class WarmingLevel(DataProcessor):
                     key,
                 )
 
+                if self.add_dummy_time:
+                    da_slice = add_dummy_time_to_wl(da_slice)
+                else:
+                    None
+
                 slices.append(da_slice)
                 valid_wls.append(wl)
                 valid_center_years.append(center_year)
@@ -298,11 +303,6 @@ class WarmingLevel(DataProcessor):
         )
 
         self.update_context(context)
-
-        if self.add_dummy_time:
-            ret = add_dummy_time_to_wl(ret)
-        else:
-            None
 
         return ret
 
