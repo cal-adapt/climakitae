@@ -293,15 +293,6 @@ class TestConvertUnitsExecute:
 class TestHelperConversionFunctions:
     """Tests for helper conversion functions within ConvertUnits processor."""
 
-    def _handle_precipitation_to_flux(da):
-        """Convert precipitation (mm) to flux (kg m-2 s-1)"""
-        result = da / 86400
-        if da.attrs.get("frequency") == "monthly":
-            da_name = da.name
-            result = result / da["time"].dt.days_in_month
-            result.name = da_name  # Preserve name
-        return result
-
     def test_precipitation_to_flux(self):
         """Test conversion from precipitation units to flux units."""
         precip_data = xr.DataArray(
@@ -309,12 +300,12 @@ class TestHelperConversionFunctions:
             dims=["time"],
             coords={"time": pd.date_range("2000-01-01", periods=12, freq="ME")},
             name="precipitation",
-            attrs={"units": "mm/d", "frequency": "monthly"},
+            attrs={"units": "mm/d"},
         )
         expected_flux_data = np.array(
             precip_data / (86400 * precip_data["time"].dt.days_in_month)
         )
-        flux_data = _handle_precipitation_to_flux(precip_data)
+        flux_data = _handle_precipitation_to_flux(precip_data, frequency="mon")
         np.testing.assert_allclose(
             flux_data.data,
             expected_flux_data,
@@ -344,13 +335,13 @@ class TestHelperConversionFunctions:
             dims=["time"],
             coords={"time": pd.date_range("2000-01-01", periods=12, freq="ME")},
             name="flux",
-            attrs={"units": "kg m-2 s-1", "frequency": "monthly"},
+            attrs={"units": "kg m-2 s-1"},
         )
         expected_precip_data = np.array(
             flux_data * (86400 * flux_data["time"].dt.days_in_month)
         )
 
-        precip_data = _handle_flux_to_precipitation(flux_data)
+        precip_data = _handle_flux_to_precipitation(flux_data, frequency="mon")
         np.testing.assert_allclose(
             precip_data.data,
             expected_precip_data,
