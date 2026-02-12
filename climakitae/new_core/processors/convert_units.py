@@ -27,12 +27,20 @@ UNIT_CONVERSIONS = {
     ("mm", "inches"): lambda da: da / 25.4,
     ("mm/d", "inches/d"): lambda da: da / 25.4,
     ("mm/h", "inches/h"): lambda da: da / 25.4,
-    ("mm", "kg m-2 s-1"): lambda da: _handle_precipitation_to_flux(da),
-    ("mm/d", "kg m-2 s-1"): lambda da: _handle_precipitation_to_flux(da),
-    ("mm/h", "kg m-2 s-1"): lambda da: _handle_precipitation_to_flux(da),
-    ("kg m-2 s-1", "mm"): lambda da: _handle_flux_to_precipitation(da, unit="mm"),
-    ("kg m-2 s-1", "inches"): lambda da: _handle_flux_to_precipitation(
-        da, unit="inches"
+    ("mm", "kg m-2 s-1"): lambda da, freq=None: _handle_precipitation_to_flux(
+        da, frequency=freq
+    ),
+    ("mm/d", "kg m-2 s-1"): lambda da, freq=None: _handle_precipitation_to_flux(
+        da, frequency=freq
+    ),
+    ("mm/h", "kg m-2 s-1"): lambda da, freq=None: _handle_precipitation_to_flux(
+        da, frequency=freq
+    ),
+    ("kg m-2 s-1", "mm"): lambda da, freq=None: _handle_flux_to_precipitation(
+        da, unit="mm", frequency=freq
+    ),
+    ("kg m-2 s-1", "inches"): lambda da, freq=None: _handle_flux_to_precipitation(
+        da, unit="inches", frequency=freq
     ),
     # Moisture ratio units
     ("kg/kg", "g/kg"): lambda da: da * 1000,
@@ -59,19 +67,19 @@ UNIT_CONVERSIONS = {
 }
 
 
-def _handle_precipitation_to_flux(da):
+def _handle_precipitation_to_flux(da, frequency=None):
     """Convert precipitation (mm) to flux (kg m-2 s-1)"""
     result = da / 86400
-    if da.attrs.get("frequency") == "mon":
+    if frequency == "mon":
         da_name = da.name
         result = result / da["time"].dt.days_in_month
         result.name = da_name  # Preserve name
     return result
 
 
-def _handle_flux_to_precipitation(da, unit="mm"):
+def _handle_flux_to_precipitation(da, unit="mm", frequency=None):
     """Convert flux (kg m-2 s-1) to precipitation (mm or inches)"""
-    if da.attrs.get("frequency") == "mon":
+    if frequency == "mon":
         da_name = da.name
         result = da * da["time"].dt.days_in_month
         result.name = da_name  # Preserve name
@@ -270,9 +278,11 @@ class ConvertUnits(DataProcessor):
 
                 # Perform the actual conversion
                 logger.debug("Applying conversion: (%s, %s)", units_from, value)
-                converted_var = UNIT_CONVERSIONS.get(
-                    (units_from, value), lambda da: da
-                )(data.data_vars[var])
+                frequency = data.attrs.get("frequency")
+                converter = UNIT_CONVERSIONS.get(
+                    (units_from, value), lambda da, freq=None: da
+                )
+                converted_var = converter(data.data_vars[var], freq=frequency)
                 # Update the units attribute
                 converted_var.attrs["units"] = value
                 # Assign back to the dataset
