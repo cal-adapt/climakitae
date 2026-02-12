@@ -644,27 +644,40 @@ def get_ks_pval_df(
 
     """
 
-    sample1 = sample1.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
-    sample2 = sample2.stack(allpoints=["y", "x"]).squeeze().groupby("allpoints")
+    sample1 = sample1.stack(allpoints=["y", "x"]).squeeze()
+    sample2 = sample2.stack(allpoints=["y", "x"]).squeeze()
 
-    def ks_stat_2sample(sample1, sample2):
+    # Align allpoints so both samples cover the same spatial points
+    sample1, sample2 = xr.align(sample1, sample2, join="inner")
+
+    # Identify the core (non-spatial) dimension for the KS test.
+    # After stacking spatial dims into "allpoints", the remaining dim
+    # is typically "time", "index", or "member_id".
+    non_spatial_dims = [d for d in sample1.dims if d != "allpoints"]
+    if len(non_spatial_dims) != 1:
+        raise ValueError(
+            f"Expected exactly one non-spatial dimension after stacking, "
+            f"got {non_spatial_dims}. Ensure inputs have shape (time/index, y, x)."
+        )
+    core_dim = non_spatial_dims[0]
+
+    def ks_stat_2sample(s1, s2):
+        """Run a two-sample KS test, returning (d_statistic, p_value)."""
         try:
-            ks = stats.kstest(sample1, sample2)
-            d_statistic = ks[0]
-            p_value = ks[1]
+            d_statistic, p_value = stats.kstest(s1, s2)
         except (ValueError, ZeroDivisionError):
             d_statistic = np.nan
             p_value = np.nan
-
         return d_statistic, p_value
 
     _, p_value = xr.apply_ufunc(
         ks_stat_2sample,
         sample1,
         sample2,
-        input_core_dims=[["index"], ["index"]],
-        exclude_dims=set(("index",)),
+        input_core_dims=[[core_dim], [core_dim]],
+        exclude_dims=set((core_dim,)),
         output_core_dims=[[], []],
+        vectorize=True,
     )
 
     p_df = p_value.dropna(dim="allpoints")
