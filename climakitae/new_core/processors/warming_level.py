@@ -23,7 +23,11 @@ from climakitae.new_core.processors.abc_data_processor import (
 from climakitae.new_core.processors.processor_utils import extend_time_domain
 
 # from climakitae.new_core.processors.processor_utils import _determine_is_complete_wl
-from climakitae.util.utils import _determine_is_complete_wl, read_csv_file
+from climakitae.util.utils import (
+    _determine_is_complete_wl,
+    read_csv_file,
+    add_dummy_time_to_wl,
+)
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -47,6 +51,11 @@ class WarmingLevel(DataProcessor):
             List of months to include (1-12). Default: all months
         - warming_level_window : int, optional
             Number of years before and after the central year. Default: 15
+        - add_dummy_time: bool, optional
+            Default: False
+            If True, replace the [hours/days/months]_from_center or time_delta dimension
+                in a DataArray returned from WarmingLevels with a dummy time index for
+                calculations with tools that require a time dimension.
 
     Methods
     -------
@@ -78,6 +87,7 @@ class WarmingLevel(DataProcessor):
         self.warming_levels = value.get("warming_levels", [2.0])
         self.warming_level_window = value.get("warming_level_window", 15)
         self.warming_level_months = value.get("warming_level_months", UNSET)
+        self.add_dummy_time = value.get("add_dummy_time", False)
 
         # Initialize instance variables
         self.name = "warming_level_simple"
@@ -288,6 +298,12 @@ class WarmingLevel(DataProcessor):
         )
 
         self.update_context(context)
+
+        if self.add_dummy_time:
+            ret = add_dummy_time_to_wl(ret)
+        else:
+            None
+
         return ret
 
     def update_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
