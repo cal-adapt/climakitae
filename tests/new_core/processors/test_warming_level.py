@@ -152,6 +152,7 @@ class TestWarmingLevelProcessorInitialization:
         assert processor.warming_levels == [1.5, 3.0]
         assert processor.warming_level_window == 10
         assert processor.warming_level_months == [1, 2]
+        assert processor.add_dummy_time == True
 
 
 class TestWarmingLevelUpdateContext:
@@ -377,6 +378,20 @@ class TestWarmingLevelExecute:
             assert isinstance(ret[key], xr.Dataset)
             assert "warming_level" in ret[key].dims
             assert "time_delta" in ret[key].dims
+        # centered_year is now stored in context for later reconstruction by concatenate processor
+        assert "_sim_centered_years" in context
+        assert len(context["_sim_centered_years"]) > 0
+
+    def test_execute_dummy_time_dims_correct(self, request, full_processor):
+        """Test that execute returns a dict with expected keys and types when add_dummy_time=True."""
+        test_result = request.getfixturevalue("test_dataarray_dict_wrf_yearly")
+        context = {"activity_id": "WRF"}
+        full_processor.add_dummy_time = True
+        ret = full_processor.execute(result=test_result, context=context)
+        for key in ret:
+            assert isinstance(ret[key], xr.Dataset)
+            assert "warming_level" in ret[key].dims
+            assert "time" in ret[key].dims  # "time_delta" replaced with "time"
         # centered_year is now stored in context for later reconstruction by concatenate processor
         assert "_sim_centered_years" in context
         assert len(context["_sim_centered_years"]) > 0
