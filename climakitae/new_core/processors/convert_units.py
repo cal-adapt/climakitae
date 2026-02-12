@@ -24,9 +24,9 @@ UNIT_CONVERSIONS = {
     ("hPa", "mb"): lambda da: da / 100.0,
     ("hPa", "inHg"): lambda da: da * 0.0295300,
     # Precipitation units
-    ("mm", "inches"): lambda da, freq=None: da / 25.4,
-    ("mm/d", "inches/d"): lambda da, freq=None: da / 25.4,
-    ("mm/h", "inches/h"): lambda da, freq=None: da / 25.4,
+    ("mm", "inches"): lambda da: da / 25.4,
+    ("mm/d", "inches/d"): lambda da: da / 25.4,
+    ("mm/h", "inches/h"): lambda da: da / 25.4,
     ("mm", "kg m-2 s-1"): lambda da, freq=None: _handle_precipitation_to_flux(
         da, frequency=freq
     ),
@@ -278,11 +278,9 @@ class ConvertUnits(DataProcessor):
 
                 # Perform the actual conversion
                 logger.debug("Applying conversion: (%s, %s)", units_from, value)
-                converter = UNIT_CONVERSIONS.get(
-                    (units_from, value), lambda da: da
-                )
+                converter = UNIT_CONVERSIONS.get((units_from, value), lambda da: da)
                 # Pass frequency for precip conversions that need it
-                if units_from in ("kg m-2 s-1", "mm", "mm/d", "mm/h"):
+                if "kg m-2 s-1" in (units_from, value):
                     frequency = data.attrs.get("frequency")
                     converted_var = converter(data.data_vars[var], freq=frequency)
                 else:
