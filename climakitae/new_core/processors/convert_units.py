@@ -62,7 +62,7 @@ UNIT_CONVERSIONS = {
 def _handle_precipitation_to_flux(da):
     """Convert precipitation (mm) to flux (kg m-2 s-1)"""
     result = da / 86400
-    if da.attrs.get("frequency") == "monthly":
+    if da.attrs.get("frequency") == "mon":
         da_name = da.name
         result = result / da["time"].dt.days_in_month
         result.name = da_name  # Preserve name
@@ -71,7 +71,7 @@ def _handle_precipitation_to_flux(da):
 
 def _handle_flux_to_precipitation(da, unit="mm"):
     """Convert flux (kg m-2 s-1) to precipitation (mm or inches)"""
-    if da.attrs.get("frequency") == "monthly":
+    if da.attrs.get("frequency") == "mon":
         da_name = da.name
         result = da * da["time"].dt.days_in_month
         result.name = da_name  # Preserve name
