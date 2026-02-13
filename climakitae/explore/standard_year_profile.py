@@ -895,7 +895,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     # Filter for only bias-adjusted WRF models, if user indicates this
     ba_models = kwargs.get("bias_adjusted_models", False)
     if ba_models:
-        print("Filter WRF data for bias-adjusted models.")
+        print("Filtering data for bias-adjusted models.")
         future_data = _filter_ba_models(future_data)
         historic_data = _filter_ba_models(historic_data)
     else:
