@@ -126,6 +126,7 @@ def _get_clean_standardyr_filename(
     approach: str | None,
     centered_year: int | None,
     scenario: str | None,
+    ba_models: bool,
 ) -> str:
     """
     Standardizes filename export for standard year files
@@ -152,6 +153,9 @@ def _get_clean_standardyr_filename(
         For approach="Time", the year for which to find a corresponding warming level
     time_profile_scenario (Optional) : str, default "SSP 3-7.0"
         SSP scenario from ["SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
+    #!
+    ba_models (optional) : bool, default False,
+        If True only return bias-adjusted WRF models
 
     Returns
     -------
@@ -198,8 +202,11 @@ def _get_clean_standardyr_filename(
     elif approach == "Time":
         # if time-based profile being generated, include default value in filename
         scenario_str = "_ssp370"
+    ba_models_str = ""
+    if ba_models:
+        ba_models_str = "_ba_models"
 
-    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}{clean_gwl_name}{delta_str}{window_str}{approach_str}{centered_year_str}{scenario_str}.csv"
+    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}{clean_gwl_name}{delta_str}{window_str}{approach_str}{centered_year_str}{scenario_str}{ba_models_str}.csv"
     return filename
 
 
@@ -336,6 +343,8 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 For approach="Time", the year for which to find a corresponding warming level
             time_profile_scenario (Optional) : str, default "SSP 3-7.0"
                 SSP scenario from ["SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
+            #!
+            bias_adjusted_models (optional) : bool, default False, if True only return bias-adjusted WRF models
 
     Notes
     -----
@@ -364,6 +373,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
     centered_year = kwargs.get("centered_year", None)
     global_warming_levels = kwargs.get("warming_level", None)
     scenario = kwargs.get("time_profile_scenario", None)
+    ba_models = kwargs.get("bias_adjusted_models", False)
 
     # Get variable id string to use in file name
     variable_descriptions = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
@@ -402,6 +412,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 approach,
                 centered_year,
                 scenario,
+                ba_models
             )
             profile.to_csv(filename)
         case 3:  # Multiple WL (WL included in MultiIndex)
@@ -416,6 +427,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                     approach,
                     centered_year,
                     scenario,
+                    ba_models
                 )
                 profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(filename)
         case _:
@@ -447,7 +459,8 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
         - stations (Optional) : list[str], default None
         - units (Optional) : str, default "degF"
         - no_delta (optional) : bool, default False, if True, do not retrieve historical data, return raw future profile
-
+        #!
+        - bias_adjusted_models (optional) : bool, default False, if True only return bias-adjusted WRF models
     Returns
     -------
     **kwargs : dict
