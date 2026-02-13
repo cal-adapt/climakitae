@@ -718,16 +718,7 @@ class TestHandleApproachParamsInvalidInputs:
 
 
 class TestFilterBySSP:
-    """Test class for _filter_by_ssp().
-
-    Tests the core function that computes climate profiles from xarray DataArrays
-    using quantile-based analysis across multiple years of data.
-
-    Attributes
-    ----------
-    sample_data : xr.DataArray
-        Sample climate data for testing.
-    """
+    """Test class for _filter_by_ssp(), which filters retrieved data by SSP"""
 
     def setup_method(self):
         """Set up test fixtures."""
@@ -757,7 +748,7 @@ class TestFilterBySSP:
         )
 
     def test_filter_by_ssp_returns_correct_simulation(self):
-        """Test that _filter_by_spp returns data with desired simulation."""
+        """Test that _filter_by_spp returns data from desired simulation."""
         # Execute function
         result = _filter_by_ssp(self.sample_data, scenario="SSP 2-4.5")
 
@@ -765,4 +756,4 @@ class TestFilterBySSP:
         simulations = np.array(["WRF_CESM2_r11i1p1f1_historical+ssp245"])
         assert np.array_equal(
             result.simulation.values, simulations
-        ), "Incorrect simulations returned"
+        ), "Incorrect simulation(s) returned"
