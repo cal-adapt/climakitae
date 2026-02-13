@@ -62,6 +62,9 @@ class ConvertToLocalTime(DataProcessor):
         self.valid_values = ["yes", "no"]
         self.value = value.lower()
         self.name = "convert_to_local_time"
+        self.timezone = "None"
+        self.catalog: Union[DataCatalog, object] = UNSET
+        self.needs_catalog = True
         logger.debug("ConvertToLocalTime initialized with value=%s", self.value)
 
     def execute(
@@ -111,10 +114,15 @@ class ConvertToLocalTime(DataProcessor):
                 for key, value in result.items():
                     subset_data[key] = func(value)
                 self.update_context(context)
+                logger.info(
+                    "Converted time to local time for %d data entries",
+                    len(subset_data),
+                )
                 return subset_data
 
             case xr.DataArray() | xr.Dataset():
                 self.update_context(context)
+                logger.info("Converted time to local time.")
                 return func(result)
 
             case list() | tuple():
@@ -123,6 +131,10 @@ class ConvertToLocalTime(DataProcessor):
                     subset_data.append(func(value))
                 # return as the same type as the input
                 self.update_context(context)
+                logger.info(
+                    "Converted time to local time for %d data entries",
+                    len(subset_data),
+                )
                 return type(result)(subset_data)
             case _:
                 msg = f"Invalid data type for subsetting. Expected xr.Dataset, dict, list, or tuple but got {type(result)}."
@@ -148,11 +160,24 @@ class ConvertToLocalTime(DataProcessor):
 
         context[_NEW_ATTRS_KEY][
             self.name
-        ] = f"""Process '{self.name}' applied to the data. Conversion was done using the following value: {self.value}."""
+        ] = f"""Process '{self.name}' applied to the data. Conversion was done using the following value: {self.timezone}."""
 
     def set_data_accessor(self, catalog: DataCatalog):
-        # Placeholder for setting data accessor
-        pass
+        """Set the data catalog accessor for the processor.
+
+        The processor requires access to station metadata through the DataCatalog.
+        Station observational data is loaded directly from S3 zarr stores.
+
+        Parameters
+        ----------
+        catalog : DataCatalog
+            Data catalog for accessing station metadata.
+
+        Returns
+        -------
+        None
+        """
+        self.catalog = catalog
     
     def _convert_to_local_time_gridded(
         self,
@@ -193,10 +218,10 @@ class ConvertToLocalTime(DataProcessor):
     
         # If timescale is not hourly, no need to convert
         if frequency != "hourly":
-            print(
+            logger.warn(
                 "This dataset's timescale is not granular enough to covert to local time. Local timezone conversion requires hourly data."
             )
-            return data
+            return obj
     
         # Get latitude/longitude information
     
@@ -208,13 +233,24 @@ class ConvertToLocalTime(DataProcessor):
                 lon = obj.lon.mean().item()
             #TODO: logger, see how to throw errors properly
             except AttributeError:
-                print(
-                    "lat/lon coordinates not found in data. Please pass in data with 'lon' and 'lat' coordinates or set both 'lon' and 'lat' arguments."
+                logger.error(
+                    "Could not convert time because lat/lon coordinates not found in data. Please pass in data with 'lon' and 'lat' coordinates or set both 'lon' and 'lat' arguments."
                 )
                 return obj
 
         obj = _find_timezone_and_convert(obj,lat,lon)
 
+        return obj
+
+    def _convert_to_local_time_station(
+        self,
+        obj: Union[xr.Dataset, xr.DataArray],
+    ) -> xr.DataArray | xr.Dataset:
+
+        lat = station_data["LAT_Y"].values[0]
+        lon = station_data["LON_X"].values[0]
+
+        obj = _find_timezone_and_convert(obj,lat,lon)
         return obj
 
     def _find_timezone_and_convert(obj: Union[xr.Dataset, xr.DataArray],lat: float,lon: float) -> xr.DataArray | xr.Dataset:
@@ -232,7 +268,8 @@ class ConvertToLocalTime(DataProcessor):
         )
         obj["time"] = new_time
     
-        print(f"Data converted to {local_tz} timezone.")
+        logger.info(f"Data converted to {local_tz} timezone.")
+        self.timezone = local_tz
     
         # Add timezone attribute to data
         match obj:
@@ -244,16 +281,6 @@ class ConvertToLocalTime(DataProcessor):
                     obj[variable] = obj[variable].assign_attrs({"timezone": local_tz})
             # TODO: logger
             case _:
-                print(f"Invalid data type {type(obj)}. Could not set timezone attribute.")
+                logger.warn(f"Invalid data type {type(obj)}. Could not set timezone attribute.")
         return obj
 
-    def _convert_to_local_time_station(
-        self,
-        obj: Union[xr.Dataset, xr.DataArray],
-    ) -> xr.DataArray | xr.Dataset:
-
-        lat = station_data["LAT_Y"].values[0]
-        lon = station_data["LON_X"].values[0]
-
-        obj = _find_timezone_and_convert(obj,lat,lon)
-        return obj
