@@ -17,6 +17,7 @@ from climakitae.explore.standard_year_profile import (
     retrieve_profile_data,
     _handle_approach_params,
     _filter_by_ssp,
+    _filter_ba_models,
 )
 
 
@@ -743,6 +744,7 @@ class TestHandleApproachParamsInvalidInputs:
                 scenario="SSP 2-4.5",
             )
 
+    #!
     def test_handle_approach_params_with_invalid_ba_models_and_scenario_input_raises_error(
         self,
     ):
@@ -822,17 +824,9 @@ class TestFilterBySSP:
         ), "Incorrect simulations returned"
 
 
+#!
 class TestFilterBAModels:
-    """Test class for _filter_ba_models().
-
-    Tests the core function that computes climate profiles from xarray DataArrays
-    using quantile-based analysis across multiple years of data.
-
-    Attributes
-    ----------
-    sample_data : xr.DataArray
-        Sample climate data for testing.
-    """
+    """Test class for _filter_ba_models()."""
 
     def setup_method(self):
         """Set up test fixtures."""
@@ -843,8 +837,15 @@ class TestFilterBAModels:
         warming_levels = [1.5]
         simulations = [
             "WRF_CESM2_r11i1p1f1_historical+ssp245",
-            "WRF_CESM2_r11i1p1f1_historical+ssp370",
             "WRF_CESM2_r11i1p1f1_historical+ssp585",
+            "WRF_CESM2_r11i1p1f1_historical+ssp370",
+            "WRF_CNRM-ESM2-1_r1i1p1f2_historical+ssp370",
+            "WRF_EC-Earth3_r1i1p1f1_historical+ssp370",
+            "WRF_EC-Earth3-Veg_r1i1p1f1_historical+ssp370",
+            "WRF_FGOALS-g3_r1i1p1f1_historical+ssp370",
+            "WRF_MIROC6_r1i1p1f1_historical+ssp370",
+            "WRF_MPI-ESM1-2-HR_r3i1p1f1_historical+ssp370",
+            "WRF_TaiESM1_r1i1p1f1_historical+ssp370",
         ]
 
         # Create test data with proper dimensions
@@ -864,10 +865,18 @@ class TestFilterBAModels:
     def test_filter_by_ssp_returns_correct_simulation(self):
         """Test that _filter_by_spp returns data with desired simulation."""
         # Execute function
-        result = _filter_by_ssp(self.sample_data, scenario="SSP 2-4.5")
+        result = _filter_ba_models(self.sample_data)
 
         # Verify the result contains only the target simulation
-        simulations = np.array(["WRF_CESM2_r11i1p1f1_historical+ssp245"])
+        simulations = np.array(
+            [
+                "WRF_EC-Earth3_r1i1p1f1_historical+ssp370",
+                "WRF_EC-Earth3-Veg_r1i1p1f1_historical+ssp370",
+                "WRF_MIROC6_r1i1p1f1_historical+ssp370",
+                "WRF_MPI-ESM1-2-HR_r3i1p1f1_historical+ssp370",
+                "WRF_TaiESM1_r1i1p1f1_historical+ssp370",
+            ]
+        )
         assert np.array_equal(
             result.simulation.values, simulations
         ), "Incorrect simulations returned"
