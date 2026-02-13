@@ -814,14 +814,6 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     centered_year = kwargs.get("centered_year", None)
     scenario = kwargs.get("time_profile_scenario", None)
     if centered_year is not None:
-        # if centered_year < 2015:
-        #     scenario = kwargs.get(
-        #         "time_profile_scenario", "SSP 3-7.0"
-        #     )  # default to "SSP 3-7.0"
-        # else:
-        #     scenario = kwargs.get(
-        #         "time_profile_scenario", "SSP 3-7.0"
-        #     )  # default to "SSP 3-7.0"
         future_data = _filter_by_ssp(future_data, scenario)
         if historic_data is not None:
             historic_data = _filter_by_ssp(historic_data, scenario)
