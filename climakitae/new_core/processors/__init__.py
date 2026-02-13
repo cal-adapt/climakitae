@@ -9,6 +9,7 @@ in the data processing pipeline.
 from .bias_adjust_model_to_station import BiasAdjustModelToStation
 from .clip import Clip
 from .concatenate import Concat
+from .convert_to_local_time import ConvertToLocalTime
 from .convert_units import ConvertUnits
 from .drop_leap_days import DropLeapDays
 from .export import Export
@@ -20,6 +21,7 @@ from .warming_level import WarmingLevel
 
 __all__ = [
     "Concat",
+    "ConvertToLocalTime",
     "ConvertUnits",
     "Clip",
     "DropLeapDays",

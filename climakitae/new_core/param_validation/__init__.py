@@ -29,6 +29,7 @@ from .bias_adjust_model_to_station_param_validator import (
 from .cadcat_param_validator import DataValidator
 from .clip_param_validator import validate_clip_param
 from .concat_param_validator import validate_concat_param
+from .convert_to_local_time_validator import validate_convert_to_local_time_param
 from .convert_units_param_validator import validate_convert_units_param
 from .drop_leap_days_param_validator import validate_drop_leap_days_param
 from .export_param_validator import validate_export_param
@@ -48,6 +49,7 @@ __all__ = [
     "validate_bias_correction_station_data_param",
     "validate_clip_param",
     "validate_concat_param",
+    "validate_convert_to_local_time_param",
     "validate_convert_units_param",
     "validate_drop_leap_days_param",
     "validate_export_param",
