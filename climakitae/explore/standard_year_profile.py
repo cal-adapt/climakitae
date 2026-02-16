@@ -612,9 +612,7 @@ def _filter_ba_models(
     """
     Filter data to include only bias-adjusted WRF models.
     This function filters the input data to retain only simulations that correspond to
-    bias-adjusted Weather Research and Forecasting (WRF) models when dynamical
-    downscaling with bias adjustment is requested and historical reconstruction is
-    not being used.
+    bias-adjusted Weather Research and Forecasting (WRF) models.
 
     Parameters
     ----------
