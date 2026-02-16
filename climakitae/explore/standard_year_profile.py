@@ -364,7 +364,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
 
     # Get required parameter values
     variable = kwargs.get("variable")
-    q = kwargs.get("q",0.5)
+    q = kwargs.get("q", 0.5)
 
     # Get warming_level, no_delta, warming_level_window, approach, centered_year inputs, and scenario
     no_delta = kwargs.get("no_delta", False)
@@ -412,7 +412,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 approach,
                 centered_year,
                 scenario,
-                ba_models
+                ba_models,
             )
             profile.to_csv(filename)
         case 3:  # Multiple WL (WL included in MultiIndex)
@@ -427,7 +427,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                     approach,
                     centered_year,
                     scenario,
-                    ba_models
+                    ba_models,
                 )
                 profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(filename)
         case _:
@@ -880,14 +880,6 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     centered_year = kwargs.get("centered_year", None)
     scenario = kwargs.get("time_profile_scenario", None)
     if centered_year is not None:
-        # if centered_year < 2015:
-        #     scenario = kwargs.get(
-        #         "time_profile_scenario", "SSP 3-7.0"
-        #     )  # default to "SSP 3-7.0"
-        # else:
-        #     scenario = kwargs.get(
-        #         "time_profile_scenario", "SSP 3-7.0"
-        #     )  # default to "SSP 3-7.0"
         future_data = _filter_by_ssp(future_data, scenario)
         if historic_data is not None:
             historic_data = _filter_by_ssp(historic_data, scenario)
@@ -897,7 +889,8 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     if ba_models:
         print("Filtering data for bias-adjusted models.")
         future_data = _filter_ba_models(future_data)
-        historic_data = _filter_ba_models(historic_data)
+        if historic_data is not None:
+            historic_data = _filter_ba_models(historic_data)
     else:
         None
 
