@@ -364,7 +364,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
 
     # Get required parameter values
     variable = kwargs.get("variable")
-    q = kwargs.get("q")
+    q = kwargs.get("q",0.5)
 
     # Get warming_level, no_delta, warming_level_window, approach, centered_year inputs, and scenario
     no_delta = kwargs.get("no_delta", False)
