@@ -35,9 +35,7 @@ class TestValidateConvertToLocalTimeParam:
         ],
         ids=["yes", "no"],
     )
-    def test_validate_convert_to_local_time_param_valid_values(
-        self, value, expected
-    ):
+    def test_validate_convert_to_local_time_param_valid_values(self, value, expected):
         """Test validate_convert_to_local_time_param with valid values.
 
         Tests validation with supported string values "yes" and "no".
