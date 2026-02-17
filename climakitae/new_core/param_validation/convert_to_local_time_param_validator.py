@@ -17,15 +17,17 @@ logger = logging.getLogger(__name__)
 
 
 @register_processor_validator("convert_to_local_time")
-def validate_convert_to_local_time_param(value: str, **kwargs: Any) -> bool:  # noqa: ARG001
-    """Validate the parameters provided to the DropLeapDays Processor.
+def validate_convert_to_local_time_param(
+    value: str, **kwargs: Any
+) -> bool:  # noqa: ARG001
+    """Validate the parameters provided to the ConvertToLocalTime Processor.
 
     Parameters
     ----------
     value : str
         The value to control leap day dropping behavior. Supported values:
-        "yes" (default): Drop leap days (February 29)
-        "no": Keep leap days
+        "yes": Convert time to local time
+        "no" (default): Keep original timezone
 
     Returns
     -------
