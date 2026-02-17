@@ -1362,7 +1362,7 @@ def summary_table(data: xr.Dataset) -> pd.DataFrame:
             ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
         ).to_dataframe(dim_order=["time", "sim"])
 
-        df = df.unstack().unstack().to_frame()
+        df = df.unstack().unstack().to_frame(name=df.keys()[0])
         df = df.sort_values(by=["time"])
 
     elif "year" in data.dims:
@@ -1370,7 +1370,7 @@ def summary_table(data: xr.Dataset) -> pd.DataFrame:
             ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
         ).to_dataframe(dim_order=["year", "sim"])
 
-        df = df.unstack().unstack().to_frame()
+        df = df.unstack().unstack().to_frame(name=df.keys()[0])
         df = df.sort_values(by=["year"])
 
     return df
@@ -1960,7 +1960,7 @@ def clip_gpd_to_shapefile(
         shapefile = shapefile.to_crs(sub_gdf.crs)
 
     # Subset for stations within area boundaries
-    clipped = sub_gdf[sub_gdf.geometry.intersects(shapefile.unary_union)]
+    clipped = sub_gdf[sub_gdf.geometry.intersects(shapefile.union_all())]
 
     if clipped.empty:
         raise RuntimeError(
