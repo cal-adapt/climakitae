@@ -639,8 +639,8 @@ class TestUtils:
 
         da = xr.DataArray(
             data,
-            dims=("time", "simulation"),
-            coords={"time": time, "simulation": simulations},
+            dims=("time", "sim"),
+            coords={"time": time, "sim": simulations},
             name="test_variable",
         )
 
@@ -649,45 +649,45 @@ class TestUtils:
 
         # Verify the result has the expected structure
         assert isinstance(result, xr.DataArray)
-        assert "simulation" in result.dims
+        assert "sim" in result.dims
         assert (
-            len(result.simulation) == len(simulations) + 4
+            len(result.sim) == len(simulations) + 4
         )  # original + mean, min, max, median
 
         # Check the result contains original data
         for sim in simulations:
-            assert sim in result.simulation.values
+            assert sim in result.sim.values
             np.testing.assert_array_equal(
-                result.sel(simulation=sim).values, da.sel(simulation=sim).values
+                result.sel(sim=sim).values, da.sel(sim=sim).values
             )
 
         # Check the computed stats
         # Mean
-        assert "simulation mean" in result.simulation.values
+        assert "simulation mean" in result.sim.values
         np.testing.assert_allclose(
-            result.sel(simulation="simulation mean").values,
-            da.mean(dim="simulation").values,
+            result.sel(sim="simulation mean").values,
+            da.mean(dim="sim").values,
         )
 
         # Min
-        assert "simulation min" in result.simulation.values
+        assert "simulation min" in result.sim.values
         np.testing.assert_allclose(
-            result.sel(simulation="simulation min").values,
-            da.min(dim="simulation").values,
+            result.sel(sim="simulation min").values,
+            da.min(dim="sim").values,
         )
 
         # Max
-        assert "simulation max" in result.simulation.values
+        assert "simulation max" in result.sim.values
         np.testing.assert_allclose(
-            result.sel(simulation="simulation max").values,
-            da.max(dim="simulation").values,
+            result.sel(sim="simulation max").values,
+            da.max(dim="sim").values,
         )
 
         # Median
-        assert "simulation median" in result.simulation.values
+        assert "simulation median" in result.sim.values
         np.testing.assert_allclose(
-            result.sel(simulation="simulation median").values,
-            da.median(dim="simulation").values,
+            result.sel(sim="simulation median").values,
+            da.median(dim="sim").values,
         )
 
     def test_trendline(self):
@@ -871,14 +871,13 @@ class TestUtils:
         time_data = xr.Dataset(
             {
                 "var1": (
-                    ("time", "scenario", "simulation"),
-                    np.random.rand(3, 2, 2),
+                    ("time", "sim"),
+                    np.random.rand(3, 2),
                 ),
             },
             coords={
                 "time": pd.date_range("2020-01-01", periods=3),
-                "scenario": ["ssp245", "ssp585"],
-                "simulation": ["sim1", "sim2"],
+                "sim": ["sim1", "sim2"],
                 "lakemask": 0,
                 "landmask": 1,
                 "lat": 35.0,
@@ -893,14 +892,13 @@ class TestUtils:
         year_data = xr.Dataset(
             {
                 "var1": (
-                    ("year", "scenario", "simulation"),
-                    np.random.rand(3, 2, 2),
+                    ("year", "sim"),
+                    np.random.rand(3, 2),
                 ),
             },
             coords={
                 "year": [2020, 2021, 2022],
-                "scenario": ["ssp245", "ssp585"],
-                "simulation": ["sim1", "sim2"],
+                "sim": ["sim1", "sim2"],
                 "lakemask": 0,
                 "landmask": 1,
                 "lat": 35.0,
@@ -937,8 +935,8 @@ class TestUtils:
         # Check that the dataframe has the expected structure
         # For time dimension data
         assert "time" in time_df.index.names
-        assert set(time_df.columns.levels[0]) == {"var1"}
-        assert set(time_df.columns.levels[1]) == {"sim1", "sim2"}
+        assert set(time_df.index.levels[0]) == {"var1"}
+        assert set(time_df.index.levels[1]) == {"sim1", "sim2"}
         assert (
             time_df.index.get_level_values("time")[0]
             <= time_df.index.get_level_values("time")[-1]
@@ -946,8 +944,8 @@ class TestUtils:
 
         # For year dimension data
         assert "year" in year_df.index.names
-        assert set(year_df.columns.levels[0]) == {"var1"}
-        assert set(year_df.columns.levels[1]) == {"sim1", "sim2"}
+        assert set(year_df.index.levels[0]) == {"var1"}
+        assert set(year_df.index.levels[1]) == {"sim1", "sim2"}
         assert (
             year_df.index.get_level_values("year")[0]
             <= year_df.index.get_level_values("year")[-1]
