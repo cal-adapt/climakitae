@@ -112,7 +112,7 @@ class TestCheckInputTypes:
             result = _check_input_types(value)
             assert result is False
 
-    @pytest.mark.parametrize("wrong_type", ["True", 0])
+    @pytest.mark.parametrize("wrong_type", ["True", 0, -1.5, {}])
     def test_check_input_types_invalid_add_dummy_time(self, wrong_type):
         """Test _check_input_types with invalid 'warming_level_window'."""
         value = {

@@ -101,6 +101,8 @@ class WarmingLevel(DataProcessor):
         self.value = {
             "warming_levels": self.warming_levels,
             "warming_level_window": self.warming_level_window,
+            "warming_level_months": self.warming_level_months,
+            "add_dummy_time": self.add_dummy_time,
         }
         logger.debug(
             "WarmingLevel initialized with warming_levels=%s window=%s",
@@ -201,7 +203,6 @@ class WarmingLevel(DataProcessor):
                 continue
 
             slices = []
-            valid_wls = []  # Track which warming levels were successfully processed
             valid_center_years = []  # Track center years for valid warming levels
 
             for year, wl in zip(years, self.warming_levels):
@@ -268,13 +269,7 @@ class WarmingLevel(DataProcessor):
                     key,
                 )
 
-                if self.add_dummy_time:
-                    da_slice = add_dummy_time_to_wl(da_slice)
-                else:
-                    None
-
                 slices.append(da_slice)
-                valid_wls.append(wl)
                 valid_center_years.append(center_year)
 
             # After processing all warming levels, check if we have any valid slices.
@@ -289,6 +284,10 @@ class WarmingLevel(DataProcessor):
             ret[key] = xr.concat(
                 slices, dim="warming_level", join="outer", fill_value=np.nan
             )
+
+            # Add dummy time variable, if specified
+            if self.add_dummy_time:
+                ret[key] = add_dummy_time_to_wl(ret[key])
 
             # Store center years for this simulation key
             # DO NOT assign as coordinate here - it will be broadcast incorrectly

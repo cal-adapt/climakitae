@@ -392,7 +392,15 @@ class TestWarmingLevelExecute:
         for key in ret:
             assert isinstance(ret[key], xr.Dataset)
             assert "warming_level" in ret[key].dims
-            assert "time" in ret[key].dims  # "time_delta" replaced with "time"
+            assert "time" in ret[key].dims
+            assert "time_delta" not in ret[key].dims
+            expected_timestamps = pd.date_range(
+                "2000-01-01", periods=full_processor.warming_level_window * 2, freq="D"
+            )
+            np.testing.assert_array_equal(
+                ret[key].time.values, expected_timestamps.values
+            )
+
         # centered_year is now stored in context for later reconstruction by concatenate processor
         assert "_sim_centered_years" in context
         assert len(context["_sim_centered_years"]) > 0
