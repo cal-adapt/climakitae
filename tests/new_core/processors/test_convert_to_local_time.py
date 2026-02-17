@@ -1,0 +1,161 @@
+"""
+Units tests for the ConvertToLocalTime processor.
+
+This module contains tests to verify the functionality of the ConvertToLocalTime
+processor in the climakitae.new_core.processors.convert_to_local_time module. The tests
+cover various scenarios including slicing data arrays and datasets based on
+specified time ranges.
+"""
+
+import pandas as pd
+import pytest
+import xarray as xr
+import numpy as np
+
+from climakitae.new_core.processors.convert_to_local_time import ConvertToLocalTime
+
+
+@pytest.fixture
+def processor():
+    """Fixture to create a ConvertToLocalTime processor instance."""
+    yield ConvertToLocalTime(value="yes")
+
+
+@pytest.fixture
+def test_dataarray():
+    """Fixture to create a sample xarray.DataArray for testing."""
+    dataarray = xr.DataArray(
+        data=np.ones((24, 1, 1)),
+        dims=["time", "lat", "lon"],
+        coords={
+            "time": pd.date_range("2000-01-01 00", "2000-01-01 23", freq="1h"),
+            "lat": [35],
+            "lon": [-119],
+        },
+    )
+    yield dataarray
+
+
+@pytest.fixture
+def test_dataset():
+    """Fixture to create a sample xarray.Dataset for testing."""
+    dataset = xr.Dataset(
+        {
+            "var1": (("time", "lat", "lon"), np.ones((24, 1, 1))),
+            "var2": (("time", "lat", "lon"), np.ones((24, 1, 1))),
+        },
+        coords={
+            "time": pd.date_range("2000-01-01 00", "2000-01-01 23", freq="1h"),
+            "lat": [35],
+            "lon": [-119],
+        },
+    )
+    yield dataset
+
+
+@pytest.fixture
+def test_hdp_station():
+    """Fixture to create a sample xarray.DataArray for testing."""
+    dataset = xr.Dataset(
+        {
+            "var1": (("time", "lat", "lon"), np.ones((24, 1, 1))),
+            "var2": (("time", "lat", "lon"), np.ones((24, 1, 1))),
+        },
+        coords={
+            "time": pd.date_range("2000-01-01 00", "2000-01-01 23", freq="1h"),
+            "lat": (("time", "lat"), np.ones((24, 1)) * 35),
+            "lon": (("time", "lon"), np.ones((24, 1)) * -119),
+        },
+    )
+    yield dataset
+
+
+class TestConvertToLocalTimeInit:
+    """Tests for the initialization of TimeSlice processor."""
+
+    def test_init(self):
+        """Test initialization of TimeSlice processor."""
+        processor = ConvertToLocalTime(value="yes")
+        assert processor.value[0] == "y"
+        assert processor.name == "convert_to_local_time"
+
+
+class TestConvertToLocalTimeExecute:
+    """Tests for the execute method of TimeSlice processor."""
+
+    def test_convert_to_local_time_station(
+        self,
+        processor: ConvertToLocalTime,
+        test_hdp_station: xr.DataArray,
+    ) -> None:
+        """Test slicing an xarray.DataArray."""
+        result = processor.execute(test_hdp_station, context={"_catalog_key": "hdp"})
+        assert result["var1"].attrs["timezone"] == "America/Los_Angeles"
+        assert result["var2"].attrs["timezone"] == "America/Los_Angeles"
+        assert result.time[0] == pd.Timestamp("1999-12-31 16:00:00")
+
+    def test_convert_to_local_time_dataarray(
+        self,
+        processor: ConvertToLocalTime,
+        test_dataarray: xr.DataArray,
+    ) -> None:
+        """Test slicing an xarray.DataArray."""
+        result = processor.execute(test_dataarray, context={})
+        assert result.attrs["timezone"] == "America/Los_Angeles"
+        assert result.time[0] == pd.Timestamp("1999-12-31 16:00:00")
+
+    def test_convert_to_local_time_dataset(
+        self,
+        processor: ConvertToLocalTime,
+        test_dataset: xr.Dataset,
+    ) -> None:
+        """Test slicing an xarray.Dataset."""
+        result = processor.execute(test_dataset, context={})
+        assert result.time.size == 24
+        assert result["var1"].attrs["timezone"] == "America/Los_Angeles"
+        assert result["var2"].attrs["timezone"] == "America/Los_Angeles"
+        assert result.time[0] == pd.Timestamp("1999-12-31 16:00:00")
+
+    @pytest.mark.parametrize("container_type", [list, tuple, dict])
+    def test_convert_to_local_time_data_types(
+        self,
+        container_type: type,
+        processor: ConvertToLocalTime,
+        test_dataarray: xr.DataArray,
+        test_dataset: xr.Dataset,
+    ) -> None:
+        """Test slicing with different container types."""
+        if container_type is dict:
+            data = {
+                "dataarray": test_dataarray,
+                "dataset": test_dataset,
+            }
+        elif container_type is list:
+            data = [test_dataarray, test_dataset]
+        elif container_type is tuple:
+            data = (test_dataarray, test_dataset)
+
+        result = processor.execute(data, context={})
+
+        # Check DataArray result
+        if container_type is dict:
+            da_result = result["dataarray"]
+            ds_result = result["dataset"]
+        else:
+            da_result = result[0]
+            ds_result = result[1]
+
+        assert da_result.attrs["timezone"] == "America/Los_Angeles"
+
+        # Check Dataset result
+        assert ds_result["var1"].attrs["timezone"] == "America/Los_Angeles"
+        assert ds_result["var2"].attrs["timezone"] == "America/Los_Angeles"
+        assert ds_result.time[0] == pd.Timestamp("1999-12-31 16:00:00")
+
+    def test_convert_to_local_time_invalid_type(
+        self,
+        processor: ConvertToLocalTime,
+    ) -> None:
+        """Test that an invalid type raises a TypeError."""
+        with pytest.warns(UserWarning, match="Invalid data type for subsetting."):
+            processor.execute(42, context={})
