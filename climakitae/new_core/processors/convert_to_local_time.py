@@ -26,29 +26,26 @@ logger = logging.getLogger(__name__)
 )
 class ConvertToLocalTime(DataProcessor):
     """
-    Slice data based on time.
+    Convert time data from UTC to local time.
 
     Parameters
     ----------
-    value : iterable of date-like or dict
-        Either:
-
-        - An iterable of two date-like objects specifying the start and end
-          dates for the time slice, or
-        - A dictionary with a required "dates" key and an optional
-          "seasons" key.
-
-        The "dates" value must be an iterable of two date-like objects.
-        The "seasons" value, if provided, must be an iterable of seasons or a string of a single season.
-        Allowed season inputs are: "DJF", "MAM", "JJA", "SON"
+    value : tuple(date-like, date-like)
+        The value to subset the data by. This should be a tuple of two
+        date-like values.
 
     Methods
     -------
     _convert_to_local_time_station(obj: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray
-        Description
+        Pull lat and lon from the station data, then call _find_timezone_and_convert to convert.
     _convert_to_local_time_gridded(obj: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray
-        Description
+        Check time frequency and get area average lat and lon for time conversion.
     _find_timezone_and_convert(obj: xr.Dataset | xr.DataArray, lat: float, lon: float) -> xr.Dataset | xr.DataArray
+        Use the provided lat and lon to get the timezone, then convert the time data and update attributes.
+
+    Notes
+    -----
+    By default, this process is set to "no" and data is returned in UTC time.
     """
 
     def __init__(self, value: str = "no"):
@@ -61,7 +58,7 @@ class ConvertToLocalTime(DataProcessor):
 
         """
         self.valid_values = ["yes", "no"]
-        self.value = value.lower()
+        self.value = value
         self.name = "convert_to_local_time"
         self.timezone = "None"
         self.catalog: Union[DataCatalog, object] = UNSET
@@ -76,7 +73,7 @@ class ConvertToLocalTime(DataProcessor):
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
         """
-        Run the time slicing operation on the data.
+        Run the time conversion operation on the data.
 
         Parameters
         ----------
@@ -84,14 +81,12 @@ class ConvertToLocalTime(DataProcessor):
             The data to be sliced.
 
         context : dict
-            The context for the processor. This is not used in this
-            implementation but is included for consistency with the
-            DataProcessor interface.
+            The context for the processor.
 
         Returns
         -------
         Union[xr.Dataset, xr.DataArray, Iterable[xr.Dataset | xr.DataArray]]
-            The sliced data. This can be a single Dataset/DataArray or
+            The converted data. This can be a single Dataset/DataArray or
             an iterable of them.
         """
         logger.debug(
@@ -100,7 +95,7 @@ class ConvertToLocalTime(DataProcessor):
             type(result).__name__,
         )
 
-        # Route to appropriate concat method based on catalog
+        # Route to appropriate conversion method based on catalog
         # Check context for catalog type (more reliable than catalog object attribute)
         catalog_type = context.get("catalog", context.get("_catalog_key"))
         if catalog_type == "hdp":
@@ -121,7 +116,7 @@ class ConvertToLocalTime(DataProcessor):
                     )
                 else:
                     msg = "Could not convert time to local time for all entries."
-                logger.info(msg)
+                logger.info(*msg)
                 return subset_data
 
             case xr.DataArray() | xr.Dataset():
@@ -130,7 +125,7 @@ class ConvertToLocalTime(DataProcessor):
                     msg = "Converted time to local time."
                 else:
                     msg = "Could not convert time to local time for all entries."
-                logger.info(msg)
+                logger.info(*msg)
                 return func(result)
 
             case list() | tuple():
@@ -146,7 +141,7 @@ class ConvertToLocalTime(DataProcessor):
                     )
                 else:
                     msg = "Could not convert time to local time for all entries."
-                logger.info(msg)
+                logger.info(*msg)
                 return type(result)(subset_data)
             case _:
                 msg = f"Invalid data type for subsetting. Expected xr.Dataset, dict, list, or tuple but got {type(result)}."
@@ -182,11 +177,11 @@ class ConvertToLocalTime(DataProcessor):
         self,
         obj: Union[xr.Dataset, xr.DataArray],
     ) -> xr.DataArray | xr.Dataset:
-        """Convert time dimension from UTC to local time for the grid or station.
+        """Convert time dimension from UTC to local time for gridded data.
 
         Parameters
         ----------
-            data : xr.DataArray | xr.Dataset
+            obj : xr.DataArray | xr.Dataset
                 Input data.
 
         Returns
@@ -212,7 +207,7 @@ class ConvertToLocalTime(DataProcessor):
 
         # If timescale is not hourly, no need to convert
         if frequency != "1hr":
-            logger.warn(
+            logger.warning(
                 f"This dataset's timescale {frequency} is not granular enough to covert to local time. Local timezone conversion requires hourly data."
             )
             return obj
@@ -231,6 +226,19 @@ class ConvertToLocalTime(DataProcessor):
         self,
         obj: Union[xr.Dataset, xr.DataArray],
     ) -> xr.DataArray | xr.Dataset:
+        """Convert time dimension from UTC to local time for station data.
+
+        Parameters
+        ----------
+            obj : xr.DataArray | xr.Dataset
+                Input data.
+
+        Returns
+        -------
+            xr.DataArray | xr.Dataset
+                Data with converted time coordinate.
+
+        """
 
         lat = obj.lat.isel(time=0).data.item()
         lon = obj.lon.isel(time=0).data.item()
@@ -241,6 +249,24 @@ class ConvertToLocalTime(DataProcessor):
     def _find_timezone_and_convert(
         self, obj: Union[xr.Dataset, xr.DataArray], lat: float, lon: float
     ) -> xr.DataArray | xr.Dataset:
+        """Use lat and lon to determine correct timezone, then run conversion and
+        update attributes.
+
+        Parameters
+        ----------
+            obj : xr.DataArray | xr.Dataset
+                Input data.
+            lat : float
+                Latitude
+            lon : float
+                Longitude
+
+        Returns
+        -------
+            xr.DataArray | xr.Dataset
+                Data with converted time coordinate.
+
+        """
         # Find timezone for the coordinates
         tf = TimezoneFinder()
         local_tz = tf.timezone_at(lng=lon, lat=lat)
@@ -255,7 +281,7 @@ class ConvertToLocalTime(DataProcessor):
         )
         obj["time"] = new_time
 
-        logger.info(f"Data converted to {local_tz} timezone.")
+        logger.debug(f"Data converted to {local_tz} timezone.")
         self.timezone = local_tz
 
         # Add timezone attribute to data
@@ -268,8 +294,9 @@ class ConvertToLocalTime(DataProcessor):
                     obj[variable] = obj[variable].assign_attrs({"timezone": local_tz})
             # TODO: logger
             case _:
-                logger.warn(
+                logger.warning(
                     f"Invalid data type {type(obj)}. Could not set timezone attribute."
                 )
+        # Update flag to print success message in execute() method.
         self.success = True
         return obj
