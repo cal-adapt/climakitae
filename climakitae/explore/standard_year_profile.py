@@ -488,9 +488,10 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
                 print(
                     f"You have chosen to produce a time-based Standard Year climate profile centered around {centered_year}. \n"
                     "Standard year functionality for time-based profiles: \n"
-                    "1. identifies the closest warming level at that centered year for either the input SSP scenario or default 'SSP 3-7.0' \n"
-                    "if no scenario input is provided. And 'historical' if 'centered_year' < 2015. \n"
-                    "2. then filters simulations by either the input SSP scenario or the default 'SSP 3-7-0'. \n"
+                    "   1. Input centered_year and scenario are used by the get_gwl_at_year function to identify the warming level corresponding to centered_year. \n"
+                    "   2. Data is retrieved at the corresponding warming level with all available simulations across all scenarios, following GWL best practices. \n"
+                    "   3. Standard Year profile is generated at the corresponding warming level.  \n"
+                    "   4. Simulations within profile are filtered by input scenario and returned to user. \n"
                 )
 
                 print(
@@ -516,7 +517,7 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
                     float(gwl_options.loc[warming_level_scenario, "Mean"])
                 ]
                 print(
-                    f"Corresponding warming level for 'centered_year'= {centered_year} and SSP '{warming_level_scenario}' is {new_warming_level}. \n"
+                    f"Corresponding warming level for 'centered_year'= {centered_year} and '{warming_level_scenario}' scenario is {new_warming_level}. \n"
                 )
 
                 print(
@@ -736,9 +737,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
         if "latitude" in kwargs or "longitude" in kwargs:
             kwargs.pop("latitude", None)
             kwargs.pop("longitude", None)
-            print(
-                "   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude"
-            )
+            print("   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude")
         if "stations" in kwargs:
             kwargs.pop("stations", None)
             print("   ⚠️  Note: Using cached_area, ignoring provided stations")
@@ -898,16 +897,19 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
             # skip this key
             continue
 
-        if key == "warming_level":
-            # if approach=Time, then default warming level is not used
-            if kwargs.get("approach") == "Time":
+        # if key == "warming_level":
+        #     # if approach=Time, then default warming level is not used
+        #     if kwargs.get("approach") == "Time":
+        #         continue
+        #     else:
+        #         print(f"Using default '{key}': {default_val}")
+        #         kwargs[key] = default_val
+        else:
+            if key == "q" and q is not 0.5:
                 continue
             else:
                 print(f"Using default '{key}': {default_val}")
                 kwargs[key] = default_val
-        else:
-            print(f"Using default '{key}': {default_val}")
-            kwargs[key] = default_val
 
     # catch invalid selections that return None
     if future_data is None and historic_data is None:
