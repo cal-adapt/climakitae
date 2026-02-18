@@ -40,7 +40,7 @@ def validate_convert_to_local_time_param(
 
     if not isinstance(value, str):
         msg = (
-            "\n\ConvertToLocalTime Processor expects a string value. "
+            "\nConvertToLocalTime Processor expects a string value. "
             "\nPlease check the configuration."
         )
         logger.warning(msg)
@@ -48,7 +48,7 @@ def validate_convert_to_local_time_param(
 
     valid_values = ["yes", "no"]
 
-    if value.lower() not in valid_values:
+    if value not in valid_values:
         msg = (
             f"\n\nInvalid value '{value}' for ConvertToLocalTime Processor. "
             f"\nSupported values are: {valid_values}"
