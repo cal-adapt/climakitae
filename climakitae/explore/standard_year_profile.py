@@ -490,8 +490,8 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
                     "Standard year functionality for time-based profiles: \n"
                     "   1. Input centered_year and scenario are used by the get_gwl_at_year function to identify the warming level corresponding to centered_year. \n"
                     "   2. Data is retrieved at the corresponding warming level with all available simulations across all scenarios, following GWL best practices. \n"
-                    "   3. Standard Year profile is generated at the corresponding warming level.  \n"
-                    "   4. Simulations within profile are filtered by input scenario and returned to user. \n"
+                    "   3. Simulations in retrieved data are filtered by input scenario and returned to user.  \n"
+                    "   4. Standard Year profile is generated at the corresponding warming level and using the filtered simulations. \n"
                 )
 
                 print(
@@ -518,10 +518,6 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
                 ]
                 print(
                     f"Corresponding warming level for 'centered_year'= {centered_year} and '{warming_level_scenario}' scenario is {new_warming_level}. \n"
-                )
-
-                print(
-                    f"Step 2: The climate profile will now be produced using SSP scenario '{scenario}' and warming level {new_warming_level}. Only models corresponding to this scenario will be used."
                 )
 
                 kwargs["warming_level"] = new_warming_level
@@ -802,6 +798,11 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
         "longitude": kwargs.get("longitude", None),
     }
 
+    warming_level = kwargs.get("warming_level", [1.2])
+    print(
+        f"Step 2: Data is being retrieved for warming level {warming_level} across all available simulations and scenarios."
+    )
+
     historic_data = None
     if not no_delta:
         # Retrieve historical data at 1.2°C warming level
@@ -815,9 +816,16 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     centered_year = kwargs.get("centered_year", None)
     scenario = kwargs.get("time_profile_scenario", None)
     if centered_year is not None:
+        print(
+            f"Step 3: Simulations in retrieved data are being filtered by scenario {scenario}."
+        )
         future_data = _filter_by_ssp(future_data, scenario)
         if historic_data is not None:
             historic_data = _filter_by_ssp(historic_data, scenario)
+
+    print(
+        f"Step 4: The climate profile will now be produced using scenario '{scenario}' and warming level {warming_level}."
+    )
 
     return historic_data, future_data
 
@@ -896,14 +904,13 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         if key in kwargs:
             # skip this key
             continue
-
-        # if key == "warming_level":
-        #     # if approach=Time, then default warming level is not used
-        #     if kwargs.get("approach") == "Time":
-        #         continue
-        #     else:
-        #         print(f"Using default '{key}': {default_val}")
-        #         kwargs[key] = default_val
+        if key == "warming_level":
+            # if approach=Time, then default warming level is not used
+            if kwargs.get("approach") == "Time":
+                continue
+            else:
+                print(f"Using default '{key}': {default_val}")
+                kwargs[key] = default_val
         else:
             if key == "q" and q is not 0.5:
                 continue
