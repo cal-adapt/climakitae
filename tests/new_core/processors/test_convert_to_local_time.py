@@ -3,8 +3,8 @@ Units tests for the ConvertToLocalTime processor.
 
 This module contains tests to verify the functionality of the ConvertToLocalTime
 processor in the climakitae.new_core.processors.convert_to_local_time module. The tests
-cover various scenarios including slicing data arrays and datasets based on
-specified time ranges.
+cover various scenarios including using different data types and gridded versus
+station data.
 """
 
 import pandas as pd
@@ -54,6 +54,21 @@ def test_dataset():
 
 
 @pytest.fixture
+def test_daily():
+    """Fixture to create a sample xarray.DataArray for testing."""
+    dataarray = xr.DataArray(
+        data=np.ones((10, 1, 1)),
+        dims=["time", "lat", "lon"],
+        coords={
+            "time": pd.date_range("2000-01-01", "2000-01-10", freq="1d"),
+            "lat": [35],
+            "lon": [-119],
+        },
+    )
+    yield dataarray
+
+
+@pytest.fixture
 def test_hdp_station():
     """Fixture to create a sample xarray.DataArray for testing."""
     dataset = xr.Dataset(
@@ -71,24 +86,24 @@ def test_hdp_station():
 
 
 class TestConvertToLocalTimeInit:
-    """Tests for the initialization of TimeSlice processor."""
+    """Tests for the initialization of ConvertToLocalTime processor."""
 
     def test_init(self):
-        """Test initialization of TimeSlice processor."""
+        """Test initialization of ConvertToLocalTime processor."""
         processor = ConvertToLocalTime(value="yes")
         assert processor.value[0] == "y"
         assert processor.name == "convert_to_local_time"
 
 
 class TestConvertToLocalTimeExecute:
-    """Tests for the execute method of TimeSlice processor."""
+    """Tests for the execute method of ConvertToLocalTime processor."""
 
     def test_convert_to_local_time_station(
         self,
         processor: ConvertToLocalTime,
         test_hdp_station: xr.DataArray,
     ) -> None:
-        """Test slicing an xarray.DataArray."""
+        """Test converting an xarray.DataArray."""
         result = processor.execute(test_hdp_station, context={"_catalog_key": "hdp"})
         assert result["var1"].attrs["timezone"] == "America/Los_Angeles"
         assert result["var2"].attrs["timezone"] == "America/Los_Angeles"
@@ -99,7 +114,7 @@ class TestConvertToLocalTimeExecute:
         processor: ConvertToLocalTime,
         test_dataarray: xr.DataArray,
     ) -> None:
-        """Test slicing an xarray.DataArray."""
+        """Test converting an xarray.DataArray."""
         result = processor.execute(test_dataarray, context={})
         assert result.attrs["timezone"] == "America/Los_Angeles"
         assert result.time[0] == pd.Timestamp("1999-12-31 16:00:00")
@@ -109,7 +124,7 @@ class TestConvertToLocalTimeExecute:
         processor: ConvertToLocalTime,
         test_dataset: xr.Dataset,
     ) -> None:
-        """Test slicing an xarray.Dataset."""
+        """Test converting an xarray.Dataset."""
         result = processor.execute(test_dataset, context={})
         assert result.time.size == 24
         assert result["var1"].attrs["timezone"] == "America/Los_Angeles"
@@ -124,7 +139,7 @@ class TestConvertToLocalTimeExecute:
         test_dataarray: xr.DataArray,
         test_dataset: xr.Dataset,
     ) -> None:
-        """Test slicing with different container types."""
+        """Test conversion with different container types."""
         if container_type is dict:
             data = {
                 "dataarray": test_dataarray,
@@ -159,3 +174,13 @@ class TestConvertToLocalTimeExecute:
         """Test that an invalid type raises a TypeError."""
         with pytest.warns(UserWarning, match="Invalid data type for subsetting."):
             processor.execute(42, context={})
+
+    def test_convert_to_local_time_invalid_daily_freq(
+        self,
+        processor: ConvertToLocalTime,
+        test_daily: xr.DataArray,
+    ) -> None:
+        """Test that no conversion happens for daily data."""
+        result = processor.execute(test_daily, context={})
+        assert "timezone" not in result.attrs
+        assert (result.time == test_daily.time).all()
