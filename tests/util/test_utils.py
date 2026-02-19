@@ -935,8 +935,8 @@ class TestUtils:
         # Check that the dataframe has the expected structure
         # For time dimension data
         assert "time" in time_df.index.names
-        assert set(time_df.index.levels[0]) == {"var1"}
-        assert set(time_df.index.levels[1]) == {"sim1", "sim2"}
+        assert set(time_df.keys().levels[0]) == {"var1"}
+        assert set(time_df.keys().levels[1]) == {"sim1", "sim2"}
         assert (
             time_df.index.get_level_values("time")[0]
             <= time_df.index.get_level_values("time")[-1]
@@ -944,8 +944,8 @@ class TestUtils:
 
         # For year dimension data
         assert "year" in year_df.index.names
-        assert set(year_df.index.levels[0]) == {"var1"}
-        assert set(year_df.index.levels[1]) == {"sim1", "sim2"}
+        assert set(year_df.keys().levels[0]) == {"var1"}
+        assert set(year_df.keys().levels[1]) == {"sim1", "sim2"}
         assert (
             year_df.index.get_level_values("year")[0]
             <= year_df.index.get_level_values("year")[-1]

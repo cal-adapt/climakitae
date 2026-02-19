@@ -1255,6 +1255,7 @@ def compute_multimodel_stats(data: xr.DataArray) -> xr.DataArray:
     stats_concat = xr.concat(
         [data, sim_mean, sim_min, sim_max, sim_median], dim=sim_dim
     )
+    stats_concat.attrs["name"] = data.name
     return stats_concat
 
 
