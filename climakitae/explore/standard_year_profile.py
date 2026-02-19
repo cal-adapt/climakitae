@@ -490,8 +490,7 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
                     "Standard Year functionality for time-based profiles: \n"
                     "   1. Input centered_year and scenario are used by the get_gwl_at_year function to identify the warming level corresponding to centered_year. \n"
                     "   2. Data is retrieved at the corresponding warming level with all available simulations across all scenarios, following GWL best practices. \n"
-                    "   3. Simulations in retrieved data are filtered by input scenario and returned to user.  \n"
-                    "   4. Standard Year profile is generated at the corresponding warming level and using the filtered simulations. \n"
+                    "   3. Standard Year profile is generated at the corresponding warming level. \n"
                 )
 
                 print(
@@ -518,6 +517,9 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
                 ]
                 print(
                     f"Corresponding warming level for 'centered_year'= {centered_year} and '{warming_level_scenario}' scenario is {new_warming_level}. \n"
+                )
+                print(
+                    f"Step 3: The climate profile will now be produced at warming level {warming_level}."
                 )
 
                 kwargs["warming_level"] = new_warming_level
@@ -733,9 +735,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
         if "latitude" in kwargs or "longitude" in kwargs:
             kwargs.pop("latitude", None)
             kwargs.pop("longitude", None)
-            print(
-                "   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude"
-            )
+            print("   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude")
         if "stations" in kwargs:
             kwargs.pop("stations", None)
             print("   ⚠️  Note: Using cached_area, ignoring provided stations")
@@ -813,21 +813,6 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     # Update with any user-provided parameters for future data retrieval
     get_data_params.update(kwargs)
     future_data = get_data(**get_data_params)
-
-    # Filter models by input scenario, if time-based approach specified
-    centered_year = kwargs.get("centered_year", None)
-    scenario = kwargs.get("time_profile_scenario", None)
-    if centered_year is not None:
-        print(
-            f"Step 3: Simulations in retrieved data are being filtered by scenario {scenario}."
-        )
-        future_data = _filter_by_ssp(future_data, scenario)
-        if historic_data is not None:
-            historic_data = _filter_by_ssp(historic_data, scenario)
-
-    print(
-        f"Step 4: The climate profile will now be produced using scenario '{scenario}' and warming level {warming_level}."
-    )
 
     return historic_data, future_data
 
