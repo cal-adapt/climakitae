@@ -81,14 +81,14 @@ def get_block_maxima(
     rolling_agg : str
         Aggregation method for rolling windows and groupby resamples.
         Options: "sustained" (default, current min/max inversion behavior),
-        "sum" (cumulative, e.g. total precipitation), "mean" (average over window).
+        "cumulative" (cumulative totals, e.g. total precipitation), "average" (average over window).
 
     Returns
     -------
     xarray.DataArray
 
     """
-    valid_rolling_aggs = ["sustained", "sum", "mean"]
+    valid_rolling_aggs = ["sustained", "cumulative", "average"]
     if rolling_agg not in valid_rolling_aggs:
         raise ValueError(
             f"invalid rolling_agg. expected one of the following: {valid_rolling_aggs}"
@@ -124,9 +124,9 @@ def get_block_maxima(
                     )
                 case _:
                     raise ValueError('extremes_type needs to be either "max" or "min"')
-        elif rolling_agg == "sum":
+        elif rolling_agg == "cumulative":
             da_series = da_series.rolling(time=dur_len, center=False).sum("time")
-        elif rolling_agg == "mean":
+        elif rolling_agg == "average":
             da_series = da_series.rolling(time=dur_len, center=False).mean("time")
 
     if groupby is not UNSET:
@@ -151,9 +151,9 @@ def get_block_maxima(
                     ).min()
                 case _:
                     raise ValueError('extremes_type needs to be either "max" or "min"')
-        elif rolling_agg == "sum":
+        elif rolling_agg == "cumulative":
             da_series = da_series.resample(time=f"{group_len}D", label="left").sum()
-        elif rolling_agg == "mean":
+        elif rolling_agg == "average":
             da_series = da_series.resample(time=f"{group_len}D", label="left").mean()
 
     if grouped_duration is not UNSET:
@@ -188,9 +188,9 @@ def get_block_maxima(
                     )
                 case _:
                     raise ValueError('extremes_type needs to be either "max" or "min"')
-        elif rolling_agg == "sum":
+        elif rolling_agg == "cumulative":
             da_series = da_series.rolling(time=dur2_len, center=False).sum("time")
-        elif rolling_agg == "mean":
+        elif rolling_agg == "average":
             da_series = da_series.rolling(time=dur2_len, center=False).mean("time")
 
     # Now select the most extreme value for each block in the series
