@@ -1362,7 +1362,7 @@ def summary_table(data: xr.Dataset) -> pd.DataFrame:
             ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
         ).to_dataframe(dim_order=["time", "sim"])
 
-        df = df.unstack().unstack().to_frame(name=df.keys()[0])
+        df = df.unstack()
         df = df.sort_values(by=["time"])
 
     elif "year" in data.dims:
@@ -1370,7 +1370,7 @@ def summary_table(data: xr.Dataset) -> pd.DataFrame:
             ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
         ).to_dataframe(dim_order=["year", "sim"])
 
-        df = df.unstack().unstack().to_frame(name=df.keys()[0])
+        df = df.unstack()
         df = df.sort_values(by=["year"])
 
     return df
