@@ -240,8 +240,8 @@ class ConvertToLocalTime(DataProcessor):
 
         """
 
-        lat = obj.lat.isel(time=0).data.item()
-        lon = obj.lon.isel(time=0).data.item()
+        lat = obj.lat.isel(time=0).compute().data.item()
+        lon = obj.lon.isel(time=0).compute().data.item()
 
         obj = self._find_timezone_and_convert(obj, lat, lon)
         return obj
