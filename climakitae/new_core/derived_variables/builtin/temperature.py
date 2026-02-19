@@ -27,6 +27,7 @@ CDD_loca
 import logging
 
 import numpy as np
+import xarray as xr
 
 from climakitae.new_core.derived_variables.registry import register_derived
 from climakitae.new_core.derived_variables.utils import get_derived_threshold
@@ -101,18 +102,18 @@ def calc_heat_index(ds):
     # Low humidity adjustment
     low_rh_mask = (rh < 13) & (t_fahrenheit >= 80) & (t_fahrenheit <= 112)
     adjustment1 = ((13 - rh) / 4) * np.sqrt((17 - np.abs(t_fahrenheit - 95)) / 17)
-    hi_full = np.where(low_rh_mask, hi_full - adjustment1, hi_full)
+    hi_full = xr.where(low_rh_mask, hi_full - adjustment1, hi_full)
 
     # High humidity adjustment
     high_rh_mask = (rh > 85) & (t_fahrenheit >= 80) & (t_fahrenheit <= 87)
     adjustment2 = ((rh - 85) / 10) * ((87 - t_fahrenheit) / 5)
-    hi_full = np.where(high_rh_mask, hi_full + adjustment2, hi_full)
+    hi_full = xr.where(high_rh_mask, hi_full + adjustment2, hi_full)
 
     # Use simple formula for lower temps, full formula for higher
-    heat_index_f = np.where(hi_simple < 80, hi_simple, hi_full)
+    heat_index_f = xr.where(hi_simple < 80, hi_simple, hi_full)
 
     # Use original temp if below heat index threshold
-    heat_index_f = np.where(t_fahrenheit < 80, t_fahrenheit, heat_index_f)
+    heat_index_f = xr.where(t_fahrenheit < 80, t_fahrenheit, heat_index_f)
 
     # Convert back to Kelvin
     heat_index_k = (heat_index_f - 32) * 5 / 9 + 273.15
@@ -180,7 +181,7 @@ def calc_wind_chill(ds):
 
     # Only apply when temp < 50°F and wind > 3 mph
     valid_mask = (t_fahrenheit <= 50) & (wind_speed_mph > 3)
-    wind_chill_f = np.where(valid_mask, wind_chill_f, t_fahrenheit)
+    wind_chill_f = xr.where(valid_mask, wind_chill_f, t_fahrenheit)
 
     # Convert back to Kelvin
     wind_chill_k = (wind_chill_f - 32) * 5 / 9 + 273.15
