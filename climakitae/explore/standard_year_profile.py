@@ -487,7 +487,7 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 print(
                     f"You have chosen to produce a time-based Standard Year climate profile centered around {centered_year}. \n"
-                    "Standard year functionality for time-based profiles: \n"
+                    "Standard Year functionality for time-based profiles: \n"
                     "   1. Input centered_year and scenario are used by the get_gwl_at_year function to identify the warming level corresponding to centered_year. \n"
                     "   2. Data is retrieved at the corresponding warming level with all available simulations across all scenarios, following GWL best practices. \n"
                     "   3. Simulations in retrieved data are filtered by input scenario and returned to user.  \n"
