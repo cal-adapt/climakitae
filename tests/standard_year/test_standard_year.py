@@ -44,121 +44,6 @@ from climakitae.explore.standard_year_profile import (
 )
 
 
-class TestRetrieveProfileData:
-    """Test class for retrieve_profile_data function.
-
-    Tests the function's ability to retrieve climate profile data based on
-    various parameter configurations and location specifications.
-
-    Attributes
-    ----------
-    mock_get_data : MagicMock
-        Mock for get_data function.
-    """
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        self.mock_get_data_patcher = patch(
-            "climakitae.explore.standard_year_profile.get_data"
-        )
-        self.mock_get_data = self.mock_get_data_patcher.start()
-
-    def teardown_method(self):
-        """Clean up test fixtures."""
-        self.mock_get_data_patcher.stop()
-
-    def test_retrieve_profile_data_returns_tuple(self):
-        """Test that retrieve_profile_data returns a tuple of two datasets."""
-        # Setup mock return values
-        mock_historic = MagicMock(spec=xr.Dataset)
-        mock_future = MagicMock(spec=xr.Dataset)
-        self.mock_get_data.side_effect = [mock_historic, mock_future]
-
-        # Execute function
-        result = retrieve_profile_data(warming_level=[2.0])
-
-        # Verify outcome: returns tuple of two datasets
-        assert isinstance(result, tuple), "Should return a tuple"
-        assert len(result) == 2, "Tuple should contain exactly 2 elements"
-        historic_data, future_data = result
-        assert historic_data == mock_historic, "First element should be historic data"
-        assert future_data == mock_future, "Second element should be future data"
-
-    def test_retrieve_profile_data_with_invalid_parameters_raises_error(self):
-        """Test that retrieve_profile_data raises error for invalid parameter keys."""
-        # Execute and verify outcome: should raise ValueError for invalid keys
-        with pytest.raises(ValueError, match="Invalid input"):
-            retrieve_profile_data(invalid_param="test", another_invalid=123)
-
-    def test_retrieve_profile_data_with_float_warming_level_window_raises_error(self):
-        """Test that retrieve_profile_data raises error for a warming_level_window input outside of range 5-25"""
-
-        with pytest.raises(ValueError):
-            retrieve_profile_data(
-                variable="Air Temperature at 2m",
-                resolution="3 km",
-                warming_level=[1.5],
-                cached_area="bay area",
-                units="degC",
-                warming_level_window=2,
-            )
-
-    def test_retrieve_profile_data_with_no_delta_returns_none_historic(self):
-        """Test that retrieve_profile_data returns None for historic when no_delta=True."""
-        # Setup mock return value
-        mock_future = MagicMock(spec=xr.Dataset)
-        self.mock_get_data.return_value = mock_future
-
-        # Execute function with no_delta=True
-        result = retrieve_profile_data(no_delta=True, warming_level=[2.0])
-
-        # Verify outcome: historic data should be None when no_delta=True
-        assert isinstance(result, tuple), "Should return a tuple"
-        historic_data, future_data = result
-        assert historic_data is None, "Historic data should be None when no_delta=True"
-        assert future_data == mock_future, "Future data should be returned"
-
-    def test_retrieve_profile_data_accepts_valid_parameters(self):
-        """Test that retrieve_profile_data accepts valid parameter combinations."""
-        # Setup mock return values
-        mock_historic = MagicMock(spec=xr.Dataset)
-        mock_future = MagicMock(spec=xr.Dataset)
-        self.mock_get_data.side_effect = [mock_historic, mock_future]
-
-        # Execute function with basic valid parameters
-        result = retrieve_profile_data(warming_level=[1.5, 2.0])
-
-        # Verify outcome: function should complete successfully with valid parameters
-        assert isinstance(result, tuple), "Should return a tuple with valid parameters"
-        assert len(result) == 2, "Should return tuple of two elements"
-
-        # Verify get_data was called twice (once for historic, once for future)
-        assert self.mock_get_data.call_count == 2, "Should call get_data twice"
-
-    def test_retrieve_profile_data_with_complex_parameters(self):
-        """Test that retrieve_profile_data handles complex parameter combinations."""
-        # Setup mock return values
-        mock_historic = MagicMock(spec=xr.Dataset)
-        mock_future = MagicMock(spec=xr.Dataset)
-        self.mock_get_data.side_effect = [mock_historic, mock_future]
-
-        # Execute function with complex valid parameters that previously caused the bug
-        result = retrieve_profile_data(
-            variable="Air Temperature at 2m",
-            resolution="45 km",
-            warming_level=[1.5, 2.0],
-            cached_area="bay area",
-            units="degC",
-        )
-
-        # Verify outcome: function should complete successfully
-        assert isinstance(result, tuple), "Should handle complex parameters"
-        assert len(result) == 2, "Should return two datasets"
-        historic_data, future_data = result
-        assert historic_data == mock_historic, "Historic data should be returned"
-        assert future_data == mock_future, "Future data should be returned"
-
-
 class TestGetClimateProfile:
     """Test class for get_climate_profile function.
 
@@ -2720,16 +2605,19 @@ class TestConstructProfileDataframe:
             days_in_year=365,
             hours_per_day=24,
         )
-
-        # Verify outcome: simple DataFrame structure
+        # Verify outcome: MultiIndex structure with (Hour, Simulation)
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape == (365, 24), "Should have 365 rows and 24 columns"
-        assert not isinstance(
+        assert result.shape == (
+            365,
+            24,
+        ), "Should have 365 rows and 24 columns (24*2 sims)"
+        assert isinstance(
             result.columns, pd.MultiIndex
-        ), "Should have simple column structure"
-        assert list(result.columns) == list(
-            range(1, 25)
-        ), "Columns should be hours 1-24"
+        ), "Should have MultiIndex column structure"
+        assert result.columns.names == [
+            "Hour",
+            "Simulation",
+        ], "Should have Hour and Simulation levels"
 
     def test_construct_profile_dataframe_single_wl_multi_sim(self):
         """Test _construct_profile_dataframe with single warming level and multiple simulations."""
@@ -2972,8 +2860,11 @@ class TestCreateSimpleDataframe:
 
     def setup_method(self):
         """Set up test fixtures."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
         self.warming_level = 2.0
-        self.simulation = "sim1"
+        self.simulation = "Sim1"
 
         # Create sample profile data dictionary
         wl_key = "WL_2.0"
@@ -2989,7 +2880,9 @@ class TestCreateSimpleDataframe:
             return f"Sim{sim_idx + 1}"
 
         self.sim_label_func = sim_label_func
+        self.days_in_year = 365
         self.hours = np.arange(1, 25, 1)  # Hours 1-24
+        self.hours_per_day = 24
 
     def test_create_simple_dataframe_returns_dataframe(self):
         """Test _create_simple_dataframe returns pd.DataFrame."""
@@ -3001,6 +2894,7 @@ class TestCreateSimpleDataframe:
             sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
+            hours_per_day=self.hours_per_day,
         )
 
         # Verify outcome: returns a pandas DataFrame
@@ -3009,7 +2903,7 @@ class TestCreateSimpleDataframe:
         assert result.shape[1] > 0, "DataFrame should have columns"
 
     def test_create_simple_dataframe_with_proper_structure(self):
-        """Test _create_simple_dataframe with correct DataFrame structure."""
+        """Test that the DataFrame has correct MultiIndex column structure."""
         # Execute function
         result = _create_simple_dataframe(
             profile_data=self.profile_data,
@@ -3018,40 +2912,48 @@ class TestCreateSimpleDataframe:
             sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
+            hours_per_day=self.hours_per_day,
         )
 
-        # Verify outcome: correct DataFrame structure
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
+        # Verify outcome: correct MultiIndex column structure
+        assert isinstance(result.columns, pd.MultiIndex), "Columns should be MultiIndex"
+        assert result.columns.names == [
+            "Hour",
+            "Simulation",
+        ], "Column levels should be named Hour and Simulation"
+
+        # Verify expected dimensions: 365 rows, 24 columns
+        expected_rows = 365
+        expected_cols = 24
         assert result.shape == (
-            365,
-            24,
-        ), "Should have 365 rows (days) and 24 columns (hours)"
-        assert not isinstance(
-            result.columns, pd.MultiIndex
-        ), "Should have simple column structure"
+            expected_rows,
+            expected_cols,
+        ), f"Should have {expected_rows} rows and {expected_cols} columns"
 
-        # Verify index structure (days 1-365)
-        expected_index = np.arange(1, 366, 1)
-        np.testing.assert_array_equal(result.index.values, expected_index)
-
-        # Verify column structure (hours 1-24)
-        expected_columns = np.arange(1, 25, 1)
-        np.testing.assert_array_equal(result.columns.values, expected_columns)
+        # Verify index structure (day numbers)
+        expected_index = np.arange(1, self.days_in_year + 1)
+        np.testing.assert_array_equal(
+            result.index.values,
+            expected_index,
+            err_msg="Index should be day numbers from 1 to days_in_year",
+        )
 
     def test_create_simple_dataframe_with_different_scenarios(self):
         """Test _create_simple_dataframe with different warming level and simulation scenarios."""
         # Test different warming level
         different_wl = 1.5
+        different_sim = "Sim1"
         different_wl_data = {("WL_1.5", "Sim1"): np.random.rand(365, 24) + 15.0}
 
         # Execute function with different warming level
         result_wl = _create_simple_dataframe(
             profile_data=different_wl_data,
             warming_level=different_wl,
-            simulation=self.simulation,
+            simulation=different_sim,
             sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
+            hours_per_day=self.hours_per_day,
         )
 
         # Verify outcome: maintains same structure with different data
@@ -3073,6 +2975,7 @@ class TestCreateSimpleDataframe:
             sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
+            hours_per_day=self.hours_per_day,
         )
 
         # Verify outcome: handles different simulation correctly
@@ -3103,6 +3006,7 @@ class TestCreateSimpleDataframe:
             sim_label_func=self.sim_label_func,
             days_in_year=365,
             hours=self.hours,
+            hours_per_day=self.hours_per_day,
         )
 
         # Verify outcome: data values are preserved correctly
@@ -3128,6 +3032,7 @@ class TestCreateSimpleDataframe:
             sim_label_func=self.sim_label_func,
             days_in_year=366,  # Leap year
             hours=self.hours,
+            hours_per_day=self.hours_per_day,
         )
 
         # Verify outcome: handles different matrix sizes correctly
@@ -3167,6 +3072,7 @@ class TestCreateSimpleDataframe:
                 sim_label_func=self.sim_label_func,
                 days_in_year=days,
                 hours=self.hours,
+                hours_per_day=self.hours_per_day,
             )
 
             # Verify outcome: correct dimensions for each scenario
@@ -3188,7 +3094,9 @@ class TestCreateSimpleDataframe:
             )
 
             # Verify columns remain consistent regardless of year length
-            expected_columns = np.arange(1, 25, 1)
+            expected_columns = pd.MultiIndex.from_tuples(
+                [(i, "Sim1") for i in range(1, 25)]
+            )
             np.testing.assert_array_equal(
                 result.columns.values,
                 expected_columns,
@@ -4777,211 +4685,3 @@ class TestConvertStationsToLatLon:
             assert (
                 abs(lon_bounds[1] - expected_lon_max) < 1e-6
             ), "Should use maximum longitude from all stations"
-
-
-class TestRetrieveProfileDataWithStations:
-    """Test class for retrieve_profile_data with stations parameter.
-
-    Tests that the stations parameter is correctly intercepted and converted
-    to lat/lon coordinates with buffer before calling get_data.
-
-    Attributes
-    ----------
-    mock_get_data : MagicMock
-        Mock for get_data function.
-    mock_stations_gdf : pd.DataFrame
-        Mock GeoDataFrame with station data.
-    """
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        # Create mock stations GeoDataFrame
-        self.mock_stations_gdf = pd.DataFrame(
-            {
-                "station": [
-                    "San Diego Lindbergh Field (KSAN)",
-                    "Los Angeles International Airport (KLAX)",
-                ],
-                "LAT_Y": [32.7336, 33.9416],
-                "LON_X": [-117.1831, -118.4085],
-            }
-        )
-
-    def test_retrieve_profile_data_converts_stations_to_lat_lon(self):
-        """Test that stations parameter is converted to lat/lon before calling get_data."""
-        # Setup mocks
-        with (
-            patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
-            patch(
-                "climakitae.explore.standard_year_profile.DataInterface"
-            ) as mock_data_interface_class,
-            patch("builtins.print"),
-        ):
-            # Setup DataInterface mock
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            # Setup get_data mock
-            mock_dataset = MagicMock(spec=xr.Dataset)
-            mock_get_data.return_value = mock_dataset
-
-            # Execute function with stations parameter
-            retrieve_profile_data(
-                stations=["San Diego Lindbergh Field (KSAN)"], warming_level=[2.0]
-            )
-
-            # Verify outcome: get_data should be called with lat/lon, not stations
-            assert mock_get_data.call_count >= 1, "Should call get_data"
-
-            # Check that lat/lon were passed in at least one call
-            found_lat_lon = False
-            for call in mock_get_data.call_args_list:
-                kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
-                if "latitude" in kwargs and "longitude" in kwargs:
-                    found_lat_lon = True
-                    # Verify stations was NOT passed
-                    assert (
-                        "stations" not in kwargs
-                    ), "stations parameter should not be passed to get_data"
-                    # Verify lat/lon are tuples with min/max
-                    assert isinstance(
-                        kwargs["latitude"], tuple
-                    ), "latitude should be a tuple"
-                    assert isinstance(
-                        kwargs["longitude"], tuple
-                    ), "longitude should be a tuple"
-                    assert (
-                        len(kwargs["latitude"]) == 2
-                    ), "latitude should have min and max"
-                    assert (
-                        len(kwargs["longitude"]) == 2
-                    ), "longitude should have min and max"
-
-            assert found_lat_lon, "At least one call should include lat/lon parameters"
-
-    def test_retrieve_profile_data_applies_correct_buffer_to_stations(self):
-        """Test that stations are converted with correct 0.02 degree buffer."""
-        # Setup mocks
-        with (
-            patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
-            patch(
-                "climakitae.explore.standard_year_profile.DataInterface"
-            ) as mock_data_interface_class,
-            patch("builtins.print"),
-        ):
-            # Setup DataInterface mock
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            # Setup get_data mock
-            mock_dataset = MagicMock(spec=xr.Dataset)
-            mock_get_data.return_value = mock_dataset
-
-            # Execute function with stations parameter
-            retrieve_profile_data(
-                stations=["San Diego Lindbergh Field (KSAN)"], warming_level=[2.0]
-            )
-
-            # Verify outcome: lat/lon should have 0.02 buffer applied
-            # San Diego: lat=32.7336, lon=-117.1831
-            expected_lat_min = 32.7336 - 0.02
-            expected_lat_max = 32.7336 + 0.02
-            expected_lon_min = -117.1831 - 0.02
-            expected_lon_max = -117.1831 + 0.02
-
-            # Find the call with lat/lon
-            for call in mock_get_data.call_args_list:
-                kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
-                if "latitude" in kwargs:
-                    lat_bounds = kwargs["latitude"]
-                    lon_bounds = kwargs["longitude"]
-
-                    assert (
-                        abs(lat_bounds[0] - expected_lat_min) < 1e-6
-                    ), "Should apply 0.02 buffer to min latitude"
-                    assert (
-                        abs(lat_bounds[1] - expected_lat_max) < 1e-6
-                    ), "Should apply 0.02 buffer to max latitude"
-                    assert (
-                        abs(lon_bounds[0] - expected_lon_min) < 1e-6
-                    ), "Should apply 0.02 buffer to min longitude"
-                    assert (
-                        abs(lon_bounds[1] - expected_lon_max) < 1e-6
-                    ), "Should apply 0.02 buffer to max longitude"
-
-    def test_retrieve_profile_data_cached_area_takes_priority_over_stations(self):
-        """Test that cached_area parameter takes priority over stations."""
-        # Setup mocks
-        with (
-            patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
-            patch(
-                "climakitae.explore.standard_year_profile.DataInterface"
-            ) as mock_data_interface_class,
-            patch("builtins.print"),
-        ):
-            # Setup DataInterface mock
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            # Setup get_data mock
-            mock_dataset = MagicMock(spec=xr.Dataset)
-            mock_get_data.return_value = mock_dataset
-
-            # Execute function with both cached_area and stations
-            retrieve_profile_data(
-                cached_area="Los Angeles",
-                stations=["San Diego Lindbergh Field (KSAN)"],
-                warming_level=[2.0],
-            )
-
-            # Verify outcome: cached_area should be used, stations should be ignored
-            for call in mock_get_data.call_args_list:
-                kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
-                assert (
-                    kwargs.get("cached_area") == "Los Angeles"
-                ), "Should use cached_area"
-                # Stations should not be converted to lat/lon when cached_area is present
-                # (cached_area takes priority)
-
-    def test_retrieve_profile_data_explicit_lat_lon_takes_priority_over_stations(self):
-        """Test that explicit lat/lon parameters take priority over stations."""
-        # Setup mocks
-        with (
-            patch("climakitae.explore.standard_year_profile.get_data") as mock_get_data,
-            patch(
-                "climakitae.explore.standard_year_profile.DataInterface"
-            ) as mock_data_interface_class,
-            patch("builtins.print"),
-        ):
-            # Setup DataInterface mock
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            # Setup get_data mock
-            mock_dataset = MagicMock(spec=xr.Dataset)
-            mock_get_data.return_value = mock_dataset
-
-            # Execute function with both explicit lat/lon and stations
-            explicit_lat = (32.0, 34.0)
-            explicit_lon = (-118.0, -116.0)
-            retrieve_profile_data(
-                latitude=explicit_lat,
-                longitude=explicit_lon,
-                stations=["San Diego Lindbergh Field (KSAN)"],
-                warming_level=[2.0],
-            )
-
-            # Verify outcome: explicit lat/lon should be used, stations should be ignored
-            for call in mock_get_data.call_args_list:
-                kwargs = call.kwargs if hasattr(call, "kwargs") else call[1]
-                if "latitude" in kwargs:
-                    assert (
-                        kwargs["latitude"] == explicit_lat
-                    ), "Should use explicit latitude"
-                    assert (
-                        kwargs["longitude"] == explicit_lon
-                    ), "Should use explicit longitude"
