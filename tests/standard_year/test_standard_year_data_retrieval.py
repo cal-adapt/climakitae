@@ -16,7 +16,6 @@ import xarray as xr
 from climakitae.explore.standard_year_profile import (
     retrieve_profile_data,
     _handle_approach_params,
-    _filter_by_ssp,
 )
 
 
@@ -715,45 +714,3 @@ class TestHandleApproachParamsInvalidInputs:
                 centered_year=2016,
                 scenario="SSP 2-4.5",
             )
-
-
-class TestFilterBySSP:
-    """Test class for _filter_by_ssp(), which filters retrieved data by SSP"""
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        # Create smaller sample for faster testing (just enough for the algorithm)
-        time_delta = pd.date_range(
-            "2020-01-01", periods=8760, freq="h"
-        )  # 1 year of hourly data
-        warming_levels = [1.5]
-        simulations = [
-            "WRF_CESM2_r11i1p1f1_historical+ssp245",
-            "WRF_CESM2_r11i1p1f1_historical+ssp370",
-            "WRF_CESM2_r11i1p1f1_historical+ssp585",
-        ]
-
-        # Create test data with proper dimensions
-        data = np.random.rand(len(warming_levels), len(time_delta), len(simulations))
-
-        self.sample_data = xr.DataArray(
-            data,
-            dims=["warming_level", "time_delta", "simulation"],
-            coords={
-                "warming_level": warming_levels,
-                "time_delta": time_delta,
-                "simulation": simulations,
-            },
-            attrs={"units": "degF", "variable_id": "t2"},
-        )
-
-    def test_filter_by_ssp_returns_correct_simulation(self):
-        """Test that _filter_by_spp returns data from desired simulation."""
-        # Execute function
-        result = _filter_by_ssp(self.sample_data, scenario="SSP 2-4.5")
-
-        # Verify the result contains only the target simulation
-        simulations = np.array(["WRF_CESM2_r11i1p1f1_historical+ssp245"])
-        assert np.array_equal(
-            result.simulation.values, simulations
-        ), "Incorrect simulation(s) returned"

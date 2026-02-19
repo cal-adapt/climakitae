@@ -554,35 +554,6 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
     return kwargs
 
 
-def _filter_by_ssp(data: xr.DataArray, scenario: str) -> xr.DataArray:
-    """
-    This function filters the input data to retain only simulations that correspond to the user's input SSP
-    Only applied for time-based SY profiles
-
-    Parameters
-    ----------
-    data : xr.Dataset
-        Input climate data array containing simulation data across multiple models.
-    scenario : str
-        SSP scenario from ["Historical","SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
-    Returns
-    -------
-    xr.Dataset
-        Filtered data array containing only desired model
-
-    """
-    # Modify scenario input (ex: "SSP 2-4.5") to match
-    # the SSP string in simulation names (ex: "ssp245")
-    scenario = scenario.lower().replace("-", "").replace(" ", "").replace(".", "")
-
-    # Keep only simulations
-    data = data.sel(
-        simulation=[sim for sim in data.simulation.values if scenario in sim]
-    )
-
-    return data
-
-
 def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     """
     Backend function for retrieving data needed for computing climate profiles.
