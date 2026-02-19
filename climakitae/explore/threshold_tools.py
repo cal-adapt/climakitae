@@ -1,6 +1,5 @@
 """Helper functions for performing analyses related to thresholds"""
 
-import warnings
 from itertools import product
 
 import numpy as np
@@ -253,31 +252,22 @@ def get_block_maxima(
                 "ERROR: The given `da_series` does not include any recorded values for this variable, and we cannot create block maximums off of an empty DataArray."
             )
         else:
-            # Handle NaN dropping differently for gridded data vs timeseries data
-            if "x" in bms.dims and "y" in bms.dims:
-                # For gridded data, only drop time steps where ALL spatial points are NaN
-                # This prevents dropping time steps that have valid data at some spatial locations
-                all_nan_times = bms.isnull().all(dim=["x", "y"])
-                if all_nan_times.any():
-                    dropped_bms = bms.where(~all_nan_times, drop=True)
-                    print(
-                        f"Dropping {all_nan_times.sum().item()} time steps where all spatial points are NaN across entire{f' {bms.name}' if bms.name else ''} DataArray."
-                    )
-                    bms = dropped_bms
-            elif bms.dims == ("time",):
-                # For timeseries data, drop NaN time steps as before
-                dropped_bms = bms.dropna(dim="time")
-                print(
-                    f"Dropping {bms.size - dropped_bms.size} block maxima NaNs across entire{f' {bms.name}' if bms.name else ''} DataArray. Please guidance for more information. "
-                )
-                bms = dropped_bms
+            # Determine which non-time dims exist for detecting all-NaN time steps
+            non_time_dims = [d for d in bms.dims if d != "time"]
+
+            if non_time_dims:
+                # Drop time steps where ALL values across non-time dims are NaN
+                all_nan_times = bms.isnull().all(dim=non_time_dims)
             else:
-                # For other dimension combinations, be conservative and don't drop
-                warnings.warn(
-                    f"\n\nWARNING: Found NaN values in block maxima but unable to determine appropriate dropping strategy for dimensions {bms.dims}"
-                    "\nNo NaN values will be dropped from the block maxima DataArray."
-                    "\nPlease inspect the data and handle NaN values appropriately before proceeding.",
-                    stacklevel=999,
+                # Timeseries data (only time dim)
+                all_nan_times = bms.isnull()
+
+            n_dropped = int(all_nan_times.sum().item())
+            if n_dropped > 0:
+                bms = bms.where(~all_nan_times, drop=True)
+                print(
+                    f"Dropping {n_dropped} block maxima NaN time steps from"
+                    f"{f' {bms.name}' if bms.name else ''} DataArray."
                 )
 
     return bms
