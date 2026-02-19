@@ -518,9 +518,6 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
                 print(
                     f"Corresponding warming level for 'centered_year'= {centered_year} and '{warming_level_scenario}' scenario is {new_warming_level}. \n"
                 )
-                print(
-                    f"Step 3: The climate profile will now be produced at warming level {warming_level}."
-                )
 
                 kwargs["warming_level"] = new_warming_level
                 kwargs["approach"] = "Warming Level"
@@ -706,9 +703,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
         if "latitude" in kwargs or "longitude" in kwargs:
             kwargs.pop("latitude", None)
             kwargs.pop("longitude", None)
-            print(
-                "   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude"
-            )
+            print("   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude")
         if "stations" in kwargs:
             kwargs.pop("stations", None)
             print("   ⚠️  Note: Using cached_area, ignoring provided stations")
@@ -786,6 +781,10 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     # Update with any user-provided parameters for future data retrieval
     get_data_params.update(kwargs)
     future_data = get_data(**get_data_params)
+
+    print(
+        f"Step 3: The climate profile will now be produced at warming level {warming_level}."
+    )
 
     return historic_data, future_data
 
