@@ -493,6 +493,12 @@ def _apply_grouped_duration_filter_vectorized(
             "`grouped_duration` specification must be in days. example: `grouped_duration = (3, 'day')`."
         )
 
+    # Rechunk time dimension if dask-backed to ensure chunks are large enough
+    # for the rolling window. After groupby resampling, chunks may be smaller
+    # than the rolling window size, causing a ValueError.
+    if hasattr(da.data, "chunks"):
+        da = da.chunk(time=-1)
+
     # Use vectorized rolling operations
     if rolling_agg == "sustained":
         if extremes_type == "max":
