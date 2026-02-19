@@ -69,7 +69,7 @@ def get_block_maxima(
     duration : tuple
         length of extreme event, specified as (4, 'hour')
     groupby : tuple
-        group over which to look for max occurance, specified as (1, 'day')
+        group over which to look for max occurrence, specified as (1, 'day')
     grouped_duration : tuple
         length of event after grouping, specified as (5, 'day')
     check_ess : boolean
