@@ -16,7 +16,7 @@ import xarray as xr
 from climakitae.explore.standard_year_profile import (
     retrieve_profile_data,
     _handle_approach_params,
-    _filter_ba_models
+    _filter_ba_models,
 )
 
 
@@ -741,6 +741,7 @@ class TestHandleApproachParamsInvalidInputs:
                 centered_year=2016,
                 scenario="SSP 2-4.5",
             )
+
     def test_handle_approach_params_with_invalid_ba_models_and_scenario_input_raises_error(
         self,
     ):
