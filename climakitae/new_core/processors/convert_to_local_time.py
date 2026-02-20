@@ -215,8 +215,8 @@ class ConvertToLocalTime(DataProcessor):
         # Get latitude/longitude information
 
         # Finding avg. lat/lon coordinates from all grid-cells
-        lat = obj.lat.mean().data
-        lon = obj.lon.mean().data
+        lat = obj.lat.mean().item()
+        lon = obj.lon.mean().item()
 
         obj = self._find_timezone_and_convert(obj, lat, lon)
 
