@@ -14,7 +14,7 @@ import pandas as pd
 import xarray as xr
 from tqdm.auto import tqdm  # Progress bar
 
-from climakitae.core.constants import UNSET, WRF_BA_MODELS
+from climakitae.core.constants import UNSET
 from climakitae.core.data_interface import DataInterface, get_data
 from climakitae.core.paths import VARIABLE_DESCRIPTIONS_CSV_PATH
 from climakitae.explore.typical_meteorological_year import is_HadISD, match_str_to_wl
@@ -126,7 +126,6 @@ def _get_clean_standardyr_filename(
     approach: str | None,
     centered_year: int | None,
     scenario: str | None,
-    ba_models: bool,
 ) -> str:
     """
     Standardizes filename export for standard year files
@@ -153,9 +152,6 @@ def _get_clean_standardyr_filename(
         For approach="Time", the year for which to find a corresponding warming level
     time_profile_scenario (Optional) : str, default "SSP 3-7.0"
         SSP scenario from ["SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
-    #!
-    ba_models (optional) : bool, default False,
-        If True only return bias-adjusted WRF models
 
     Returns
     -------
@@ -202,11 +198,8 @@ def _get_clean_standardyr_filename(
     elif approach == "Time":
         # if time-based profile being generated, include default value in filename
         scenario_str = "_ssp370"
-    ba_models_str = ""
-    if ba_models:
-        ba_models_str = "_ba_models"
 
-    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}{clean_gwl_name}{delta_str}{window_str}{approach_str}{centered_year_str}{scenario_str}{ba_models_str}.csv"
+    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}{clean_gwl_name}{delta_str}{window_str}{approach_str}{centered_year_str}{scenario_str}.csv"
     return filename
 
 
@@ -343,8 +336,6 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 For approach="Time", the year for which to find a corresponding warming level
             time_profile_scenario (Optional) : str, default "SSP 3-7.0"
                 SSP scenario from ["SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
-            #!
-            bias_adjusted_models (optional) : bool, default False, if True only return bias-adjusted WRF models
 
     Notes
     -----
@@ -363,8 +354,8 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
     """
 
     # Get required parameter values
-    variable = kwargs.get("variable", "Air Temperature at 2m")
-    q = kwargs.get("q", 0.5)
+    variable = kwargs.get("variable")
+    q = kwargs.get("q")
 
     # Get warming_level, no_delta, warming_level_window, approach, centered_year inputs, and scenario
     no_delta = kwargs.get("no_delta", False)
@@ -373,7 +364,6 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
     centered_year = kwargs.get("centered_year", None)
     global_warming_levels = kwargs.get("warming_level", None)
     scenario = kwargs.get("time_profile_scenario", None)
-    ba_models = kwargs.get("bias_adjusted_models", False)
 
     # Get variable id string to use in file name
     variable_descriptions = read_csv_file(VARIABLE_DESCRIPTIONS_CSV_PATH)
@@ -412,7 +402,6 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 approach,
                 centered_year,
                 scenario,
-                ba_models,
             )
             profile.to_csv(filename)
         case 3:  # Multiple WL (WL included in MultiIndex)
@@ -427,7 +416,6 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                     approach,
                     centered_year,
                     scenario,
-                    ba_models,
                 )
                 profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(filename)
         case _:
@@ -459,8 +447,7 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
         - stations (Optional) : list[str], default None
         - units (Optional) : str, default "degF"
         - no_delta (optional) : bool, default False, if True, do not retrieve historical data, return raw future profile
-        #!
-        - bias_adjusted_models (optional) : bool, default False, if True only return bias-adjusted WRF models
+
     Returns
     -------
     **kwargs : dict
@@ -473,20 +460,12 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
     warming_level = kwargs.get("warming_level", None)
     scenario = kwargs.get("time_profile_scenario", None)
     resolution = kwargs.get("resolution", "3 km")
-    #!
-    ba_models = kwargs.get("bias_adjusted_models", False)
 
     # catch invalid scenario and resolution combinations
     if scenario in ["SSP 5-8.5", "SSP 2-4.5"]:
         if resolution == "3 km":
             raise ValueError(
                 f"if 'time_profile_scenario' is '{scenario}', resolution must be '9 km' or '45 km' - got {resolution}."
-            )
-    # catch invalid scenario and ba_models combinations
-    if scenario in ["SSP 5-8.5", "SSP 2-4.5"]:
-        if ba_models:
-            raise ValueError(
-                f"No bias-adjusted models available for 'time_profile_scenario' = {scenario}."
             )
 
     # handle approach, centered year, and scenario combindations
@@ -508,10 +487,10 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 print(
                     f"You have chosen to produce a time-based Standard Year climate profile centered around {centered_year}. \n"
-                    "Standard year functionality for time-based profiles: \n"
-                    "1. identifies the closest warming level at that centered year for either the input SSP scenario or default 'SSP 3-7.0' \n"
-                    "if no scenario input is provided. And 'historical' if 'centered_year' < 2015. \n"
-                    "2. then filters simulations by either the input SSP scenario or the default 'SSP 3-7-0'. \n"
+                    "Standard Year functionality for time-based profiles: \n"
+                    "   1. Input centered_year and scenario are used by the get_gwl_at_year function to identify the warming level corresponding to centered_year. \n"
+                    "   2. Data is retrieved at the corresponding warming level with all available simulations across all scenarios, following GWL best practices. \n"
+                    "   3. Standard Year profile is generated at the corresponding warming level. \n"
                 )
 
                 print(
@@ -537,11 +516,7 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
                     float(gwl_options.loc[warming_level_scenario, "Mean"])
                 ]
                 print(
-                    f"Corresponding warming level for 'centered_year'= {centered_year} and SSP '{warming_level_scenario}' is {new_warming_level}. \n"
-                )
-
-                print(
-                    f"Step 2: The climate profile will now be produced using SSP scenario '{scenario}' and warming level {new_warming_level}. Only models corresponding to this scenario will be used."
+                    f"Corresponding warming level for 'centered_year'= {centered_year} and '{warming_level_scenario}' scenario is {new_warming_level}. \n"
                 )
 
                 kwargs["warming_level"] = new_warming_level
@@ -576,75 +551,6 @@ def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
     return kwargs
 
 
-def _filter_by_ssp(data: xr.DataArray, scenario: str) -> xr.DataArray:
-    """
-    This function filters the input data to retain only simulations that correspond to the user's input SSP
-    Only applied for time-based SY profiles
-
-    Parameters
-    ----------
-    data : xr.Dataset
-        Input climate data array containing simulation data across multiple models.
-    scenario : str
-        SSP scenario from ["Historical","SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
-    Returns
-    -------
-    xr.Dataset
-        Filtered data array containing only desired model
-
-    """
-    # Modify scenario input (ex: "SSP 2-4.5") to match
-    # the SSP string in simulation names (ex: "ssp245")
-    scenario = scenario.lower().replace("-", "").replace(" ", "").replace(".", "")
-
-    # Keep only simulations
-    data = data.sel(
-        simulation=[sim for sim in data.simulation.values if scenario in sim]
-    )
-
-    return data
-
-
-#!
-def _filter_ba_models(
-    data: xr.DataArray,
-) -> xr.DataArray:
-    """
-    Filter data to include only bias-adjusted WRF models.
-    This function filters the input data to retain only simulations that correspond to
-    bias-adjusted Weather Research and Forecasting (WRF) models.
-
-    Parameters
-    ----------
-    data : xr.DataArray
-        Input climate data array containing simulation data across multiple models.
-
-    Returns
-    -------
-    xr.DataArray
-        Filtered data array containing only bias-adjusted WRF model simulations
-        when conditions are met, otherwise returns the original data unchanged.
-
-    Notes
-    -----
-    The function uses WRF_BA_MODELS constant to identify which simulations
-    correspond to bias-adjusted WRF models by checking if any of the model
-    names appear as substrings in the simulation names.
-    """
-    # Filter only for BC-WRF models
-    # This check is to see which simulations have these BC models as the root part
-    # of their simulation name, which is to accomodate for simulation names being
-    # the same across SSPs.
-    data = data.sel(
-        simulation=[
-            sim
-            for sim in data.simulation.values
-            if any(s in sim for s in WRF_BA_MODELS)
-        ]
-    )
-    return data
-
-
 def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     """
     Backend function for retrieving data needed for computing climate profiles.
@@ -667,8 +573,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
         - stations (Optional) : list[str], default None
         - units (Optional) : str, default "degF"
         - no_delta (optional) : bool, default False, if True, do not retrieve historical data, return raw future profile
-        #!
-        - bias_adjusted_models (optional) : bool, default False, if True only return bias-adjusted WRF models
+
     Returns
     -------
     Tuple[xr.Dataset, xr.Dataset]
@@ -732,8 +637,6 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
         "longitude": ((float, tuple), None),
         "stations": (list, None),
         "units": (str, units_default),
-        #!
-        "bias_adjusted_models": (bool, False),
     }
 
     # if the user does not enter warming level the analysis is a moot point
@@ -867,6 +770,11 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
         "longitude": kwargs.get("longitude", None),
     }
 
+    warming_level = kwargs.get("warming_level", [1.2])
+    print(
+        f"Step 2: Data is being retrieved for warming level {warming_level} across all available simulations and scenarios."
+    )
+
     historic_data = None
     if not no_delta:
         # Retrieve historical data at 1.2°C warming level
@@ -876,23 +784,9 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     get_data_params.update(kwargs)
     future_data = get_data(**get_data_params)
 
-    # Filter models by input scenario, if time-based approach specified
-    centered_year = kwargs.get("centered_year", None)
-    scenario = kwargs.get("time_profile_scenario", None)
-    if centered_year is not None:
-        future_data = _filter_by_ssp(future_data, scenario)
-        if historic_data is not None:
-            historic_data = _filter_by_ssp(historic_data, scenario)
-    #!
-    # Filter for only bias-adjusted WRF models, if user indicates this
-    ba_models = kwargs.get("bias_adjusted_models", False)
-    if ba_models:
-        print("Filtering data for bias-adjusted models.")
-        future_data = _filter_ba_models(future_data)
-        if historic_data is not None:
-            historic_data = _filter_ba_models(historic_data)
-    else:
-        None
+    print(
+        f"Step 3: The climate profile will now be produced at warming level {warming_level}."
+    )
 
     return historic_data, future_data
 
@@ -924,8 +818,7 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         - days_in_year (Optional) : int, default 365
         - q (Optional) : float | list[float], default 0.5, quantile for profile calculation
         - no_delta (optional) : bool, default False, if True, do not apply baseline subtraction, return raw future profile
-        #!
-        - bias_adjusted_models (optional) : bool, default False, if True only return bias-adjusted WRF models
+
     Returns
     -------
     pd.DataFrame
@@ -972,7 +865,6 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         if key in kwargs:
             # skip this key
             continue
-
         if key == "warming_level":
             # if approach=Time, then default warming level is not used
             if kwargs.get("approach") == "Time":
@@ -981,8 +873,11 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
                 print(f"Using default '{key}': {default_val}")
                 kwargs[key] = default_val
         else:
-            print(f"Using default '{key}': {default_val}")
-            kwargs[key] = default_val
+            if key == "q" and q is not 0.5:
+                continue
+            else:
+                print(f"Using default '{key}': {default_val}")
+                kwargs[key] = default_val
 
     # catch invalid selections that return None
     if future_data is None and historic_data is None:
