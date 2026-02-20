@@ -249,7 +249,7 @@ def get_block_maxima(
         # This checks if ALL of the values from `bms` are null, or if there are 0 events that occur (i.e. no precipitation counts within the DataArray).
         if bms.isnull().sum().item() == bms.size:
             raise ValueError(
-                "ERROR: The given `da_series` does not include any recorded values for this variable, and we cannot create block maximums off of an empty DataArray."
+                "ERROR: The given `da_series` does not include any recorded values for this variable, and we cannot create block maximums off of an empty DataArray. Please check your input data and filters to ensure that there are observed values for this variable in the given DataArray."
             )
         else:
             # Determine which non-time dims exist for detecting all-NaN time steps
