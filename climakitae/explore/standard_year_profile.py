@@ -201,8 +201,11 @@ def _get_clean_standardyr_filename(
     elif approach == "Time":
         # if time-based profile being generated, include default value in filename
         scenario_str = "_ssp370"
+    ba_models_str = ""
+    if ba_models:
+        ba_models_str = "_ba_models"
 
-    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}{clean_gwl_name}{delta_str}{window_str}{approach_str}{centered_year_str}{scenario_str}.csv"
+    filename = f"stdyr_{clean_var_name}_{clean_q_name}ptile_{clean_loc_name}{clean_gwl_name}{delta_str}{window_str}{approach_str}{centered_year_str}{scenario_str}{ba_models_str}.csv"
     return filename
 
 
