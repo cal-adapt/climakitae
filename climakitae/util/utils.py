@@ -1217,7 +1217,8 @@ def compute_multimodel_stats(data: xr.DataArray) -> xr.DataArray:
     stats_concat : xr.DataArray
 
     """
-    # Only "sim" needed once DFU/degree_days.ipynb updated for new core.
+    # Can hard-code as "sim" once DFU/degree_days.ipynb updated for new core.
+    # But keeping "simulation" as an option until then.
     if "simulation" in data.dims:
         sim_dim = "simulation"
     else:
@@ -1278,7 +1279,8 @@ def trendline(data: xr.DataArray, kind: str = "mean") -> xr.DataArray:
     compute_multimodel_stats must be modified to update optionality.
 
     """
-    # Only "sim" needed once DFU/degree_days.ipynb updated for new core.
+    # Can hard-code as "sim" once DFU/degree_days.ipynb updated for new core.
+    # But keeping "simulation" as an option until then.
     if "simulation" in data.dims:
         sim_dim = "simulation"
     else:
