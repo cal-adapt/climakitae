@@ -415,3 +415,127 @@ class TestDataCatalogCatalogKeyManagement:
                 if len(expected) > 1
                 else retval[0] == expected[0]
             )
+
+
+class TestDataCatalogCatalogLoadFailures:
+    """Test that DataCatalog initializes gracefully when optional catalogs fail to load."""
+
+    @pytest.fixture
+    def catalog_with_hdp_failure(self):
+        """DataCatalog where the HDP catalog raises on load."""
+        mock_esm_catalog, mock_boundary_catalog, _, mock_stations_df = (
+            make_mock_objects()
+        )
+
+        def open_esm_side_effect(url, **kwargs):
+            if url == HDP_CATALOG_URL:
+                raise Exception("Simulated HDP catalog load failure")
+            return mock_esm_catalog
+
+        with (
+            patch(
+                "climakitae.new_core.data_access.data_access.intake.open_esm_datastore",
+                side_effect=open_esm_side_effect,
+            ),
+            patch(
+                "climakitae.new_core.data_access.data_access.intake.open_catalog",
+                return_value=mock_boundary_catalog,
+            ),
+            patch(
+                "climakitae.new_core.data_access.data_access.read_csv_file",
+                return_value=mock_stations_df,
+            ),
+        ):
+            DataCatalog._instance = UNSET
+            yield DataCatalog()
+            # Reset after test so a None-catalog instance doesn't leak into other tests
+            DataCatalog._instance = UNSET
+
+    @pytest.fixture
+    def catalog_with_renewables_failure(self):
+        """DataCatalog where the renewables catalog raises on load."""
+        mock_esm_catalog, mock_boundary_catalog, _, mock_stations_df = (
+            make_mock_objects()
+        )
+
+        def open_esm_side_effect(url, **kwargs):
+            if url == RENEWABLES_CATALOG_URL:
+                raise Exception("Simulated renewables catalog load failure")
+            return mock_esm_catalog
+
+        with (
+            patch(
+                "climakitae.new_core.data_access.data_access.intake.open_esm_datastore",
+                side_effect=open_esm_side_effect,
+            ),
+            patch(
+                "climakitae.new_core.data_access.data_access.intake.open_catalog",
+                return_value=mock_boundary_catalog,
+            ),
+            patch(
+                "climakitae.new_core.data_access.data_access.read_csv_file",
+                return_value=mock_stations_df,
+            ),
+        ):
+            DataCatalog._instance = UNSET
+            yield DataCatalog()
+            # Reset after test so a None-catalog instance doesn't leak into other tests
+            DataCatalog._instance = UNSET
+
+    def test_hdp_failure_still_initializes(self, catalog_with_hdp_failure):
+        """DataCatalog should initialize successfully even if HDP catalog fails to load."""
+        assert catalog_with_hdp_failure._initialized is True
+
+    def test_hdp_failure_sets_none(self, catalog_with_hdp_failure):
+        """HDP catalog entry should be None when it fails to load."""
+        assert catalog_with_hdp_failure[CATALOG_HDP] is None
+
+    def test_hdp_property_raises_when_none(self, catalog_with_hdp_failure):
+        """The .hdp property should raise RuntimeError when the catalog failed to load."""
+        with pytest.raises(RuntimeError, match="HDP catalog failed to load"):
+            _ = catalog_with_hdp_failure.hdp
+
+    def test_hdp_failure_catalog_df_excludes_hdp(self, catalog_with_hdp_failure):
+        """catalog_df should not include HDP rows when HDP failed to load."""
+        df = catalog_with_hdp_failure.catalog_df
+        assert CATALOG_HDP not in df["catalog"].values
+
+    def test_hdp_failure_catalog_df_includes_other_catalogs(
+        self, catalog_with_hdp_failure
+    ):
+        """catalog_df should still include cadcat and renewables rows when HDP failed."""
+        df = catalog_with_hdp_failure.catalog_df
+        assert CATALOG_CADCAT in df["catalog"].values
+        assert CATALOG_REN_ENERGY_GEN in df["catalog"].values
+
+    def test_renewables_failure_still_initializes(
+        self, catalog_with_renewables_failure
+    ):
+        """DataCatalog should initialize successfully even if renewables catalog fails to load."""
+        assert catalog_with_renewables_failure._initialized is True
+
+    def test_renewables_failure_sets_none(self, catalog_with_renewables_failure):
+        """Renewables catalog entry should be None when it fails to load."""
+        assert catalog_with_renewables_failure[CATALOG_REN_ENERGY_GEN] is None
+
+    def test_renewables_property_raises_when_none(
+        self, catalog_with_renewables_failure
+    ):
+        """The .renewables property should raise RuntimeError when the catalog failed to load."""
+        with pytest.raises(RuntimeError, match="Renewables catalog failed to load"):
+            _ = catalog_with_renewables_failure.renewables
+
+    def test_renewables_failure_catalog_df_excludes_renewables(
+        self, catalog_with_renewables_failure
+    ):
+        """catalog_df should not include renewables rows when renewables failed to load."""
+        df = catalog_with_renewables_failure.catalog_df
+        assert CATALOG_REN_ENERGY_GEN not in df["catalog"].values
+
+    def test_renewables_failure_catalog_df_includes_other_catalogs(
+        self, catalog_with_renewables_failure
+    ):
+        """catalog_df should still include cadcat and HDP rows when renewables failed."""
+        df = catalog_with_renewables_failure.catalog_df
+        assert CATALOG_CADCAT in df["catalog"].values
+        assert CATALOG_HDP in df["catalog"].values
