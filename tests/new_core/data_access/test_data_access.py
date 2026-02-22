@@ -423,14 +423,17 @@ class TestDataCatalogCatalogLoadFailures:
     @pytest.fixture
     def catalog_with_hdp_failure(self):
         """DataCatalog where the HDP catalog raises on load."""
-        mock_esm_catalog, mock_boundary_catalog, _, mock_stations_df = (
-            make_mock_objects()
-        )
+        _, mock_boundary_catalog, _, mock_stations_df = make_mock_objects()
+
+        # Give each catalog its own mock so merge_catalogs doesn't mutate a shared df
+        mock_cadcat, mock_renewables = make_mock_objects()[0], make_mock_objects()[0]
 
         def open_esm_side_effect(url, **kwargs):
             if url == HDP_CATALOG_URL:
                 raise Exception("Simulated HDP catalog load failure")
-            return mock_esm_catalog
+            elif url == RENEWABLES_CATALOG_URL:
+                return mock_renewables
+            return mock_cadcat
 
         with (
             patch(
@@ -454,14 +457,17 @@ class TestDataCatalogCatalogLoadFailures:
     @pytest.fixture
     def catalog_with_renewables_failure(self):
         """DataCatalog where the renewables catalog raises on load."""
-        mock_esm_catalog, mock_boundary_catalog, _, mock_stations_df = (
-            make_mock_objects()
-        )
+        _, mock_boundary_catalog, _, mock_stations_df = make_mock_objects()
+
+        # Give each catalog its own mock so merge_catalogs doesn't mutate a shared df
+        mock_cadcat, mock_hdp = make_mock_objects()[0], make_mock_objects()[0]
 
         def open_esm_side_effect(url, **kwargs):
             if url == RENEWABLES_CATALOG_URL:
                 raise Exception("Simulated renewables catalog load failure")
-            return mock_esm_catalog
+            elif url == HDP_CATALOG_URL:
+                return mock_hdp
+            return mock_cadcat
 
         with (
             patch(
