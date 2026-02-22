@@ -432,6 +432,31 @@ class ParameterValidator(ABC):
                     self.all_catalog_keys[key] = value
                 continue  # skip to the next key
 
+            if key == "source_id":
+                # special case for source_id, since it can be a list of values
+                valid_source_ids = self.catalog.df[key].unique().tolist()
+                values_to_check = value if isinstance(value, list) else [value]
+                all_valid = True
+                for sid in values_to_check:
+                    if sid not in valid_source_ids:
+                        all_valid = False
+                        logger.warning(
+                            "Could not find any datasets with source_id = %s", sid
+                        )
+                        closest_options = _get_closest_options(sid, valid_source_ids)
+                        if closest_options is not None:
+                            logger.warning(
+                                f"\n\nDid you mean one of these options for source_id: {closest_options}?"
+                            )
+                        else:
+                            logger.warning(
+                                f"\n\nNo close matches found for source_id = {sid}. "
+                                "\nPlease check the available options using `show_source_id_options()`."
+                            )
+                if not all_valid:
+                    break
+                continue  # skip to the next key
+
             # subset the dataframe to the key
             remaining_key_values = df[key].unique()
             if isinstance(value, list):
