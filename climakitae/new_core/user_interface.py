@@ -472,26 +472,46 @@ class ClimateData:
         logger.info("Institution ID set to: %s", institution_id.strip())
         return self
 
-    def source_id(self, source_id: str) -> "ClimateData":
+    def source_id(self, source_id: str | list[str]) -> "ClimateData":
         """Set the source identifier for the query.
 
         Parameters
         ----------
-        source_id : str
-            The source ID (e.g., "GCM", "RCM", "Station").
+        source_id : str or list of str
+            The source ID (e.g., "CESM2", "EC-Earth3") or a list of source IDs
+            to query multiple models at once.
 
         Returns
         -------
         ClimateData
             The current instance for method chaining.
 
+        Examples
+        --------
+        >>> cd.source_id("CESM2")  # Single model
+        >>> cd.source_id(["CESM2", "EC-Earth3", "MIROC6"])  # Multiple models
+
         """
         logger.debug("Setting source_id to: %s", source_id)
-        if not isinstance(source_id, str) or not source_id.strip():
-            logger.error("Invalid source_id parameter: must be non-empty string")
-            raise ValueError("Source ID must be a non-empty string")
-        self._query["source_id"] = source_id.strip()
-        logger.info("Source ID set to: %s", source_id.strip())
+        src = []
+        if not isinstance(source_id, (str, list)):
+            logger.error(
+                "Invalid source_id parameter: must be string or list of strings"
+            )
+            raise ValueError("Source ID must be a non-empty string or list of strings")
+        if isinstance(source_id, str):
+            if not source_id.strip():
+                logger.error("Invalid source_id parameter: empty string")
+                raise ValueError("Source ID must be a non-empty string")
+            src.append(source_id.strip())
+        else:
+            for sid in source_id:
+                if not isinstance(sid, str) or not sid.strip():
+                    logger.error("Invalid source_id in list: must be non-empty strings")
+                    raise ValueError("Each source ID must be a non-empty string")
+                src.append(sid.strip())
+        self._query["source_id"] = src
+        logger.info("Source ID(s) set to: %s", src)
         return self
 
     def experiment_id(self, experiment_id: str | list[str]) -> "ClimateData":

@@ -434,7 +434,10 @@ class ParameterValidator(ABC):
 
             # subset the dataframe to the key
             remaining_key_values = df[key].unique()
-            df = df[df[key] == value]
+            if isinstance(value, list):
+                df = df[df[key].isin(value)]
+            else:
+                df = df[df[key] == value]
             if df.empty:
                 # this means no datasets were found for this key.
                 # this can happen for two reasons:
