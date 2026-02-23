@@ -293,7 +293,9 @@ class TestGetBlockMaximaRollingAgg:
         )
         assert isinstance(ams, xr.DataArray)
         assert "time" in ams.dims
-        assert len(ams.time) == len(np.unique(da.time.dt.year.values))  # one block per year
+        assert len(ams.time) == len(
+            np.unique(da.time.dt.year.values)
+        )  # one block per year
 
     def test_rolling_agg_average_shape(self, T2_hourly: xr.DataArray):
         """rolling_agg='average' returns a DataArray with one value per year."""
