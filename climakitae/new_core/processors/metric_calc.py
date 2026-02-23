@@ -79,6 +79,16 @@ class MetricCalc(DataProcessor):
           - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
           - variable_preprocessing (dict, optional): Variable-specific preprocessing options
 
+        Threshold Exceedance Count:
+        - thresholds (dict, optional): Configuration for counting timesteps that exceed
+          a fixed threshold per period. Mutually exclusive with one_in_x. Keys:
+          - threshold_value (float, required): The threshold to compare against.
+          - threshold_direction (str, optional): "above" or "below". Default: "above"
+          - period (tuple, optional): Resampling period as (int, str), e.g. (1, "year").
+            Default: (1, "year")
+          - duration (tuple, optional): Require this many consecutive exceedances, e.g.
+            (3, "day"). Default: None (no consecutive filter applied)
+
     Examples
     --------
     Calculate mean over time:
@@ -93,6 +103,15 @@ class MetricCalc(DataProcessor):
     ...         "return_periods": [10, 25, 50, 100],
     ...         "distribution": "gev",
     ...         "extremes_type": "max"
+    ...     }
+    ... })
+
+    Calculate days exceeding a threshold per year:
+    >>> metric_proc = MetricCalc({
+    ...     "thresholds": {
+    ...         "threshold_value": 305.0,
+    ...         "threshold_direction": "above",
+    ...         "period": (1, "year"),
     ...     }
     ... })
 
@@ -159,6 +178,11 @@ class MetricCalc(DataProcessor):
         if self.one_in_x_config is not UNSET:
             self._setup_one_in_x_parameters()
 
+        # Threshold exceedance parameters
+        self.thresholds = value.get("thresholds", UNSET)
+        if self.thresholds is not UNSET:
+            self._setup_threshold_parameters()
+
     def _setup_one_in_x_parameters(self):
         """Setup parameters for 1-in-X calculations."""
         # Type guard to ensure one_in_x_config is not None
@@ -193,6 +217,28 @@ class MetricCalc(DataProcessor):
             "variable_preprocessing", {}
         )
 
+    def _setup_threshold_parameters(self) -> None:
+        """Validate and store threshold exceedance config."""
+        cfg = self.thresholds
+        if "threshold_value" not in cfg:
+            raise ValueError("thresholds must include 'threshold_value'")
+        if self.one_in_x_config is not UNSET:
+            raise ValueError(
+                "Cannot set both 'thresholds' and 'one_in_x' in metric_calc. "
+                "Choose one output mode."
+            )
+        direction = cfg.get("threshold_direction", "above")
+        if direction not in ("above", "below"):
+            raise ValueError(
+                f"threshold_direction must be 'above' or 'below', got '{direction}'"
+            )
+        self.thresholds = {
+            "threshold_value": float(cfg["threshold_value"]),
+            "threshold_direction": direction,
+            "duration": cfg.get("duration", UNSET),
+            "period": cfg.get("period", (1, "year")),
+        }
+
     def execute(
         self,
         result: xr.Dataset | xr.DataArray | Iterable[xr.Dataset | xr.DataArray],
@@ -218,11 +264,12 @@ class MetricCalc(DataProcessor):
             an iterable of them.
         """
         # Select processing function based on configuration
-        process_fn = (
-            self._calculate_one_in_x_single
-            if self.one_in_x_config is not UNSET
-            else self._calculate_metrics_single
-        )
+        if self.thresholds is not UNSET:
+            process_fn = self._calculate_threshold_single
+        elif self.one_in_x_config is not UNSET:
+            process_fn = self._calculate_one_in_x_single
+        else:
+            process_fn = self._calculate_metrics_single
 
         ret = None
 
@@ -398,6 +445,53 @@ class MetricCalc(DataProcessor):
         else:
             # Should not reach here, but return the first result as fallback
             return results[0] if results else data
+
+    def _calculate_threshold_single(
+        self, data: xr.Dataset | xr.DataArray
+    ) -> xr.Dataset:
+        """Count timesteps exceeding a threshold per period.
+
+        Parameters
+        ----------
+        data : xr.Dataset | xr.DataArray
+            Input climate data with a time dimension.
+
+        Returns
+        -------
+        xr.Dataset
+            One count value per period per grid cell / simulation.
+        """
+        cfg = self.thresholds
+
+        def _apply(da: xr.DataArray) -> xr.DataArray:
+            # 1. Threshold comparison (preserve NaNs)
+            if cfg["threshold_direction"] == "above":
+                mask = (da > cfg["threshold_value"]).where(~da.isnull())
+            else:
+                mask = (da < cfg["threshold_value"]).where(~da.isnull())
+
+            # 2. Optional consecutive-timestep filter (rolling min)
+            #    e.g. duration=(3, "day") requires 3 consecutive exceedances
+            if cfg["duration"] is not UNSET:
+                n, _ = cfg["duration"]
+                mask = mask.rolling(time=n, min_periods=n).min("time")
+
+            # 3. Count exceedances per period
+            n_period, unit = cfg["period"]
+            # Map unit names to pandas offset aliases (use non-deprecated forms)
+            _unit_to_freq = {
+                "year": "YE",
+                "month": "ME",
+                "day": "D",
+                "hour": "h",
+            }
+            freq_code = _unit_to_freq.get(unit.lower(), unit[0].upper())
+            freq = f"{n_period}{freq_code}"  # e.g. (1, "year") → "1YE"
+            return mask.resample(time=freq).sum()
+
+        if isinstance(data, xr.DataArray):
+            return xr.Dataset({data.name or "exceedance_count": _apply(data)})
+        return xr.Dataset({var: _apply(data[var]) for var in data.data_vars})
 
     def _calculate_one_in_x_single(self, data: xr.Dataset | xr.DataArray) -> xr.Dataset:
         """
@@ -1132,13 +1226,34 @@ class MetricCalc(DataProcessor):
         # Build description based on what was calculated
         description_parts = []
 
-        if self.one_in_x_config is not UNSET:
+        if self.thresholds is not UNSET:
+            # Threshold exceedance calculations
+            cfg = self.thresholds
+            duration_str = (
+                f" with {cfg['duration'][0]} consecutive {cfg['duration'][1]}(s) required"
+                if cfg["duration"] is not UNSET
+                else ""
+            )
+            description_parts.append(
+                f"Threshold exceedance count (value={cfg['threshold_value']}, "
+                f"direction='{cfg['threshold_direction']}', "
+                f"period={cfg['period']}){duration_str} was calculated"
+            )
+            transformation_description = (
+                f"Process '{self.name}' applied to the data. "
+                f"{' and '.join(description_parts)}."
+            )
+        elif self.one_in_x_config is not UNSET:
             # 1-in-X calculations
             return_periods_str = ", ".join(map(str, self.return_periods))
             description_parts.append(
                 f"1-in-X return values for periods [{return_periods_str}] were "
                 f"calculated using {self.distribution} distribution with "
                 f"{self.extremes_type} extremes over {self.event_duration[0]} {self.event_duration[1]} events"
+            )
+            transformation_description = (
+                f"Process '{self.name}' applied to the data. "
+                f"{' and '.join(description_parts)}."
             )
         else:
             # Regular metric calculations
@@ -1150,12 +1265,6 @@ class MetricCalc(DataProcessor):
             if not self.percentiles_only:
                 description_parts.append(f"Metric '{self.metric}' was calculated")
 
-        if self.one_in_x_config is not UNSET:
-            transformation_description = (
-                f"Process '{self.name}' applied to the data. "
-                f"{' and '.join(description_parts)}."
-            )
-        else:
             transformation_description = (
                 f"Process '{self.name}' applied to the data. "
                 f"{' and '.join(description_parts)} along dimension(s): {self.dim}."
