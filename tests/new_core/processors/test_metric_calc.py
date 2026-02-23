@@ -425,14 +425,18 @@ class TestMetricCalcThresholds:
         # Set 3 exceedances in 2020 and 2 in 2021
         values[:3] = 100.0
         values[366:368] = 100.0
-        return xr.DataArray(values, dims=["time"], coords={"time": dates}, name="tasmax")
+        return xr.DataArray(
+            values, dims=["time"], coords={"time": dates}, name="tasmax"
+        )
 
     @pytest.fixture
     def single_year_da(self):
         """DataArray with 10 daily values in a single year for simple counting."""
         dates = pd.date_range("2020-01-01", periods=10, freq="D")
         values = np.arange(10, dtype=float)  # 0, 1, ..., 9
-        return xr.DataArray(values, dims=["time"], coords={"time": dates}, name="tasmax")
+        return xr.DataArray(
+            values, dims=["time"], coords={"time": dates}, name="tasmax"
+        )
 
     # ------------------------------------------------------------------
     # Init / validation tests
@@ -468,7 +472,12 @@ class TestMetricCalcThresholds:
         """Invalid threshold_direction should raise ValueError."""
         with pytest.raises(ValueError, match="threshold_direction"):
             MetricCalc(
-                {"thresholds": {"threshold_value": 5.0, "threshold_direction": "sideways"}}
+                {
+                    "thresholds": {
+                        "threshold_value": 5.0,
+                        "threshold_direction": "sideways",
+                    }
+                }
             )
 
     def test_both_thresholds_and_one_in_x_raises(self):
