@@ -94,58 +94,74 @@ class ConvertToLocalTime(DataProcessor):
             self.value,
             type(result).__name__,
         )
-
-        # Route to appropriate conversion method based on catalog
-        # Check context for catalog type (more reliable than catalog object attribute)
-        catalog_type = context.get("catalog", context.get("_catalog_key"))
-        if catalog_type == "hdp":
-            func = self._convert_to_local_time_hdp
-        else:
-            func = self._convert_to_local_time_gridded
-
-        match result:
-            case dict():  # most likely case at top
-                subset_data = {}
-                for key, value in result.items():
-                    subset_data[key] = func(value)
-                self.update_context(context)
-                if self.success:
-                    msg = (
-                        "Converted time to local time for %d data entries",
-                        len(subset_data),
-                    )
+        match self.value:
+            case "yes":
+                # Route to appropriate conversion method based on catalog
+                # Check context for catalog type (more reliable than catalog object attribute)
+                catalog_type = context.get("catalog", context.get("_catalog_key"))
+                if catalog_type == "hdp":
+                    func = self._convert_to_local_time_hdp
                 else:
-                    msg = "Could not convert time to local time for all entries."
-                logger.info(*msg)
-                return subset_data
+                    func = self._convert_to_local_time_gridded
 
-            case xr.DataArray() | xr.Dataset():
-                self.update_context(context)
-                if self.success:
-                    msg = "Converted time to local time."
-                else:
-                    msg = "Could not convert time to local time for all entries."
-                logger.info(*msg)
-                return func(result)
+                match result:
+                    case dict():  # most likely case at top
+                        subset_data = {}
+                        for key, value in result.items():
+                            subset_data[key] = func(value)
+                        self.update_context(context)
+                        if self.success:
+                            msg = (
+                                "Converted time to local time for %d data entries",
+                                len(subset_data),
+                            )
+                        else:
+                            msg = (
+                                "Could not convert time to local time for all entries."
+                            )
+                        logger.info(*msg)
+                        return subset_data
 
-            case list() | tuple():
-                subset_data = []
-                for value in result:
-                    subset_data.append(func(value))
-                # return as the same type as the input
-                self.update_context(context)
-                if self.success:
-                    msg = (
-                        "Converted time to local time for %d data entries",
-                        len(subset_data),
-                    )
-                else:
-                    msg = "Could not convert time to local time for all entries."
-                logger.info(*msg)
-                return type(result)(subset_data)
+                    case xr.DataArray() | xr.Dataset():
+                        self.update_context(context)
+                        data = func(result)
+                        if self.success:
+                            msg = "Converted time to local time."
+                        else:
+                            msg = (
+                                "Could not convert time to local time for all entries."
+                            )
+                        logger.info(msg)
+                        return data
+
+                    case list() | tuple():
+                        subset_data = []
+                        for value in result:
+                            subset_data.append(func(value))
+                        # return as the same type as the input
+                        self.update_context(context)
+                        if self.success:
+                            msg = (
+                                "Converted time to local time for %d data entries",
+                                len(subset_data),
+                            )
+                        else:
+                            msg = (
+                                "Could not convert time to local time for all entries."
+                            )
+                        logger.info(*msg)
+                        return type(result)(subset_data)
+                    case _:
+                        msg = f"Invalid data type for subsetting. Expected xr.Dataset, dict, list, or tuple but got {type(result)}."
+                        logger.warning(msg)
+            case "no":
+                # Do nothing if processor value is "no" (default value).
+                pass
             case _:
-                msg = f"Invalid data type for subsetting. Expected xr.Dataset, dict, list, or tuple but got {type(result)}."
-                logger.warning(msg)
+                raise ValueError(
+                    f"Invalid value for {self.name} processor: {self.value}. "
+                    f"Valid values are: {', '.join(self.valid_values)}."
+                )
 
     def update_context(self, context: Dict[str, Any]):
         """
@@ -292,7 +308,6 @@ class ConvertToLocalTime(DataProcessor):
                 variables = list(obj.keys())
                 for variable in variables:
                     obj[variable] = obj[variable].assign_attrs({"timezone": local_tz})
-            # TODO: logger
             case _:
                 logger.warning(
                     f"Invalid data type {type(obj)}. Could not set timezone attribute."
