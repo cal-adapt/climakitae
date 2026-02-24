@@ -7,6 +7,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
@@ -18,16 +19,21 @@ logger = logging.getLogger(__name__)
 
 @register_processor_validator("convert_to_local_time")
 def validate_convert_to_local_time_param(
-    value: str, **kwargs: Any
+    value: Dict[str, Any], **kwargs: Any
 ) -> bool:  # noqa: ARG001
     """Validate the parameters provided to the ConvertToLocalTime Processor.
 
     Parameters
     ----------
-    value : str
-        The value to control leap day dropping behavior. Supported values:
-        "yes": Convert time to local time
-        "no" (default): Keep original timezone
+    value : Union[str, list, dict[str, Any]]
+        The configuration dictionary to validate. Expected keys:
+        - convert : str
+            The value to control leap day dropping behavior. Supported values:
+            "yes": Convert time to local time
+            "no" (default): Keep original timezone
+        - drop_duplicate_times : str
+            Set to "yes" to drop duplicate time stamps from daylight savings time.
+            Default value is "no".
 
     Returns
     -------
@@ -38,22 +44,23 @@ def validate_convert_to_local_time_param(
     # Module logger
     logger = logging.getLogger(__name__)
 
-    if not isinstance(value, str):
-        msg = (
-            "\nConvertToLocalTime Processor expects a string value. "
-            "\nPlease check the configuration."
-        )
-        logger.warning(msg)
-        return False
-
     valid_values = ["yes", "no"]
 
-    if value not in valid_values:
-        msg = (
-            f"\n\nInvalid value '{value}' for ConvertToLocalTime Processor. "
-            f"\nSupported values are: {valid_values}"
-        )
-        logger.warning(msg)
-        return False
+    for setting in value:
+        if not isinstance(value[setting], str):
+            msg = (
+                "\nConvertToLocalTime Processor expects string values. "
+                "\nPlease check the configuration."
+            )
+            logger.warning(msg)
+            return False
+
+        if value[setting] not in valid_values:
+            msg = (
+                f"\n\nInvalid value '{value}' for ConvertToLocalTime Processor '{setting}' setting. "
+                f"\nSupported values are: {valid_values}"
+            )
+            logger.warning(msg)
+            return False
 
     return True  # All parameters are valid

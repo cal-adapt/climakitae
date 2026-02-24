@@ -30,9 +30,13 @@ class ConvertToLocalTime(DataProcessor):
 
     Parameters
     ----------
-    value : tuple(date-like, date-like)
-        The value to subset the data by. This should be a tuple of two
-        date-like values.
+    value : Union[str, list, dict[str, Any]]
+        The configuration dictionary. Expected keys:
+        - convert : str
+            The value to subset the data by.
+        - drop_duplicate_times : str
+            Controls whether to remove duplicate timestamps (usually
+            caused by daylight savings time).
 
     Methods
     -------
@@ -48,7 +52,7 @@ class ConvertToLocalTime(DataProcessor):
     By default, this process is set to "no" and data is returned in UTC time.
     """
 
-    def __init__(self, value: str = "no"):
+    def __init__(self, value: Dict[str, Any]):
         """Initialize the processor.
 
         Parameters
@@ -58,7 +62,8 @@ class ConvertToLocalTime(DataProcessor):
 
         """
         self.valid_values = ["yes", "no"]
-        self.value = value
+        self.value = value.get("convert", "no")
+        self.drop_duplicates = value.get("drop_duplicate_times", "no")
         self.name = "convert_to_local_time"
         self.timezone = "None"
         self.catalog: Union[DataCatalog, object] = UNSET
@@ -296,6 +301,10 @@ class ConvertToLocalTime(DataProcessor):
             .astype("datetime64[ns]")
         )
         obj["time"] = new_time
+        # Drop duplicate timestamps due to daylight savings time start
+        # in some timezones.
+        if self.drop_duplicates == "yes":
+            obj = obj.drop_duplicates("time")
 
         logger.debug(f"Data converted to {local_tz} timezone.")
         self.timezone = local_tz

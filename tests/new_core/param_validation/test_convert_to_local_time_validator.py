@@ -41,7 +41,9 @@ class TestValidateConvertToLocalTimeParam:
         Tests validation with supported string values "yes" and "no".
         Both should return True.
         """
-        result = validate_convert_to_local_time_param(value)
+        result = validate_convert_to_local_time_param(
+            {"convert": value, "drop_duplicate_times": value}
+        )
         assert result == expected
 
     @pytest.mark.parametrize(
@@ -81,7 +83,7 @@ class TestValidateConvertToLocalTimeParam:
         """
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            result = validate_convert_to_local_time_param(value)
+            result = validate_convert_to_local_time_param({"convert": value})
 
             assert result is False
             assert len(w) == 1
@@ -120,11 +122,11 @@ class TestValidateConvertToLocalTimeParam:
         """
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            result = validate_convert_to_local_time_param(input_value)
+            result = validate_convert_to_local_time_param({"convert": input_value})
 
             assert result is False
             assert len(w) == 1
-            assert "ConvertToLocalTime Processor expects a string value" in str(
+            assert "ConvertToLocalTime Processor expects string values" in str(
                 w[0].message
             )
             assert "Please check the configuration" in str(w[0].message)

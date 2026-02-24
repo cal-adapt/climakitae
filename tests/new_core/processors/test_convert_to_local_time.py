@@ -18,7 +18,13 @@ from climakitae.new_core.processors.convert_to_local_time import ConvertToLocalT
 @pytest.fixture
 def processor():
     """Fixture to create a ConvertToLocalTime processor instance."""
-    yield ConvertToLocalTime(value="yes")
+    yield ConvertToLocalTime(value={"convert": "yes", "drop_duplicate_times": "no"})
+
+
+@pytest.fixture
+def processor_drop_duplicate_times():
+    """Fixture to create a ConvertToLocalTime processor instance."""
+    yield ConvertToLocalTime(value={"convert": "yes", "drop_duplicate_times": "yes"})
 
 
 @pytest.fixture
@@ -29,6 +35,21 @@ def test_dataarray():
         dims=["time", "lat", "lon"],
         coords={
             "time": pd.date_range("2000-01-01 00", "2000-01-01 23", freq="1h"),
+            "lat": [35],
+            "lon": [-119],
+        },
+    )
+    yield dataarray
+
+
+@pytest.fixture
+def test_dataarray_daylight_savings():
+    """Fixture to create a sample xarray.DataArray for testing."""
+    dataarray = xr.DataArray(
+        data=np.ones((48, 1, 1)),
+        dims=["time", "lat", "lon"],
+        coords={
+            "time": pd.date_range("2015-10-31 00", "2015-11-01 23", freq="1h"),
             "lat": [35],
             "lon": [-119],
         },
@@ -90,7 +111,7 @@ class TestConvertToLocalTimeInit:
 
     def test_init(self):
         """Test initialization of ConvertToLocalTime processor."""
-        processor = ConvertToLocalTime(value="yes")
+        processor = ConvertToLocalTime(value={"convert": "yes"})
         assert processor.value[0] == "y"
         assert processor.name == "convert_to_local_time"
 
@@ -184,3 +205,16 @@ class TestConvertToLocalTimeExecute:
         result = processor.execute(test_daily, context={})
         assert "timezone" not in result.attrs
         assert (result.time == test_daily.time).all()
+
+    def test_convert_to_local_time_drop_duplicate_times(
+        self,
+        processor_drop_duplicate_times: ConvertToLocalTime,
+        test_dataarray_daylight_savings: xr.DataArray,
+    ) -> None:
+        """Test converting an xarray.DataArray."""
+        result = processor_drop_duplicate_times.execute(
+            test_dataarray_daylight_savings, context={}
+        )
+        assert result.attrs["timezone"] == "America/Los_Angeles"
+        # daylight savings should be dropped by this processor
+        assert len(result.time) == 47
