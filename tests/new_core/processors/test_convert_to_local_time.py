@@ -22,6 +22,12 @@ def processor():
 
 
 @pytest.fixture
+def processor_no_convert():
+    """Fixture to create a ConvertToLocalTime processor instance."""
+    yield ConvertToLocalTime(value={"convert": "no"})
+
+
+@pytest.fixture
 def processor_drop_duplicate_times():
     """Fixture to create a ConvertToLocalTime processor instance."""
     yield ConvertToLocalTime(value={"convert": "yes", "drop_duplicate_times": "yes"})
@@ -211,10 +217,20 @@ class TestConvertToLocalTimeExecute:
         processor_drop_duplicate_times: ConvertToLocalTime,
         test_dataarray_daylight_savings: xr.DataArray,
     ) -> None:
-        """Test converting an xarray.DataArray."""
+        """Test drop_duplicate_times option."""
         result = processor_drop_duplicate_times.execute(
             test_dataarray_daylight_savings, context={}
         )
         assert result.attrs["timezone"] == "America/Los_Angeles"
         # daylight savings should be dropped by this processor
         assert len(result.time) == 47
+
+    def test_convert_to_local_time_no_conversion(
+        self,
+        processor_no_convert: ConvertToLocalTime,
+        test_dataarray: xr.DataArray,
+    ) -> None:
+        """Test that no time conversion happens when convert='no'."""
+        result = processor_no_convert.execute(test_dataarray, context={})
+        assert "timezone" not in result.attrs
+        assert result.time[0] == test_dataarray.time[0]
