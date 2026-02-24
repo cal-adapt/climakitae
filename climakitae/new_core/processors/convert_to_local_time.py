@@ -156,7 +156,7 @@ class ConvertToLocalTime(DataProcessor):
                         logger.warning(msg)
             case "no":
                 # Do nothing if processor value is "no" (default value).
-                pass
+                return result
             case _:
                 raise ValueError(
                     f"Invalid value for {self.name} processor: {self.value}. "
