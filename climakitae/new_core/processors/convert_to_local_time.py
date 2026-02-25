@@ -341,6 +341,7 @@ class ConvertToLocalTime(DataProcessor):
         self.timezone = local_tz
 
         if self.reindex_time_axis == "yes":
+            logger.debug(f"Begin reindexing time.")
             # Drop duplicate timestamps due to daylight savings time start
             # in some timezones.
             obj_updated_times = obj.drop_duplicates("time", keep="first")
@@ -369,9 +370,10 @@ class ConvertToLocalTime(DataProcessor):
                 else:
                     obj_time_type = type(obj_updated_times.time.data[0])
                     new_times = [obj_time_type(t) for t in new_times]
+                # Create axis with missing times included
                 new_time_axis = np.concat((obj_updated_times.time.data, new_times))
                 new_time_axis.sort()
-                # Add missing times to axis in our object with NaN fill
+                # Add new time axis to our object
                 obj_updated_times = obj_updated_times.reindex(
                     time=new_time_axis, fill_value=np.nan
                 ).sortby("time")
