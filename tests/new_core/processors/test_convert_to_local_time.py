@@ -18,7 +18,7 @@ from climakitae.new_core.processors.convert_to_local_time import ConvertToLocalT
 @pytest.fixture
 def processor():
     """Fixture to create a ConvertToLocalTime processor instance."""
-    yield ConvertToLocalTime(value={"convert": "yes", "drop_duplicate_times": "no"})
+    yield ConvertToLocalTime(value={"convert": "yes", "repair_time_axis": "no"})
 
 
 @pytest.fixture
@@ -28,19 +28,19 @@ def processor_no_convert():
 
 
 @pytest.fixture
-def processor_drop_duplicate_times():
+def processor_repair_time_axis():
     """Fixture to create a ConvertToLocalTime processor instance."""
-    yield ConvertToLocalTime(value={"convert": "yes", "drop_duplicate_times": "yes"})
+    yield ConvertToLocalTime(value={"convert": "yes", "repair_time_axis": "yes"})
 
 
 @pytest.fixture
 def test_dataarray():
     """Fixture to create a sample xarray.DataArray for testing."""
     dataarray = xr.DataArray(
-        data=np.ones((24, 1, 1)),
+        data=np.ones((8784, 1, 1)),
         dims=["time", "lat", "lon"],
         coords={
-            "time": pd.date_range("2000-01-01 00", "2000-01-01 23", freq="1h"),
+            "time": pd.date_range("2000-01-01 00", "2000-12-31 23", freq="1h"),
             "lat": [35],
             "lon": [-119],
         },
@@ -212,18 +212,28 @@ class TestConvertToLocalTimeExecute:
         assert "timezone" not in result.attrs
         assert (result.time == test_daily.time).all()
 
-    def test_convert_to_local_time_drop_duplicate_times(
+    def test_convert_to_local_time_repair_time_axis(
         self,
-        processor_drop_duplicate_times: ConvertToLocalTime,
+        processor_repair_time_axis: ConvertToLocalTime,
         test_dataarray_daylight_savings: xr.DataArray,
     ) -> None:
-        """Test drop_duplicate_times option."""
-        result = processor_drop_duplicate_times.execute(
+        """Test repair_time_axis option."""
+        result = processor_repair_time_axis.execute(
             test_dataarray_daylight_savings, context={}
         )
         assert result.attrs["timezone"] == "America/Los_Angeles"
+
+        # No leap day timestamps
+        assert pd.Timestamp("2016-02-29 23") not in result.time
+
+        # Missing hour at end of daylight savings copied
+        assert pd.Timestamp("2016-03-13 02") in result.time
+        assert result.sel(time=pd.Timestamp("2016-03-13 02")) == result.sel(
+            time=pd.Timestamp("2016-03-13 01")
+        )
+
         # daylight savings should be dropped by this processor
-        assert len(result.time) == 47
+        assert len(result.time.sel(time=pd.Timestamp("2015-11-01 01"))) == 1
 
     def test_convert_to_local_time_no_conversion(
         self,

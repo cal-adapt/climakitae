@@ -31,8 +31,8 @@ def validate_convert_to_local_time_param(
             The value to control leap day dropping behavior. Supported values:
             "yes": Convert time to local time
             "no" (default): Keep original timezone
-        - drop_duplicate_times : str
-            Set to "yes" to drop duplicate time stamps from daylight savings time.
+        - repair_time_axis : str
+            Set to "yes" to fix time stamps affected by daylight savings time.
             Default value is "no".
 
     Returns

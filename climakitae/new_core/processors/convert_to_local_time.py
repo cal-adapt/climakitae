@@ -5,6 +5,7 @@ Convert time axis from UTC to local time.
 import logging
 from typing import Any, Dict, Iterable, Union
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 from timezonefinder import TimezoneFinder
@@ -34,9 +35,11 @@ class ConvertToLocalTime(DataProcessor):
         The configuration dictionary. Expected keys:
         - convert : str
             The value to subset the data by.
-        - drop_duplicate_times : str
-            Controls whether to remove duplicate timestamps (usually
-            caused by daylight savings time).
+        - repair_time_axis : str
+            Default "no". If "yes", repairs the time axis by:
+                - Removing duplicate timestamp due to daylight savings in Fall
+                - Filling missing timestamp due to daylight savings end in Spring
+                - Replacing any Feb 29 timestamps with Feb 28
 
     Methods
     -------
@@ -63,12 +66,16 @@ class ConvertToLocalTime(DataProcessor):
         """
         self.valid_values = ["yes", "no"]
         self.value = value.get("convert", "no")
-        self.drop_duplicates = value.get("drop_duplicate_times", "no")
+        self.repair_time_axis = value.get("repair_time_axis", "no")
         self.name = "convert_to_local_time"
         self.timezone = "None"
         self.catalog: Union[DataCatalog, object] = UNSET
         self.success = False
-        logger.debug("ConvertToLocalTime initialized with value=%s", self.value)
+        logger.debug(
+            "ConvertToLocalTime initialized with convert=%s, repair_time_axis=%s",
+            self.value,
+            self.repair_time_axis,
+        )
 
     def execute(
         self,
@@ -301,10 +308,46 @@ class ConvertToLocalTime(DataProcessor):
             .astype("datetime64[ns]")
         )
         obj["time"] = new_time
-        # Drop duplicate timestamps due to daylight savings time start
-        # in some timezones.
-        if self.drop_duplicates == "yes":
+
+        if self.repair_time_axis == "yes":
+            # Drop duplicate timestamps due to daylight savings time start
+            # in some timezones.
             obj = obj.drop_duplicates("time")
+
+            # Find missing day in spring due to daylight savings end
+            all_dates = pd.date_range(
+                start=obj.time.min().data.item(),
+                end=obj.time.max().data.item(),
+                freq="1h",
+            ).to_list()
+            missing_times = set(all_dates).difference(
+                [pd.Timestamp(t) for t in obj.time.data]
+            )
+            missing_times = [
+                x for x in list(missing_times) if ((x.month == 3) | (x.month == 4))
+            ]
+
+            # Expand time dim
+            new_times = np.array([np.datetime64(t) for t in missing_times])
+            new_time_axis = np.concat((obj.time, new_times))
+            new_time_axis.sort()
+            obj_updated_times = obj.reindex(
+                time=new_time_axis, fill_value=np.nan
+            ).sortby("time")
+
+            # Fill missing times with prior hour
+            times_to_copy = [x - pd.Timedelta(hours=1) for x in missing_times]
+            data_to_copy = obj.sel(time=times_to_copy)
+            data_to_copy["time"] = missing_times
+            obj_updated_times.loc[{"time": missing_times}] = data_to_copy
+            obj = obj_updated_times
+
+            # reset remaining feb 29 hours to feb 28
+            obj["time"] = xr.where(
+                (obj.time.dt.month == 2) & (obj.time.dt.day == 29),
+                pd.to_datetime(obj.time) - pd.DateOffset(days=1),
+                obj.time,
+            )
 
         logger.debug(f"Data converted to {local_tz} timezone.")
         self.timezone = local_tz

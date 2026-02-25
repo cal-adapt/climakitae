@@ -42,7 +42,7 @@ class TestValidateConvertToLocalTimeParam:
         Both should return True.
         """
         result = validate_convert_to_local_time_param(
-            {"convert": value, "drop_duplicate_times": value}
+            {"convert": value, "repair_time_axis": value}
         )
         assert result == expected
 
