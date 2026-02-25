@@ -7,10 +7,10 @@ cover various scenarios including using different data types and gridded versus
 station data.
 """
 
+import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-import numpy as np
 
 from climakitae.new_core.processors.convert_to_local_time import ConvertToLocalTime
 
@@ -37,10 +37,12 @@ def processor_reindex_time_axis():
 def test_dataarray_daylight_savings():
     """Fixture to create a sample xarray.DataArray for testing with a full year."""
     dataarray = xr.DataArray(
-        data=np.ones((8784, 1, 1)),
+        data=np.ones((8760, 1, 1)),
         dims=["time", "lat", "lon"],
         coords={
-            "time": pd.date_range("2016-01-01 00", "2016-12-31 23", freq="1h"),
+            "time": xr.date_range(
+                "2016-01-01 00", "2016-12-31 23", freq="1h", calendar="noleap"
+            ).to_datetimeindex(),
             "lat": [35],
             "lon": [-119],
         },
@@ -53,11 +55,13 @@ def test_dataset_daylight_savings():
     """Fixture to create a sample xarray.Dataset for testing with a full year."""
     dataset = xr.Dataset(
         {
-            "var1": (("time", "lat", "lon"), np.ones((8784, 1, 1))),
-            "var2": (("time", "lat", "lon"), np.ones((8784, 1, 1))),
+            "var1": (("time", "lat", "lon"), np.ones((8760, 1, 1))),
+            "var2": (("time", "lat", "lon"), np.ones((8760, 1, 1))),
         },
         coords={
-            "time": pd.date_range("2016-01-01 00", "2016-12-31 23", freq="1h"),
+            "time": xr.date_range(
+                "2016-01-01 00", "2016-12-31 23", freq="1h", calendar="noleap"
+            ).to_datetimeindex(),
             "lat": [35],
             "lon": [-119],
         },
