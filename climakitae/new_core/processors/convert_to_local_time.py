@@ -308,49 +308,62 @@ class ConvertToLocalTime(DataProcessor):
             .astype("datetime64[ns]")
         )
         obj["time"] = new_time
-
-        if self.repair_time_axis == "yes":
-            # Drop duplicate timestamps due to daylight savings time start
-            # in some timezones.
-            obj = obj.drop_duplicates("time")
-
-            # Find missing day in spring due to daylight savings end
-            all_dates = pd.date_range(
-                start=obj.time.min().data.item(),
-                end=obj.time.max().data.item(),
-                freq="1h",
-            ).to_list()
-            missing_times = set(all_dates).difference(
-                [pd.Timestamp(t) for t in obj.time.data]
-            )
-            missing_times = [
-                x for x in list(missing_times) if ((x.month == 3) | (x.month == 4))
-            ]
-
-            # Expand time dim
-            new_times = np.array([np.datetime64(t) for t in missing_times])
-            new_time_axis = np.concat((obj.time, new_times))
-            new_time_axis.sort()
-            obj_updated_times = obj.reindex(
-                time=new_time_axis, fill_value=np.nan
-            ).sortby("time")
-
-            # Fill missing times with prior hour
-            times_to_copy = [x - pd.Timedelta(hours=1) for x in missing_times]
-            data_to_copy = obj.sel(time=times_to_copy)
-            data_to_copy["time"] = missing_times
-            obj_updated_times.loc[{"time": missing_times}] = data_to_copy
-            obj = obj_updated_times
-
-            # reset remaining feb 29 hours to feb 28
-            obj["time"] = xr.where(
-                (obj.time.dt.month == 2) & (obj.time.dt.day == 29),
-                pd.to_datetime(obj.time) - pd.DateOffset(days=1),
-                obj.time,
-            )
-
         logger.debug(f"Data converted to {local_tz} timezone.")
         self.timezone = local_tz
+
+        if self.repair_time_axis == "yes":
+            try:
+                # Drop duplicate timestamps due to daylight savings time start
+                # in some timezones.
+                obj_updated_times = obj.drop_duplicates("time", keep="first")
+
+                # Find missing day in spring due to daylight savings end
+                obj_time_type = type(obj_updated_times.time.data[0])
+                all_dates = pd.date_range(
+                    start=obj_updated_times.time.min().data.item(),
+                    end=obj_updated_times.time.max().data.item(),
+                    freq="1h",
+                ).to_list()
+                # Using timestamp type to access months easily
+                missing_times = list(
+                    set(all_dates).difference(
+                        [pd.Timestamp(t) for t in obj_updated_times.time.data]
+                    )
+                )
+                new_times = [
+                    x for x in missing_times if ((x.month == 3) | (x.month == 4))
+                ]
+
+                # Expand time dim
+                if len(new_times) > 0:
+                    # Now make sure time types match between new and original times
+                    new_times = [obj_time_type(t) for t in new_times]
+                    new_time_axis = np.concat((obj_updated_times.time.data, new_times))
+                    new_time_axis.sort()
+                    # Add missing times to axis in our object
+                    obj_updated_times = obj_updated_times.reindex(
+                        time=new_time_axis, fill_value=np.nan
+                    ).sortby("time")
+                    # Fill missing times with values from prior hour
+                    times_to_copy = [x - pd.Timedelta(hours=1) for x in missing_times]
+                    data_to_copy = obj_updated_times.sel(time=times_to_copy)
+                    data_to_copy["time"] = missing_times
+                    obj_updated_times.loc[{"time": missing_times}] = data_to_copy
+
+                # reset remaining feb 29 hours to feb 28
+                obj_updated_times["time"] = xr.where(
+                    (obj_updated_times.time.dt.month == 2)
+                    & (obj_updated_times.time.dt.day == 29),
+                    pd.to_datetime(obj_updated_times.time) - pd.DateOffset(days=1),
+                    obj_updated_times.time,
+                )
+
+                obj = obj_updated_times
+                logger.debug(f"Reindexed time axis after conversion to local time.")
+            except Exception as e:
+                logger.warning(
+                    f"Could not reindex time axis after conversion to local time due to error: {e}"
+                )
 
         # Add timezone attribute to data
         match obj:
