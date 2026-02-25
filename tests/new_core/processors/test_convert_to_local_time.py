@@ -18,7 +18,7 @@ from climakitae.new_core.processors.convert_to_local_time import ConvertToLocalT
 @pytest.fixture
 def processor():
     """Fixture to create a ConvertToLocalTime processor instance."""
-    yield ConvertToLocalTime(value={"convert": "yes", "repair_time_axis": "no"})
+    yield ConvertToLocalTime(value={"convert": "yes", "reindex_time_axis": "no"})
 
 
 @pytest.fixture
@@ -28,9 +28,9 @@ def processor_no_convert():
 
 
 @pytest.fixture
-def processor_repair_time_axis():
+def processor_reindex_time_axis():
     """Fixture to create a ConvertToLocalTime processor instance."""
-    yield ConvertToLocalTime(value={"convert": "yes", "repair_time_axis": "yes"})
+    yield ConvertToLocalTime(value={"convert": "yes", "reindex_time_axis": "yes"})
 
 
 @pytest.fixture
@@ -229,13 +229,13 @@ class TestConvertToLocalTimeExecute:
         assert "timezone" not in result.attrs
         assert (result.time == test_daily.time).all()
 
-    def test_convert_to_local_time_repair_time_axis_dataarray(
+    def test_convert_to_local_time_reindex_time_axis_dataarray(
         self,
-        processor_repair_time_axis: ConvertToLocalTime,
+        processor_reindex_time_axis: ConvertToLocalTime,
         test_dataarray_daylight_savings: xr.DataArray,
     ) -> None:
-        """Test repair_time_axis option with a data array."""
-        result = processor_repair_time_axis.execute(
+        """Test reindex_time_axis option with a data array."""
+        result = processor_reindex_time_axis.execute(
             test_dataarray_daylight_savings, context={}
         )
         assert result.attrs["timezone"] == "America/Los_Angeles"
@@ -253,13 +253,13 @@ class TestConvertToLocalTimeExecute:
         # so only 1 value present
         assert result.time.sel(time=pd.Timestamp("2016-11-06 01")).shape == ()
 
-    def test_convert_to_local_time_repair_time_axis_dataset(
+    def test_convert_to_local_time_reindex_time_axis_dataset(
         self,
-        processor_repair_time_axis: ConvertToLocalTime,
+        processor_reindex_time_axis: ConvertToLocalTime,
         test_dataset_daylight_savings: xr.Dataset,
     ) -> None:
-        """Test repair_time_axis option with a dataset."""
-        result = processor_repair_time_axis.execute(
+        """Test reindex_time_axis option with a dataset."""
+        result = processor_reindex_time_axis.execute(
             test_dataset_daylight_savings, context={}
         )
         assert result["var1"].attrs["timezone"] == "America/Los_Angeles"
