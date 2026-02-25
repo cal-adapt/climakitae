@@ -34,13 +34,13 @@ def processor_repair_time_axis():
 
 
 @pytest.fixture
-def test_dataarray():
-    """Fixture to create a sample xarray.DataArray for testing."""
+def test_dataarray_daylight_savings():
+    """Fixture to create a sample xarray.DataArray for testing with a full year."""
     dataarray = xr.DataArray(
         data=np.ones((8784, 1, 1)),
         dims=["time", "lat", "lon"],
         coords={
-            "time": pd.date_range("2000-01-01 00", "2000-12-31 23", freq="1h"),
+            "time": pd.date_range("2016-01-01 00", "2016-12-31 23", freq="1h"),
             "lat": [35],
             "lon": [-119],
         },
@@ -49,13 +49,30 @@ def test_dataarray():
 
 
 @pytest.fixture
-def test_dataarray_daylight_savings():
+def test_dataset_daylight_savings():
+    """Fixture to create a sample xarray.Dataset for testing with a full year."""
+    dataset = xr.Dataset(
+        {
+            "var1": (("time", "lat", "lon"), np.ones((8784, 1, 1))),
+            "var2": (("time", "lat", "lon"), np.ones((8784, 1, 1))),
+        },
+        coords={
+            "time": pd.date_range("2016-01-01 00", "2016-12-31 23", freq="1h"),
+            "lat": [35],
+            "lon": [-119],
+        },
+    )
+    yield dataset
+
+
+@pytest.fixture
+def test_dataarray():
     """Fixture to create a sample xarray.DataArray for testing."""
     dataarray = xr.DataArray(
-        data=np.ones((48, 1, 1)),
+        data=np.ones((24, 1, 1)),
         dims=["time", "lat", "lon"],
         coords={
-            "time": pd.date_range("2015-10-31 00", "2015-11-01 23", freq="1h"),
+            "time": pd.date_range("2000-01-01 00", "2000-01-01 23", freq="1h"),
             "lat": [35],
             "lon": [-119],
         },
@@ -212,12 +229,12 @@ class TestConvertToLocalTimeExecute:
         assert "timezone" not in result.attrs
         assert (result.time == test_daily.time).all()
 
-    def test_convert_to_local_time_repair_time_axis(
+    def test_convert_to_local_time_repair_time_axis_dataarray(
         self,
         processor_repair_time_axis: ConvertToLocalTime,
         test_dataarray_daylight_savings: xr.DataArray,
     ) -> None:
-        """Test repair_time_axis option."""
+        """Test repair_time_axis option with a data array."""
         result = processor_repair_time_axis.execute(
             test_dataarray_daylight_savings, context={}
         )
@@ -232,8 +249,33 @@ class TestConvertToLocalTimeExecute:
             time=pd.Timestamp("2016-03-13 01")
         )
 
-        # daylight savings should be dropped by this processor
-        assert len(result.time.sel(time=pd.Timestamp("2015-11-01 01"))) == 1
+        # extra daylight savings timestamp should be dropped by this processor
+        # so only 1 value present
+        assert result.time.sel(time=pd.Timestamp("2016-11-06 01")).shape == ()
+
+    def test_convert_to_local_time_repair_time_axis_dataset(
+        self,
+        processor_repair_time_axis: ConvertToLocalTime,
+        test_dataset_daylight_savings: xr.Dataset,
+    ) -> None:
+        """Test repair_time_axis option with a dataset."""
+        result = processor_repair_time_axis.execute(
+            test_dataset_daylight_savings, context={}
+        )
+        assert result["var1"].attrs["timezone"] == "America/Los_Angeles"
+
+        # No leap day timestamps
+        assert pd.Timestamp("2016-02-29 23") not in result.time
+
+        # Missing hour at end of daylight savings copied
+        assert pd.Timestamp("2016-03-13 02") in result.time
+        assert result.sel(time=pd.Timestamp("2016-03-13 02")) == result.sel(
+            time=pd.Timestamp("2016-03-13 01")
+        )
+
+        # extra daylight savings timestamp should be dropped by this processor
+        # so only 1 value present
+        assert result.time.sel(time=pd.Timestamp("2016-11-06 01")).shape == ()
 
     def test_convert_to_local_time_no_conversion(
         self,
