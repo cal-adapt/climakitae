@@ -709,7 +709,7 @@ def _get_return_variable(
     multiple_points: bool = True,
     extremes_type: str = "max",
     dropna_time: bool = False,
-    sample_dim: str = "time",
+    dim_to_fit: str = "time",
 ) -> xr.Dataset:
     """Generic function used by `get_return_value`, `get_return_period`, and
     `get_return_prob`.
@@ -741,10 +741,8 @@ def _get_return_variable(
         Whether or not the data contains multiple points (has x, y dimensions)
     dropna_time: boolean
         Whether to drop NaNs along the time axis
-    sample_dim : str
-        Name of the dimension to treat as the sample axis for distribution
-        fitting. Defaults to "time". Use this when dimensions have been stacked
-        into a single pooled dimension (e.g. sim=("time", "simulation")).
+    dim_to_fit : str
+        Name of the dimension that the distribution is going to be fit on.
 
     Returns
     -------
@@ -785,7 +783,7 @@ def _get_return_variable(
                 "Dropping NaNs along time dimension for the following dimensions combinations:\n"
             )
             all_dims_to_drop = vals_to_drop.unstack().isel(
-                {sample_dim: 0}
+                {dim_to_fit: 0}
             )  # Selecting index 0 because we DON'T want the sample dimension being printed out as well
             dim_vals = [
                 all_dims_to_drop[dim].values.tolist() for dim in all_dims_to_drop.dims
@@ -844,8 +842,8 @@ def _get_return_variable(
     return_variable, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
         _return_variable,
         bms,
-        input_core_dims=[[sample_dim]],
-        exclude_dims=set((sample_dim,)),
+        input_core_dims=[[dim_to_fit]],
+        exclude_dims=set((dim_to_fit,)),
         vectorize=True,
         output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"]],
     )
@@ -913,7 +911,7 @@ def get_return_value(
     multiple_points: bool = True,
     extremes_type: str = "max",
     dropna_time: bool = False,
-    sample_dim: str = "time",
+    dim_to_fit: str = "time",
 ) -> xr.Dataset:
     """Creates xarray Dataset with return values and confidence intervals from maximum series.
 
@@ -935,10 +933,8 @@ def get_return_value(
         Whether or not the data contains multiple points (has x, y dimensions)
     dropna_time: boolean
         Whether to drop NaNs along the time axis
-    sample_dim : str
-        Name of the dimension to treat as the sample axis for distribution
-        fitting. Defaults to "time". Use this when dimensions have been stacked
-        into a single pooled dimension (e.g. sim=("time", "simulation")).
+    dim_to_fit : str
+        Name of the dimension that the distribution is going to be fit on.
 
     Returns
     -------
@@ -957,7 +953,7 @@ def get_return_value(
         multiple_points,
         extremes_type,
         dropna_time,
-        sample_dim,
+        dim_to_fit,
     )
 
 
@@ -971,7 +967,7 @@ def get_return_prob(
     multiple_points: bool = True,
     extremes_type: str = "max",
     dropna_time: bool = False,
-    sample_dim: str = "time",
+    dim_to_fit: str = "time",
 ) -> xr.Dataset:
     """Creates xarray Dataset with return probabilities and confidence intervals from maximum series.
 
@@ -993,10 +989,8 @@ def get_return_prob(
         Whether or not the data contains multiple points (has x, y dimensions)
     dropna_time: boolean
         Whether to drop NaNs along the time axis
-    sample_dim : str
-        Name of the dimension to treat as the sample axis for distribution
-        fitting. Defaults to "time". Use this when dimensions have been stacked
-        into a single pooled dimension (e.g. sim=("time", "simulation")).
+    dim_to_fit : str
+        Name of the dimension that the distribution is going to be fit on.
 
     Returns
     -------
@@ -1015,7 +1009,7 @@ def get_return_prob(
         multiple_points,
         extremes_type,
         dropna_time=dropna_time,
-        sample_dim=sample_dim,
+        dim_to_fit=dim_to_fit,
     )
 
 
@@ -1028,7 +1022,7 @@ def get_return_period(
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
     dropna_time: bool = False,
-    sample_dim: str = "time",
+    dim_to_fit: str = "time",
 ) -> xr.Dataset:
     """Creates xarray Dataset with return periods and confidence intervals from maximum series.
 
@@ -1050,10 +1044,8 @@ def get_return_period(
         Whether or not the data contains multiple points (has x, y dimensions)
     dropna_time: boolean
         Whether to drop NaNs along the time axis
-    sample_dim : str
-        Name of the dimension to treat as the sample axis for distribution
-        fitting. Defaults to "time". Use this when dimensions have been stacked
-        into a single pooled dimension (e.g. sim=("time", "simulation")).
+    dim_to_fit : str
+        Name of the dimension that the distribution is going to be fit on.
 
     Returns
     -------
@@ -1071,7 +1063,7 @@ def get_return_period(
         conf_int_upper_bound,
         multiple_points,
         dropna_time=dropna_time,
-        sample_dim=sample_dim,
+        dim_to_fit=dim_to_fit,
     )
 
 
