@@ -172,11 +172,24 @@ class DataCatalog(dict):
                 DATA_CATALOG_URL, registry=self._derived_registry
             )
             self[CATALOG_BOUNDARY] = intake.open_catalog(BOUNDARY_CATALOG_URL)
-            self[CATALOG_REN_ENERGY_GEN] = intake.open_esm_datastore(
-                RENEWABLES_CATALOG_URL, registry=self._derived_registry
-            )
+            try:
+                self[CATALOG_REN_ENERGY_GEN] = intake.open_esm_datastore(
+                    RENEWABLES_CATALOG_URL, registry=self._derived_registry
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to load renewables catalog: %s. Renewables data will be unavailable.",
+                    e,
+                )
+                self[CATALOG_REN_ENERGY_GEN] = None
             # HDP catalog has different schema - no derived variable support
-            self[CATALOG_HDP] = intake.open_esm_datastore(HDP_CATALOG_URL)
+            try:
+                self[CATALOG_HDP] = intake.open_esm_datastore(HDP_CATALOG_URL)
+            except Exception as e:
+                logger.warning(
+                    "Failed to load HDP catalog: %s. HDP data will be unavailable.", e
+                )
+                self[CATALOG_HDP] = None
 
             self.catalog_df = self.merge_catalogs()
             stations_df = read_csv_file(STATIONS_CSV_PATH)
@@ -230,7 +243,12 @@ class DataCatalog(dict):
             The renewables data catalog.
 
         """
-        return self[CATALOG_REN_ENERGY_GEN]
+        catalog = self[CATALOG_REN_ENERGY_GEN]
+        if catalog is None:
+            raise RuntimeError(
+                "Renewables catalog failed to load during initialization and is unavailable."
+            )
+        return catalog
 
     @property
     def hdp(self) -> intake_esm.core.esm_datastore:
@@ -242,7 +260,12 @@ class DataCatalog(dict):
             The histwxstns data catalog.
 
         """
-        return self[CATALOG_HDP]
+        catalog = self[CATALOG_HDP]
+        if catalog is None:
+            raise RuntimeError(
+                "HDP catalog failed to load during initialization and is unavailable."
+            )
+        return catalog
 
     @property
     def boundaries(self) -> Boundaries:
@@ -299,15 +322,20 @@ class DataCatalog(dict):
             additional 'catalog' column identifying the source catalog.
 
         """
-        ren_df = self.renewables.df
         data_df = self.data.df
-        hdp_df = self.hdp.df
-
-        ren_df["catalog"] = CATALOG_REN_ENERGY_GEN
         data_df["catalog"] = CATALOG_CADCAT
-        hdp_df["catalog"] = CATALOG_HDP
 
-        ret = pd.concat([ren_df, data_df, hdp_df], ignore_index=True)
+        dfs = [data_df]
+        if self[CATALOG_REN_ENERGY_GEN] is not None:
+            ren_df = self.renewables.df
+            ren_df["catalog"] = CATALOG_REN_ENERGY_GEN
+            dfs.append(ren_df)
+        if self[CATALOG_HDP] is not None:
+            hdp_df = self.hdp.df
+            hdp_df["catalog"] = CATALOG_HDP
+            dfs.append(hdp_df)
+
+        ret = pd.concat(dfs, ignore_index=True)
 
         return ret
 
