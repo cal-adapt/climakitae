@@ -124,6 +124,21 @@ pip install pytest-cov
 pytest --cov=climakitae --cov-report=html
 ```
 
+### Code Formatting (pre-commit hook)
+
+This repo uses [Black](https://github.com/psf/black) for code formatting. To ensure your commits are formatted consistently with CI, install the pre-commit hook:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+Black will now run automatically on every commit. To run it manually:
+
+```bash
+pre-commit run black --all-files
+```
+
 ## Contributing
 
 We welcome contributions! Please see our [contributing guidelines](https://climakitae.readthedocs.io/en/latest/contribute.html) for details on:
@@ -147,8 +162,7 @@ git checkout -b feature/your-feature-name
 
 # Run tests and linting
 pytest
-black climakitae/
-isort climakitae/
+pre-commit run black --all-files
 
 # Submit a pull request
 ```
