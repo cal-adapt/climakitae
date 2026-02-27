@@ -259,3 +259,149 @@ def test_block_maxima_value_error(T2_hourly: xr.DataArray):
             grouped_duration=(3, "day"),
             check_ess=False,
         )
+
+    with pytest.raises(ValueError, match="invalid rolling_agg"):
+        _ = threshold_tools.get_block_maxima(
+            T2_hourly, rolling_agg="sum", check_ess=False
+        )
+
+
+class TestGetBlockMaximaRollingAgg:
+    """Tests for the rolling_agg parameter of get_block_maxima.
+
+    Covers all three valid modes ('sustained', 'cumulative', 'average') across
+    the duration and groupby/grouped_duration parameter combinations.
+
+    Value-comparison tests rely on the hourly temperature fixture (~300 K).
+    With groupby=(1, 'day'):
+      - 'cumulative' sums 24 hourly values  → daily total ≈ 7 200 K
+      - 'average'    averages 24 hourly values → daily mean ≈ 300 K
+      - 'sustained'  takes the daily max       → daily max  ≈ 305 K
+    After a 3-day grouped_duration window, cumulative AMS >> average AMS,
+    so the ordering is guaranteed regardless of natural variability in the data.
+    """
+
+    def test_rolling_agg_cumulative_shape(self, T2_hourly: xr.DataArray):
+        """rolling_agg='cumulative' returns a DataArray with one value per year."""
+        da = T2_hourly.isel(scenario=0, simulation=0)
+        ams = threshold_tools.get_block_maxima(
+            da,
+            groupby=(1, "day"),
+            grouped_duration=(3, "day"),
+            check_ess=False,
+            rolling_agg="cumulative",
+        )
+        assert isinstance(ams, xr.DataArray)
+        assert "time" in ams.dims
+        assert len(ams.time) == len(
+            np.unique(da.time.dt.year.values)
+        )  # one block per year
+
+    def test_rolling_agg_average_shape(self, T2_hourly: xr.DataArray):
+        """rolling_agg='average' returns a DataArray with one value per year."""
+        da = T2_hourly.isel(scenario=0, simulation=0)
+        ams = threshold_tools.get_block_maxima(
+            da,
+            groupby=(1, "day"),
+            grouped_duration=(3, "day"),
+            check_ess=False,
+            rolling_agg="average",
+        )
+        assert isinstance(ams, xr.DataArray)
+        assert "time" in ams.dims
+
+    def test_rolling_agg_sustained_shape(self, T2_hourly: xr.DataArray):
+        """rolling_agg='sustained' (explicit) returns a DataArray matching existing behavior."""
+        da = T2_hourly.isel(scenario=0, simulation=0)
+        ams_default = threshold_tools.get_block_maxima(
+            da, groupby=(1, "day"), grouped_duration=(3, "day"), check_ess=False
+        )
+        ams_explicit = threshold_tools.get_block_maxima(
+            da,
+            groupby=(1, "day"),
+            grouped_duration=(3, "day"),
+            check_ess=False,
+            rolling_agg="sustained",
+        )
+        xr.testing.assert_equal(ams_default, ams_explicit)
+
+    @pytest.mark.advanced
+    def test_rolling_agg_cumulative_exceeds_average(self, T2_hourly: xr.DataArray):
+        """Cumulative groupby AMS is larger than average groupby AMS.
+
+        With groupby=(1, 'day'), cumulative sums 24 hourly values while average
+        takes the mean of 24 values, so cumulative = 24 * average per day.
+        After a 3-day grouped_duration the ratio is 72x, making the inequality strict.
+        """
+        da = T2_hourly.isel(scenario=0, simulation=0)
+        ams_cumulative = threshold_tools.get_block_maxima(
+            da,
+            groupby=(1, "day"),
+            grouped_duration=(3, "day"),
+            check_ess=False,
+            rolling_agg="cumulative",
+        )
+        ams_average = threshold_tools.get_block_maxima(
+            da,
+            groupby=(1, "day"),
+            grouped_duration=(3, "day"),
+            check_ess=False,
+            rolling_agg="average",
+        )
+        assert (ams_cumulative > ams_average).all()
+
+    @pytest.mark.advanced
+    def test_rolling_agg_cumulative_exceeds_sustained(self, T2_hourly: xr.DataArray):
+        """Cumulative daily-sum AMS is larger than sustained daily-max AMS.
+
+        The daily sum (~7 200 K) is much larger than the daily maximum (~305 K),
+        so the cumulative 3-day total AMS will always exceed the sustained AMS.
+        """
+        da = T2_hourly.isel(scenario=0, simulation=0)
+        ams_cumulative = threshold_tools.get_block_maxima(
+            da,
+            groupby=(1, "day"),
+            grouped_duration=(3, "day"),
+            check_ess=False,
+            rolling_agg="cumulative",
+        )
+        ams_sustained = threshold_tools.get_block_maxima(
+            da,
+            groupby=(1, "day"),
+            grouped_duration=(3, "day"),
+            check_ess=False,
+            rolling_agg="sustained",
+        )
+        assert (ams_cumulative > ams_sustained).all()
+
+    @pytest.mark.advanced
+    def test_rolling_agg_cumulative_with_duration(self, T2_hourly: xr.DataArray):
+        """rolling_agg='cumulative' with duration returns larger AMS than 'sustained'.
+
+        A 4-hour rolling sum (~1 200 K) is much larger than a 4-hour rolling
+        minimum (~295 K), so the inequality is guaranteed.
+        """
+        da = T2_hourly.isel(scenario=0, simulation=0)
+        ams_cumulative = threshold_tools.get_block_maxima(
+            da, duration=(4, "hour"), check_ess=False, rolling_agg="cumulative"
+        )
+        ams_sustained = threshold_tools.get_block_maxima(
+            da, duration=(4, "hour"), check_ess=False, rolling_agg="sustained"
+        )
+        assert (ams_cumulative > ams_sustained).all()
+
+    @pytest.mark.advanced
+    def test_rolling_agg_average_with_duration(self, T2_hourly: xr.DataArray):
+        """rolling_agg='average' with duration returns larger AMS than 'sustained'.
+
+        A 4-hour rolling mean (~300 K) is larger than a 4-hour rolling
+        minimum (~295 K) for temperature data, so the inequality holds.
+        """
+        da = T2_hourly.isel(scenario=0, simulation=0)
+        ams_average = threshold_tools.get_block_maxima(
+            da, duration=(4, "hour"), check_ess=False, rolling_agg="average"
+        )
+        ams_sustained = threshold_tools.get_block_maxima(
+            da, duration=(4, "hour"), check_ess=False, rolling_agg="sustained"
+        )
+        assert (ams_average >= ams_sustained).all()

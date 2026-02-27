@@ -142,7 +142,7 @@ def T2_hourly(rootdir):
     """Small hourly temperature data set"""
     test_filename = "test_data/threshold_data_T2_2050_2051_hourly_45km.nc"
     test_filepath = os.path.join(rootdir, test_filename)
-    da = xr.open_dataset(test_filepath)["Air Temperature at 2m"]
+    da = xr.open_dataset(test_filepath)["Air Temperature at 2m"].load()
     da.attrs["frequency"] = "hourly"
     return da
 
@@ -170,7 +170,7 @@ def test_dataarray_time_2030_2035_loca_3km_daily_temp(rootdir):
     """Read in test dataset using xarray."""
     filename = "test_data/test_dataarray_time_2030_2035_loca_3km_daily_temp.nc"
     filepath = os.path.join(rootdir, filename)
-    da = xr.open_dataarray(filepath)
+    da = xr.open_dataarray(filepath).load()
     return da
 
 
@@ -179,7 +179,7 @@ def test_dataarray_time_2030_2035_wrf_3km_hourly_temp(rootdir):
     """Read in test dataset using xarray."""
     filename = "test_data/test_dataarray_time_2030_2035_wrf_3km_hourly_temp.nc"
     filepath = os.path.join(rootdir, filename)
-    da = xr.open_dataarray(filepath)
+    da = xr.open_dataarray(filepath).load()
     return da
 
 
@@ -188,7 +188,7 @@ def test_dataarray_wl_20_all_season_loca_3km_daily_temp(rootdir):
     """Read in test dataset using xarray."""
     filename = "test_data/test_dataarray_wl_20_all_season_loca_3km_daily_temp.nc"
     filepath = os.path.join(rootdir, filename)
-    da = xr.open_dataarray(filepath)
+    da = xr.open_dataarray(filepath).load()
     # Fill NaNs with 0 to ensure valid data for testing
     if da.isnull().all():
         da = da.fillna(0)
@@ -200,7 +200,7 @@ def test_dataarray_wl_20_all_season_wrf_3km_hourly_temp(rootdir):
     """Read in test dataset using xarray."""
     filename = "test_data/test_dataarray_wl_20_all_season_wrf_3km_hourly_temp.nc"
     filepath = os.path.join(rootdir, filename)
-    da = xr.open_dataarray(filepath)
+    da = xr.open_dataarray(filepath).load()
     return da
 
 
@@ -209,7 +209,7 @@ def test_dataarray_wl_20_summer_season_loca_3km_daily_temp(rootdir):
     """Read in test dataset using xarray."""
     filename = "test_data/test_dataarray_wl_20_summer_season_loca_3km_daily_temp.nc"
     filepath = os.path.join(rootdir, filename)
-    da = xr.open_dataarray(filepath)
+    da = xr.open_dataarray(filepath).load()
     return da
 
 
@@ -218,7 +218,7 @@ def test_dataarray_time_2030_2035_wrf_3km_hourly_prec(rootdir):
     """Read in test dataset using xarray."""
     filename = "test_data/test_dataarray_time_2030_2035_wrf_3km_hourly_prec.nc"
     filepath = os.path.join(rootdir, filename)
-    da = xr.open_dataarray(filepath)
+    da = xr.open_dataarray(filepath).load()
     return da
 
 
@@ -227,7 +227,7 @@ def test_dataarray_time_2030_2035_wrf_3km_hourly_heat_index(rootdir):
     """Read in test dataset using xarray."""
     filename = "test_data/test_dataarray_time_2030_2035_wrf_3km_hourly_heat_index.nc"
     filepath = os.path.join(rootdir, filename)
-    da = xr.open_dataarray(filepath)
+    da = xr.open_dataarray(filepath).load()
     return da
 
 
@@ -236,7 +236,7 @@ def test_dataarray_time_2010_2015_histrecon_wrf_3km_hourly_temp_single_cell(root
     """Read in test dataset using xarray."""
     filename = "test_data/test_dataarray_time_2010_2015_histrecon_wrf_3km_hourly_temp_single_cell.nc"
     filepath = os.path.join(rootdir, filename)
-    da = xr.open_dataarray(filepath)
+    da = xr.open_dataarray(filepath).load()
     return da
 
 
@@ -245,7 +245,7 @@ def test_dataarray_time_2010_2015_histrecon_wrf_3km_hourly_temp_gridded_area(roo
     """Read in test dataset using xarray."""
     filename = "test_data/test_dataarray_time_2010_2015_histrecon_wrf_3km_hourly_temp_gridded_area.nc"
     filepath = os.path.join(rootdir, filename)
-    da = xr.open_dataarray(filepath)
+    da = xr.open_dataarray(filepath).load()
     return da
 
 

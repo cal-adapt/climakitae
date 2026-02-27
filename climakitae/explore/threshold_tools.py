@@ -1,6 +1,5 @@
 """Helper functions for performing analyses related to thresholds"""
 
-import warnings
 from itertools import product
 
 import numpy as np
@@ -49,6 +48,7 @@ def get_block_maxima(
     grouped_duration: tuple[int, str] = UNSET,
     check_ess: bool = True,
     block_size: int = 1,
+    rolling_agg: str = "sustained",
 ) -> xr.DataArray:
     """Function that converts data into block maximums, defaulting to annual maximums (default block size = 1 year).
 
@@ -68,7 +68,7 @@ def get_block_maxima(
     duration : tuple
         length of extreme event, specified as (4, 'hour')
     groupby : tuple
-        group over which to look for max occurance, specified as (1, 'day')
+        group over which to look for max occurrence, specified as (1, 'day')
     grouped_duration : tuple
         length of event after grouping, specified as (5, 'day')
     check_ess : boolean
@@ -77,12 +77,22 @@ def get_block_maxima(
         can be silenced with check_ess=False.
     block_size : int
         block size in years. default is 1 year.
+    rolling_agg : str
+        Aggregation method for rolling windows and groupby resamples.
+        Options: "sustained" (default, current min/max inversion behavior),
+        "cumulative" (cumulative totals, e.g. total precipitation), "average" (average over window).
 
     Returns
     -------
     xarray.DataArray
 
     """
+    valid_rolling_aggs = ["sustained", "cumulative", "average"]
+    if rolling_agg not in valid_rolling_aggs:
+        raise ValueError(
+            f"invalid rolling_agg. expected one of the following: {valid_rolling_aggs}"
+        )
+
     extremes_types = ["max", "min"]  # valid user options
     if extremes_type not in extremes_types:
         raise ValueError(
@@ -99,15 +109,24 @@ def get_block_maxima(
             )
 
         # First identify the min (max) value for each window of length `duration`
-        match extremes_type:
-            case "max":
-                # In the case of "max" events, need to first identify the minimum value
-                # in each window of the specified duration
-                da_series = da_series.rolling(time=dur_len, center=False).min("time")
-            case "min":
-                da_series = da_series.rolling(time=dur_len, center=False).max("time")
-            case _:
-                raise ValueError('extremes_type needs to be either "max" or "min"')
+        if rolling_agg == "sustained":
+            match extremes_type:
+                case "max":
+                    # In the case of "max" events, need to first identify the minimum value
+                    # in each window of the specified duration
+                    da_series = da_series.rolling(time=dur_len, center=False).min(
+                        "time"
+                    )
+                case "min":
+                    da_series = da_series.rolling(time=dur_len, center=False).max(
+                        "time"
+                    )
+                case _:
+                    raise ValueError('extremes_type needs to be either "max" or "min"')
+        elif rolling_agg == "cumulative":
+            da_series = da_series.rolling(time=dur_len, center=False).sum("time")
+        elif rolling_agg == "average":
+            da_series = da_series.rolling(time=dur_len, center=False).mean("time")
 
     if groupby is not UNSET:
         # In this case, select the max (min) in each group. (This option is
@@ -119,13 +138,22 @@ def get_block_maxima(
             )
 
         # select the max (min) in each group
-        match extremes_type:
-            case "max":
-                da_series = da_series.resample(time=f"{group_len}D", label="left").max()
-            case "min":
-                da_series = da_series.resample(time=f"{group_len}D", label="left").min()
-            case _:
-                raise ValueError('extremes_type needs to be either "max" or "min"')
+        if rolling_agg == "sustained":
+            match extremes_type:
+                case "max":
+                    da_series = da_series.resample(
+                        time=f"{group_len}D", label="left"
+                    ).max()
+                case "min":
+                    da_series = da_series.resample(
+                        time=f"{group_len}D", label="left"
+                    ).min()
+                case _:
+                    raise ValueError('extremes_type needs to be either "max" or "min"')
+        elif rolling_agg == "cumulative":
+            da_series = da_series.resample(time=f"{group_len}D", label="left").sum()
+        elif rolling_agg == "average":
+            da_series = da_series.resample(time=f"{group_len}D", label="left").mean()
 
     if grouped_duration is not UNSET:
         if groupby is UNSET:
@@ -147,13 +175,22 @@ def get_block_maxima(
             da_series = da_series.chunk(time=-1)
 
         # Now select the min (max) from the duration period
-        match extremes_type:
-            case "max":
-                da_series = da_series.rolling(time=dur2_len, center=False).min("time")
-            case "min":
-                da_series = da_series.rolling(time=dur2_len, center=False).max("time")
-            case _:
-                raise ValueError('extremes_type needs to be either "max" or "min"')
+        if rolling_agg == "sustained":
+            match extremes_type:
+                case "max":
+                    da_series = da_series.rolling(time=dur2_len, center=False).min(
+                        "time"
+                    )
+                case "min":
+                    da_series = da_series.rolling(time=dur2_len, center=False).max(
+                        "time"
+                    )
+                case _:
+                    raise ValueError('extremes_type needs to be either "max" or "min"')
+        elif rolling_agg == "cumulative":
+            da_series = da_series.rolling(time=dur2_len, center=False).sum("time")
+        elif rolling_agg == "average":
+            da_series = da_series.rolling(time=dur2_len, center=False).mean("time")
 
     # Now select the most extreme value for each block in the series
     match extremes_type:
@@ -194,6 +231,7 @@ def get_block_maxima(
             "duration": duration,
             "groupby": groupby,
             "grouped_duration": grouped_duration,
+            "rolling_agg": rolling_agg,
             "extreme_value_extraction_method": "block maxima",
             "block_size": f"{block_size} year",
             "timeseries_type": f"block {extremes_type} series",
@@ -211,34 +249,25 @@ def get_block_maxima(
         # This checks if ALL of the values from `bms` are null, or if there are 0 events that occur (i.e. no precipitation counts within the DataArray).
         if bms.isnull().sum().item() == bms.size:
             raise ValueError(
-                "ERROR: The given `da_series` does not include any recorded values for this variable, and we cannot create block maximums off of an empty DataArray."
+                "ERROR: The given `da_series` does not include any recorded values for this variable, and we cannot create block maximums off of an empty DataArray. Please check your input data and filters to ensure that there are observed values for this variable in the given DataArray."
             )
         else:
-            # Handle NaN dropping differently for gridded data vs timeseries data
-            if "x" in bms.dims and "y" in bms.dims:
-                # For gridded data, only drop time steps where ALL spatial points are NaN
-                # This prevents dropping time steps that have valid data at some spatial locations
-                all_nan_times = bms.isnull().all(dim=["x", "y"])
-                if all_nan_times.any():
-                    dropped_bms = bms.where(~all_nan_times, drop=True)
-                    print(
-                        f"Dropping {all_nan_times.sum().item()} time steps where all spatial points are NaN across entire{f' {bms.name}' if bms.name else ''} DataArray."
-                    )
-                    bms = dropped_bms
-            elif bms.dims == ("time",):
-                # For timeseries data, drop NaN time steps as before
-                dropped_bms = bms.dropna(dim="time")
-                print(
-                    f"Dropping {bms.size - dropped_bms.size} block maxima NaNs across entire{f' {bms.name}' if bms.name else ''} DataArray. Please guidance for more information. "
-                )
-                bms = dropped_bms
+            # Determine which non-time dims exist for detecting all-NaN time steps
+            non_time_dims = [d for d in bms.dims if d != "time"]
+
+            if non_time_dims:
+                # Drop time steps where ALL values across non-time dims are NaN
+                all_nan_times = bms.isnull().all(dim=non_time_dims)
             else:
-                # For other dimension combinations, be conservative and don't drop
-                warnings.warn(
-                    f"\n\nWARNING: Found NaN values in block maxima but unable to determine appropriate dropping strategy for dimensions {bms.dims}"
-                    "\nNo NaN values will be dropped from the block maxima DataArray."
-                    "\nPlease inspect the data and handle NaN values appropriately before proceeding.",
-                    stacklevel=999,
+                # Timeseries data (only time dim)
+                all_nan_times = bms.isnull()
+
+            n_dropped = int(all_nan_times.sum().item())
+            if n_dropped > 0:
+                bms = bms.where(~all_nan_times, drop=True)
+                print(
+                    f"Dropping {n_dropped} block maxima NaN time steps from"
+                    f"{f' {bms.name}' if bms.name else ''} DataArray."
                 )
 
     return bms
