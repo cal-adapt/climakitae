@@ -1039,9 +1039,7 @@ class TMY:
         This function can be used to view the candidate months
         without running the entire TMY workflow.
         """
-        self._vprint(
-            "Getting top months for TMY."
-        )
+        self._vprint("Getting top months for TMY.")
         self.set_cdf_climatology()
         self.set_cdf_monthly()
         self.set_weighted_statistic()
