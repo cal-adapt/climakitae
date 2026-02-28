@@ -110,9 +110,13 @@ def calc_fosberg_fire_weather_index(ds):
     https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html
 
     """
-    logger.debug("Computing fosberg fire weather index (FFWI) from t2, q2, psfc, u10, v10")
-    logger.debug("Relative humidity and wind speed will be computed as intermediate steps")
-    
+    logger.debug(
+        "Computing fosberg fire weather index (FFWI) from t2, q2, psfc, u10, v10"
+    )
+    logger.debug(
+        "Relative humidity and wind speed will be computed as intermediate steps"
+    )
+
     ds = calc_relative_humidity_2m(ds)
     ds = calc_wind_speed_10m(ds)
 
