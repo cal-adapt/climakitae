@@ -322,78 +322,58 @@ class ConvertToLocalTime(DataProcessor):
         """
         # Check if data has leap days before converting time
         # needed for reindex_time_axis
-        has_leap = self._contains_leap_days(obj)
+        no_leap = not self._contains_leap_days(obj)
 
         # Find timezone for the coordinates
         tf = TimezoneFinder()
         local_tz = tf.timezone_at(lng=lon, lat=lat)
 
         # Change datetime objects to local time
-        new_time = (
+        local_time = (
             pd.DatetimeIndex(obj.time)
             .tz_localize("UTC")
             .tz_convert(local_tz)
             .tz_localize(None)
             .astype("datetime64[ns]")
         )
-        obj["time"] = new_time
+        obj["time"] = local_time
+        if no_leap:
+            # Reset feb 29 afternoon hours to feb 28
+            obj["time"] = xr.where(
+                (obj.time.dt.month == 2) & (obj.time.dt.day == 29),
+                pd.to_datetime(obj.time) - pd.DateOffset(days=1),
+                obj.time,
+            )
         logger.debug(f"Data converted to {local_tz} timezone.")
         self.timezone = local_tz
 
         if self.reindex_time_axis == "yes":
-            logger.debug(f"Begin reindexing time.")
-            # Drop duplicate timestamps due to daylight savings time start
-            # in some timezones.
-            obj_updated_times = obj.drop_duplicates("time", keep="first")
-
-            # Find missing day in spring due to daylight savings end
-            all_dates = pd.date_range(
-                start=obj_updated_times.time.min().data.item(),
-                end=obj_updated_times.time.max().data.item(),
-                freq="1h",
-            ).to_list()
-            # Using timestamp type to access months easily
-            missing_times = list(
-                set(all_dates).difference(
-                    [pd.to_datetime(t) for t in obj_updated_times.time.data]
-                )
+            # Making a new timeseries based on the range of the local timeseries, but this one without any daylight savings/leap day behavior that comes from `tz`
+            n_years = round(
+                (pd.Timestamp(local_time[-1]) - pd.Timestamp(local_time[0])).days / 365
             )
-            new_times = [x for x in missing_times if ((x.month == 3) | (x.month == 4))]
+            leap_day_buffer = 0
+            if no_leap:
+                leap_day_buffer = (n_years // 4 + 1) * 24
 
-            # Expand time dim
-            if len(new_times) > 0:
-                # Now make sure time types match between new and original times
-                if isinstance(obj_updated_times.time.data[0], np.datetime64):
-                    # Need to make sure units are the same for datetime
-                    time_units = np.datetime_data(obj_updated_times.time.data[0])[0]
-                    new_times = [np.datetime64(t, time_units) for t in new_times]
-                else:
-                    obj_time_type = type(obj_updated_times.time.data[0])
-                    new_times = [obj_time_type(t) for t in new_times]
-                # Create axis with missing times included
-                new_time_axis = np.concat((obj_updated_times.time.data, new_times))
-                new_time_axis.sort()
-                # Add new time axis to our object
-                obj_updated_times = obj_updated_times.reindex(
-                    time=new_time_axis, fill_value=np.nan
-                ).sortby("time")
-                # Fill missing times with values from prior hour
-                times_to_copy = [x - np.timedelta64(1, "h") for x in new_times]
-                times_to_copy.sort()
-                data_to_copy = obj_updated_times.sel(time=times_to_copy)
-                data_to_copy["time"] = new_times
-                obj_updated_times.loc[{"time": new_times}] = data_to_copy
+            full_range = pd.date_range(
+                start=local_time[0],
+                periods=len(local_time) + leap_day_buffer,
+                freq="1h",
+            )
 
-            if not has_leap:
-                # Reset feb 29 afternoon hours to feb 28
-                obj_updated_times["time"] = xr.where(
-                    (obj_updated_times.time.dt.month == 2)
-                    & (obj_updated_times.time.dt.day == 29),
-                    pd.to_datetime(obj_updated_times.time) - pd.DateOffset(days=1),
-                    obj_updated_times.time,
-                )
+            leap_day_hours = np.array([False for n in range(0, len(full_range))])
+            if no_leap:
+                leap_day_hours = (full_range.month == 2) & (full_range.day == 29)
 
-            obj = obj_updated_times
+            clean_time = (
+                full_range[~leap_day_hours][: len(local_time)]
+                .to_numpy()
+                .astype("datetime64[ns]")
+            )
+
+            # Assign that back and add attr of timezone
+            obj = obj.assign_coords(time=clean_time)
             logger.debug(f"Reindexed time axis after conversion to local time.")
 
         # Add timezone attribute to data
