@@ -36,10 +36,8 @@ class ConvertToLocalTime(DataProcessor):
         - convert : str
             The value to subset the data by.
         - reindex_time_axis : str
-            Default "no". If "yes", repairs the time axis by:
-                - Removing duplicate timestamp due to daylight savings in Fall
-                - Filling missing timestamp due to daylight savings end in Spring
-                - Replacing any Feb 29 timestamps with Feb 28
+            Default "no". If "yes", repairs the time axis by shifting hours to
+            remove discontinuities due to Daylight Savings time if present.
 
     Methods
     -------

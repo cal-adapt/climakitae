@@ -32,8 +32,8 @@ def validate_convert_to_local_time_param(
             "yes": Convert time to local time
             "no" (default): Keep original timezone
         - reindex_time_axis : str
-            Set to "yes" to fix time stamps affected by daylight savings time
-            and leap years. Default value is "no".
+            Set to "yes" to fix time stamps affected by daylight savings time.
+            Default value is "no".
 
     Returns
     -------
