@@ -36,13 +36,13 @@ def processor_reindex_time_axis():
 @pytest.fixture
 def test_dataarray_daylight_savings():
     """Fixture to create a sample xarray.DataArray for testing with a full year."""
+    time_axis = pd.date_range("2016-01-01 00", "2016-12-31 23", freq="1h")
+    time_axis = time_axis[~((time_axis.month == 2) & (time_axis.day == 29))]
     dataarray = xr.DataArray(
         data=np.ones((8760, 1, 1)),
         dims=["time", "lat", "lon"],
         coords={
-            "time": xr.date_range(
-                "2016-01-01 00", "2016-12-31 23", freq="1h", calendar="noleap"
-            ).to_datetimeindex(),
+            "time": time_axis,
             "lat": [35],
             "lon": [-119],
         },
@@ -53,15 +53,15 @@ def test_dataarray_daylight_savings():
 @pytest.fixture
 def test_dataset_daylight_savings():
     """Fixture to create a sample xarray.Dataset for testing with a full year."""
+    time_axis = pd.date_range("2016-01-01 00", "2016-12-31 23", freq="1h")
+    time_axis = time_axis[~((time_axis.month == 2) & (time_axis.day == 29))]
     dataset = xr.Dataset(
         {
             "var1": (("time", "lat", "lon"), np.ones((8760, 1, 1))),
             "var2": (("time", "lat", "lon"), np.ones((8760, 1, 1))),
         },
         coords={
-            "time": xr.date_range(
-                "2016-01-01 00", "2016-12-31 23", freq="1h", calendar="noleap"
-            ).to_datetimeindex(),
+            "time": time_axis,
             "lat": [35],
             "lon": [-119],
         },
