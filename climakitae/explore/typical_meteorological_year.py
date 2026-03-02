@@ -795,7 +795,7 @@ class TMY:
 
     def load_all_variables(self):
         """Load the datasets needed to create TMY."""
-        print("Loading data from catalog. Expected runtime: 7 minutes")
+        print("Loading data from catalog.")
 
         # Configuration for each variable group
         variable_configs = [
@@ -947,7 +947,7 @@ class TMY:
         -----
         Results are saved to the class variable `tmy_data_to_export`.
         """
-        print("Assembling TMY data to export. Expected runtime: 30 minutes")
+        print("Assembling TMY data to export.")
 
         self._vprint("  STEP 1: Retrieving hourly data from catalog")
         # Loop through each variable and grab data from catalog
@@ -1039,9 +1039,7 @@ class TMY:
         This function can be used to view the candidate months
         without running the entire TMY workflow.
         """
-        self._vprint(
-            "Getting top months for TMY. Expected runtime with loaded data: 1 min"
-        )
+        self._vprint("Getting top months for TMY.")
         self.set_cdf_climatology()
         self.set_cdf_monthly()
         self.set_weighted_statistic()
@@ -1050,7 +1048,7 @@ class TMY:
     def generate_tmy(self):
         """Run the whole TMY workflow."""
         # This runs the whole workflow at once
-        print("Running TMY workflow. Expected overall runtime: 40 minutes")
+        print("Running TMY workflow.")
         self.load_all_variables()
         self.get_candidate_months()
         self.run_tmy_analysis()
