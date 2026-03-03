@@ -99,10 +99,11 @@ def noaa_heat_index(T: xr.DataArray, RH: xr.DataArray) -> xr.DataArray:
     # Use different equation if heat index if the heat index value < 80
     low_HI = 0.5 * (T + 61.0 + ((T - 68.0) * 1.2) + (RH * 0.094))
 
-    # Adjust heat index depending on different condions for RH, T, and valid range of HI
+    # Adjust heat index depending on different conditions for RH, T, and valid range of HI
     HI = xr.where((RH < 13) & (T > 80) & (T < 112), HI_highT_lowRH, HI)
     HI = xr.where(((RH > 85) & (T < 87) & (T > 80)), HI_lowT_highRH, HI)
-    HI = xr.where((HI < 80), low_HI, HI)
+    # Per NOAA: use the simple formula first; only apply Rothfusz when simple >= 80
+    HI = xr.where((low_HI < 80), low_HI, HI)
 
     # Following NCAR documentation (see function references), for temperature values less than 40F, the HI is set to the ambient temperature.
     HI = xr.where((T < 40), T, HI)
