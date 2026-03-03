@@ -85,18 +85,16 @@ def get_block_maxima(
     rolling_agg : {"sustained", "cumulative", "average"}, optional
         Aggregation method applied during rolling windows (``duration``,
         ``grouped_duration``) and groupby resamples (``groupby``):
-
-        - ``"sustained"``: the extreme value that is maintained throughout the
-          entire window (rolling min for max events, rolling max for min events).
-          Use this when the event intensity must hold for the full duration.
-          *Example*: the minimum temperature floor of a 21-day heatwave.
-        - ``"cumulative"``: the total accumulated value over the window (rolling
-          sum). Use this for events defined by an accumulated total.
-          *Example*: total precipitation of a 3-day heavy rainfall event.
-        - ``"average"``: the mean value over the window (rolling mean). Use this
-          for events characterized by average intensity.
-          *Example*: average precipitation rate of a short high-intensity burst.
-
+            - ``"sustained"``: the extreme value that is maintained throughout the
+              entire window (rolling min for max events, rolling max for min events).
+              Use this when the event intensity must hold for the full duration.
+              *Example*: the minimum temperature floor of a 21-day heatwave.
+            - ``"cumulative"``: the total accumulated value over the window (rolling
+              sum). Use this for events defined by an accumulated total.
+              *Example*: total precipitation of a 3-day heavy rainfall event.
+            - ``"average"``: the mean value over the window (rolling mean). Use this
+              for events characterized by average intensity.
+              *Example*: average precipitation rate of a short high-intensity burst.
         Default is ``"sustained"``.
 
     Returns
