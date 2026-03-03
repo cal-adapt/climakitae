@@ -79,13 +79,20 @@ def get_block_maxima(
         block size in years. default is 1 year.
     rolling_agg : str
         Aggregation method for rolling windows and groupby resamples.
-        Options: "sustained" (default, current min/max inversion behavior),
-        "cumulative" (cumulative totals, e.g. total precipitation), "average" (average over window).
+        Options: 
+        "sustained" (event min/max intensity maintained throughout window; default),
+        "cumulative" (event defined by cumulative total over window), 
+        "average" (event characterized by average intensity over window).
 
     Returns
     -------
     xarray.DataArray
 
+Rolling Aggregation Type Usage
+---------------------------------
+Sustained: What is the average temperature of a 21-day heatwave in 3-hour periods, where no 3-hour period drops below the designated temperature threshold? 
+Cumulative: What is the total precipitation accumulation of a 3-day heavy precipitation event where there may be intermittent hours of 0 precipitation. 
+Average: What is the average precipitation rate of a short-duration high-intensity event where the intensity may have intermittent hours of lower or higher precipitation.
     """
     valid_rolling_aggs = ["sustained", "cumulative", "average"]
     if rolling_agg not in valid_rolling_aggs:
