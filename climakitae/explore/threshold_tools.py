@@ -50,49 +50,81 @@ def get_block_maxima(
     block_size: int = 1,
     rolling_agg: str = "sustained",
 ) -> xr.DataArray:
-    """Function that converts data into block maximums, defaulting to annual maximums (default block size = 1 year).
+    """Convert a timeseries into block extrema (maxima or minima), defaulting to annual block size.
 
-    Takes input array and resamples by taking the maximum value over the specified block size.
-
-    Optional arguments `duration`, `groupby`, and `grouped_duration` define the type
-    of event to find the annual maximums of. These correspond to the event
-    types defined in the `get_exceedance_count` function.
+    Resamples the input array by taking the most extreme value in each block.
+    Optional arguments ``duration``, ``groupby``, and ``grouped_duration`` define the
+    type of compound event to extract extrema from, corresponding to the event types
+    used in ``get_exceedance_count``.
 
     Parameters
     ----------
-    da_series : xarray.DataArray
-        DataArray from retrieve
-    extremes_type : str
-        option for max or min
-        Defaults to max
-    duration : tuple
-        length of extreme event, specified as (4, 'hour')
-    groupby : tuple
-        group over which to look for max occurrence, specified as (1, 'day')
-    grouped_duration : tuple
-        length of event after grouping, specified as (5, 'day')
-    check_ess : boolean
-        optional flag specifying whether to check the effective sample size (ESS)
-        within the blocks of data, and throw a warning if the average ESS is too small.
-        can be silenced with check_ess=False.
-    block_size : int
-        block size in years. default is 1 year.
-    rolling_agg : str
-        Aggregation method for rolling windows and groupby resamples.
-        Options: 
-        "sustained" (event min/max intensity maintained throughout window; default),
-        "cumulative" (event defined by cumulative total over window), 
-        "average" (event characterized by average intensity over window).
+    da_series : xr.DataArray
+        Input timeseries from which block extrema are extracted.
+    extremes_type : {"max", "min"}, optional
+        Whether to extract block maxima or minima. Default is ``"max"``.
+    duration : tuple[int, str], optional
+        Length of the extreme event, specified as ``(n, unit)`` where unit is
+        ``"hour"``. For example, ``(4, "hour")`` finds events lasting at least
+        4 hours. Only supported for hourly data.
+    groupby : tuple[int, str], optional
+        Temporal grouping applied before computing block extrema, specified as
+        ``(n, unit)`` where unit is ``"day"``. For example, ``(1, "day")``
+        aggregates to daily values. Most meaningful when combined with
+        ``grouped_duration``.
+    grouped_duration : tuple[int, str], optional
+        Rolling window applied after ``groupby``, specified as ``(n, unit)``
+        where unit is ``"day"``. For example, ``(5, "day")`` finds events
+        spanning at least 5 consecutive grouped periods. Requires ``groupby``.
+    check_ess : bool, optional
+        If ``True``, computes the effective sample size (ESS) within each block
+        and emits a warning if the average ESS is below 25. Set to ``False`` to
+        suppress this check. Default is ``True``.
+    block_size : int, optional
+        Block size in years over which to take the extremum. Default is ``1``.
+    rolling_agg : {"sustained", "cumulative", "average"}, optional
+        Aggregation method applied during rolling windows (``duration``,
+        ``grouped_duration``) and groupby resamples (``groupby``):
+
+        - ``"sustained"``: the extreme value that is maintained throughout the
+          entire window (rolling min for max events, rolling max for min events).
+          Use this when the event intensity must hold for the full duration.
+          *Example*: the minimum temperature floor of a 21-day heatwave.
+        - ``"cumulative"``: the total accumulated value over the window (rolling
+          sum). Use this for events defined by an accumulated total.
+          *Example*: total precipitation of a 3-day heavy rainfall event.
+        - ``"average"``: the mean value over the window (rolling mean). Use this
+          for events characterized by average intensity.
+          *Example*: average precipitation rate of a short high-intensity burst.
+
+        Default is ``"sustained"``.
 
     Returns
     -------
-    xarray.DataArray
+    xr.DataArray
+        Block extrema series with the same non-time dimensions as ``da_series``.
+        The time coordinate reflects the end of each block (annual or
+        ``block_size``-year periods). Metadata describing the event configuration
+        is stored in ``.attrs``.
 
-Rolling Aggregation Type Usage
----------------------------------
-Sustained: What is the average temperature of a 21-day heatwave in 3-hour periods, where no 3-hour period drops below the designated temperature threshold? 
-Cumulative: What is the total precipitation accumulation of a 3-day heavy precipitation event where there may be intermittent hours of 0 precipitation. 
-Average: What is the average precipitation rate of a short-duration high-intensity event where the intensity may have intermittent hours of lower or higher precipitation.
+    Raises
+    ------
+    ValueError
+        If ``rolling_agg`` is not one of ``"sustained"``, ``"cumulative"``, or
+        ``"average"``.
+    ValueError
+        If ``extremes_type`` is not ``"max"`` or ``"min"``.
+    ValueError
+        If ``duration`` is provided but the data frequency is not hourly or the
+        unit is not ``"hour"``.
+    ValueError
+        If ``groupby`` is provided but the unit is not ``"day"``.
+    ValueError
+        If ``grouped_duration`` is provided without ``groupby``, or the unit is
+        not ``"day"``.
+    ValueError
+        If all block values are NaN (i.e. the input contains no valid
+        observations for this variable).
     """
     valid_rolling_aggs = ["sustained", "cumulative", "average"]
     if rolling_agg not in valid_rolling_aggs:
