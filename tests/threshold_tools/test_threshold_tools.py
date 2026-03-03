@@ -153,6 +153,52 @@ class TestThresholdTools:
         with pytest.raises(ValueError):
             _get_exceedance_events(test, 90, duration1=(3, "month"))
 
+    def test_get_return_value_keeps_one_in_x_shape_with_invalid_series(self):
+        """Test return-value output keeps consistent one_in_x shape even with bad series."""
+        rng = np.random.default_rng(42)
+        time = pd.date_range(start="1980-01-01", periods=30, freq="YS")
+        valid_series = rng.gamma(shape=2.0, scale=1.0, size=len(time))
+        invalid_series = np.full(len(time), np.nan)
+
+        bms = xr.DataArray(
+            np.stack([valid_series, invalid_series], axis=1),
+            dims=["time", "simulation"],
+            coords={"time": time, "simulation": ["good", "bad"]},
+            name="bms",
+        )
+
+        periods = [2, 5, 10, 25, 50, 100, 150, 200]
+        result = threshold_tools.get_return_value(
+            bms,
+            return_period=periods,
+            distr="gev",
+            bootstrap_runs=2,
+            multiple_points=False,
+        )
+
+        assert result["return_value"].sizes["one_in_x"] == len(periods)
+        assert result["conf_int_lower_limit"].sizes["one_in_x"] == len(periods)
+        assert result["conf_int_upper_limit"].sizes["one_in_x"] == len(periods)
+        assert result["return_value"].sel(simulation="bad").isnull().all()
+
+    def test_get_ks_stat_handles_non_finite_values(self):
+        """Test KS-stat gracefully handles NaN/Inf values without raising."""
+        bms = xr.DataArray(
+            np.array([1.0, 2.0, np.nan, np.inf, 3.0, 4.0, 5.0]), dims=["time"]
+        )
+
+        result = threshold_tools.get_ks_stat(bms, distr="gev", multiple_points=False)
+
+        assert isinstance(result, xr.Dataset)
+        assert "d_statistic" in result
+        assert "p_value" in result
+
+        all_bad = xr.DataArray(np.array([np.nan, np.inf, -np.inf]), dims=["time"])
+        all_bad_result = threshold_tools.get_ks_stat(
+            all_bad, distr="gev", multiple_points=False
+        )
+        assert np.isnan(all_bad_result["p_value"].values[()])
+
 
 @pytest.mark.advanced
 class TestKsStat:

@@ -450,37 +450,43 @@ def get_ks_stat(
         )
 
     def ks_stat(bms):
-        parameters, fitted_distr = _get_fitted_distr(bms, distr, distr_func)
+        finite_bms = np.asarray(bms, dtype=float)
+        finite_bms = finite_bms[np.isfinite(finite_bms)]
 
-        match distr:
-            case "gev":
-                cdf = "genextreme"
-                args = (parameters["c"], parameters["loc"], parameters["scale"])
-            case "gumbel":
-                cdf = "gumbel_r"
-                args = (parameters["loc"], parameters["scale"])
-            case "weibull":
-                cdf = "weibull_min"
-                args = (parameters["c"], parameters["loc"], parameters["scale"])
-            case "pearson3":
-                cdf = "pearson3"
-                args = (parameters["skew"], parameters["loc"], parameters["scale"])
-            case "genpareto":
-                cdf = "genpareto"
-                args = (parameters["c"], parameters["loc"], parameters["scale"])
-            case "gamma":
-                cdf = "gamma"
-                args = (parameters["a"], parameters["loc"], parameters["scale"])
-            case _:
-                raise ValueError(
-                    'invalid distribution type. expected one of the following: ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"]'
-                )
+        if finite_bms.size < 3:
+            return np.nan, np.nan
 
         try:
-            ks = stats.kstest(bms, cdf, args=args)
+            parameters, _ = _get_fitted_distr(finite_bms, distr, distr_func)
+
+            match distr:
+                case "gev":
+                    cdf = "genextreme"
+                    args = (parameters["c"], parameters["loc"], parameters["scale"])
+                case "gumbel":
+                    cdf = "gumbel_r"
+                    args = (parameters["loc"], parameters["scale"])
+                case "weibull":
+                    cdf = "weibull_min"
+                    args = (parameters["c"], parameters["loc"], parameters["scale"])
+                case "pearson3":
+                    cdf = "pearson3"
+                    args = (parameters["skew"], parameters["loc"], parameters["scale"])
+                case "genpareto":
+                    cdf = "genpareto"
+                    args = (parameters["c"], parameters["loc"], parameters["scale"])
+                case "gamma":
+                    cdf = "gamma"
+                    args = (parameters["a"], parameters["loc"], parameters["scale"])
+                case _:
+                    raise ValueError(
+                        'invalid distribution type. expected one of the following: ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"]'
+                    )
+
+            ks = stats.kstest(finite_bms, cdf, args=args)
             d_statistic = ks[0]
             p_value = ks[1]
-        except (ValueError, ZeroDivisionError):
+        except (ValueError, ZeroDivisionError, RuntimeError, np.linalg.LinAlgError):
             d_statistic = np.nan
             p_value = np.nan
 
@@ -620,6 +626,7 @@ def _bootstrap(
         )
 
     distr_func = _get_distr_func(distr)
+    arg_value = np.atleast_1d(np.asarray(arg_value))
 
     sample_size = len(bms)
     new_bms = np.random.choice(bms, size=sample_size, replace=True)
@@ -634,7 +641,7 @@ def _bootstrap(
             extremes_type=extremes_type,
         )
     except (ValueError, ZeroDivisionError):
-        result = np.nan
+        result = np.full(arg_value.shape, np.nan, dtype=float)
 
     return result
 
@@ -679,12 +686,17 @@ def _conf_int(
 
     """
     bootstrap_values = []
+    arg_value = np.atleast_1d(np.asarray(arg_value))
+    expected_size = arg_value.size
 
     for _ in range(bootstrap_runs):
         result = _bootstrap(
             bms, distr, data_variable, arg_value, block_size, extremes_type
         )
-        bootstrap_values.append(result)
+        result_array = np.atleast_1d(np.asarray(result, dtype=float))
+        if result_array.size != expected_size:
+            result_array = np.full(expected_size, np.nan, dtype=float)
+        bootstrap_values.append(result_array)
 
     bootstrap_values = np.stack(bootstrap_values, axis=0)
 
@@ -749,6 +761,8 @@ def _get_return_variable(
     # If there is only one X input, then make it a list, so that this function can properly behave on a LIST of X values for 1-in-X calculations
     if not isinstance(arg_value, np.ndarray):
         arg_value = np.array([arg_value])
+    arg_value = np.atleast_1d(np.asarray(arg_value)).flatten()
+    expected_size = arg_value.size
 
     data_variables = ["return_value", "return_period", "return_prob"]
     if data_variable not in data_variables:
@@ -801,10 +815,10 @@ def _get_return_variable(
 
     def _return_variable(bms):
 
-        if dropna_time and np.isnan(bms).any():
+        if dropna_time and not np.isfinite(bms).all():
             # Drop NaNs for years with missing data FOR EACH SIMULATION
             # e.g. when an SSP has missing data at a warming level
-            bms = bms[~np.isnan(bms)]
+            bms = bms[np.isfinite(bms)]
 
         try:
             _, fitted_distr = _get_fitted_distr(bms, distr, distr_func)
@@ -816,7 +830,7 @@ def _get_return_variable(
                 extremes_type=extremes_type,
             )
         except (ValueError, ZeroDivisionError):
-            return_variable = np.nan
+            return_variable = np.full(expected_size, np.nan, dtype=float)
 
         conf_int_lower_limit, conf_int_upper_limit = _conf_int(
             bms=bms,
@@ -830,10 +844,25 @@ def _get_return_variable(
             extremes_type=extremes_type,
         )
 
+        return_variable = np.atleast_1d(np.asarray(return_variable, dtype=float))
+        conf_int_lower_limit = np.atleast_1d(
+            np.asarray(conf_int_lower_limit, dtype=float)
+        )
+        conf_int_upper_limit = np.atleast_1d(
+            np.asarray(conf_int_upper_limit, dtype=float)
+        )
+
+        if return_variable.size != expected_size:
+            return_variable = np.full(expected_size, np.nan, dtype=float)
+        if conf_int_lower_limit.size != expected_size:
+            conf_int_lower_limit = np.full(expected_size, np.nan, dtype=float)
+        if conf_int_upper_limit.size != expected_size:
+            conf_int_upper_limit = np.full(expected_size, np.nan, dtype=float)
+
         return (
-            np.array([return_variable]),
-            np.array([conf_int_lower_limit]),
-            np.array([conf_int_upper_limit]),
+            return_variable,
+            conf_int_lower_limit,
+            conf_int_upper_limit,
         )
 
     return_variable, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
