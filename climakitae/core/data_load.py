@@ -554,6 +554,7 @@ def _merge_all(
                 if "historical" in one
             ],
             dim="member_id",
+            join="outer",
         )
     else:
         all_hist = None
@@ -595,6 +596,7 @@ def _merge_all(
                 if scenario in one
             ],
             dim="member_id",
+            join="outer",
         )
 
         # Append historical if relevant:
@@ -1585,7 +1587,7 @@ def _apply_warming_levels_approach(
         + scenario_to_experiment_id(x[1].split("Historical + ")[1])
         for x in warming_data["all_sims"].values
     ]
-    warming_data = warming_data.drop_vars(["simulation", "scenario"])
+    warming_data = warming_data.drop_vars(["simulation", "scenario", "all_sims"])
     warming_data["all_sims"] = sim_and_scen_str
 
     # Add descriptive attributes to coordinates
