@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 @register_processor(
     "convert_to_local_time",
-    priority=2,
+    priority=70,
 )
 class ConvertToLocalTime(DataProcessor):
     """
