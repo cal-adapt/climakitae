@@ -57,7 +57,7 @@ def validate_convert_to_local_time_param(
 
         if value[setting] not in valid_values:
             msg = (
-                f"\n\nInvalid value '{value}' for ConvertToLocalTime Processor '{setting}' setting. "
+                f"\n\nInvalid value '{value[setting]}' for ConvertToLocalTime Processor '{setting}' setting. "
                 f"\nSupported values are: {valid_values}"
             )
             logger.warning(msg)
