@@ -247,11 +247,9 @@ class TestConvertToLocalTimeExecute:
         # No leap day timestamps
         assert pd.Timestamp("2016-02-29 23") not in result.time
 
-        # Missing hour at end of daylight savings copied
+        # Missing hour at start of daylight savings filled with NaN
         assert pd.Timestamp("2016-03-13 02") in result.time
-        assert result.sel(time=pd.Timestamp("2016-03-13 02")) == result.sel(
-            time=pd.Timestamp("2016-03-13 01")
-        )
+        assert np.isnan(result.sel(time=pd.Timestamp("2016-03-13 02")))
 
         # extra daylight savings timestamp should be dropped by this processor
         # so only 1 value present
@@ -271,11 +269,9 @@ class TestConvertToLocalTimeExecute:
         # No leap day timestamps
         assert pd.Timestamp("2016-02-29 23") not in result.time
 
-        # Missing hour at end of daylight savings copied
+        # Missing hour at start of daylight savings filled with NaN
         assert pd.Timestamp("2016-03-13 02") in result.time
-        assert result.sel(time=pd.Timestamp("2016-03-13 02")) == result.sel(
-            time=pd.Timestamp("2016-03-13 01")
-        )
+        assert np.isnan(result.sel(time=pd.Timestamp("2016-03-13 02")))
 
         # extra daylight savings timestamp should be dropped by this processor
         # so only 1 value present

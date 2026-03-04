@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 @register_processor(
     "convert_to_local_time",
-    priority=2,
+    priority=70,
 )
 class ConvertToLocalTime(DataProcessor):
     """
@@ -36,21 +36,31 @@ class ConvertToLocalTime(DataProcessor):
         - convert : str
             The value to subset the data by.
         - reindex_time_axis : str
-            Default "no". If "yes", repairs the time axis by shifting hours to
-            remove discontinuities due to Daylight Savings time if present.
+            Default "no". If "yes", cleans the time axis by:
+                - Removing duplicate hour due to Daylight Savings Time end in Fall
+                - Filling skipped hour (with NaN) due to Daylight Savings Time start in Spring
 
     Methods
     -------
-    _convert_to_local_time_station(obj: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray
-        Pull lat and lon from the station data, then call _find_timezone_and_convert to convert.
+    _convert_to_local_time_hdp(obj: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray
+        Pull lat and lon from the HDP data, then call _find_timezone_and_convert to convert.
     _convert_to_local_time_gridded(obj: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray
         Check time frequency and get area average lat and lon for time conversion.
+    _contains_leap_days(obj: xr.Dataset | xr.DataArray) -> bool
+        Return True if leap days exist in obj.
     _find_timezone_and_convert(obj: xr.Dataset | xr.DataArray, lat: float, lon: float) -> xr.Dataset | xr.DataArray
         Use the provided lat and lon to get the timezone, then convert the time data and update attributes.
 
     Notes
     -----
-    By default, this process is set to "no" and data is returned in UTC time.
+    By default, this process is set to "no" and data is returned in UTC time. For gridded data, the timezone will be
+    selected using the mean values of the data's longitude and latitude coordinates. Leap days will be preserved
+    if present in the original data. If a timezone uses Daylight Savings Time, the returned time axis will not be
+    continuous (there will be skipped timestamps and duplicated timestamps).
+
+    The 'reindex_time_axis' option is provided for use cases which require a clean time axis (24-hour days with no
+    duplicate timestamps). This may not be an appropriate option for many types of analysis as the underlying
+    timeseries is edited at the beginning and end of DST (if it exists in a given time zone).
     """
 
     def __init__(self, value: Dict[str, Any]):
@@ -319,7 +329,6 @@ class ConvertToLocalTime(DataProcessor):
 
         """
         # Check if data has leap days before converting time
-        # needed for reindex_time_axis
         no_leap = not self._contains_leap_days(obj)
 
         # Find timezone for the coordinates
@@ -336,7 +345,7 @@ class ConvertToLocalTime(DataProcessor):
         )
         obj["time"] = local_time
         if no_leap:
-            # Reset feb 29 afternoon hours to feb 28
+            # Shift feb 29 afternoon hours to feb 28
             obj["time"] = xr.where(
                 (obj.time.dt.month == 2) & (obj.time.dt.day == 29),
                 pd.to_datetime(obj.time) - pd.DateOffset(days=1),
@@ -346,32 +355,47 @@ class ConvertToLocalTime(DataProcessor):
         self.timezone = local_tz
 
         if self.reindex_time_axis == "yes":
-            # Making a new timeseries based on the range of the local timeseries, but this one without any daylight savings/leap day behavior that comes from `tz`
-            n_years = round(
-                (pd.Timestamp(local_time[-1]) - pd.Timestamp(local_time[0])).days / 365
-            )
-            leap_day_buffer = 0
-            if no_leap:
-                leap_day_buffer = (n_years // 4 + 1) * 24
+            # Drop duplicate timestamps due to daylight savings time start
+            # in some timezones.
+            obj_updated_times = obj.drop_duplicates("time", keep="first")
 
-            full_range = pd.date_range(
-                start=local_time[0],
-                periods=len(local_time) + leap_day_buffer,
+            # Find missing day in spring due to daylight savings end
+            all_dates = pd.date_range(
+                start=obj_updated_times.time.min().data.item(),
+                end=obj_updated_times.time.max().data.item(),
                 freq="1h",
+            ).to_list()
+            # Using timestamp type to access months easily
+            missing_times = list(
+                set(all_dates).difference(
+                    [pd.to_datetime(t) for t in obj_updated_times.time.data]
+                )
             )
+            times_to_fill = [
+                x for x in missing_times if ((x.month == 3) | (x.month == 4))
+            ]
 
-            leap_day_hours = np.array([False for n in range(0, len(full_range))])
-            if no_leap:
-                leap_day_hours = (full_range.month == 2) & (full_range.day == 29)
+            # Expand time dim to include missing times
+            if len(times_to_fill) > 0:
+                # Now make sure time types match between new and original times
+                if isinstance(obj_updated_times.time.data[0], np.datetime64):
+                    # Need to make sure units are the same for datetime
+                    time_units = np.datetime_data(obj_updated_times.time.data[0])[0]
+                    times_to_fill = [
+                        np.datetime64(t, time_units) for t in times_to_fill
+                    ]
+                else:
+                    obj_time_type = type(obj_updated_times.time.data[0])
+                    times_to_fill = [obj_time_type(t) for t in times_to_fill]
+                # Create axis with missing times included
+                new_time_axis = np.concat((obj_updated_times.time.data, times_to_fill))
+                new_time_axis.sort()
+                # Add new time axis to our object with NaN fill for missing times
+                obj_updated_times = obj_updated_times.reindex(
+                    time=new_time_axis, fill_value=np.nan
+                ).sortby("time")
 
-            clean_time = (
-                full_range[~leap_day_hours][: len(local_time)]
-                .to_numpy()
-                .astype("datetime64[ns]")
-            )
-
-            # Assign that back and add attr of timezone
-            obj = obj.assign_coords(time=clean_time)
+            obj = obj_updated_times
             logger.debug(f"Reindexed time axis after conversion to local time.")
 
         # Add timezone attribute to data
