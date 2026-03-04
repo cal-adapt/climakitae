@@ -553,19 +553,33 @@ class DataCatalog(dict):
 
                 Returns True if:
                 - The derived variable already exists by exact name, OR
-                - The source dependencies are missing (indicating computation happened)
+                - ALL source dependencies are missing (indicating drop_dependencies=True
+                  ran and cleaned them up after computation)
+
+                Returns False if some but not all source vars are missing and the
+                derived variable is also absent — this means the catalog returned an
+                incomplete dataset (e.g. u10/v10 don't exist at the requested
+                table_id), not that the function already ran.
                 """
                 # Exact match - derived variable exists
                 if derived_name in ds.data_vars:
                     return True, "exact_match"
 
-                # Check if dependencies are missing - this indicates the function
-                # already ran and dropped them (common with drop_dependencies=True)
                 if source_vars:
                     missing_deps = [v for v in source_vars if v not in ds.data_vars]
                     if missing_deps:
-                        # Dependencies are missing - function likely already ran
-                        return True, f"missing_deps:{missing_deps}"
+                        # All deps gone + derived var absent → function ran and dropped them
+                        if len(missing_deps) == len(source_vars):
+                            return True, f"missing_deps:{missing_deps}"
+                        # Partial deps missing + derived var absent → incomplete retrieval
+                        logger.warning(
+                            "Derived variable '%s' cannot be computed: source variables "
+                            "%s were not retrieved from the catalog. Check that all "
+                            "required variables exist at the requested table_id/resolution.",
+                            derived_name,
+                            missing_deps,
+                        )
+                        return False, f"incomplete_retrieval:{missing_deps}"
 
                 return False, None
 
