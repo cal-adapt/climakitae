@@ -457,11 +457,10 @@ class TestMetricCalcThresholds:
         assert processor.thresholds["threshold_direction"] == "above"
         assert processor.thresholds["period"] == (1, "year")
 
-    def test_init_default_direction_and_period(self):
-        """Direction and period get sensible defaults when omitted."""
-        processor = MetricCalc({"thresholds": {"threshold_value": 0.0}})
-        assert processor.thresholds["threshold_direction"] == "above"
-        assert processor.thresholds["period"] == (1, "year")
+    def test_missing_direction_raises(self):
+        """Missing threshold_direction should raise ValueError."""
+        with pytest.raises(ValueError, match="threshold_direction"):
+            MetricCalc({"thresholds": {"threshold_value": 0.0}})
 
     def test_missing_threshold_value_raises(self):
         """Missing threshold_value should raise ValueError."""
@@ -496,7 +495,9 @@ class TestMetricCalcThresholds:
 
     def test_above_threshold_count_dataarray(self, single_year_da):
         """Count timesteps above threshold for a DataArray."""
-        processor = MetricCalc({"thresholds": {"threshold_value": 5.0}})
+        processor = MetricCalc(
+            {"thresholds": {"threshold_value": 5.0, "threshold_direction": "above"}}
+        )
         result = processor._calculate_threshold_single(single_year_da)
 
         # values 0-9: those > 5 are 6,7,8,9 → count = 4
@@ -517,14 +518,18 @@ class TestMetricCalcThresholds:
     def test_unnamed_dataarray_uses_default_name(self, single_year_da):
         """Unnamed DataArray should produce a variable named 'exceedance_count'."""
         da_unnamed = single_year_da.rename(None)
-        processor = MetricCalc({"thresholds": {"threshold_value": 5.0}})
+        processor = MetricCalc(
+            {"thresholds": {"threshold_value": 5.0, "threshold_direction": "above"}}
+        )
         result = processor._calculate_threshold_single(da_unnamed)
         assert "exceedance_count" in result.data_vars
 
     def test_threshold_count_dataset(self, single_year_da):
         """Count exceedances for each variable in a Dataset."""
         ds = xr.Dataset({"tasmax": single_year_da, "tasmin": single_year_da * 0.5})
-        processor = MetricCalc({"thresholds": {"threshold_value": 3.0}})
+        processor = MetricCalc(
+            {"thresholds": {"threshold_value": 3.0, "threshold_direction": "above"}}
+        )
         result = processor._calculate_threshold_single(ds)
 
         assert isinstance(result, xr.Dataset)
@@ -539,7 +544,9 @@ class TestMetricCalcThresholds:
 
     def test_counts_per_year(self, daily_da):
         """Counts are grouped by calendar year."""
-        processor = MetricCalc({"thresholds": {"threshold_value": 50.0}})
+        processor = MetricCalc(
+            {"thresholds": {"threshold_value": 50.0, "threshold_direction": "above"}}
+        )
         result = processor._calculate_threshold_single(daily_da)
 
         counts = result["tasmax"].values
@@ -563,6 +570,7 @@ class TestMetricCalcThresholds:
             {
                 "thresholds": {
                     "threshold_value": 5.0,
+                    "threshold_direction": "above",
                     "duration": (2, "day"),
                 }
             }
@@ -580,7 +588,9 @@ class TestMetricCalcThresholds:
         values = np.array([np.nan, 10.0, 10.0, np.nan, 1.0])
         da = xr.DataArray(values, dims=["time"], coords={"time": dates}, name="tasmax")
 
-        processor = MetricCalc({"thresholds": {"threshold_value": 5.0}})
+        processor = MetricCalc(
+            {"thresholds": {"threshold_value": 5.0, "threshold_direction": "above"}}
+        )
         result = processor._calculate_threshold_single(da)
         # Only the two 10.0 values should be counted; NaN positions must not count
         assert int(result["tasmax"].sum()) == 2
@@ -591,7 +601,9 @@ class TestMetricCalcThresholds:
 
     def test_execute_routes_to_threshold(self, single_year_da):
         """execute() dispatches to _calculate_threshold_single when thresholds is set."""
-        processor = MetricCalc({"thresholds": {"threshold_value": 5.0}})
+        processor = MetricCalc(
+            {"thresholds": {"threshold_value": 5.0, "threshold_direction": "above"}}
+        )
         result = processor.execute(single_year_da, context={})
         assert isinstance(result, xr.Dataset)
         assert int(result["tasmax"].sum()) == 4

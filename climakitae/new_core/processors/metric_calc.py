@@ -83,7 +83,7 @@ class MetricCalc(DataProcessor):
         - thresholds (dict, optional): Configuration for counting timesteps that exceed
           a fixed threshold per period. Mutually exclusive with one_in_x. Keys:
           - threshold_value (float, required): The threshold to compare against.
-          - threshold_direction (str, optional): "above" or "below". Default: "above"
+          - threshold_direction (str, required): "above" or "below".
           - period (tuple, optional): Resampling period as (int, str), e.g. (1, "year").
             Default: (1, "year")
           - duration (tuple, optional): Require this many consecutive exceedances, e.g.
@@ -227,10 +227,10 @@ class MetricCalc(DataProcessor):
                 "Cannot set both 'thresholds' and 'one_in_x' in metric_calc. "
                 "Choose one output mode."
             )
-        direction = cfg.get("threshold_direction", "above")
+        direction = cfg.get("threshold_direction")
         if direction not in ("above", "below"):
             raise ValueError(
-                f"threshold_direction must be 'above' or 'below', got '{direction}'"
+                f"threshold_direction must be 'above' or 'below', got '{direction!r}'"
             )
         self.thresholds = {
             "threshold_value": float(cfg["threshold_value"]),

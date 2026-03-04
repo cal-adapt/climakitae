@@ -317,11 +317,11 @@ def _validate_threshold_parameters(thresholds_config: dict) -> bool:
         )
         return False
 
-    # Validate threshold_direction (optional)
-    threshold_direction = thresholds_config.get("threshold_direction", "above")
+    # Validate threshold_direction (required)
+    threshold_direction = thresholds_config.get("threshold_direction")
     if threshold_direction not in ("above", "below"):
         logger.warning(
-            "\n\nInvalid threshold_direction '%s'. " "\nMust be 'above' or 'below'.",
+            "\n\nInvalid threshold_direction %r. " "\nMust be 'above' or 'below'.",
             threshold_direction,
         )
         return False

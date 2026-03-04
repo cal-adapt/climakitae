@@ -270,8 +270,10 @@ class TestValidateThresholdParameters:
     """Unit tests for the _validate_threshold_parameters function."""
 
     def test_valid_minimal_config(self):
-        """Valid config with only threshold_value passes."""
-        result = _validate_threshold_parameters({"threshold_value": 110.0})
+        """Valid config with threshold_value and threshold_direction passes."""
+        result = _validate_threshold_parameters(
+            {"threshold_value": 110.0, "threshold_direction": "above"}
+        )
         assert result is True
 
     def test_valid_full_config(self):
@@ -306,6 +308,13 @@ class TestValidateThresholdParameters:
             result = _validate_threshold_parameters({"threshold_value": "hot"})
         assert result is False
         assert "threshold_value must be a number" in caplog.text
+
+    def test_missing_threshold_direction(self, caplog):
+        """Missing threshold_direction returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_threshold_parameters({"threshold_value": 110.0})
+        assert result is False
+        assert "Invalid threshold_direction" in caplog.text
 
     def test_invalid_threshold_direction(self, caplog):
         """Invalid threshold_direction returns False."""
