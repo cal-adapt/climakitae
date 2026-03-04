@@ -1217,45 +1217,32 @@ def compute_multimodel_stats(data: xr.DataArray) -> xr.DataArray:
     stats_concat : xr.DataArray
 
     """
-    # Can hard-code as "sim" once DFU/degree_days.ipynb updated for new core.
-    # But keeping "simulation" as an option until then.
-    if "simulation" in data.dims:
-        sim_dim = "simulation"
-    else:
-        sim_dim = "sim"
-
     # Compute mean across simulation dimensions and add is as a coordinate
     sim_mean = (
-        data.mean(dim=sim_dim)
-        .assign_coords({sim_dim: "simulation mean"})
-        .expand_dims(sim_dim)
+        data.mean(dim="sim")
+        .assign_coords({"sim": "simulation mean"})
+        .expand_dims("sim")
     )
 
     # Compute multimodel min
     sim_min = (
-        data.min(dim=sim_dim)
-        .assign_coords({sim_dim: "simulation min"})
-        .expand_dims(sim_dim)
+        data.min(dim="sim").assign_coords({"sim": "simulation min"}).expand_dims("sim")
     )
 
     # Compute multimodel max
     sim_max = (
-        data.max(dim=sim_dim)
-        .assign_coords({sim_dim: "simulation max"})
-        .expand_dims(sim_dim)
+        data.max(dim="sim").assign_coords({"sim": "simulation max"}).expand_dims("sim")
     )
 
     # Compute multimodel median
     sim_median = (
-        data.median(dim=sim_dim)
-        .assign_coords({sim_dim: "simulation median"})
-        .expand_dims(sim_dim)
+        data.median(dim="sim")
+        .assign_coords({"sim": "simulation median"})
+        .expand_dims("sim")
     )
 
     # Add to main dataset
-    stats_concat = xr.concat(
-        [data, sim_mean, sim_min, sim_max, sim_median], dim=sim_dim
-    )
+    stats_concat = xr.concat([data, sim_mean, sim_min, sim_max, sim_median], dim="sim")
     stats_concat.attrs["name"] = data.name
     return stats_concat
 
@@ -1279,32 +1266,25 @@ def trendline(data: xr.DataArray, kind: str = "mean") -> xr.DataArray:
     compute_multimodel_stats must be modified to update optionality.
 
     """
-    # Can hard-code as "sim" once DFU/degree_days.ipynb updated for new core.
-    # But keeping "simulation" as an option until then.
-    if "simulation" in data.dims:
-        sim_dim = "simulation"
-    else:
-        sim_dim = "sim"
-
     ret_trendline = xr.Dataset()
     match kind:
         case "mean":
-            if "simulation mean" not in data[sim_dim]:
+            if "simulation mean" not in data.sim:
                 raise ValueError(
                     "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
                 )
 
-            data_sim_mean = data.sel({sim_dim: "simulation mean"})
+            data_sim_mean = data.sel({"sim": "simulation mean"})
             m, b = data_sim_mean.polyfit(dim="year", deg=1).polyfit_coefficients.values
             ret_trendline = m * data_sim_mean.year + b  # y = mx + b
 
         case "median":
-            if "simulation median" not in data[sim_dim]:
+            if "simulation median" not in data.sim:
                 raise ValueError(
                     "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
                 )
 
-            data_sim_med = data.sel({sim_dim: "simulation median"})
+            data_sim_med = data.sel({"sim": "simulation median"})
             m, b = data_sim_med.polyfit(dim="year", deg=1).polyfit_coefficients.values
             ret_trendline = m * data_sim_med.year + b  # y = mx + b
         case _:
