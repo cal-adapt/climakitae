@@ -9,9 +9,6 @@ import xarray as xr
 
 from climakitae.explore import threshold_tools
 
-# ------------- Test kwarg compatibility and Exceptions ------------------------
-
-
 def test_error1(test_data_2022_monthly_45km: xr.Dataset):
     """Test incompatible case: cannot specify a 1-day groupy for monthly data."""
     with pytest.raises(ValueError, match="Incompatible `group` specification"):
@@ -30,9 +27,6 @@ def test_error2(T2_hourly: xr.DataArray):
         threshold_tools.get_exceedance_count(
             T2_hourly, threshold_value=305, groupby=(1, "month"), duration2=(3, "day")
         )
-
-
-# ------------- Tests with hourly data -----------------------------------------
 
 
 @pytest.mark.advanced
@@ -100,9 +94,6 @@ def test_duration():
     )
     exc_counts = threshold_tools.get_exceedance_count(da, 0, duration1=(3, "hour"))
     assert exc_counts == 4  # four of the six hours are the start of a 3-hour event
-
-
-# ------------- Test helper functions for plotting -----------------------------
 
 
 def test_name1():
