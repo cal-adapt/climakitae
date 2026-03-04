@@ -343,14 +343,13 @@ class ConvertToLocalTime(DataProcessor):
             .tz_localize(None)
             .astype("datetime64[ns]")
         )
-        obj["time"] = local_time
         if no_leap:
-            # Shift feb 29 afternoon hours to feb 28
-            obj["time"] = xr.where(
-                (obj.time.dt.month == 2) & (obj.time.dt.day == 29),
-                pd.to_datetime(obj.time) - pd.DateOffset(days=1),
-                obj.time,
-            )
+            # Drop any Feb 29 timestamps introduced by UTC→local shift —
+            # they don't exist in the original no-leap calendar.
+            mask = ~((local_time.month == 2) & (local_time.day == 29))
+            local_time = local_time[mask]
+            obj = obj.isel(time=mask)
+        obj["time"] = local_time
         logger.debug(f"Data converted to {local_tz} timezone.")
         self.timezone = local_tz
 
@@ -359,20 +358,16 @@ class ConvertToLocalTime(DataProcessor):
             # in some timezones.
             obj_updated_times = obj.drop_duplicates("time", keep="first")
 
-            # Find missing day in spring due to daylight savings end
-            all_dates = pd.date_range(
-                start=obj_updated_times.time.min().data.item(),
-                end=obj_updated_times.time.max().data.item(),
-                freq="1h",
-            ).to_list()
-            # Using timestamp type to access months easily
-            missing_times = list(
-                set(all_dates).difference(
-                    [pd.to_datetime(t) for t in obj_updated_times.time.data]
-                )
-            )
+            # Find missing hour in spring due to daylight savings start.
+            # Detect gaps > 1h directly on the time axis — avoids generating
+            # a full expected range and diffing (slow for long timeseries).
+            times = pd.DatetimeIndex(obj_updated_times.time.data)
+            diffs = times[1:] - times[:-1]
+            gap_starts = times[:-1][diffs > pd.Timedelta("1h")]
             times_to_fill = [
-                x for x in missing_times if ((x.month == 3) | (x.month == 4))
+                t + pd.Timedelta("1h")
+                for t in gap_starts
+                if t.month in (3, 4)
             ]
 
             # Expand time dim to include missing times
