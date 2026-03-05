@@ -309,6 +309,13 @@ class TestValidateThresholdParameters:
         assert result is False
         assert "threshold_value must be a number" in caplog.text
 
+    def test_nan_threshold_value(self, caplog):
+        """float('nan') threshold_value returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_threshold_parameters({"threshold_value": float("nan")})
+        assert result is False
+        assert "threshold_value must not be NaN" in caplog.text
+
     def test_missing_threshold_direction(self, caplog):
         """Missing threshold_direction returns False."""
         with caplog.at_level(logging.WARNING):

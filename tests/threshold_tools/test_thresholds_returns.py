@@ -13,6 +13,9 @@ import xarray as xr
 
 from climakitae.explore import threshold_tools
 
+# ------------- Data for testing -----------------------------------------------
+
+
 @pytest.fixture
 def T2_ams(rootdir: str) -> xr.DataArray:
     """Generate an annual maximum series (ams) datarray for testing."""
@@ -25,6 +28,9 @@ def T2_ams(rootdir: str) -> xr.DataArray:
         .isel(scenario=0, simulation=0)
     )
     return threshold_tools.get_block_maxima(test_data, block_size=1, check_ess=False)
+
+
+# ------------- Test return values and periods ----------------------------------
 
 
 @pytest.mark.advanced
@@ -148,6 +154,9 @@ def test_return_probs_block_size(T2_ams: xr.DataArray):
     )
     # test that the return probs from longer block sizes should be smaller:
     assert rps1["return_prob"].values[()] >= rps2["return_prob"].values[()]
+
+
+# -------------- Test AMS block maxima calculations for complex extreme events
 
 
 @pytest.mark.advanced

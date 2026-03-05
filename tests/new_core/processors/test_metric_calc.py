@@ -438,10 +438,6 @@ class TestMetricCalcThresholds:
             values, dims=["time"], coords={"time": dates}, name="tasmax"
         )
 
-    # ------------------------------------------------------------------
-    # Init / validation tests
-    # ------------------------------------------------------------------
-
     def test_init_sets_thresholds(self):
         """MetricCalc stores normalised threshold config after init."""
         processor = MetricCalc(
@@ -484,14 +480,10 @@ class TestMetricCalcThresholds:
         with pytest.raises(ValueError, match="Cannot set both"):
             MetricCalc(
                 {
-                    "thresholds": {"threshold_value": 5.0},
+                    "thresholds": {"threshold_value": 5.0, "threshold_direction": "above"},
                     "one_in_x": {"return_periods": [10]},
                 }
             )
-
-    # ------------------------------------------------------------------
-    # Calculation tests (single-year window)
-    # ------------------------------------------------------------------
 
     def test_above_threshold_count_dataarray(self, single_year_da):
         """Count timesteps above threshold for a DataArray."""
@@ -538,10 +530,6 @@ class TestMetricCalcThresholds:
         # tasmin (0-4.5 in 0.5 steps): > 3 are 3.5, 4.0, 4.5 → 3
         assert int(result["tasmin"].sum()) == 3
 
-    # ------------------------------------------------------------------
-    # Multi-year resampling test
-    # ------------------------------------------------------------------
-
     def test_counts_per_year(self, daily_da):
         """Counts are grouped by calendar year."""
         processor = MetricCalc(
@@ -554,10 +542,6 @@ class TestMetricCalcThresholds:
         # 2021: days 366-367 = 100 → 2 exceedances
         assert counts[0] == 3
         assert counts[1] == 2
-
-    # ------------------------------------------------------------------
-    # Duration (consecutive) filter test
-    # ------------------------------------------------------------------
 
     def test_duration_filter(self):
         """duration=(2, 'day') requires 2 consecutive exceedances."""
@@ -578,9 +562,50 @@ class TestMetricCalcThresholds:
         result = processor._calculate_threshold_single(da)
         assert int(result["tasmax"].sum()) == 1
 
-    # ------------------------------------------------------------------
-    # NaN preservation
-    # ------------------------------------------------------------------
+    def test_duration_unit_converted_to_timesteps(self):
+        """duration=(2, 'day') on hourly data should roll 48 steps, not 2."""
+        dates = pd.date_range("2020-01-01", periods=72, freq="h")
+        # exceedances at hours 24-47 (24 consecutive hours = 1 day)
+        values = np.where((dates.hour >= 0) & (dates.dayofyear == 2), 10.0, 1.0)
+        da = xr.DataArray(values, dims=["time"], coords={"time": dates}, name="tasmax")
+
+        processor = MetricCalc(
+            {
+                "thresholds": {
+                    "threshold_value": 5.0,
+                    "threshold_direction": "above",
+                    "duration": (2, "day"),
+                }
+            }
+        )
+        result = processor._calculate_threshold_single(da)
+        # 24 consecutive exceedances = 1 day, duration requires 2 days → 0 events
+        assert int(result["tasmax"].sum()) == 0
+
+    def test_all_nan_period_returns_nan(self):
+        """A period with all-NaN data returns NaN, not 0."""
+        dates = pd.date_range("2020-01-01", periods=365, freq="D")
+        values = np.full(365, np.nan)
+        da = xr.DataArray(values, dims=["time"], coords={"time": dates}, name="tasmax")
+
+        processor = MetricCalc(
+            {"thresholds": {"threshold_value": 5.0, "threshold_direction": "above"}}
+        )
+        result = processor._calculate_threshold_single(da)
+        assert np.isnan(result["tasmax"].values).all()
+
+    def test_invalid_period_raises(self):
+        """Invalid period tuple raises ValueError at init."""
+        with pytest.raises(ValueError, match="period"):
+            MetricCalc(
+                {
+                    "thresholds": {
+                        "threshold_value": 5.0,
+                        "threshold_direction": "above",
+                        "period": (1, "week"),
+                    }
+                }
+            )
 
     def test_nan_in_data_not_counted(self):
         """NaN values in the data are preserved as NaN in the output mask."""
@@ -595,10 +620,6 @@ class TestMetricCalcThresholds:
         # Only the two 10.0 values should be counted; NaN positions must not count
         assert int(result["tasmax"].sum()) == 2
 
-    # ------------------------------------------------------------------
-    # execute() routing
-    # ------------------------------------------------------------------
-
     def test_execute_routes_to_threshold(self, single_year_da):
         """execute() dispatches to _calculate_threshold_single when thresholds is set."""
         processor = MetricCalc(
@@ -607,10 +628,6 @@ class TestMetricCalcThresholds:
         result = processor.execute(single_year_da, context={})
         assert isinstance(result, xr.Dataset)
         assert int(result["tasmax"].sum()) == 4
-
-    # ------------------------------------------------------------------
-    # update_context
-    # ------------------------------------------------------------------
 
     def test_update_context_threshold(self):
         """update_context records threshold info in the context."""

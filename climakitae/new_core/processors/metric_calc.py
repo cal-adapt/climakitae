@@ -232,11 +232,24 @@ class MetricCalc(DataProcessor):
             raise ValueError(
                 f"threshold_direction must be 'above' or 'below', got '{direction!r}'"
             )
+        period = cfg.get("period", (1, "year"))
+        _valid_period_units = ("year", "month", "day", "hour")
+        if not isinstance(period, tuple) or len(period) != 2:
+            raise ValueError(
+                "period must be a tuple of (int, str), e.g. (1, 'year')"
+            )
+        period_num, period_unit = period
+        if not isinstance(period_num, int) or period_num <= 0:
+            raise ValueError("period number must be a positive integer")
+        if period_unit not in _valid_period_units:
+            raise ValueError(
+                f"period unit must be one of {_valid_period_units}, got {period_unit!r}"
+            )
         self.thresholds = {
             "threshold_value": float(cfg["threshold_value"]),
             "threshold_direction": direction,
             "duration": cfg.get("duration", UNSET),
-            "period": cfg.get("period", (1, "year")),
+            "period": period,
         }
 
     def execute(
@@ -471,12 +484,31 @@ class MetricCalc(DataProcessor):
                 mask = (da < cfg["threshold_value"]).where(~da.isnull())
 
             # 2. Optional consecutive-timestep filter (rolling min)
-            #    e.g. duration=(3, "day") requires 3 consecutive exceedances
+            #    e.g. duration=(3, "day") requires 3 consecutive exceedances.
+            #    Convert the (n, unit) duration to the equivalent number of
+            #    timesteps by inferring the data's time resolution.
             if cfg["duration"] is not UNSET:
-                n, _ = cfg["duration"]
-                mask = mask.rolling(time=n, min_periods=n).min("time")
+                n, unit = cfg["duration"]
+                _unit_to_secs = {
+                    "hour": 3_600,
+                    "day": 86_400,
+                    "month": 30 * 86_400,
+                    "year": 365 * 86_400,
+                }
+                duration_secs = n * _unit_to_secs[unit.lower()]
+                time_diffs = da.time.diff("time")
+                if len(time_diffs) > 0:
+                    timestep_secs = float(
+                        time_diffs.median().dt.total_seconds()
+                    )
+                    n_steps = max(1, round(duration_secs / timestep_secs))
+                else:
+                    n_steps = n
+                mask = mask.rolling(time=n_steps, min_periods=n_steps).min("time")
 
-            # 3. Count exceedances per period
+            # 3. Count exceedances per period.
+            #    min_count=1 ensures all-NaN periods return NaN rather than 0,
+            #    so missing data is distinguishable from zero exceedances.
             n_period, unit = cfg["period"]
             # Map unit names to pandas offset aliases (use non-deprecated forms)
             _unit_to_freq = {
@@ -487,7 +519,7 @@ class MetricCalc(DataProcessor):
             }
             freq_code = _unit_to_freq.get(unit.lower(), unit[0].upper())
             freq = f"{n_period}{freq_code}"  # e.g. (1, "year") → "1YE"
-            return mask.resample(time=freq).sum()
+            return mask.resample(time=freq).sum(min_count=1)
 
         if isinstance(data, xr.DataArray):
             return xr.Dataset({data.name or "exceedance_count": _apply(data)})
