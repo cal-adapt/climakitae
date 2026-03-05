@@ -343,13 +343,14 @@ class ConvertToLocalTime(DataProcessor):
             .tz_localize(None)
             .astype("datetime64[ns]")
         )
-        if no_leap:
-            # Drop any Feb 29 timestamps introduced by UTC→local shift —
-            # they don't exist in the original no-leap calendar.
-            mask = ~((local_time.month == 2) & (local_time.day == 29))
-            local_time = local_time[mask]
-            obj = obj.isel(time=mask)
         obj["time"] = local_time
+        if no_leap:
+            # Shift feb 29 afternoon hours to feb 28
+            obj["time"] = xr.where(
+                (obj.time.dt.month == 2) & (obj.time.dt.day == 29),
+                pd.to_datetime(obj.time) - pd.DateOffset(days=1),
+                obj.time,
+            )
         logger.debug(f"Data converted to {local_tz} timezone.")
         self.timezone = local_tz
 
