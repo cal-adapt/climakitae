@@ -357,7 +357,10 @@ class ConvertToLocalTime(DataProcessor):
         if self.reindex_time_axis == "yes":
             # Drop duplicate timestamps due to daylight savings time start
             # in some timezones.
-            obj_updated_times = obj.drop_duplicates("time", keep="first")
+            times = pd.DatetimeIndex(obj.time.data)
+            _, first_occurrence = np.unique(times, return_index=True)
+            no_repeated_times = times[np.sort(first_occurrence)]
+            obj_updated_times = obj.isel(time=np.sort(first_occurrence))
 
             # Find missing day in spring due to daylight savings end
             all_dates = pd.date_range(
@@ -388,7 +391,7 @@ class ConvertToLocalTime(DataProcessor):
                     obj_time_type = type(obj_updated_times.time.data[0])
                     times_to_fill = [obj_time_type(t) for t in times_to_fill]
                 # Create axis with missing times included
-                new_time_axis = np.concat((obj_updated_times.time.data, times_to_fill))
+                new_time_axis = np.concat((no_repeated_times, times_to_fill))
                 new_time_axis.sort()
                 # Add new time axis to our object with NaN fill for missing times
                 obj_updated_times = obj_updated_times.reindex(
