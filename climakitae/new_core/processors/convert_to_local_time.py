@@ -361,20 +361,11 @@ class ConvertToLocalTime(DataProcessor):
             no_repeated_times = times[np.sort(first_occurrence)]
             obj_updated_times = obj.isel(time=np.sort(first_occurrence))
 
-            # Find missing day in spring due to daylight savings end
-            all_dates = pd.date_range(
-                start=obj_updated_times.time.min().data.item(),
-                end=obj_updated_times.time.max().data.item(),
-                freq="1h",
-            ).to_list()
-            # Using timestamp type to access months easily
-            missing_times = list(
-                set(all_dates).difference(
-                    [pd.to_datetime(t) for t in obj_updated_times.time.data]
-                )
-            )
+            # Find missing hour in spring due to daylight savings start
+            diffs = no_repeated_times[1:] - no_repeated_times[:-1]
+            gap_starts = no_repeated_times[:-1][diffs > pd.Timedelta("1h")]
             times_to_fill = [
-                x for x in missing_times if ((x.month == 3) | (x.month == 4))
+                t + pd.Timedelta("1h") for t in gap_starts if t.month in (3, 4)
             ]
 
             # Expand time dim to include missing times
