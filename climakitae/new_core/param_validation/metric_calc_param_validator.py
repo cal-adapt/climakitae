@@ -300,7 +300,8 @@ def _validate_threshold_parameters(thresholds_config: dict) -> bool:
         )
         return False
 
-    valid_time_units = ("year", "month", "day", "hour")
+    valid_period_units = ("year", "month")
+    valid_duration_units = ("year", "month", "day", "hour")
 
     # Validate threshold_value (required)
     threshold_value = thresholds_config.get("threshold_value")
@@ -349,11 +350,11 @@ def _validate_threshold_parameters(thresholds_config: dict) -> bool:
                 "\nPlease check the configuration."
             )
             return False
-        if period_unit not in valid_time_units:
+        if period_unit not in valid_period_units:
             logger.warning(
                 "\n\nperiod unit must be one of %s, got '%s'. "
                 "\nPlease check the configuration.",
-                valid_time_units,
+                valid_period_units,
                 period_unit,
             )
             return False
@@ -374,11 +375,11 @@ def _validate_threshold_parameters(thresholds_config: dict) -> bool:
                 "\nPlease check the configuration."
             )
             return False
-        if duration_unit not in valid_time_units:
+        if duration_unit not in valid_duration_units:
             logger.warning(
                 "\n\nduration unit must be one of %s, got '%s'. "
                 "\nPlease check the configuration.",
-                valid_time_units,
+                valid_duration_units,
                 duration_unit,
             )
             return False

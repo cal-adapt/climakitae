@@ -339,8 +339,10 @@ class TestValidateThresholdParameters:
         "period",
         [
             (1, "week"),  # bad unit
-            (0, "day"),  # non-positive int
-            (1.5, "day"),  # float instead of int
+            (1, "day"),  # day no longer supported
+            (1, "hour"),  # hour no longer supported
+            (0, "month"),  # non-positive int
+            (1.5, "year"),  # float instead of int
             (1,),  # wrong length
             "1year",  # not a tuple
         ],

@@ -233,7 +233,7 @@ class MetricCalc(DataProcessor):
                 f"threshold_direction must be 'above' or 'below', got '{direction!r}'"
             )
         period = cfg.get("period", (1, "year"))
-        _valid_period_units = ("year", "month", "day", "hour")
+        _valid_period_units = ("year", "month")
         if not isinstance(period, tuple) or len(period) != 2:
             raise ValueError("period must be a tuple of (int, str), e.g. (1, 'year')")
         period_num, period_unit = period
@@ -510,10 +510,8 @@ class MetricCalc(DataProcessor):
             _unit_to_freq = {
                 "year": "YE",
                 "month": "ME",
-                "day": "D",
-                "hour": "h",
             }
-            freq_code = _unit_to_freq.get(unit.lower(), unit[0].upper())
+            freq_code = _unit_to_freq[unit.lower()]
             freq = f"{n_period}{freq_code}"  # e.g. (1, "year") → "1YE"
             return mask.resample(time=freq).sum(min_count=1)
 

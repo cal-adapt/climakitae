@@ -597,15 +597,16 @@ class TestMetricCalcThresholds:
         result = processor._calculate_threshold_single(da)
         assert np.isnan(result["tasmax"].values).all()
 
-    def test_invalid_period_raises(self):
-        """Invalid period tuple raises ValueError at init."""
+    @pytest.mark.parametrize("period", [(1, "week"), (1, "day"), (1, "hour")])
+    def test_invalid_period_raises(self, period):
+        """Only 'year' and 'month' are valid period units."""
         with pytest.raises(ValueError, match="period"):
             MetricCalc(
                 {
                     "thresholds": {
                         "threshold_value": 5.0,
                         "threshold_direction": "above",
-                        "period": (1, "week"),
+                        "period": period,
                     }
                 }
             )
