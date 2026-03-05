@@ -488,10 +488,10 @@ class MetricCalc(DataProcessor):
             if cfg["duration"] is not UNSET:
                 n, unit = cfg["duration"]
                 _unit_to_secs = {
-                    "hour": 3_600,
-                    "day": 86_400,
-                    "month": 30 * 86_400,
-                    "year": 365 * 86_400,
+                    "hour": 3600,
+                    "day": 86400,
+                    "month": 30 * 86400,
+                    "year": 365 * 86400,
                 }
                 duration_secs = n * _unit_to_secs[unit.lower()]
                 time_diffs = da.time.diff("time")
