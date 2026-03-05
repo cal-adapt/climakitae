@@ -235,9 +235,7 @@ class MetricCalc(DataProcessor):
         period = cfg.get("period", (1, "year"))
         _valid_period_units = ("year", "month", "day", "hour")
         if not isinstance(period, tuple) or len(period) != 2:
-            raise ValueError(
-                "period must be a tuple of (int, str), e.g. (1, 'year')"
-            )
+            raise ValueError("period must be a tuple of (int, str), e.g. (1, 'year')")
         period_num, period_unit = period
         if not isinstance(period_num, int) or period_num <= 0:
             raise ValueError("period number must be a positive integer")
@@ -498,9 +496,7 @@ class MetricCalc(DataProcessor):
                 duration_secs = n * _unit_to_secs[unit.lower()]
                 time_diffs = da.time.diff("time")
                 if len(time_diffs) > 0:
-                    timestep_secs = float(
-                        time_diffs.median().dt.total_seconds()
-                    )
+                    timestep_secs = float(time_diffs.median().dt.total_seconds())
                     n_steps = max(1, round(duration_secs / timestep_secs))
                 else:
                     n_steps = n

@@ -480,7 +480,10 @@ class TestMetricCalcThresholds:
         with pytest.raises(ValueError, match="Cannot set both"):
             MetricCalc(
                 {
-                    "thresholds": {"threshold_value": 5.0, "threshold_direction": "above"},
+                    "thresholds": {
+                        "threshold_value": 5.0,
+                        "threshold_direction": "above",
+                    },
                     "one_in_x": {"return_periods": [10]},
                 }
             )
