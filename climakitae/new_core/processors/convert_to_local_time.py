@@ -137,7 +137,7 @@ class ConvertToLocalTime(DataProcessor):
                             )
                         else:
                             msg = (
-                                "Could not convert time to local time for all entries."
+                                "Could not convert time to local time for all entries.",
                             )
                         logger.info(*msg)
                         return subset_data
@@ -167,7 +167,7 @@ class ConvertToLocalTime(DataProcessor):
                             )
                         else:
                             msg = (
-                                "Could not convert time to local time for all entries."
+                                "Could not convert time to local time for all entries.",
                             )
                         logger.info(*msg)
                         return type(result)(subset_data)
