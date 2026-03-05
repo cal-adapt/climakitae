@@ -7,8 +7,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from climakitae.core.constants import UNSET
-from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
 )
@@ -41,9 +39,6 @@ def validate_convert_to_local_time_param(
         True if all parameters are valid, False otherwise
 
     """
-    # Module logger
-    logger = logging.getLogger(__name__)
-
     valid_values = ["yes", "no"]
 
     for setting in value:
