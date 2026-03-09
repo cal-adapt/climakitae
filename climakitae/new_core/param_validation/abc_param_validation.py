@@ -373,6 +373,39 @@ class ParameterValidator(ABC):
                     source_vars,
                 )
                 derived_var_name = derived_name
+                # Validate that all source variables exist in the catalog
+                # with the user's table_id/activity_id constraints before proceeding.
+                # This catches cases like querying a derived variable at a temporal
+                # resolution where only some source vars exist (e.g., u10/v10 not
+                # available at monthly resolution).
+                try:
+                    from climakitae.new_core.param_validation.derived_variable_param_validator import (
+                        check_derived_variable_dependencies,
+                    )
+
+                    catalog_df = getattr(self.catalog, "df", None)
+                    activity_id = self.all_catalog_keys.get("activity_id", UNSET)
+                    table_id = self.all_catalog_keys.get("table_id", UNSET)
+                    deps_ok = check_derived_variable_dependencies(
+                        source_vars,
+                        catalog_df,
+                        activity_id=activity_id,
+                        table_id=table_id,
+                    )
+                    if not deps_ok:
+                        logger.warning(
+                            "Cannot compute derived variable '%s': not all source "
+                            "variables %s are available with the requested constraints "
+                            "(activity_id=%s, table_id=%s). Check your query parameters.",
+                            derived_name,
+                            source_vars,
+                            activity_id,
+                            table_id,
+                        )
+                        return None
+                except ImportError as e:
+                    logger.debug("Could not check derived variable dependencies: %s", e)
+
                 # Keep derived variable name as variable_id for catalog search
                 # intake-esm registry will automatically expand to search for
                 # all source variables via its query parameter
