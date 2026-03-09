@@ -474,6 +474,23 @@ class MetricCalc(DataProcessor):
         """
         cfg = self.thresholds
 
+        # Add dummy time dimension if data came from warming-level processing
+        # (which replaces the time axis with time_delta or *_from_center dims)
+        if isinstance(data, xr.Dataset):
+            if "time" not in data.dims:
+                frequency = data.attrs.get("frequency", "day")
+                data = xr.Dataset(
+                    {
+                        var: self._add_dummy_time_if_needed(data[var], frequency)
+                        for var in data.data_vars
+                    },
+                    attrs=data.attrs,
+                )
+        elif isinstance(data, xr.DataArray) and "time" not in data.dims:
+            data = self._add_dummy_time_if_needed(
+                data, data.attrs.get("frequency", "day")
+            )
+
         def _apply(da: xr.DataArray) -> xr.DataArray:
             # 1. Threshold comparison (preserve NaNs)
             if cfg["threshold_direction"] == "above":
