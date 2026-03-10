@@ -31,6 +31,7 @@ from climakitae.new_core.processors.abc_data_processor import (
     register_processor,
 )
 from climakitae.new_core.processors.processor_utils import _get_block_maxima_optimized
+from climakitae.util.utils import add_dummy_time_to_wl
 
 logger = logging.getLogger(__name__)
 
@@ -485,21 +486,18 @@ class MetricCalc(DataProcessor):
         cfg = self.thresholds
 
         # Add dummy time dimension if data came from warming-level processing
-        # (which replaces the time axis with time_delta or *_from_center dims)
+        # (which replaces the time axis with time_delta or *_from_center dims).
+        # Use add_dummy_time_to_wl so leap-year handling matches the warming_level
+        # processor, ensuring consistent year boundaries regardless of whether
+        # add_dummy_time was set in the warming_level config.
         if isinstance(data, xr.Dataset):
             if "time" not in data.dims:
-                frequency = data.attrs.get("frequency", "day")
                 data = xr.Dataset(
-                    {
-                        var: self._add_dummy_time_if_needed(data[var], frequency)
-                        for var in data.data_vars
-                    },
+                    {var: add_dummy_time_to_wl(data[var]) for var in data.data_vars},
                     attrs=data.attrs,
                 )
         elif isinstance(data, xr.DataArray) and "time" not in data.dims:
-            data = self._add_dummy_time_if_needed(
-                data, data.attrs.get("frequency", "day")
-            )
+            data = add_dummy_time_to_wl(data)
 
         def _apply(da: xr.DataArray) -> xr.DataArray:
             # 1. Threshold comparison (preserve NaNs)
@@ -628,7 +626,7 @@ class MetricCalc(DataProcessor):
 
         # Check if we have a time dimension, and add dummy time if needed
         if "time" not in data_array.dims:
-            data_array = self._add_dummy_time_if_needed(data_array, data.frequency)
+            data_array = add_dummy_time_to_wl(data_array)
 
         # Apply variable-specific preprocessing
         data_array = self._preprocess_variable_for_one_in_x(data_array, var_name)
@@ -1324,66 +1322,6 @@ class MetricCalc(DataProcessor):
             )
 
         context[_NEW_ATTRS_KEY][self.name] = transformation_description
-
-    def _add_dummy_time_if_needed(
-        self, data_array: xr.DataArray, frequency: str
-    ) -> xr.DataArray:
-        """
-        Add dummy time dimension if data has time_delta or similar warming level dimensions.
-
-        This mimics the behavior of add_dummy_time_to_wl from the legacy code.
-
-        Parameters
-        ----------
-        data_array : xr.DataArray
-            Input data array that may have time_delta or *_from_center dimensions
-
-        Returns
-        -------
-        xr.DataArray
-            Data array with proper time dimension
-        """
-        # Find the warming level time dimension
-        wl_time_dim = ""
-
-        for dim in data_array.dims:
-            dim_str = str(dim)
-            if dim_str == "time_delta":
-                wl_time_dim = "time_delta"
-                break
-            elif "from_center" in dim_str:
-                wl_time_dim = dim_str
-                break
-
-        if wl_time_dim == "":
-            raise ValueError(
-                "Data must have a 'time', 'time_delta', or '*_from_center' dimension for 1-in-X calculations"
-            )
-
-        # Determine frequency and create dummy timestamps
-        if wl_time_dim == "time_delta":
-            # Get frequency from data array attributes
-            time_freq_name = frequency
-            name_to_freq = {"1hr": "h", "day": "D", "mon": "ME"}
-        else:
-            # Extract frequency from dimension name (e.g., 'hours_from_center' -> 'hours')
-            time_freq_name = wl_time_dim.split("_")[0]
-            name_to_freq = {"hours": "h", "days": "D", "months": "ME"}
-
-        # Create dummy timestamps starting from 2000-01-01
-        freq = name_to_freq.get(time_freq_name, "D")  # Default to daily
-        timestamps = pd.date_range(
-            "2000-01-01",
-            periods=len(data_array[wl_time_dim]),
-            freq=freq,
-        )
-
-        # Replace the warming level dimension with dummy timestamps and rename to 'time'
-        data_array = data_array.assign_coords({wl_time_dim: timestamps}).rename(
-            {wl_time_dim: "time"}
-        )
-
-        return data_array
 
     def set_data_accessor(self, catalog: DataCatalog):
         """
