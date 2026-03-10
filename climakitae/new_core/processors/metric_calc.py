@@ -519,7 +519,7 @@ class MetricCalc(DataProcessor):
                     "month": 30 * 86400,
                     "year": 365 * 86400,
                 }
-                # Map CMIP/CalAdapt frequency strings to approximate seconds per timestep.
+                # Map frequency strings to approximate seconds per timestep
                 _freq_to_secs = {
                     "hour": 3600,
                     "3hr": 3 * 3600,
