@@ -199,7 +199,13 @@ class TestMetricCalcThresholds:
         dates = pd.date_range("2020-01-01", periods=72, freq="h")
         # exceedances at hours 24-47 (24 consecutive hours = 1 day)
         values = np.where((dates.hour >= 0) & (dates.dayofyear == 2), 10.0, 1.0)
-        da = xr.DataArray(values, dims=["time"], coords={"time": dates}, name="tasmax")
+        da = xr.DataArray(
+            values,
+            dims=["time"],
+            coords={"time": dates},
+            name="tasmax",
+            attrs={"frequency": "hour"},
+        )
 
         processor = MetricCalc(
             {
