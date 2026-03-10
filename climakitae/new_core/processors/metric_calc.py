@@ -508,8 +508,9 @@ class MetricCalc(DataProcessor):
 
             # 2. Optional consecutive-timestep filter (rolling min)
             #    e.g. duration=(3, "day") requires 3 consecutive exceedances.
-            #    Convert the (n, unit) duration to the equivalent number of
-            #    timesteps by inferring the data's time resolution.
+            #    Convert the (n, unit) duration to an integer timestep count
+            #    using the data's `frequency` attribute (always set by the
+            #    time this processor runs).
             if cfg["duration"] is not UNSET:
                 n, unit = cfg["duration"]
                 _unit_to_secs = {
@@ -518,13 +519,19 @@ class MetricCalc(DataProcessor):
                     "month": 30 * 86400,
                     "year": 365 * 86400,
                 }
+                # Map CMIP/CalAdapt frequency strings to approximate seconds per timestep.
+                _freq_to_secs = {
+                    "hour": 3600,
+                    "3hr": 3 * 3600,
+                    "6hr": 6 * 3600,
+                    "day": 86400,
+                    "mon": 30 * 86400,
+                    "year": 365 * 86400,
+                }
+                freq = (da.attrs.get("frequency") or "day").lower()
+                timestep_secs = _freq_to_secs.get(freq, 86400)
                 duration_secs = n * _unit_to_secs[unit.lower()]
-                time_diffs = da.time.diff("time")
-                if len(time_diffs) > 0:
-                    timestep_secs = float(time_diffs.median().dt.total_seconds())
-                    n_steps = max(1, round(duration_secs / timestep_secs))
-                else:
-                    n_steps = n
+                n_steps = max(1, round(duration_secs / timestep_secs))
                 mask = mask.rolling(time=n_steps, min_periods=n_steps).min("time")
 
             # 3. Count exceedances per period.
