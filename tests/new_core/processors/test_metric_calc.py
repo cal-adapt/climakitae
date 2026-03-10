@@ -13,7 +13,6 @@ from typing import Any, Dict
 from unittest.mock import patch
 
 import numpy as np
-import pandas as pd
 import pytest
 import xarray as xr
 
