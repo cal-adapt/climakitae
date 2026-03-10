@@ -227,6 +227,16 @@ class MetricCalc(DataProcessor):
                 "Cannot set both 'thresholds' and 'one_in_x' in metric_calc. "
                 "Choose one output mode."
             )
+        if "metric" in self.value:
+            raise ValueError(
+                "Cannot set both 'thresholds' and 'metric' in metric_calc. "
+                "Choose one output mode."
+            )
+        if self.percentiles is not UNSET:
+            raise ValueError(
+                "Cannot set both 'thresholds' and 'percentiles' in metric_calc. "
+                "Choose one output mode."
+            )
         direction = cfg.get("threshold_direction")
         if direction not in ("above", "below"):
             raise ValueError(
