@@ -732,8 +732,8 @@ class TestUtils:
         ]
         da = xr.DataArray(
             all_data,
-            dims=("simulation", "year"),
-            coords={"simulation": simulations, "year": years},
+            dims=("sim", "year"),
+            coords={"sim": simulations, "year": years},
             name="test_variable",
         )
 
@@ -765,7 +765,7 @@ class TestUtils:
         )
 
         # Test error handling when simulation stats not available
-        da_no_stats = da.sel(simulation=["sim1", "sim2", "sim3"])
+        da_no_stats = da.sel(sim=["sim1", "sim2", "sim3"])
 
         # Check that the function raises an exception for missing mean stats
         with pytest.raises(
