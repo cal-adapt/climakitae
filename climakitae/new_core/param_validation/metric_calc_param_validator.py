@@ -5,7 +5,6 @@ Validator for parameters provided to MetricCalc Processor.
 from __future__ import annotations
 
 import logging
-import math
 from typing import Any
 
 import numpy as np
@@ -328,7 +327,7 @@ def _validate_threshold_parameters(thresholds_config: dict) -> bool:
             type(threshold_value),
         )
         return False
-    if math.isnan(threshold_value):
+    if np.isnan(threshold_value):
         logger.warning(
             "\n\nthreshold_value must not be NaN. "
             "\nPlease provide a finite numeric value."
