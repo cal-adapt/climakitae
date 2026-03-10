@@ -410,3 +410,33 @@ class TestValidateThresholdParameters:
             )
         assert result is False
         assert "Cannot set both 'thresholds' and 'one_in_x'" in caplog.text
+
+    def test_mutual_exclusivity_with_metric(self, caplog):
+        """Setting both thresholds and metric returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {
+                    "thresholds": {
+                        "threshold_value": 100,
+                        "threshold_direction": "above",
+                    },
+                    "metric": "mean",
+                }
+            )
+        assert result is False
+        assert "Cannot set both 'thresholds' and 'metric'" in caplog.text
+
+    def test_mutual_exclusivity_with_percentiles(self, caplog):
+        """Setting both thresholds and percentiles returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {
+                    "thresholds": {
+                        "threshold_value": 100,
+                        "threshold_direction": "above",
+                    },
+                    "percentiles": [10, 50, 90],
+                }
+            )
+        assert result is False
+        assert "Cannot set both 'thresholds' and 'percentiles'" in caplog.text

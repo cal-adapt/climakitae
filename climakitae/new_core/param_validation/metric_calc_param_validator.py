@@ -73,6 +73,16 @@ def validate_metric_calc_param(
         logger.warning("\n\nCannot set both 'thresholds' and 'one_in_x'. Choose one.")
         return False
 
+    if thresholds_config is not UNSET and "metric" in value:
+        logger.warning("\n\nCannot set both 'thresholds' and 'metric'. Choose one.")
+        return False
+
+    if thresholds_config is not UNSET and percentiles is not UNSET:
+        logger.warning(
+            "\n\nCannot set both 'thresholds' and 'percentiles'. Choose one."
+        )
+        return False
+
     if one_in_x_config is not UNSET:
         if not _validate_one_in_x_parameters(one_in_x_config):
             return False
