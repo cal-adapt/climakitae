@@ -24,6 +24,7 @@ from scipy import stats
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.processors.metric_calc import MetricCalc
+from climakitae.util.utils import add_dummy_time_to_wl
 
 # =============================================================================
 # Fixtures
@@ -511,11 +512,7 @@ class TestMetricCalcHelperMethods:
         assert result.attrs["fitted_distr"] == "gumbel"
 
     def test_add_dummy_time_with_time_delta(self):
-        """Test _add_dummy_time_if_needed with time_delta dimension."""
-        processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10], "distribution": "gev"}}
-        )
-
+        """Test add_dummy_time_to_wl with time_delta dimension."""
         # Create data with time_delta dimension (warming level data)
         data = xr.DataArray(
             np.random.rand(365, 2),
@@ -527,18 +524,14 @@ class TestMetricCalcHelperMethods:
             attrs={"frequency": "day"},
         )
 
-        result = processor._add_dummy_time_if_needed(data, "day")
+        result = add_dummy_time_to_wl(data)
 
         assert "time" in result.dims
         assert "time_delta" not in result.dims
         assert len(result.time) == 365
 
     def test_add_dummy_time_with_from_center(self):
-        """Test _add_dummy_time_if_needed with *_from_center dimension."""
-        processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10], "distribution": "gev"}}
-        )
-
+        """Test add_dummy_time_to_wl with *_from_center dimension."""
         # Create data with hours_from_center dimension
         data = xr.DataArray(
             np.random.rand(24, 2),
@@ -549,17 +542,13 @@ class TestMetricCalcHelperMethods:
             },
         )
 
-        result = processor._add_dummy_time_if_needed(data, "1hr")
+        result = add_dummy_time_to_wl(data)
 
         assert "time" in result.dims
         assert "hours_from_center" not in result.dims
 
     def test_add_dummy_time_missing_dim_raises(self):
-        """Test _add_dummy_time_if_needed raises error when no valid time dim."""
-        processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10], "distribution": "gev"}}
-        )
-
+        """Test add_dummy_time_to_wl raises error when no valid time dim."""
         # Create data without any time-like dimension
         data = xr.DataArray(
             np.random.rand(10, 2),
@@ -567,8 +556,10 @@ class TestMetricCalcHelperMethods:
             coords={"lat": range(10), "sim": ["sim_0", "sim_1"]},
         )
 
-        with pytest.raises(ValueError, match="must have a 'time'"):
-            processor._add_dummy_time_if_needed(data, "day")
+        with pytest.raises(
+            ValueError, match="does not contain necessary warming level"
+        ):
+            add_dummy_time_to_wl(data)
 
 
 class TestMetricCalcPreprocessVariable:
