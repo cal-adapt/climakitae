@@ -3,6 +3,7 @@
 import datetime
 import difflib
 import logging
+import re
 from collections.abc import Iterable
 from typing import Any
 
@@ -205,15 +206,39 @@ def _coerce_to_dates(value: Iterable[Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
         try:
             match x:
                 case str() | datetime.date() | datetime.datetime():
-                    ret.append(pd.to_datetime(x))
+                    ts = pd.to_datetime(x)
+                    # Bare 4-digit year string (e.g. "2050"): snap to start/end
+                    # of year, consistent with how integer years are handled.
+                    if isinstance(x, str) and re.fullmatch(r"\d{4}", x.strip()):
+                        if i == 0:
+                            ts = pd.Timestamp(year=ts.year, month=1, day=1)
+                        else:
+                            ts = pd.Timestamp(
+                                year=ts.year,
+                                month=12,
+                                day=31,
+                                hour=23,
+                                minute=59,
+                                second=59,
+                            )
+                    ret.append(ts)
                 case int() | float() if 1900 <= x <= 2200:
                     # Handle year integers/floats - interpret as year ranges
                     if i == 0:
                         # First position: start of year (Jan 1st)
                         ret.append(pd.Timestamp(year=int(x), month=1, day=1))
                     else:
-                        # Second position: end of year (Dec 31st)
-                        ret.append(pd.Timestamp(year=int(x), month=12, day=31))
+                        # Second position: end of year (Dec 31st 23:59:59)
+                        ret.append(
+                            pd.Timestamp(
+                                year=int(x),
+                                month=12,
+                                day=31,
+                                hour=23,
+                                minute=59,
+                                second=59,
+                            )
+                        )
                 case int() | float():
                     # Handle other numeric values (Unix timestamps, etc.)
                     ret.append(pd.to_datetime(x))
