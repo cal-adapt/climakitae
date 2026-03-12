@@ -65,6 +65,31 @@ def validate_metric_calc_param(
     ):
         return False
 
+    one_in_x_config = value.get("one_in_x", UNSET)
+    thresholds_config = value.get("thresholds", UNSET)
+
+    if one_in_x_config is not UNSET and thresholds_config is not UNSET:
+        logger.warning("\n\nCannot set both 'thresholds' and 'one_in_x'. Choose one.")
+        return False
+
+    if thresholds_config is not UNSET and "metric" in value:
+        logger.warning("\n\nCannot set both 'thresholds' and 'metric'. Choose one.")
+        return False
+
+    if thresholds_config is not UNSET and percentiles is not UNSET:
+        logger.warning(
+            "\n\nCannot set both 'thresholds' and 'percentiles'. Choose one."
+        )
+        return False
+
+    if one_in_x_config is not UNSET:
+        if not _validate_one_in_x_parameters(one_in_x_config):
+            return False
+
+    if thresholds_config is not UNSET:
+        if not _validate_threshold_parameters(thresholds_config):
+            return False
+
     return True  # All parameters are valid
 
 
@@ -271,5 +296,101 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
             "\nPlease check the configuration."
         )
         return False
+
+    return True
+
+
+def _validate_threshold_parameters(thresholds_config: dict) -> bool:
+    """Validate parameters for threshold exceedance calculations."""
+    if not isinstance(thresholds_config, dict):
+        logger.warning(
+            "\n\nthresholds configuration must be a dictionary. "
+            "\nPlease check the configuration."
+        )
+        return False
+
+    valid_period_units = ("year", "month")
+    valid_duration_units = ("year", "month", "day", "hour")
+
+    # Validate threshold_value (required)
+    threshold_value = thresholds_config.get("threshold_value")
+    if threshold_value is None:
+        logger.warning(
+            "\n\nthreshold_value is required for threshold calculations. "
+            "\nPlease provide a numeric threshold value."
+        )
+        return False
+    if not isinstance(threshold_value, (int, float)):
+        logger.warning(
+            "\n\nthreshold_value must be a number (int or float), got %s. "
+            "\nPlease check the configuration.",
+            type(threshold_value),
+        )
+        return False
+    if np.isnan(threshold_value):
+        logger.warning(
+            "\n\nthreshold_value must not be NaN. "
+            "\nPlease provide a finite numeric value."
+        )
+        return False
+
+    # Validate threshold_direction (required)
+    threshold_direction = thresholds_config.get("threshold_direction")
+    if threshold_direction not in ("above", "below"):
+        logger.warning(
+            "\n\nInvalid threshold_direction %r. " "\nMust be 'above' or 'below'.",
+            threshold_direction,
+        )
+        return False
+
+    # Validate period (optional): tuple(int, str)
+    period = thresholds_config.get("period")
+    if period is not None:
+        if not isinstance(period, tuple) or len(period) != 2:
+            logger.warning(
+                "\n\nperiod must be a tuple of (int, str), e.g. (1, 'year'). "
+                "\nPlease check the configuration."
+            )
+            return False
+        period_num, period_unit = period
+        if not isinstance(period_num, int) or period_num <= 0:
+            logger.warning(
+                "\n\nperiod number must be a positive integer. "
+                "\nPlease check the configuration."
+            )
+            return False
+        if period_unit not in valid_period_units:
+            logger.warning(
+                "\n\nperiod unit must be one of %s, got '%s'. "
+                "\nPlease check the configuration.",
+                valid_period_units,
+                period_unit,
+            )
+            return False
+
+    # Validate duration (optional): tuple(int, str)
+    duration = thresholds_config.get("duration")
+    if duration is not None:
+        if not isinstance(duration, tuple) or len(duration) != 2:
+            logger.warning(
+                "\n\nduration must be a tuple of (int, str), e.g. (3, 'day'). "
+                "\nPlease check the configuration."
+            )
+            return False
+        duration_num, duration_unit = duration
+        if not isinstance(duration_num, int) or duration_num <= 0:
+            logger.warning(
+                "\n\nduration number must be a positive integer. "
+                "\nPlease check the configuration."
+            )
+            return False
+        if duration_unit not in valid_duration_units:
+            logger.warning(
+                "\n\nduration unit must be one of %s, got '%s'. "
+                "\nPlease check the configuration.",
+                valid_duration_units,
+                duration_unit,
+            )
+            return False
 
     return True
