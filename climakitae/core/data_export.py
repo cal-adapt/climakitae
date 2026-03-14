@@ -1220,7 +1220,7 @@ def _missing_hour_fix(df: pd.DataFrame) -> pd.DataFrame:
     df_full["time"] = df_full[0]
     df_full.index = pd.to_datetime(df_full.time)
 
-    df_month_fixed = pd.concat([df_bad, df_full])
+    df_month_fixed = pd.concat([df_bad, df_full.dropna(axis=1, how="all")])
     df_month_fixed = df_month_fixed.drop_duplicates(subset=["time"], keep="first")
     df_month_fixed = df_month_fixed.drop(columns=["time", 0])
     df_month_fixed = df_month_fixed.sort_values(by="time", ascending=True)
