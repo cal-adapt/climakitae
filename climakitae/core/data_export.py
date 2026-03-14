@@ -1124,7 +1124,7 @@ def _leap_day_fix(df: pd.DataFrame) -> pd.DataFrame:
     # 3 models have leap days, 1 model does not -- handling for both
     # handling for TaiESM1 (no leap day natively)
     match df_leap.sim.unique()[0]:
-        case "WRF_TaiESM1_r1i1p1f1":
+        case "wrf_ucla_taiesm1_ssp370_r1i1p1f1":
             df_leap["time"] = np.where(
                 (df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29),
                 df_leap.time - pd.DateOffset(days=1),
