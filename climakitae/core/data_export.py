@@ -1037,22 +1037,22 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
         "hour",
         "minute",
         "data_source",  # missing
-        "temp at 2 m (degC)",
-        "Dew Point Temperature at 2m (degC)",
-        "Relative Humidity at 2m (%)",
-        "sfc pressure (Pa)",
+        "Air temperature at 2m (degC)",
+        "Dew point temperature at 2m (degC)",
+        "Relative humidity (0-100)",
+        "Surface pressure (Pa)",
         "exthorrad",  # missing - extraterrestrial horizontal radiation
         "extdirrad",  # missing - extraterrestrial direct normal radiation
         "extirsky",  # missing - horizontal IR radiation intensity from sky
-        "instantaneous downwelling shortwave flux at bottom (W m-2)",
-        "shortwave surface downward direct normal irradiance (W m-2)",
-        "shortwave surface downward diffuse irradiance (W m-2)",
+        "Instantaneous downwelling shortwave flux at bottom (W/m2)",
+        "Shortwave surface downward direct normal irradiance (W/m2)",
+        "Shortwave surface downward diffuse irradiance (W/m2)",
         "glohorillum",  # missing - global horizontal illuminance (lx)
         "dirnorillum",  # missing - direct normal illuminance (lx)
         "difhorillum",  # missing - diffuse horizontal illuminance (lx)
         "zenlum",  # missing - zenith luminnace (lx)
-        "Wind Direction at 10m (degrees)",
-        "Wind Speed at 10m (m/s)",
+        "Wind direction at 10m (degrees)",
+        "Wind speed at 10m (m/s)",
         "totskycvr",  # missing - total sky cover (tenths)
         "opaqskycvr",  # missing - opaque sky cover (tenths)
         "visibility",  # missing - visibility (km)
@@ -1470,16 +1470,16 @@ def write_tmy_file(
         line_2 = (
             ",".join(
                 [
-                    "temp at 2 m (degC)",
-                    "Dew Point Temperature at 2m (degC)",
-                    "Relative Humidity at 2m (%)",
-                    "instantaneous downwelling shortwave flux at bottom (W m-2)",
-                    "shortwave surface downward direct normal irradiance (W m-2)",
-                    "shortwave surface downward diffuse irradiance (W m-2)",
-                    "instantaneous downwelling longwave flux at bottom (W m-2)",
-                    "Wind Speed at 10m (m/s)",
-                    "Wind Direction at 10m (degrees)",
-                    "sfc pressure (Pa)",
+                    "Air temperature at 2m (degC)",
+                    "Dew point temperature at 2m (degC)",
+                    "Relative humidity (0-100)",
+                    "Instantaneous downwelling shortwave flux at bottom (W/m2)",
+                    "Shortwave surface downward direct normal irradiance (W/m2)",
+                    "Shortwave surface downward diffuse irradiance (W/m2)",
+                    "Instantaneous downwelling longwave flux at bottom (W/m2)",
+                    "Wind speed at 10m (m/s)",
+                    "Wind direction at 10m (degrees)",
+                    "Surface pressure (Pa)",
                 ]
             )
             + "\n"
