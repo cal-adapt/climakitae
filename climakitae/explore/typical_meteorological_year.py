@@ -7,12 +7,16 @@ along with a TMY class that organizes the workflow code.
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
 import pkg_resources
+import pytz
 import xarray as xr
+from dask.diagnostics import ProgressBar
 from scipy import optimize
+from timezonefinder import TimezoneFinder
 from tqdm.auto import tqdm  # Progress bar
 
 from climakitae.core.constants import UNSET
@@ -24,6 +28,25 @@ from climakitae.util.utils import (
     convert_to_local_time,
     get_closest_gridcell,
 )
+
+_hadisd_stations_cache = None
+
+
+def _get_hadisd_stations() -> pd.DataFrame:
+    """Read and cache the HadISD stations CSV.
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    global _hadisd_stations_cache
+    if _hadisd_stations_cache is None:
+        stn_file = pkg_resources.resource_filename(
+            "climakitae", "data/hadisd_stations.csv"
+        )
+        _hadisd_stations_cache = pd.read_csv(stn_file, index_col=[0])
+    return _hadisd_stations_cache
+
 
 WEIGHTS_PER_VAR = {
     "Daily max air temperature": 1 / 20,
@@ -75,11 +98,8 @@ def is_HadISD(station_name: str) -> bool:
     station_name: str
         Name of station
     """
-    stn_file = pkg_resources.resource_filename("climakitae", "data/hadisd_stations.csv")
-    stn_file = pd.read_csv(stn_file, index_col=[0])
-    if station_name in list(stn_file["station"]):
-        return True
-    return False
+    stn_df = _get_hadisd_stations()
+    return station_name in stn_df["station"].values
 
 
 def _compute_cdf(da: xr.DataArray) -> xr.DataArray:
@@ -562,12 +582,7 @@ class TMY:
         station_name: str
            Name of HadISD station
         """
-        # read in station file of CA HadISD stations
-        stn_file = pkg_resources.resource_filename(
-            "climakitae", "data/hadisd_stations.csv"
-        )
-        stn_file = pd.read_csv(stn_file, index_col=[0])
-        # grab airport
+        stn_file = _get_hadisd_stations()
         try:
             self.stn_name = station_name
             self.stn_code = stn_file.loc[stn_file["station"] == self.stn_name][
@@ -604,6 +619,31 @@ class TMY:
         """Checks verbosity and prints as allowed."""
         if self.verbose:
             print(msg)
+
+    def _get_utc_offset_hours(self) -> int:
+        """Compute and cache the UTC offset for this location.
+
+        Returns
+        -------
+        int
+            Hours offset from UTC (negative for west of prime meridian).
+        """
+        if hasattr(self, "_utc_offset_hours"):
+            return self._utc_offset_hours
+
+        tf = TimezoneFinder()
+        tz_name = tf.timezone_at(lng=self.stn_lon, lat=self.stn_lat)
+        if tz_name is None:
+            raise ValueError(
+                f"Could not determine timezone for coordinates "
+                f"({self.stn_lat}, {self.stn_lon})."
+            )
+        tz = pytz.timezone(tz_name)
+        # Use a fixed reference date for consistent standard-time offset
+        offset = tz.utcoffset(datetime(2020, 1, 1))
+        self._utc_offset_hours = int(offset.total_seconds() / 3600)
+        self._timezone_name = tz_name
+        return self._utc_offset_hours
 
     def _load_time_approach(self, varname: str, units: str) -> xr.DataArray:
         """Run get_data with the time level approach.
@@ -703,8 +743,10 @@ class TMY:
         data = get_closest_gridcell(
             data, self.stn_lat, self.stn_lon, print_coords=False
         )
-        # Work in local time
-        data = convert_to_local_time(data)
+        # Work in local time (cached offset avoids repeated CSV reads)
+        offset_hours = self._get_utc_offset_hours()
+        data["time"] = data.time + pd.Timedelta(hours=offset_hours)
+        data.attrs["timezone"] = self._timezone_name
         # Get desired time slice in local time
         data = data.sel(
             {"time": slice(f"{self.start_year}-01-01-00", f"{self.end_year}-12-31-23")}
@@ -784,6 +826,10 @@ class TMY:
 
         # For each month, do a linear fit to smooth the data in the 12 hour window
         # around day 01 hour 00
+        def _poly2(x, *p):
+            """Second order polynomial for curve fitting."""
+            return np.poly1d(p)(x)
+
         x = np.arange(0, 12)
         for ts, te in zip(start_times, end_times):
             row_ind = np.arange(ts, te)
@@ -796,11 +842,7 @@ class TMY:
                 sigma = np.ones(len(to_smooth))
                 sigma[[0, -1]] = 0.01
 
-                # Second order polynomial fit
-                def f(x, *p):
-                    return np.poly1d(p)(x)
-
-                fit, _ = optimize.curve_fit(f, x, to_smooth, (0, 0, 0), sigma=sigma)
+                fit, _ = optimize.curve_fit(_poly2, x, to_smooth, (0, 0, 0), sigma=sigma)
                 fitted_line = np.poly1d(fit)(x)
                 df.loc[row_ind, variable] = np.float32(fitted_line)
 
@@ -870,92 +912,87 @@ class TMY:
         return tmy_df_all
 
     def load_all_variables(self):
-        """Load the datasets needed to create TMY."""
+        """Load all hourly TMY variables and derive daily statistics.
+
+        Downloads all 11 hourly variables once and caches them in
+        ``self._hourly_data`` for reuse by ``run_tmy_analysis()``.
+        Daily statistics needed for CDF/F-S analysis are derived from
+        the cached hourly data rather than re-downloading.
+        """
         print("Loading data from catalog.")
 
-        # Configuration for each variable group
+        def _load_hourly_var(item):
+            """Load a single hourly variable."""
+            var, units = item
+            data_by_var = self._load_single_variable(var, units)
+            return data_by_var.squeeze().drop_vars(
+                ["lakemask", "landmask", "x", "y", "Lambert_Conformal"],
+                errors="ignore",
+            )
+
+        # Load all 11 hourly variables
+        items = list(self.vars_and_units.items())
+        if self.warming_level is not UNSET:
+            # First variable must load synchronously to set start/end years
+            self._vprint(f"  Getting {items[0][0]}...")
+            first_var = _load_hourly_var(items[0])
+            remaining_items = items[1:]
+        else:
+            first_var = None
+            remaining_items = items
+
+        self._vprint("  Loading remaining variables in parallel...")
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            remaining_vars = list(executor.map(_load_hourly_var, remaining_items))
+
+        all_hourly_list = (
+            [first_var] + remaining_vars if first_var else remaining_vars
+        )
+
+        self._vprint("  Merging hourly data.")
+        hourly_ds = xr.merge(all_hourly_list)
+
+        # Cache raw hourly data for run_tmy_analysis()
+        self._hourly_data = hourly_ds
+
+        # Derive daily stats from hourly data
+        self._vprint("  Deriving daily statistics from hourly data.")
         variable_configs = [
-            {
-                "name": "air temperature",
-                "variable": "Air Temperature at 2m",
-                "units": "degC",
-                "stats": ["max", "min", "mean"],
-                "output_names": [
-                    "Daily max air temperature",
-                    "Daily min air temperature",
-                    "Daily mean air temperature",
-                ],
-            },
-            {
-                "name": "dew point temperature",
-                "variable": "Dew point temperature",
-                "units": "degC",
-                "stats": ["max", "min", "mean"],
-                "output_names": [
-                    "Daily max dewpoint temperature",
-                    "Daily min dewpoint temperature",
-                    "Daily mean dewpoint temperature",
-                ],
-            },
-            {
-                "name": "wind speed",
-                "variable": "Wind speed at 10m",
-                "units": "m s-1",
-                "stats": ["max", "mean"],
-                "output_names": ["Daily max wind speed", "Daily mean wind speed"],
-            },
-            {
-                "name": "global irradiance",
-                "variable": "Instantaneous downwelling shortwave flux at bottom",
-                "units": "W/m2",
-                "stats": ["sum"],
-                "output_names": ["Global horizontal irradiance"],
-            },
-            {
-                "name": "direct normal irradiance",
-                "variable": "Shortwave surface downward direct normal irradiance",
-                "units": "W/m2",
-                "stats": ["sum"],
-                "output_names": ["Direct normal irradiance"],
-            },
+            ("Air Temperature at 2m", [
+                ("max", "Daily max air temperature"),
+                ("min", "Daily min air temperature"),
+                ("mean", "Daily mean air temperature"),
+            ]),
+            ("Dew point temperature", [
+                ("max", "Daily max dewpoint temperature"),
+                ("min", "Daily min dewpoint temperature"),
+                ("mean", "Daily mean dewpoint temperature"),
+            ]),
+            ("Wind speed at 10m", [
+                ("max", "Daily max wind speed"),
+                ("mean", "Daily mean wind speed"),
+            ]),
+            ("Instantaneous downwelling shortwave flux at bottom", [
+                ("sum", "Global horizontal irradiance"),
+            ]),
+            ("Shortwave surface downward direct normal irradiance", [
+                ("sum", "Direct normal irradiance"),
+            ]),
         ]
 
-        def _load_one_config(config):
-            """Load and process a single variable group."""
-            data_list = self._get_tmy_variable(
-                config["variable"], config["units"], config["stats"]
-            )
-            results = []
-            for data_array, output_name in zip(data_list, config["output_names"]):
-                data_array.name = output_name
-                results.append(data_array.squeeze())
-            return results
+        daily_arrays = []
+        for source_var, stat_specs in variable_configs:
+            hourly_da = hourly_ds[source_var]
+            resampled = hourly_da.resample(time="1D")
+            for stat, output_name in stat_specs:
+                da = getattr(resampled, stat)()
+                da.name = output_name
+                da.attrs["frequency"] = "daily"
+                daily_arrays.append(da)
 
-        # Load variable groups in parallel
-        all_data_arrays = []
-        if self.warming_level is not UNSET:
-            # Load first config synchronously to set start/end years
-            self._vprint(f"  Getting {variable_configs[0]['name']}... ")
-            all_data_arrays.extend(_load_one_config(variable_configs[0]))
-            remaining_configs = variable_configs[1:]
-        else:
-            remaining_configs = variable_configs
+        self._vprint("  Loading daily variables into memory.")
+        all_vars = xr.merge(daily_arrays)
 
-        with ThreadPoolExecutor(max_workers=len(remaining_configs)) as executor:
-            futures = {
-                executor.submit(_load_one_config, cfg): cfg
-                for cfg in remaining_configs
-            }
-            for future in futures:
-                config = futures[future]
-                self._vprint(f"  Getting {config['name']}... ")
-                all_data_arrays.extend(future.result())
-
-        self._vprint("  Loading all variables into memory.")
-        all_vars = xr.merge(all_data_arrays)
-
-        # load all indices in
-        from dask.diagnostics import ProgressBar
         with ProgressBar():
             self.all_vars = all_vars.compute()
         self._vprint("  All TMY variables loaded.")
@@ -1043,24 +1080,27 @@ class TMY:
         """
         print("Assembling TMY data to export.")
 
-        self._vprint("  STEP 1: Retrieving hourly data from catalog")
+        self._vprint("  STEP 1: Using cached hourly data")
 
-        def _load_hourly_var(item):
-            """Load a single hourly variable for TMY assembly."""
-            var, units = item
-            data_by_var = self._load_single_variable(var, units)
-            return data_by_var.squeeze().drop_vars(
-                ["lakemask", "landmask", "x", "y", "Lambert_Conformal"]
-            )
+        # Use cached hourly data instead of re-downloading
+        if hasattr(self, "_hourly_data") and self._hourly_data is not None:
+            all_vars_ds = self._hourly_data.compute()
+        else:
+            # Fallback: load from catalog if run_tmy_analysis called standalone
+            def _load_hourly_var(item):
+                """Load a single hourly variable for TMY assembly."""
+                var, units = item
+                data_by_var = self._load_single_variable(var, units)
+                return data_by_var.squeeze().drop_vars(
+                    ["lakemask", "landmask", "x", "y", "Lambert_Conformal"],
+                    errors="ignore",
+                )
 
-        # Load all 11 hourly variables in parallel
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            all_vars_list = list(
-                executor.map(_load_hourly_var, self.vars_and_units.items())
-            )
-
-        # Merge data from all variables into a single xr.Dataset object
-        all_vars_ds = xr.merge(all_vars_list)
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                all_vars_list = list(
+                    executor.map(_load_hourly_var, self.vars_and_units.items())
+                )
+            all_vars_ds = xr.merge(all_vars_list)
 
         # Construct TMY
         self._vprint(
