@@ -251,9 +251,9 @@ class ConvertToLocalTime(DataProcessor):
         # Get latitude/longitude information
 
         # Finding central lat/lon coordinates
-        if obj.lat.ndim == 1:
-            lat = float(obj.lat[0])
-            lon = float(obj.lon[0])
+        if obj.lat.ndim < 2:
+            lat = float(obj.lat)
+            lon = float(obj.lon)
         else:
             lat = float((obj.lat[0, 0] + obj.lat[-1, 0]) / 2)
             lon = float((obj.lon[0, 0] + obj.lon[0, -1]) / 2)
