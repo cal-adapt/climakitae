@@ -33,7 +33,7 @@ def compute_hdd_cdd(
     """
 
     # Check that temperature data was passed to function, throw error if not
-    if t2.name != "Air Temperature at 2m":
+    if t2.name not in ["t2", "Air Temperature at 2m"]:
         raise Exception(
             "Invalid input data, please provide Air Temperature at 2m data to CDD/HDD calculation"
         )
@@ -83,7 +83,7 @@ def compute_hdh_cdh(
     """
 
     # Check that temperature data was passed to function, throw error if not
-    if t2.name != "Air Temperature at 2m":
+    if t2.name not in ["t2", "Air Temperature at 2m"]:
         raise Exception(
             "Invalid input data, please provide Air Temperature at 2m data to CDH/HDH calculation"
         )
