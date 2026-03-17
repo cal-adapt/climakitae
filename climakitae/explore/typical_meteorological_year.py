@@ -6,6 +6,8 @@ It includes statistical code for creating cumulative distributions and the F-S s
 along with a TMY class that organizes the workflow code.
 """
 
+from concurrent.futures import ThreadPoolExecutor
+
 import numpy as np
 import pandas as pd
 import pkg_resources
@@ -152,6 +154,9 @@ def _get_cdf_by_mon_and_sim(da: xr.DataArray) -> xr.DataArray:
 def get_cdf(ds: xr.DataArray) -> xr.Dataset:
     """Get the cumulative density function.
 
+    Computes CDF for each variable, month, and simulation using vectorized
+    numpy operations instead of nested xarray groupby.map calls.
+
     Parameters
     -----------
     ds: xr.DataArray
@@ -161,11 +166,49 @@ def get_cdf(ds: xr.DataArray) -> xr.Dataset:
     -------
     xr.Dataset
     """
-    return ds.map(_get_cdf_by_mon_and_sim)
+    sims = ds.simulation.values
+    n_sims = len(sims)
+    num_bins = 1023
+    time_months = ds.time.dt.month.values
+
+    result_vars = {}
+    for var_name in ds.data_vars:
+        da = ds[var_name].transpose("time", "simulation", ...)
+        data = da.values
+
+        combined = np.full((2, 12, n_sims, num_bins), np.nan)
+        for m_idx in range(12):
+            month_mask = time_months == (m_idx + 1)
+            for s_idx in range(n_sims):
+                values = data[month_mask, s_idx]
+                valid = values[~np.isnan(values)]
+                if len(valid) < 2:
+                    continue
+                bin_edges = np.linspace(valid.min(), valid.max(), num_bins + 1)
+                count, _ = np.histogram(valid, bins=bin_edges)
+                total = count.sum()
+                cdf = np.cumsum(count / total) if total > 0 else np.zeros(num_bins)
+                combined[0, m_idx, s_idx] = bin_edges[1:]
+                combined[1, m_idx, s_idx] = cdf
+
+        result_vars[var_name] = xr.DataArray(
+            combined,
+            dims=["data", "month", "simulation", "bin_number"],
+            coords={
+                "data": ["bins", "probability"],
+                "month": np.arange(1, 13),
+                "simulation": sims,
+            },
+        )
+
+    return xr.Dataset(result_vars)
 
 
 def get_cdf_monthly(ds: xr.DataArray) -> xr.Dataset:
-    """Get the cumulative density function by unique mon-yr combos
+    """Get the cumulative density function by unique mon-yr combos.
+
+    Computes CDF for each variable, year, month, and simulation using vectorized
+    numpy operations instead of nested xarray groupby.map calls.
 
     Parameters
     -----------
@@ -176,11 +219,55 @@ def get_cdf_monthly(ds: xr.DataArray) -> xr.Dataset:
     -------
     xr.Dataset
     """
+    sims = ds.simulation.values
+    n_sims = len(sims)
+    num_bins = 1023
+    time_months = ds.time.dt.month.values
+    time_years = ds.time.dt.year.values
+    unique_years = np.unique(time_years)
 
-    def get_cdf_mon_yr(da):
-        return da.groupby("time.year").map(_get_cdf_by_mon_and_sim)
+    result_vars = {}
+    for var_name in ds.data_vars:
+        da = ds[var_name].transpose("time", "simulation", ...)
+        data = da.values
 
-    return ds.map(get_cdf_mon_yr)
+        combined = np.full(
+            (2, len(unique_years), 12, n_sims, num_bins), np.nan
+        )
+        for y_idx, year in enumerate(unique_years):
+            year_mask = time_years == year
+            for m_idx in range(12):
+                ym_mask = year_mask & (time_months == (m_idx + 1))
+                for s_idx in range(n_sims):
+                    values = data[ym_mask, s_idx]
+                    valid = values[~np.isnan(values)]
+                    if len(valid) < 2:
+                        continue
+                    bin_edges = np.linspace(
+                        valid.min(), valid.max(), num_bins + 1
+                    )
+                    count, _ = np.histogram(valid, bins=bin_edges)
+                    total = count.sum()
+                    cdf = (
+                        np.cumsum(count / total)
+                        if total > 0
+                        else np.zeros(num_bins)
+                    )
+                    combined[0, y_idx, m_idx, s_idx] = bin_edges[1:]
+                    combined[1, y_idx, m_idx, s_idx] = cdf
+
+        result_vars[var_name] = xr.DataArray(
+            combined,
+            dims=["data", "year", "month", "simulation", "bin_number"],
+            coords={
+                "data": ["bins", "probability"],
+                "year": unique_years,
+                "month": np.arange(1, 13),
+                "simulation": sims,
+            },
+        )
+
+    return xr.Dataset(result_vars)
 
 
 def remove_pinatubo_years(ds: xr.Dataset) -> xr.Dataset:
@@ -286,30 +373,19 @@ def get_top_months(da_fs: xr.DataArray, skip_last: bool = False) -> pd.DataFrame
     pd.DataFrame
 
     """
-    df_list = []
-    num_values = (
-        1  # Selecting the top value for now, persistence statistics calls for top 5
-    )
-    for sim in da_fs.simulation.values:
-        for mon in da_fs.month.values:
-            da_i = da_fs.sel(month=mon, simulation=sim)
-            top_xr = da_i.sortby(da_i, ascending=True)[:num_values].expand_dims(
-                ["month", "simulation"]
-            )
-            if num_values == 1 & skip_last:
-                # Check that last year/month not chosen
-                if top_xr.year == da_fs.year[-1]:
-                    if top_xr.month == da_fs.month[-1]:
-                        # If chosen, exclude it and pick the next match
-                        # This logic can be folded into persistence statistics when those are developed
-                        top_xr = da_i.sortby(da_i, ascending=True)[1:2].expand_dims(
-                            ["month", "simulation"]
-                        )
-            top_df_i = top_xr.to_dataframe(name="top_values")
-            df_list.append(top_df_i)
+    if skip_last:
+        last_year = int(da_fs.year.values[-1])
+        last_month = int(da_fs.month.values[-1])
+        # Mask the last year of the last month so it won't be selected
+        da_work = da_fs.copy(deep=True)
+        da_work.loc[dict(year=last_year, month=last_month)] = np.inf
+    else:
+        da_work = da_fs
 
-    # Concatenate list together for all months and simulations
-    return pd.concat(df_list).drop(columns=["top_values"]).reset_index()
+    # For each (simulation, month), find the year with the minimum F-S value
+    best_years = da_work.idxmin(dim="year")
+    result = best_years.to_dataframe(name="year").reset_index()
+    return result[["month", "simulation", "year"]]
 
 
 class TMY:
@@ -844,20 +920,36 @@ class TMY:
             },
         ]
 
-        # Load and process each variable group
-        all_data_arrays = []
-        for config in variable_configs:
-            print(f"  Getting {config['name']}", end="... ")
-
-            # Get the data using the refactored _get_tmy_variable method
+        def _load_one_config(config):
+            """Load and process a single variable group."""
             data_list = self._get_tmy_variable(
                 config["variable"], config["units"], config["stats"]
             )
-
-            # Rename each data array and add to collection
+            results = []
             for data_array, output_name in zip(data_list, config["output_names"]):
                 data_array.name = output_name
-                all_data_arrays.append(data_array.squeeze())
+                results.append(data_array.squeeze())
+            return results
+
+        # Load variable groups in parallel
+        all_data_arrays = []
+        if self.warming_level is not UNSET:
+            # Load first config synchronously to set start/end years
+            self._vprint(f"  Getting {variable_configs[0]['name']}... ")
+            all_data_arrays.extend(_load_one_config(variable_configs[0]))
+            remaining_configs = variable_configs[1:]
+        else:
+            remaining_configs = variable_configs
+
+        with ThreadPoolExecutor(max_workers=len(remaining_configs)) as executor:
+            futures = {
+                executor.submit(_load_one_config, cfg): cfg
+                for cfg in remaining_configs
+            }
+            for future in futures:
+                config = futures[future]
+                self._vprint(f"  Getting {config['name']}... ")
+                all_data_arrays.extend(future.result())
 
         self._vprint("  Loading all variables into memory.")
         all_vars = xr.merge(all_data_arrays)
@@ -950,19 +1042,20 @@ class TMY:
         print("Assembling TMY data to export.")
 
         self._vprint("  STEP 1: Retrieving hourly data from catalog")
-        # Loop through each variable and grab data from catalog
-        all_vars_list = []
 
-        for var, units in self.vars_and_units.items():
-            print(f"  Getting {var}", end="... ")
+        def _load_hourly_var(item):
+            """Load a single hourly variable for TMY assembly."""
+            var, units = item
             data_by_var = self._load_single_variable(var, units)
-
-            # Drop unwanted coords
-            data_by_var = data_by_var.squeeze().drop_vars(
+            return data_by_var.squeeze().drop_vars(
                 ["lakemask", "landmask", "x", "y", "Lambert_Conformal"]
             )
 
-            all_vars_list.append(data_by_var)  # Append to list
+        # Load all 11 hourly variables in parallel
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            all_vars_list = list(
+                executor.map(_load_hourly_var, self.vars_and_units.items())
+            )
 
         # Merge data from all variables into a single xr.Dataset object
         all_vars_ds = xr.merge(all_vars_list)
