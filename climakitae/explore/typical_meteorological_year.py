@@ -955,7 +955,9 @@ class TMY:
         all_vars = xr.merge(all_data_arrays)
 
         # load all indices in
-        self.all_vars = all_vars.compute()
+        from dask.distributed import ProgressBar
+        with ProgressBar():
+            self.all_vars = all_vars.compute()
         self._vprint("  All TMY variables loaded.")
 
     def set_cdf_climatology(self):
