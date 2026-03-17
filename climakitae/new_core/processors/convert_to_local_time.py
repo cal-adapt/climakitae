@@ -278,11 +278,10 @@ class ConvertToLocalTime(DataProcessor):
 
         """
 
-        # Finding central lat/lon coordinates
-        lat_idx = len(obj.lat) // 2
-        lon_idx = len(obj.lon) // 2
-        lat = obj.lat.isel(lat=lat_idx).item()
-        lon = obj.lon.isel(lon=lon_idx).item()
+        # Use first lat/lon value since HDP data is not gridded
+        # We assume station is unmoving, which isn't always true but likely will not make a difference here
+        lat = obj.lat.isel(lat=0).item()
+        lon = obj.lon.isel(lon=0).item()
 
         obj = self._find_timezone_and_convert(obj, lat, lon)
         return obj
