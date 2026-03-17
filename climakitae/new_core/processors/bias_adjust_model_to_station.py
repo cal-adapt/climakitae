@@ -492,7 +492,7 @@ class BiasAdjustModelToStation(DataProcessor):
         try:
             time_index = da_adj.indexes["time"]
             if hasattr(time_index, "to_datetimeindex"):
-                da_adj["time"] = time_index.to_datetimeindex()
+                da_adj["time"] = time_index.to_datetimeindex(time_unit="ns")
             else:
                 # Fallback if to_datetimeindex not available
                 da_adj = da_adj.convert_calendar("standard", use_cftime=False)
