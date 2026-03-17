@@ -9,6 +9,7 @@ be returned.
 from typing import Tuple
 from typing import Any, Dict
 
+from IPython.display import ProgressBar
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -1550,7 +1551,9 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
     # Eagerly compute all dask data at once (one round-trip to scheduler)
     if hasattr(data.data, "chunks"):
         print("      📥 Loading data into memory...")
-        data = data.compute()
+        from dask.diagnostics import ProgressBar
+        with ProgressBar():
+            data = data.compute()
 
     # Initialize storage for profiles
     profile_data = {}
