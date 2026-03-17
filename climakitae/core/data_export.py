@@ -1368,6 +1368,10 @@ def write_tmy_file(
             "The function requires a pandas DataFrame object as the data input"
         )
 
+    # normalize simulation column name
+    if "simulation" in df.columns and "sim" not in df.columns:
+        df = df.rename(columns={"simulation": "sim"})
+
     # size check on TMY dataframe
     df = _tmy_8760_size_check(df)
 
