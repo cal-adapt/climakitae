@@ -990,12 +990,8 @@ class TMY:
                 da.attrs["frequency"] = "daily"
                 daily_arrays.append(da)
 
-        self._vprint("  Loading daily variables into memory.")
-        all_vars = xr.merge(daily_arrays)
-
-        with ProgressBar():
-            self.all_vars = all_vars.compute()
-        self._vprint("  All TMY variables loaded.")
+        self._vprint("  Daily statistics ready (lazy). Will compute during CDF calculation.")
+        self.all_vars = xr.merge(daily_arrays)
 
     def set_cdf_climatology(self):
         """Calculate the long-term climatology for each index for each month so
