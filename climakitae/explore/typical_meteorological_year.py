@@ -946,7 +946,7 @@ class TMY:
             remaining_vars = list(executor.map(_load_hourly_var, remaining_items))
 
         all_hourly_list = (
-            [first_var] + remaining_vars if first_var else remaining_vars
+            [first_var] + remaining_vars if first_var is not None else remaining_vars
         )
 
         self._vprint("  Merging hourly data.")
