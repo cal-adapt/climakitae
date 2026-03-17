@@ -1549,7 +1549,15 @@ def write_tmy_file(
             line_7 = f"COMMENTS 2,TMY data produced using {warming_level}{degree_sign}C warming level. Year corresponds to index (1-30) in 30-year window centered on warming level. Model years for {warming_level}{degree_sign}C warming level in simulation {simulation} are {years[0]}-{years[1]}\n"
         else:
             # line 6 - comments 1, going to include simulation + scenario information here
-            line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Simulation: {df['sim'].values[0]}\n"
+            if "scenario" in df.columns:
+                # get_data approach has a separate scenario column
+                # the scenario is not included in the simulation name
+                scenario = df["scenario"].values[0]
+                line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Simulation: {df['sim'].values[0]}, Scenario: {scenario}\n"
+            else:
+                # new core approach does not have a separate scenario column, scenario is included in simulation name
+                # scenario information is included in the simulation name
+                line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Simulation: {df['sim'].values[0]}\n"
             # line 7 - comments 2, including date range here from which TMY calculated
             line_7 = f"COMMENTS 2,TMY data produced using {years[0]}-{years[1]} climatological period\n"
 
