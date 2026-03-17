@@ -955,7 +955,7 @@ class TMY:
         all_vars = xr.merge(all_data_arrays)
 
         # load all indices in
-        from dask.distributed import ProgressBar
+        from dask.diagnostics import ProgressBar
         with ProgressBar():
             self.all_vars = all_vars.compute()
         self._vprint("  All TMY variables loaded.")
