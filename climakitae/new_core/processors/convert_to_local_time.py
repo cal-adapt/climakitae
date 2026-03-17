@@ -54,7 +54,7 @@ class ConvertToLocalTime(DataProcessor):
     Notes
     -----
     By default, this process is set to "no" and data is returned in UTC time. For gridded data, the timezone will be
-    selected using the mean values of the data's longitude and latitude coordinates. Leap days will be preserved
+    selected using the central values of the data's longitude and latitude coordinates. Leap days will be preserved
     if present in the original data. If a timezone uses Daylight Savings Time, the returned time axis will not be
     continuous (there will be skipped timestamps and duplicated timestamps).
 
@@ -250,9 +250,11 @@ class ConvertToLocalTime(DataProcessor):
 
         # Get latitude/longitude information
 
-        # Finding avg. lat/lon coordinates from all grid-cells
-        lat = obj.lat.mean().compute().data.item()
-        lon = obj.lon.mean().compute().data.item()
+        # Finding central lat/lon coordinates
+        lat_idx = len(obj.lat) // 2
+        lon_idx = len(obj.lon) // 2
+        lat = obj.lat.isel(lat=lat_idx).item()
+        lon = obj.lon.isel(lon=lon_idx).item()
 
         obj = self._find_timezone_and_convert(obj, lat, lon)
 
@@ -276,8 +278,11 @@ class ConvertToLocalTime(DataProcessor):
 
         """
 
-        lat = obj.lat.isel(time=0).compute().data.item()
-        lon = obj.lon.isel(time=0).compute().data.item()
+        # Finding central lat/lon coordinates
+        lat_idx = len(obj.lat) // 2
+        lon_idx = len(obj.lon) // 2
+        lat = obj.lat.isel(lat=lat_idx).item()
+        lon = obj.lon.isel(lon=lon_idx).item()
 
         obj = self._find_timezone_and_convert(obj, lat, lon)
         return obj
