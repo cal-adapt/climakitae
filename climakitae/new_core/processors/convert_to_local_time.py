@@ -252,8 +252,8 @@ class ConvertToLocalTime(DataProcessor):
 
         # Finding central lat/lon coordinates
         if obj.lat.ndim < 2:
-            lat = float(obj.lat)
-            lon = float(obj.lon)
+            lat = float(obj.lat.values[0])
+            lon = float(obj.lon.values[0])
         else:
             lat = float((obj.lat[0, 0] + obj.lat[-1, 0]) / 2)
             lon = float((obj.lon[0, 0] + obj.lon[0, -1]) / 2)
@@ -282,8 +282,8 @@ class ConvertToLocalTime(DataProcessor):
 
         # Use first lat/lon value since HDP data is not gridded
         # We assume station is unmoving, which isn't always true but likely will not make a difference here
-        lat = float(obj.lat[0])
-        lon = float(obj.lon[0])
+        lat = float(obj.lat.values[0])
+        lon = float(obj.lon.values[0])
 
         obj = self._find_timezone_and_convert(obj, lat, lon)
         return obj
