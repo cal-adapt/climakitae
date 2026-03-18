@@ -959,7 +959,19 @@ class TMY:
         hourly_var_ids = list(self._raw_vars.keys())
         if self.warming_level is not UNSET:
             self._vprint(f"  Getting {hourly_var_ids[0]} (sets year range)...")
-            first_var = _fetch_and_clean(hourly_var_ids[0])
+            # Fetch raw first to capture centered_year before cleaning drops it
+            raw_first = self._fetch_raw_variable(hourly_var_ids[0], table_id="1hr")
+            if "centered_year" in raw_first.coords:
+                self._sim_centered_years = dict(
+                    zip(
+                        raw_first.simulation.values,
+                        raw_first.centered_year.values.ravel(),
+                    )
+                )
+            first_var = raw_first.squeeze().drop_vars(
+                ["lakemask", "landmask", "x", "y", "Lambert_Conformal", "centered_year"],
+                errors="ignore",
+            )
             first_var.name = self._raw_vars[hourly_var_ids[0]]
             remaining_hourly = hourly_var_ids[1:]
         else:
@@ -1266,7 +1278,7 @@ class TMY:
                 years = (self.start_year, self.end_year)
                 clean_sim = sim
             else:
-                centered_year = self.all_vars.sel(simulation=sim).centered_year.data
+                centered_year = int(self._sim_centered_years[sim])
                 year1 = centered_year - 15
                 year2 = centered_year + 14
                 years = (year1, year2)
