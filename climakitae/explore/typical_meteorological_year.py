@@ -192,7 +192,9 @@ def get_cdf(ds: xr.DataArray) -> xr.Dataset:
     time_months = ds.time.dt.month.values
 
     result_vars = {}
-    for var_name in ds.data_vars:
+    n_vars = len(ds.data_vars)
+    for i, var_name in enumerate(ds.data_vars, 1):
+        print(f"  CDF climatology [{i}/{n_vars}]: {var_name}")
         da = ds[var_name].transpose("time", "simulation", ...)
         data = da.values
 
@@ -247,7 +249,9 @@ def get_cdf_monthly(ds: xr.DataArray) -> xr.Dataset:
     unique_years = np.unique(time_years)
 
     result_vars = {}
-    for var_name in ds.data_vars:
+    n_vars = len(ds.data_vars)
+    for i, var_name in enumerate(ds.data_vars, 1):
+        print(f"  CDF monthly [{i}/{n_vars}]: {var_name}")
         da = ds[var_name].transpose("time", "simulation", ...)
         data = da.values
 
@@ -886,9 +890,12 @@ class TMY:
             print(f"Calculating TMY for simulation: {sim}")
             for mon in tqdm(np.arange(1, 13, 1)):
                 # Get year corresponding to month and simulation combo
-                year = top_months.loc[
-                    (top_months["month"] == mon) & (top_months["simulation"] == sim)
-                ].year.item()
+                year = int(
+                    top_months.loc[
+                        (top_months["month"] == mon)
+                        & (top_months["simulation"] == sim)
+                    ].year.item()
+                )
 
                 # Select data for unique month, year, and simulation
                 data_at_stn_mon_sim_yr = all_vars_ds.sel(
@@ -990,8 +997,9 @@ class TMY:
                 da.attrs["frequency"] = "daily"
                 daily_arrays.append(da)
 
-        self._vprint("  Daily statistics ready (lazy). Will compute during CDF calculation.")
-        self.all_vars = xr.merge(daily_arrays)
+        self._vprint("  Persisting daily statistics across workers...")
+        self.all_vars = xr.merge(daily_arrays).persist()
+        self._vprint("  Daily statistics computing in background.")
 
     def set_cdf_climatology(self):
         """Calculate the long-term climatology for each index for each month so
