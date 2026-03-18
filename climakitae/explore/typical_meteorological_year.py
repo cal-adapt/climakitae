@@ -1109,9 +1109,37 @@ class TMY:
         ]
 
         self._vprint("  Computing daily statistics...")
+        # Diagnostics: show what's going into the merge
+        for i, da in enumerate(daily_arrays):
+            name = da.name or f"array_{i}"
+            is_lazy = hasattr(da, "dask") or (hasattr(da, "data") and hasattr(da.data, "dask"))
+            nbytes = da.nbytes / 1e6
+            dims = dict(da.sizes)
+            self._vprint(f"    [{i}] {name}: lazy={is_lazy}, {nbytes:.1f} MB, dims={dims}")
+
+        import time
+        t0 = time.time()
+        self._vprint("  Merging daily arrays...")
         daily_merged = xr.merge(daily_arrays)
+        t1 = time.time()
+        self._vprint(f"  Merge took {t1 - t0:.1f}s")
+
+        self._vprint(f"  Merged dataset: {daily_merged.nbytes / 1e6:.1f} MB total")
+        for vname in daily_merged.data_vars:
+            v = daily_merged[vname]
+            is_lazy = hasattr(v.data, "dask")
+            self._vprint(f"    {vname}: lazy={is_lazy}, chunks={getattr(v.data, 'chunks', 'N/A')}")
+
+        self._vprint("  Calling persist()...")
+        t2 = time.time()
         self.all_vars = daily_merged.persist()
+        t3 = time.time()
+        self._vprint(f"  persist() returned in {t3 - t2:.1f}s")
+
+        self._vprint("  Waiting for futures to complete...")
         _wait_with_progress(self.all_vars, "daily statistics")
+        t4 = time.time()
+        self._vprint(f"  Compute finished in {t4 - t3:.1f}s")
         self._vprint("  Daily statistics ready.")
 
     def set_cdf_climatology(self):
