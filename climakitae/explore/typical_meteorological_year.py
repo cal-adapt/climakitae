@@ -913,7 +913,8 @@ class TMY:
             display_name = self._raw_vars[variable_id]
             da.name = display_name
             return da.squeeze().drop_vars(
-                ["lakemask", "landmask", "x", "y", "Lambert_Conformal"],
+                ["lakemask", "landmask", "x", "y", "Lambert_Conformal",
+                 "centered_year"],
                 errors="ignore",
             )
 
