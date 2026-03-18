@@ -681,6 +681,7 @@ class TMY:
         query = (
             cd.catalog("cadcat")
             .activity_id("WRF")
+            .institution_id("UCLA")
             .table_id("1hr")
             .grid_label("d03")
             .variable(variable_id)
