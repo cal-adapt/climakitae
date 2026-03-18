@@ -637,12 +637,12 @@ def _validate_resolution_requirement(query: Dict[str, Any]) -> bool:
         # Can't validate without grid_label info, assume OK
         return True
 
-    # Check if grid_label is 3km (d03)
-    if grid_label == "d03":
+    # Check if grid_label is 45km (d01)
+    if grid_label == "d01":
         msg = (
-            "\n\nStation bias correction does not support 3km resolution (grid_label='d03'). "
-            "Only 9km (grid_label='d02') and 45km (grid_label='d01') resolutions are "
-            "supported. Please use grid_label='d02' (9km) or grid_label='d01' (45km).\n\n"
+            "\n\nStation bias correction does not support 45km resolution (grid_label='d01'). "
+            "Only 9km (grid_label='d02') and 3km (grid_label='d03') resolutions are "
+            "supported. Please use grid_label='d02' (9km) or grid_label='d03' (3km).\n\n"
         )
         logger.warning(msg)
         return False
