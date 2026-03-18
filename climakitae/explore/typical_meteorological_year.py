@@ -1298,10 +1298,11 @@ class TMY:
                 year1 = centered_year - 15
                 year2 = centered_year + 14
                 years = (year1, year2)
-                # replace scenario with descriptive name if present for gwl case
-                clean_sim = sim.replace(
-                    "_historical+ssp370", f"_{match_str_to_wl(self.warming_level)}"
-                )
+                # Append warming level descriptor to simulation name.
+                # Legacy sim names no longer contain "_historical+ssp370"
+                # after the new-core migration, so we append directly.
+                wl_label = match_str_to_wl(self.warming_level)
+                clean_sim = f"{sim}_{wl_label}"
             clean_stn_name = (
                 self.stn_name.replace(" ", "_").replace("(", "").replace(")", "")
             )
