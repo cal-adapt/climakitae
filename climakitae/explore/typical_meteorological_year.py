@@ -14,19 +14,18 @@ import pandas as pd
 import pkg_resources
 import pytz
 import xarray as xr
-from dask.diagnostics import ProgressBar
 from scipy import optimize
 from timezonefinder import TimezoneFinder
 from tqdm.auto import tqdm  # Progress bar
 
 from climakitae.core.constants import UNSET
 from climakitae.core.data_export import write_tmy_file
-from climakitae.core.data_interface import get_data
-from climakitae.tools.derived_variables import compute_relative_humidity
-from climakitae.util.utils import (
-    add_dummy_time_to_wl,
-    convert_to_local_time,
-    get_closest_gridcell,
+from climakitae.new_core.user_interface import ClimateData
+from climakitae.tools.derived_variables import (
+    compute_dewpointtemp,
+    compute_relative_humidity,
+    compute_wind_dir,
+    compute_wind_mag,
 )
 
 _hadisd_stations_cache = None
@@ -555,7 +554,21 @@ class TMY:
         ]
         # Data only available for these scenarios
         self.scenario = ["Historical Climate", "SSP 3-7.0"]
-        # These are the variables used in TMY
+        # Raw catalog variables to fetch (variable_id → display name)
+        # These are fetched directly from the catalog in their native units.
+        self._raw_vars = {
+            "t2": "Air Temperature at 2m",
+            "q2": "Water Vapor Mixing Ratio at 2m",
+            "psfc": "Surface Pressure",
+            "u10": "u10",
+            "v10": "v10",
+            "swdnb": "Instantaneous downwelling shortwave flux at bottom",
+            "swddni": "Shortwave surface downward direct normal irradiance",
+            "swddif": "Shortwave surface downward diffuse irradiance",
+            "lwdnb": "Instantaneous downwelling longwave flux at bottom",
+        }
+        # Full set of TMY variables (including derived) with desired units.
+        # Used for display name references throughout the rest of the TMY code.
         self.vars_and_units = {
             "Air Temperature at 2m": "degC",
             "Dew point temperature": "degC",
@@ -649,108 +662,79 @@ class TMY:
         self._timezone_name = tz_name
         return self._utc_offset_hours
 
-    def _load_time_approach(self, varname: str, units: str) -> xr.DataArray:
-        """Run get_data with the time level approach.
+    def _fetch_raw_variable(self, variable_id: str) -> xr.DataArray:
+        """Fetch a single raw catalog variable via ClimateData.
+
+        Uses the new core ClimateData interface with clip processor
+        for point selection and time_slice or warming_level as appropriate.
 
         Parameters
         ----------
-        varname: str
-           Name of desired catalog variable
-        units: str
-           Desired units
+        variable_id : str
+            Catalog variable_id (e.g., 't2', 'q2', 'psfc').
 
         Returns
         -------
         xr.DataArray
         """
-        # Extra year in UTC time to get full period in local time.
-        if self.end_year == 2100:
-            print(
-                "End year is 2100. The final day in timeseries may be incomplete after data is converted to local time."
-            )
-            new_end_year = self.end_year
-        else:
-            new_end_year = self.end_year + 1
-
-        data = get_data(
-            variable=varname,
-            resolution="3 km",
-            timescale="hourly",
-            data_type="Gridded",
-            units=units,
-            latitude=self.lat_range,
-            longitude=self.lon_range,
-            area_average="No",
-            scenario=self.scenario,
-            time_slice=(self.start_year, new_end_year),
+        cd = ClimateData(verbosity=-1)
+        query = (
+            cd.catalog("cadcat")
+            .activity_id("WRF")
+            .table_id("1hr")
+            .grid_label("d03")
+            .variable(variable_id)
         )
-        return data
 
-    def _load_warming_level_approach(self, varname: str, units: str) -> xr.DataArray:
-        """Run get_data with the warming level approach.
+        processes = {
+            "clip": (self.stn_lat, self.stn_lon),
+        }
 
-        Parameters
-        ----------
-        varname: str
-           Name of desired catalog variable
-        units: str
-           Desired units
-
-        Returns
-        -------
-        xr.DataArray
-        """
-        # Extra year in UTC time to get full period in local time.
-        data = get_data(
-            variable=varname,
-            resolution="3 km",
-            timescale="hourly",
-            data_type="Gridded",
-            units=units,
-            latitude=self.lat_range,
-            longitude=self.lon_range,
-            area_average="No",
-            approach="Warming Level",
-            warming_level=[self.warming_level],
-        )
-        data = add_dummy_time_to_wl(data)
-        # Set the start and end years based on the dummy time
-        self.start_year = data.time[0].dt.year.item()
-        self.end_year = data.time[-1].dt.year.item()
-
-        return data
-
-    def _load_single_variable(self, varname: str, units: str) -> xr.DataArray:
-        """Fetch catalog data for one variable.
-
-        Parameters
-        ----------
-        varname: str
-           Name of desired catalog variable
-        units: str
-           Desired units
-
-        Returns
-        -------
-        xr.DataArray
-        """
-        # Warming level approach
         if self.warming_level is not UNSET:
-            data = self._load_warming_level_approach(varname, units)
-            simulations = [x + "_historical+ssp370" for x in self.simulations]
-        # Use Time approach
+            processes["warming_level"] = {
+                "warming_levels": [self.warming_level],
+                "add_dummy_time": True,
+            }
         else:
-            data = self._load_time_approach(varname, units)
+            # Extra year in UTC time to get full period in local time.
+            if self.end_year == 2100:
+                print(
+                    "End year is 2100. The final day in timeseries may be "
+                    "incomplete after data is converted to local time."
+                )
+                new_end_year = self.end_year
+            else:
+                new_end_year = self.end_year + 1
+            query = query.experiment_id(["historical", "ssp370"])
+            processes["time_slice"] = (self.start_year, new_end_year)
+
+        data = query.processes(processes).get()
+
+        if data is None:
+            raise RuntimeError(
+                f"ClimateData returned no data for variable '{variable_id}'."
+            )
+
+        # Extract the variable as a DataArray
+        if isinstance(data, xr.Dataset):
+            data = data[variable_id]
+
+        # For warming level: set start/end year from dummy time
+        if self.warming_level is not UNSET:
+            self.start_year = data.time[0].dt.year.item()
+            self.end_year = data.time[-1].dt.year.item()
+
+        # Determine simulation names for filtering
+        if self.warming_level is not UNSET:
+            simulations = [x + "_historical+ssp370" for x in self.simulations]
+        else:
             simulations = self.simulations
 
-        # Compute over single gridcell
-        data = get_closest_gridcell(
-            data, self.stn_lat, self.stn_lon, print_coords=False
-        )
         # Work in local time (cached offset avoids repeated CSV reads)
         offset_hours = self._get_utc_offset_hours()
         data["time"] = data.time + pd.Timedelta(hours=offset_hours)
         data.attrs["timezone"] = self._timezone_name
+
         # Get desired time slice in local time
         data = data.sel(
             {"time": slice(f"{self.start_year}-01-01-00", f"{self.end_year}-12-31-23")}
@@ -758,35 +742,6 @@ class TMY:
         # Only use preset models with solar variables
         data = data.sel(simulation=simulations)
         return data
-
-    def _get_tmy_variable(self, varname: str, units: str, stats: list[str]) -> list:
-        """Fetch a single variable, resample and reduce.
-
-        Parameters
-        ----------
-        varname: str
-           Variable to load.
-        units: str
-            Desired units.
-        stats: list[str]
-            Daily stats to compute ('max','min','mean', and/or 'sum')
-
-        Returns
-        -------
-        xr.Dataset
-        """
-
-        data = self._load_single_variable(varname, units)
-        returned_data = []
-        stat_options = ["max", "min", "mean", "sum"]
-        for stat in stat_options:
-            if stat not in stats:
-                continue
-            stat_data = getattr(data.resample(time="1D"), stat)()
-            stat_data.attrs["frequency"] = "daily"
-            returned_data.append(stat_data)
-
-        return returned_data
 
     @staticmethod
     def _smooth_month_transition_hours(df: pd.DataFrame) -> pd.DataFrame:
@@ -919,45 +874,116 @@ class TMY:
         return tmy_df_all
 
     def load_all_variables(self):
-        """Load all hourly TMY variables and derive daily statistics.
+        """Load all hourly TMY variables via ClimateData and derive daily statistics.
 
-        Downloads all 11 hourly variables once and caches them in
-        ``self._hourly_data`` for reuse by ``run_tmy_analysis()``.
-        Daily statistics needed for CDF/F-S analysis are derived from
-        the cached hourly data rather than re-downloading.
+        Fetches 9 raw catalog variables via the ClimateData interface,
+        computes 4 derived variables (RH, dew point, wind speed, wind dir),
+        and caches the full hourly dataset in ``self._hourly_data`` for reuse
+        by ``run_tmy_analysis()``. Daily statistics needed for CDF/F-S
+        analysis are derived from the cached hourly data.
         """
-        print("Loading data from catalog.")
+        print("Loading data from catalog via ClimateData.")
 
-        def _load_hourly_var(item):
-            """Load a single hourly variable."""
-            var, units = item
-            data_by_var = self._load_single_variable(var, units)
-            return data_by_var.squeeze().drop_vars(
+        def _fetch_and_clean(variable_id):
+            """Fetch a single raw variable and clean coordinate cruft."""
+            self._vprint(f"  Fetching {variable_id}...")
+            da = self._fetch_raw_variable(variable_id)
+            display_name = self._raw_vars[variable_id]
+            da.name = display_name
+            return da.squeeze().drop_vars(
                 ["lakemask", "landmask", "x", "y", "Lambert_Conformal"],
                 errors="ignore",
             )
 
-        # Load all 11 hourly variables
-        items = list(self.vars_and_units.items())
+        # Load raw variables - first one must be synchronous for warming level
+        # (it sets start_year/end_year)
+        var_ids = list(self._raw_vars.keys())
         if self.warming_level is not UNSET:
-            # First variable must load synchronously to set start/end years
-            self._vprint(f"  Getting {items[0][0]}...")
-            first_var = _load_hourly_var(items[0])
-            remaining_items = items[1:]
+            self._vprint(f"  Getting {var_ids[0]} (sets year range)...")
+            first_var = _fetch_and_clean(var_ids[0])
+            remaining_ids = var_ids[1:]
         else:
             first_var = None
-            remaining_items = items
+            remaining_ids = var_ids
 
         self._vprint("  Loading remaining variables in parallel...")
         with ThreadPoolExecutor(max_workers=4) as executor:
-            remaining_vars = list(executor.map(_load_hourly_var, remaining_items))
+            remaining_vars = list(executor.map(_fetch_and_clean, remaining_ids))
 
-        all_hourly_list = (
+        raw_list = (
             [first_var] + remaining_vars if first_var is not None else remaining_vars
         )
 
-        self._vprint("  Merging hourly data.")
-        hourly_ds = xr.merge(all_hourly_list)
+        self._vprint("  Merging raw hourly data.")
+        raw_ds = xr.merge(raw_list)
+
+        # --- Compute derived variables from raw data ---
+        self._vprint("  Computing derived variables from raw data.")
+
+        # Temperature: K -> degC for compute_relative_humidity inputs
+        t2_degc = raw_ds["Air Temperature at 2m"] - 273.15
+        t2_degc.attrs["units"] = "degC"
+
+        # Mixing ratio: kg/kg -> g/kg
+        q2_gkg = raw_ds["Water Vapor Mixing Ratio at 2m"] * 1000
+        q2_gkg.attrs["units"] = "g kg-1"
+
+        # Pressure: Pa -> hPa
+        psfc_hpa = raw_ds["Surface Pressure"] / 100.0
+        psfc_hpa.attrs["units"] = "hPa"
+
+        # Relative humidity from t2 (degC), q2 (g/kg), psfc (hPa)
+        rh = compute_relative_humidity(
+            pressure=psfc_hpa,
+            temperature=t2_degc,
+            mixing_ratio=q2_gkg,
+        )
+        rh.name = "Relative humidity"
+        rh.attrs["units"] = "[0 to 100]"
+
+        # Dew point from t2 (K) and RH (0-100)
+        dew_point_k = compute_dewpointtemp(
+            temperature=raw_ds["Air Temperature at 2m"],
+            rel_hum=rh,
+        )
+        # Convert K -> degC
+        dew_point = dew_point_k - 273.15
+        dew_point.name = "Dew point temperature"
+        dew_point.attrs["units"] = "degC"
+
+        # Wind speed and direction from u10, v10
+        wind_speed = compute_wind_mag(u10=raw_ds["u10"], v10=raw_ds["v10"])
+        wind_speed.name = "Wind speed at 10m"
+
+        wind_dir = compute_wind_dir(u10=raw_ds["u10"], v10=raw_ds["v10"])
+        wind_dir.name = "Wind direction at 10m"
+
+        # Convert raw units to desired TMY units
+        # t2: K -> degC
+        t2_out = t2_degc.copy()
+        t2_out.name = "Air Temperature at 2m"
+        t2_out.attrs["units"] = "degC"
+
+        # q2: already converted to g/kg
+        q2_out = q2_gkg.copy()
+        q2_out.name = "Water Vapor Mixing Ratio at 2m"
+
+        # psfc: keep native Pa
+        # (raw_ds already has it in Pa)
+
+        # Merge everything into the full hourly dataset
+        self._vprint("  Merging all hourly variables (raw + derived).")
+        derived_list = [t2_out, dew_point, rh, wind_speed, wind_dir, q2_out]
+        # Keep radiation and pressure variables from raw (already in desired units)
+        keep_vars = [
+            "Instantaneous downwelling shortwave flux at bottom",
+            "Shortwave surface downward direct normal irradiance",
+            "Shortwave surface downward diffuse irradiance",
+            "Instantaneous downwelling longwave flux at bottom",
+            "Surface Pressure",
+        ]
+        kept_from_raw = [raw_ds[v] for v in keep_vars]
+        hourly_ds = xr.merge(derived_list + kept_from_raw)
 
         # Cache raw hourly data for run_tmy_analysis()
         self._hourly_data = hourly_ds
@@ -1068,9 +1094,10 @@ class TMY:
         )
 
     def run_tmy_analysis(self):
-        """Generate typical meteorological year data
+        """Generate typical meteorological year data.
+
         Output will be a list of dataframes per simulation.
-        Print statements throughout the function indicate to the user the progress of the computatioconvert_to_local_time.
+        Print statements throughout the function indicate progress.
 
         Parameters
         -----------
@@ -1087,24 +1114,10 @@ class TMY:
         self._vprint("  STEP 1: Using cached hourly data")
 
         # Use cached hourly data instead of re-downloading
-        if hasattr(self, "_hourly_data") and self._hourly_data is not None:
-            all_vars_ds = self._hourly_data.compute()
-        else:
+        if not hasattr(self, "_hourly_data") or self._hourly_data is None:
             # Fallback: load from catalog if run_tmy_analysis called standalone
-            def _load_hourly_var(item):
-                """Load a single hourly variable for TMY assembly."""
-                var, units = item
-                data_by_var = self._load_single_variable(var, units)
-                return data_by_var.squeeze().drop_vars(
-                    ["lakemask", "landmask", "x", "y", "Lambert_Conformal"],
-                    errors="ignore",
-                )
-
-            with ThreadPoolExecutor(max_workers=4) as executor:
-                all_vars_list = list(
-                    executor.map(_load_hourly_var, self.vars_and_units.items())
-                )
-            all_vars_ds = xr.merge(all_vars_list)
+            self.load_all_variables()
+        all_vars_ds = self._hourly_data.compute()
 
         # Construct TMY
         self._vprint(
