@@ -31,6 +31,7 @@ from climakitae.new_core.processors.abc_data_processor import (
     register_processor,
 )
 from climakitae.new_core.processors.processor_utils import _get_block_maxima_optimized
+from climakitae.util.utils import add_dummy_time_to_wl
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,16 @@ class MetricCalc(DataProcessor):
           - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
           - variable_preprocessing (dict, optional): Variable-specific preprocessing options
 
+        Threshold Exceedance Count:
+        - thresholds (dict, optional): Configuration for counting timesteps that exceed
+          a fixed threshold per period. Mutually exclusive with one_in_x. Keys:
+          - threshold_value (float, required): The threshold to compare against.
+          - threshold_direction (str, required): "above" or "below".
+          - period (tuple, optional): Resampling period as (int, str), e.g. (1, "year").
+            Default: (1, "year")
+          - duration (tuple, optional): Require this many consecutive exceedances, e.g.
+            (3, "day"). Default: None (no consecutive filter applied)
+
     Examples
     --------
     Calculate mean over time:
@@ -93,6 +104,15 @@ class MetricCalc(DataProcessor):
     ...         "return_periods": [10, 25, 50, 100],
     ...         "distribution": "gev",
     ...         "extremes_type": "max"
+    ...     }
+    ... })
+
+    Calculate days exceeding a threshold per year:
+    >>> metric_proc = MetricCalc({
+    ...     "thresholds": {
+    ...         "threshold_value": 305.0,
+    ...         "threshold_direction": "above",
+    ...         "period": (1, "year"),
     ...     }
     ... })
 
@@ -159,6 +179,11 @@ class MetricCalc(DataProcessor):
         if self.one_in_x_config is not UNSET:
             self._setup_one_in_x_parameters()
 
+        # Threshold exceedance parameters
+        self.thresholds = value.get("thresholds", UNSET)
+        if self.thresholds is not UNSET:
+            self._setup_threshold_parameters()
+
     def _setup_one_in_x_parameters(self):
         """Setup parameters for 1-in-X calculations."""
         # Type guard to ensure one_in_x_config is not None
@@ -193,6 +218,49 @@ class MetricCalc(DataProcessor):
             "variable_preprocessing", {}
         )
 
+    def _setup_threshold_parameters(self) -> None:
+        """Validate and store threshold exceedance config."""
+        cfg = self.thresholds
+        if "threshold_value" not in cfg:
+            raise ValueError("thresholds must include 'threshold_value'")
+        if self.one_in_x_config is not UNSET:
+            raise ValueError(
+                "Cannot set both 'thresholds' and 'one_in_x' in metric_calc. "
+                "Choose one output mode."
+            )
+        if "metric" in self.value:
+            raise ValueError(
+                "Cannot set both 'thresholds' and 'metric' in metric_calc. "
+                "Choose one output mode."
+            )
+        if self.percentiles is not UNSET:
+            raise ValueError(
+                "Cannot set both 'thresholds' and 'percentiles' in metric_calc. "
+                "Choose one output mode."
+            )
+        direction = cfg.get("threshold_direction")
+        if direction not in ("above", "below"):
+            raise ValueError(
+                f"threshold_direction must be 'above' or 'below', got '{direction!r}'"
+            )
+        period = cfg.get("period", (1, "year"))
+        _valid_period_units = ("year", "month")
+        if not isinstance(period, tuple) or len(period) != 2:
+            raise ValueError("period must be a tuple of (int, str), e.g. (1, 'year')")
+        period_num, period_unit = period
+        if not isinstance(period_num, int) or period_num <= 0:
+            raise ValueError("period number must be a positive integer")
+        if period_unit not in _valid_period_units:
+            raise ValueError(
+                f"period unit must be one of {_valid_period_units}, got {period_unit!r}"
+            )
+        self.thresholds = {
+            "threshold_value": float(cfg["threshold_value"]),
+            "threshold_direction": direction,
+            "duration": cfg.get("duration", UNSET),
+            "period": period,
+        }
+
     def execute(
         self,
         result: xr.Dataset | xr.DataArray | Iterable[xr.Dataset | xr.DataArray],
@@ -218,11 +286,12 @@ class MetricCalc(DataProcessor):
             an iterable of them.
         """
         # Select processing function based on configuration
-        process_fn = (
-            self._calculate_one_in_x_single
-            if self.one_in_x_config is not UNSET
-            else self._calculate_metrics_single
-        )
+        if self.thresholds is not UNSET:
+            process_fn = self._calculate_threshold_single
+        elif self.one_in_x_config is not UNSET:
+            process_fn = self._calculate_one_in_x_single
+        else:
+            process_fn = self._calculate_metrics_single
 
         ret = None
 
@@ -399,6 +468,89 @@ class MetricCalc(DataProcessor):
             # Should not reach here, but return the first result as fallback
             return results[0] if results else data
 
+    def _calculate_threshold_single(
+        self, data: xr.Dataset | xr.DataArray
+    ) -> xr.Dataset:
+        """Count timesteps exceeding a threshold per period.
+
+        Parameters
+        ----------
+        data : xr.Dataset | xr.DataArray
+            Input climate data with a time dimension.
+
+        Returns
+        -------
+        xr.Dataset
+            One count value per period per grid cell / simulation.
+        """
+        cfg = self.thresholds
+
+        # Add dummy time dimension if data came from warming-level processing
+        # (which replaces the time axis with time_delta or *_from_center dims).
+        # Use add_dummy_time_to_wl so leap-year handling matches the warming_level
+        # processor, ensuring consistent year boundaries regardless of whether
+        # add_dummy_time was set in the warming_level config.
+        if isinstance(data, xr.Dataset):
+            if "time" not in data.dims:
+                data = xr.Dataset(
+                    {var: add_dummy_time_to_wl(data[var]) for var in data.data_vars},
+                    attrs=data.attrs,
+                )
+        elif isinstance(data, xr.DataArray) and "time" not in data.dims:
+            data = add_dummy_time_to_wl(data)
+
+        def _apply(da: xr.DataArray) -> xr.DataArray:
+            # 1. Threshold comparison (preserve NaNs)
+            if cfg["threshold_direction"] == "above":
+                mask = (da > cfg["threshold_value"]).where(~da.isnull())
+            else:
+                mask = (da < cfg["threshold_value"]).where(~da.isnull())
+
+            # 2. Optional consecutive-timestep filter (rolling min)
+            #    e.g. duration=(3, "day") requires 3 consecutive exceedances.
+            #    Convert the (n, unit) duration to an integer timestep count
+            #    using the data's `frequency` attribute (always set by the
+            #    time this processor runs).
+            if cfg["duration"] is not UNSET:
+                n, unit = cfg["duration"]
+                _unit_to_secs = {
+                    "hour": 3600,
+                    "day": 86400,
+                    "month": 30 * 86400,
+                    "year": 365 * 86400,
+                }
+                # Map frequency strings to approximate seconds per timestep
+                _freq_to_secs = {
+                    "hour": 3600,
+                    "3hr": 3 * 3600,
+                    "6hr": 6 * 3600,
+                    "day": 86400,
+                    "mon": 30 * 86400,
+                    "year": 365 * 86400,
+                }
+                freq = (da.attrs.get("frequency") or "day").lower()
+                timestep_secs = _freq_to_secs.get(freq, 86400)
+                duration_secs = n * _unit_to_secs[unit.lower()]
+                n_steps = max(1, round(duration_secs / timestep_secs))
+                mask = mask.rolling(time=n_steps, min_periods=n_steps).min("time")
+
+            # 3. Count exceedances per period.
+            #    min_count=1 ensures all-NaN periods return NaN rather than 0,
+            #    so missing data is distinguishable from zero exceedances.
+            n_period, unit = cfg["period"]
+            # Map unit names to pandas offset aliases (use non-deprecated forms)
+            _unit_to_freq = {
+                "year": "YE",
+                "month": "ME",
+            }
+            freq_code = _unit_to_freq[unit.lower()]
+            freq = f"{n_period}{freq_code}"  # e.g. (1, "year") → "1YE"
+            return mask.resample(time=freq).sum(min_count=1)
+
+        if isinstance(data, xr.DataArray):
+            return xr.Dataset({data.name or "exceedance_count": _apply(data)})
+        return xr.Dataset({var: _apply(data[var]) for var in data.data_vars})
+
     def _calculate_one_in_x_single(self, data: xr.Dataset | xr.DataArray) -> xr.Dataset:
         """
         Calculate 1-in-X return values on a single Dataset or DataArray.
@@ -481,7 +633,7 @@ class MetricCalc(DataProcessor):
 
         # Check if we have a time dimension, and add dummy time if needed
         if "time" not in data_array.dims:
-            data_array = self._add_dummy_time_if_needed(data_array, data.frequency)
+            data_array = add_dummy_time_to_wl(data_array)
 
         # Apply variable-specific preprocessing
         data_array = self._preprocess_variable_for_one_in_x(data_array, var_name)
@@ -1132,13 +1284,34 @@ class MetricCalc(DataProcessor):
         # Build description based on what was calculated
         description_parts = []
 
-        if self.one_in_x_config is not UNSET:
+        if self.thresholds is not UNSET:
+            # Threshold exceedance calculations
+            cfg = self.thresholds
+            duration_str = (
+                f" with {cfg['duration'][0]} consecutive {cfg['duration'][1]}(s) required"
+                if cfg["duration"] is not UNSET
+                else ""
+            )
+            description_parts.append(
+                f"Threshold exceedance count (value={cfg['threshold_value']}, "
+                f"direction='{cfg['threshold_direction']}', "
+                f"period={cfg['period']}){duration_str} was calculated"
+            )
+            transformation_description = (
+                f"Process '{self.name}' applied to the data. "
+                f"{' and '.join(description_parts)}."
+            )
+        elif self.one_in_x_config is not UNSET:
             # 1-in-X calculations
             return_periods_str = ", ".join(map(str, self.return_periods))
             description_parts.append(
                 f"1-in-X return values for periods [{return_periods_str}] were "
                 f"calculated using {self.distribution} distribution with "
                 f"{self.extremes_type} extremes over {self.event_duration[0]} {self.event_duration[1]} events"
+            )
+            transformation_description = (
+                f"Process '{self.name}' applied to the data. "
+                f"{' and '.join(description_parts)}."
             )
         else:
             # Regular metric calculations
@@ -1150,78 +1323,12 @@ class MetricCalc(DataProcessor):
             if not self.percentiles_only:
                 description_parts.append(f"Metric '{self.metric}' was calculated")
 
-        if self.one_in_x_config is not UNSET:
-            transformation_description = (
-                f"Process '{self.name}' applied to the data. "
-                f"{' and '.join(description_parts)}."
-            )
-        else:
             transformation_description = (
                 f"Process '{self.name}' applied to the data. "
                 f"{' and '.join(description_parts)} along dimension(s): {self.dim}."
             )
 
         context[_NEW_ATTRS_KEY][self.name] = transformation_description
-
-    def _add_dummy_time_if_needed(
-        self, data_array: xr.DataArray, frequency: str
-    ) -> xr.DataArray:
-        """
-        Add dummy time dimension if data has time_delta or similar warming level dimensions.
-
-        This mimics the behavior of add_dummy_time_to_wl from the legacy code.
-
-        Parameters
-        ----------
-        data_array : xr.DataArray
-            Input data array that may have time_delta or *_from_center dimensions
-
-        Returns
-        -------
-        xr.DataArray
-            Data array with proper time dimension
-        """
-        # Find the warming level time dimension
-        wl_time_dim = ""
-
-        for dim in data_array.dims:
-            dim_str = str(dim)
-            if dim_str == "time_delta":
-                wl_time_dim = "time_delta"
-                break
-            elif "from_center" in dim_str:
-                wl_time_dim = dim_str
-                break
-
-        if wl_time_dim == "":
-            raise ValueError(
-                "Data must have a 'time', 'time_delta', or '*_from_center' dimension for 1-in-X calculations"
-            )
-
-        # Determine frequency and create dummy timestamps
-        if wl_time_dim == "time_delta":
-            # Get frequency from data array attributes
-            time_freq_name = frequency
-            name_to_freq = {"1hr": "h", "day": "D", "mon": "ME"}
-        else:
-            # Extract frequency from dimension name (e.g., 'hours_from_center' -> 'hours')
-            time_freq_name = wl_time_dim.split("_")[0]
-            name_to_freq = {"hours": "h", "days": "D", "months": "ME"}
-
-        # Create dummy timestamps starting from 2000-01-01
-        freq = name_to_freq.get(time_freq_name, "D")  # Default to daily
-        timestamps = pd.date_range(
-            "2000-01-01",
-            periods=len(data_array[wl_time_dim]),
-            freq=freq,
-        )
-
-        # Replace the warming level dimension with dummy timestamps and rename to 'time'
-        data_array = data_array.assign_coords({wl_time_dim: timestamps}).rename(
-            {wl_time_dim: "time"}
-        )
-
-        return data_array
 
     def set_data_accessor(self, catalog: DataCatalog):
         """
