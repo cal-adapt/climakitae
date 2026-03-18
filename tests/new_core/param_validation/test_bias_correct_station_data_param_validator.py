@@ -605,10 +605,10 @@ class TestValidateResolutionRequirement:
         result = _validate_resolution_requirement(query)
         assert result is True
 
-    def test_invalid_3km_grid_label(self):
-        """Test validation with 3km grid label."""
-        query = {"grid_label": "d03"}
-        with pytest.warns(UserWarning, match="does not support 3km resolution"):
+    def test_invalid_45km_grid_label(self):
+        """Test validation with 45km grid label."""
+        query = {"grid_label": "d01"}
+        with pytest.warns(UserWarning, match="does not support 45km resolution"):
             result = _validate_resolution_requirement(query)
         assert result is False
 
