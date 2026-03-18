@@ -662,7 +662,7 @@ class TMY:
         self._timezone_name = tz_name
         return self._utc_offset_hours
 
-    def _fetch_raw_variable(self, variable_id: str) -> xr.DataArray:
+    def _fetch_raw_variable(self, variable_id: str, table_id: str = "1hr") -> xr.DataArray:
         """Fetch a single raw catalog variable via ClimateData.
 
         Uses the new core ClimateData interface with clip processor
@@ -672,6 +672,8 @@ class TMY:
         ----------
         variable_id : str
             Catalog variable_id (e.g., 't2', 'q2', 'psfc').
+        table_id : str
+            Temporal resolution: '1hr' or 'day'. Default '1hr'.
 
         Returns
         -------
@@ -682,7 +684,7 @@ class TMY:
             cd.catalog("cadcat")
             .activity_id("WRF")
             .institution_id("UCLA")
-            .table_id("1hr")
+            .table_id(table_id)
             .grid_label("d03")
             .variable(variable_id)
         )
@@ -896,108 +898,120 @@ class TMY:
         return tmy_df_all
 
     def load_all_variables(self):
-        """Load all hourly TMY variables via ClimateData and derive daily statistics.
+        """Load hourly and daily TMY variables via ClimateData.
 
-        Fetches 9 raw catalog variables via the ClimateData interface,
-        computes 4 derived variables (RH, dew point, wind speed, wind dir),
-        and caches the full hourly dataset in ``self._hourly_data`` for reuse
-        by ``run_tmy_analysis()``. Daily statistics needed for CDF/F-S
-        analysis are derived from the cached hourly data.
+        Fetches hourly raw variables for the 8760 profile assembly,
+        and daily variables directly from the catalog for CDF/F-S analysis.
+        Derived variables (dew point, radiation sums) are computed from
+        the fetched data where no direct catalog variable exists.
         """
         print("Loading data from catalog via ClimateData.")
 
-        def _fetch_and_clean(variable_id):
-            """Fetch a single raw variable and clean coordinate cruft."""
-            self._vprint(f"  Fetching {variable_id}...")
-            da = self._fetch_raw_variable(variable_id)
-            display_name = self._raw_vars[variable_id]
-            da.name = display_name
+        def _fetch_and_clean(variable_id, table_id="1hr"):
+            """Fetch a single variable and clean coordinate cruft."""
+            self._vprint(f"  Fetching {variable_id} ({table_id})...")
+            da = self._fetch_raw_variable(variable_id, table_id=table_id)
             return da.squeeze().drop_vars(
                 ["lakemask", "landmask", "x", "y", "Lambert_Conformal",
                  "centered_year"],
                 errors="ignore",
             )
 
-        # Load raw variables - first one must be synchronous for warming level
-        # (it sets start_year/end_year)
-        var_ids = list(self._raw_vars.keys())
+        # --- Hourly variables (needed for 8760 profile assembly) ---
+        # First hourly fetch must be synchronous for warming level (sets year range)
+        hourly_var_ids = list(self._raw_vars.keys())
         if self.warming_level is not UNSET:
-            self._vprint(f"  Getting {var_ids[0]} (sets year range)...")
-            first_var = _fetch_and_clean(var_ids[0])
-            remaining_ids = var_ids[1:]
+            self._vprint(f"  Getting {hourly_var_ids[0]} (sets year range)...")
+            first_var = _fetch_and_clean(hourly_var_ids[0])
+            first_var.name = self._raw_vars[hourly_var_ids[0]]
+            remaining_hourly = hourly_var_ids[1:]
         else:
             first_var = None
-            remaining_ids = var_ids
+            remaining_hourly = hourly_var_ids
 
-        self._vprint("  Loading remaining variables in parallel...")
+        # --- Daily variables (needed for CDF/F-S analysis) ---
+        # Map: catalog variable_id → TMY display name
+        daily_catalog_vars = {
+            "t2max": "Daily max air temperature",
+            "t2min": "Daily min air temperature",
+            "t2": "Daily mean air temperature",
+            "wspd10max": "Daily max wind speed",
+            "wspd10mean": "Daily mean wind speed",
+            "rh": "Daily mean relative humidity",   # for dew point derivation
+            "sw_dwn": "Global horizontal irradiance",
+        }
+
+        # Fetch remaining hourly + all daily in parallel
+        self._vprint("  Loading hourly and daily variables in parallel...")
+
+        def _fetch_hourly(vid):
+            da = _fetch_and_clean(vid, "1hr")
+            da.name = self._raw_vars[vid]
+            return ("hourly", vid, da)
+
+        def _fetch_daily(vid):
+            da = _fetch_and_clean(vid, "day")
+            da.name = daily_catalog_vars[vid]
+            da.attrs["frequency"] = "daily"
+            return ("daily", vid, da)
+
         with ThreadPoolExecutor(max_workers=4) as executor:
-            remaining_vars = list(executor.map(_fetch_and_clean, remaining_ids))
+            hourly_futures = [
+                executor.submit(_fetch_hourly, vid) for vid in remaining_hourly
+            ]
+            daily_futures = [
+                executor.submit(_fetch_daily, vid) for vid in daily_catalog_vars
+            ]
+            all_results = [f.result() for f in hourly_futures + daily_futures]
 
-        raw_list = (
-            [first_var] + remaining_vars if first_var is not None else remaining_vars
-        )
+        # Separate hourly and daily results
+        hourly_list = [r[2] for r in all_results if r[0] == "hourly"]
+        if first_var is not None:
+            hourly_list = [first_var] + hourly_list
+        daily_das = {r[1]: r[2] for r in all_results if r[0] == "daily"}
 
+        # --- Build hourly dataset for 8760 profile ---
         self._vprint("  Merging raw hourly data.")
-        raw_ds = xr.merge(raw_list)
+        raw_ds = xr.merge(hourly_list)
 
-        # --- Compute derived variables from raw data ---
-        self._vprint("  Computing derived variables from raw data.")
-
-        # Temperature: K -> degC for compute_relative_humidity inputs
+        # Compute hourly derived variables
+        self._vprint("  Computing hourly derived variables.")
         t2_degc = raw_ds["Air Temperature at 2m"] - 273.15
         t2_degc.attrs["units"] = "degC"
 
-        # Mixing ratio: kg/kg -> g/kg
         q2_gkg = raw_ds["Water Vapor Mixing Ratio at 2m"] * 1000
         q2_gkg.attrs["units"] = "g kg-1"
 
-        # Pressure: Pa -> hPa
         psfc_hpa = raw_ds["Surface Pressure"] / 100.0
         psfc_hpa.attrs["units"] = "hPa"
 
-        # Relative humidity from t2 (degC), q2 (g/kg), psfc (hPa)
         rh = compute_relative_humidity(
-            pressure=psfc_hpa,
-            temperature=t2_degc,
-            mixing_ratio=q2_gkg,
+            pressure=psfc_hpa, temperature=t2_degc, mixing_ratio=q2_gkg,
         )
         rh.name = "Relative humidity"
         rh.attrs["units"] = "[0 to 100]"
 
-        # Dew point from t2 (K) and RH (0-100)
         dew_point_k = compute_dewpointtemp(
-            temperature=raw_ds["Air Temperature at 2m"],
-            rel_hum=rh,
+            temperature=raw_ds["Air Temperature at 2m"], rel_hum=rh,
         )
-        # Convert K -> degC
         dew_point = dew_point_k - 273.15
         dew_point.name = "Dew point temperature"
         dew_point.attrs["units"] = "degC"
 
-        # Wind speed and direction from u10, v10
         wind_speed = compute_wind_mag(u10=raw_ds["u10"], v10=raw_ds["v10"])
         wind_speed.name = "Wind speed at 10m"
 
         wind_dir = compute_wind_dir(u10=raw_ds["u10"], v10=raw_ds["v10"])
         wind_dir.name = "Wind direction at 10m"
 
-        # Convert raw units to desired TMY units
-        # t2: K -> degC
         t2_out = t2_degc.copy()
         t2_out.name = "Air Temperature at 2m"
         t2_out.attrs["units"] = "degC"
 
-        # q2: already converted to g/kg
         q2_out = q2_gkg.copy()
         q2_out.name = "Water Vapor Mixing Ratio at 2m"
 
-        # psfc: keep native Pa
-        # (raw_ds already has it in Pa)
-
-        # Merge everything into the full hourly dataset
-        self._vprint("  Merging all hourly variables (raw + derived).")
         derived_list = [t2_out, dew_point, rh, wind_speed, wind_dir, q2_out]
-        # Keep radiation and pressure variables from raw (already in desired units)
         keep_vars = [
             "Instantaneous downwelling shortwave flux at bottom",
             "Shortwave surface downward direct normal irradiance",
@@ -1007,44 +1021,59 @@ class TMY:
         ]
         kept_from_raw = [raw_ds[v] for v in keep_vars]
         hourly_ds = xr.merge(derived_list + kept_from_raw)
-
-        # Cache raw hourly data for run_tmy_analysis()
         self._hourly_data = hourly_ds
 
-        # Derive daily stats from hourly data
-        self._vprint("  Deriving daily statistics from hourly data.")
-        variable_configs = [
-            ("Air Temperature at 2m", [
-                ("max", "Daily max air temperature"),
-                ("min", "Daily min air temperature"),
-                ("mean", "Daily mean air temperature"),
-            ]),
-            ("Dew point temperature", [
-                ("max", "Daily max dewpoint temperature"),
-                ("min", "Daily min dewpoint temperature"),
-                ("mean", "Daily mean dewpoint temperature"),
-            ]),
-            ("Wind speed at 10m", [
-                ("max", "Daily max wind speed"),
-                ("mean", "Daily mean wind speed"),
-            ]),
-            ("Instantaneous downwelling shortwave flux at bottom", [
-                ("sum", "Global horizontal irradiance"),
-            ]),
-            ("Shortwave surface downward direct normal irradiance", [
-                ("sum", "Direct normal irradiance"),
-            ]),
-        ]
+        # --- Build daily dataset for CDF/F-S analysis ---
+        self._vprint("  Building daily dataset for CDF analysis.")
 
-        daily_arrays = []
-        for source_var, stat_specs in variable_configs:
-            hourly_da = hourly_ds[source_var]
-            resampled = hourly_da.resample(time="1D")
-            for stat, output_name in stat_specs:
-                da = getattr(resampled, stat)()
-                da.name = output_name
-                da.attrs["frequency"] = "daily"
-                daily_arrays.append(da)
+        # Convert daily temperature units: K → degC
+        for vid in ("t2max", "t2min", "t2"):
+            daily_das[vid] = daily_das[vid] - 273.15
+            daily_das[vid].attrs["units"] = "degC"
+
+        # Compute daily dew point from daily t2 (now degC) and daily rh
+        daily_t2_k = daily_das["t2"] + 273.15  # back to K for dewpoint formula
+        daily_dp_k = compute_dewpointtemp(
+            temperature=daily_t2_k, rel_hum=daily_das["rh"],
+        )
+        daily_dp = daily_dp_k - 273.15
+        daily_dp.attrs["units"] = "degC"
+
+        # Create max/min/mean dew point approximations from daily mean
+        daily_dp_max = daily_dp.copy()
+        daily_dp_max.name = "Daily max dewpoint temperature"
+        daily_dp_min = daily_dp.copy()
+        daily_dp_min.name = "Daily min dewpoint temperature"
+        daily_dp_mean = daily_dp.copy()
+        daily_dp_mean.name = "Daily mean dewpoint temperature"
+
+        # Radiation: derive daily sums from hourly (no daily sum in catalog)
+        self._vprint("  Computing daily radiation sums from hourly data.")
+        ghi_sum = hourly_ds[
+            "Instantaneous downwelling shortwave flux at bottom"
+        ].resample(time="1D").sum()
+        ghi_sum.name = "Global horizontal irradiance"
+        ghi_sum.attrs["frequency"] = "daily"
+
+        dni_sum = hourly_ds[
+            "Shortwave surface downward direct normal irradiance"
+        ].resample(time="1D").sum()
+        dni_sum.name = "Direct normal irradiance"
+        dni_sum.attrs["frequency"] = "daily"
+
+        # Drop the catalog-fetched sw_dwn (daily mean, not sum) and rh helper
+        daily_arrays = [
+            daily_das["t2max"],
+            daily_das["t2min"],
+            daily_das["t2"],
+            daily_dp_max,
+            daily_dp_min,
+            daily_dp_mean,
+            daily_das["wspd10max"],
+            daily_das["wspd10mean"],
+            ghi_sum,
+            dni_sum,
+        ]
 
         self._vprint("  Persisting daily statistics across workers...")
         self.all_vars = xr.merge(daily_arrays).persist()
