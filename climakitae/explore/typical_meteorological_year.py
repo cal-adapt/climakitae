@@ -969,7 +969,14 @@ class TMY:
                     )
                 )
             first_var = raw_first.squeeze().drop_vars(
-                ["lakemask", "landmask", "x", "y", "Lambert_Conformal", "centered_year"],
+                [
+                    "lakemask",
+                    "landmask",
+                    "x",
+                    "y",
+                    "Lambert_Conformal",
+                    "centered_year",
+                ],
                 errors="ignore",
             )
             first_var.name = self._raw_vars[hourly_var_ids[0]]
@@ -1259,6 +1266,15 @@ class TMY:
             tmy_data_to_export[sim] = tmy_data_to_export[sim].drop(
                 columns="Water Vapor Mixing Ratio at 2m"
             )
+
+            # Add metadata columns needed by EPW header writer.
+            # The new-core pipeline squeezes these dimensions, so they must be
+            # re-attached before export.
+            if self.warming_level is not UNSET:
+                tmy_data_to_export[sim]["warming_level"] = self.warming_level
+            else:
+                tmy_data_to_export[sim]["scenario"] = "historical+ssp370"
+
         self.tmy_data_to_export = tmy_data_to_export
         self._vprint("TMY analysis complete.")
 
