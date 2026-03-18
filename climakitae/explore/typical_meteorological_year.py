@@ -720,16 +720,39 @@ class TMY:
         if isinstance(data, xr.Dataset):
             data = data[variable_id]
 
+        # ClimateData uses "sim" dimension; rename to "simulation" for TMY pipeline
+        if "sim" in data.dims:
+            data = data.rename({"sim": "simulation"})
+
+        # Drop warming_level dimension (always length 1 for TMY)
+        if "warming_level" in data.dims:
+            data = data.squeeze("warming_level", drop=True)
+
         # For warming level: set start/end year from dummy time
         if self.warming_level is not UNSET:
             self.start_year = data.time[0].dt.year.item()
             self.end_year = data.time[-1].dt.year.item()
 
-        # Determine simulation names for filtering
-        if self.warming_level is not UNSET:
-            simulations = [x + "_historical+ssp370" for x in self.simulations]
-        else:
-            simulations = self.simulations
+        # Filter to the 4 TMY simulations by matching source_id+member_id
+        # ClimateData sim values: "wrf_ucla_ec-earth3_historical+ssp370_r1i1p1f1"
+        # self.simulations values: "WRF_EC-Earth3_r1i1p1f1"
+        all_sims = list(data.simulation.values)
+        sim_mapping = {}  # maps ClimateData sim name → legacy sim name
+        for legacy_sim in self.simulations:
+            # Extract source_id and member_id from legacy name (e.g. "EC-Earth3", "r1i1p1f1")
+            parts = legacy_sim.split("_")
+            source_id = parts[1].lower()
+            member_id = parts[2].lower()
+            for cd_sim in all_sims:
+                cd_lower = cd_sim.lower() if isinstance(cd_sim, str) else str(cd_sim).lower()
+                if source_id in cd_lower and member_id in cd_lower:
+                    sim_mapping[cd_sim] = legacy_sim
+                    break
+
+        # Select and rename to legacy simulation names
+        matched_cd_sims = list(sim_mapping.keys())
+        data = data.sel(simulation=matched_cd_sims)
+        data["simulation"] = [sim_mapping[s] for s in matched_cd_sims]
 
         # Work in local time (cached offset avoids repeated CSV reads)
         offset_hours = self._get_utc_offset_hours()
@@ -740,8 +763,6 @@ class TMY:
         data = data.sel(
             {"time": slice(f"{self.start_year}-01-01-00", f"{self.end_year}-12-31-23")}
         )
-        # Only use preset models with solar variables
-        data = data.sel(simulation=simulations)
         return data
 
     @staticmethod
