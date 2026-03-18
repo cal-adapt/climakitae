@@ -9,6 +9,7 @@ along with a TMY class that organizes the workflow code.
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
+from dask.diagnostics import ProgressBar
 import numpy as np
 import pandas as pd
 import pkg_resources
@@ -287,9 +288,7 @@ def get_cdf_monthly(ds: xr.DataArray) -> xr.Dataset:
         da = ds[var_name].transpose("time", "simulation", ...)
         data = da.values
 
-        combined = np.full(
-            (2, len(unique_years), 12, n_sims, num_bins), np.nan
-        )
+        combined = np.full((2, len(unique_years), 12, n_sims, num_bins), np.nan)
         for y_idx, year in enumerate(unique_years):
             year_mask = time_years == year
             for m_idx in range(12):
@@ -299,16 +298,10 @@ def get_cdf_monthly(ds: xr.DataArray) -> xr.Dataset:
                     valid = values[~np.isnan(values)]
                     if len(valid) < 2:
                         continue
-                    bin_edges = np.linspace(
-                        valid.min(), valid.max(), num_bins + 1
-                    )
+                    bin_edges = np.linspace(valid.min(), valid.max(), num_bins + 1)
                     count, _ = np.histogram(valid, bins=bin_edges)
                     total = count.sum()
-                    cdf = (
-                        np.cumsum(count / total)
-                        if total > 0
-                        else np.zeros(num_bins)
-                    )
+                    cdf = np.cumsum(count / total) if total > 0 else np.zeros(num_bins)
                     combined[0, y_idx, m_idx, s_idx] = bin_edges[1:]
                     combined[1, y_idx, m_idx, s_idx] = cdf
 
@@ -695,7 +688,9 @@ class TMY:
         self._timezone_name = tz_name
         return self._utc_offset_hours
 
-    def _fetch_raw_variable(self, variable_id: str, table_id: str = "1hr") -> xr.DataArray:
+    def _fetch_raw_variable(
+        self, variable_id: str, table_id: str = "1hr"
+    ) -> xr.DataArray:
         """Fetch a single raw catalog variable via ClimateData.
 
         Uses the new core ClimateData interface with clip processor
@@ -779,7 +774,9 @@ class TMY:
             source_id = parts[1].lower()
             member_id = parts[2].lower()
             for cd_sim in all_sims:
-                cd_lower = cd_sim.lower() if isinstance(cd_sim, str) else str(cd_sim).lower()
+                cd_lower = (
+                    cd_sim.lower() if isinstance(cd_sim, str) else str(cd_sim).lower()
+                )
                 if source_id in cd_lower and member_id in cd_lower:
                     sim_mapping[cd_sim] = legacy_sim
                     break
@@ -858,7 +855,9 @@ class TMY:
                 sigma = np.ones(len(to_smooth))
                 sigma[[0, -1]] = 0.01
 
-                fit, _ = optimize.curve_fit(_poly2, x, to_smooth, (0, 0, 0), sigma=sigma)
+                fit, _ = optimize.curve_fit(
+                    _poly2, x, to_smooth, (0, 0, 0), sigma=sigma
+                )
                 fitted_line = np.poly1d(fit)(x)
                 df.loc[row_ind, variable] = np.float32(fitted_line)
 
@@ -904,8 +903,7 @@ class TMY:
                 # Get year corresponding to month and simulation combo
                 year = int(
                     top_months.loc[
-                        (top_months["month"] == mon)
-                        & (top_months["simulation"] == sim)
+                        (top_months["month"] == mon) & (top_months["simulation"] == sim)
                     ].year.item()
                 )
 
@@ -945,8 +943,14 @@ class TMY:
             self._vprint(f"  Fetching {variable_id} ({table_id})...")
             da = self._fetch_raw_variable(variable_id, table_id=table_id)
             return da.squeeze().drop_vars(
-                ["lakemask", "landmask", "x", "y", "Lambert_Conformal",
-                 "centered_year"],
+                [
+                    "lakemask",
+                    "landmask",
+                    "x",
+                    "y",
+                    "Lambert_Conformal",
+                    "centered_year",
+                ],
                 errors="ignore",
             )
 
@@ -970,7 +974,7 @@ class TMY:
             "t2": "Daily mean air temperature",
             "wspd10max": "Daily max wind speed",
             "wspd10mean": "Daily mean wind speed",
-            "rh": "Daily mean relative humidity",   # for dew point derivation
+            "rh": "Daily mean relative humidity",  # for dew point derivation
             "sw_dwn": "Global horizontal irradiance",
         }
 
@@ -1019,13 +1023,16 @@ class TMY:
         psfc_hpa.attrs["units"] = "hPa"
 
         rh = compute_relative_humidity(
-            pressure=psfc_hpa, temperature=t2_degc, mixing_ratio=q2_gkg,
+            pressure=psfc_hpa,
+            temperature=t2_degc,
+            mixing_ratio=q2_gkg,
         )
         rh.name = "Relative humidity"
         rh.attrs["units"] = "[0 to 100]"
 
         dew_point_k = compute_dewpointtemp(
-            temperature=raw_ds["Air Temperature at 2m"], rel_hum=rh,
+            temperature=raw_ds["Air Temperature at 2m"],
+            rel_hum=rh,
         )
         dew_point = dew_point_k - 273.15
         dew_point.name = "Dew point temperature"
@@ -1067,7 +1074,8 @@ class TMY:
         # Compute daily dew point from daily t2 (now degC) and daily rh
         daily_t2_k = daily_das["t2"] + 273.15  # back to K for dewpoint formula
         daily_dp_k = compute_dewpointtemp(
-            temperature=daily_t2_k, rel_hum=daily_das["rh"],
+            temperature=daily_t2_k,
+            rel_hum=daily_das["rh"],
         )
         daily_dp = daily_dp_k - 273.15
         daily_dp.attrs["units"] = "degC"
@@ -1080,19 +1088,29 @@ class TMY:
         daily_dp_mean = daily_dp.copy()
         daily_dp_mean.name = "Daily mean dewpoint temperature"
 
-        # Radiation: derive daily sums from hourly (no daily sum in catalog)
-        self._vprint("  Computing daily radiation sums from hourly data.")
-        ghi_sum = hourly_ds[
-            "Instantaneous downwelling shortwave flux at bottom"
-        ].resample(time="1D").sum()
-        ghi_sum.name = "Global horizontal irradiance"
-        ghi_sum.attrs["frequency"] = "daily"
+        # Radiation: derive daily sums from hourly (no daily sum in catalog).
+        # Compute eagerly — the resample graphs reference all hourly chunks
+        # and are too large for Dask's graph optimizer when merged with the
+        # simpler daily catalog arrays.
+        self._vprint("  Computing daily radiation sums from hourly data...")
+        with ProgressBar():
+            ghi_sum = (
+                hourly_ds["Instantaneous downwelling shortwave flux at bottom"]
+                .resample(time="1D")
+                .sum()
+                .compute()
+            )
+            ghi_sum.name = "Global horizontal irradiance"
+            ghi_sum.attrs["frequency"] = "daily"
 
-        dni_sum = hourly_ds[
-            "Shortwave surface downward direct normal irradiance"
-        ].resample(time="1D").sum()
-        dni_sum.name = "Direct normal irradiance"
-        dni_sum.attrs["frequency"] = "daily"
+            dni_sum = (
+                hourly_ds["Shortwave surface downward direct normal irradiance"]
+                .resample(time="1D")
+                .sum()
+                .compute()
+            )
+            dni_sum.name = "Direct normal irradiance"
+            dni_sum.attrs["frequency"] = "daily"
 
         # Drop the catalog-fetched sw_dwn (daily mean, not sum) and rh helper
         daily_arrays = [
@@ -1109,37 +1127,8 @@ class TMY:
         ]
 
         self._vprint("  Computing daily statistics...")
-        # Diagnostics: show what's going into the merge
-        for i, da in enumerate(daily_arrays):
-            name = da.name or f"array_{i}"
-            is_lazy = hasattr(da, "dask") or (hasattr(da, "data") and hasattr(da.data, "dask"))
-            nbytes = da.nbytes / 1e6
-            dims = dict(da.sizes)
-            self._vprint(f"    [{i}] {name}: lazy={is_lazy}, {nbytes:.1f} MB, dims={dims}")
-
-        import time
-        t0 = time.time()
-        self._vprint("  Merging daily arrays...")
-        daily_merged = xr.merge(daily_arrays)
-        t1 = time.time()
-        self._vprint(f"  Merge took {t1 - t0:.1f}s")
-
-        self._vprint(f"  Merged dataset: {daily_merged.nbytes / 1e6:.1f} MB total")
-        for vname in daily_merged.data_vars:
-            v = daily_merged[vname]
-            is_lazy = hasattr(v.data, "dask")
-            self._vprint(f"    {vname}: lazy={is_lazy}, chunks={getattr(v.data, 'chunks', 'N/A')}")
-
-        self._vprint("  Calling persist()...")
-        t2 = time.time()
-        self.all_vars = daily_merged.persist()
-        t3 = time.time()
-        self._vprint(f"  persist() returned in {t3 - t2:.1f}s")
-
-        self._vprint("  Waiting for futures to complete...")
-        _wait_with_progress(self.all_vars, "daily statistics")
-        t4 = time.time()
-        self._vprint(f"  Compute finished in {t4 - t3:.1f}s")
+        with ProgressBar():
+            self.all_vars = xr.merge(daily_arrays).compute()
         self._vprint("  Daily statistics ready.")
 
     def set_cdf_climatology(self):
@@ -1232,9 +1221,8 @@ class TMY:
         if not hasattr(self, "_hourly_data") or self._hourly_data is None:
             # Fallback: load from catalog if run_tmy_analysis called standalone
             self.load_all_variables()
-        hourly_future = self._hourly_data.persist()
-        _wait_with_progress(hourly_future, "hourly data")
-        all_vars_ds = hourly_future.compute()
+        with ProgressBar():
+            all_vars_ds = self._hourly_data.compute()
 
         # Construct TMY
         self._vprint(
