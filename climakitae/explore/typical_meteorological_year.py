@@ -14,7 +14,6 @@ import pandas as pd
 import pkg_resources
 import pytz
 import xarray as xr
-from dask.diagnostics import ProgressBar
 from scipy import optimize
 from timezonefinder import TimezoneFinder
 from tqdm.auto import tqdm  # Progress bar
@@ -30,6 +29,39 @@ from climakitae.tools.derived_variables import (
 )
 
 _hadisd_stations_cache = None
+
+
+def _wait_with_progress(futures, label="data"):
+    """Show a tqdm progress bar while dask distributed futures compute.
+
+    Works with both distributed and local schedulers. Falls back to a
+    simple .compute() if no distributed client is available.
+
+    Parameters
+    ----------
+    futures : dask collection (Dataset/DataArray)
+        A persisted dask collection whose futures to track.
+    label : str
+        Description shown in the progress bar.
+    """
+    try:
+        from dask.distributed import futures_of, wait
+
+        all_futures = futures_of(futures)
+        if not all_futures:
+            return
+        total = len(all_futures)
+        with tqdm(total=total, desc=label, unit="task") as pbar:
+            done = 0
+            while done < total:
+                # wait for at least one new future to finish
+                wait(all_futures, return_when="FIRST_COMPLETED")
+                newly_done = sum(f.status == "finished" for f in all_futures)
+                pbar.update(newly_done - done)
+                done = newly_done
+    except (ImportError, ValueError):
+        # No distributed client — futures are already computed
+        pass
 
 
 def _get_hadisd_stations() -> pd.DataFrame:
@@ -1078,8 +1110,8 @@ class TMY:
 
         self._vprint("  Computing daily statistics...")
         daily_merged = xr.merge(daily_arrays)
-        with ProgressBar():
-            self.all_vars = daily_merged.compute()
+        self.all_vars = daily_merged.persist()
+        _wait_with_progress(self.all_vars, "daily statistics")
         self._vprint("  Daily statistics ready.")
 
     def set_cdf_climatology(self):
@@ -1172,8 +1204,9 @@ class TMY:
         if not hasattr(self, "_hourly_data") or self._hourly_data is None:
             # Fallback: load from catalog if run_tmy_analysis called standalone
             self.load_all_variables()
-        with ProgressBar():
-            all_vars_ds = self._hourly_data.compute()
+        hourly_future = self._hourly_data.persist()
+        _wait_with_progress(hourly_future, "hourly data")
+        all_vars_ds = hourly_future.compute()
 
         # Construct TMY
         self._vprint(
