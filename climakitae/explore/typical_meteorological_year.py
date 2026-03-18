@@ -14,6 +14,7 @@ import pandas as pd
 import pkg_resources
 import pytz
 import xarray as xr
+from dask.diagnostics import ProgressBar
 from scipy import optimize
 from timezonefinder import TimezoneFinder
 from tqdm.auto import tqdm  # Progress bar
@@ -1075,9 +1076,11 @@ class TMY:
             dni_sum,
         ]
 
-        self._vprint("  Persisting daily statistics across workers...")
-        self.all_vars = xr.merge(daily_arrays).persist()
-        self._vprint("  Daily statistics computing in background.")
+        self._vprint("  Computing daily statistics...")
+        daily_merged = xr.merge(daily_arrays)
+        with ProgressBar():
+            self.all_vars = daily_merged.compute()
+        self._vprint("  Daily statistics ready.")
 
     def set_cdf_climatology(self):
         """Calculate the long-term climatology for each index for each month so
@@ -1163,13 +1166,14 @@ class TMY:
         """
         print("Assembling TMY data to export.")
 
-        self._vprint("  STEP 1: Using cached hourly data")
+        self._vprint("  STEP 1: Computing hourly data")
 
         # Use cached hourly data instead of re-downloading
         if not hasattr(self, "_hourly_data") or self._hourly_data is None:
             # Fallback: load from catalog if run_tmy_analysis called standalone
             self.load_all_variables()
-        all_vars_ds = self._hourly_data.compute()
+        with ProgressBar():
+            all_vars_ds = self._hourly_data.compute()
 
         # Construct TMY
         self._vprint(
