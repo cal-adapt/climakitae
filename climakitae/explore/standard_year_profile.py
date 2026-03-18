@@ -1552,6 +1552,7 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
     if hasattr(data.data, "chunks"):
         print("      📥 Loading data into memory...")
         from dask.diagnostics import ProgressBar
+
         with ProgressBar():
             data = data.compute()
 
