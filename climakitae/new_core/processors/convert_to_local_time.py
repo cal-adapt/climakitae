@@ -282,8 +282,8 @@ class ConvertToLocalTime(DataProcessor):
 
         # Use first lat/lon value since HDP data is not gridded
         # We assume station is unmoving, which isn't always true but likely will not make a difference here
-        lat = float(obj.lat.values[0])
-        lon = float(obj.lon.values[0])
+        lat = obj.isel(time=0).lat.values[0].item()
+        lon = obj.isel(time=0).lon.values[0].item()
 
         obj = self._find_timezone_and_convert(obj, lat, lon)
         return obj
