@@ -1037,22 +1037,22 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
         "hour",
         "minute",
         "data_source",  # missing
-        "Air Temperature at 2m",
-        "Dew point temperature",
-        "Relative humidity",
-        "Surface Pressure",
+        "Air temperature at 2m (degC)",
+        "Dew point temperature at 2m (degC)",
+        "Relative humidity (0-100)",
+        "Surface pressure (Pa)",
         "exthorrad",  # missing - extraterrestrial horizontal radiation
         "extdirrad",  # missing - extraterrestrial direct normal radiation
         "extirsky",  # missing - horizontal IR radiation intensity from sky
-        "Instantaneous downwelling shortwave flux at bottom",
-        "Shortwave surface downward direct normal irradiance",
-        "Shortwave surface downward diffuse irradiance",
+        "Instantaneous downwelling shortwave flux at bottom (W/m2)",
+        "Shortwave surface downward direct normal irradiance (W/m2)",
+        "Shortwave surface downward diffuse irradiance (W/m2)",
         "glohorillum",  # missing - global horizontal illuminance (lx)
         "dirnorillum",  # missing - direct normal illuminance (lx)
         "difhorillum",  # missing - diffuse horizontal illuminance (lx)
         "zenlum",  # missing - zenith luminnace (lx)
-        "Wind direction at 10m",
-        "Wind speed at 10m",
+        "Wind direction at 10m (degrees)",
+        "Wind speed at 10m (m/s)",
         "totskycvr",  # missing - total sky cover (tenths)
         "opaqskycvr",  # missing - opaque sky cover (tenths)
         "visibility",  # missing - visibility (km)
@@ -1123,8 +1123,8 @@ def _leap_day_fix(df: pd.DataFrame) -> pd.DataFrame:
 
     # 3 models have leap days, 1 model does not -- handling for both
     # handling for TaiESM1 (no leap day natively)
-    match df_leap.simulation.unique()[0]:
-        case "WRF_TaiESM1_r1i1p1f1":
+    match df_leap.sim.unique()[0]:
+        case "wrf_ucla_taiesm1_ssp370_r1i1p1f1":
             df_leap["time"] = np.where(
                 (df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29),
                 df_leap.time - pd.DateOffset(days=1),
@@ -1220,7 +1220,7 @@ def _missing_hour_fix(df: pd.DataFrame) -> pd.DataFrame:
     df_full["time"] = df_full[0]
     df_full.index = pd.to_datetime(df_full.time)
 
-    df_month_fixed = pd.concat([df_bad, df_full])
+    df_month_fixed = pd.concat([df_bad, df_full.dropna(axis=1, how="all")])
     df_month_fixed = df_month_fixed.drop_duplicates(subset=["time"], keep="first")
     df_month_fixed = df_month_fixed.drop(columns=["time", 0])
     df_month_fixed = df_month_fixed.sort_values(by="time", ascending=True)
@@ -1368,6 +1368,10 @@ def write_tmy_file(
             "The function requires a pandas DataFrame object as the data input"
         )
 
+    # normalize simulation column name
+    if "simulation" in df.columns and "sim" not in df.columns:
+        df = df.rename(columns={"simulation": "sim"})
+
     # size check on TMY dataframe
     df = _tmy_8760_size_check(df)
 
@@ -1463,11 +1467,27 @@ def write_tmy_file(
             stn_lat,
             stn_lon,
             elevation,
-            df["simulation"].values[0],
+            df["sim"].values[0],
         )
 
         # line 2 - data field name and units, manually setting to ensure matches TMY3 labeling
-        line_2 = "Air Temperature at 2m (degC),Dew point temperature (degC),Relative humidity (%),Instantaneous downwelling shortwave flux at bottom (W m-2),Shortwave surface downward direct normal irradiance (W m-2),Shortwave surface downward diffuse irradiance (W m-2),Instantaneous downwelling longwave flux at bottom (W m-2),Wind speed at 10m (m s-1),Wind direction at 10m (deg),Surface Pressure (Pa)\n"
+        line_2 = (
+            ",".join(
+                [
+                    "Air temperature at 2m (degC)",
+                    "Dew point temperature at 2m (degC)",
+                    "Relative humidity (0-100)",
+                    "Instantaneous downwelling shortwave flux at bottom (W/m2)",
+                    "Shortwave surface downward direct normal irradiance (W/m2)",
+                    "Shortwave surface downward diffuse irradiance (W/m2)",
+                    "Instantaneous downwelling longwave flux at bottom (W/m2)",
+                    "Wind speed at 10m (m/s)",
+                    "Wind direction at 10m (degrees)",
+                    "Surface pressure (Pa)",
+                ]
+            )
+            + "\n"
+        )
 
         headers = [line_1, line_2]
 
@@ -1522,14 +1542,22 @@ def write_tmy_file(
 
         if "warming_level" in df.columns:
             warming_level = df["warming_level"].values[0]
-            simulation = df["simulation"].values[0]
+            simulation = df["sim"].values[0]
             # line 6 - comments 1, going to include simulation + warming level information here
             line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Warming Level: {warming_level}{degree_sign}C, Simulation: {simulation}\n"
             # line 7 - comments 2, including date range here from which TMY calculated
             line_7 = f"COMMENTS 2,TMY data produced using {warming_level}{degree_sign}C warming level. Year corresponds to index (1-30) in 30-year window centered on warming level. Model years for {warming_level}{degree_sign}C warming level in simulation {simulation} are {years[0]}-{years[1]}\n"
-        elif "scenario" in df.columns:
+        else:
             # line 6 - comments 1, going to include simulation + scenario information here
-            line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Scenario: {df['scenario'].values[0]}, Simulation: {df['simulation'].values[0]}\n"
+            if "scenario" in df.columns:
+                # get_data approach has a separate scenario column
+                # the scenario is not included in the simulation name
+                scenario = df["scenario"].values[0]
+                line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Simulation: {df['sim'].values[0]}, Scenario: {scenario}\n"
+            else:
+                # new core approach does not have a separate scenario column, scenario is included in simulation name
+                # scenario information is included in the simulation name
+                line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Simulation: {df['sim'].values[0]}\n"
             # line 7 - comments 2, including date range here from which TMY calculated
             line_7 = f"COMMENTS 2,TMY data produced using {years[0]}-{years[1]} climatological period\n"
 
@@ -1563,7 +1591,7 @@ def write_tmy_file(
                     )
                 )  # writes required header lines
                 df = df.drop(
-                    columns=["simulation", "lat", "lon", "scenario", "warming_level"],
+                    columns=["sim", "lat", "lon", "warming_level", "time_delta"],
                     errors="ignore",
                 )  # drops header columns from df
                 dfAsString = df.to_csv(sep=",", header=False, index=False)
