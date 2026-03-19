@@ -1563,7 +1563,14 @@ def write_tmy_file(
                     )
                 )  # writes required header lines
                 df = df.drop(
-                    columns=["simulation", "lat", "lon", "scenario", "warming_level"],
+                    columns=[
+                        "simulation",
+                        "lat",
+                        "lon",
+                        "scenario",
+                        "warming_level",
+                        "centered_year",
+                    ],
                     errors="ignore",
                 )  # drops header columns from df
                 dfAsString = df.to_csv(sep=",", header=False, index=False)

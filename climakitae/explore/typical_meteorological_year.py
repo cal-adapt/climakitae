@@ -1303,6 +1303,9 @@ class TMY:
                 # after the new-core migration, so we append directly.
                 wl_label = match_str_to_wl(self.warming_level)
                 clean_sim = f"{sim}_{wl_label}"
+            # Attach centered_year so CSV export can include it
+            if self.warming_level is not UNSET:
+                self.tmy_data_to_export[sim]["centered_year"] = centered_year
             clean_stn_name = (
                 self.stn_name.replace(" ", "_").replace("(", "").replace(")", "")
             )
