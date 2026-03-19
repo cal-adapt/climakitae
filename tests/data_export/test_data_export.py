@@ -374,7 +374,7 @@ class TestTMYHiddenFunctions:
             freq="h",
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_TaiESM1_r1i1p1f1"
+        df["sim"] = "wrf_ucla_taiesm1_ssp370_r1i1p1f1"
         df_fixed = export._leap_day_fix(df)
 
         # Feb 29 renamed to Feb 28
@@ -397,7 +397,7 @@ class TestTMYHiddenFunctions:
             freq="h",
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_ec-earth3_ssp370_r1i1p1f1"
         df_fixed = export._leap_day_fix(df)
 
         # Feb 29 renamed to Feb 28
@@ -437,7 +437,7 @@ class TestTMYHiddenFunctions:
             + datelist[7500:8761].to_list()
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
         result = export._tmy_8760_size_check(df)
 
         assert len(result) == 8760
@@ -449,7 +449,7 @@ class TestTMYHiddenFunctions:
             freq="h",
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
         result = export._tmy_8760_size_check(df)
 
         assert result.equals(df)
@@ -461,7 +461,7 @@ class TestTMYHiddenFunctions:
             freq="h",
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
         result = export._tmy_8760_size_check(df.drop(index=100))
 
         # Assert dropped index exists
@@ -477,7 +477,7 @@ class TestTMYHiddenFunctions:
         datelist = datelist.drop(pd.Timestamp("2023-03-02 00:00:00"))
         datelist = datelist.drop(pd.Timestamp("2023-04-02 00:00:00"))
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
         result = export._tmy_8760_size_check(df)
 
         # Assert dropped index exists
@@ -492,7 +492,7 @@ class TestTMYHiddenFunctions:
             freq="h",
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
 
         result = export._tmy_8760_size_check(df)
         assert len(result) == 8760
@@ -508,7 +508,7 @@ class TestTMYHiddenFunctions:
         )
         datelist = datelist.drop(pd.Timestamp("2024-04-02 00:00:00"))
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
 
         result = export._tmy_8760_size_check(df)
         assert len(result) == 8760
@@ -522,7 +522,7 @@ class TestTMYHiddenFunctions:
         datelist = datelist.drop(pd.Timestamp("2024-03-02 00:00:00"))
         datelist = datelist.drop(pd.Timestamp("2024-04-02 00:00:00"))
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
 
         result = export._tmy_8760_size_check(df)
         assert len(result) == 8760
@@ -534,7 +534,7 @@ class TestTMYHiddenFunctions:
             freq="h",
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
         result = export._tmy_8760_size_check(df)
         assert result is None
 
