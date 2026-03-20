@@ -929,12 +929,21 @@ class TMY:
         return tmy_df_all
 
     def load_all_variables(self):
-        """Load hourly and daily TMY variables via ClimateData.
+        """Load hourly TMY variables and derive daily statistics for CDF/F-S.
 
-        Fetches hourly raw variables for the 8760 profile assembly,
-        and daily variables directly from the catalog for CDF/F-S analysis.
-        Derived variables (dew point, radiation sums) are computed from
-        the fetched data where no direct catalog variable exists.
+        Fetches hourly raw variables via ClimateData for the 8760 profile
+        assembly, then derives ALL daily statistics from the hourly data
+        in local time.  This matches the original TMY code's approach and
+        avoids two problems with fetching daily catalog variables directly:
+
+        1. **UTC vs local time**: Catalog daily variables are pre-aggregated
+           over UTC day boundaries, which differ from local-time days by the
+           station's UTC offset (e.g., 8 hours for California).
+        2. **Non-determinism**: With a Dask distributed client active, lazy
+           reductions (``.resample().sum()``) can produce slightly different
+           floating-point results on each run due to non-deterministic task
+           ordering.  Computing hourly data eagerly to numpy before
+           resampling guarantees deterministic daily statistics.
         """
         print("Loading data from catalog via ClimateData.")
 
@@ -986,45 +995,32 @@ class TMY:
             remaining_hourly = hourly_var_ids
 
         # --- Daily variables (needed for CDF/F-S analysis) ---
-        # Map: catalog variable_id → TMY display name
-        daily_catalog_vars = {
-            "t2max": "Daily max air temperature",
-            "t2min": "Daily min air temperature",
-            "t2": "Daily mean air temperature",
-            "wspd10max": "Daily max wind speed",
-            "wspd10mean": "Daily mean wind speed",
-            "rh": "Daily mean relative humidity",  # for dew point derivation
-            "sw_dwn": "Global horizontal irradiance",
-        }
+        # Derive daily stats from hourly data in local time.
+        # This matches the original code's behavior (hourly → local time →
+        # daily resample) and avoids using catalog daily variables which are
+        # pre-aggregated over UTC day boundaries (different 24-hour window).
+        # We also compute hourly data eagerly here so all downstream
+        # operations use deterministic numpy math, avoiding non-deterministic
+        # floating-point reduction ordering from the dask distributed scheduler.
 
-        # Fetch remaining hourly + all daily in parallel
-        self._vprint("  Loading hourly and daily variables in parallel...")
+        # Fetch remaining hourly variables in parallel
+        self._vprint("  Loading hourly variables in parallel...")
 
         def _fetch_hourly(vid):
             da = _fetch_and_clean(vid, "1hr")
             da.name = self._raw_vars[vid]
             return ("hourly", vid, da)
 
-        def _fetch_daily(vid):
-            da = _fetch_and_clean(vid, "day")
-            da.name = daily_catalog_vars[vid]
-            da.attrs["frequency"] = "daily"
-            return ("daily", vid, da)
-
         with ThreadPoolExecutor(max_workers=4) as executor:
             hourly_futures = [
                 executor.submit(_fetch_hourly, vid) for vid in remaining_hourly
             ]
-            daily_futures = [
-                executor.submit(_fetch_daily, vid) for vid in daily_catalog_vars
-            ]
-            all_results = [f.result() for f in hourly_futures + daily_futures]
+            all_results = [f.result() for f in hourly_futures]
 
-        # Separate hourly and daily results
-        hourly_list = [r[2] for r in all_results if r[0] == "hourly"]
+        # Separate hourly results
+        hourly_list = [r[2] for r in all_results]
         if first_var is not None:
             hourly_list = [first_var] + hourly_list
-        daily_das = {r[1]: r[2] for r in all_results if r[0] == "daily"}
 
         # --- Build hourly dataset for 8760 profile ---
         self._vprint("  Merging raw hourly data.")
@@ -1083,71 +1079,80 @@ class TMY:
         self._hourly_data = hourly_ds
 
         # --- Build daily dataset for CDF/F-S analysis ---
-        self._vprint("  Building daily dataset for CDF analysis.")
-
-        # Convert daily temperature units: K → degC
-        for vid in ("t2max", "t2min", "t2"):
-            daily_das[vid] = daily_das[vid] - 273.15
-            daily_das[vid].attrs["units"] = "degC"
-
-        # Compute daily dew point from daily t2 (now degC) and daily rh
-        daily_t2_k = daily_das["t2"] + 273.15  # back to K for dewpoint formula
-        daily_dp_k = compute_dewpointtemp(
-            temperature=daily_t2_k,
-            rel_hum=daily_das["rh"],
-        )
-        daily_dp = daily_dp_k - 273.15
-        daily_dp.attrs["units"] = "degC"
-
-        # Create max/min/mean dew point approximations from daily mean
-        daily_dp_max = daily_dp.copy()
-        daily_dp_max.name = "Daily max dewpoint temperature"
-        daily_dp_min = daily_dp.copy()
-        daily_dp_min.name = "Daily min dewpoint temperature"
-        daily_dp_mean = daily_dp.copy()
-        daily_dp_mean.name = "Daily mean dewpoint temperature"
-
-        # Radiation: derive daily sums from hourly (no daily sum in catalog).
-        # Compute eagerly — the resample graphs reference all hourly chunks
-        # and are too large for Dask's graph optimizer when merged with the
-        # simpler daily catalog arrays.
-        self._vprint("  Computing daily radiation sums from hourly data...")
+        # Compute hourly data eagerly so all daily resampling uses
+        # deterministic numpy math (not affected by dask scheduler ordering).
+        # For a single grid cell this is small (~30yr × 8760hr × 4sims).
+        self._vprint("  Computing hourly data for daily resampling...")
         with ProgressBar():
-            ghi_sum = (
-                hourly_ds["Instantaneous downwelling shortwave flux at bottom"]
-                .resample(time="1D")
-                .sum()
-                .compute()
-            )
-            ghi_sum.name = "Global horizontal irradiance"
-            ghi_sum.attrs["frequency"] = "daily"
+            hourly_computed = hourly_ds.compute()
 
-            dni_sum = (
-                hourly_ds["Shortwave surface downward direct normal irradiance"]
-                .resample(time="1D")
-                .sum()
-                .compute()
-            )
-            dni_sum.name = "Direct normal irradiance"
-            dni_sum.attrs["frequency"] = "daily"
+        self._vprint("  Resampling hourly data to daily statistics...")
+        # Temperature: daily max, min, mean (in degC, already converted above)
+        daily_tmax = hourly_computed["Air Temperature at 2m"].resample(time="1D").max()
+        daily_tmax.name = "Daily max air temperature"
+        daily_tmax.attrs["frequency"] = "daily"
 
-        # Drop the catalog-fetched sw_dwn (daily mean, not sum) and rh helper
+        daily_tmin = hourly_computed["Air Temperature at 2m"].resample(time="1D").min()
+        daily_tmin.name = "Daily min air temperature"
+        daily_tmin.attrs["frequency"] = "daily"
+
+        daily_tmean = hourly_computed["Air Temperature at 2m"].resample(time="1D").mean()
+        daily_tmean.name = "Daily mean air temperature"
+        daily_tmean.attrs["frequency"] = "daily"
+
+        # Dew point: daily max, min, mean
+        daily_dp_max = hourly_computed["Dew point temperature"].resample(time="1D").max()
+        daily_dp_max.name = "Daily max dewpoint temperature"
+        daily_dp_max.attrs["frequency"] = "daily"
+
+        daily_dp_min = hourly_computed["Dew point temperature"].resample(time="1D").min()
+        daily_dp_min.name = "Daily min dewpoint temperature"
+        daily_dp_min.attrs["frequency"] = "daily"
+
+        daily_dp_mean = hourly_computed["Dew point temperature"].resample(time="1D").mean()
+        daily_dp_mean.name = "Daily mean dewpoint temperature"
+        daily_dp_mean.attrs["frequency"] = "daily"
+
+        # Wind speed: daily max, mean
+        daily_ws_max = hourly_computed["Wind speed at 10m"].resample(time="1D").max()
+        daily_ws_max.name = "Daily max wind speed"
+        daily_ws_max.attrs["frequency"] = "daily"
+
+        daily_ws_mean = hourly_computed["Wind speed at 10m"].resample(time="1D").mean()
+        daily_ws_mean.name = "Daily mean wind speed"
+        daily_ws_mean.attrs["frequency"] = "daily"
+
+        # Radiation: daily sums
+        ghi_sum = (
+            hourly_computed["Instantaneous downwelling shortwave flux at bottom"]
+            .resample(time="1D")
+            .sum()
+        )
+        ghi_sum.name = "Global horizontal irradiance"
+        ghi_sum.attrs["frequency"] = "daily"
+
+        dni_sum = (
+            hourly_computed["Shortwave surface downward direct normal irradiance"]
+            .resample(time="1D")
+            .sum()
+        )
+        dni_sum.name = "Direct normal irradiance"
+        dni_sum.attrs["frequency"] = "daily"
+
         daily_arrays = [
-            daily_das["t2max"],
-            daily_das["t2min"],
-            daily_das["t2"],
+            daily_tmax,
+            daily_tmin,
+            daily_tmean,
             daily_dp_max,
             daily_dp_min,
             daily_dp_mean,
-            daily_das["wspd10max"],
-            daily_das["wspd10mean"],
+            daily_ws_max,
+            daily_ws_mean,
             ghi_sum,
             dni_sum,
         ]
 
-        self._vprint("  Computing daily statistics...")
-        with ProgressBar():
-            self.all_vars = xr.merge(daily_arrays).compute()
+        self.all_vars = xr.merge(daily_arrays)
         self._vprint("  Daily statistics ready.")
 
     def set_cdf_climatology(self):
