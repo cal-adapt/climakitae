@@ -1649,12 +1649,38 @@ def write_tmy_file(
                 f"TMY data exported to .epw format with filename {filename_to_export}, with size {len(df)}"
             )
         case "csv":
+            columns = [
+                "index",
+                "simulation",
+                "time",
+                "lat",
+                "lon",
+                "Air Temperature at 2m",
+                "Dew point temperature",
+                "Relative humidity",
+                "Instantaneous downwelling shortwave flux at bottom",
+                "Shortwave surface downward direct normal irradiance",
+                "Shortwave surface downward diffuse irradiance",
+                "Instantaneous downwelling longwave flux at bottom",
+                "Wind speed at 10m",
+                "Wind direction at 10m",
+                "Surface Pressure",
+            ]
+
             # change time axis for GWL data to not use 2000's dummy times
             if "warming_level" in df.columns:
                 df = _tmy_reset_time_for_gwl(df)
                 df["centered_year"] = pd.to_numeric(
                     df["centered_year"], downcast="integer"
                 )
+                # set position of GWL specific columns
+                columns.insert(3, "warming_level")
+                columns.insert(6, "centered_year")
+            else:
+                # set order of scenario column
+                columns.insert(3, "scenario")
+            df = df.rename(columns={"sim": "simulation"})
+            df = df[columns]
             path_to_file = filename_to_export + ".csv"
             df.to_csv(path_to_file, index=False)
             print(
