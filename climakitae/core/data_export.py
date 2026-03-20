@@ -1597,7 +1597,7 @@ def write_tmy_file(
                 dfAsString = df.to_csv(sep=",", header=False, index=False)
                 f.write(dfAsString)  # writes data in TMY format
             print(
-                f"TMY data exported to .tmy format with filename {filename_to_export.tmy}, with size {len(df)}"
+                f"TMY data exported to .tmy format with filename {path_to_file}, with size {len(df)}"
             )
         # energy plus weather format
         case "epw":
