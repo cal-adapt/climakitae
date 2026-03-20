@@ -1608,7 +1608,14 @@ def write_tmy_file(
                     )
                 )  # writes required header lines
                 df = df.drop(
-                    columns=["sim", "lat", "lon", "warming_level", "time_delta"],
+                    columns=[
+                        "sim",
+                        "lat",
+                        "lon",
+                        "warming_level",
+                        "time_delta",
+                        "centered_year",
+                    ],
                     errors="ignore",
                 )  # drops header columns from df
                 dfAsString = df.to_csv(sep=",", header=False, index=False)
