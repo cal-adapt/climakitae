@@ -1096,20 +1096,28 @@ class TMY:
         daily_tmin.name = "Daily min air temperature"
         daily_tmin.attrs["frequency"] = "daily"
 
-        daily_tmean = hourly_computed["Air Temperature at 2m"].resample(time="1D").mean()
+        daily_tmean = (
+            hourly_computed["Air Temperature at 2m"].resample(time="1D").mean()
+        )
         daily_tmean.name = "Daily mean air temperature"
         daily_tmean.attrs["frequency"] = "daily"
 
         # Dew point: daily max, min, mean
-        daily_dp_max = hourly_computed["Dew point temperature"].resample(time="1D").max()
+        daily_dp_max = (
+            hourly_computed["Dew point temperature"].resample(time="1D").max()
+        )
         daily_dp_max.name = "Daily max dewpoint temperature"
         daily_dp_max.attrs["frequency"] = "daily"
 
-        daily_dp_min = hourly_computed["Dew point temperature"].resample(time="1D").min()
+        daily_dp_min = (
+            hourly_computed["Dew point temperature"].resample(time="1D").min()
+        )
         daily_dp_min.name = "Daily min dewpoint temperature"
         daily_dp_min.attrs["frequency"] = "daily"
 
-        daily_dp_mean = hourly_computed["Dew point temperature"].resample(time="1D").mean()
+        daily_dp_mean = (
+            hourly_computed["Dew point temperature"].resample(time="1D").mean()
+        )
         daily_dp_mean.name = "Daily mean dewpoint temperature"
         daily_dp_mean.attrs["frequency"] = "daily"
 
