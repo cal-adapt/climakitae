@@ -251,7 +251,11 @@ class ConvertToLocalTime(DataProcessor):
         # Get latitude/longitude information
 
         # Finding central lat/lon coordinates
-        if obj.lat.ndim < 2:
+        if obj.lat.dims == ("station",):
+            # Take coords of first station
+            lat = obj.lat[0]
+            lon = obj.lon[0]
+        elif obj.lat.ndim < 2:
             lat = obj.lat.values.item()
             lon = obj.lon.values.item()
         else:
