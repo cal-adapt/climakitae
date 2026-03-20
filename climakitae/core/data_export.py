@@ -1008,6 +1008,23 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
     df : pd.DataFrame
 
     """
+    # Normalize internal variable names to EPW column names.
+    # The TMY pipeline uses short display names (e.g. "Air Temperature at 2m")
+    # but EPW format expects names with units (e.g. "Air temperature at 2m (degC)").
+    _internal_to_epw = {
+        "Air Temperature at 2m": "Air temperature at 2m (degC)",
+        "Dew point temperature": "Dew point temperature at 2m (degC)",
+        "Relative humidity": "Relative humidity (0-100)",
+        "Surface Pressure": "Surface pressure (Pa)",
+        "Instantaneous downwelling shortwave flux at bottom": "Instantaneous downwelling shortwave flux at bottom (W/m2)",
+        "Shortwave surface downward direct normal irradiance": "Shortwave surface downward direct normal irradiance (W/m2)",
+        "Shortwave surface downward diffuse irradiance": "Shortwave surface downward diffuse irradiance (W/m2)",
+        "Wind direction at 10m": "Wind direction at 10m (degrees)",
+        "Wind speed at 10m": "Wind speed at 10m (m/s)",
+        "Instantaneous downwelling longwave flux at bottom": "Instantaneous downwelling longwave flux at bottom (W/m2)",
+    }
+    df = df.rename(columns=_internal_to_epw)
+
     # set time col to datetime object for easy split
     df["time"] = pd.to_datetime(df["time"])
     if "warming_level" in df.columns:
