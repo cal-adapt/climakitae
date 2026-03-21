@@ -1678,7 +1678,7 @@ def write_tmy_file(
                 columns.insert(6, "centered_year")
             else:
                 # set order of scenario column
-                columns.insert(3, "scenario")
+                columns.insert(5, "scenario")
             df = df.rename(columns={"sim": "simulation"})
             df = df[columns]
             path_to_file = filename_to_export + ".csv"
