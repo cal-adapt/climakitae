@@ -1473,9 +1473,11 @@ def convert_to_local_time(
             # if both lat and lon are set, can move on to timezone finding.
             if (lat is UNSET) or (lon is UNSET):
                 try:
-                    # Finding avg. lat/lon coordinates from all grid-cells
-                    lat = data.lat.mean().item()
-                    lon = data.lon.mean().item()
+                    # Finding central lat/lon coordinates
+                    lat_idx = len(data.lat) // 2
+                    lon_idx = len(data.lon) // 2
+                    lat = data.lat.isel(lat=lat_idx).item()
+                    lon = data.lon.isel(lon=lon_idx).item()
                 except AttributeError:
                     print(
                         "lat/lon coordinates not found in data. Please pass in data with 'lon' and 'lat' coordinates or set both 'lon' and 'lat' arguments."
