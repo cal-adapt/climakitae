@@ -117,6 +117,29 @@ def test_daily():
 
 
 @pytest.fixture
+def test_bias_adjusted_station_dataset():
+    """Fixture to create a sample xarray.Dataset mimicing the output of the
+    bias_adjust_model_to_station processor."""
+    dataset = xr.Dataset(
+        {
+            "station1": (("sim", "time"), np.ones((2, 24))),
+            "station2": (("sim", "time"), np.ones((2, 24))),
+        },
+        coords={
+            "time": (
+                "time",
+                pd.date_range("2000-01-01 00", "2000-01-01 23", freq="1h"),
+            ),
+            "sim": (("sim"), ["sim1", "sim2"]),
+            "station": (("station"), [0, 1]),
+            "lat": (("station"), [35, 37]),
+            "lon": (("station"), [-119, -118]),
+        },
+    )
+    yield dataset
+
+
+@pytest.fixture
 def test_hdp_station():
     """Fixture to create a sample xarray.DataArray for testing."""
     dataset = xr.Dataset(
@@ -155,6 +178,17 @@ class TestConvertToLocalTimeExecute:
         result = processor.execute(test_hdp_station, context={"_catalog_key": "hdp"})
         assert result["var1"].attrs["timezone"] == "America/Los_Angeles"
         assert result["var2"].attrs["timezone"] == "America/Los_Angeles"
+        assert result.time[0] == pd.Timestamp("1999-12-31 16:00:00")
+
+    def test_convert_to_local_time_bias_adjusted_station(
+        self,
+        processor: ConvertToLocalTime,
+        test_bias_adjusted_station_dataset: xr.DataArray,
+    ) -> None:
+        """Test converting an xarray.DataArray."""
+        result = processor.execute(test_bias_adjusted_station_dataset, context={})
+        assert result["station1"].attrs["timezone"] == "America/Los_Angeles"
+        assert result["station2"].attrs["timezone"] == "America/Los_Angeles"
         assert result.time[0] == pd.Timestamp("1999-12-31 16:00:00")
 
     def test_convert_to_local_time_dataarray(

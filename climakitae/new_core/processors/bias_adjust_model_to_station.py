@@ -492,7 +492,7 @@ class BiasAdjustModelToStation(DataProcessor):
         try:
             time_index = da_adj.indexes["time"]
             if hasattr(time_index, "to_datetimeindex"):
-                da_adj["time"] = time_index.to_datetimeindex()
+                da_adj["time"] = time_index.to_datetimeindex(time_unit="ns")
             else:
                 # Fallback if to_datetimeindex not available
                 da_adj = da_adj.convert_calendar("standard", use_cftime=False)
@@ -645,14 +645,6 @@ class BiasAdjustModelToStation(DataProcessor):
                     f"Could not find closest gridcell at ({station_lat}, {station_lon})"
                 )
 
-            # Drop extra coords
-            gridded_da_closest = gridded_da_closest.drop_vars(
-                [
-                    c
-                    for c in gridded_da_closest.coords
-                    if c not in gridded_da_closest.dims
-                ]
-            )
             gridded_list.append(gridded_da_closest)
 
             # Extract historical data if present
@@ -664,13 +656,6 @@ class BiasAdjustModelToStation(DataProcessor):
                     raise ValueError(
                         f"Could not find historical gridcell at ({station_lat}, {station_lon})"
                     )
-                historical_da_closest = historical_da_closest.drop_vars(
-                    [
-                        c
-                        for c in historical_da_closest.coords
-                        if c not in historical_da_closest.dims
-                    ]
-                )
                 historical_list.append(historical_da_closest)
 
         # Stack data along 'station' dimension
