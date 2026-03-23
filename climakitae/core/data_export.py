@@ -1030,7 +1030,7 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
     if "warming_level" in df.columns:
         # change year for GWL data to not use 2000's dummy times
         df = df.assign(
-            year=df["time"].dt.year - 1999,  # 0001 +
+            year=df["time"].dt.year - 2000,
             month=df["time"].dt.month,
             day=df["time"].dt.day,
             hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
@@ -1060,7 +1060,7 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
         "Surface pressure (Pa)",
         "exthorrad",  # missing - extraterrestrial horizontal radiation
         "extdirrad",  # missing - extraterrestrial direct normal radiation
-        "extirsky",  # missing - horizontal IR radiation intensity from sky
+        "Instantaneous downwelling longwave flux at bottom (W/m2)",
         "Instantaneous downwelling shortwave flux at bottom (W/m2)",
         "Shortwave surface downward direct normal irradiance (W/m2)",
         "Shortwave surface downward diffuse irradiance (W/m2)",
@@ -1089,7 +1089,6 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
     for var in [
         "exthorrad",
         "extdirrad",
-        "extirsky",
         "dirnorrad",
         "zenlum",
         "visibility",
@@ -1392,6 +1391,12 @@ def write_tmy_file(
     # size check on TMY dataframe
     df = _tmy_8760_size_check(df)
 
+    # Normalize time format: fix functions in _tmy_8760_size_check may
+    # convert time to datetime objects (with seconds).  Re-format to
+    # consistent "%Y-%m-%d %H:%M" strings so downstream writers and
+    # _tmy_reset_time_for_gwl see a uniform format.
+    df["time"] = pd.to_datetime(df["time"]).strftime("%Y-%m-%d %H:%M")
+
     def _utc_offset_timezone(lat, lon):
         """Based on user input of lat lon, returns the UTC offset for that timezone
 
@@ -1607,17 +1612,22 @@ def write_tmy_file(
                         df,
                     )
                 )  # writes required header lines
-                df = df.drop(
-                    columns=[
-                        "sim",
-                        "lat",
-                        "lon",
-                        "warming_level",
-                        "time_delta",
-                        "centered_year",
-                    ],
-                    errors="ignore",
-                )  # drops header columns from df
+                # Keep only time + the 10 TMY variables, in the order
+                # that matches the line-2 header written by _tmy_header.
+                tmy_data_cols = [
+                    "time",
+                    "Air Temperature at 2m",
+                    "Dew point temperature",
+                    "Relative humidity",
+                    "Instantaneous downwelling shortwave flux at bottom",
+                    "Shortwave surface downward direct normal irradiance",
+                    "Shortwave surface downward diffuse irradiance",
+                    "Instantaneous downwelling longwave flux at bottom",
+                    "Wind speed at 10m",
+                    "Wind direction at 10m",
+                    "Surface Pressure",
+                ]
+                df = df[tmy_data_cols]
                 dfAsString = df.to_csv(sep=",", header=False, index=False)
                 f.write(dfAsString)  # writes data in TMY format
             print(
