@@ -1,7 +1,7 @@
 """
 Functions for Typical Meteorological Year creation.
 
-This code has been ported from the cae-notebooks typical_meteorological_year notebook.
+This code has been ported from the cae-notebooks typical_meteorological_year_methodology notebook.
 It includes statistical code for creating cumulative distributions and the F-S statistic
 along with a TMY class that organizes the workflow code.
 """
