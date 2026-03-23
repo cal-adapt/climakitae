@@ -320,7 +320,7 @@ def get_cdf_monthly(ds: xr.DataArray) -> xr.Dataset:
 
 
 def remove_pinatubo_years(ds: xr.Dataset) -> xr.Dataset:
-    """Drop years after Pinatubo eruption from dataset.
+    """Drop years after Pinatubo eruption from dataset. Volcanic years are removed to avoid negative solar radiation impacts from aerosols, artificially lowering cooling degree days.
 
     Parameters
     ----------
