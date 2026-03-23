@@ -530,7 +530,7 @@ class TMY:
                     )
                 else:
                     print(
-                        f"Initializing TMY object for custom location: {latitude} N, {longitude} E with name '{station_name}'."
+                        f"Initializing TMY object for custom location: {latitude} N, {longitude} W with name '{station_name}'."
                     )
                     self._set_loc_from_lat_lon(latitude, longitude)
                     self.stn_name = station_name
