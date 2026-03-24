@@ -1395,7 +1395,7 @@ def write_tmy_file(
     # convert time to datetime objects (with seconds).  Re-format to
     # consistent "%Y-%m-%d %H:%M" strings so downstream writers and
     # _tmy_reset_time_for_gwl see a uniform format.
-    df["time"] = pd.to_datetime(df["time"]).strftime("%Y-%m-%d %H:%M")
+    df["time"] = pd.to_datetime(df["time"]).dt.strftime("%Y-%m-%d %H:%M")
 
     def _utc_offset_timezone(lat, lon):
         """Based on user input of lat lon, returns the UTC offset for that timezone
