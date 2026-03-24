@@ -183,6 +183,7 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
 
     # Extract parameters with defaults
     return_periods = one_in_x_config.get("return_periods")
+    return_values = one_in_x_config.get("return_values")
     distribution = one_in_x_config.get("distribution", "gev")
     extremes_type = one_in_x_config.get("extremes_type", "max")
     event_duration = one_in_x_config.get("event_duration", (1, "day"))
@@ -192,37 +193,50 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
     variable_preprocessing = one_in_x_config.get("variable_preprocessing", {})
 
     # Validate return_periods (required parameter)
-    if return_periods is None:
+    if return_periods is None and return_values is None:
         logger.warning(
-            "\n\nreturn_periods is required for 1-in-X calculations. "
-            "\nPlease provide a list of return periods (e.g., [10, 25, 50, 100])."
+            "\n\nEither return_periods or return_values is required for 1-in-X calculations. "
+            "\nPlease provide a list of return periods (e.g., [10, 25, 50, 100])"
+            "\nor a list of return values (e.g. [90, 95, 100])."
         )
         return False
 
-    # Convert to numpy array for validation
-    if not isinstance(return_periods, (list, np.ndarray)):
-        return_periods_array = np.array([return_periods])
-    elif isinstance(return_periods, list):
-        return_periods_array = np.array(return_periods)
-    else:
-        return_periods_array = return_periods
-
-    if not isinstance(return_periods_array, np.ndarray):
+    if return_periods is not None and return_values is not None:
         logger.warning(
-            "\n\nreturn_periods must be convertible to numpy array. "
+            "\n\nCannot set both 'return_periods' and 'return_values'. Choose one."
+        )
+        return False
+
+    if return_periods is not None:
+        return_param = return_periods
+    elif return_values is not None:
+        return_param = return_values
+
+    # Convert to numpy array for validation
+    if not isinstance(return_param, (list, np.ndarray)):
+        return_param_array = np.array([return_param])
+    elif isinstance(return_param, list):
+        return_param_array = np.array(return_param)
+    else:
+        return_param_array = return_param
+
+    if not isinstance(return_param_array, np.ndarray):
+        logger.warning(
+            "\n\nreturn_periods or return_values must be convertible to numpy array. "
             "\nPlease check the configuration."
         )
         return False
 
-    for rp in return_periods_array:
-        if not isinstance(rp, (int, float, np.integer, np.floating)) or rp < 1:
-            logger.warning(
-                "\n\nAll return periods must be numbers >= 1, got %s (type: %s). "
-                "\nPlease check the configuration.",
-                rp,
-                type(rp),
-            )
-            return False
+    if return_periods is not None:
+        for rp in return_param_array:
+            if not isinstance(rp, (int, float, np.integer, np.floating)) or rp < 1:
+                logger.warning(
+                    "\n\nAll return periods must be numbers >= 1, got %s (type: %s). "
+                    "\nPlease check the configuration.",
+                    rp,
+                    type(rp),
+                )
+                return False
 
     # Validate distribution
     valid_distributions = ["gev", "genpareto", "gamma"]
