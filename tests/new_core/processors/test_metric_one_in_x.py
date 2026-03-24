@@ -140,7 +140,10 @@ class TestMetricCalcOneInXInit:
 
     def test_one_in_x_init_missing_return_periods_raises(self):
         """Test that missing return_periods raises ValueError."""
-        with pytest.raises(ValueError, match="return_periods is required"):
+        with pytest.raises(
+            ValueError,
+            match="return_periods or return_values is required for 1-in-X calculations",
+        ):
             MetricCalc({"one_in_x": {}})
 
     def test_one_in_x_init_with_return_values_list(self):
