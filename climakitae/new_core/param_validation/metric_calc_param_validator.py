@@ -195,7 +195,7 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
     # Validate return_periods (required parameter)
     if return_periods is None and return_values is None:
         logger.warning(
-            "\n\nEither return_periods or return_values is required for 1-in-X calculations. "
+            "\n\nEither return_periods or return_values is required for 1-in-X calculations."
             "\nPlease provide a list of return periods (e.g., [10, 25, 50, 100])"
             "\nor a list of return values (e.g. [90, 95, 100])."
         )
