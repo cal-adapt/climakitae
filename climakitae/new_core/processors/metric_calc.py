@@ -660,7 +660,9 @@ class MetricCalc(DataProcessor):
         )
         return self._calculate_one_in_x_vectorized(data_array)
 
-    def _get_distr_args(distr: str) -> tuple[str, tuple[float]]:
+    def _get_distr_args(
+        self, distr: str, parameters: dict[str, float]
+    ) -> tuple[str, tuple[float]]:
         """
         TODO: header
         """
@@ -688,86 +690,6 @@ class MetricCalc(DataProcessor):
                     'invalid distribution type. expected one of the following: ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"]'
                 )
         return cdf, args
-
-    def _fit_return_values_1d(
-        self,
-        block_maxima_1d: np.ndarray,
-        return_periods: np.ndarray,
-        distr: str = "gev",
-        extremes_type: str = "max",
-        get_p_value: bool = False,
-    ) -> tuple[np.ndarray, float]:
-        """
-        Fit a distribution to 1D block maxima and calculate return values.
-
-        This function fits a statistical distribution to the block maxima series
-        and calculates return values for the specified return periods.
-
-        Parameters
-        ----------
-        block_maxima_1d : np.ndarray
-            1D array of block maxima values (e.g., annual maxima).
-        return_periods : np.ndarray
-            Array of return periods in years (e.g., [10, 25, 50, 100]).
-        distr : str, optional
-            Distribution type for fitting. Options: "gev", "gumbel", "weibull",
-            "pearson3", "genpareto", "gamma". Default: "gev".
-        extremes_type : str, optional
-            Type of extremes: "max" for maxima, "min" for minima. Default: "max".
-        get_p_value : bool, optional
-            Whether to calculate and return p-value from KS test. Default: False.
-
-        Returns
-        -------
-        tuple[np.ndarray, float]
-            Tuple containing:
-            - return_values: Array of return values for each return period
-            - p_value: P-value from Kolmogorov-Smirnov test (np.nan if not calculated)
-
-        Notes
-        -----
-        Requires at least MIN_VALID_DATA_POINTS (3) non-NaN values for fitting.
-        Returns arrays of NaN if fitting fails.
-        """
-        # Remove NaN values
-        valid_data = block_maxima_1d[~np.isnan(block_maxima_1d)]
-
-        # Need at least 3 valid data points for meaningful distribution fitting
-        if len(valid_data) < MIN_VALID_DATA_POINTS:
-            return np.full_like(return_periods, np.nan, dtype=float), np.nan
-
-        try:
-            # _get_fitted_distr works with array-like inputs (numpy or xarray)
-            # and returns (dict[str, float], rv_continuous_frozen)
-            # Type ignore needed because threshold_tools.py has incorrect type annotation
-            result = _get_fitted_distr(
-                valid_data, distr, _get_distr_func(distr)  # type: ignore[arg-type]
-            )
-            parameters: dict[str, float] = result[0]  # type: ignore[index, assignment]
-            fitted_distr = result[1]  # type: ignore[index]
-
-            cdf, args = _get_distr_args(distr)
-
-            if get_p_value:
-                ks = stats.kstest(valid_data, cdf, args=args)
-                p_value = ks[1]
-
-            # Calculate return values for each return period
-            event_prob = 1.0 / return_periods  # Assuming 1-year blocks
-            if extremes_type == "max":
-                return_events = 1.0 - event_prob
-            else:  # min
-                return_events = event_prob
-            return_values = np.round(
-                fitted_distr.ppf(return_events), RETURN_VALUE_PRECISION  # type: ignore[union-attr]
-            )
-            if get_p_value:
-                return return_values, p_value
-            else:
-                return return_values, np.nan
-
-        except (ValueError, RuntimeError, np.linalg.LinAlgError):
-            return np.full_like(return_periods, np.nan), np.nan
 
     def _fit_extremes_stats_1d(
         self,
@@ -827,7 +749,7 @@ class MetricCalc(DataProcessor):
             parameters: dict[str, float] = result[0]  # type: ignore[index, assignment]
             fitted_distr = result[1]  # type: ignore[index]
 
-            cdf, args = _get_distr_args(distr)
+            cdf, args = self._get_distr_args(distr, parameters)
 
             if get_p_value:
                 ks = stats.kstest(valid_data, cdf, args=args)
@@ -848,20 +770,23 @@ class MetricCalc(DataProcessor):
                 else:
                     return return_values, np.nan
 
-            if return_values is not UNSET:
+            elif return_values is not UNSET:
                 cdf_val = fitted_distr.cdf(return_values)  # Assuming 1 year blocks
                 match extremes_type:
                     case "max":
                         return_prob = 1.0 - cdf_val
                     case "min":
                         return_prob = cdf_val
-                    case _:  # TODO: match error style
+                    case _:
                         raise ValueError("extremes_type must be 'max' or 'min'")
                 return_periods = 1.0 / return_prob
                 if get_p_value:
                     return return_periods, p_value
                 else:
                     return return_periods, np.nan
+
+            else:
+                raise ValueError("one of return_periods or return_values must be set")
 
         except (ValueError, RuntimeError, np.linalg.LinAlgError):
             return np.full_like(return_periods, np.nan), np.nan
@@ -940,7 +865,7 @@ class MetricCalc(DataProcessor):
             "All batches complete. Combining %d batch results...", len(batch_results)
         )
         combined_ds = xr.concat(batch_results, dim="sim")
-        logger.info("Final result shape: %s", dict(combined_ds.dims))
+        logger.info("Final result shape: %s", dict(combined_ds.sizes))
 
         return combined_ds
 
@@ -1156,10 +1081,10 @@ class MetricCalc(DataProcessor):
             p_values = None
 
         # Assign return periods as coordinates
-        if return_periods is not UNSET:
+        if self.return_periods is not UNSET:
             return_data = return_data.assign_coords(one_in_x=self.return_periods)
-        elif return_values is not UNSET:
-            return_data = return_data.assign_coords(one_in_x=self.return_value)
+        elif self.return_values is not UNSET:
+            return_data = return_data.assign_coords(return_value=self.return_values)
 
         # Step 4: Create result dataset
         logger.info("Creating result dataset...")
@@ -1206,9 +1131,9 @@ class MetricCalc(DataProcessor):
         else:
             block_maxima_computed = block_maxima
 
-        if return_periods is not UNSET:
+        if self.return_periods is not UNSET:
             output_length = len(self.return_periods)
-        elif return_values is not UNSET:
+        elif self.return_values is not UNSET:
             output_length = len(self.return_values)
         else:  # TODO
             raise (ValueError)
@@ -1275,9 +1200,9 @@ class MetricCalc(DataProcessor):
         return_data_list = []
         p_values_list = []
         # Set expected length of ufunc return
-        if return_periods is not UNSET:
+        if self.return_periods is not UNSET:
             output_length = len(self.return_periods)
-        elif return_values is not UNSET:
+        elif self.return_values is not UNSET:
             output_length = len(self.return_values)
         else:  # TODO
             raise (ValueError)
@@ -1441,12 +1366,20 @@ class MetricCalc(DataProcessor):
             )
         elif self.one_in_x_config is not UNSET:
             # 1-in-X calculations
-            return_periods_str = ", ".join(map(str, self.return_periods))
-            description_parts.append(
-                f"1-in-X return values for periods [{return_periods_str}] were "
-                f"calculated using {self.distribution} distribution with "
-                f"{self.extremes_type} extremes over {self.event_duration[0]} {self.event_duration[1]} events"
-            )
+            if self.return_periods is not UNSET:
+                return_periods_str = ", ".join(map(str, self.return_periods))
+                description_parts.append(
+                    f"1-in-X return values for periods [{return_periods_str}] were "
+                    f"calculated using {self.distribution} distribution with "
+                    f"{self.extremes_type} extremes over {self.event_duration[0]} {self.event_duration[1]} events"
+                )
+            elif self.return_values is not UNSET:
+                return_values_str = ", ".join(map(str, self.return_values))
+                description_parts.append(
+                    f"1-in-X return periods for values [{return_values_str}] were "
+                    f"calculated using {self.distribution} distribution with "
+                    f"{self.extremes_type} extremes over {self.event_duration[0]} {self.event_duration[1]} events"
+                )
             transformation_description = (
                 f"Process '{self.name}' applied to the data. "
                 f"{' and '.join(description_parts)}."
