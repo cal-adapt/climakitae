@@ -1429,7 +1429,7 @@ class MetricCalc(DataProcessor):
         Parameters
         ----------
         ret_vals : xr.DataArray
-            Return values DataArray
+            Return values or periods DataArray
         p_vals : xr.DataArray | None
             P-values DataArray
         data_array : xr.DataArray
@@ -1440,10 +1440,25 @@ class MetricCalc(DataProcessor):
         xr.Dataset
             Final result dataset with return_value and p_values
         """
-        if p_vals is not None:
-            result = xr.Dataset({"return_values": ret_vals, "p_values": p_vals})
-        else:
-            result = xr.Dataset({"return_values": ret_vals})
+        if self.return_periods is not UNSET:
+            if p_vals is not None:
+                result = xr.Dataset({"return_values": ret_vals, "p_values": p_vals})
+            else:
+                result = xr.Dataset({"return_values": ret_vals})
+        if self.return_values is not UNSET:
+            probability = 1.0 / ret_vals
+            if p_vals is not None:
+                result = xr.Dataset(
+                    {
+                        "return_periods": ret_vals,
+                        "return_probabilities": probability,
+                        "p_values": p_vals,
+                    }
+                )
+            else:
+                result = xr.Dataset(
+                    {"return_periods": ret_vals, "return_probabilities": probability}
+                )
 
         # Add attributes
         result.attrs.update(
