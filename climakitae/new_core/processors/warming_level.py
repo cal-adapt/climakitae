@@ -14,7 +14,7 @@ import pandas as pd
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
-from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1981_2010_TIMEIDX_FILE
+from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1850_1900_TIMEIDX_FILE
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
@@ -25,8 +25,8 @@ from climakitae.new_core.processors.processor_utils import extend_time_domain
 # from climakitae.new_core.processors.processor_utils import _determine_is_complete_wl
 from climakitae.util.utils import (
     _determine_is_complete_wl,
-    read_csv_file,
     add_dummy_time_to_wl,
+    read_csv_file,
 )
 
 # Module logger
@@ -95,7 +95,7 @@ class WarmingLevel(DataProcessor):
             GWL_1850_1900_FILE, index_col=[0, 1, 2], parse_dates=True
         )
         self.warming_level_times_idx = read_csv_file(
-            GWL_1981_2010_TIMEIDX_FILE, index_col="time", parse_dates=True
+            GWL_1850_1900_TIMEIDX_FILE, index_col="time", parse_dates=True
         )
         self.catalog = None
         self.value = {
