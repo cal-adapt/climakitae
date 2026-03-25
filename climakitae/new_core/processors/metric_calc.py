@@ -648,7 +648,13 @@ class MetricCalc(DataProcessor):
 
         # Check if we have a time dimension, and add dummy time if needed
         if "time" not in data_array.dims:
-            data_array = add_dummy_time_to_wl(data_array)
+            try:
+                data_array = add_dummy_time_to_wl(data_array)
+                data_array.attrs["frequency"] = "day"
+            except Exception:
+                # Try hourly frequency
+                data_array = add_dummy_time_to_wl(data_array, freq_name="1hr")
+                data_array.attrs["frequency"] = "1hr"
 
         # Apply variable-specific preprocessing
         data_array = self._preprocess_variable_for_one_in_x(data_array, var_name)
@@ -1189,10 +1195,8 @@ class MetricCalc(DataProcessor):
         # Set expected length of ufunc return
         if self.return_periods is not UNSET:
             output_length = len(self.return_periods)
-        elif self.return_values is not UNSET:
+        else:
             output_length = len(self.return_values)
-        else:  # TODO
-            raise (ValueError)
 
         step_start = time_module.time()
 
