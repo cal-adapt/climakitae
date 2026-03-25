@@ -660,38 +660,7 @@ class MetricCalc(DataProcessor):
         )
         return self._calculate_one_in_x_vectorized(data_array)
 
-    def _get_distr_args(
-        self, distr: str, parameters: dict[str, float]
-    ) -> tuple[str, tuple[float]]:
-        """
-        TODO: header
-        """
-        match distr:
-            case "gev":
-                cdf = "genextreme"
-                args = (parameters["c"], parameters["loc"], parameters["scale"])
-            case "gumbel":
-                cdf = "gumbel_r"
-                args = (parameters["loc"], parameters["scale"])
-            case "weibull":
-                cdf = "weibull_min"
-                args = (parameters["c"], parameters["loc"], parameters["scale"])
-            case "pearson3":
-                cdf = "pearson3"
-                args = (parameters["skew"], parameters["loc"], parameters["scale"])
-            case "genpareto":
-                cdf = "genpareto"
-                args = (parameters["c"], parameters["loc"], parameters["scale"])
-            case "gamma":
-                cdf = "gamma"
-                args = (parameters["a"], parameters["loc"], parameters["scale"])
-            case _:
-                raise ValueError(
-                    'invalid distribution type. expected one of the following: ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"]'
-                )
-        return cdf, args
-
-    def _fit_extremes_stats_1d(
+    def _fit_return_variable_1d(
         self,
         block_maxima_1d: np.ndarray,
         return_periods: np.ndarray = UNSET,
@@ -749,7 +718,29 @@ class MetricCalc(DataProcessor):
             parameters: dict[str, float] = result[0]  # type: ignore[index, assignment]
             fitted_distr = result[1]  # type: ignore[index]
 
-            cdf, args = self._get_distr_args(distr, parameters)
+            match distr:
+                case "gev":
+                    cdf = "genextreme"
+                    args = (parameters["c"], parameters["loc"], parameters["scale"])
+                case "gumbel":
+                    cdf = "gumbel_r"
+                    args = (parameters["loc"], parameters["scale"])
+                case "weibull":
+                    cdf = "weibull_min"
+                    args = (parameters["c"], parameters["loc"], parameters["scale"])
+                case "pearson3":
+                    cdf = "pearson3"
+                    args = (parameters["skew"], parameters["loc"], parameters["scale"])
+                case "genpareto":
+                    cdf = "genpareto"
+                    args = (parameters["c"], parameters["loc"], parameters["scale"])
+                case "gamma":
+                    cdf = "gamma"
+                    args = (parameters["a"], parameters["loc"], parameters["scale"])
+                case _:
+                    raise ValueError(
+                        'invalid distribution type. expected one of the following: ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"]'
+                    )
 
             if get_p_value:
                 ks = stats.kstest(valid_data, cdf, args=args)
@@ -772,13 +763,10 @@ class MetricCalc(DataProcessor):
 
             elif return_values is not UNSET:
                 cdf_val = fitted_distr.cdf(return_values)  # Assuming 1 year blocks
-                match extremes_type:
-                    case "max":
-                        return_prob = 1.0 - cdf_val
-                    case "min":
-                        return_prob = cdf_val
-                    case _:
-                        raise ValueError("extremes_type must be 'max' or 'min'")
+                if extremes_type == "max":
+                    return_prob = 1.0 - cdf_val
+                else:  # min
+                    return_prob = cdf_val
                 return_periods = 1.0 / return_prob
                 if get_p_value:
                     return return_periods, p_value
@@ -1084,7 +1072,7 @@ class MetricCalc(DataProcessor):
         if self.return_periods is not UNSET:
             return_data = return_data.assign_coords(one_in_x=self.return_periods)
         elif self.return_values is not UNSET:
-            return_data = return_data.assign_coords(return_value=self.return_values)
+            return_data = return_data.assign_coords(one_in_x=self.return_values)
 
         # Step 4: Create result dataset
         logger.info("Creating result dataset...")
@@ -1133,14 +1121,12 @@ class MetricCalc(DataProcessor):
 
         if self.return_periods is not UNSET:
             output_length = len(self.return_periods)
-        elif self.return_values is not UNSET:
+        else:
             output_length = len(self.return_values)
-        else:  # TODO
-            raise (ValueError)
 
         # Apply the return value fitting function
         return_data, p_values = xr.apply_ufunc(
-            self._fit_extremes_stats_1d,
+            self._fit_return_variable_1d,
             block_maxima_computed,
             kwargs={
                 "return_periods": self.return_periods,
@@ -1239,7 +1225,7 @@ class MetricCalc(DataProcessor):
 
             # Step 3: Fit distributions for this spatial chunk
             chunk_return_data, chunk_p_values = xr.apply_ufunc(
-                self._fit_extremes_stats_1d,
+                self._fit_return_variable_1d,
                 chunk_block_maxima,
                 kwargs={
                     "return_periods": self.return_periods,
