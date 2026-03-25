@@ -222,7 +222,7 @@ class TestMetricCalcOneInXInit:
 
 
 class TestMetricCalcFitReturnValues1d:
-    """Test class for the _fit_extremes_stats_1d distribution fitting method."""
+    """Test class for the _fit_return_variable_1d distribution fitting method."""
 
     def setup_method(self):
         """Set up test fixtures for distribution fitting tests."""
@@ -260,7 +260,7 @@ class TestMetricCalcFitReturnValues1d:
             }
         )
 
-        return_values, p_value = processor._fit_extremes_stats_1d(
+        return_values, p_value = processor._fit_return_variable_1d(
             self.valid_block_maxima,
             np.array([10, 50]),
             distr=distribution,
@@ -279,7 +279,7 @@ class TestMetricCalcFitReturnValues1d:
         Note: Due to numpy dtype handling, this may return either NaN (for float arrays)
         or invalid integer values. The key is that the function doesn't crash.
         """
-        return_values, p_value = self.processor._fit_extremes_stats_1d(
+        return_values, p_value = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
             self.return_periods,
             distr="invalid_dist",
@@ -296,7 +296,7 @@ class TestMetricCalcFitReturnValues1d:
         """Test that insufficient data returns NaN values."""
         insufficient_data = np.array([1.0, 2.0])  # Only 2 points, need at least 3
 
-        return_values, p_value = self.processor._fit_extremes_stats_1d(
+        return_values, p_value = self.processor._fit_return_variable_1d(
             insufficient_data,
             self.return_periods,
             distr="gev",
@@ -312,7 +312,7 @@ class TestMetricCalcFitReturnValues1d:
         data_with_nans[0] = np.nan
         data_with_nans[5] = np.nan
 
-        return_values, p_value = self.processor._fit_extremes_stats_1d(
+        return_values, p_value = self.processor._fit_return_variable_1d(
             data_with_nans,
             self.return_periods,
             distr="gev",
@@ -324,7 +324,7 @@ class TestMetricCalcFitReturnValues1d:
 
     def test_fit_with_p_value(self):
         """Test that p-value is calculated when requested."""
-        return_values, p_value = self.processor._fit_extremes_stats_1d(
+        return_values, p_value = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
             self.return_periods,
             distr="gev",
@@ -336,7 +336,7 @@ class TestMetricCalcFitReturnValues1d:
 
     def test_fit_without_p_value(self):
         """Test that p-value is NaN when not requested."""
-        return_values, p_value = self.processor._fit_extremes_stats_1d(
+        return_values, p_value = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
             self.return_periods,
             distr="gev",
@@ -348,7 +348,7 @@ class TestMetricCalcFitReturnValues1d:
     def test_fit_extremes_type_min(self):
         """Test fitting with extremes_type='min' for minima."""
         # For minima, return values should be lower for longer return periods
-        return_values_min, _ = self.processor._fit_extremes_stats_1d(
+        return_values_min, _ = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
             self.return_periods,
             distr="gev",
@@ -356,7 +356,7 @@ class TestMetricCalcFitReturnValues1d:
             get_p_value=False,
         )
 
-        return_values_max, _ = self.processor._fit_extremes_stats_1d(
+        return_values_max, _ = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
             self.return_periods,
             distr="gev",
@@ -369,7 +369,7 @@ class TestMetricCalcFitReturnValues1d:
 
     def test_fit_return_values_increase_with_return_period(self):
         """Test that return values increase with return period for maxima."""
-        return_values, _ = self.processor._fit_extremes_stats_1d(
+        return_values, _ = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
             self.return_periods,
             distr="gev",
@@ -384,7 +384,7 @@ class TestMetricCalcFitReturnValues1d:
         """Test fitting with all NaN data returns NaN."""
         all_nan_data = np.full(30, np.nan)
 
-        return_values, p_value = self.processor._fit_extremes_stats_1d(
+        return_values, p_value = self.processor._fit_return_variable_1d(
             all_nan_data,
             self.return_periods,
             distr="gev",
