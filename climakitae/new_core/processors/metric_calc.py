@@ -75,6 +75,7 @@ class MetricCalc(DataProcessor):
           - distribution (str, optional): Distribution for fitting ("gev", "genpareto", "gamma"). Default: "gev"
           - extremes_type (str, optional): "max" or "min". Default: "max"
           - event_duration (tuple, optional): Event duration as (int, str). Default: (1, "day")
+          - grouped_duration (tuple, optional): Rolling window as (int, "day"). Use with event_duration=(1, "day"). Default UNSET
           - block_size (int, optional): Block size in years. Default: 1
           - goodness_of_fit_test (bool, optional): Perform KS test. Default: True
           - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
@@ -651,9 +652,11 @@ class MetricCalc(DataProcessor):
         if "time" not in data_array.dims:
             try:
                 data_array = add_dummy_time_to_wl(data_array)
+                # Frequency needed for _apply_duration_filter_vectorized later on
                 data_array.attrs["frequency"] = "day"
+            # If frequency is hourly, the 'try' code will throw a
+            # non-standard overflow exception.
             except Exception:
-                # Try hourly frequency
                 data_array = add_dummy_time_to_wl(data_array, freq_name="1hr")
                 data_array.attrs["frequency"] = "1hr"
 
@@ -1144,7 +1147,7 @@ class MetricCalc(DataProcessor):
                 "get_p_value": self.goodness_of_fit_test,
             },
             input_core_dims=[[time_dim]],
-            output_core_dims=[["one_in_x"],[]],
+            output_core_dims=[["one_in_x"], []],
             output_sizes={"one_in_x": output_length},
             output_dtypes=("float", "float"),
             vectorize=True,
