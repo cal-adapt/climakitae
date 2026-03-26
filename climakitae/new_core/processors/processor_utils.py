@@ -361,7 +361,6 @@ def _apply_duration_filter_vectorized(
     """
     dur_len, dur_type = duration
 
-    # TODO: testing this
     if dur_type != "hour" or getattr(da, "frequency", None) not in ["1hr", "hourly"]:
         raise ValueError(
             "Current specifications not implemented. `duration` options only implemented for `hour` frequency."
