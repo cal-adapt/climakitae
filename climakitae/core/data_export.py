@@ -1593,10 +1593,6 @@ def write_tmy_file(
     # typical meteorological year format
     match file_ext:
         case "tmy":
-            # change time axis for GWL data to not use 2000's dummy times
-            if "warming_level" in df.columns:
-                df = _tmy_reset_time_for_gwl(df)
-
             path_to_file = filename_to_export + ".tmy"
 
             with open(path_to_file, "w") as f:
@@ -1677,9 +1673,7 @@ def write_tmy_file(
                 "Surface Pressure",
             ]
 
-            # change time axis for GWL data to not use 2000's dummy times
             if "warming_level" in df.columns:
-                df = _tmy_reset_time_for_gwl(df)
                 df["centered_year"] = pd.to_numeric(
                     df["centered_year"], downcast="integer"
                 )
