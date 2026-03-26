@@ -222,6 +222,7 @@ class MetricCalc(DataProcessor):
         self.distribution = self.one_in_x_config.get("distribution", "gev")
         self.extremes_type = self.one_in_x_config.get("extremes_type", "max")
         self.event_duration = self.one_in_x_config.get("event_duration", (1, "day"))
+        self.grouped_duration = self.one_in_x_config.get("grouped_duration", UNSET)
         self.block_size = self.one_in_x_config.get("block_size", 1)
         self.goodness_of_fit_test = self.one_in_x_config.get(
             "goodness_of_fit_test", True
@@ -803,6 +804,7 @@ class MetricCalc(DataProcessor):
             kwargs["groupby"] = self.event_duration
         elif self.event_duration[1] == "hour":
             kwargs["duration"] = self.event_duration
+        kwargs["grouped_duration"] = self.grouped_duration
 
         # Calculate adaptive batch size based on available memory
         batch_size = self._calculate_adaptive_batch_size(data_array)
@@ -1142,7 +1144,7 @@ class MetricCalc(DataProcessor):
                 "get_p_value": self.goodness_of_fit_test,
             },
             input_core_dims=[[time_dim]],
-            output_core_dims=[["one_in_x"], []],
+            output_core_dims=[["one_in_x"],[]],
             output_sizes={"one_in_x": output_length},
             output_dtypes=("float", "float"),
             vectorize=True,
