@@ -4303,19 +4303,10 @@ class TestGetStationCoordinates:
 
     def test_get_station_coordinates_returns_tuple(self):
         """Test that _get_station_coordinates returns a tuple of coordinates."""
-        # Setup mock DataInterface
         with patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class:
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            # Execute function
-            from climakitae.explore.standard_year_profile import (
-                _get_station_coordinates,
-            )
-
+            "climakitae.explore.standard_year_profile.read_csv_file",
+            return_value=self.mock_stations_gdf,
+        ):
             result = _get_station_coordinates("San Diego Lindbergh Field (KSAN)")
 
             # Verify outcome: returns tuple of (lat, lon)
@@ -4331,19 +4322,10 @@ class TestGetStationCoordinates:
 
     def test_get_station_coordinates_returns_correct_values(self):
         """Test that _get_station_coordinates returns correct coordinate values."""
-        # Setup mock DataInterface
         with patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class:
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            # Execute function
-            from climakitae.explore.standard_year_profile import (
-                _get_station_coordinates,
-            )
-
+            "climakitae.explore.standard_year_profile.read_csv_file",
+            return_value=self.mock_stations_gdf,
+        ):
             lat, lon = _get_station_coordinates("San Diego Lindbergh Field (KSAN)")
 
             # Verify outcome: returns correct coordinates
@@ -4352,18 +4334,10 @@ class TestGetStationCoordinates:
 
     def test_get_station_coordinates_with_different_stations(self):
         """Test _get_station_coordinates with multiple different stations."""
-        # Setup mock DataInterface
         with patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class:
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            from climakitae.explore.standard_year_profile import (
-                _get_station_coordinates,
-            )
-
+            "climakitae.explore.standard_year_profile.read_csv_file",
+            return_value=self.mock_stations_gdf,
+        ):
             # Test LAX station
             lat_lax, lon_lax = _get_station_coordinates(
                 "Los Angeles International Airport (KLAX)"
@@ -4380,42 +4354,20 @@ class TestGetStationCoordinates:
 
     def test_get_station_coordinates_raises_error_for_invalid_station(self):
         """Test that _get_station_coordinates raises ValueError for invalid station name."""
-        # Setup mock DataInterface
         with patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class:
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            # Execute and verify outcome: should raise ValueError
-            from climakitae.explore.standard_year_profile import (
-                _get_station_coordinates,
-            )
-
-            with pytest.raises(
-                ValueError, match="Station .* not found in the DataInterface"
-            ):
+            "climakitae.explore.standard_year_profile.read_csv_file",
+            return_value=self.mock_stations_gdf,
+        ):
+            with pytest.raises(ValueError, match="Station .* not found"):
                 _get_station_coordinates("Invalid Station Name (XXX)")
 
     def test_get_station_coordinates_raises_error_for_empty_string(self):
         """Test that _get_station_coordinates raises ValueError for empty station name."""
-        # Setup mock DataInterface
         with patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class:
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            # Execute and verify outcome: should raise ValueError
-            from climakitae.explore.standard_year_profile import (
-                _get_station_coordinates,
-            )
-
-            with pytest.raises(
-                ValueError, match="Station .* not found in the DataInterface"
-            ):
+            "climakitae.explore.standard_year_profile.read_csv_file",
+            return_value=self.mock_stations_gdf,
+        ):
+            with pytest.raises(ValueError, match="Station .* not found"):
                 _get_station_coordinates("")
 
 
@@ -4448,19 +4400,10 @@ class TestConvertStationsToLatLon:
 
     def test_convert_stations_to_lat_lon_returns_tuple_of_tuples(self):
         """Test that _convert_stations_to_lat_lon returns tuple of (lat_bounds, lon_bounds)."""
-        # Setup mock
         with patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class:
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            from climakitae.explore.standard_year_profile import (
-                _convert_stations_to_lat_lon,
-            )
-
-            # Execute function
+            "climakitae.explore.standard_year_profile.read_csv_file",
+            return_value=self.mock_stations_gdf,
+        ):
             result = _convert_stations_to_lat_lon(
                 ["San Diego Lindbergh Field (KSAN)"], buffer=0.02
             )
@@ -4478,18 +4421,10 @@ class TestConvertStationsToLatLon:
 
     def test_convert_stations_to_lat_lon_single_station_with_buffer(self):
         """Test _convert_stations_to_lat_lon with single station applies buffer correctly."""
-        # Setup mock
         with patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class:
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            from climakitae.explore.standard_year_profile import (
-                _convert_stations_to_lat_lon,
-            )
-
+            "climakitae.explore.standard_year_profile.read_csv_file",
+            return_value=self.mock_stations_gdf,
+        ):
             # Execute function with default buffer (0.02)
             lat_bounds, lon_bounds = _convert_stations_to_lat_lon(
                 ["San Diego Lindbergh Field (KSAN)"], buffer=0.02
@@ -4517,18 +4452,10 @@ class TestConvertStationsToLatLon:
 
     def test_convert_stations_to_lat_lon_multiple_stations(self):
         """Test _convert_stations_to_lat_lon with multiple stations creates bounding box."""
-        # Setup mock
         with patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class:
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            from climakitae.explore.standard_year_profile import (
-                _convert_stations_to_lat_lon,
-            )
-
+            "climakitae.explore.standard_year_profile.read_csv_file",
+            return_value=self.mock_stations_gdf,
+        ):
             # Execute function with two stations
             lat_bounds, lon_bounds = _convert_stations_to_lat_lon(
                 [
@@ -4561,18 +4488,10 @@ class TestConvertStationsToLatLon:
 
     def test_convert_stations_to_lat_lon_with_custom_buffer(self):
         """Test _convert_stations_to_lat_lon with custom buffer value."""
-        # Setup mock
         with patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class:
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            from climakitae.explore.standard_year_profile import (
-                _convert_stations_to_lat_lon,
-            )
-
+            "climakitae.explore.standard_year_profile.read_csv_file",
+            return_value=self.mock_stations_gdf,
+        ):
             # Execute function with custom buffer
             custom_buffer = 0.05
             lat_bounds, lon_bounds = _convert_stations_to_lat_lon(
@@ -4600,19 +4519,10 @@ class TestConvertStationsToLatLon:
 
     def test_convert_stations_to_lat_lon_raises_error_for_empty_list(self):
         """Test that _convert_stations_to_lat_lon raises ValueError for empty station list."""
-        # Setup mock
         with patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class:
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            from climakitae.explore.standard_year_profile import (
-                _convert_stations_to_lat_lon,
-            )
-
-            # Execute and verify outcome: should raise ValueError
+            "climakitae.explore.standard_year_profile.read_csv_file",
+            return_value=self.mock_stations_gdf,
+        ):
             with pytest.raises(
                 ValueError, match="No stations provided for coordinate conversion"
             ):
@@ -4620,40 +4530,21 @@ class TestConvertStationsToLatLon:
 
     def test_convert_stations_to_lat_lon_raises_error_for_invalid_station(self):
         """Test that _convert_stations_to_lat_lon raises ValueError when station not found."""
-        # Setup mock
         with patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class:
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            from climakitae.explore.standard_year_profile import (
-                _convert_stations_to_lat_lon,
-            )
-
-            # Execute and verify outcome: should raise ValueError
-            with pytest.raises(
-                ValueError, match="Station .* not found in the DataInterface"
-            ):
+            "climakitae.explore.standard_year_profile.read_csv_file",
+            return_value=self.mock_stations_gdf,
+        ):
+            with pytest.raises(ValueError, match="Station .* not found"):
                 _convert_stations_to_lat_lon(
                     ["Invalid Station Name (XXX)"], buffer=0.02
                 )
 
     def test_convert_stations_to_lat_lon_with_three_stations(self):
         """Test _convert_stations_to_lat_lon creates correct bounding box for three stations."""
-        # Setup mock
         with patch(
-            "climakitae.explore.standard_year_profile.DataInterface"
-        ) as mock_data_interface_class:
-            mock_instance = MagicMock()
-            mock_instance.stations_gdf = self.mock_stations_gdf
-            mock_data_interface_class.return_value = mock_instance
-
-            from climakitae.explore.standard_year_profile import (
-                _convert_stations_to_lat_lon,
-            )
-
+            "climakitae.explore.standard_year_profile.read_csv_file",
+            return_value=self.mock_stations_gdf,
+        ):
             # Execute function with all three stations
             lat_bounds, lon_bounds = _convert_stations_to_lat_lon(
                 [

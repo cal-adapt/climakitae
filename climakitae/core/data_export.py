@@ -1008,12 +1008,29 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
     df : pd.DataFrame
 
     """
+    # Normalize internal variable names to EPW column names.
+    # The TMY pipeline uses short display names (e.g. "Air Temperature at 2m")
+    # but EPW format expects names with units (e.g. "Air temperature at 2m (degC)").
+    _internal_to_epw = {
+        "Air Temperature at 2m": "Air temperature at 2m (degC)",
+        "Dew point temperature": "Dew point temperature at 2m (degC)",
+        "Relative humidity": "Relative humidity (0-100)",
+        "Surface Pressure": "Surface pressure (Pa)",
+        "Instantaneous downwelling shortwave flux at bottom": "Instantaneous downwelling shortwave flux at bottom (W/m2)",
+        "Shortwave surface downward direct normal irradiance": "Shortwave surface downward direct normal irradiance (W/m2)",
+        "Shortwave surface downward diffuse irradiance": "Shortwave surface downward diffuse irradiance (W/m2)",
+        "Wind direction at 10m": "Wind direction at 10m (degrees)",
+        "Wind speed at 10m": "Wind speed at 10m (m/s)",
+        "Instantaneous downwelling longwave flux at bottom": "Instantaneous downwelling longwave flux at bottom (W/m2)",
+    }
+    df = df.rename(columns=_internal_to_epw)
+
     # set time col to datetime object for easy split
     df["time"] = pd.to_datetime(df["time"])
     if "warming_level" in df.columns:
         # change year for GWL data to not use 2000's dummy times
         df = df.assign(
-            year=df["time"].dt.year - 1999,  # 0001 +
+            year=df["time"].dt.year - 2000,
             month=df["time"].dt.month,
             day=df["time"].dt.day,
             hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
@@ -1043,7 +1060,7 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
         "Surface pressure (Pa)",
         "exthorrad",  # missing - extraterrestrial horizontal radiation
         "extdirrad",  # missing - extraterrestrial direct normal radiation
-        "extirsky",  # missing - horizontal IR radiation intensity from sky
+        "Instantaneous downwelling longwave flux at bottom (W/m2)",
         "Instantaneous downwelling shortwave flux at bottom (W/m2)",
         "Shortwave surface downward direct normal irradiance (W/m2)",
         "Shortwave surface downward diffuse irradiance (W/m2)",
@@ -1072,7 +1089,6 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
     for var in [
         "exthorrad",
         "extdirrad",
-        "extirsky",
         "dirnorrad",
         "zenlum",
         "visibility",
@@ -1375,6 +1391,12 @@ def write_tmy_file(
     # size check on TMY dataframe
     df = _tmy_8760_size_check(df)
 
+    # Normalize time format: fix functions in _tmy_8760_size_check may
+    # convert time to datetime objects (with seconds).  Re-format to
+    # consistent "%Y-%m-%d %H:%M" strings so downstream writers and
+    # _tmy_reset_time_for_gwl see a uniform format.
+    df["time"] = pd.to_datetime(df["time"]).dt.strftime("%Y-%m-%d %H:%M")
+
     def _utc_offset_timezone(lat, lon):
         """Based on user input of lat lon, returns the UTC offset for that timezone
 
@@ -1571,10 +1593,6 @@ def write_tmy_file(
     # typical meteorological year format
     match file_ext:
         case "tmy":
-            # change time axis for GWL data to not use 2000's dummy times
-            if "warming_level" in df.columns:
-                df = _tmy_reset_time_for_gwl(df)
-
             path_to_file = filename_to_export + ".tmy"
 
             with open(path_to_file, "w") as f:
@@ -1590,14 +1608,26 @@ def write_tmy_file(
                         df,
                     )
                 )  # writes required header lines
-                df = df.drop(
-                    columns=["sim", "lat", "lon", "warming_level", "time_delta"],
-                    errors="ignore",
-                )  # drops header columns from df
+                # Keep only time + the 10 TMY variables, in the order
+                # that matches the line-2 header written by _tmy_header.
+                tmy_data_cols = [
+                    "time",
+                    "Air Temperature at 2m",
+                    "Dew point temperature",
+                    "Relative humidity",
+                    "Instantaneous downwelling shortwave flux at bottom",
+                    "Shortwave surface downward direct normal irradiance",
+                    "Shortwave surface downward diffuse irradiance",
+                    "Instantaneous downwelling longwave flux at bottom",
+                    "Wind speed at 10m",
+                    "Wind direction at 10m",
+                    "Surface Pressure",
+                ]
+                df = df[tmy_data_cols]
                 dfAsString = df.to_csv(sep=",", header=False, index=False)
                 f.write(dfAsString)  # writes data in TMY format
             print(
-                f"TMY data exported to .tmy format with filename {filename_to_export.tmy}, with size {len(df)}"
+                f"TMY data exported to .tmy format with filename {path_to_file}, with size {len(df)}"
             )
         # energy plus weather format
         case "epw":
@@ -1625,12 +1655,36 @@ def write_tmy_file(
                 f"TMY data exported to .epw format with filename {filename_to_export}, with size {len(df)}"
             )
         case "csv":
-            # change time axis for GWL data to not use 2000's dummy times
+            columns = [
+                "index",
+                "simulation",
+                "time",
+                "lat",
+                "lon",
+                "Air Temperature at 2m",
+                "Dew point temperature",
+                "Relative humidity",
+                "Instantaneous downwelling shortwave flux at bottom",
+                "Shortwave surface downward direct normal irradiance",
+                "Shortwave surface downward diffuse irradiance",
+                "Instantaneous downwelling longwave flux at bottom",
+                "Wind speed at 10m",
+                "Wind direction at 10m",
+                "Surface Pressure",
+            ]
+
             if "warming_level" in df.columns:
-                df = _tmy_reset_time_for_gwl(df)
                 df["centered_year"] = pd.to_numeric(
                     df["centered_year"], downcast="integer"
                 )
+                # set position of GWL specific columns
+                columns.insert(3, "warming_level")
+                columns.insert(6, "centered_year")
+            else:
+                # set order of scenario column
+                columns.insert(5, "scenario")
+            df = df.rename(columns={"sim": "simulation"})
+            df = df[columns]
             path_to_file = filename_to_export + ".csv"
             df.to_csv(path_to_file, index=False)
             print(
