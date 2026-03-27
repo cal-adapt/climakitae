@@ -75,6 +75,7 @@ class MetricCalc(DataProcessor):
           - distribution (str, optional): Distribution for fitting ("gev", "genpareto", "gamma"). Default: "gev"
           - extremes_type (str, optional): "max" or "min". Default: "max"
           - event_duration (tuple, optional): Event duration as (int, str). Default: (1, "day")
+          - grouped_duration (tuple, optional): Rolling window as (int, "day"). Use with event_duration=(1, "day"). Default UNSET
           - block_size (int, optional): Block size in years. Default: 1
           - goodness_of_fit_test (bool, optional): Perform KS test. Default: True
           - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
@@ -192,21 +193,37 @@ class MetricCalc(DataProcessor):
                 "one_in_x_config cannot be UNSET when calling _setup_one_in_x_parameters"
             )
 
-        # Required parameter
-        self.return_periods = self.one_in_x_config.get("return_periods")
-        if self.return_periods is None or self.return_periods is UNSET:
-            raise ValueError("return_periods is required for 1-in-X calculations")
+        # Required parameters - either return_periods or return_values must be set
+        self.return_periods = self.one_in_x_config.get("return_periods", UNSET)
+        self.return_values = self.one_in_x_config.get("return_values", UNSET)
+        if self.return_periods is UNSET:
+            if self.return_values is UNSET:
+                raise ValueError(
+                    "return_periods or return_values is required for 1-in-X calculations"
+                )
+        if self.return_periods is not UNSET:
+            if self.return_values is not UNSET:
+                raise ValueError(
+                    "Only set one of return_periods or return_values for 1-in-X calculations"
+                )
 
         # Convert to numpy array for consistency
-        if not isinstance(self.return_periods, (list, np.ndarray)):
-            self.return_periods = np.array([self.return_periods])
-        elif isinstance(self.return_periods, list):
-            self.return_periods = np.array(self.return_periods)
+        if self.return_periods is not UNSET:
+            if not isinstance(self.return_periods, (list, np.ndarray)):
+                self.return_periods = np.array([self.return_periods])
+            elif isinstance(self.return_periods, list):
+                self.return_periods = np.array(self.return_periods)
+        elif self.return_values is not UNSET:
+            if not isinstance(self.return_values, (list, np.ndarray)):
+                self.return_values = np.array([self.return_values])
+            elif isinstance(self.return_values, list):
+                self.return_values = np.array(self.return_values)
 
         # Optional parameters with defaults
         self.distribution = self.one_in_x_config.get("distribution", "gev")
         self.extremes_type = self.one_in_x_config.get("extremes_type", "max")
         self.event_duration = self.one_in_x_config.get("event_duration", (1, "day"))
+        self.grouped_duration = self.one_in_x_config.get("grouped_duration", UNSET)
         self.block_size = self.one_in_x_config.get("block_size", 1)
         self.goodness_of_fit_test = self.one_in_x_config.get(
             "goodness_of_fit_test", True
@@ -633,7 +650,15 @@ class MetricCalc(DataProcessor):
 
         # Check if we have a time dimension, and add dummy time if needed
         if "time" not in data_array.dims:
-            data_array = add_dummy_time_to_wl(data_array)
+            try:
+                data_array = add_dummy_time_to_wl(data_array)
+                # Frequency needed for _apply_duration_filter_vectorized later on
+                data_array.attrs["frequency"] = "day"
+            # If frequency is hourly, the 'try' code will throw a
+            # non-standard overflow exception.
+            except Exception:
+                data_array = add_dummy_time_to_wl(data_array, freq_name="1hr")
+                data_array.attrs["frequency"] = "1hr"
 
         # Apply variable-specific preprocessing
         data_array = self._preprocess_variable_for_one_in_x(data_array, var_name)
@@ -645,10 +670,11 @@ class MetricCalc(DataProcessor):
         )
         return self._calculate_one_in_x_vectorized(data_array)
 
-    def _fit_return_values_1d(
+    def _fit_return_variable_1d(
         self,
         block_maxima_1d: np.ndarray,
-        return_periods: np.ndarray,
+        return_periods: np.ndarray = UNSET,
+        return_values: np.ndarray = UNSET,
         distr: str = "gev",
         extremes_type: str = "max",
         get_p_value: bool = False,
@@ -690,7 +716,10 @@ class MetricCalc(DataProcessor):
 
         # Need at least 3 valid data points for meaningful distribution fitting
         if len(valid_data) < MIN_VALID_DATA_POINTS:
-            return np.full_like(return_periods, np.nan, dtype=float), np.nan
+            if return_periods is not UNSET:
+                return np.full_like(return_periods, np.nan, dtype=float), np.nan
+            else:
+                return np.full_like(return_values, np.nan, dtype=float), np.nan
 
         try:
             # _get_fitted_distr works with array-like inputs (numpy or xarray)
@@ -731,21 +760,40 @@ class MetricCalc(DataProcessor):
                 p_value = ks[1]
 
             # Calculate return values for each return period
-            event_prob = 1.0 / return_periods  # Assuming 1-year blocks
-            if extremes_type == "max":
-                return_events = 1.0 - event_prob
-            else:  # min
-                return_events = event_prob
-            return_values = np.round(
-                fitted_distr.ppf(return_events), RETURN_VALUE_PRECISION  # type: ignore[union-attr]
-            )
-            if get_p_value:
-                return return_values, p_value
+            if return_periods is not UNSET:
+                event_prob = 1.0 / return_periods  # Assuming 1-year blocks
+                if extremes_type == "max":
+                    return_events = 1.0 - event_prob
+                else:  # min
+                    return_events = event_prob
+                return_values = np.round(
+                    fitted_distr.ppf(return_events), RETURN_VALUE_PRECISION  # type: ignore[union-attr]
+                )
+                if get_p_value:
+                    return return_values, p_value
+                else:
+                    return return_values, np.nan
+
+            elif return_values is not UNSET:
+                cdf_val = fitted_distr.cdf(return_values)  # Assuming 1 year blocks
+                if extremes_type == "max":
+                    return_prob = 1.0 - cdf_val
+                else:  # min
+                    return_prob = cdf_val
+                return_periods = 1.0 / return_prob
+                if get_p_value:
+                    return return_periods, p_value
+                else:
+                    return return_periods, np.nan
+
             else:
-                return return_values, np.nan
+                raise ValueError("one of return_periods or return_values must be set")
 
         except (ValueError, RuntimeError, np.linalg.LinAlgError):
-            return np.full_like(return_periods, np.nan), np.nan
+            if return_periods is not UNSET:
+                return np.full_like(return_periods, np.nan), np.nan
+            else:
+                return np.full_like(return_values, np.nan), np.nan
 
     def _calculate_one_in_x_vectorized(self, data_array: xr.DataArray) -> xr.Dataset:
         """
@@ -765,6 +813,7 @@ class MetricCalc(DataProcessor):
             kwargs["groupby"] = self.event_duration
         elif self.event_duration[1] == "hour":
             kwargs["duration"] = self.event_duration
+        kwargs["grouped_duration"] = self.grouped_duration
 
         # Calculate adaptive batch size based on available memory
         batch_size = self._calculate_adaptive_batch_size(data_array)
@@ -821,7 +870,7 @@ class MetricCalc(DataProcessor):
             "All batches complete. Combining %d batch results...", len(batch_results)
         )
         combined_ds = xr.concat(batch_results, dim="sim")
-        logger.info("Final result shape: %s", dict(combined_ds.dims))
+        logger.info("Final result shape: %s", dict(combined_ds.sizes))
 
         return combined_ds
 
@@ -981,7 +1030,7 @@ class MetricCalc(DataProcessor):
 
         if spatial_dim and spatial_size_check > SPATIAL_BATCH_SIZE:
             # Process spatial chunks sequentially - this avoids loading all data at once
-            return_values, p_values = self._fit_with_early_spatial_batching(
+            return_data, p_values = self._fit_with_early_spatial_batching(
                 batch_data, block_maxima_kwargs, spatial_dim, SPATIAL_BATCH_SIZE
             )
         else:
@@ -1028,7 +1077,7 @@ class MetricCalc(DataProcessor):
                 n_fits,
             )
 
-            return_values, p_values = self._fit_distributions_vectorized(
+            return_data, p_values = self._fit_distributions_vectorized(
                 block_maxima, time_dim
             )
 
@@ -1037,13 +1086,16 @@ class MetricCalc(DataProcessor):
             p_values = None
 
         # Assign return periods as coordinates
-        return_values = return_values.assign_coords(one_in_x=self.return_periods)
+        if self.return_periods is not UNSET:
+            return_data = return_data.assign_coords(one_in_x=self.return_periods)
+        elif self.return_values is not UNSET:
+            return_data = return_data.assign_coords(one_in_x=self.return_values)
 
         # Step 4: Create result dataset
         logger.info("Creating result dataset...")
         step_start = time_module.time()
         result_ds = self._create_one_in_x_result_dataset(
-            return_values, p_values, batch_data
+            return_data, p_values, batch_data
         )
         logger.debug(
             "Result dataset creation took %.1fs", time_module.time() - step_start
@@ -1084,23 +1136,30 @@ class MetricCalc(DataProcessor):
         else:
             block_maxima_computed = block_maxima
 
+        if self.return_periods is not UNSET:
+            output_length = len(self.return_periods)
+        else:
+            output_length = len(self.return_values)
+
         # Apply the return value fitting function
-        return_values, p_values = xr.apply_ufunc(
-            self._fit_return_values_1d,
+        return_data, p_values = xr.apply_ufunc(
+            self._fit_return_variable_1d,
             block_maxima_computed,
             kwargs={
                 "return_periods": self.return_periods,
+                "return_values": self.return_values,
                 "distr": self.distribution,
+                "extremes_type": self.extremes_type,
                 "get_p_value": self.goodness_of_fit_test,
             },
             input_core_dims=[[time_dim]],
             output_core_dims=[["one_in_x"], []],
-            output_sizes={"one_in_x": len(self.return_periods)},
+            output_sizes={"one_in_x": output_length},
             output_dtypes=("float", "float"),
             vectorize=True,
         )
 
-        return return_values, p_values
+        return return_data, p_values
 
     def _fit_with_early_spatial_batching(
         self,
@@ -1142,8 +1201,13 @@ class MetricCalc(DataProcessor):
             batch_size,
         )
 
-        return_values_list = []
+        return_data_list = []
         p_values_list = []
+        # Set expected length of ufunc return
+        if self.return_periods is not UNSET:
+            output_length = len(self.return_periods)
+        else:
+            output_length = len(self.return_values)
 
         step_start = time_module.time()
 
@@ -1176,22 +1240,24 @@ class MetricCalc(DataProcessor):
             time_dim = "time" if "time" in chunk_block_maxima.dims else "time_delta"
 
             # Step 3: Fit distributions for this spatial chunk
-            chunk_return_values, chunk_p_values = xr.apply_ufunc(
-                self._fit_return_values_1d,
+            chunk_return_data, chunk_p_values = xr.apply_ufunc(
+                self._fit_return_variable_1d,
                 chunk_block_maxima,
                 kwargs={
                     "return_periods": self.return_periods,
+                    "return_values": self.return_values,
                     "distr": self.distribution,
+                    "extremes_type": self.extremes_type,
                     "get_p_value": self.goodness_of_fit_test,
                 },
                 input_core_dims=[[time_dim]],
                 output_core_dims=[["one_in_x"], []],
-                output_sizes={"one_in_x": len(self.return_periods)},
+                output_sizes={"one_in_x": output_length},
                 output_dtypes=("float", "float"),
                 vectorize=True,
             )
 
-            return_values_list.append(chunk_return_values)
+            return_data_list.append(chunk_return_data)
             p_values_list.append(chunk_p_values)
 
             # Clean up chunk data
@@ -1215,17 +1281,17 @@ class MetricCalc(DataProcessor):
 
         # Concatenate results along spatial dimension
         logger.info("Concatenating %d chunk results...", n_batches)
-        return_values = xr.concat(return_values_list, dim=spatial_dim)
+        return_data = xr.concat(return_data_list, dim=spatial_dim)
         p_values = xr.concat(p_values_list, dim=spatial_dim)
 
         # Clean up
-        del return_values_list, p_values_list
+        del return_data_list, p_values_list
         gc.collect()
 
         total_time = time_module.time() - step_start
         logger.info("Spatial processing complete (%.1fs total)", total_time)
 
-        return return_values, p_values
+        return return_data, p_values
 
     def _preprocess_variable_for_one_in_x(
         self, data: xr.DataArray, var_name: str
@@ -1303,12 +1369,20 @@ class MetricCalc(DataProcessor):
             )
         elif self.one_in_x_config is not UNSET:
             # 1-in-X calculations
-            return_periods_str = ", ".join(map(str, self.return_periods))
-            description_parts.append(
-                f"1-in-X return values for periods [{return_periods_str}] were "
-                f"calculated using {self.distribution} distribution with "
-                f"{self.extremes_type} extremes over {self.event_duration[0]} {self.event_duration[1]} events"
-            )
+            if self.return_periods is not UNSET:
+                return_periods_str = ", ".join(map(str, self.return_periods))
+                description_parts.append(
+                    f"1-in-X return values for periods [{return_periods_str}] were "
+                    f"calculated using {self.distribution} distribution with "
+                    f"{self.extremes_type} extremes over {self.event_duration[0]} {self.event_duration[1]} events"
+                )
+            elif self.return_values is not UNSET:
+                return_values_str = ", ".join(map(str, self.return_values))
+                description_parts.append(
+                    f"1-in-X return periods for values [{return_values_str}] were "
+                    f"calculated using {self.distribution} distribution with "
+                    f"{self.extremes_type} extremes over {self.event_duration[0]} {self.event_duration[1]} events"
+                )
             transformation_description = (
                 f"Process '{self.name}' applied to the data. "
                 f"{' and '.join(description_parts)}."
@@ -1358,7 +1432,7 @@ class MetricCalc(DataProcessor):
         Parameters
         ----------
         ret_vals : xr.DataArray
-            Return values DataArray
+            Return values or periods DataArray
         p_vals : xr.DataArray | None
             P-values DataArray
         data_array : xr.DataArray
@@ -1369,10 +1443,25 @@ class MetricCalc(DataProcessor):
         xr.Dataset
             Final result dataset with return_value and p_values
         """
-        if p_vals is not None:
-            result = xr.Dataset({"return_values": ret_vals, "p_values": p_vals})
-        else:
-            result = xr.Dataset({"return_values": ret_vals})
+        if self.return_periods is not UNSET:
+            if p_vals is not None:
+                result = xr.Dataset({"return_values": ret_vals, "p_values": p_vals})
+            else:
+                result = xr.Dataset({"return_values": ret_vals})
+        if self.return_values is not UNSET:
+            probability = 1.0 / ret_vals
+            if p_vals is not None:
+                result = xr.Dataset(
+                    {
+                        "return_periods": ret_vals,
+                        "return_probabilities": probability,
+                        "p_values": p_vals,
+                    }
+                )
+            else:
+                result = xr.Dataset(
+                    {"return_periods": ret_vals, "return_probabilities": probability}
+                )
 
         # Add attributes
         result.attrs.update(
