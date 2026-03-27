@@ -146,6 +146,14 @@ class TestMetricCalcOneInXInit:
         ):
             MetricCalc({"one_in_x": {}})
 
+    def test_one_in_x_init_return_values_and_return_periods_raises(self):
+        """Test that missing return_periods raises ValueError."""
+        with pytest.raises(
+            ValueError,
+            match="Only set one of return_periods or return_values for 1-in-X calculations",
+        ):
+            MetricCalc({"one_in_x": {"return_periods": [1], "return_values": [1]}})
+
     def test_one_in_x_init_with_return_values_list(self):
         """Test initialization with return_values as a list."""
         processor = MetricCalc({"one_in_x": {"return_values": [20, 25, 30]}})
@@ -222,7 +230,7 @@ class TestMetricCalcOneInXInit:
 
 
 class TestMetricCalcFitReturnValues1d:
-    """Test class for the _fit_return_variable_1d distribution fitting method."""
+    """Test class for the _fit_return_variable_1d distribution fitting method with return period input."""
 
     def setup_method(self):
         """Set up test fixtures for distribution fitting tests."""
@@ -392,6 +400,190 @@ class TestMetricCalcFitReturnValues1d:
         )
 
         assert np.all(np.isnan(return_values))
+        assert np.isnan(p_value)
+
+
+class TestMetricCalcFitReturnPeriods1d:
+    """Test class for the _fit_return_variable_1d distribution fitting method with return value input."""
+
+    def setup_method(self):
+        """Set up test fixtures for distribution fitting tests."""
+        # Create a processor with basic 1-in-X config
+        self.processor = MetricCalc(
+            {
+                "one_in_x": {
+                    "return_values": [1, 2, 3],
+                    "distribution": "gev",
+                    "goodness_of_fit_test": True,
+                }
+            }
+        )
+        # Generate realistic block maxima data using GEV distribution
+        np.random.seed(42)
+        shape, loc, scale = 0.1, 30, 5
+        self.valid_block_maxima = stats.genextreme.rvs(
+            c=-shape, loc=loc, scale=scale, size=30, random_state=42
+        )
+        self.return_values = np.array([1, 2, 3])
+
+    @pytest.mark.parametrize(
+        "distribution",
+        ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"],
+    )
+    def test_fit_distribution_types(self, distribution):
+        """Test fitting with all supported distribution types."""
+        processor = MetricCalc(
+            {
+                "one_in_x": {
+                    "return_values": [110, 115, 120],
+                    "distribution": distribution,
+                    "goodness_of_fit_test": False,
+                }
+            }
+        )
+
+        return_periods, p_value = processor._fit_return_variable_1d(
+            self.valid_block_maxima,
+            UNSET,
+            np.array([110, 115, 120]),
+            distr=distribution,
+            get_p_value=False,
+        )
+
+        # Should return valid values (not NaN)
+        assert return_periods.shape == (3,)
+        assert not np.all(np.isnan(return_periods))
+        # p_value should be NaN when not requested
+        assert np.isnan(p_value)
+
+    def test_fit_invalid_distribution_returns_invalid(self):
+        """Test that invalid distribution type returns invalid values (caught by exception handler).
+
+        Note: Due to numpy dtype handling, this may return either NaN (for float arrays)
+        or invalid integer values. The key is that the function doesn't crash.
+        """
+        return_periods, p_value = self.processor._fit_return_variable_1d(
+            self.valid_block_maxima,
+            UNSET,
+            self.return_values,
+            distr="invalid_dist",
+            get_p_value=False,
+        )
+
+        # Invalid distribution should be handled gracefully
+        # Check that p_value is NaN (always float)
+        assert np.isnan(p_value)
+        # Return periods array should have the right shape
+        assert return_periods.shape == self.return_values.shape
+
+    def test_fit_insufficient_data_returns_nan(self):
+        """Test that insufficient data returns NaN values."""
+        insufficient_data = np.array([1.0, 2.0])  # Only 2 points, need at least 3
+
+        return_periods, p_value = self.processor._fit_return_variable_1d(
+            insufficient_data,
+            UNSET,
+            self.return_values,
+            distr="gev",
+            get_p_value=True,
+        )
+
+        assert np.all(np.isnan(return_periods))
+        assert np.isnan(p_value)
+
+    def test_fit_with_nan_values(self):
+        """Test fitting with NaN values in the data (should be filtered out)."""
+        data_with_nans = self.valid_block_maxima.copy()
+        data_with_nans[0] = np.nan
+        data_with_nans[5] = np.nan
+
+        return_periods, p_value = self.processor._fit_return_variable_1d(
+            data_with_nans,
+            UNSET,
+            self.return_values,
+            distr="gev",
+            get_p_value=False,
+        )
+
+        # Should still return valid values after filtering NaNs
+        assert not np.all(np.isnan(return_periods))
+
+    def test_fit_with_p_value(self):
+        """Test that p-value is calculated when requested."""
+        return_periods, p_value = self.processor._fit_return_variable_1d(
+            self.valid_block_maxima,
+            UNSET,
+            self.return_values,
+            distr="gev",
+            get_p_value=True,
+        )
+
+        assert not np.isnan(p_value)
+        assert 0 <= p_value <= 1
+
+    def test_fit_without_p_value(self):
+        """Test that p-value is NaN when not requested."""
+        return_periods, p_value = self.processor._fit_return_variable_1d(
+            self.valid_block_maxima,
+            UNSET,
+            self.return_values,
+            distr="gev",
+            get_p_value=False,
+        )
+
+        assert np.isnan(p_value)
+
+    def test_fit_extremes_type_min(self):
+        """Test fitting with extremes_type='min' for minima."""
+        # For minima, return values should be lower for longer return periods
+        return_periods_min, _ = self.processor._fit_return_variable_1d(
+            self.valid_block_maxima,
+            UNSET,
+            self.return_values,
+            distr="gev",
+            extremes_type="min",
+            get_p_value=False,
+        )
+
+        return_periods_max, _ = self.processor._fit_return_variable_1d(
+            self.valid_block_maxima,
+            UNSET,
+            self.return_values,
+            distr="gev",
+            extremes_type="max",
+            get_p_value=False,
+        )
+
+        # Min and max should give different results
+        assert not np.allclose(return_periods_min, return_periods_max)
+
+    def test_fit_return_periods_increase_with_return_value(self):
+        """Test that return periods increase with return value for maxima."""
+        return_periods, _ = self.processor._fit_return_variable_1d(
+            self.valid_block_maxima,
+            UNSET,
+            self.return_values,
+            distr="gev",
+            extremes_type="max",
+            get_p_value=False,
+        )
+
+        # For maxima, longer return periods should give higher values
+        assert return_periods[0] < return_periods[1] < return_periods[2]
+
+    def test_fit_all_nan_data(self):
+        """Test fitting with all NaN data returns NaN."""
+        all_nan_data = np.full(30, np.nan)
+
+        return_periods, p_value = self.processor._fit_return_variable_1d(
+            all_nan_data,
+            UNSET,
+            self.return_values,
+            distr="gev",
+            get_p_value=True,
+        )
+
+        assert np.all(np.isnan(return_periods))
         assert np.isnan(p_value)
 
 
