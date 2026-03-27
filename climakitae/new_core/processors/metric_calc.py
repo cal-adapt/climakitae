@@ -790,7 +790,10 @@ class MetricCalc(DataProcessor):
                 raise ValueError("one of return_periods or return_values must be set")
 
         except (ValueError, RuntimeError, np.linalg.LinAlgError):
-            return np.full_like(return_periods, np.nan), np.nan
+            if return_periods is not UNSET:
+                return np.full_like(return_periods, np.nan), np.nan
+            else:
+                return np.full_like(return_values, np.nan), np.nan
 
     def _calculate_one_in_x_vectorized(self, data_array: xr.DataArray) -> xr.Dataset:
         """

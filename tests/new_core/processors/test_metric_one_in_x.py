@@ -412,7 +412,7 @@ class TestMetricCalcFitReturnPeriods1d:
         self.processor = MetricCalc(
             {
                 "one_in_x": {
-                    "return_values": [1, 2, 3],
+                    "return_values": [100, 1000, 10000],
                     "distribution": "gev",
                     "goodness_of_fit_test": True,
                 }
@@ -424,7 +424,7 @@ class TestMetricCalcFitReturnPeriods1d:
         self.valid_block_maxima = stats.genextreme.rvs(
             c=-shape, loc=loc, scale=scale, size=30, random_state=42
         )
-        self.return_values = np.array([1, 2, 3])
+        self.return_values = np.array([100, 1000, 10000])
 
     @pytest.mark.parametrize(
         "distribution",
@@ -435,7 +435,7 @@ class TestMetricCalcFitReturnPeriods1d:
         processor = MetricCalc(
             {
                 "one_in_x": {
-                    "return_values": [110, 115, 120],
+                    "return_values": [100, 1000, 10000],
                     "distribution": distribution,
                     "goodness_of_fit_test": False,
                 }
@@ -445,7 +445,7 @@ class TestMetricCalcFitReturnPeriods1d:
         return_periods, p_value = processor._fit_return_variable_1d(
             self.valid_block_maxima,
             UNSET,
-            np.array([110, 115, 120]),
+            np.array([100, 1000, 10000]),
             distr=distribution,
             get_p_value=False,
         )
