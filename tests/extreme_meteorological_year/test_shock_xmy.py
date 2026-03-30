@@ -298,7 +298,7 @@ def mock_t_ds() -> xr.Dataset:
 
 @pytest.mark.advanced
 class TestShockXMYClass:
-    """Test the TMY class with fake data."""
+    """Test the shock_XMY class with fake data."""
 
     @pytest.mark.integration
     def test_init_with_station(self):
@@ -606,7 +606,7 @@ class TestShockXMYClass:
             mock_export.assert_called_once()
 
     def test_get_candidate_months(self):
-        """Test the TMY workflow calls up to set_top_months."""
+        """Test the shock XMY workflow calls up to set_top_months."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
