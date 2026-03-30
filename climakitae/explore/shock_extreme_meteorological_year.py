@@ -1,7 +1,7 @@
 """
-Functions for Extreme Meteorological Year creation.
+Functions for Shock Extreme Meteorological Year creation.
 
-This code has been ported from the cae-notebooks shock_xmy notebook.
+This code has been ported from the cae-notebooks shock_extreme_meteorological_year notebook.
 It includes statistical code for creating cumulative distributions and the F-S statistic
 along with a TMY class that organizes the workflow code.
 """
@@ -37,7 +37,7 @@ from climakitae.explore.typical_meteorological_year import (
 def shock_fs_statistic(cdf_climatology, cdf_monthly):
     """
     Calculates the Finkelstein-Schafer statistic, specific to shock XMY calculation:
-    Difference between long-term climatology and candidate CDF, divided by number of days in month
+    Relative difference between long-term climatology and candidate CDF, divided by number of days in month
     Retaining the DIRECTION of the difference by not taking the absolute difference
     """
     days_per_mon = xr.DataArray(
@@ -82,7 +82,8 @@ def shock_get_top_months(
 
     Parameters
     ----------
-    exteme: 'hot' or 'cold'
+    exteme: str, 'hot' or 'cold'
+        Type of extreme
     da_fs: xr.Dataset
        Summed weighted f-s statistic
     skip_last: bool
@@ -152,6 +153,8 @@ class shock_XMY:
 
     Parameters
     ----------
+    extreme: str, 'hot' or 'cold'
+        Type of shock extreme
     start_year : str
         Initial year of TMY period (time approach)
     end_year : str
@@ -164,8 +167,6 @@ class shock_XMY:
         Latitude for TMY data if station_name not set
     longitude : float | int (optional)
         Longitude for TMY data if station_name not set
-    extreme: str, 'hot' or 'cold'
-        Type of shock extreme
     verbose: bool
         True to increase verbosity
 
@@ -871,7 +872,7 @@ class shock_XMY:
         """Run CDF functions to get top candidates.
 
         This function can be used to view the candidate months
-        without running the entire TMY workflow.
+        without running the entire Shock XMY workflow.
         """
         self._vprint(f"Getting top months for {self.extreme} shock XMY.")
         self.set_cdf_climatology()
@@ -880,9 +881,9 @@ class shock_XMY:
         self.set_top_months()
 
     def generate_xmy(self):
-        """Run the whole TMY workflow."""
+        """Run the whole Shock XMY workflow."""
         # This runs the whole workflow at once
-        print("Running TMY workflow.")
+        print("Running Shock XMY workflow.")
         self.load_all_variables()
         self.get_candidate_months()
         self.run_xmy_analysis()
