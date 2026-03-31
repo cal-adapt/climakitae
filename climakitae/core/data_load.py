@@ -1814,7 +1814,7 @@ def _station_apply(
             # Bias correct the data
             da_adj = QDM.adjust(data_sliced)
             da_adj.name = gridded_da.name  # Rename it to get back to original name
-            da_adj["time"] = da_adj.indexes["time"].to_datetimeindex()
+            da_adj["time"] = da_adj.indexes["time"].to_datetimeindex(time_unit="ns")
 
             # Ensure bias_adjustment attribute is present. xsdba's adjust
             # implementation usually sets this, but in some execution paths

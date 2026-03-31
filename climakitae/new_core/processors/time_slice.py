@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 @register_processor(
     "time_slice",
-    priority=100,
+    priority=150,
 )
 class TimeSlice(DataProcessor):
     """

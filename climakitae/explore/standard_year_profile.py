@@ -9,6 +9,7 @@ be returned.
 from typing import Tuple
 from typing import Any, Dict
 
+from IPython.display import ProgressBar
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -16,7 +17,7 @@ from tqdm.auto import tqdm  # Progress bar
 
 from climakitae.core.constants import UNSET, WRF_BA_MODELS
 from climakitae.core.data_interface import DataInterface, get_data
-from climakitae.core.paths import VARIABLE_DESCRIPTIONS_CSV_PATH
+from climakitae.core.paths import STATIONS_CSV_PATH, VARIABLE_DESCRIPTIONS_CSV_PATH
 from climakitae.explore.typical_meteorological_year import is_HadISD, match_str_to_wl
 from climakitae.util.utils import julianDay_to_date, read_csv_file
 from climakitae.util.warming_levels import get_gwl_at_year
@@ -27,6 +28,9 @@ xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
 def _get_station_coordinates(station_name: str) -> Tuple[float, float]:
     """
     Look up the latitude and longitude coordinates for a given station name.
+
+    Reads directly from the stations CSV to avoid the overhead of
+    instantiating DataInterface (which eagerly loads all boundary data).
 
     Parameters
     ----------
@@ -41,22 +45,21 @@ def _get_station_coordinates(station_name: str) -> Tuple[float, float]:
     Raises
     ------
     ValueError
-        If the station name is not found in the DataInterface.
+        If the station name is not found in the stations CSV.
 
     Examples
     --------
     >>> lat, lon = _get_station_coordinates("San Diego Lindbergh Field (KSAN)")
     >>> print(f"Latitude: {lat}, Longitude: {lon}")
     """
-    data_interface = DataInterface()
-    stations_gdf = data_interface.stations_gdf
+    stations_df = read_csv_file(STATIONS_CSV_PATH)
 
-    # Look up the station in the GeoDataFrame
-    station_row = stations_gdf[stations_gdf["station"] == station_name]
+    # Look up the station in the DataFrame
+    station_row = stations_df[stations_df["station"] == station_name]
 
     if station_row.empty:
         raise ValueError(
-            f"Station '{station_name}' not found in the DataInterface. "
+            f"Station '{station_name}' not found. "
             f"Please check the station name and try again."
         )
 
@@ -1545,6 +1548,14 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         f"      ⚙️ Computing quantiles for {len(warming_levels)} warming level(s) and {n_simulations} simulation(s)"
     )
 
+    # Eagerly compute all dask data at once (one round-trip to scheduler)
+    if hasattr(data.data, "chunks"):
+        print("      📥 Loading data into memory...")
+        from dask.diagnostics import ProgressBar
+
+        with ProgressBar():
+            data = data.compute()
+
     # Initialize storage for profiles
     profile_data = {}
 
@@ -1568,30 +1579,31 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
                 else:
                     subset_data = data.isel(warming_level=wl_idx)
 
-                # Group by hour_of_year and find the actual data value closest to the quantile
-                # This gives us the actual data point closest to the q-th quantile for each of the 8760 hours
-                # Load data to avoid dask chunking issues with quantile
-                if hasattr(subset_data.data, "chunks"):
-                    # If it's a dask array, load it into memory
-                    subset_data = subset_data.compute()
+                # Vectorized quantile computation using numpy
+                # Reshape raw values into (n_years, hours_per_year) then compute
+                # the quantile across years for each hour-of-year position
+                values = subset_data.values
+                n_total = len(values)
+                usable = (n_total // hours_per_year) * hours_per_year
+                year_hour_matrix = values[:usable].reshape(-1, hours_per_year)
 
-                def _closest_to_quantile(dat: xr.DataArray) -> xr.DataArray:
-                    """Find the actual data value closest to the specified quantile."""
-                    # Stack all dimensions except time_delta into a single dimension
-                    stacked = dat.stack(all_dims=list(dat.dims))
-                    # Compute the target quantile value
-                    target_quantile = stacked.quantile(q, dim="all_dims")
-                    # Find the index of the value closest to the quantile
-                    closest_idx = abs(stacked - target_quantile).argmin(dim="all_dims")
-                    # Return the actual data value at that index
-                    return xr.DataArray(stacked.isel(all_dims=closest_idx).values)
+                # Compute quantile targets for each of the 8760 hour positions
+                quantile_targets = np.nanquantile(
+                    year_hour_matrix, q, axis=0
+                )  # shape: (8760,)
 
-                profile_1d = subset_data.groupby("hour_of_year").map(
-                    _closest_to_quantile
-                )
+                # For each hour position, find the actual year whose value is
+                # closest to the quantile (avoids interpolation)
+                diffs = np.abs(
+                    year_hour_matrix - quantile_targets[np.newaxis, :]
+                )  # (n_years, 8760)
+                closest_year_idx = np.nanargmin(diffs, axis=0)  # (8760,)
+                profile_1d = year_hour_matrix[
+                    closest_year_idx, np.arange(hours_per_year)
+                ]
 
                 # Reshape to (days_in_year, 24) for the final DataFrame
-                profile_reshaped = profile_1d.values.reshape(
+                profile_reshaped = profile_1d[: days_in_year * hours_per_day].reshape(
                     days_in_year, hours_per_day
                 )
 
