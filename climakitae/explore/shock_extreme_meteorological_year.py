@@ -6,21 +6,27 @@ It includes statistical code for creating cumulative distributions and the F-S s
 along with a TMY class that organizes the workflow code.
 """
 
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+
+from dask.diagnostics import ProgressBar
 import numpy as np
 import pandas as pd
 import pkg_resources
+import pytz
 import xarray as xr
 from scipy import optimize
+from timezonefinder import TimezoneFinder
 from tqdm.auto import tqdm  # Progress bar
 
 from climakitae.core.constants import UNSET
 from climakitae.core.data_export import write_tmy_file
-from climakitae.core.data_interface import get_data
-from climakitae.tools.derived_variables import compute_relative_humidity
-from climakitae.util.utils import (
-    add_dummy_time_to_wl,
-    convert_to_local_time,
-    get_closest_gridcell,
+from climakitae.new_core.user_interface import ClimateData
+from climakitae.tools.derived_variables import (
+    compute_dewpointtemp,
+    compute_relative_humidity,
+    compute_wind_dir,
+    compute_wind_mag,
 )
 
 from climakitae.explore.typical_meteorological_year import (
@@ -31,8 +37,9 @@ from climakitae.explore.typical_meteorological_year import (
     remove_pinatubo_years,
     match_str_to_wl,
     get_cdf_monthly,
+    _get_hadisd_stations,
+    _wait_with_progress,
 )
-
 
 def shock_fs_statistic(cdf_climatology, cdf_monthly):
     """
@@ -287,7 +294,21 @@ class shock_XMY:
         ]
         # Data only available for these scenarios
         self.scenario = ["Historical Climate", "SSP 3-7.0"]
-        # These are the variables used in TMY
+        # Raw catalog variables to fetch (variable_id → display name)
+        # These are fetched directly from the catalog in their native units.
+        self._raw_vars = {
+            "t2": "Air Temperature at 2m",
+            "q2": "Water Vapor Mixing Ratio at 2m",
+            "psfc": "Surface Pressure",
+            "u10": "u10",
+            "v10": "v10",
+            "swdnb": "Instantaneous downwelling shortwave flux at bottom",
+            "swddni": "Shortwave surface downward direct normal irradiance",
+            "swddif": "Shortwave surface downward diffuse irradiance",
+            "lwdnb": "Instantaneous downwelling longwave flux at bottom",
+        }
+        # Full set of TMY variables (including derived) with desired units.
+        # Used for display name references throughout the rest of the TMY code.
         self.vars_and_units = {
             "Air Temperature at 2m": "degC",
             "Dew point temperature": "degC",
@@ -318,12 +339,7 @@ class shock_XMY:
         station_name: str
            Name of HadISD station
         """
-        # read in station file of CA HadISD stations
-        stn_file = pkg_resources.resource_filename(
-            "climakitae", "data/hadisd_stations.csv"
-        )
-        stn_file = pd.read_csv(stn_file, index_col=[0])
-        # grab airport
+        stn_file = _get_hadisd_stations()
         try:
             self.stn_name = station_name
             self.stn_code = stn_file.loc[stn_file["station"] == self.stn_name][
