@@ -187,7 +187,6 @@ class TestFunctionsForShockXMY:
         # Lowest stat value is in 2003 for all sims, months
         assert (result.year.values == [2003 for x in range(0, 24)]).all()
 
-
     def test_get_top_months_skip_last(self):
         """Check get_top_months excludes the final month as an option only when
         the skip_last flag is set to True."""
