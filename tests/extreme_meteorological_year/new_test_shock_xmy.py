@@ -1,7 +1,7 @@
 """
 Test suite for climakitae/explore/typical_meteorological_year.py
 
-Includes tests for the more general functions along with the TMY class.
+Includes tests for the more general functions along with the shock_XMY class.
 """
 
 import warnings
@@ -24,8 +24,8 @@ from climakitae.explore.shock_extreme_meteorological_year import (
 )
 
 
-class TestFunctionsForTMY:
-    """Test the general functions that are not part of the TMY class."""
+class TestFunctionsForXMY:
+    """Test the general functions that are not part of the shock_XMY class."""
 
     def test_fs_statistic(self):
         """Test F-S statistic computation on cdf data."""
@@ -350,8 +350,8 @@ def mock_complete_hourly_ds() -> xr.Dataset:
 
 
 @pytest.mark.advanced
-class TestTMYClass:
-    """Test the TMY class with fake data."""
+class TestXMYClass:
+    """Test the shock_XMY class with fake data."""
 
     @pytest.mark.integration
     def test_init_with_station(self):
@@ -361,7 +361,7 @@ class TestTMYClass:
         start_year = 1990
         end_year = 2020
         extreme = "hot"
-        # Initialize TMY object
+        # Initialize shock_XMY object
         xmy = shock_XMY(
             extreme=extreme,
             start_year=start_year,
@@ -405,7 +405,7 @@ class TestTMYClass:
         start_year = 1990
         end_year = 2020
         extreme = "hot"
-        # Initialize TMY object
+        # Initialize shock_XMY object
         xmy = shock_XMY(
             extreme=extreme,
             start_year=start_year,
@@ -427,7 +427,7 @@ class TestTMYClass:
         end_year = 2020
         station_name = "custom_station"
         extreme = "hot"
-        # Initialize TMY object
+        # Initialize shock_XMY object
         xmy = shock_XMY(
             extreme=extreme,
             start_year=start_year,
@@ -464,7 +464,7 @@ class TestTMYClass:
         lon = -117.81
         warming_level = 2.0
         extreme = "hot"
-        # Initialize TMY object
+        # Initialize shock_XMY object
         xmy = shock_XMY(
             extreme=extreme, warming_level=warming_level, latitude=lat, longitude=lon
         )
@@ -675,7 +675,7 @@ class TestTMYClass:
         start_year = 2001
         end_year = 2003
         extreme = "hot"
-        # Initialize TMY object
+        # Initialize shock_XMY object
         xmy = shock_XMY(extreme, start_year, end_year, station_name=stn_name)
         with (
             patch.object(xmy, "load_all_variables") as mock_load,
@@ -738,12 +738,12 @@ class TestTMYClass:
             mock_export.assert_called_once()
 
     def test_get_candidate_months(self):
-        """Test the TMY workflow calls up to set_top_months."""
+        """Test the shock_XMY workflow calls up to set_top_months."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
         extreme = "hot"
-        # Initialize TMY object
+        # Initialize shock_XMY object
         xmy = shock_XMY(
             extreme=extreme,
             start_year=start_year,
@@ -857,7 +857,7 @@ class TestTMYClass:
         start_year = 2001
         end_year = 2003
         extreme = "hot"
-        # Initialize TMY object
+        # Initialize shock_XMY object
         xmy = shock_XMY(
             extreme=extreme,
             start_year=start_year,
