@@ -16,7 +16,6 @@ from scipy.optimize import OptimizeWarning
 from climakitae.core.constants import UNSET
 from climakitae.explore.shock_extreme_meteorological_year import (
     shock_XMY,
-    compute_weighted_fs,
     shock_compute_weighted_fs_sum,
     shock_fs_statistic,
     get_cdf,
@@ -188,8 +187,8 @@ class TestFunctionsForTMY:
         for col in ["month", "simulation", "year"]:
             assert col in result.columns
         assert (np.unique(result["simulation"]) == np.array(["sim1", "sim2"])).all()
-        # Lowest stat value is in 2001 for all sims, months
-        assert (result.year.values == [2004 for x in range(0, 24)]).all()
+        # Highest stat value is in 2001 for all sims, months
+        assert (result.year.values == [2003 for x in range(0, 24)]).all()
 
     def test_get_top_months_skip_last(self):
         """Check get_top_months excludes the final month as an option only when
@@ -743,7 +742,7 @@ class TestTMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        extreme = "hit"
+        extreme = "hot"
         # Initialize TMY object
         xmy = shock_XMY(
             extreme=extreme,
