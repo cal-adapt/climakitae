@@ -1038,7 +1038,7 @@ class shock_XMY:
             clean_stn_name = (
                 self.stn_name.replace(" ", "_").replace("(", "").replace(")", "")
             )
-            filename = f"{self.extreme}_shock_XMY_{clean_stn_name}_{clean_sim}".lower()
+            filename = f"{self.extreme}_shock_xmy_{clean_stn_name}_{clean_sim}".lower()
             write_tmy_file(
                 filename,
                 self.xmy_data_to_export[sim],
