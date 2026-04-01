@@ -38,8 +38,8 @@ from climakitae.explore.typical_meteorological_year import (
     match_str_to_wl,
     get_cdf_monthly,
     _get_hadisd_stations,
-    _wait_with_progress,
 )
+
 
 def shock_fs_statistic(cdf_climatology, cdf_monthly):
     """
@@ -138,10 +138,10 @@ def shock_get_top_months(
 
 
 class shock_XMY:
-    """Encapsulate the code needed to generate a Shock Extreme Meteorological Year (TMY) files.
+    """Encapsulate the code needed to generate Typical Meteorological Year (TMY) files.
 
-    Uses WRF hourly data to produce shock XMYs. User provides the start and end years along
-    with location to generate file, and the direction of the extreme.
+    Uses WRF hourly data to produce TMYs. User provides the start and end years along
+    with location to generate file.
 
     How to set location: The location can either be provided as latitude and
     longitude coordinates or as the name of a HadISD station in California. Do not set
@@ -210,7 +210,7 @@ class shock_XMY:
     all_vars: xr.Dataset
         All loaded variables for TMY
     xmy_data_to_export: dict[pd.Dataframe]
-        Dictionary of XMY results by simulation
+        Dictionary of TMY results by simulation
     _skip_last: bool
         Internal flag to track last year for warming level approach
     """
@@ -227,7 +227,7 @@ class shock_XMY:
         verbose: bool = True,
     ):
 
-        # Here we go through a few different ways to get the XMY location
+        # Here we go through a few different ways to get the TMY location
         match latitude, longitude, station_name:
             # UNSET will match to object type
             # Case 1: All variables set
@@ -238,19 +238,19 @@ class shock_XMY:
                     )
                 else:
                     print(
-                        f"Initializing XMY object for custom location: {latitude} N, {longitude} E with name '{station_name}'."
+                        f"Initializing TMY object for custom location: {latitude} N, {longitude} W with name '{station_name}'."
                     )
                     self._set_loc_from_lat_lon(latitude, longitude)
                     self.stn_name = station_name
             # Case 2: lat/lon provided, no station_name string
             case float() | int(), float() | int(), object():
                 print(
-                    f"Initializing XMY object for custom location: {latitude} N, {longitude} E."
+                    f"Initializing TMY object for custom location: {latitude} N, {longitude} W."
                 )
                 self._set_loc_from_lat_lon(latitude, longitude)
             # Case 3: station name provided, lat/lon not numeric
             case object(), object(), str():
-                print(f"Initializing XMY object for {station_name}.")
+                print(f"Initializing TMY object for {station_name}.")
                 self._set_loc_from_stn_name(station_name)
             # Last case: something else provided
             case _:
@@ -377,142 +377,139 @@ class shock_XMY:
         if self.verbose:
             print(msg)
 
-    def _load_time_approach(self, varname: str, units: str) -> xr.DataArray:
-        """Run get_data with the time level approach.
-
-        Parameters
-        ----------
-        varname: str
-           Name of desired catalog variable
-        units: str
-           Desired units
+    def _get_utc_offset_hours(self) -> int:
+        """Compute and cache the UTC offset for this location.
 
         Returns
         -------
-        xr.DataArray
+        int
+            Hours offset from UTC (negative for west of prime meridian).
         """
-        # Extra year in UTC time to get full period in local time.
-        if self.end_year == 2100:
-            print(
-                "End year is 2100. The final day in timeseries may be incomplete after data is converted to local time."
+        if hasattr(self, "_utc_offset_hours"):
+            return self._utc_offset_hours
+
+        tf = TimezoneFinder()
+        tz_name = tf.timezone_at(lng=self.stn_lon, lat=self.stn_lat)
+        if tz_name is None:
+            raise ValueError(
+                f"Could not determine timezone for coordinates "
+                f"({self.stn_lat}, {self.stn_lon})."
             )
-            new_end_year = self.end_year
-        else:
-            new_end_year = self.end_year + 1
+        tz = pytz.timezone(tz_name)
+        # Use a fixed reference date for consistent standard-time offset
+        offset = tz.utcoffset(datetime(2020, 1, 1))
+        self._utc_offset_hours = int(offset.total_seconds() / 3600)
+        self._timezone_name = tz_name
+        return self._utc_offset_hours
 
-        data = get_data(
-            variable=varname,
-            resolution="3 km",
-            timescale="hourly",
-            data_type="Gridded",
-            units=units,
-            latitude=self.lat_range,
-            longitude=self.lon_range,
-            area_average="No",
-            scenario=self.scenario,
-            time_slice=(self.start_year, new_end_year),
-        )
-        return data
+    def _fetch_raw_variable(
+        self, variable_id: str, table_id: str = "1hr"
+    ) -> xr.DataArray:
+        """Fetch a single raw catalog variable via ClimateData.
 
-    def _load_warming_level_approach(self, varname: str, units: str) -> xr.DataArray:
-        """Run get_data with the warming level approach.
+        Uses the new core ClimateData interface with clip processor
+        for point selection and time_slice or warming_level as appropriate.
 
         Parameters
         ----------
-        varname: str
-           Name of desired catalog variable
-        units: str
-           Desired units
+        variable_id : str
+            Catalog variable_id (e.g., 't2', 'q2', 'psfc').
+        table_id : str
+            Temporal resolution: '1hr' or 'day'. Default '1hr'.
 
         Returns
         -------
         xr.DataArray
         """
-        # Extra year in UTC time to get full period in local time.
-        data = get_data(
-            variable=varname,
-            resolution="3 km",
-            timescale="hourly",
-            data_type="Gridded",
-            units=units,
-            latitude=self.lat_range,
-            longitude=self.lon_range,
-            area_average="No",
-            approach="Warming Level",
-            warming_level=[self.warming_level],
+        cd = ClimateData(verbosity=-1)
+        query = (
+            cd.catalog("cadcat")
+            .activity_id("WRF")
+            .institution_id("UCLA")
+            .table_id(table_id)
+            .grid_label("d03")
+            .variable(variable_id)
         )
-        data = add_dummy_time_to_wl(data)
-        # Set the start and end years based on the dummy time
-        self.start_year = data.time[0].dt.year.item()
-        self.end_year = data.time[-1].dt.year.item()
 
-        return data
+        processes = {
+            "clip": (self.stn_lat, self.stn_lon),
+        }
 
-    def _load_single_variable(self, varname: str, units: str) -> xr.DataArray:
-        """Fetch catalog data for one variable.
-
-        Parameters
-        ----------
-        varname: str
-           Name of desired catalog variable
-        units: str
-           Desired units
-
-        Returns
-        -------
-        xr.DataArray
-        """
-        # Warming level approach
         if self.warming_level is not UNSET:
-            data = self._load_warming_level_approach(varname, units)
-            simulations = [x + "_historical+ssp370" for x in self.simulations]
-        # Use Time approach
+            processes["warming_level"] = {
+                "warming_levels": [self.warming_level],
+                "add_dummy_time": True,
+            }
         else:
-            data = self._load_time_approach(varname, units)
-            simulations = self.simulations
+            # Extra year in UTC time to get full period in local time.
+            if self.end_year == 2100:
+                print(
+                    "End year is 2100. The final day in timeseries may be "
+                    "incomplete after data is converted to local time."
+                )
+                new_end_year = self.end_year
+            else:
+                new_end_year = self.end_year + 1
+            query = query.experiment_id(["historical", "ssp370"])
+            processes["time_slice"] = (self.start_year, new_end_year)
 
-        # Compute over single gridcell
-        data = get_closest_gridcell(
-            data, self.stn_lat, self.stn_lon, print_coords=False
-        )
-        # Work in local time
-        data = convert_to_local_time(data)
+        data = query.processes(processes).get()
+
+        if data is None:
+            raise RuntimeError(
+                f"ClimateData returned no data for variable '{variable_id}'."
+            )
+
+        # Extract the variable as a DataArray
+        if isinstance(data, xr.Dataset):
+            data = data[variable_id]
+
+        # ClimateData uses "sim" dimension; rename to "simulation" for TMY pipeline
+        if "sim" in data.dims:
+            data = data.rename({"sim": "simulation"})
+
+        # Drop warming_level dimension (always length 1 for TMY)
+        if "warming_level" in data.dims:
+            data = data.squeeze("warming_level", drop=True)
+
+        # For warming level: set start/end year from dummy time
+        if self.warming_level is not UNSET:
+            self.start_year = data.time[0].dt.year.item()
+            self.end_year = data.time[-1].dt.year.item()
+
+        # Filter to the 4 TMY simulations by matching source_id+member_id
+        # ClimateData sim values: "wrf_ucla_ec-earth3_historical+ssp370_r1i1p1f1"
+        # self.simulations values: "WRF_EC-Earth3_r1i1p1f1"
+        all_sims = list(data.simulation.values)
+        sim_mapping = {}  # maps ClimateData sim name → legacy sim name
+        for legacy_sim in self.simulations:
+            # Extract source_id and member_id from legacy name (e.g. "EC-Earth3", "r1i1p1f1")
+            parts = legacy_sim.split("_")
+            source_id = parts[1].lower()
+            member_id = parts[2].lower()
+            for cd_sim in all_sims:
+                cd_lower = (
+                    cd_sim.lower() if isinstance(cd_sim, str) else str(cd_sim).lower()
+                )
+                if source_id in cd_lower and member_id in cd_lower:
+                    sim_mapping[cd_sim] = legacy_sim
+                    break
+
+        # Select and rename to legacy simulation names
+        matched_cd_sims = list(sim_mapping.keys())
+        data = data.sel(simulation=matched_cd_sims)
+        data["simulation"] = [sim_mapping[s] for s in matched_cd_sims]
+
+        # Work in local time (cached offset avoids repeated CSV reads)
+        offset_hours = self._get_utc_offset_hours()
+        data["time"] = data.time + pd.Timedelta(hours=offset_hours)
+        data.attrs["timezone"] = self._timezone_name
+
         # Get desired time slice in local time
         data = data.sel(
             {"time": slice(f"{self.start_year}-01-01-00", f"{self.end_year}-12-31-23")}
         )
-        # Only use preset models with solar variables
-        data = data.sel(simulation=simulations)
         return data
-
-    def _get_xmy_variable(self, varname: str, units: str, stats: list[str]) -> list:
-        """Fetch a single variable, resample and reduce.
-
-        Parameters
-        ----------
-        varname: str
-           Variable to load.
-        units: str
-            Desired units.
-        stats: list[str]
-            Daily stats to compute ('max','min','mean', and/or 'sum')
-
-        Returns
-        -------
-        xr.Dataset
-        """
-
-        data = self._load_single_variable(varname, units)
-        returned_data = []
-        stat_options = ["max", "min", "mean", "sum"]
-        for stat in stat_options:
-            if stat not in stats:
-                continue
-            stat_data = getattr(data.resample(time="1D"), stat)()
-            stat_data.attrs["frequency"] = "daily"
-            returned_data.append(stat_data)
-
-        return returned_data
 
     @staticmethod
     def _smooth_month_transition_hours(df: pd.DataFrame) -> pd.DataFrame:
@@ -556,6 +553,10 @@ class shock_XMY:
 
         # For each month, do a linear fit to smooth the data in the 12 hour window
         # around day 01 hour 00
+        def _poly2(x, *p):
+            """Second order polynomial for curve fitting."""
+            return np.poly1d(p)(x)
+
         x = np.arange(0, 12)
         for ts, te in zip(start_times, end_times):
             row_ind = np.arange(ts, te)
@@ -568,11 +569,9 @@ class shock_XMY:
                 sigma = np.ones(len(to_smooth))
                 sigma[[0, -1]] = 0.01
 
-                # Second order polynomial fit
-                def f(x, *p):
-                    return np.poly1d(p)(x)
-
-                fit, _ = optimize.curve_fit(f, x, to_smooth, (0, 0, 0), sigma=sigma)
+                fit, _ = optimize.curve_fit(
+                    _poly2, x, to_smooth, (0, 0, 0), sigma=sigma
+                )
                 fitted_line = np.poly1d(fit)(x)
                 df.loc[row_ind, variable] = np.float32(fitted_line)
 
@@ -597,7 +596,7 @@ class shock_XMY:
     def _make_8760_tables(all_vars_ds: xr.Dataset, top_months: pd.DataFrame) -> dict:
         """Extract top months from loaded data and arrange in table.
 
-        Pulled out of the run_tmy_analysis() code for easier testing.
+        Pulled out of the run_xmy_analysis() code for easier testing.
 
         Parameters
         ----------
@@ -613,12 +612,14 @@ class shock_XMY:
         xmy_df_all = {}
         for sim in all_vars_ds.simulation.values:
             df_list = []
-            print(f"Calculating XMY for simulation: {sim}")
+            print(f"Calculating shock XMY for simulation: {sim}")
             for mon in tqdm(np.arange(1, 13, 1)):
                 # Get year corresponding to month and simulation combo
-                year = top_months.loc[
-                    (top_months["month"] == mon) & (top_months["simulation"] == sim)
-                ].year.item()
+                year = int(
+                    top_months.loc[
+                        (top_months["month"] == mon) & (top_months["simulation"] == sim)
+                    ].year.item()
+                )
 
                 # Select data for unique month, year, and simulation
                 data_at_stn_mon_sim_yr = all_vars_ds.sel(
@@ -642,76 +643,239 @@ class shock_XMY:
         return xmy_df_all
 
     def load_all_variables(self):
-        """Load the datasets needed to create XMY."""
-        print("Loading data from catalog.")
+        """Load hourly TMY variables and derive daily statistics for CDF/F-S.
 
-        # Configuration for each variable group
-        variable_configs = [
-            {
-                "name": "air temperature",
-                "variable": "Air Temperature at 2m",
-                "units": "degC",
-                "stats": ["max", "min", "mean"],
-                "output_names": [
-                    "Daily max air temperature",
-                    "Daily min air temperature",
-                    "Daily mean air temperature",
+        Fetches hourly raw variables via ClimateData for the 8760 profile
+        assembly, then derives ALL daily statistics from the hourly data
+        in local time.  This matches the original TMY code's approach and
+        avoids two problems with fetching daily catalog variables directly:
+
+        1. **UTC vs local time**: Catalog daily variables are pre-aggregated
+           over UTC day boundaries, which differ from local-time days by the
+           station's UTC offset (e.g., 8 hours for California).
+        2. **Non-determinism**: With a Dask distributed client active, lazy
+           reductions (``.resample().sum()``) can produce slightly different
+           floating-point results on each run due to non-deterministic task
+           ordering.  Computing hourly data eagerly to numpy before
+           resampling guarantees deterministic daily statistics.
+        """
+        print("Loading data from catalog via ClimateData.")
+
+        def _fetch_and_clean(variable_id, table_id="1hr"):
+            """Fetch a single variable and clean coordinate cruft."""
+            self._vprint(f"  Fetching {variable_id} ({table_id})...")
+            da = self._fetch_raw_variable(variable_id, table_id=table_id)
+            return da.squeeze().drop_vars(
+                [
+                    "lakemask",
+                    "landmask",
+                    "x",
+                    "y",
+                    "Lambert_Conformal",
+                    "centered_year",
                 ],
-            },
-            {
-                "name": "dew point temperature",
-                "variable": "Dew point temperature",
-                "units": "degC",
-                "stats": ["max", "min", "mean"],
-                "output_names": [
-                    "Daily max dewpoint temperature",
-                    "Daily min dewpoint temperature",
-                    "Daily mean dewpoint temperature",
-                ],
-            },
-            {
-                "name": "wind speed",
-                "variable": "Wind speed at 10m",
-                "units": "m s-1",
-                "stats": ["max", "mean"],
-                "output_names": ["Daily max wind speed", "Daily mean wind speed"],
-            },
-            {
-                "name": "global irradiance",
-                "variable": "Instantaneous downwelling shortwave flux at bottom",
-                "units": "W/m2",
-                "stats": ["sum"],
-                "output_names": ["Global horizontal irradiance"],
-            },
-            {
-                "name": "direct normal irradiance",
-                "variable": "Shortwave surface downward direct normal irradiance",
-                "units": "W/m2",
-                "stats": ["sum"],
-                "output_names": ["Direct normal irradiance"],
-            },
-        ]
-
-        # Load and process each variable group
-        all_data_arrays = []
-        for config in variable_configs:
-            print(f"  Getting {config['name']}", end="... ")
-
-            # Get the data using the refactored _get_xmy_variable method
-            data_list = self._get_xmy_variable(
-                config["variable"], config["units"], config["stats"]
+                errors="ignore",
             )
 
-            # Rename each data array and add to collection
-            for data_array, output_name in zip(data_list, config["output_names"]):
-                data_array.name = output_name
-                all_data_arrays.append(data_array.squeeze())
-        self._vprint("  Loading all variables into memory.")
-        all_vars = xr.merge(all_data_arrays)
+        # --- Hourly variables (needed for 8760 profile assembly) ---
+        # First hourly fetch must be synchronous for warming level (sets year range)
+        hourly_var_ids = list(self._raw_vars.keys())
+        if self.warming_level is not UNSET:
+            self._vprint(f"  Getting {hourly_var_ids[0]} (sets year range)...")
+            # Fetch raw first to capture centered_year before cleaning drops it
+            raw_first = self._fetch_raw_variable(hourly_var_ids[0], table_id="1hr")
+            if "centered_year" in raw_first.coords:
+                self._sim_centered_years = dict(
+                    zip(
+                        raw_first.simulation.values,
+                        raw_first.centered_year.values.ravel(),
+                    )
+                )
+            first_var = raw_first.squeeze().drop_vars(
+                [
+                    "lakemask",
+                    "landmask",
+                    "x",
+                    "y",
+                    "Lambert_Conformal",
+                    "centered_year",
+                ],
+                errors="ignore",
+            )
+            first_var.name = self._raw_vars[hourly_var_ids[0]]
+            remaining_hourly = hourly_var_ids[1:]
+        else:
+            first_var = None
+            remaining_hourly = hourly_var_ids
 
-        # load all indices in
-        self.all_vars = all_vars.compute()
-        self._vprint("  All XMY variables loaded.")
+        # --- Daily variables (needed for CDF/F-S analysis) ---
+        # Derive daily stats from hourly data in local time.
+        # This matches the original code's behavior (hourly → local time →
+        # daily resample) and avoids using catalog daily variables which are
+        # pre-aggregated over UTC day boundaries (different 24-hour window).
+        # We also compute hourly data eagerly here so all downstream
+        # operations use deterministic numpy math, avoiding non-deterministic
+        # floating-point reduction ordering from the dask distributed scheduler.
+
+        # Fetch remaining hourly variables in parallel
+        self._vprint("  Loading hourly variables in parallel...")
+
+        def _fetch_hourly(vid):
+            da = _fetch_and_clean(vid, "1hr")
+            da.name = self._raw_vars[vid]
+            return ("hourly", vid, da)
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            hourly_futures = [
+                executor.submit(_fetch_hourly, vid) for vid in remaining_hourly
+            ]
+            all_results = [f.result() for f in hourly_futures]
+
+        # Separate hourly results
+        hourly_list = [r[2] for r in all_results]
+        if first_var is not None:
+            hourly_list = [first_var] + hourly_list
+
+        # --- Build hourly dataset for 8760 profile ---
+        self._vprint("  Merging raw hourly data.")
+        raw_ds = xr.merge(hourly_list)
+
+        # Compute hourly derived variables
+        self._vprint("  Computing hourly derived variables.")
+        t2_degc = raw_ds["Air Temperature at 2m"] - 273.15
+        t2_degc.attrs["units"] = "degC"
+
+        q2_gkg = raw_ds["Water Vapor Mixing Ratio at 2m"] * 1000
+        q2_gkg.attrs["units"] = "g kg-1"
+
+        psfc_hpa = raw_ds["Surface Pressure"] / 100.0
+        psfc_hpa.attrs["units"] = "hPa"
+
+        rh = compute_relative_humidity(
+            pressure=psfc_hpa,
+            temperature=t2_degc,
+            mixing_ratio=q2_gkg,
+        )
+        rh.name = "Relative humidity"
+        rh.attrs["units"] = "[0 to 100]"
+
+        dew_point_k = compute_dewpointtemp(
+            temperature=raw_ds["Air Temperature at 2m"],
+            rel_hum=rh,
+        )
+        dew_point = dew_point_k - 273.15
+        dew_point.name = "Dew point temperature"
+        dew_point.attrs["units"] = "degC"
+
+        wind_speed = compute_wind_mag(u10=raw_ds["u10"], v10=raw_ds["v10"])
+        wind_speed.name = "Wind speed at 10m"
+
+        wind_dir = compute_wind_dir(u10=raw_ds["u10"], v10=raw_ds["v10"])
+        wind_dir.name = "Wind direction at 10m"
+
+        t2_out = t2_degc.copy()
+        t2_out.name = "Air Temperature at 2m"
+        t2_out.attrs["units"] = "degC"
+
+        q2_out = q2_gkg.copy()
+        q2_out.name = "Water Vapor Mixing Ratio at 2m"
+
+        derived_list = [t2_out, dew_point, rh, wind_speed, wind_dir, q2_out]
+        keep_vars = [
+            "Instantaneous downwelling shortwave flux at bottom",
+            "Shortwave surface downward direct normal irradiance",
+            "Shortwave surface downward diffuse irradiance",
+            "Instantaneous downwelling longwave flux at bottom",
+            "Surface Pressure",
+        ]
+        kept_from_raw = [raw_ds[v] for v in keep_vars]
+        hourly_ds = xr.merge(derived_list + kept_from_raw)
+        self._hourly_data = hourly_ds
+
+        # --- Build daily dataset for CDF/F-S analysis ---
+        # Compute hourly data eagerly so all daily resampling uses
+        # deterministic numpy math (not affected by dask scheduler ordering).
+        # For a single grid cell this is small (~30yr × 8760hr × 4sims).
+        self._vprint("  Computing hourly data for daily resampling...")
+        with ProgressBar():
+            hourly_computed = hourly_ds.compute()
+
+        self._vprint("  Resampling hourly data to daily statistics...")
+        # Temperature: daily max, min, mean (in degC, already converted above)
+        daily_tmax = hourly_computed["Air Temperature at 2m"].resample(time="1D").max()
+        daily_tmax.name = "Daily max air temperature"
+        daily_tmax.attrs["frequency"] = "daily"
+
+        daily_tmin = hourly_computed["Air Temperature at 2m"].resample(time="1D").min()
+        daily_tmin.name = "Daily min air temperature"
+        daily_tmin.attrs["frequency"] = "daily"
+
+        daily_tmean = (
+            hourly_computed["Air Temperature at 2m"].resample(time="1D").mean()
+        )
+        daily_tmean.name = "Daily mean air temperature"
+        daily_tmean.attrs["frequency"] = "daily"
+
+        # Dew point: daily max, min, mean
+        daily_dp_max = (
+            hourly_computed["Dew point temperature"].resample(time="1D").max()
+        )
+        daily_dp_max.name = "Daily max dewpoint temperature"
+        daily_dp_max.attrs["frequency"] = "daily"
+
+        daily_dp_min = (
+            hourly_computed["Dew point temperature"].resample(time="1D").min()
+        )
+        daily_dp_min.name = "Daily min dewpoint temperature"
+        daily_dp_min.attrs["frequency"] = "daily"
+
+        daily_dp_mean = (
+            hourly_computed["Dew point temperature"].resample(time="1D").mean()
+        )
+        daily_dp_mean.name = "Daily mean dewpoint temperature"
+        daily_dp_mean.attrs["frequency"] = "daily"
+
+        # Wind speed: daily max, mean
+        daily_ws_max = hourly_computed["Wind speed at 10m"].resample(time="1D").max()
+        daily_ws_max.name = "Daily max wind speed"
+        daily_ws_max.attrs["frequency"] = "daily"
+
+        daily_ws_mean = hourly_computed["Wind speed at 10m"].resample(time="1D").mean()
+        daily_ws_mean.name = "Daily mean wind speed"
+        daily_ws_mean.attrs["frequency"] = "daily"
+
+        # Radiation: daily sums
+        ghi_sum = (
+            hourly_computed["Instantaneous downwelling shortwave flux at bottom"]
+            .resample(time="1D")
+            .sum()
+        )
+        ghi_sum.name = "Global horizontal irradiance"
+        ghi_sum.attrs["frequency"] = "daily"
+
+        dni_sum = (
+            hourly_computed["Shortwave surface downward direct normal irradiance"]
+            .resample(time="1D")
+            .sum()
+        )
+        dni_sum.name = "Direct normal irradiance"
+        dni_sum.attrs["frequency"] = "daily"
+
+        daily_arrays = [
+            daily_tmax,
+            daily_tmin,
+            daily_tmean,
+            daily_dp_max,
+            daily_dp_min,
+            daily_dp_mean,
+            daily_ws_max,
+            daily_ws_mean,
+            ghi_sum,
+            dni_sum,
+        ]
+
+        self.all_vars = xr.merge(daily_arrays)
+        self._vprint("  Daily statistics ready.")
 
     def set_cdf_climatology(self):
         """Calculate the long-term climatology for each index for each month so
@@ -747,13 +911,15 @@ class shock_XMY:
         # Pass the weighted F-S sum data for simplicity
         if self.weighted_fs_sum is UNSET:
             self.set_weighted_statistic()
-        self._vprint("Finding top months")
+        self._vprint(
+            "Finding top months (highest F-S statistic in the direction of interest)"
+        )
         self.top_months = shock_get_top_months(
             self.extreme, self.weighted_fs_sum, skip_last=self._skip_last
         )
 
     def show_xmy_data_to_export(self, simulation: str):
-        """Show line plots of XMY data for single model.
+        """Show line plots of TMY data for single model.
 
         Parameters
         ----------
@@ -763,30 +929,27 @@ class shock_XMY:
         """
         if self.xmy_data_to_export is UNSET:
             print("No XMY data generated.")
-            print("Please run XMY.generate_xmy() to create XMY data for viewing.")
+            print("Please run shock_XMY.generate_xmy() to create XMY data for viewing.")
             return
 
-        extreme = self.extreme
-        extreme - extreme.replace("'", "")
-        extreme = extreme[0].uppter()
-
-        # WVMR not in final TMY dataframe
+        # WVMR not in final XMY dataframe
         fig_y = list(self.vars_and_units.keys())
         fig_y.remove("Water Vapor Mixing Ratio at 2m")
 
         self.xmy_data_to_export[simulation].plot(
             x="time",
             y=fig_y,
-            title=f"{extreme} Shock Extreme Meteorological Year ({simulation})",
+            title=f"Shock Extreme Meteorological Year ({simulation})",
             subplots=True,
             figsize=(10, 8),
             legend=True,
         )
 
     def run_xmy_analysis(self):
-        """Generate extreme meteorological year data
+        """Generate shock extreme meteorological year data.
+
         Output will be a list of dataframes per simulation.
-        Print statements throughout the function indicate to the user the progress of the computatioconvert_to_local_time.
+        Print statements throughout the function indicate progress.
 
         Parameters
         -----------
@@ -798,29 +961,20 @@ class shock_XMY:
         -----
         Results are saved to the class variable `xmy_data_to_export`.
         """
-        print("Assembling TMY data to export.")
+        print("Assembling XMY data to export.")
 
-        self._vprint("  STEP 1: Retrieving hourly data from catalog")
-        # Loop through each variable and grab data from catalog
-        all_vars_list = []
+        self._vprint("  STEP 1: Computing hourly data")
 
-        for var, units in self.vars_and_units.items():
-            print(f"  Getting {var}", end="... ")
-            data_by_var = self._load_single_variable(var, units)
-
-            # Drop unwanted coords
-            data_by_var = data_by_var.squeeze().drop_vars(
-                ["lakemask", "landmask", "x", "y", "Lambert_Conformal"]
-            )
-
-            all_vars_list.append(data_by_var)  # Append to list
-
-        # Merge data from all variables into a single xr.Dataset object
-        all_vars_ds = xr.merge(all_vars_list)
+        # Use cached hourly data instead of re-downloading
+        if not hasattr(self, "_hourly_data") or self._hourly_data is None:
+            # Fallback: load from catalog if run_xmy_analysis called standalone
+            self.load_all_variables()
+        with ProgressBar():
+            all_vars_ds = self._hourly_data.compute()
 
         # Construct TMY
         self._vprint(
-            "\n  STEP 2: Calculating Shock Extreme Meteorological Year per model simulation\n  Progress bar shows code looping through each month in the year.\n"
+            f"\n  STEP 2: Calculating {self.extreme} Shock Extreme Meteorological Year per model simulation\n  Progress bar shows code looping through each month in the year.\n"
         )
 
         xmy_data_to_export = self._make_8760_tables(
@@ -841,33 +995,46 @@ class shock_XMY:
             xmy_data_to_export[sim] = xmy_data_to_export[sim].drop(
                 columns="Water Vapor Mixing Ratio at 2m"
             )
+
+            # Add metadata columns needed by EPW header writer.
+            # The new-core pipeline squeezes these dimensions, so they must be
+            # re-attached before export.
+            if self.warming_level is not UNSET:
+                xmy_data_to_export[sim]["warming_level"] = self.warming_level
+            else:
+                xmy_data_to_export[sim]["scenario"] = "historical+ssp370"
+
         self.xmy_data_to_export = xmy_data_to_export
         self._vprint("TMY analysis complete.")
 
     def export_xmy_data(self, extension: str = "epw"):
-        """Write TMY data to EPW file.
+        """Write XMY data to EPW file.
 
         Parameters
         ----------
         extension: str
-            Desired file extension ('tmy','epw', or 'csv')
+            Desired file extension ('xmy','epw', or 'csv')
 
         """
-        print("Exporting XMY to file.")
+        print("Exporting shock XMY to file.")
         for sim, _ in self.xmy_data_to_export.items():
             # Get right year range
             if self.warming_level is UNSET:
                 years = (self.start_year, self.end_year)
                 clean_sim = sim
             else:
-                centered_year = self.all_vars.sel(simulation=sim).centered_year.data
+                centered_year = int(self._sim_centered_years[sim])
                 year1 = centered_year - 15
                 year2 = centered_year + 14
                 years = (year1, year2)
-                # replace scenario with descriptive name if present for gwl case
-                clean_sim = sim.replace(
-                    "_historical+ssp370", f"_{match_str_to_wl(self.warming_level)}"
-                )
+                # Append warming level descriptor to simulation name.
+                # Legacy sim names no longer contain "_historical+ssp370"
+                # after the new-core migration, so we append directly.
+                wl_label = match_str_to_wl(self.warming_level)
+                clean_sim = f"{sim}_{wl_label}"
+            # Attach centered_year so CSV export can include it
+            if self.warming_level is not UNSET:
+                self.xmy_data_to_export[sim]["centered_year"] = centered_year
             clean_stn_name = (
                 self.stn_name.replace(" ", "_").replace("(", "").replace(")", "")
             )
@@ -888,7 +1055,7 @@ class shock_XMY:
         """Run CDF functions to get top candidates.
 
         This function can be used to view the candidate months
-        without running the entire Shock XMY workflow.
+        without running the entire TMY workflow.
         """
         self._vprint(f"Getting top months for {self.extreme} shock XMY.")
         self.set_cdf_climatology()
@@ -897,9 +1064,9 @@ class shock_XMY:
         self.set_top_months()
 
     def generate_xmy(self):
-        """Run the whole Shock XMY workflow."""
+        """Run the whole XMY workflow."""
         # This runs the whole workflow at once
-        print("Running Shock XMY workflow.")
+        print("Running shock XMY workflow.")
         self.load_all_variables()
         self.get_candidate_months()
         self.run_xmy_analysis()
