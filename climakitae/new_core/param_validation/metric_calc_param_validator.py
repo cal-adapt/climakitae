@@ -208,27 +208,8 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
         return False
 
     if return_periods is not None:
-        return_param = return_periods
-    elif return_values is not None:
-        return_param = return_values
-
-    # Convert to numpy array for validation
-    if not isinstance(return_param, (list, np.ndarray)):
-        return_param_array = np.array([return_param])
-    elif isinstance(return_param, list):
-        return_param_array = np.array(return_param)
-    else:
-        return_param_array = return_param
-
-    if not isinstance(return_param_array, np.ndarray):
-        logger.warning(
-            "\n\nreturn_periods or return_values must be convertible to numpy array. "
-            "\nPlease check the configuration."
-        )
-        return False
-
-    if return_periods is not None:
-        for rp in return_param_array:
+        # Check for valid return period values
+        for rp in return_periods:
             if not isinstance(rp, (int, float, np.integer, np.floating)) or rp < 1:
                 logger.warning(
                     "\n\nAll return periods must be numbers >= 1, got %s (type: %s). "
@@ -237,6 +218,19 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
                     type(rp),
                 )
                 return False
+        return_param = return_periods
+    elif return_values is not None:
+        return_param = return_values
+
+    # Check that parameter data type is one that can be converted to np.array
+    valid_types = [np.ndarray, list, tuple, float, int]
+
+    if not isinstance(return_param, valid_types):
+        logger.warning(
+            "\n\nreturn_periods or return_values must be convertible to numpy array. "
+            "\nPlease check the configuration."
+        )
+        return False
 
     # Validate distribution
     valid_distributions = ["gev", "genpareto", "gamma"]
