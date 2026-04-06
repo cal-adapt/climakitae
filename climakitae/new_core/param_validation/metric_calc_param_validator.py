@@ -224,7 +224,7 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
         return_param = return_values
 
     # Check that parameter data type is one that can be converted to np.array
-    valid_types = [np.ndarray, list, tuple, float, int]
+    valid_types = (np.ndarray, list, tuple, float, int)
 
     if not isinstance(return_param, valid_types):
         logger.warning(
