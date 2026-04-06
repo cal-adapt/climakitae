@@ -607,12 +607,20 @@ class MetricCalc(DataProcessor):
                     logger.info("Processing variable: %s", var_name)
                     var_result = self._calculate_one_in_x_single(data[var_name])
                     # Rename variables to include source variable name
-                    var_result = var_result.rename(
-                        {
-                            "return_values": f"{var_name}_return_values",
-                            "p_values": f"{var_name}_p_values",
-                        }
-                    )
+                    if self.return_periods is not UNSET:
+                        var_result = var_result.rename(
+                            {
+                                "return_values": f"{var_name}_return_values",
+                                "p_values": f"{var_name}_p_values",
+                            }
+                        )
+                    else:
+                        var_result = var_result.rename(
+                            {
+                                "return_periods": f"{var_name}_return_periods",
+                                "p_values": f"{var_name}_p_values",
+                            }
+                        )
                     results.append(var_result)
 
                 # Merge all results into a single dataset
@@ -663,11 +671,18 @@ class MetricCalc(DataProcessor):
         # Apply variable-specific preprocessing
         data_array = self._preprocess_variable_for_one_in_x(data_array, var_name)
 
-        logger.info(
-            "Calculating 1-in-%s year return values using %s distribution...",
-            self.return_periods,
-            self.distribution,
-        )
+        if self.return_periods is not UNSET:
+            logger.info(
+                "Calculating 1-in-%s year return values using %s distribution...",
+                self.return_periods,
+                self.distribution,
+            )
+        else:
+            logger.info(
+                "Calculating return periods for return values %s using %s distribution...",
+                self.return_values,
+                self.distribution,
+            )
         return self._calculate_one_in_x_vectorized(data_array)
 
     def _fit_return_variable_1d(
