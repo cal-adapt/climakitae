@@ -209,8 +209,29 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
         return False
 
     if return_periods is not None:
-        # Check for valid return period values
-        for rp in return_periods:
+        return_param = return_periods
+    elif return_values is not None:
+        return_param = return_values
+
+    # Check that parameter data type is one that can be converted to np.array
+    match return_param:
+        case np.ndarray():
+            return_param = return_param
+        case float() | int():
+            return_param = np.array([return_param])
+        case list() | tuple():
+            return_param = np.array(return_param)
+
+    if not isinstance(return_param, np.ndarray):
+        logger.warning(
+            "\n\nreturn_periods or return_values must be convertible to numpy array. "
+            "\nPlease check the configuration."
+        )
+        return False
+
+    # Check for valid return period values (must be positive integer for # of years)
+    if return_periods is not None:
+        for rp in return_param:
             if not isinstance(rp, (int, float, np.integer, np.floating)) or rp < 1:
                 logger.warning(
                     "\n\nAll return periods must be numbers >= 1, got %s (type: %s). "
@@ -219,19 +240,6 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
                     type(rp),
                 )
                 return False
-        return_param = return_periods
-    elif return_values is not None:
-        return_param = return_values
-
-    # Check that parameter data type is one that can be converted to np.array
-    valid_types = (np.ndarray, list, tuple, float, int)
-
-    if not isinstance(return_param, valid_types):
-        logger.warning(
-            "\n\nreturn_periods or return_values must be convertible to numpy array. "
-            "\nPlease check the configuration."
-        )
-        return False
 
     # Validate distribution
     valid_distributions = ["gev", "genpareto", "gamma"]
@@ -308,6 +316,14 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
                 "\nPlease check the configuration."
             )
             return False
+
+    # Validate block_size
+    if not isinstance(block_size, int) or block_size <= 0:
+        logger.warning(
+            "\n\nblock_size must be a positive integer. "
+            "\nPlease check the configuration."
+        )
+        return False
 
     # Validate boolean parameters
     for param_name, param_value in [
