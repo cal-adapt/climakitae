@@ -187,6 +187,7 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
     distribution = one_in_x_config.get("distribution", "gev")
     extremes_type = one_in_x_config.get("extremes_type", "max")
     event_duration = one_in_x_config.get("event_duration", (1, "day"))
+    grouped_duration = one_in_x_config.get("grouped_duration", UNSET)
     block_size = one_in_x_config.get("block_size", 1)
     goodness_of_fit_test = one_in_x_config.get("goodness_of_fit_test", True)
     print_goodness_of_fit = one_in_x_config.get("print_goodness_of_fit", True)
@@ -275,13 +276,38 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
         )
         return False
 
-    # Validate block_size
-    if not isinstance(block_size, int) or block_size <= 0:
-        logger.warning(
-            "\n\nblock_size must be a positive integer. "
-            "\nPlease check the configuration."
-        )
-        return False
+    # Validate grouped_duration
+    if grouped_duration is not UNSET:
+        if not isinstance(grouped_duration, tuple) or len(grouped_duration) != 2:
+            logger.warning(
+                "\n\nevent_duration must be a tuple of (int, str). "
+                "\nExample: (1, 'day')"
+            )
+            return False
+
+        duration_num, duration_unit = grouped_duration
+        if not isinstance(duration_num, int) or duration_num <= 0:
+            logger.warning(
+                "\n\grouped_duration number must be a positive integer. "
+                "\nPlease check the configuration."
+            )
+            return False
+
+        # Only implemented to group days
+        if duration_unit not in ["day"]:
+            logger.warning(
+                "\n\ngrouped_duration unit must be 'day'. "
+                "\nPlease check the configuration."
+            )
+            return False
+
+        # Must be used with event_duration = (1,'day')
+        if event_duration != (1, "day"):
+            logger.warning(
+                "\n\ngrouped_duration requires event_duration=(1,'day'). "
+                "\nPlease check the configuration."
+            )
+            return False
 
     # Validate boolean parameters
     for param_name, param_value in [
