@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import xarray as xr
+from pandas.errors import OutOfBoundsDatetime
 from tqdm.auto import tqdm
 
 from climakitae.core.constants import (
@@ -685,10 +686,7 @@ class MetricCalc(DataProcessor):
                 data_array = add_dummy_time_to_wl(data_array)
                 # Frequency needed for _apply_duration_filter_vectorized later on
                 data_array.attrs["frequency"] = "day"
-            # If frequency is hourly, the 'try' code will throw a
-            # non-standard overflow exception.
-            except Exception as e:
-                print(e)
+            except OutOfBoundsDatetime:
                 data_array = add_dummy_time_to_wl(data_array, freq_name="1hr")
                 data_array.attrs["frequency"] = "1hr"
 
