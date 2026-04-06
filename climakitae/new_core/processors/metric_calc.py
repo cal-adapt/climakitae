@@ -5,7 +5,7 @@ DataProcessor MetricCalc
 import gc
 import logging
 import time as time_module
-from typing import Any, Iterable
+from typing import Any, Iterable, Union
 
 import numpy as np
 import pandas as pd
@@ -207,17 +207,36 @@ class MetricCalc(DataProcessor):
                     "Only set one of return_periods or return_values for 1-in-X calculations"
                 )
 
+        # Setting up a helper function to convert the return_periods and return_values data
+        def _data_to_np_array(
+            data_to_convert: Union[list, tuple, np.ndarray],
+        ) -> np.ndarray:
+            """Take data in a list, tuple, or array format and return as a numpy array.
+
+            Parameters
+            ----------
+            data_to_convert: list, tuple or np.ndarray
+                Data to convert to numpy array format
+
+            Returns
+            -------
+            np.ndarray
+            """
+            match data_to_convert:
+                case np.ndarray:
+                    return data_to_convert
+                case list | tuple:
+                    return np.array(data_to_convert)
+                case _:
+                    raise ValueError(
+                        f"Expected type np.ndarray, list, or tuple. Got {type(data_to_convert)}."
+                    )
+
         # Convert to numpy array for consistency
         if self.return_periods is not UNSET:
-            if not isinstance(self.return_periods, (list, np.ndarray)):
-                self.return_periods = np.array([self.return_periods])
-            elif isinstance(self.return_periods, list):
-                self.return_periods = np.array(self.return_periods)
+            self.return_periods = _data_to_np_array(self.return_periods)
         elif self.return_values is not UNSET:
-            if not isinstance(self.return_values, (list, np.ndarray)):
-                self.return_values = np.array([self.return_values])
-            elif isinstance(self.return_values, list):
-                self.return_values = np.array(self.return_values)
+            self.return_values = _data_to_np_array(self.return_values)
 
         # Optional parameters with defaults
         self.distribution = self.one_in_x_config.get("distribution", "gev")
