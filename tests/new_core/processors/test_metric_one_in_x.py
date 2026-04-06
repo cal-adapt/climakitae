@@ -425,6 +425,7 @@ class TestMetricCalcFitReturnPeriods1d:
             c=-shape, loc=loc, scale=scale, size=30, random_state=42
         )
         self.return_values = np.array([100, 1000, 10000])
+        self.unset_return_periods = UNSET
 
     @pytest.mark.parametrize(
         "distribution",
@@ -444,7 +445,7 @@ class TestMetricCalcFitReturnPeriods1d:
 
         return_periods, p_value = processor._fit_return_variable_1d(
             self.valid_block_maxima,
-            UNSET,
+            self.unset_return_periods,
             np.array([100, 1000, 10000]),
             distr=distribution,
             get_p_value=False,
@@ -464,7 +465,7 @@ class TestMetricCalcFitReturnPeriods1d:
         """
         return_periods, p_value = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
-            UNSET,
+            self.unset_return_periods,
             self.return_values,
             distr="invalid_dist",
             get_p_value=False,
@@ -482,7 +483,7 @@ class TestMetricCalcFitReturnPeriods1d:
 
         return_periods, p_value = self.processor._fit_return_variable_1d(
             insufficient_data,
-            UNSET,
+            self.unset_return_periods,
             self.return_values,
             distr="gev",
             get_p_value=True,
@@ -499,7 +500,7 @@ class TestMetricCalcFitReturnPeriods1d:
 
         return_periods, p_value = self.processor._fit_return_variable_1d(
             data_with_nans,
-            UNSET,
+            self.unset_return_periods,
             self.return_values,
             distr="gev",
             get_p_value=False,
@@ -512,7 +513,7 @@ class TestMetricCalcFitReturnPeriods1d:
         """Test that p-value is calculated when requested."""
         return_periods, p_value = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
-            UNSET,
+            self.unset_return_periods,
             self.return_values,
             distr="gev",
             get_p_value=True,
@@ -525,7 +526,7 @@ class TestMetricCalcFitReturnPeriods1d:
         """Test that p-value is NaN when not requested."""
         return_periods, p_value = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
-            UNSET,
+            self.unset_return_periods,
             self.return_values,
             distr="gev",
             get_p_value=False,
@@ -538,7 +539,7 @@ class TestMetricCalcFitReturnPeriods1d:
         # For minima, return values should be lower for longer return periods
         return_periods_min, _ = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
-            UNSET,
+            self.unset_return_periods,
             self.return_values,
             distr="gev",
             extremes_type="min",
@@ -547,7 +548,7 @@ class TestMetricCalcFitReturnPeriods1d:
 
         return_periods_max, _ = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
-            UNSET,
+            self.unset_return_periods,
             self.return_values,
             distr="gev",
             extremes_type="max",
@@ -561,7 +562,7 @@ class TestMetricCalcFitReturnPeriods1d:
         """Test that return periods increase with return value for maxima."""
         return_periods, _ = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
-            UNSET,
+            self.unset_return_periods,
             self.return_values,
             distr="gev",
             extremes_type="max",
@@ -577,7 +578,7 @@ class TestMetricCalcFitReturnPeriods1d:
 
         return_periods, p_value = self.processor._fit_return_variable_1d(
             all_nan_data,
-            UNSET,
+            self.unset_return_periods,
             self.return_values,
             distr="gev",
             get_p_value=True,
