@@ -72,6 +72,7 @@ class MetricCalc(DataProcessor):
         - one_in_x (dict, optional): Configuration for 1-in-X extreme value analysis.
           If provided, performs extreme value analysis instead of basic metrics. Keys:
           - return_periods (list): List of return periods (e.g., [10, 25, 50, 100])
+          - return_values (list): List of return values (e.g., [100, 105,110])
           - distribution (str, optional): Distribution for fitting ("gev", "genpareto", "gamma"). Default: "gev"
           - extremes_type (str, optional): "max" or "min". Default: "max"
           - event_duration (tuple, optional): Event duration as (int, str). Default: (1, "day")
@@ -137,6 +138,7 @@ class MetricCalc(DataProcessor):
     - The processor preserves all attributes and coordinates from the input data
     - Results maintain the same structure as input (Dataset/DataArray/Iterable)
     - When both percentiles and metrics are calculated, the results are combined into a single output
+    - The 1-in-X analysis cannot be run for both return periods and return values at the same time
     """
 
     def __init__(self, value: dict[str, Any]):
@@ -225,7 +227,9 @@ class MetricCalc(DataProcessor):
             match data_to_convert:
                 case np.ndarray:
                     return data_to_convert
-                case list | tuple:
+                case float() | int():
+                    return np.array([data_to_convert])
+                case list() | tuple():
                     return np.array(data_to_convert)
                 case _:
                     raise ValueError(
@@ -683,7 +687,8 @@ class MetricCalc(DataProcessor):
                 data_array.attrs["frequency"] = "day"
             # If frequency is hourly, the 'try' code will throw a
             # non-standard overflow exception.
-            except Exception:
+            except Exception as e:
+                print(e)
                 data_array = add_dummy_time_to_wl(data_array, freq_name="1hr")
                 data_array.attrs["frequency"] = "1hr"
 
@@ -725,6 +730,8 @@ class MetricCalc(DataProcessor):
             1D array of block maxima values (e.g., annual maxima).
         return_periods : np.ndarray
             Array of return periods in years (e.g., [10, 25, 50, 100]).
+        return_values : np.ndarray
+            Array of return values in data units.
         distr : str, optional
             Distribution type for fitting. Options: "gev", "gumbel", "weibull",
             "pearson3", "genpareto", "gamma". Default: "gev".
@@ -737,13 +744,15 @@ class MetricCalc(DataProcessor):
         -------
         tuple[np.ndarray, float]
             Tuple containing:
-            - return_values: Array of return values for each return period
+            - return_values or return_periods: Array of return values or periods for each return period
             - p_value: P-value from Kolmogorov-Smirnov test (np.nan if not calculated)
 
         Notes
         -----
         Requires at least MIN_VALID_DATA_POINTS (3) non-NaN values for fitting.
         Returns arrays of NaN if fitting fails.
+        return_periods and return_values are mutually exclusive parameters. return_periods will be
+        used if both are provided.
         """
         # Remove NaN values
         valid_data = block_maxima_1d[~np.isnan(block_maxima_1d)]
