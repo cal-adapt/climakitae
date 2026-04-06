@@ -226,7 +226,7 @@ class MetricCalc(DataProcessor):
             np.ndarray
             """
             match data_to_convert:
-                case np.ndarray:
+                case np.ndarray():
                     return data_to_convert
                 case float() | int():
                     return np.array([data_to_convert])
