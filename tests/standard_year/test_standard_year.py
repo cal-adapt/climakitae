@@ -4304,7 +4304,7 @@ class TestGetStationCoordinates:
     def test_get_station_coordinates_returns_tuple(self):
         """Test that _get_station_coordinates returns a tuple of coordinates."""
         with patch(
-            "climakitae.explore.standard_year_profile.read_csv_file",
+            "climakitae.explore.standard_year_profile.pd.read_csv",
             return_value=self.mock_stations_gdf,
         ):
             result = _get_station_coordinates("San Diego Lindbergh Field (KSAN)")
@@ -4323,7 +4323,7 @@ class TestGetStationCoordinates:
     def test_get_station_coordinates_returns_correct_values(self):
         """Test that _get_station_coordinates returns correct coordinate values."""
         with patch(
-            "climakitae.explore.standard_year_profile.read_csv_file",
+            "climakitae.explore.standard_year_profile.pd.read_csv",
             return_value=self.mock_stations_gdf,
         ):
             lat, lon = _get_station_coordinates("San Diego Lindbergh Field (KSAN)")
@@ -4335,7 +4335,7 @@ class TestGetStationCoordinates:
     def test_get_station_coordinates_with_different_stations(self):
         """Test _get_station_coordinates with multiple different stations."""
         with patch(
-            "climakitae.explore.standard_year_profile.read_csv_file",
+            "climakitae.explore.standard_year_profile.pd.read_csv",
             return_value=self.mock_stations_gdf,
         ):
             # Test LAX station
@@ -4355,7 +4355,7 @@ class TestGetStationCoordinates:
     def test_get_station_coordinates_raises_error_for_invalid_station(self):
         """Test that _get_station_coordinates raises ValueError for invalid station name."""
         with patch(
-            "climakitae.explore.standard_year_profile.read_csv_file",
+            "climakitae.explore.standard_year_profile.pd.read_csv",
             return_value=self.mock_stations_gdf,
         ):
             with pytest.raises(ValueError, match="Station .* not found"):
@@ -4364,7 +4364,7 @@ class TestGetStationCoordinates:
     def test_get_station_coordinates_raises_error_for_empty_string(self):
         """Test that _get_station_coordinates raises ValueError for empty station name."""
         with patch(
-            "climakitae.explore.standard_year_profile.read_csv_file",
+            "climakitae.explore.standard_year_profile.pd.read_csv",
             return_value=self.mock_stations_gdf,
         ):
             with pytest.raises(ValueError, match="Station .* not found"):
@@ -4401,7 +4401,7 @@ class TestConvertStationsToLatLon:
     def test_convert_stations_to_lat_lon_returns_tuple_of_tuples(self):
         """Test that _convert_stations_to_lat_lon returns tuple of (lat_bounds, lon_bounds)."""
         with patch(
-            "climakitae.explore.standard_year_profile.read_csv_file",
+            "climakitae.explore.standard_year_profile.pd.read_csv",
             return_value=self.mock_stations_gdf,
         ):
             result = _convert_stations_to_lat_lon(
@@ -4422,7 +4422,7 @@ class TestConvertStationsToLatLon:
     def test_convert_stations_to_lat_lon_single_station_with_buffer(self):
         """Test _convert_stations_to_lat_lon with single station applies buffer correctly."""
         with patch(
-            "climakitae.explore.standard_year_profile.read_csv_file",
+            "climakitae.explore.standard_year_profile.pd.read_csv",
             return_value=self.mock_stations_gdf,
         ):
             # Execute function with default buffer (0.02)
@@ -4453,7 +4453,7 @@ class TestConvertStationsToLatLon:
     def test_convert_stations_to_lat_lon_multiple_stations(self):
         """Test _convert_stations_to_lat_lon with multiple stations creates bounding box."""
         with patch(
-            "climakitae.explore.standard_year_profile.read_csv_file",
+            "climakitae.explore.standard_year_profile.pd.read_csv",
             return_value=self.mock_stations_gdf,
         ):
             # Execute function with two stations
@@ -4489,7 +4489,7 @@ class TestConvertStationsToLatLon:
     def test_convert_stations_to_lat_lon_with_custom_buffer(self):
         """Test _convert_stations_to_lat_lon with custom buffer value."""
         with patch(
-            "climakitae.explore.standard_year_profile.read_csv_file",
+            "climakitae.explore.standard_year_profile.pd.read_csv",
             return_value=self.mock_stations_gdf,
         ):
             # Execute function with custom buffer
@@ -4520,7 +4520,7 @@ class TestConvertStationsToLatLon:
     def test_convert_stations_to_lat_lon_raises_error_for_empty_list(self):
         """Test that _convert_stations_to_lat_lon raises ValueError for empty station list."""
         with patch(
-            "climakitae.explore.standard_year_profile.read_csv_file",
+            "climakitae.explore.standard_year_profile.pd.read_csv",
             return_value=self.mock_stations_gdf,
         ):
             with pytest.raises(
@@ -4531,7 +4531,7 @@ class TestConvertStationsToLatLon:
     def test_convert_stations_to_lat_lon_raises_error_for_invalid_station(self):
         """Test that _convert_stations_to_lat_lon raises ValueError when station not found."""
         with patch(
-            "climakitae.explore.standard_year_profile.read_csv_file",
+            "climakitae.explore.standard_year_profile.pd.read_csv",
             return_value=self.mock_stations_gdf,
         ):
             with pytest.raises(ValueError, match="Station .* not found"):
@@ -4542,7 +4542,7 @@ class TestConvertStationsToLatLon:
     def test_convert_stations_to_lat_lon_with_three_stations(self):
         """Test _convert_stations_to_lat_lon creates correct bounding box for three stations."""
         with patch(
-            "climakitae.explore.standard_year_profile.read_csv_file",
+            "climakitae.explore.standard_year_profile.pd.read_csv",
             return_value=self.mock_stations_gdf,
         ):
             # Execute function with all three stations
