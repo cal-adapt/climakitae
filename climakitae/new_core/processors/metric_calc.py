@@ -71,7 +71,8 @@ class MetricCalc(DataProcessor):
 
         1-in-X Return Value Analysis:
         - one_in_x (dict, optional): Configuration for 1-in-X extreme value analysis.
-          If provided, performs extreme value analysis instead of basic metrics. Keys:
+          If provided, performs extreme value analysis instead of basic metrics. Only
+          one of "return_periods" or "return_values" can be set at a time. Keys:
           - return_periods (list): List of return periods (e.g., [10, 25, 50, 100])
           - return_values (list): List of return values (e.g., [100, 105,110])
           - distribution (str, optional): Distribution for fitting ("gev", "genpareto", "gamma"). Default: "gev"
@@ -139,7 +140,6 @@ class MetricCalc(DataProcessor):
     - The processor preserves all attributes and coordinates from the input data
     - Results maintain the same structure as input (Dataset/DataArray/Iterable)
     - When both percentiles and metrics are calculated, the results are combined into a single output
-    - The 1-in-X analysis cannot be run for both return periods and return values at the same time
     """
 
     def __init__(self, value: dict[str, Any]):
