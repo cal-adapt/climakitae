@@ -12,7 +12,6 @@ from datetime import datetime
 from dask.diagnostics import ProgressBar
 import numpy as np
 import pandas as pd
-import pkg_resources
 import pytz
 import xarray as xr
 from scipy import optimize
@@ -20,6 +19,7 @@ from timezonefinder import TimezoneFinder
 from tqdm.auto import tqdm  # Progress bar
 
 from climakitae.core.constants import UNSET
+from climakitae.core.paths import HADISD_STATIONS_URL
 from climakitae.core.data_export import write_tmy_file
 from climakitae.new_core.user_interface import ClimateData
 from climakitae.tools.derived_variables import (
@@ -74,10 +74,7 @@ def _get_hadisd_stations() -> pd.DataFrame:
     """
     global _hadisd_stations_cache
     if _hadisd_stations_cache is None:
-        stn_file = pkg_resources.resource_filename(
-            "climakitae", "data/hadisd_stations.csv"
-        )
-        _hadisd_stations_cache = pd.read_csv(stn_file, index_col=[0])
+        _hadisd_stations_cache = pd.read_csv(HADISD_STATIONS_URL, index_col=[0])
     return _hadisd_stations_cache
 
 

@@ -14,15 +14,6 @@ import pytest
 import xarray as xr
 
 import climakitae.core.data_export as export
-from climakitae.core.paths import STATIONS_CSV_PATH
-
-
-def input() -> str:
-    # When mocking open() we still want to be able to read the stations
-    # from the stations_csv_path, so getting that input here.
-    with open(os.path.join("climakitae", STATIONS_CSV_PATH), "r") as f:
-        input = f.read()
-    return input
 
 
 class TestExportErrors:
@@ -313,8 +304,12 @@ class TestHiddenFunctions:
         with pytest.raises(Exception):
             export._export_to_netcdf(test_array, save_name)
 
-    @patch("builtins.open", new_callable=mock_open, read_data=input())
-    def test__export_csv_dataarray(self, mock_open, test_array):
+    @patch(
+        "climakitae.core.data_export.pd.read_csv",
+        return_value=pd.DataFrame({"station": []}),
+    )
+    @patch("builtins.open", new_callable=mock_open)
+    def test__export_csv_dataarray(self, mock_open, mock_pd_read_csv, test_array):
         test_array.attrs = {"variable_id": "t2"}
         test_array["time"].attrs = {"key": "value"}
         save_name = "test"
