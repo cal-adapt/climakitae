@@ -204,6 +204,10 @@ class TestRetrieveProfileDataWithStations:
             patch(
                 "climakitae.explore.standard_year_profile.DataInterface"
             ) as mock_data_interface_class,
+            patch(
+                "climakitae.explore.standard_year_profile.pd.read_csv",
+                return_value=self.mock_stations_gdf,
+            ),
             patch("builtins.print"),
         ):
             # Setup DataInterface mock
@@ -257,6 +261,10 @@ class TestRetrieveProfileDataWithStations:
             patch(
                 "climakitae.explore.standard_year_profile.DataInterface"
             ) as mock_data_interface_class,
+            patch(
+                "climakitae.explore.standard_year_profile.pd.read_csv",
+                return_value=self.mock_stations_gdf,
+            ),
             patch("builtins.print"),
         ):
             # Setup DataInterface mock

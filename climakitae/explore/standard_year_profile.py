@@ -17,7 +17,7 @@ from tqdm.auto import tqdm  # Progress bar
 
 from climakitae.core.constants import UNSET, WRF_BA_MODELS
 from climakitae.core.data_interface import DataInterface, get_data
-from climakitae.core.paths import STATIONS_CSV_PATH, VARIABLE_DESCRIPTIONS_CSV_PATH
+from climakitae.core.paths import HADISD_STATIONS_URL, VARIABLE_DESCRIPTIONS_CSV_PATH
 from climakitae.explore.typical_meteorological_year import is_HadISD, match_str_to_wl
 from climakitae.util.utils import julianDay_to_date, read_csv_file
 from climakitae.util.warming_levels import get_gwl_at_year
@@ -52,7 +52,7 @@ def _get_station_coordinates(station_name: str) -> Tuple[float, float]:
     >>> lat, lon = _get_station_coordinates("San Diego Lindbergh Field (KSAN)")
     >>> print(f"Latitude: {lat}, Longitude: {lon}")
     """
-    stations_df = read_csv_file(STATIONS_CSV_PATH)
+    stations_df = pd.read_csv(HADISD_STATIONS_URL)
 
     # Look up the station in the DataFrame
     station_row = stations_df[stations_df["station"] == station_name]

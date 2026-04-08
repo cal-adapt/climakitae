@@ -24,7 +24,7 @@ from climakitae.core.constants import (
 )
 
 # from climakitae.core.data_interface import DataParameters
-from climakitae.core.paths import DATA_CATALOG_URL, STATIONS_CSV_PATH
+from climakitae.core.paths import DATA_CATALOG_URL, HADISD_STATIONS_URL
 
 
 def downscaling_method_as_list(downscaling_method: str) -> list[str]:
@@ -1445,7 +1445,7 @@ def convert_to_local_time(
     match data_type:
         case "Stations":
             # Read stations database
-            stations_df = read_csv_file(STATIONS_CSV_PATH)
+            stations_df = pd.read_csv(HADISD_STATIONS_URL)
             stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
             # Filter by selected station(s) - assume first station if multiple
