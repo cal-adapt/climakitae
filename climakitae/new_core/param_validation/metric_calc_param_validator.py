@@ -229,7 +229,9 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
         )
         return False
 
-    # Check for valid return period values (must be positive integer for # of years)
+    # Check for valid return period entries (must be positive integer for # of years)
+    # Skip this check if the return_param array contains return values, as return values
+    # are allowed to be floats and/or negative values (for example, a negative temperature)
     if return_periods is not None:
         for rp in return_param:
             if not isinstance(rp, (int, float, np.integer, np.floating)) or rp < 1:
