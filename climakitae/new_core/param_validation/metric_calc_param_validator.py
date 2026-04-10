@@ -290,7 +290,7 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
     if grouped_duration is not UNSET:
         if not isinstance(grouped_duration, tuple) or len(grouped_duration) != 2:
             logger.warning(
-                "\n\nevent_duration must be a tuple of (int, str). "
+                "\n\ngrouped_duration must be a tuple of (int, str). "
                 "\nExample: (1, 'day')"
             )
             return False
