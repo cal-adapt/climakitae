@@ -750,7 +750,6 @@ class MetricCalc(DataProcessor):
         Requires at least MIN_VALID_DATA_POINTS (3) non-NaN values for fitting.
         Returns arrays of NaN if fitting fails.
         return_periods and return_values are mutually exclusive parameters. return_periods will be used if both are provided.
-        used if both are provided.
         """
         # Remove NaN values
         valid_data = block_maxima_1d[~np.isnan(block_maxima_1d)]
