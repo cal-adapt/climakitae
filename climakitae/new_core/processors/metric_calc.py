@@ -639,6 +639,8 @@ class MetricCalc(DataProcessor):
                         var_result = var_result.rename(
                             {
                                 "return_values": f"{var_name}_return_values",
+                                "conf_int_lower_limit": f"{varn_name}_conf_int_lower_limit",
+                                "conf_int_upper_limit": f"{varn_name}_conf_int_upper_limit",
                                 "p_values": f"{var_name}_p_values",
                             }
                         )
@@ -646,6 +648,8 @@ class MetricCalc(DataProcessor):
                         var_result = var_result.rename(
                             {
                                 "return_periods": f"{var_name}_return_periods",
+                                "conf_int_lower_limit": f"{varn_name}_conf_int_lower_limit",
+                                "conf_int_upper_limit": f"{varn_name}_conf_int_upper_limit",
                                 "p_values": f"{var_name}_p_values",
                             }
                         )
@@ -805,8 +809,6 @@ class MetricCalc(DataProcessor):
 
             # Calculate return values for each return period
             if return_periods is not UNSET:
-                data_variable_ci = "return_value"
-                arg_value_ci = return_periods
                 event_prob = 1.0 / return_periods  # Assuming 1-year blocks
                 if extremes_type == "max":
                     return_events = 1.0 - event_prob
@@ -818,9 +820,11 @@ class MetricCalc(DataProcessor):
 
                 # get confidence intervals
                 bootstrap_runs = 100
+                data_variable_ci = "return_value"
+                arg_value_ci = return_periods
                 conf_int_lower_limit, conf_int_upper_limit = _conf_int(
                     bms=block_maxima_1d,
-                    distr=fitted_distr,
+                    distr=distr,
                     data_variable=data_variable_ci,
                     arg_value=arg_value_ci,
                     bootstrap_runs=bootstrap_runs,
@@ -846,8 +850,6 @@ class MetricCalc(DataProcessor):
                     )
 
             elif return_values is not UNSET:
-                data_variable_ci = "return_period"
-                arg_value_ci = return_values
                 cdf_val = fitted_distr.cdf(return_values)  # Assuming 1 year blocks
                 if extremes_type == "max":
                     return_prob = 1.0 - cdf_val
@@ -857,9 +859,11 @@ class MetricCalc(DataProcessor):
 
                 # get confidence intervals
                 bootstrap_runs = 100
+                data_variable_ci = "return_period"
+                arg_value_ci = return_values
                 conf_int_lower_limit, conf_int_upper_limit = _conf_int(
                     bms=block_maxima_1d,
-                    distr=fitted_distr,
+                    distr=distr,
                     data_variable=data_variable_ci,
                     arg_value=arg_value_ci,
                     bootstrap_runs=bootstrap_runs,
@@ -898,8 +902,8 @@ class MetricCalc(DataProcessor):
             else:
                 return (
                     np.full_like(return_values, np.nan),
-                    np.full_like(return_periods, np.nan),
-                    np.full_like(return_periods, np.nan),
+                    np.full_like(return_values, np.nan),
+                    np.full_like(return_values, np.nan),
                     np.nan,
                 )
 
@@ -1223,6 +1227,8 @@ class MetricCalc(DataProcessor):
             p_values,
             batch_data,
         )
+        logger.debug(f"return_data: {return_data}")
+        logger.debug(f"conf_int_upper_limit: {conf_int_upper_limit}")
         logger.debug(
             "Result dataset creation took %.1fs", time_module.time() - step_start
         )
@@ -1280,9 +1286,9 @@ class MetricCalc(DataProcessor):
                     "get_p_value": self.goodness_of_fit_test,
                 },
                 input_core_dims=[[time_dim]],
-                output_core_dims=[["one_in_x"], []],
+                output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"], []],
                 output_sizes={"one_in_x": output_length},
-                output_dtypes=("float", "float"),
+                output_dtypes=("float", "float", "float", "float"),
                 vectorize=True,
             )
         )
@@ -1386,9 +1392,9 @@ class MetricCalc(DataProcessor):
                     "get_p_value": self.goodness_of_fit_test,
                 },
                 input_core_dims=[[time_dim]],
-                output_core_dims=[["one_in_x"], []],
+                output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"], []],
                 output_sizes={"one_in_x": output_length},
-                output_dtypes=("float", "float"),
+                output_dtypes=("float", "float", "float", "float"),
                 vectorize=True,
             )
 
