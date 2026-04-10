@@ -74,7 +74,7 @@ class MetricCalc(DataProcessor):
           If provided, performs extreme value analysis instead of basic metrics. Only
           one of "return_periods" or "return_values" can be set at a time. Keys:
           - return_periods (list): List of return periods (e.g., [10, 25, 50, 100])
-          - return_values (list): List of return values (e.g., [100, 105,110])
+          - return_values (list): List of return values (e.g., [100, 105, 110])
           - distribution (str, optional): Distribution for fitting ("gev", "genpareto", "gamma"). Default: "gev"
           - extremes_type (str, optional): "max" or "min". Default: "max"
           - event_duration (tuple, optional): Event duration as (int, str). Default: (1, "day")
