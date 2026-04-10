@@ -298,7 +298,7 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
         duration_num, duration_unit = grouped_duration
         if not isinstance(duration_num, int) or duration_num <= 0:
             logger.warning(
-                "\n\grouped_duration number must be a positive integer. "
+                "\n\ngrouped_duration number must be a positive integer. "
                 "\nPlease check the configuration."
             )
             return False
