@@ -672,6 +672,8 @@ def _bootstrap(
         value to do the calculation to
     block_size : int
         block size, in years, of the provided block maximum series
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
 
     Returns
     -------
@@ -738,6 +740,8 @@ def _conf_int(
         Confidence interval upper bound
     block_size : int
         block size, in years, of the provided block maximum series
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
 
     Returns
     -------
@@ -805,6 +809,8 @@ def _get_return_variable(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
     dropna_time: boolean
         Whether to drop NaNs along the time axis
     dim_to_fit : str
@@ -997,6 +1003,8 @@ def get_return_value(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
     dropna_time: boolean
         Whether to drop NaNs along the time axis
     dim_to_fit : str
@@ -1053,6 +1061,8 @@ def get_return_prob(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
     dropna_time: boolean
         Whether to drop NaNs along the time axis
     dim_to_fit : str
@@ -1087,6 +1097,7 @@ def get_return_period(
     conf_int_lower_bound: float = 2.5,
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
+    extremes_type: str = "max",
     dropna_time: bool = False,
     dim_to_fit: str = "time",
 ) -> xr.Dataset:
@@ -1108,6 +1119,8 @@ def get_return_period(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
     dropna_time: boolean
         Whether to drop NaNs along the time axis
     dim_to_fit : str
@@ -1128,6 +1141,7 @@ def get_return_period(
         conf_int_lower_bound,
         conf_int_upper_bound,
         multiple_points,
+        extremes_type,
         dropna_time=dropna_time,
         dim_to_fit=dim_to_fit,
     )
