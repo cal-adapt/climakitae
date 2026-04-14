@@ -689,6 +689,15 @@ class MetricCalc(DataProcessor):
             except OutOfBoundsDatetime:
                 data_array = add_dummy_time_to_wl(data_array, freq_name="1hr")
                 data_array.attrs["frequency"] = "1hr"
+        else:
+            # Check if we have a frequency
+            if data_array.attrs.get("frequency", "") == "":
+                # Check the time difference at first step
+                diff = data_array.time[1] - data_array.time[0]
+                if diff == np.timedelta64(1, "D"):
+                    data_array.attrs["frequency"] = "day"
+                elif diff == np.timedelta64(1, "h"):
+                    data_array.attrs["frequency"] = "1hr"
 
         # Apply variable-specific preprocessing
         data_array = self._preprocess_variable_for_one_in_x(data_array, var_name)
@@ -1363,6 +1372,7 @@ class MetricCalc(DataProcessor):
                 or "hourly" in str(data.attrs.get("frequency", "")).lower()
             ):
                 data = data.resample(time="1D").sum()
+                data.attrs["frequency"] = "day"
 
             # Remove trace precipitation
             if preprocessing.get("remove_trace", True):
