@@ -698,6 +698,9 @@ class MetricCalc(DataProcessor):
                     data_array.attrs["frequency"] = "day"
                 elif diff == np.timedelta64(1, "h"):
                     data_array.attrs["frequency"] = "1hr"
+                else:
+                    # monthly is the third allowed option
+                    data_array.attrs["frequency"] = "mon"
 
         # Apply variable-specific preprocessing
         data_array = self._preprocess_variable_for_one_in_x(data_array, var_name)
