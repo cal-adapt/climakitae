@@ -680,7 +680,7 @@ class MetricCalc(DataProcessor):
             else:
                 logger.info("Large array detected - using Dask optimization...")
 
-        # Check if we have a time dimension, and add dummy time if needed
+        # Check if we have a time dimension, and add dummy time or frequency if needed
         if "time" not in data_array.dims:
             try:
                 data_array = add_dummy_time_to_wl(data_array)
