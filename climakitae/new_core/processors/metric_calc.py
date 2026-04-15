@@ -84,6 +84,8 @@ class MetricCalc(DataProcessor):
           - grouped_duration (tuple, optional): Rolling window as (int, "day"). Use with event_duration=(1, "day"). Default UNSET
           - block_size (int, optional): Block size in years. Default: 1
           - goodness_of_fit_test (bool, optional): Perform KS test. Default: True
+          - alpha (float, optional): Significance level for confidence intervals. Default: 0.05
+          - bootstrap_runs (int, optional): Number of bootstrap runs for confidence intervals. Default: 100
           - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
           - variable_preprocessing (dict, optional): Variable-specific preprocessing options
 
@@ -252,6 +254,11 @@ class MetricCalc(DataProcessor):
         self.event_duration = self.one_in_x_config.get("event_duration", (1, "day"))
         self.grouped_duration = self.one_in_x_config.get("grouped_duration", UNSET)
         self.block_size = self.one_in_x_config.get("block_size", 1)
+        self.conf_int_lower_bound = (
+            self.one_in_x_config.get("alpha", 0.05) * 100.0
+        ) / 2
+        self.conf_int_upper_bound = 100.0 - self.conf_int_lower_bound
+        self.bootstrap_runs = self.one_in_x_config.get("bootstrap_runs", 100)
         self.goodness_of_fit_test = self.one_in_x_config.get(
             "goodness_of_fit_test", True
         )
@@ -849,6 +856,7 @@ class MetricCalc(DataProcessor):
         return_periods: np.ndarray = UNSET,
         return_values: np.ndarray = UNSET,
         distr: str = "gev",
+        block_size: int = 1,
         extremes_type: str = "max",
         get_p_value: bool = False,
     ) -> tuple[np.ndarray, float]:
@@ -869,6 +877,8 @@ class MetricCalc(DataProcessor):
         distr : str, optional
             Distribution type for fitting. Options: "gev", "gumbel", "weibull",
             "pearson3", "genpareto", "gamma". Default: "gev".
+        block_size : int
+            block size, in years, of the provided block maximum series
         extremes_type : str, optional
             Type of extremes: "max" for maxima, "min" for minima. Default: "max".
         get_p_value : bool, optional
@@ -1365,6 +1375,7 @@ class MetricCalc(DataProcessor):
                 "return_periods": self.return_periods,
                 "return_values": self.return_values,
                 "distr": self.distribution,
+                "block_size": self.block_size,
                 "extremes_type": self.extremes_type,
                 "get_p_value": self.goodness_of_fit_test,
             },
@@ -1382,10 +1393,10 @@ class MetricCalc(DataProcessor):
                 "return_periods": self.return_periods,
                 "return_values": self.return_values,
                 "distr": self.distribution,
-                "bootstrap_runs": 100,
-                "conf_int_lower_bound": 2.5,
-                "conf_int_upper_bound": 97.5,
-                "block_size": 1,
+                "bootstrap_runs": self.bootstrap_runs,
+                "conf_int_lower_bound": self.conf_int_lower_bound,
+                "conf_int_upper_bound": self.conf_int_upper_bound,
+                "block_size": self.block_size,
                 "extremes_type": self.extremes_type,
             },
             input_core_dims=[[time_dim]],
@@ -1394,7 +1405,9 @@ class MetricCalc(DataProcessor):
             output_dtypes=("float", "float"),
             vectorize=True,
         )
-
+        logger.debug(
+            f"intermediate results: {return_data, conf_int_lower_limit, conf_int_upper_limit, p_values}"
+        )
         return return_data, conf_int_lower_limit, conf_int_upper_limit, p_values
 
     def _fit_with_early_spatial_batching(
@@ -1692,33 +1705,27 @@ class MetricCalc(DataProcessor):
             Final result dataset with return_value and p_values
         """
         if self.return_periods is not UNSET:
-            if p_vals is not None:
-                result = xr.Dataset(
-                    {
-                        "return_values": ret_vals,
-                        "conf_int_lower_limit": conf_int_lower_limit,
-                        "conf_int_upper_limit": conf_int_upper_limit,
-                        "p_values": p_vals,
-                    }
-                )
-            else:
-                result = xr.Dataset({"return_values": ret_vals})
+            result = xr.Dataset(
+                {
+                    "return_values": ret_vals,
+                    "conf_int_lower_limit": conf_int_lower_limit,
+                    "conf_int_upper_limit": conf_int_upper_limit,
+                }
+            )
         if self.return_values is not UNSET:
-            probability = 1.0 / ret_vals
-            if p_vals is not None:
-                result = xr.Dataset(
-                    {
-                        "return_periods": ret_vals,
-                        "return_probabilities": probability,
-                        "conf_int_lower_limit": conf_int_lower_limit,
-                        "conf_int_upper_limit": conf_int_upper_limit,
-                        "p_values": p_vals,
-                    }
-                )
-            else:
-                result = xr.Dataset(
-                    {"return_periods": ret_vals, "return_probabilities": probability}
-                )
+            result = xr.Dataset(
+                {
+                    "return_periods": ret_vals,
+                    "conf_int_lower_limit": conf_int_lower_limit,
+                    "conf_int_upper_limit": conf_int_upper_limit,
+                    "return_probabilities": 1.0 / ret_vals,
+                    "conf_int_prob_lower_limit": 1.0 / conf_int_upper_limit,
+                    "conf_int_prob_upper_limit": 1.0 / conf_int_lower_limit,
+                }
+            )
+
+        if p_vals is not None:
+            result["p_values"] = p_vals
 
         # Add attributes
         result.attrs.update(
