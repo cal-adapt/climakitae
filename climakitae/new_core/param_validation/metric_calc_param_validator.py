@@ -339,7 +339,7 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
 
     if not isinstance(bootstrap_runs, int) or bootstrap_runs <= 0:
         logger.warning(
-            "\n\bootstrap_runs must be a positive integer. "
+            "\n\nbootstrap_runs must be a positive integer. "
             "\nPlease check the configuration."
         )
         return False
