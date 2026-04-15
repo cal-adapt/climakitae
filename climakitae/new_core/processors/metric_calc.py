@@ -947,7 +947,7 @@ class MetricCalc(DataProcessor):
 
             # Calculate return values for each return period
             if return_periods is not UNSET:
-                event_prob = 1.0 / return_periods  # Assuming 1-year blocks
+                event_prob = block_size / return_periods  # Assuming 1-year blocks
                 if extremes_type == "max":
                     return_events = 1.0 - event_prob
                 else:  # min
@@ -968,7 +968,7 @@ class MetricCalc(DataProcessor):
                     )
 
             elif return_values is not UNSET:
-                cdf_val = fitted_distr.cdf(return_values)  # Assuming 1 year blocks
+                cdf_val = fitted_distr.cdf(return_values) / (1 / block_size)
                 if extremes_type == "max":
                     return_prob = 1.0 - cdf_val
                 else:  # min
@@ -1321,8 +1321,6 @@ class MetricCalc(DataProcessor):
             p_values,
             batch_data,
         )
-        logger.debug(f"return_data: {return_data}")
-        logger.debug(f"conf_int_upper_limit: {conf_int_upper_limit}")
         logger.debug(
             "Result dataset creation took %.1fs", time_module.time() - step_start
         )
@@ -1385,7 +1383,7 @@ class MetricCalc(DataProcessor):
             output_dtypes=("float", "float"),
             vectorize=True,
         )
-        logger.debug(self.return_periods)
+
         conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
             self._conf_int,
             block_maxima_computed,
@@ -1405,9 +1403,7 @@ class MetricCalc(DataProcessor):
             output_dtypes=("float", "float"),
             vectorize=True,
         )
-        logger.debug(
-            f"intermediate results: {return_data, conf_int_lower_limit, conf_int_upper_limit, p_values}"
-        )
+
         return return_data, conf_int_lower_limit, conf_int_upper_limit, p_values
 
     def _fit_with_early_spatial_batching(
@@ -1493,8 +1489,6 @@ class MetricCalc(DataProcessor):
             # Step 3: Fit distributions for this spatial chunk
             (
                 chunk_return_data,
-                chunk_conf_int_lower_limit,
-                chunk_conf_int_upper_limit,
                 chunk_p_values,
             ) = xr.apply_ufunc(
                 self._fit_return_variable_1d,
@@ -1507,16 +1501,37 @@ class MetricCalc(DataProcessor):
                     "get_p_value": self.goodness_of_fit_test,
                 },
                 input_core_dims=[[time_dim]],
-                output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"], []],
+                output_core_dims=[["one_in_x"], []],
                 output_sizes={"one_in_x": output_length},
-                output_dtypes=("float", "float", "float", "float"),
+                output_dtypes=("float", "float"),
                 vectorize=True,
             )
 
             return_data_list.append(chunk_return_data)
+            p_values_list.append(chunk_p_values)
+
+            (chunk_conf_int_lower_limit, chunk_conf_int_upper_limit) = xr.apply_ufunc(
+                self._conf_int,
+                chunk_block_maxima,
+                kwargs={
+                    "return_periods": self.return_periods,
+                    "return_values": self.return_values,
+                    "distr": self.distribution,
+                    "bootstrap_runs": self.bootstrap_runs,
+                    "conf_int_lower_bound": self.conf_int_lower_bound,
+                    "conf_int_upper_bound": self.conf_int_upper_bound,
+                    "block_size": self.block_size,
+                    "extremes_type": self.extremes_type,
+                },
+                input_core_dims=[[time_dim]],
+                output_core_dims=[["one_in_x"], ["one_in_x"]],
+                output_sizes={"one_in_x": output_length},
+                output_dtypes=("float", "float"),
+                vectorize=True,
+            )
+
             conf_int_lower_limit_list.append(chunk_conf_int_lower_limit)
             conf_int_upper_limit_list.append(chunk_conf_int_upper_limit)
-            p_values_list.append(chunk_p_values)
 
             # Clean up chunk data
             del chunk_data, chunk_block_maxima
@@ -1540,16 +1555,23 @@ class MetricCalc(DataProcessor):
         # Concatenate results along spatial dimension
         logger.info("Concatenating %d chunk results...", n_batches)
         return_data = xr.concat(return_data_list, dim=spatial_dim)
+        conf_int_lower_limit = xr.concat(conf_int_lower_limit_list, dim=spatial_dim)
+        conf_int_upper_limit = xr.concat(conf_int_upper_limit_list, dim=spatial_dim)
         p_values = xr.concat(p_values_list, dim=spatial_dim)
 
         # Clean up
-        del return_data_list, p_values_list
+        del (
+            return_data_list,
+            conf_int_lower_limit_list,
+            conf_int_upper_limit_list,
+            p_values_list,
+        )
         gc.collect()
 
         total_time = time_module.time() - step_start
         logger.info("Spatial processing complete (%.1fs total)", total_time)
 
-        return return_data, p_values
+        return return_data, conf_int_lower_limit, conf_int_upper_limit, p_values
 
     def _preprocess_variable_for_one_in_x(
         self, data: xr.DataArray, var_name: str
