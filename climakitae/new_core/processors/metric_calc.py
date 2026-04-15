@@ -28,7 +28,6 @@ from climakitae.core.constants import (
 from climakitae.explore.threshold_tools import (
     _get_distr_func,
     _get_fitted_distr,
-    _conf_int,
 )
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
@@ -727,6 +726,123 @@ class MetricCalc(DataProcessor):
             )
         return self._calculate_one_in_x_vectorized(data_array)
 
+    def _bootstrap(
+        self,
+        block_maxima_1d: np.ndarray,
+        return_periods: np.ndarray = UNSET,
+        return_values: np.ndarray = UNSET,
+        distr: str = "gev",
+        block_size: int = 1,
+        extremes_type: str = "max",
+    ) -> np.ndarray:
+        """Function for making a bootstrap-calculated value from input array
+
+        Determines a bootstrap-calculated value for relevant parameters from an
+        inputed maximum series.
+
+        Parameters
+        ----------
+        block_maxima_1d : np.ndarray
+            Block maximum series
+        return_periods : np.ndarray
+            Array of return periods in years (e.g., [10, 25, 50, 100]).
+        return_values : np.ndarray
+            Array of return values in data units.
+        distr : str, optional
+            Distribution type for fitting. Options: "gev", "gumbel", "weibull",
+            "pearson3", "genpareto", "gamma". Default: "gev".
+        extremes_type : str, optional
+            Type of extremes: "max" for maxima, "min" for minima. Default: "max".
+
+        Returns
+        -------
+        np.ndarray
+
+        """
+        sample_size = len(block_maxima_1d)
+        new_bms = np.random.choice(block_maxima_1d, size=sample_size, replace=True)
+
+        try:
+            result, _ = self._fit_return_variable_1d(
+                new_bms,
+                return_periods,
+                return_values,
+                distr,
+                extremes_type=extremes_type,
+                get_p_value=False,
+            )
+        except (ValueError, ZeroDivisionError):
+            result = np.nan
+
+        return result
+
+    def _conf_int(
+        self,
+        block_maxima_1d: np.ndarray,
+        return_periods: np.ndarray = UNSET,
+        return_values: np.ndarray = UNSET,
+        distr: str = "gev",
+        bootstrap_runs: int = np.array([100]),
+        conf_int_lower_bound: float = 2.5,
+        conf_int_upper_bound: float = 97.5,
+        block_size: int = 1,
+        extremes_type: str = "max",
+    ) -> tuple[float]:
+        """Function for genearating lower and upper limits of confidence interval
+
+        Returns lower and upper limits of confidence interval given selected parameters.
+
+        Parameters
+        ----------
+        block_maxima_1d : np.ndarray
+            Block maximum series
+        return_periods : np.ndarray
+            Array of return periods in years (e.g., [10, 25, 50, 100]).
+        return_values : np.ndarray
+            Array of return values in data units.
+        distr : str, optional
+            Distribution type for fitting. Options: "gev", "gumbel", "weibull",
+            "pearson3", "genpareto", "gamma". Default: "gev".
+        bootstrap_runs : int
+            Number of bootstrap samples
+        conf_int_lower_bound : float
+            Confidence interval lower bound
+        conf_int_upper_bound : float
+            Confidence interval upper bound
+        block_size : int
+            block size, in years, of the provided block maximum series
+        extremes_type : str, optional
+            Type of extremes: "max" for maxima, "min" for minima. Default: "max".
+
+        Returns
+        -------
+        float, float
+
+        """
+        bootstrap_values = []
+
+        for _ in range(bootstrap_runs):
+            result = self._bootstrap(
+                block_maxima_1d,
+                return_periods,
+                return_values,
+                distr,
+                block_size,
+                extremes_type,
+            )
+            bootstrap_values.append(result)
+
+        bootstrap_values = np.stack(bootstrap_values, axis=0)
+
+        conf_int_array = np.percentile(
+            bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound], axis=0
+        )
+
+        conf_int_lower_limit = conf_int_array[0]
+        conf_int_upper_limit = conf_int_array[1]
+
+        return conf_int_lower_limit, conf_int_upper_limit
+
     def _fit_return_variable_1d(
         self,
         block_maxima_1d: np.ndarray,
@@ -830,34 +946,14 @@ class MetricCalc(DataProcessor):
                     fitted_distr.ppf(return_events), RETURN_VALUE_PRECISION  # type: ignore[union-attr]
                 )
 
-                # get confidence intervals
-                bootstrap_runs = 100
-                data_variable_ci = "return_value"
-                arg_value_ci = return_periods
-                conf_int_lower_limit, conf_int_upper_limit = _conf_int(
-                    bms=block_maxima_1d,
-                    distr=distr,
-                    data_variable=data_variable_ci,
-                    arg_value=arg_value_ci,
-                    bootstrap_runs=bootstrap_runs,
-                    conf_int_lower_bound=2.5,
-                    conf_int_upper_bound=97.5,
-                    block_size=self.block_size,
-                    extremes_type=extremes_type,
-                )
-
                 if get_p_value:
                     return (
                         return_values,
-                        conf_int_lower_limit,
-                        conf_int_upper_limit,
                         p_value,
                     )
                 else:
                     return (
                         return_values,
-                        conf_int_lower_limit,
-                        conf_int_upper_limit,
                         np.nan,
                     )
 
@@ -869,34 +965,14 @@ class MetricCalc(DataProcessor):
                     return_prob = cdf_val
                 return_periods = 1.0 / return_prob
 
-                # get confidence intervals
-                bootstrap_runs = 100
-                data_variable_ci = "return_period"
-                arg_value_ci = return_values
-                conf_int_lower_limit, conf_int_upper_limit = _conf_int(
-                    bms=block_maxima_1d,
-                    distr=distr,
-                    data_variable=data_variable_ci,
-                    arg_value=arg_value_ci,
-                    bootstrap_runs=bootstrap_runs,
-                    conf_int_lower_bound=2.5,
-                    conf_int_upper_bound=97.5,
-                    block_size=self.block_size,
-                    extremes_type=extremes_type,
-                )
-
                 if get_p_value:
                     return (
                         return_periods,
-                        conf_int_lower_limit,
-                        conf_int_upper_limit,
                         p_value,
                     )
                 else:
                     return (
                         return_periods,
-                        conf_int_lower_limit,
-                        conf_int_upper_limit,
                         np.nan,
                     )
 
@@ -907,14 +983,10 @@ class MetricCalc(DataProcessor):
             if return_periods is not UNSET:
                 return (
                     np.full_like(return_periods, np.nan),
-                    np.full_like(return_periods, np.nan),
-                    np.full_like(return_periods, np.nan),
                     np.nan,
                 )
             else:
                 return (
-                    np.full_like(return_values, np.nan),
-                    np.full_like(return_values, np.nan),
                     np.full_like(return_values, np.nan),
                     np.nan,
                 )
@@ -1286,23 +1358,41 @@ class MetricCalc(DataProcessor):
             output_length = len(self.return_values)
 
         # Apply the return value fitting function
-        return_data, conf_int_lower_limit, conf_int_upper_limit, p_values = (
-            xr.apply_ufunc(
-                self._fit_return_variable_1d,
-                block_maxima_computed,
-                kwargs={
-                    "return_periods": self.return_periods,
-                    "return_values": self.return_values,
-                    "distr": self.distribution,
-                    "extremes_type": self.extremes_type,
-                    "get_p_value": self.goodness_of_fit_test,
-                },
-                input_core_dims=[[time_dim]],
-                output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"], []],
-                output_sizes={"one_in_x": output_length},
-                output_dtypes=("float", "float", "float", "float"),
-                vectorize=True,
-            )
+        return_data, p_values = xr.apply_ufunc(
+            self._fit_return_variable_1d,
+            block_maxima_computed,
+            kwargs={
+                "return_periods": self.return_periods,
+                "return_values": self.return_values,
+                "distr": self.distribution,
+                "extremes_type": self.extremes_type,
+                "get_p_value": self.goodness_of_fit_test,
+            },
+            input_core_dims=[[time_dim]],
+            output_core_dims=[["one_in_x"], []],
+            output_sizes={"one_in_x": output_length},
+            output_dtypes=("float", "float"),
+            vectorize=True,
+        )
+        logger.debug(self.return_periods)
+        conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
+            self._conf_int,
+            block_maxima_computed,
+            kwargs={
+                "return_periods": self.return_periods,
+                "return_values": self.return_values,
+                "distr": self.distribution,
+                "bootstrap_runs": 100,
+                "conf_int_lower_bound": 2.5,
+                "conf_int_upper_bound": 97.5,
+                "block_size": 1,
+                "extremes_type": self.extremes_type,
+            },
+            input_core_dims=[[time_dim]],
+            output_core_dims=[["one_in_x"], ["one_in_x"]],
+            output_sizes={"one_in_x": output_length},
+            output_dtypes=("float", "float"),
+            vectorize=True,
         )
 
         return return_data, conf_int_lower_limit, conf_int_upper_limit, p_values
