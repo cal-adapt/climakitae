@@ -969,14 +969,11 @@ class MetricCalc(DataProcessor):
                     )
 
             elif return_values is not UNSET:
-                cdf_val = fitted_distr.cdf(return_values)
+                cdf_val = fitted_distr.cdf(return_values) ** (1 / block_size)
                 if extremes_type == "max":
                     return_prob = 1.0 - cdf_val
                 else:  # min
                     return_prob = cdf_val
-                # convert to an annual probability in cases where
-                # block size > 1 year
-                return_prob = return_prob / block_size
                 return_periods = 1.0 / return_prob
 
                 if get_p_value:
