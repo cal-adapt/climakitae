@@ -1514,7 +1514,7 @@ class MetricCalc(DataProcessor):
             return_data_list.append(chunk_return_data)
             p_values_list.append(chunk_p_values)
 
-            (chunk_conf_int_lower_limit, chunk_conf_int_upper_limit) = xr.apply_ufunc(
+            chunk_conf_int_lower_limit, chunk_conf_int_upper_limit = xr.apply_ufunc(
                 self._conf_int,
                 chunk_block_maxima,
                 kwargs={
