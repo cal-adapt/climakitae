@@ -73,7 +73,7 @@ class MetricCalc(DataProcessor):
         - skipna (bool, optional): Whether to skip NaN values in calculations. Default: True
 
         1-in-X Return Value Analysis:
-        - one_in_x (dict, optional): Configuration for 1-in-X extreme value analysis.
+        - one_in_x (dict, optional): Configuration for annual 1-in-X extreme value analysis.
           If provided, performs extreme value analysis instead of basic metrics. Only
           one of "return_periods" or "return_values" can be set at a time. Keys:
           - return_periods (list): List of return periods (e.g., [10, 25, 50, 100])
