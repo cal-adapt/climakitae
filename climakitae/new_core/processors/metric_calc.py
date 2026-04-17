@@ -1748,8 +1748,8 @@ class MetricCalc(DataProcessor):
             result = xr.Dataset(
                 {
                     "return_periods": ret_vals,
-                    "conf_int_lower_limit": conf_int_lower_limit,
-                    "conf_int_upper_limit": conf_int_upper_limit,
+                    "conf_int_period_lower_limit": conf_int_lower_limit,
+                    "conf_int_period_upper_limit": conf_int_upper_limit,
                     "return_probabilities": 1.0 / ret_vals,
                     "conf_int_prob_lower_limit": 1.0 / conf_int_upper_limit,
                     "conf_int_prob_upper_limit": 1.0 / conf_int_lower_limit,
@@ -1769,14 +1769,23 @@ class MetricCalc(DataProcessor):
         )
 
         # Add confidence level to attributes
-        confidence_level = self.conf_int_upper_bound - self.conf_int_lower_bound
         for dataarray in [
+            "conf_int_period_lower_limit",
+            "conf_int_prob_lower_limit",
             "conf_int_lower_limit",
-            "conf_int_upper_limit",
-            "conf_int_prob_lower_limit",
-            "conf_int_prob_lower_limit",
         ]:
             if dataarray in result:
-                result[dataarray].attrs["confidence_level"] = f"{confidence_level}%"
+                result[dataarray].attrs[
+                    "confidence interval lower bound"
+                ] = f"{self.conf_int_lower_bound}th percentile"
+        for dataarray in [
+            "conf_int_period_upper_limit",
+            "conf_int_prob_upper_limit",
+            "conf_int_upper_limit",
+        ]:
+            if dataarray in result:
+                result[dataarray].attrs[
+                    "confidence interval upper bound"
+                ] = f"{self.conf_int_upper_bound}th percentile"
 
         return result
