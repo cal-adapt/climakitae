@@ -178,7 +178,6 @@ class TestMetricCalcOneInXInit:
             ("distribution", "weibull", "distribution"),
             ("extremes_type", "min", "extremes_type"),
             ("event_duration", (3, "hour"), "event_duration"),
-            ("block_size", 2, "block_size"),
             ("goodness_of_fit_test", False, "goodness_of_fit_test"),
             ("print_goodness_of_fit", False, "print_goodness_of_fit"),
         ],
@@ -211,7 +210,6 @@ class TestMetricCalcOneInXInit:
             "distribution": "gamma",
             "extremes_type": "min",
             "event_duration": (6, "hour"),
-            "block_size": 2,
             "bootstrap_runs": 50,
             "alpha": 0.1,
             "goodness_of_fit_test": False,
@@ -226,7 +224,7 @@ class TestMetricCalcOneInXInit:
         assert processor.distribution == "gamma"
         assert processor.extremes_type == "min"
         assert processor.event_duration == (6, "hour")
-        assert processor.block_size == 2
+        assert processor.block_size == 1
         assert processor.bootstrap_runs == 50
         assert processor.conf_int_upper_bound == 95
         assert processor.conf_int_lower_bound == 5
