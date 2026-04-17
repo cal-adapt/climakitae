@@ -604,6 +604,12 @@ def _calculate_return(
     np.ndarray
         Computed extreme value metric.
 
+    Notes
+    -----
+    While this function has the ability to convert probabilities for large block sizes
+    to annual probabilities, the _get_return_variable function passes a block size of 1
+    when calling this no matter the block size used in the bms.
+
     """
     try:
         if data_variable == "return_value":
@@ -618,6 +624,9 @@ def _calculate_return(
             return_value = fitted_distr.ppf(return_event)
             result = np.round(return_value, 5)
         else:
+            # Use compound probability to get 1 year probability
+            # total probability = 1 - (1 - 1/X)**M
+            # For example see https://journals.ametsoc.org/view/journals/atot/37/11/JTECH-D-20-0070.1.xml
             cdf_val = fitted_distr.cdf(arg_value) ** (1 / block_size)
             match extremes_type:
                 case "max":
@@ -866,13 +875,10 @@ def _get_return_variable(
                 print(f"  {dict(zip(all_dims_to_drop.dims, combo))}")
             print("\n")
 
-    # get block_size from the block maxima series attributes, if available. otherwise assume block size=1 year
-    if hasattr(bms, "block size"):
-        block_size = int(
-            bms.attrs["block size"][0:-5]
-        )  # expected string format from get_block_maxima: '2 year'; extract the integer value here
-    else:
-        block_size = 1
+    # Set the block size to 1. The return variable results will be relative to
+    # whatever the block size is in the bms; e.g., if the bms block size is 2,
+    # the 1-in-X return period is for X number of 2-year blocks.
+    block_size = 1
 
     def _return_variable(bms):
 
@@ -1015,6 +1021,12 @@ def get_return_value(
     xarray.Dataset
         Dataset with return values and confidence intervals
 
+    Notes
+    -----
+    The input return period values must be in units of the BMS block size. For example, for
+    annual blocks the units are years. For 2-year blocks the units are 2-years. To get the
+    1-in-X annual return value using 2-year blocks, enter X/2 as the desired return period.
+
     """
     return _get_return_variable(
         bms,
@@ -1073,6 +1085,11 @@ def get_return_prob(
     xarray.Dataset
         Dataset with return probabilities and confidence intervals
 
+    Notes
+    -----
+    The return probability is the probability of the threshold event being exceeded
+    once in the length of time equal to the BMS block size.
+
     """
     return _get_return_variable(
         bms,
@@ -1130,6 +1147,10 @@ def get_return_period(
     -------
     xarray.Dataset
         Dataset with return periods and confidence intervals
+
+    Notes
+    -----
+    The return period is given in units of the BMS block size (in years).
 
     """
     return _get_return_variable(
