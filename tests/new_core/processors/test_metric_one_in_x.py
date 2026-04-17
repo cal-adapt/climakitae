@@ -606,6 +606,7 @@ class TestMetricCalcUpdateContextOneInX:
                     "distribution": "gev",
                     "extremes_type": "max",
                     "event_duration": (1, "day"),
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -631,6 +632,7 @@ class TestMetricCalcUpdateContextOneInX:
                     "distribution": "gamma",
                     "extremes_type": "min",
                     "event_duration": (6, "hour"),
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -663,6 +665,7 @@ class TestMetricCalcHelperMethods:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "event_duration": (1, "day"),
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -719,6 +722,7 @@ class TestMetricCalcHelperMethods:
                     "distribution": "gumbel",
                     "event_duration": (1, "day"),
                     "goodness_of_fit_test": False,
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -825,6 +829,7 @@ class TestMetricCalcPreprocessVariable:
                     "variable_preprocessing": {
                         "precipitation": {"remove_trace": True, "trace_threshold": 0.01}
                     },
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -851,6 +856,7 @@ class TestMetricCalcPreprocessVariable:
                 "one_in_x": {
                     "return_periods": [10],
                     "variable_preprocessing": {"precipitation": {"remove_trace": True}},
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -875,7 +881,13 @@ class TestMetricCalcCalculateOneInXSingle:
     def test_one_in_x_missing_sim_dimension_raises(self):
         """Test that missing 'sim' dimension raises ValueError."""
         processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10, 50], "distribution": "gev"}}
+            {
+                "one_in_x": {
+                    "return_periods": [10, 50],
+                    "distribution": "gev",
+                    "bootstrap_runs": 1,
+                }
+            }
         )
 
         # Create data without sim dimension
@@ -900,6 +912,7 @@ class TestMetricCalcCalculateOneInXSingle:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -918,6 +931,7 @@ class TestMetricCalcCalculateOneInXSingle:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -936,7 +950,13 @@ class TestMetricCalcAdaptiveBatchSize:
     def test_adaptive_batch_size_returns_valid_int(self, one_in_x_da_with_sim):
         """Test that adaptive batch size returns a valid integer."""
         processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10], "distribution": "gev"}}
+            {
+                "one_in_x": {
+                    "return_periods": [10],
+                    "distribution": "gev",
+                    "bootstrap_runs": 1,
+                }
+            }
         )
 
         batch_size = processor._calculate_adaptive_batch_size(one_in_x_da_with_sim)
@@ -950,7 +970,13 @@ class TestMetricCalcAdaptiveBatchSize:
         import sys
 
         processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10], "distribution": "gev"}}
+            {
+                "one_in_x": {
+                    "return_periods": [10],
+                    "distribution": "gev",
+                    "bootstrap_runs": 1,
+                }
+            }
         )
 
         # Temporarily remove psutil from sys.modules to simulate ImportError
@@ -985,6 +1011,7 @@ class TestMetricCalcFitDistributionsVectorized:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "goodness_of_fit_test": True,
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1010,6 +1037,7 @@ class TestMetricCalcFitDistributionsVectorized:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1038,6 +1066,7 @@ class TestMetricCalcExecuteOneInX:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1055,6 +1084,7 @@ class TestMetricCalcExecuteOneInX:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1072,6 +1102,7 @@ class TestMetricCalcExecuteOneInX:
                     "return_periods": [10],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1091,6 +1122,7 @@ class TestMetricCalcExecuteOneInX:
                     "return_periods": [10],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1163,6 +1195,7 @@ class TestMetricCalcSpatialBatching:
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
                     "event_duration": (1, "day"),
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1170,7 +1203,6 @@ class TestMetricCalcSpatialBatching:
         block_maxima_kwargs = {
             "extremes_type": "max",
             "check_ess": False,
-            "block_size": 1,
             "groupby": (1, "day"),
         }
 
@@ -1198,6 +1230,7 @@ class TestMetricCalcSpatialBatching:
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
                     "event_duration": (1, "day"),
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1205,7 +1238,6 @@ class TestMetricCalcSpatialBatching:
         block_maxima_kwargs = {
             "extremes_type": "max",
             "check_ess": False,
-            "block_size": 1,
             "groupby": (1, "day"),
         }
 
@@ -1258,6 +1290,7 @@ class TestMetricCalcEventDuration:
                     "distribution": "gev",
                     "event_duration": (6, "hour"),
                     "goodness_of_fit_test": False,
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1311,6 +1344,7 @@ class TestMetricCalcDaskArrayHandling:
                     "return_periods": [10],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
+                    "bootstrap_runs": 1,
                 }
             }
         )
