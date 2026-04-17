@@ -624,8 +624,8 @@ def _calculate_return(
             return_value = fitted_distr.ppf(return_event)
             result = np.round(return_value, 5)
         else:
-            # Use compound probability to get 1 year probability
-            # total probability = 1 - (1 - 1/X)**M
+            # Use cumulative probability to get 1 year probability
+            # cumulative probability = 1 - (1 - 1/X)**M
             # For example see https://journals.ametsoc.org/view/journals/atot/37/11/JTECH-D-20-0070.1.xml
             cdf_val = fitted_distr.cdf(arg_value) ** (1 / block_size)
             match extremes_type:
