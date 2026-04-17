@@ -82,7 +82,6 @@ class MetricCalc(DataProcessor):
           - extremes_type (str, optional): "max" or "min". Default: "max"
           - event_duration (tuple, optional): Event duration as (int, str). Default: (1, "day")
           - grouped_duration (tuple, optional): Rolling window as (int, "day"). Use with event_duration=(1, "day"). Default UNSET
-          - block_size (int, optional): Block size in years. Default: 1
           - goodness_of_fit_test (bool, optional): Perform KS test. Default: True
           - alpha (float, optional): Significance level for confidence intervals. Default: 0.05
           - bootstrap_runs (int, optional): Number of bootstrap runs for confidence intervals. Default: 100
@@ -145,6 +144,7 @@ class MetricCalc(DataProcessor):
     - The processor preserves all attributes and coordinates from the input data
     - Results maintain the same structure as input (Dataset/DataArray/Iterable)
     - When both percentiles and metrics are calculated, the results are combined into a single output
+    - The 1-in-X return variable analysis uses a block size of 1 year
     """
 
     def __init__(self, value: dict[str, Any]):
@@ -248,15 +248,17 @@ class MetricCalc(DataProcessor):
         elif self.return_values is not UNSET:
             self.return_values = _data_to_np_array(self.return_values)
 
+        # Hard-coded parameter - may be optional in future
+        self.block_size = 1
+
         # Optional parameters with defaults
         self.distribution = self.one_in_x_config.get("distribution", "gev")
         self.extremes_type = self.one_in_x_config.get("extremes_type", "max")
         self.event_duration = self.one_in_x_config.get("event_duration", (1, "day"))
         self.grouped_duration = self.one_in_x_config.get("grouped_duration", UNSET)
-        self.block_size = self.one_in_x_config.get("block_size", 1)
         self.conf_int_lower_bound = (
             self.one_in_x_config.get("alpha", 0.05) * 100.0
-        ) / 2
+        ) / 2  # two-tailed confidence limit as percent
         self.conf_int_upper_bound = 100.0 - self.conf_int_lower_bound
         self.bootstrap_runs = self.one_in_x_config.get("bootstrap_runs", 100)
         self.goodness_of_fit_test = self.one_in_x_config.get(
@@ -775,6 +777,7 @@ class MetricCalc(DataProcessor):
                 return_periods,
                 return_values,
                 distr,
+                block_size=block_size,
                 extremes_type=extremes_type,
                 get_p_value=False,
             )
@@ -947,8 +950,10 @@ class MetricCalc(DataProcessor):
 
             # Calculate return values for each return period
             if return_periods is not UNSET:
-                # Convert to an annual probability
-                event_prob = block_size / return_periods
+                # This is hard-coded for block_size=1 year
+                # event_prob code will need an adjustment for block_size
+                # if it is allowed to be != 1 year
+                event_prob = 1 / return_periods
                 if extremes_type == "max":
                     return_events = 1.0 - event_prob
                 else:  # min
@@ -969,7 +974,10 @@ class MetricCalc(DataProcessor):
                     )
 
             elif return_values is not UNSET:
-                cdf_val = fitted_distr.cdf(return_values) ** (1 / block_size)
+                # This is hard-coded for block_size=1 year
+                # cdf_val code will need an adjustment for block_size
+                # if it is allowed to be != 1 year
+                cdf_val = fitted_distr.cdf(return_values)
                 if extremes_type == "max":
                     return_prob = 1.0 - cdf_val
                 else:  # min
@@ -1498,6 +1506,7 @@ class MetricCalc(DataProcessor):
                     "return_periods": self.return_periods,
                     "return_values": self.return_values,
                     "distr": self.distribution,
+                    "block_size": self.block_size,
                     "extremes_type": self.extremes_type,
                     "get_p_value": self.goodness_of_fit_test,
                 },
@@ -1758,5 +1767,16 @@ class MetricCalc(DataProcessor):
                 "sample_size": len(data_array.time),
             }
         )
+
+        # Add confidence level to attributes
+        confidence_level = self.conf_int_upper_bound - self.conf_int_lower_bound
+        for dataarray in [
+            "conf_int_lower_limit",
+            "conf_int_upper_limit",
+            "conf_int_prob_lower_limit",
+            "conf_int_prob_lower_limit",
+        ]:
+            if dataarray in result:
+                result[dataarray].attrs["confidence_level"] = f"{confidence_level}%"
 
         return result
