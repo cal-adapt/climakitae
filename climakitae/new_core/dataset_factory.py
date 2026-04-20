@@ -450,6 +450,13 @@ class DatasetFactory:
         if (catalog_key := query["catalog"]) is not UNSET:
             return catalog_key
 
+        # For catalog key resolution, use first variable when variable_id is a list
+        query = dict(query)
+        if isinstance(query.get("variable_id"), list):
+            var_list = query["variable_id"]
+            if var_list:
+                query["variable_id"] = var_list[0]
+
         # otherwise, do a quick lookup in the dataframe
         # to find the catalog key
         valid_keys = [

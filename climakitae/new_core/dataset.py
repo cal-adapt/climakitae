@@ -178,6 +178,15 @@ class Dataset:
         # Initialize context with parameters
         context = parameters.copy() if parameters is not UNSET else {}
 
+        # Fan-out for multi-variable queries
+        variable_id = context.get("variable_id", UNSET)
+        if isinstance(variable_id, list):
+            if len(variable_id) > 1:
+                return self._execute_multi_variable(context)
+            elif len(variable_id) == 1:
+                context = context.copy()
+                context["variable_id"] = variable_id[0]
+
         # Validate parameters if validator is set
         valid_query = UNSET
         if self.parameter_validator is not UNSET:
@@ -265,6 +274,22 @@ class Dataset:
             )
             logger.debug("Exception traceback:\n%s", tb_info)
             raise RuntimeError(f"Error in processing pipeline: {str(e)}") from e
+
+    def _execute_multi_variable(self, context: Dict[str, Any]) -> xr.Dataset:
+        """Execute the pipeline once per variable and merge results."""
+        import copy
+
+        results = []
+        for var in context["variable_id"]:
+            sub_context = copy.deepcopy(context)
+            sub_context["variable_id"] = var
+            result = self.execute(sub_context)
+            if result is not None:
+                results.append(result)
+        if not results:
+            logger.warning("No results returned for any variable in %s", context["variable_id"])
+            return xr.Dataset()
+        return xr.merge(results, join="outer", compat="no_conflicts")
 
     def with_param_validator(
         self, parameter_validator: ParameterValidator

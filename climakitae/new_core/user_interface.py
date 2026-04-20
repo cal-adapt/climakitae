@@ -584,14 +584,14 @@ class ClimateData:
         logger.info("Grid label set to: %s", grid_label.strip())
         return self
 
-    def variable(self, variable: str) -> "ClimateData":
-        """Set the climate variable to retrieve.
+    def variable(self, variable: "str | list[str]") -> "ClimateData":
+        """Set the climate variable(s) to retrieve.
 
         Parameters
         ----------
-        variable : str
-            The variable identifier (e.g., "tasmax", "pr", "cf").
-            Can also be a registered derived variable name.
+        variable : str or list of str
+            One or more variable identifiers (e.g., "tasmax", ["tasmax", "tasmin"]).
+            Can also include registered derived variable names.
 
         Returns
         -------
@@ -600,11 +600,19 @@ class ClimateData:
 
         """
         logger.debug("Setting variable to: %s", variable)
-        if not isinstance(variable, str) or not variable.strip():
-            logger.error("Invalid variable parameter: must be non-empty string")
-            raise ValueError("Variable must be a non-empty string")
-        self._query["variable_id"] = variable.strip()
-        logger.info("Variable set to: %s", variable.strip())
+        if isinstance(variable, str):
+            variable = [variable]
+        if not variable or not all(isinstance(v, str) and v.strip() for v in variable):
+            logger.error("Invalid variable parameter: must be non-empty string or list of non-empty strings")
+            raise ValueError("variable must be a non-empty string or list of non-empty strings")
+        seen, deduped = set(), []
+        for v in variable:
+            v = v.strip()
+            if v not in seen:
+                seen.add(v)
+                deduped.append(v)
+        self._query["variable_id"] = deduped
+        logger.info("Variable set to: %s", deduped)
         return self
 
     def derived_variable(
