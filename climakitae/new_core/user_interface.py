@@ -603,8 +603,12 @@ class ClimateData:
         if isinstance(variable, str):
             variable = [variable]
         if not variable or not all(isinstance(v, str) and v.strip() for v in variable):
-            logger.error("Invalid variable parameter: must be non-empty string or list of non-empty strings")
-            raise ValueError("variable must be a non-empty string or list of non-empty strings")
+            logger.error(
+                "Invalid variable parameter: must be non-empty string or list of non-empty strings"
+            )
+            raise ValueError(
+                "variable must be a non-empty string or list of non-empty strings"
+            )
         seen, deduped = set(), []
         for v in variable:
             v = v.strip()

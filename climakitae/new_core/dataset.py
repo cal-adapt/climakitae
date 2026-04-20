@@ -287,7 +287,9 @@ class Dataset:
             if result is not None:
                 results.append(result)
         if not results:
-            logger.warning("No results returned for any variable in %s", context["variable_id"])
+            logger.warning(
+                "No results returned for any variable in %s", context["variable_id"]
+            )
             return xr.Dataset()
         return xr.merge(results, join="outer", compat="no_conflicts")
 
