@@ -647,8 +647,8 @@ class MetricCalc(DataProcessor):
                         var_result = var_result.rename(
                             {
                                 "return_values": f"{var_name}_return_values",
-                                "conf_int_lower_limit": f"{varn_name}_conf_int_lower_limit",
-                                "conf_int_upper_limit": f"{varn_name}_conf_int_upper_limit",
+                                "conf_int_lower_limit": f"{var_name}_conf_int_lower_limit",
+                                "conf_int_upper_limit": f"{var_name}_conf_int_upper_limit",
                                 "p_values": f"{var_name}_p_values",
                             }
                         )
@@ -656,8 +656,8 @@ class MetricCalc(DataProcessor):
                         var_result = var_result.rename(
                             {
                                 "return_periods": f"{var_name}_return_periods",
-                                "conf_int_lower_limit": f"{varn_name}_conf_int_lower_limit",
-                                "conf_int_upper_limit": f"{varn_name}_conf_int_upper_limit",
+                                "conf_int_lower_limit": f"{var_name}_conf_int_lower_limit",
+                                "conf_int_upper_limit": f"{var_name}_conf_int_upper_limit",
                                 "p_values": f"{var_name}_p_values",
                             }
                         )
@@ -743,7 +743,7 @@ class MetricCalc(DataProcessor):
         distr: str = "gev",
         block_size: int = 1,
         extremes_type: str = "max",
-    ) -> np.ndarray:
+    ) -> nd.array | float:
         """Function for making a bootstrap-calculated value from input array
 
         Determines a bootstrap-calculated value for relevant parameters from an
@@ -760,12 +760,14 @@ class MetricCalc(DataProcessor):
         distr : str, optional
             Distribution type for fitting. Options: "gev", "gumbel", "weibull",
             "pearson3", "genpareto", "gamma". Default: "gev".
+        block_size : int, optional
+            Block size in years. Default: 1
         extremes_type : str, optional
             Type of extremes: "max" for maxima, "min" for minima. Default: "max".
 
         Returns
         -------
-        np.ndarray
+        np.ndarray | float
 
         """
         sample_size = len(block_maxima_1d)
@@ -792,12 +794,12 @@ class MetricCalc(DataProcessor):
         return_periods: np.ndarray = UNSET,
         return_values: np.ndarray = UNSET,
         distr: str = "gev",
-        bootstrap_runs: int = np.array([100]),
+        bootstrap_runs: int = 100,
         conf_int_lower_bound: float = 2.5,
         conf_int_upper_bound: float = 97.5,
         block_size: int = 1,
         extremes_type: str = "max",
-    ) -> tuple[float]:
+    ) -> tuple[float, float]:
         """Function for genearating lower and upper limits of confidence interval
 
         Returns lower and upper limits of confidence interval given selected parameters.
@@ -1347,7 +1349,7 @@ class MetricCalc(DataProcessor):
 
     def _fit_distributions_vectorized(
         self, block_maxima: xr.DataArray, time_dim: str
-    ) -> tuple[xr.DataArray, xr.DataArray]:
+    ) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]:
         """
         Fit distributions using vectorized apply_ufunc.
 
@@ -1360,8 +1362,8 @@ class MetricCalc(DataProcessor):
 
         Returns
         -------
-        tuple[xr.DataArray, xr.DataArray]
-            Return values and p-values arrays
+        tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]
+            Return values, confidence intervals, and p-values arrays
         """
         # Compute block maxima to numpy first (small after yearly aggregation)
         if hasattr(block_maxima.data, "compute"):
@@ -1714,8 +1716,8 @@ class MetricCalc(DataProcessor):
     def _create_one_in_x_result_dataset(
         self,
         ret_vals: xr.DataArray,
-        conf_int_lower_limit,
-        conf_int_upper_limit,
+        conf_int_lower_limit: xr.DataArray,
+        conf_int_upper_limit: xr.DataArray,
         p_vals: xr.DataArray | None,
         data_array: xr.DataArray,
     ) -> xr.Dataset:
@@ -1726,6 +1728,10 @@ class MetricCalc(DataProcessor):
         ----------
         ret_vals : xr.DataArray
             Return values or periods DataArray
+        conf_int_lower_limit : xr.DataArray
+            Lower bound of return variable confidence interval
+        conf_int_upper_limit: xr.DataArray
+            Upper bound of return variable confidence interval
         p_vals : xr.DataArray | None
             P-values DataArray
         data_array : xr.DataArray
