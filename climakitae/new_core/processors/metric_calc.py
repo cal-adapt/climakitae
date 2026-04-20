@@ -1423,7 +1423,7 @@ class MetricCalc(DataProcessor):
         block_maxima_kwargs: dict,
         spatial_dim: str,
         batch_size: int,
-    ) -> tuple[xr.DataArray, xr.DataArray]:
+    ) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]:
         """
         Fit distributions with EARLY spatial batching - before computing block maxima.
 
@@ -1444,8 +1444,8 @@ class MetricCalc(DataProcessor):
 
         Returns
         -------
-        tuple[xr.DataArray, xr.DataArray]
-            Return values and p-values arrays
+        tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]
+            Return values, confidence intervals, and p-values arrays
         """
         n_spatial = batch_data.sizes[spatial_dim]
         n_batches = int(np.ceil(n_spatial / batch_size))
