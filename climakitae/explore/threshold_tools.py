@@ -611,9 +611,8 @@ def _calculate_return(
 
     Notes
     -----
-    While this function has the ability to convert probabilities for large block sizes
-    to annual probabilities, the _get_return_variable function passes a block size of 1
-    when calling this no matter the block size used in the bms.
+    The block size is used to get the annual probability of the desired event when
+    the block size is > 1 year.
 
     """
     try:
@@ -1033,10 +1032,10 @@ def get_return_value(
 
     Notes
     -----
-    The input return period values must be in units of the BMS block size. For example, for
-    annual blocks the units are years. For 2-year blocks the units are 2-years. To get the
-    1-in-X annual return value using 2-year blocks, enter X/2 as the desired return period.
-
+    This function calls _get_return_variable, which will attempt to use the block_size
+    attribute from the BMS to get the block size. If the block_size attribute is not found,
+    an default of 1 will be used. The block size is used to get the annual probability of
+    the desired event when the block size is > 1 year.
     """
     return _get_return_variable(
         bms,
@@ -1097,8 +1096,10 @@ def get_return_prob(
 
     Notes
     -----
-    The return probability is the probability of the threshold event being exceeded
-    once in the length of time equal to the BMS block size.
+    This function calls _get_return_variable, which will attempt to use the block_size
+    attribute from the BMS to get the block size. If the block_size attribute is not found,
+    an default of 1 will be used. The block size is used to get the annual probability of
+    the desired event when the block size is > 1 year.
 
     """
     return _get_return_variable(
@@ -1160,7 +1161,10 @@ def get_return_period(
 
     Notes
     -----
-    The return period is given in units of the BMS block size (in years).
+    This function calls _get_return_variable, which will attempt to use the block_size
+    attribute from the BMS to get the block size. If the block_size attribute is not found,
+    an default of 1 will be used. The block size is used to get the annual probability of
+    the desired event when the block size is > 1 year.
 
     """
     return _get_return_variable(
