@@ -12,7 +12,8 @@ from climakitae.core.constants import UNSET
 
 
 def calculate_ess(data: xr.DataArray, nlags: int = UNSET) -> xr.DataArray:
-    """Function for calculating the effective sample size (ESS) of the provided data.
+    """Function for calculating the effective sample size (ESS) of the provided data
+    using the autocorrelation of the data.
 
     Parameters
     ----------
@@ -27,6 +28,10 @@ def calculate_ess(data: xr.DataArray, nlags: int = UNSET) -> xr.DataArray:
     xr.DataArray
         Effective sample size.
         Returned as a DataArray object so it can be utilized by xr.groupby and xr.resample.
+
+    References
+    ----------
+    Zwiers, F. W., and H. von Storch, 1995: Taking Serial Correlation into Account in Tests of the Mean. J. Climate, 8, 336–351, https://doi.org/10.1175/1520-0442(1995)008<0336:TSCIAI>2.0.CO;2.
 
     """
     n = len(data)
