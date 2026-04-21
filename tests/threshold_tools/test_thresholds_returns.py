@@ -111,6 +111,51 @@ def test_return_period_invalid_distr(T2_ams: xr.DataArray):
         )
 
 
+@pytest.mark.advanced
+def test_return_values_block_size(T2_ams: xr.DataArray):
+    """Test return values for different block sizes."""
+    rvs1 = threshold_tools.get_return_value(
+        T2_ams, return_period=10, distr="gev", bootstrap_runs=1, multiple_points=False
+    )
+    # set different block size attribute to test that the calculation is handled differently:
+    T2_ams.attrs["block size"] = "2 year"
+    rvs2 = threshold_tools.get_return_value(
+        T2_ams, return_period=10, distr="gev", bootstrap_runs=1, multiple_points=False
+    )
+    # test that the return values from longer block sizes should be smaller:
+    assert rvs1["return_value"].values[()] >= rvs2["return_value"].values[()]
+
+
+@pytest.mark.advanced
+def test_return_periods_block_size(T2_ams: xr.DataArray):
+    """Test return periods for different block sizes."""
+    rps1 = threshold_tools.get_return_period(
+        T2_ams, return_value=290, distr="gev", bootstrap_runs=1, multiple_points=False
+    )
+    # set different block size attribute to test that the calculation is handled differently:
+    T2_ams.attrs["block size"] = "2 year"
+    rps2 = threshold_tools.get_return_period(
+        T2_ams, return_value=290, distr="gev", bootstrap_runs=1, multiple_points=False
+    )
+    # test that the return periods from longer block sizes should be larger:
+    assert rps1["return_period"].values[()] <= rps2["return_period"].values[()]
+
+
+@pytest.mark.advanced
+def test_return_probs_block_size(T2_ams: xr.DataArray):
+    """Test return probabilities for different block sizes."""
+    rps1 = threshold_tools.get_return_prob(
+        T2_ams, threshold=290, distr="gev", bootstrap_runs=1, multiple_points=False
+    )
+    # set different block size attribute to test that the calculation is handled differently:
+    T2_ams.attrs["block size"] = "2 year"
+    rps2 = threshold_tools.get_return_prob(
+        T2_ams, threshold=290, distr="gev", bootstrap_runs=1, multiple_points=False
+    )
+    # test that the return probs from longer block sizes should be smaller:
+    assert rps1["return_prob"].values[()] >= rps2["return_prob"].values[()]
+
+
 # -------------- Test AMS block maxima calculations for complex extreme events
 
 
