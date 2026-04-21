@@ -188,6 +188,7 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
     extremes_type = one_in_x_config.get("extremes_type", "max")
     event_duration = one_in_x_config.get("event_duration", (1, "day"))
     grouped_duration = one_in_x_config.get("grouped_duration", UNSET)
+    block_size = one_in_x_config.get("block_size", 1)
     goodness_of_fit_test = one_in_x_config.get("goodness_of_fit_test", True)
     alpha = one_in_x_config.get("alpha", 0.05)
     bootstrap_runs = one_in_x_config.get("bootstrap_runs", 100)
@@ -319,6 +320,14 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
                 "\nPlease check the configuration."
             )
             return False
+
+    # Validate block_size
+    if not isinstance(block_size, int) or block_size <= 0:
+        logger.warning(
+            "\n\nblock_size must be a positive integer. "
+            "\nPlease check the configuration."
+        )
+        return False
 
     # Validate confidence interval parameters alpha and bootstrap_runs
     if not isinstance(alpha, float) or alpha <= 0 or alpha >= 1:
