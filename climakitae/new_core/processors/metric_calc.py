@@ -87,6 +87,7 @@ class MetricCalc(DataProcessor):
           - alpha (float, optional): Significance level for confidence intervals. Default: 0.05
           - bootstrap_runs (int, optional): Number of bootstrap runs for confidence intervals. Default: 100
           - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
+          - check_ess (bool, optional): Check the effective sample size. Default: True
           - variable_preprocessing (dict, optional): Variable-specific preprocessing options
 
         Threshold Exceedance Count:
@@ -266,6 +267,7 @@ class MetricCalc(DataProcessor):
         self.print_goodness_of_fit = self.one_in_x_config.get(
             "print_goodness_of_fit", True
         )
+        self.check_ess = self.one_in_x_config("check_ess", True)
         self.variable_preprocessing = self.one_in_x_config.get(
             "variable_preprocessing", {}
         )
@@ -951,10 +953,8 @@ class MetricCalc(DataProcessor):
 
             # Calculate return values for each return period
             if return_periods is not UNSET:
-                # This is hard-coded for block_size=1 year
-                # event_prob code will need an adjustment for block_size
-                # if it is allowed to be != 1 year
-                event_prob = 1 / return_periods
+                # Adjustment with block_size to get annual probability
+                event_prob = block_size / return_periods
                 if extremes_type == "max":
                     return_events = 1.0 - event_prob
                 else:  # min
@@ -975,10 +975,10 @@ class MetricCalc(DataProcessor):
                     )
 
             elif return_values is not UNSET:
-                # This is hard-coded for block_size=1 year
-                # cdf_val code will need an adjustment for block_size
-                # if it is allowed to be != 1 year
-                cdf_val = fitted_distr.cdf(return_values)
+                # Use cumulative probability to get 1 year probability
+                # cumulative probability = 1 - (1 - 1/X)**M
+                # For example see https://journals.ametsoc.org/view/journals/atot/37/11/JTECH-D-20-0070.1.xml
+                cdf_val = fitted_distr.cdf(return_values) ** (1 / block_size)
                 if extremes_type == "max":
                     return_prob = 1.0 - cdf_val
                 else:  # min
@@ -1021,7 +1021,7 @@ class MetricCalc(DataProcessor):
         # Configure block maxima extraction
         kwargs = {
             "extremes_type": self.extremes_type,
-            "check_ess": True,
+            "check_ess": self.check_ess,
             "block_size": self.block_size,
         }
 
