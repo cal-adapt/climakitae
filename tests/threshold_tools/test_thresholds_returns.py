@@ -118,7 +118,7 @@ def test_return_values_block_size(T2_ams: xr.DataArray):
         T2_ams, return_period=10, distr="gev", bootstrap_runs=1, multiple_points=False
     )
     # set different block size attribute to test that the calculation is handled differently:
-    T2_ams.attrs["block size"] = "2 year"
+    T2_ams.attrs["block_size"] = "2 year"
     rvs2 = threshold_tools.get_return_value(
         T2_ams, return_period=10, distr="gev", bootstrap_runs=1, multiple_points=False
     )
@@ -133,7 +133,7 @@ def test_return_periods_block_size(T2_ams: xr.DataArray):
         T2_ams, return_value=290, distr="gev", bootstrap_runs=1, multiple_points=False
     )
     # set different block size attribute to test that the calculation is handled differently:
-    T2_ams.attrs["block size"] = "2 year"
+    T2_ams.attrs["block_size"] = "2 year"
     rps2 = threshold_tools.get_return_period(
         T2_ams, return_value=290, distr="gev", bootstrap_runs=1, multiple_points=False
     )
@@ -148,7 +148,7 @@ def test_return_probs_block_size(T2_ams: xr.DataArray):
         T2_ams, threshold=290, distr="gev", bootstrap_runs=1, multiple_points=False
     )
     # set different block size attribute to test that the calculation is handled differently:
-    T2_ams.attrs["block size"] = "2 year"
+    T2_ams.attrs["block_size"] = "2 year"
     rps2 = threshold_tools.get_return_prob(
         T2_ams, threshold=290, distr="gev", bootstrap_runs=1, multiple_points=False
     )
