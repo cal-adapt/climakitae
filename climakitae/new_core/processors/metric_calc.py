@@ -82,6 +82,7 @@ class MetricCalc(DataProcessor):
           - extremes_type (str, optional): "max" or "min". Default: "max"
           - event_duration (tuple, optional): Event duration as (int, str). Default: (1, "day")
           - grouped_duration (tuple, optional): Rolling window as (int, "day"). Use with event_duration=(1, "day"). Default UNSET
+          - block_size (int, optional): Block size in years. Default: 1
           - goodness_of_fit_test (bool, optional): Perform KS test. Default: True
           - alpha (float, optional): Significance level for confidence intervals. Default: 0.05
           - bootstrap_runs (int, optional): Number of bootstrap runs for confidence intervals. Default: 100
@@ -248,14 +249,12 @@ class MetricCalc(DataProcessor):
         elif self.return_values is not UNSET:
             self.return_values = _data_to_np_array(self.return_values)
 
-        # Hard-coded parameter - may be optional in future
-        self.block_size = 1
-
         # Optional parameters with defaults
         self.distribution = self.one_in_x_config.get("distribution", "gev")
         self.extremes_type = self.one_in_x_config.get("extremes_type", "max")
         self.event_duration = self.one_in_x_config.get("event_duration", (1, "day"))
         self.grouped_duration = self.one_in_x_config.get("grouped_duration", UNSET)
+        self.block_size = self.one_in_x_config.get("block_size", 1)
         self.conf_int_lower_bound = (
             self.one_in_x_config.get("alpha", 0.05) * 100.0
         ) / 2  # two-tailed confidence limit as percent
@@ -1022,7 +1021,7 @@ class MetricCalc(DataProcessor):
         # Configure block maxima extraction
         kwargs = {
             "extremes_type": self.extremes_type,
-            "check_ess": False,
+            "check_ess": True,
             "block_size": self.block_size,
         }
 
