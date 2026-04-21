@@ -344,7 +344,7 @@ def _calc_average_ess_gridded_data(data: xr.DataArray, block_size: int) -> float
         da_stacked = da_time_block.stack(spatial_dims=["x", "y"])
 
         # Compute ESS for the time block
-        ess_by_time_block = da_stacked.groupby("spatial_dims").apply(calculate_ess)
+        ess_by_time_block = da_stacked.groupby("spatial_dims").map(calculate_ess)
 
         # Compute mean ESS for time block and append to list
         ess_mean_by_time_block = ess_by_time_block.mean(skipna=True).item()
@@ -374,7 +374,7 @@ def _calc_average_ess_timeseries_data(data: xr.DataArray, block_size: int) -> fl
     """
     # Resample the data depending on the block size
     # Calculate ESS for each block
-    ess_by_time_block = data.resample(time=f"{block_size}YS").apply(calculate_ess)
+    ess_by_time_block = data.resample(time=f"{block_size}YS").map(calculate_ess)
 
     # Compute mean of all ESS values
     mean_ess = ess_by_time_block.mean(skipna=True).item()
@@ -884,7 +884,7 @@ def _get_return_variable(
         block_size = int(
             bms.attrs["block_size"][0:-5]
         )  # expected string format from get_block_maxima: '2 year'; extract the integer value here
-        print(f"Found block_size {block_size}")
+        print(f"Found block_size of {block_size} in BMS attributes")
     else:
         block_size = 1
         print("Using default block size of 1")
