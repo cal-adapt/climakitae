@@ -875,10 +875,15 @@ def _get_return_variable(
                 print(f"  {dict(zip(all_dims_to_drop.dims, combo))}")
             print("\n")
 
-    # Set the block size to 1. The return variable results will be relative to
-    # whatever the block size is in the bms; e.g., if the bms block size is 2,
-    # the 1-in-X return period is for X number of 2-year blocks.
-    block_size = 1
+    # get block_size from the block maxima series attributes, if available. otherwise assume block size=1 year
+    if hasattr(bms, "block_size"):
+        block_size = int(
+            bms.attrs["block_size"][0:-5]
+        )  # expected string format from get_block_maxima: '2 year'; extract the integer value here
+        print(f"Found block_size {block_size}")
+    else:
+        block_size = 1
+        print("Using default block size of 1")
 
     def _return_variable(bms):
 
