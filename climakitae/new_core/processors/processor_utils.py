@@ -562,16 +562,17 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
         if "x" in da.dims and "y" in da.dims:
             # For gridded data, use chunked computation
             average_ess = _calc_average_ess_gridded_optimized(da, block_size)
-        elif da.dims == ("time",):
+        # elif da.dims == ("time",):
+        else:
             # For timeseries data
             average_ess = _calc_average_ess_timeseries_optimized(da, block_size)
-        else:
-            logger.warning(
-                "The effective sample size can only be checked for timeseries or spatial data. "
-                "You provided data with the following dimensions: %s.",
-                da.dims,
-            )
-            return
+        # else:
+        #    logger.warning(
+        #        "The effective sample size can only be checked for timeseries or spatial data. "
+        #        "You provided data with the following dimensions: %s.",
+        #        da.dims,
+        #    )
+        #    return
 
         if average_ess < MIN_ESS_THRESHOLD:
             logger.warning(
@@ -583,6 +584,48 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
             )
     except (ValueError, RuntimeError) as e:
         logger.warning("Could not calculate effective sample size: %s", e)
+
+
+def _calc_simplified_ess_optimized_by_sim(year_array, n=1):
+    # Sample autocorrelation at key lags
+    max_lag = min(n // MAX_LAG_DIVISOR, MAX_LAG_SAMPLES_GRIDDED)
+    lags = np.logspace(0, np.log10(max_lag), AUTOCORR_LAG_SAMPLES_GRIDDED).astype(int)
+    autocorr_sum = 0
+    for lag in lags:
+        if lag < n - 1:
+            corr = np.corrcoef(year_array[:-lag], year_array[lag:])[0, 1]
+            if not np.isnan(corr):
+                autocorr_sum += corr * (n - lag) / n
+    ess = n / (1 + 2 * autocorr_sum)
+    return ess
+
+
+def _calculate_ess_by_sim(data: np.array) -> xr.DataArray:
+    """Function for calculating the effective sample size (ESS) of the provided data.
+
+    Parameters
+    ----------
+    data : xr.DataArray
+        Input array is assumed to be timeseries data with potential autocorrelation.
+    nlags : int, optional
+        Number of lags to use in the autocorrelation function, defaults to the length of
+        the timeseries.
+
+    Returns
+    -------
+    xr.DataArray
+        Effective sample size.
+        Returned as a DataArray object so it can be utilized by xr.groupby and xr.resample.
+
+    """
+    n = len(data)
+    nlags = n
+    acf = sm.tsa.stattools.acf(data, nlags=nlags, fft=True)
+    sums = 0
+    for k in range(1, len(acf)):
+        sums = sums + (n - k) * acf[k] / n
+    ess = n / (1 + 2 * sums)
+    return ess
 
 
 def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> float:
@@ -630,23 +673,29 @@ def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> 
             # Use approximate autocorrelation for speed
             n = len(year_data.time)
             if n > LARGE_DATASET_THRESHOLD:  # Use approximation for large datasets
-                # Sample autocorrelation at key lags
-                max_lag = min(n // MAX_LAG_DIVISOR, MAX_LAG_SAMPLES_GRIDDED)
-                lags = np.logspace(
-                    0, np.log10(max_lag), AUTOCORR_LAG_SAMPLES_GRIDDED
-                ).astype(int)
-                autocorr_sum = 0
-                for lag in lags:
-                    if lag < n - 1:
-                        corr = np.corrcoef(
-                            year_data.values[:-lag], year_data.values[lag:]
-                        )[0, 1]
-                        if not np.isnan(corr):
-                            autocorr_sum += corr * (n - lag) / n
-                ess = n / (1 + 2 * autocorr_sum)
+                ess = xr.apply_ufunc(
+                    _calculate_simplified_ess_optimized_by_sim,
+                    year_data,
+                    kwargs={"n": n},
+                    input_core_dims=[["time"]],
+                    output_core_dims=[["ess"]],
+                    output_sizes={"ess": 1},
+                    output_dtypes=("float"),
+                    vectorize=True,
+                )
+
             else:
                 # Use exact calculation for smaller datasets
-                ess = calculate_ess(year_data).item()
+                ess = xr.apply_ufunc(
+                    _calculate_ess_by_sim,
+                    year_data,
+                    kwargs={"n": n},
+                    input_core_dims=[["time"]],
+                    output_core_dims=[["ess"]],
+                    output_sizes={"ess": 1},
+                    output_dtypes=("float"),
+                    vectorize=True,
+                )
 
             return ess
 
@@ -753,21 +802,28 @@ def _calc_average_ess_timeseries_optimized(
                     n > LARGE_TIMESERIES_THRESHOLD
                 ):  # Use approximation for large time series
                     # Sample autocorrelation at key lags
-                    max_lag = min(n // MAX_LAG_DIVISOR, MAX_LAG_SAMPLES_TIMESERIES)
-                    lags = np.logspace(
-                        0, np.log10(max_lag), AUTOCORR_LAG_SAMPLES_TIMESERIES
-                    ).astype(int)
-                    autocorr_sum = 0
-                    values = block_data.values
-                    for lag in lags:
-                        if lag < n - 1:
-                            corr = np.corrcoef(values[:-lag], values[lag:])[0, 1]
-                            if not np.isnan(corr):
-                                autocorr_sum += corr * (n - lag) / n
-                    ess = n / (1 + 2 * autocorr_sum)
+                    ess = xr.apply_ufunc(
+                        _calculate_simplified_ess_optimized_by_sim,
+                        block_data,
+                        kwargs={"n": n},
+                        input_core_dims=[["time"]],
+                        output_core_dims=[["ess"]],
+                        output_sizes={"ess": 1},
+                        output_dtypes=("float"),
+                        vectorize=True,
+                    )
                 else:
                     # Use exact calculation for smaller datasets
-                    ess = calculate_ess(block_data).item()
+                    ess = xr.apply_ufunc(
+                        _calculate_ess_by_sim,
+                        block_data,
+                        kwargs={"n": n},
+                        input_core_dims=[["time"]],
+                        output_core_dims=[["ess"]],
+                        output_sizes={"ess": 1},
+                        output_dtypes=("float"),
+                        vectorize=True,
+                    )
 
                 if not np.isnan(ess):
                     ess_values.append(ess)
