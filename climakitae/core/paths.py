@@ -3,7 +3,7 @@
 
 # Local Data Paths
 VARIABLE_DESCRIPTIONS_CSV_PATH = "data/variable_descriptions.csv"
-STATIONS_CSV_PATH = "data/hadisd_stations.csv"
+HADISD_STATIONS_URL = "https://cadcat.s3.amazonaws.com/hadisd/hadisd_stations.csv"
 
 # Intake Data Calalog URLs
 DATA_CATALOG_URL = "https://cadcat.s3.amazonaws.com/cae-collection.json"

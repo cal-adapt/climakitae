@@ -47,9 +47,9 @@ logger = logging.getLogger(__name__)
 from climakitae.core.paths import (
     BOUNDARY_CATALOG_URL,
     DATA_CATALOG_URL,
+    HADISD_STATIONS_URL,
     HDP_CATALOG_URL,
     RENEWABLES_CATALOG_URL,
-    STATIONS_CSV_PATH,
 )
 from climakitae.new_core.data_access.boundaries import Boundaries
 from climakitae.util.utils import read_csv_file
@@ -192,7 +192,7 @@ class DataCatalog(dict):
                 self[CATALOG_HDP] = None
 
             self.catalog_df = self.merge_catalogs()
-            stations_df = read_csv_file(STATIONS_CSV_PATH)
+            stations_df = pd.read_csv(HADISD_STATIONS_URL)
             # Convert string columns to object dtype to avoid StringDtype issues in pandas 2.2+
             for col in stations_df.select_dtypes(include=["string", "object"]).columns:
                 if col not in ["LON_X", "LAT_Y"]:

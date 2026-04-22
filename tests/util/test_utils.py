@@ -1547,7 +1547,7 @@ class TestConvertToLocalTime:
         # Mock the stations dataframe
         with (
             patch(
-                "climakitae.util.utils.read_csv_file",
+                "pandas.read_csv",
                 return_value=mock_stations_df,
             ),
             patch(
@@ -1568,7 +1568,7 @@ class TestConvertToLocalTime:
         data.name = None
         with (
             patch(
-                "climakitae.util.utils.read_csv_file",
+                "pandas.read_csv",
                 return_value=mock_stations_df,
             ),
             patch(
@@ -1588,7 +1588,7 @@ class TestConvertToLocalTime:
         data.name = "SAN FRANCISCO"
         with (
             patch(
-                "climakitae.util.utils.read_csv_file",
+                "pandas.read_csv",
                 return_value=mock_stations_df,
             ),
             patch(
@@ -1608,7 +1608,7 @@ class TestConvertToLocalTime:
         data.name = "SAN FRANCISCO DWTN"
         with (
             patch(
-                "climakitae.util.utils.read_csv_file",
+                "pandas.read_csv",
                 return_value=mock_stations_df,
             ),
             patch(
@@ -1640,7 +1640,7 @@ class TestConvertToLocalTime:
         data = data.to_dataset()
         with (
             patch(
-                "climakitae.util.utils.read_csv_file",
+                "pandas.read_csv",
                 return_value=mock_stations_df,
             ),
             patch(
