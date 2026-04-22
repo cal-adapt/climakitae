@@ -657,8 +657,10 @@ class MetricCalc(DataProcessor):
                         var_result = var_result.rename(
                             {
                                 "return_periods": f"{var_name}_return_periods",
-                                "conf_int_lower_limit": f"{var_name}_conf_int_lower_limit",
-                                "conf_int_upper_limit": f"{var_name}_conf_int_upper_limit",
+                                "conf_int_period_lower_limit": f"{var_name}_conf_int_period_lower_limit",
+                                "conf_int_period_upper_limit": f"{var_name}_conf_int_period_upper_limit",
+                                "conf_int_prob_lower_limit": f"{var_name}_conf_int_prob_lower_limit",
+                                "conf_int_prob_upper_limit": f"{var_name}_conf_int_prob_upper_limit",
                                 "p_values": f"{var_name}_p_values",
                             }
                         )
