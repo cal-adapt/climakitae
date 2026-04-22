@@ -163,9 +163,9 @@ class shock_XMY:
     extreme: str, 'hot' or 'cold'
         Type of shock extreme
     start_year : str
-        Initial year of TMY period (time approach)
+        Initial year of XMY period (time approach)
     end_year : str
-        Final year of TMY period (time approach)
+        Final year of XMY period (time approach)
     warming_level: float | int
         Desired warming level (warming level approach)
     station_name: str (optional)
