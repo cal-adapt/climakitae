@@ -529,7 +529,7 @@ class TestValidateOneInXParameters:
         assert "bootstrap_runs must be a positive integer." in caplog.text
 
     def test_invalid_alpha_size(self, caplog):
-        """float(block_size) returns False."""
+        """float(alpha) returns False."""
         with caplog.at_level(logging.WARNING):
             result = _validate_one_in_x_parameters({"return_periods": 10, "alpha": -1})
         assert result is False
@@ -546,6 +546,29 @@ class TestValidateOneInXParameters:
             "Parameter 'goodness_of_fit_test' must be a boolean, got <class 'str'>."
             in caplog.text
         )
+
+    def test_invalid_check_ess(self, caplog):
+        """Non-boolean check_ess returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters(
+                {"return_periods": 10, "check_ess": "True"}
+            )
+        assert result is False
+        assert (
+            "Parameter 'check_ess' must be a boolean, got <class 'str'>."
+            in caplog.text
+        )
+
+    def test_invalid_multiple_points(self, caplog):
+        """Non-boolean multiple_points returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters(
+                {"return_periods": 10, "multiple_points": "True"}
+            )
+        assert result is False
+        assert (
+            "Parameter 'multiple_points' must be a boolean, got <class 'str'>."
+            in caplog.text
 
     @pytest.mark.parametrize(
         "period",

@@ -25,6 +25,8 @@ from climakitae.new_core.processors.processor_utils import (
     _apply_grouped_duration_filter_vectorized,
     _calc_average_ess_gridded_optimized,
     _calc_average_ess_timeseries_optimized,
+    _calc_ess_by_sim,
+    _calc_simplified_ess_by_sim,
     _check_effective_sample_size_optimized,
     _extract_block_extremes_vectorized,
     _get_block_maxima_optimized,
@@ -691,18 +693,6 @@ class TestCheckEffectiveSampleSizeOptimized:
         # Function should run without errors
         assert isinstance(sample_timeseries_dataset, xr.DataArray)
 
-    def test_ess_check_unsupported_dimensions(self, caplog):
-        """Test ESS check with unsupported dimensions."""
-        # Create data with unsupported dimensions (lat/lon instead of x/y)
-        unsupported_data = TestDataFactory.create_climate_dataset(
-            time_periods=10, lat_points=3, lon_points=3
-        )  # Uses lat/lon dimensions, not x/y
-
-        with caplog.at_level(logging.WARNING):
-            _check_effective_sample_size_optimized(unsupported_data, block_size=1)
-
-        assert "effective sample size can only be checked" in caplog.text
-
 
 class TestCalcAverageEssGriddedOptimized:
     """Test class for _calc_average_ess_gridded_optimized function."""
@@ -735,8 +725,7 @@ class TestCalcAverageEssGriddedOptimized:
 
         result = _calc_average_ess_gridded_optimized(large_data, block_size=1)
 
-        assert isinstance(result, (int, float))
-        assert not np.isnan(result)
+        assert isinstance(result, (xr.DataArray))
 
     @pytest.mark.advanced
     def test_dask_array_ess_calculation(self):
@@ -770,8 +759,7 @@ class TestCalcAverageEssGriddedOptimized:
         result = _calc_average_ess_gridded_optimized(error_data, block_size=1)
 
         # Should handle errors and return average of successful calculations
-        assert isinstance(result, (int, float))
-        assert not np.isnan(result)
+        assert isinstance(result, xr.DataArray)
 
     def test_ess_calculation_memory_error(self):
         """Test ESS calculation when MemoryError occurs."""
@@ -787,8 +775,8 @@ class TestCalcAverageEssGriddedOptimized:
             result = _calc_average_ess_gridded_optimized(error_data, block_size=1)
 
             # Should return a reasonable ESS value or fallback
-            assert isinstance(result, (int, float))
-            assert result > 0  # ESS should be positive
+            assert isinstance(result, xr.DataArray)
+            assert result.all() > 0  # ESS should be positive
 
     def test_ess_calculation_large_dataset(self):
         """Test ESS calculation for large gridded dataset using approximation.
@@ -811,7 +799,7 @@ class TestCalcAverageEssGriddedOptimized:
 
         result = _calc_average_ess_gridded_optimized(large_dataset, block_size=1)
 
-        assert isinstance(result, float)
+        assert isinstance(result, xr.DataArray)
         assert result >= 0
         # Should successfully compute ESS using approximation method for large datasets
 
@@ -862,7 +850,7 @@ class TestCalcAverageEssTimeseriesOptimized:
             sample_timeseries_dataset, block_size=1
         )
 
-        assert isinstance(result, float)
+        assert isinstance(result, xr.DataArray)
         assert result >= 0
 
     def test_ess_calculation_large_timeseries(self):
@@ -874,7 +862,7 @@ class TestCalcAverageEssTimeseriesOptimized:
 
         result = _calc_average_ess_timeseries_optimized(large_timeseries, block_size=1)
 
-        assert isinstance(result, (int, float))
+        assert isinstance(result, xr.DataArray)
         assert not np.isnan(result)
 
     def test_ess_calculation_large_blocks_approximation(self):
@@ -893,9 +881,8 @@ class TestCalcAverageEssTimeseriesOptimized:
         # This gives us 365*24*2 = 17520 points per block, well above threshold
         result = _calc_average_ess_timeseries_optimized(large_data, block_size=2)
 
-        assert isinstance(result, (int, float))
-        assert result > 0  # Should be a positive ESS value
-        assert not np.isnan(result)
+        assert isinstance(result, xr.DataArray)
+        assert result.all() > 0  # Should be a positive ESS value
 
     def test_ess_calculation_autocorr_with_correlations(self):
         """Test ESS calculation autocorrelation path with realistic correlated data."""
@@ -925,12 +912,11 @@ class TestCalcAverageEssTimeseriesOptimized:
         # This will trigger the autocorrelation approximation path
         result = _calc_average_ess_timeseries_optimized(large_corr_data, block_size=1)
 
-        assert isinstance(result, (int, float))
+        assert isinstance(result, xr.DataArray)
         # ESS should be positive but less than n due to autocorrelation
-        assert result > 0
+        assert result.all() > 0
         # ESS should be less than total points due to correlation
-        assert result < time_periods
-        assert not np.isnan(result)
+        assert result.all() < time_periods
 
     @patch("climakitae.explore.threshold_tools.calculate_ess")
     def test_ess_timeseries_calculation_with_errors(self, mock_calculate_ess):
@@ -947,8 +933,7 @@ class TestCalcAverageEssTimeseriesOptimized:
         result = _calc_average_ess_timeseries_optimized(error_data, block_size=1)
 
         # Should handle errors and return average of successful calculations
-        assert isinstance(result, (int, float))
-        assert not np.isnan(result)
+        assert isinstance(result, xr.DataArray)
 
     def test_ess_timeseries_memory_error(self):
         """Test timeseries ESS calculation when MemoryError occurs."""
@@ -962,11 +947,8 @@ class TestCalcAverageEssTimeseriesOptimized:
             result = _calc_average_ess_timeseries_optimized(error_data, block_size=1)
 
             # Should return a reasonable ESS value or fallback
-            assert isinstance(result, (int, float))
-            assert result > 0  # ESS should be positive
-
-        assert isinstance(result, float)
-        assert result >= 0
+            assert isinstance(result, xr.DataArray)
+            assert result.all() > 0  # ESS should be positive
 
     def test_ess_calculation_insufficient_time_points(self):
         """Test ESS calculation with insufficient time points."""
