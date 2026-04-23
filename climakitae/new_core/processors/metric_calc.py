@@ -1805,7 +1805,7 @@ class MetricCalc(DataProcessor):
             ]:
                 if dataarray in result:
                     result[dataarray].attrs[
-                        "confidence interval lower bound"
+                        "confidence_interval_lower_bound"
                     ] = f"{self.conf_int_lower_bound}th percentile"
             for dataarray in [
                 "conf_int_period_upper_limit",
@@ -1814,7 +1814,7 @@ class MetricCalc(DataProcessor):
             ]:
                 if dataarray in result:
                     result[dataarray].attrs[
-                        "confidence interval upper bound"
+                        "confidence_interval_upper_bound"
                     ] = f"{self.conf_int_upper_bound}th percentile"
 
         return result
