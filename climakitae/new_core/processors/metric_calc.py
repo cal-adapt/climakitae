@@ -87,7 +87,6 @@ class MetricCalc(DataProcessor):
           - alpha (float, optional): Significance level for confidence intervals. Default: 0.05
           - bootstrap_runs (int, optional): Number of bootstrap runs for confidence intervals. Default: 100
           - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
-          - check_ess (bool, optional): Check the effective sample size. Default: True
           - variable_preprocessing (dict, optional): Variable-specific preprocessing options
 
         Threshold Exceedance Count:
@@ -267,7 +266,6 @@ class MetricCalc(DataProcessor):
         self.print_goodness_of_fit = self.one_in_x_config.get(
             "print_goodness_of_fit", True
         )
-        self.check_ess = self.one_in_x_config("check_ess", True)
         self.variable_preprocessing = self.one_in_x_config.get(
             "variable_preprocessing", {}
         )
@@ -1021,7 +1019,6 @@ class MetricCalc(DataProcessor):
         # Configure block maxima extraction
         kwargs = {
             "extremes_type": self.extremes_type,
-            "check_ess": self.check_ess,
             "block_size": self.block_size,
         }
 
