@@ -749,7 +749,7 @@ class MetricCalc(DataProcessor):
         distr: str = "gev",
         block_size: int = 1,
         extremes_type: str = "max",
-    ) -> Union[np.array, float]:
+    ) -> np.ndarray | float:
         """Function for making a bootstrap-calculated value from input array
 
         Determines a bootstrap-calculated value for relevant parameters from an
