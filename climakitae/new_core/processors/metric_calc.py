@@ -749,11 +749,11 @@ class MetricCalc(DataProcessor):
         distr: str = "gev",
         block_size: int = 1,
         extremes_type: str = "max",
-    ) -> Union[np.array, float]:
+    ) -> np.ndarray | float:
         """Function for making a bootstrap-calculated value from input array
 
         Determines a bootstrap-calculated value for relevant parameters from an
-        inputed maximum series.
+        input maximum series.
 
         Parameters
         ----------
@@ -806,7 +806,7 @@ class MetricCalc(DataProcessor):
         block_size: int = 1,
         extremes_type: str = "max",
     ) -> tuple[float, float]:
-        """Function for genearating lower and upper limits of confidence interval
+        """Function for generating lower and upper limits of confidence interval
 
         Returns lower and upper limits of confidence interval given selected parameters.
 
