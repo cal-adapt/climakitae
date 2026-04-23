@@ -806,7 +806,7 @@ class MetricCalc(DataProcessor):
         block_size: int = 1,
         extremes_type: str = "max",
     ) -> tuple[float, float]:
-        """Function for genearating lower and upper limits of confidence interval
+        """Function for generating lower and upper limits of confidence interval
 
         Returns lower and upper limits of confidence interval given selected parameters.
 
