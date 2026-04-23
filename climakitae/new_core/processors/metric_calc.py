@@ -753,7 +753,7 @@ class MetricCalc(DataProcessor):
         """Function for making a bootstrap-calculated value from input array
 
         Determines a bootstrap-calculated value for relevant parameters from an
-        inputed maximum series.
+        input maximum series.
 
         Parameters
         ----------
