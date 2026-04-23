@@ -1550,8 +1550,8 @@ class MetricCalc(DataProcessor):
                     vectorize=True,
                 )
             else:
-                conf_int_lower_limit = xr.zeros_like(chunk_return_data) * np.nan
-                conf_int_upper_limit = xr.zeros_like(chunk_return_data) * np.nan
+                chunk_conf_int_lower_limit = xr.zeros_like(chunk_return_data) * np.nan
+                chunk_conf_int_upper_limit = xr.zeros_like(chunk_return_data) * np.nan
 
             conf_int_lower_limit_list.append(chunk_conf_int_lower_limit)
             conf_int_upper_limit_list.append(chunk_conf_int_upper_limit)

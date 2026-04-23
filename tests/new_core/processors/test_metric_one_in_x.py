@@ -197,8 +197,8 @@ class TestMetricCalcOneInXInit:
         assert processor.event_duration == (1, "day")
         assert processor.block_size == 1
         assert processor.bootstrap_runs == 100
-        assert processor.conf_int_upper_bound == 97.5
-        assert processor.conf_int_lower_bound == 2.5
+        assert processor.conf_int_upper_bound is UNSET
+        assert processor.conf_int_lower_bound is UNSET
         assert processor.goodness_of_fit_test is True
         assert processor.print_goodness_of_fit is True
         assert processor.variable_preprocessing == {}
@@ -606,7 +606,6 @@ class TestMetricCalcUpdateContextOneInX:
                     "distribution": "gev",
                     "extremes_type": "max",
                     "event_duration": (1, "day"),
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -632,7 +631,6 @@ class TestMetricCalcUpdateContextOneInX:
                     "distribution": "gamma",
                     "extremes_type": "min",
                     "event_duration": (6, "hour"),
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -665,6 +663,7 @@ class TestMetricCalcHelperMethods:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "event_duration": (1, "day"),
+                    "alpha": 0.05,
                     "bootstrap_runs": 1,
                 }
             }
@@ -722,6 +721,7 @@ class TestMetricCalcHelperMethods:
                     "distribution": "gumbel",
                     "event_duration": (1, "day"),
                     "goodness_of_fit_test": False,
+                    "alpha": 0.05,
                     "bootstrap_runs": 1,
                 }
             }
@@ -759,6 +759,8 @@ class TestMetricCalcHelperMethods:
         assert "return_values" in result.data_vars
         assert "conf_int_lower_limit" in result.data_vars
         assert "conf_int_upper_limit" in result.data_vars
+        assert "confidence interval lower bound" in result["conf_int_lower_limit"].attrs
+        assert "confidence interval upper bound" in result["conf_int_upper_limit"].attrs
         assert "p_values" not in result.data_vars
         assert result.attrs["fitted_distr"] == "gumbel"
 
@@ -829,7 +831,6 @@ class TestMetricCalcPreprocessVariable:
                     "variable_preprocessing": {
                         "precipitation": {"remove_trace": True, "trace_threshold": 0.01}
                     },
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -856,7 +857,6 @@ class TestMetricCalcPreprocessVariable:
                 "one_in_x": {
                     "return_periods": [10],
                     "variable_preprocessing": {"precipitation": {"remove_trace": True}},
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -885,7 +885,6 @@ class TestMetricCalcCalculateOneInXSingle:
                 "one_in_x": {
                     "return_periods": [10, 50],
                     "distribution": "gev",
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -912,7 +911,6 @@ class TestMetricCalcCalculateOneInXSingle:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -931,7 +929,6 @@ class TestMetricCalcCalculateOneInXSingle:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -954,7 +951,6 @@ class TestMetricCalcAdaptiveBatchSize:
                 "one_in_x": {
                     "return_periods": [10],
                     "distribution": "gev",
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -974,7 +970,6 @@ class TestMetricCalcAdaptiveBatchSize:
                 "one_in_x": {
                     "return_periods": [10],
                     "distribution": "gev",
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1011,6 +1006,7 @@ class TestMetricCalcFitDistributionsVectorized:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "goodness_of_fit_test": True,
+                    "alpha": 0.05,
                     "bootstrap_runs": 1,
                 }
             }
@@ -1037,7 +1033,6 @@ class TestMetricCalcFitDistributionsVectorized:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1052,6 +1047,8 @@ class TestMetricCalcFitDistributionsVectorized:
         assert return_values is not None
         assert ci_lower is not None
         assert ci_upper is not None
+        assert ci_lower.isnull().all()
+        assert ci_upper.isnull().all()
         assert "one_in_x" in return_values.dims
 
 
@@ -1066,7 +1063,6 @@ class TestMetricCalcExecuteOneInX:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1084,7 +1080,6 @@ class TestMetricCalcExecuteOneInX:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1102,7 +1097,6 @@ class TestMetricCalcExecuteOneInX:
                     "return_periods": [10],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1122,7 +1116,6 @@ class TestMetricCalcExecuteOneInX:
                     "return_periods": [10],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1195,7 +1188,6 @@ class TestMetricCalcSpatialBatching:
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
                     "event_duration": (1, "day"),
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1217,8 +1209,6 @@ class TestMetricCalcSpatialBatching:
 
         assert isinstance(result, xr.Dataset)
         assert "return_values" in result.data_vars
-        assert "conf_int_upper_limit" in result.data_vars
-        assert "conf_int_lower_limit" in result.data_vars
         assert "closest_cell" in result.dims
 
     def test_process_batch_with_points_dim(self, spatial_data_with_points):
@@ -1230,6 +1220,7 @@ class TestMetricCalcSpatialBatching:
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
                     "event_duration": (1, "day"),
+                    "alpha": 0.05,
                     "bootstrap_runs": 1,
                 }
             }
@@ -1290,7 +1281,6 @@ class TestMetricCalcEventDuration:
                     "distribution": "gev",
                     "event_duration": (6, "hour"),
                     "goodness_of_fit_test": False,
-                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1344,7 +1334,6 @@ class TestMetricCalcDaskArrayHandling:
                     "return_periods": [10],
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
-                    "bootstrap_runs": 1,
                 }
             }
         )
