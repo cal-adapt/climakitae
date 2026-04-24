@@ -273,7 +273,7 @@ class MetricCalc(DataProcessor):
             self.conf_int_upper_bound = UNSET
         else:
             self.conf_int_lower_bound = (
-                self.one_in_x_config.get("alpha", 0.05) * 100.0
+                alpha * 100.0
             ) / 2  # two-tailed confidence limit as percent
             self.conf_int_upper_bound = 100.0 - self.conf_int_lower_bound
 
