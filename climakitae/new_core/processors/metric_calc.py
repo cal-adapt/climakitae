@@ -1761,7 +1761,7 @@ class MetricCalc(DataProcessor):
                     "conf_int_upper_limit": conf_int_upper_limit,
                 }
             )
-        if self.return_values is not UNSET:
+        elif self.return_values is not UNSET:
             result = xr.Dataset(
                 {
                     "return_periods": ret_vals,
@@ -1795,7 +1795,7 @@ class MetricCalc(DataProcessor):
                 "conf_int_prob_upper_limit",
                 "conf_int_upper_limit",
             ]
-            result.drop_vars(conf_list, errors="ignore")
+            result = result.drop_vars(conf_list, errors="ignore")
         else:
             # Add confidence level to attributes
             for dataarray in [

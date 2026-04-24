@@ -733,14 +733,14 @@ class TestMetricCalcHelperMethods:
             coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
         )
         ci_lower = xr.DataArray(
-            np.array([[29.0, 34.0], [30.0, 35.0]]),
+            np.array([[29.0, 30.0]]),
             dims=["sim", "one_in_x"],
-            coords={"sim": ["sim_0", "sim_1"], "one_in_x": [10, 50]},
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
         )
         ci_upper = xr.DataArray(
-            np.array([[31.0, 36.0], [32.0, 36.0]]),
+            np.array([[31.0, 36.0]]),
             dims=["sim", "one_in_x"],
-            coords={"sim": ["sim_0", "sim_1"], "one_in_x": [10, 50]},
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
         )
         data_array = xr.DataArray(
             np.random.rand(100, 1),
@@ -759,10 +759,61 @@ class TestMetricCalcHelperMethods:
         assert "return_values" in result.data_vars
         assert "conf_int_lower_limit" in result.data_vars
         assert "conf_int_upper_limit" in result.data_vars
-        assert "confidence interval lower bound" in result["conf_int_lower_limit"].attrs
-        assert "confidence interval upper bound" in result["conf_int_upper_limit"].attrs
+        assert "confidence_interval_lower_bound" in result["conf_int_lower_limit"].attrs
+        assert "confidence_interval_upper_bound" in result["conf_int_upper_limit"].attrs
         assert "p_values" not in result.data_vars
         assert result.attrs["fitted_distr"] == "gumbel"
+
+    def test_create_result_dataset_with_zero_values(self):
+        """Test _create_one_in_x_result_dataset without p-values."""
+        processor = MetricCalc(
+            {
+                "one_in_x": {
+                    "return_values": [10, 50],
+                    "distribution": "gumbel",
+                    "event_duration": (1, "day"),
+                    "goodness_of_fit_test": False,
+                    "alpha": 0.05,
+                    "bootstrap_runs": 1,
+                }
+            }
+        )
+
+        ret_vals = xr.DataArray(
+            np.array([[1, 0]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
+        )
+        ci_lower = xr.DataArray(
+            np.array([[0, np.nan]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
+        )
+        ci_upper = xr.DataArray(
+            np.array([[2, np.nan]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
+        )
+        data_array = xr.DataArray(
+            np.random.rand(100, 1),
+            dims=["time", "sim"],
+            coords={
+                "time": pd.date_range("2000-01-01", periods=100),
+                "sim": ["sim_0"],
+            },
+        )
+
+        result = processor._create_one_in_x_result_dataset(
+            ret_vals, ci_lower, ci_upper, None, data_array
+        )
+
+        assert isinstance(result, xr.Dataset)
+        assert "return_periods" in result.data_vars
+        assert "conf_int_period_lower_limit" in result.data_vars
+        assert "conf_int_period_upper_limit" in result.data_vars
+        assert np.isinf(result.return_probabilities.sel(one_in_x=50))
+        assert np.isinf(result.conf_int_prob_upper_limit.sel(one_in_x=10))
+        assert np.isnan(result.conf_int_prob_lower_limit.sel(one_in_x=50))
 
     def test_add_dummy_time_with_time_delta(self):
         """Test add_dummy_time_to_wl with time_delta dimension."""
