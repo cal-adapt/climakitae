@@ -1767,6 +1767,8 @@ class MetricCalc(DataProcessor):
                     "return_periods": ret_vals,
                     "conf_int_period_lower_limit": conf_int_lower_limit,
                     "conf_int_period_upper_limit": conf_int_upper_limit,
+                    # Will return np.inf if demoninator is zero (often indicates
+                    # a bad distribution fit)
                     "return_probabilities": 1.0 / ret_vals,
                     "conf_int_prob_lower_limit": 1.0 / conf_int_upper_limit,
                     "conf_int_prob_upper_limit": 1.0 / conf_int_lower_limit,
