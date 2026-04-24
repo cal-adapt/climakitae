@@ -85,6 +85,7 @@ PROC_KEY = "processes"
 
 # Constant Keys for Data Catalog
 CATALOG_CADCAT = "cadcat"
+CATALOG_CADCAT_PREVIEW = "cadcat_preview"
 CATALOG_REN_ENERGY_GEN = "renewable energy generation"
 CATALOG_BOUNDARY = "boundary"
 CATALOG_HDP = "hdp"

@@ -37,6 +37,7 @@ import xarray as xr
 from climakitae.core.constants import (
     CATALOG_BOUNDARY,
     CATALOG_CADCAT,
+    CATALOG_CADCAT_PREVIEW,
     CATALOG_HDP,
     CATALOG_REN_ENERGY_GEN,
     UNSET,
@@ -46,13 +47,14 @@ from climakitae.core.constants import (
 logger = logging.getLogger(__name__)
 from climakitae.core.paths import (
     BOUNDARY_CATALOG_URL,
+    CADCAT_PREVIEW_CATALOG_URL,
     DATA_CATALOG_URL,
     HADISD_STATIONS_URL,
     HDP_CATALOG_URL,
     RENEWABLES_CATALOG_URL,
 )
 from climakitae.new_core.data_access.boundaries import Boundaries
-from climakitae.util.utils import read_csv_file
+from climakitae.util.utils import _package_file_path, read_csv_file
 
 
 class DataCatalog(dict):
@@ -190,6 +192,30 @@ class DataCatalog(dict):
                     "Failed to load HDP catalog: %s. HDP data will be unavailable.", e
                 )
                 self[CATALOG_HDP] = None
+            # cadcat_preview catalog is an internal/pre-release collection (e.g.
+            # sup3rcc). If ``CADCAT_PREVIEW_CATALOG_URL`` is a local relative
+            # path we resolve it against the package; otherwise it's passed
+            # through as an s3:// or https:// URL. Any failure here (missing
+            # file, missing AWS credentials, network error) is logged at DEBUG
+            # and the catalog is silently skipped, so unauthenticated users
+            # are not confronted with warnings about unavailable internal data.
+            try:
+                if CADCAT_PREVIEW_CATALOG_URL.startswith(
+                    ("http://", "https://", "s3://")
+                ):
+                    preview_url = CADCAT_PREVIEW_CATALOG_URL
+                else:
+                    preview_url = _package_file_path(CADCAT_PREVIEW_CATALOG_URL)
+                self[CATALOG_CADCAT_PREVIEW] = intake.open_esm_datastore(
+                    preview_url, registry=self._derived_registry
+                )
+            except Exception as e:
+                logger.debug(
+                    "cadcat_preview catalog unavailable (%s). This is expected for "
+                    "users without access to internal/pre-release datasets.",
+                    e,
+                )
+                self[CATALOG_CADCAT_PREVIEW] = None
 
             self.catalog_df = self.merge_catalogs()
             stations_df = pd.read_csv(HADISD_STATIONS_URL)
@@ -268,6 +294,34 @@ class DataCatalog(dict):
         return catalog
 
     @property
+    def preview(self) -> intake_esm.core.esm_datastore:
+        """Access cadcat_preview (internal/pre-release) catalog.
+
+        Returns
+        -------
+        intake_esm.core.esm_datastore
+            The preview data catalog.
+
+        Raises
+        ------
+        RuntimeError
+            If the preview catalog failed to load (e.g. missing AWS
+            credentials once the catalog moves to S3, or bundled file
+            unavailable). Callers should typically check
+            ``catalog[CATALOG_CADCAT_PREVIEW] is not None`` before using
+            this property.
+
+        """
+        catalog = self[CATALOG_CADCAT_PREVIEW]
+        if catalog is None:
+            raise RuntimeError(
+                "cadcat_preview catalog failed to load during initialization and is "
+                "unavailable. This is expected for users without access to "
+                "internal/pre-release datasets."
+            )
+        return catalog
+
+    @property
     def boundaries(self) -> Boundaries:
         """Access boundaries data with lazy loading (thread-safe).
 
@@ -334,6 +388,10 @@ class DataCatalog(dict):
             hdp_df = self.hdp.df
             hdp_df["catalog"] = CATALOG_HDP
             dfs.append(hdp_df)
+        if self.get(CATALOG_CADCAT_PREVIEW) is not None:
+            preview_df = self[CATALOG_CADCAT_PREVIEW].df
+            preview_df["catalog"] = CATALOG_CADCAT_PREVIEW
+            dfs.append(preview_df)
 
         ret = pd.concat(dfs, ignore_index=True)
 
@@ -658,8 +716,8 @@ class DataCatalog(dict):
             # or from the registry metadata as a fallback.
             try:
                 from climakitae.new_core.derived_variables.registry import (
-                    preserve_spatial_metadata,
                     get_derived_variable_info,
+                    preserve_spatial_metadata,
                 )
 
                 source_vars_from_query = query.get("_source_variables") or []
