@@ -41,6 +41,23 @@ theme:
 
 plugins:
   - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_docstring_description: true
+            show_docstring_examples: true
+            show_docstring_other_parameters: true
+            docstring_style: numpy
+            members_order: source
+            merge_init_into_class: true
+          import:
+            - https://docs.python-requests.org/en/latest/objects.inv
+            - https://xarray.pydata.org/en/stable/objects.inv
+            - https://dask.readthedocs.io/en/latest/objects.inv
+            - https://geopandas.org/objects.inv
 
 markdown_extensions:
   - admonition
@@ -58,6 +75,13 @@ nav:
   - Get Started: getting-started.md
   - New Core:
       - Overview: new-core/index.md
+      - API Reference:
+          - Main Entrypoint: api/new-core.md
+          - Dataset Factory: api/dataset-factory.md
+          - Dataset Pipeline: api/dataset.md
+          - Data Processors: api/processors.md
+          - Parameter Validation: api/param-validation.md
+          - Data Access: api/data-access.md
   - Migration:
       - Legacy to New Core: migration/legacy-to-new-core.md
   - Legacy API:
