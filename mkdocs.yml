@@ -1,0 +1,61 @@
+site_name: climakitae
+site_description: Modern documentation for climakitae, centered on new_core workflows.
+site_url: https://cal-adapt.github.io/climakitae/
+repo_url: https://github.com/cal-adapt/climakitae
+repo_name: cal-adapt/climakitae
+edit_uri: edit/main/docs-mkdocs/
+
+docs_dir: docs-mkdocs
+site_dir: site
+
+copyright: Copyright 2026, Cal-Adapt Analytics Engine
+
+theme:
+  name: material
+  logo: docs/_static/cae-map.png
+  favicon: docs/_static/cae-map.png
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - Get Started: getting-started.md
+  - New Core:
+      - Overview: new-core/index.md
+  - Migration:
+      - Legacy to New Core: migration/legacy-to-new-core.md
+  - Legacy API:
+      - Status and Roadmap: legacy/status.md
