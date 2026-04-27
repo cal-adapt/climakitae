@@ -76,4 +76,4 @@ A: Pass a list of lat/lon tuples to `clip`: `"clip": [(34.05, -118.25), (37.77, 
 **Q: Can I export the data to a file?**  
 A: Yes! Add `"export": {"filename": "my_data", "file_format": "NetCDF"}` to your processors dict.
 
-For more details, see the [full API reference](api/index.md).
+For more details, see the [API reference pages](api/new-core.md) or explore other [guides and tutorials](migration/legacy-to-new-core.md).
