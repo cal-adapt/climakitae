@@ -76,6 +76,7 @@ nav:
   - New Core:
       - Overview: new-core/index.md
       - Core Concepts: new-core/concepts.md
+      - How-To Guides: new-core/howto.md
       - API Reference:
           - Main Entrypoint: api/new-core.md
           - Dataset Factory: api/dataset-factory.md
