@@ -17,11 +17,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for mike
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -33,21 +38,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r docs/requirements-mkdocs.txt
 
-      - name: Build MkDocs site
-        run: mkdocs build --strict
+      - name: Configure git (for mike push)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+            IS_LATEST="true"
+          else
+            VERSION="dev"
+            IS_LATEST="false"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is_latest=$IS_LATEST" >> $GITHUB_OUTPUT
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Build and deploy with mike
+        run: |
+          if [ "${{ steps.version.outputs.is_latest }}" == "true" ]; then
+            mike deploy ${{ steps.version.outputs.version }} latest --push --update-aliases
+          else
+            mike deploy dev --push
+          fi

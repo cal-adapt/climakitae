@@ -20,6 +20,9 @@ theme:
     - navigation.top
     - content.code.copy
     - content.action.edit
+    - content.tabs.link
+  # Version selector dropdown
+  version_selector: true
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
