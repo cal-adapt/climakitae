@@ -1,0 +1,2551 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Modern documentation for climakitae, centered on new_core workflows.">
+      
+      
+      
+        <link rel="canonical" href="https://cal-adapt.github.io/climakitae/1.5.2/new-core/architecture/">
+      
+      
+        <link rel="prev" href="../howto/">
+      
+      
+        <link rel="next" href="../../api/new-core/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../docs/_static/cae-map.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Architecture & Internals - climakitae</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#architecture-internals" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="climakitae" class="md-header__button md-logo" aria-label="climakitae" data-md-component="logo">
+      
+  <img src="../../docs/_static/cae-map.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            climakitae
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Architecture & Internals
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/cal-adapt/climakitae" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cal-adapt/climakitae
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="climakitae" class="md-nav__button md-logo" aria-label="climakitae" data-md-component="logo">
+      
+  <img src="../../docs/_static/cae-map.png" alt="logo">
+
+    </a>
+    climakitae
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/cal-adapt/climakitae" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cal-adapt/climakitae
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebook-gallery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Notebook Gallery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    New Core
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    New Core
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-To Guides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture & Internals
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture & Internals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#system-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-climatedata-user-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. ClimateData (User Interface)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-datasetfactory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. DatasetFactory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-dataset-pipeline-executor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Dataset (Pipeline Executor)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-datacatalog-data-access-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. DataCatalog (Data Access Layer)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-parametervalidator-registry-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. ParameterValidator (Registry Pattern)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. ParameterValidator (Registry Pattern)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#catalog-validators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Catalog Validators
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#processor-validators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processor Validators
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-dataprocessor-registry-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. DataProcessor (Registry Pattern)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-design-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Design Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Design Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-fluent-interface-method-chaining" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Fluent Interface (Method Chaining)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-registry-decorator-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Registry + Decorator Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-singleton-pattern-thread-safe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Singleton Pattern (Thread-Safe)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-lazy-evaluation-dask-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Lazy Evaluation (Dask Integration)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#extending-the-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extending the System
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Extending the System">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adding-a-new-processor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a New Processor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adding-a-new-catalog-validator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a New Catalog Validator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adding-a-new-data-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a New Data Catalog
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#threading-concurrency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threading &amp; Concurrency
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Threading &amp; Concurrency">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#thread-safe-data-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thread-Safe Data Queries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datacatalog-thread-safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DataCatalog Thread Safety
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#internal-apis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Internal APIs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Internal APIs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accessing-registries-programmatically" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing Registries Programmatically
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#context-dictionary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context Dictionary
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-new-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing New Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Testing New Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mocking-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mocking Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-data-fixtures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Data Fixtures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-pitfalls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Pitfalls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/new-core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Main Entrypoint
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/dataset-factory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset Factory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/dataset/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/processors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Processors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/param-validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parameter Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/data-access/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Access
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Migration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migration/legacy-to-new-core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy to New Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Legacy API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/status/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Status and Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#system-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-climatedata-user-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. ClimateData (User Interface)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-datasetfactory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. DatasetFactory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-dataset-pipeline-executor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Dataset (Pipeline Executor)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-datacatalog-data-access-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. DataCatalog (Data Access Layer)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-parametervalidator-registry-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. ParameterValidator (Registry Pattern)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. ParameterValidator (Registry Pattern)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#catalog-validators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Catalog Validators
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#processor-validators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processor Validators
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-dataprocessor-registry-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. DataProcessor (Registry Pattern)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-design-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Design Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Design Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-fluent-interface-method-chaining" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Fluent Interface (Method Chaining)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-registry-decorator-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Registry + Decorator Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-singleton-pattern-thread-safe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Singleton Pattern (Thread-Safe)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-lazy-evaluation-dask-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Lazy Evaluation (Dask Integration)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#extending-the-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extending the System
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Extending the System">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adding-a-new-processor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a New Processor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adding-a-new-catalog-validator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a New Catalog Validator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adding-a-new-data-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a New Data Catalog
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#threading-concurrency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threading &amp; Concurrency
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Threading &amp; Concurrency">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#thread-safe-data-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thread-Safe Data Queries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datacatalog-thread-safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DataCatalog Thread Safety
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#internal-apis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Internal APIs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Internal APIs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accessing-registries-programmatically" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing Registries Programmatically
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#context-dictionary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context Dictionary
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-new-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing New Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Testing New Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mocking-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mocking Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-data-fixtures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Data Fixtures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-pitfalls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Pitfalls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/cal-adapt/climakitae/edit/main/docs-mkdocs/new-core/architecture.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="architecture-internals">Architecture &amp; Internals</h1>
+<p>This guide explains the internal architecture of climakitae's <code>new_core</code> module for developers and contributors. It covers system design, component responsibilities, key patterns, and how to extend the system.</p>
+<hr />
+<h2 id="system-overview">System Overview</h2>
+<p>The <code>new_core</code> module uses a <strong>pipeline architecture</strong> with layered responsibilities:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌─────────────────────────────────────────────────────────────┐
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│ ClimateData (user_interface.py)                             │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│ Fluent API: .catalog(&quot;cadcat&quot;).variable(&quot;tas&quot;).get()        │
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>└────────────────┬────────────────────────────────────────────┘
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                 │ Creates
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                 ▼
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>┌─────────────────────────────────────────────────────────────┐
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│ DatasetFactory (dataset_factory.py)                         │
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│ - Resolves catalog + validates parameters                   │
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│ - Creates configured Dataset object                         │
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>└────────────────┬────────────────────────────────────────────┘
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>                 │ Instantiates
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>                 ▼
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>┌─────────────────────────────────────────────────────────────┐
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│ Dataset.execute() (dataset.py)                              │
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│ - Validates query against catalog validators               │
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│ - Retrieves data from DataCatalog                           │
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│ - Runs processors in priority order                         │
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>│ - Returns lazy xarray.Dataset                               │
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>└────────────────┬────────────────────────────────────────────┘
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>         ┌───────┴───────┬──────────────┬──────────────┐
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>         │               │              │              │
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>         ▼               ▼              ▼              ▼
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    ┌────────┐   ┌──────────────┐  ┌──────────┐  ┌──────────┐
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    │ Query  │   │ Validators   │  │Processors│  │DataAccess│
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>    │ Params │   │ (Registry)   │  │(Registry)│  │(Singleton)
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>    └────────┘   └──────────────┘  └──────────┘  └──────────┘
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>                        │
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>                  ┌─────┴──────┐
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>                  │ Catalog    │ Processor
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>                  │ Validators │ Validators
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>                  └────────────┘
+</code></pre></div>
+<h3 id="data-flow">Data Flow</h3>
+<ol>
+<li><strong>User calls ClimateData</strong>: Builds fluent query chain (catalog, variable, experiment, etc.)</li>
+<li><strong><code>.get()</code> triggers DatasetFactory</strong>: Factory resolves catalog type and creates Dataset instance</li>
+<li><strong>Dataset validates</strong>: Runs catalog-specific validator to normalize/validate parameters</li>
+<li><strong>Dataset retrieves data</strong>: Queries DataCatalog singleton to fetch data from intake</li>
+<li><strong>Processors execute in priority order</strong>: Transform data (clip, time_slice, export, etc.)</li>
+<li><strong>Returns lazy xarray</strong>: Dask-backed Dataset, computation deferred until explicit <code>.compute()</code></li>
+</ol>
+<hr />
+<h2 id="core-components">Core Components</h2>
+<h3 id="1-climatedata-user-interface">1. ClimateData (User Interface)</h3>
+<p><strong>File</strong>: <code>climakitae/new_core/user_interface.py</code> (~1200 lines)</p>
+<p><strong>Responsibility</strong>: Fluent API entry point for users. All setter methods chain and return <code>self</code>.</p>
+<p><strong>Key Methods</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">cd</span> <span class="o">=</span> <span class="n">ClimateData</span><span class="p">(</span><span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">cd</span><span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>                    <span class="c1"># Set catalog</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">cd</span><span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>                   <span class="c1"># Set downscaling method</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">cd</span><span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>                    <span class="c1"># Set variable</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">cd</span><span class="o">.</span><span class="n">experiment_id</span><span class="p">(</span><span class="s2">&quot;ssp245&quot;</span><span class="p">)</span>              <span class="c1"># Set scenario</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">cd</span><span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;mon&quot;</span><span class="p">)</span>                      <span class="c1"># Set temporal resolution</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">cd</span><span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>                    <span class="c1"># Set spatial resolution</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">cd</span><span class="o">.</span><span class="n">processes</span><span class="p">({</span><span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Los Angeles&quot;</span><span class="p">})</span>   <span class="c1"># Set processors</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">cd</span><span class="o">.</span><span class="n">show_variable_options</span><span class="p">()</span>              <span class="c1"># Discover available variables</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">data</span> <span class="o">=</span> <span class="n">cd</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>                         <span class="c1"># Execute query, return xarray</span>
+</code></pre></div></p>
+<p><strong>Internal Contract</strong>:
+- All parameter setters must <code>return self</code>
+- Query is reset after <code>.get()</code> is called
+- Parameter values stored internally, passed to DatasetFactory on <code>.get()</code>
+- Discovery methods (<code>show_*_options()</code>) delegate to DatasetFactory</p>
+<hr />
+<h3 id="2-datasetfactory">2. DatasetFactory</h3>
+<p><strong>File</strong>: <code>climakitae/new_core/dataset_factory.py</code> (~600 lines)</p>
+<p><strong>Responsibility</strong>: Catalog resolution and Dataset construction.</p>
+<p><strong>Key Methods</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">factory</span> <span class="o">=</span> <span class="n">DatasetFactory</span><span class="p">()</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c1"># Resolve catalog by name (with fuzzy matching)</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">catalog_obj</span> <span class="o">=</span> <span class="n">factory</span><span class="o">.</span><span class="n">get_catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="c1"># Get all valid options for a parameter</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">variables</span> <span class="o">=</span> <span class="n">factory</span><span class="o">.</span><span class="n">get_variable_options</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">,</span> <span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">institutions</span> <span class="o">=</span> <span class="n">factory</span><span class="o">.</span><span class="n">get_institution_id_options</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Create configured Dataset for a query</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">query</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;catalog&quot;</span><span class="p">:</span> <span class="s2">&quot;cadcat&quot;</span><span class="p">,</span> <span class="s2">&quot;variable_id&quot;</span><span class="p">:</span> <span class="s2">&quot;t2max&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">}</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">factory</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Internal Logic</strong>:
+1. Receives query dict from ClimateData
+2. Resolves catalog key (name → catalog type)
+3. Selects appropriate catalog validator (e.g., <code>CadcatParamValidator</code>)
+4. Creates Dataset instance with validator and default processors</p>
+<p><strong>Key Property: Catalog Mapping</strong>
+- <code>cadcat</code> → main climate data (LOCA2, WRF)
+- <code>renewable energy generation</code> → wind/solar capacity factors
+- <code>hdp</code> → historical data platform (weather stations)</p>
+<hr />
+<h3 id="3-dataset-pipeline-executor">3. Dataset (Pipeline Executor)</h3>
+<p><strong>File</strong>: <code>climakitae/new_core/dataset.py</code> (~380 lines)</p>
+<p><strong>Responsibility</strong>: Execute the data processing pipeline.</p>
+<p><strong>Key Method</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">result</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query_dict</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Pipeline Stages</strong>:</p>
+<ol>
+<li><strong>Validation</strong>: Run catalog-specific validator</li>
+<li>Normalizes parameter names</li>
+<li>Validates required parameters</li>
+<li>Suggests alternatives for typos</li>
+<li>
+<p>Returns validated query or None</p>
+</li>
+<li>
+<p><strong>Data Access</strong>: Query DataCatalog for data</p>
+</li>
+<li>Resolves intake catalog</li>
+<li>Executes intake-esm query</li>
+<li>
+<p>Returns xarray.Dataset with dask arrays (lazy)</p>
+</li>
+<li>
+<p><strong>Processing</strong>: Run registered processors in priority order</p>
+</li>
+<li>Each processor receives data + context dict</li>
+<li>Processors transform data while preserving laziness</li>
+<li>Processors update context with metadata</li>
+<li>
+<p>Execution order determined by priority value</p>
+</li>
+<li>
+<p><strong>Return</strong>: xarray.Dataset (lazy, ready for <code>.compute()</code>)</p>
+</li>
+</ol>
+<p><strong>Context Dict</strong>: Processors store metadata in <code>context[_NEW_ATTRS_KEY]</code>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">context</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">result</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">)</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># context now contains metadata from all processors</span>
+</code></pre></div></p>
+<hr />
+<h3 id="4-datacatalog-data-access-layer">4. DataCatalog (Data Access Layer)</h3>
+<p><strong>File</strong>: <code>climakitae/new_core/data_access/data_access.py</code> (~620 lines)</p>
+<p><strong>Responsibility</strong>: Thread-safe singleton managing all catalog connections.</p>
+<p><strong>Key Properties</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">catalog</span> <span class="o">=</span> <span class="n">DataCatalog</span><span class="p">()</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">catalog</span><span class="o">.</span><span class="n">data</span>        <span class="c1"># intake_esm for main climate data</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">catalog</span><span class="o">.</span><span class="n">boundary</span>    <span class="c1"># intake for geographic boundaries</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">catalog</span><span class="o">.</span><span class="n">renewables</span>  <span class="c1"># intake_esm for renewable energy</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">catalog</span><span class="o">.</span><span class="n">hdp</span>         <span class="c1"># intake_esm for historical data platform</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">catalog</span><span class="o">.</span><span class="n">catalog_df</span>  <span class="c1"># Merged DataFrame of all ESM catalogs</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">catalog</span><span class="o">.</span><span class="n">boundaries</span>  <span class="c1"># Lazy-loading Boundaries manager</span>
+</code></pre></div></p>
+<p><strong>Key Methods</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Get data with explicit catalog key (thread-safe)</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">data</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="n">query_dict</span><span class="p">,</span> <span class="n">catalog_key</span><span class="o">=</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Resolve catalog key with fuzzy matching</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">key</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">resolve_catalog_key</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># List available boundaries</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="n">boundaries</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">list_clip_boundaries</span><span class="p">()</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># Get station metadata</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="n">stations</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">get_stations</span><span class="p">()</span>
+</code></pre></div></p>
+<p><strong>Thread-Safety Pattern</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># ✅ Thread-safe: Pass catalog_key as parameter</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_data</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">catalog_key</span><span class="o">=</span><span class="s2">&quot;cadcat&quot;</span><span class="p">):</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="c1"># Lookup is atomic, no state mutation</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_catalogs</span><span class="p">[</span><span class="n">catalog_key</span><span class="p">]</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="o">**</span><span class="n">query</span><span class="p">)</span><span class="o">.</span><span class="n">to_dask</span><span class="p">()</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c1"># ❌ Not thread-safe: State stored on singleton</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="bp">self</span><span class="o">.</span><span class="n">_current_key</span> <span class="o">=</span> <span class="n">catalog_key</span>  <span class="c1"># DON&#39;T DO THIS</span>
+</code></pre></div></p>
+<p><strong>Connection Management</strong>:
+- Catalogs loaded lazily on first access
+- intake-esm catalogs cached in <code>_catalogs</code> dict
+- Boundaries loaded on-demand via lazy property
+- Thread lock ensures atomic initialization</p>
+<hr />
+<h3 id="5-parametervalidator-registry-pattern">5. ParameterValidator (Registry Pattern)</h3>
+<p><strong>File</strong>: <code>climakitae/new_core/param_validation/abc_param_validation.py</code> (~550 lines)</p>
+<p><strong>Responsibility</strong>: Validate and normalize query parameters.</p>
+<p><strong>Two Registry Types</strong>:</p>
+<h4 id="catalog-validators">Catalog Validators</h4>
+<p>Validate parameters for entire data catalogs (one per catalog type):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nd">@register_catalog_validator</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">CadcatParamValidator</span><span class="p">(</span><span class="n">ParameterValidator</span><span class="p">):</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">is_valid_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">):</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>        <span class="c1"># Catalog-specific validation</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>        <span class="k">if</span> <span class="s2">&quot;variable_id&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">query</span><span class="p">:</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>            <span class="k">return</span> <span class="kc">None</span>  <span class="c1"># Invalid</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_and_normalize</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+</code></pre></div>
+<h4 id="processor-validators">Processor Validators</h4>
+<p>Validate parameters for specific processors:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nd">@register_processor_validator</span><span class="p">(</span><span class="s2">&quot;clip&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">validate_clip</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="c1"># Processor-specific validation</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="k">return</span> <span class="kc">True</span>
+</code></pre></div>
+<p><strong>Validation Flow</strong>:
+1. Dataset calls <code>validator.is_valid_query(query)</code>
+2. Validator checks required parameters
+3. Validator searches catalog_df for matching datasets
+4. Validator calls processor validators for each processor
+5. Returns validated query (normalized keys) or None if invalid</p>
+<p><strong>Key Methods</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Load and cache catalog dataframe</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">validator</span><span class="o">.</span><span class="n">load_catalog_df</span><span class="p">()</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Find matching catalog entries</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="n">matches</span> <span class="o">=</span> <span class="n">validator</span><span class="o">.</span><span class="n">find_catalog_entries</span><span class="p">({</span><span class="s2">&quot;variable_id&quot;</span><span class="p">:</span> <span class="s2">&quot;t2max&quot;</span><span class="p">})</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1"># Get default processors for this query</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="n">processors</span> <span class="o">=</span> <span class="n">validator</span><span class="o">.</span><span class="n">get_default_processors</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="c1"># Suggest alternatives for typos</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="n">suggestions</span> <span class="o">=</span> <span class="n">validator</span><span class="o">.</span><span class="n">_get_closest_options</span><span class="p">(</span><span class="s2">&quot;tasxxx&quot;</span><span class="p">,</span> <span class="s2">&quot;variable_id&quot;</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+</code></pre></div></p>
+<hr />
+<h3 id="6-dataprocessor-registry-pattern">6. DataProcessor (Registry Pattern)</h3>
+<p><strong>File</strong>: <code>climakitae/new_core/processors/abc_data_processor.py</code> (~150 lines)</p>
+<p><strong>Responsibility</strong>: Transform data while preserving lazy evaluation.</p>
+<p><strong>Required Methods</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nd">@register_processor</span><span class="p">(</span><span class="s2">&quot;my_processor&quot;</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">250</span><span class="p">)</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyProcessor</span><span class="p">(</span><span class="n">DataProcessor</span><span class="p">):</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;my_processor&quot;</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">needs_catalog</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># True if needs DataCatalog access</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">:</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Transform data. Preserve lazy evaluation with dask.&quot;&quot;&quot;</span>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>        <span class="c1"># ✅ CORRECT: Return new object, don&#39;t mutate</span>
+<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>        <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">lat</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="mi">33</span><span class="p">,</span> <span class="mi">35</span><span class="p">))</span>
+<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">update_context</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+<a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Record metadata about processing step.&quot;&quot;&quot;</span>
+<a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>        <span class="k">if</span> <span class="n">_NEW_ATTRS_KEY</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">context</span><span class="p">:</span>
+<a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a>            <span class="n">context</span><span class="p">[</span><span class="n">_NEW_ATTRS_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a>        <span class="n">context</span><span class="p">[</span><span class="n">_NEW_ATTRS_KEY</span><span class="p">][</span><span class="s2">&quot;my_processor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Applied successfully&quot;</span>
+<a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a>
+<a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">set_data_accessor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">catalog</span><span class="p">):</span>
+<a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Optional: Receive DataCatalog reference if needs_catalog=True.&quot;&quot;&quot;</span>
+<a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_catalog</span> <span class="o">=</span> <span class="n">catalog</span>
+</code></pre></div>
+<p><strong>Priority System</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>0-99:    Pre-processing (bias correction, model filtering)
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>100-199: Core processing (time slicing, warming levels)
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>200-299: Spatial operations (clipping, aggregation)
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>300-399: Post-processing (unit conversion, attribute updates)
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>9999:    Export (must be last, writes to disk)
+</code></pre></div></p>
+<p><strong>Key Rules</strong>:
+- <strong>No in-place mutation</strong>: Always return new objects
+- <strong>Preserve laziness</strong>: Don't call <code>.load()</code> or <code>.compute()</code>
+- <strong>Handle edge cases</strong>: Return data with warnings instead of raising
+- <strong>Update context</strong>: Document what the processor did</p>
+<p><strong>Registry Access</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.processors.abc_data_processor</span><span class="w"> </span><span class="kn">import</span> <span class="n">_PROCESSOR_REGISTRY</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="c1"># Inspect registered processors</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">priority</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">_PROCESSOR_REGISTRY</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> 
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>                                    <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]):</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> (priority=</span><span class="si">{</span><span class="n">priority</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+<hr />
+<h2 id="key-design-patterns">Key Design Patterns</h2>
+<h3 id="1-fluent-interface-method-chaining">1. Fluent Interface (Method Chaining)</h3>
+<p>All parameter setters return <code>self</code> to enable chaining:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># ✅ CORRECT: Chain multiple setters before .get()</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="c1"># ❌ INCORRECT: State resets after .get()</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="n">cd</span> <span class="o">=</span> <span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="n">d1</span> <span class="o">=</span> <span class="n">cd</span><span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;tasmax&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="n">d2</span> <span class="o">=</span> <span class="n">cd</span><span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;pr&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>  <span class="c1"># Lost context - create new instance</span>
+</code></pre></div>
+<p><strong>Implementation</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">variable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_variable_id</span> <span class="o">=</span> <span class="n">value</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="k">return</span> <span class="bp">self</span>  <span class="c1"># Critical: return self</span>
+</code></pre></div></p>
+<h3 id="2-registry-decorator-pattern">2. Registry + Decorator Pattern</h3>
+<p>Components register at import time using decorators:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Processor registration</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="nd">@register_processor</span><span class="p">(</span><span class="s2">&quot;clip&quot;</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="k">class</span><span class="w"> </span><span class="nc">Clip</span><span class="p">(</span><span class="n">DataProcessor</span><span class="p">):</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    <span class="o">...</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="c1"># Validator registration</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="nd">@register_catalog_validator</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="k">class</span><span class="w"> </span><span class="nc">CadcatValidator</span><span class="p">(</span><span class="n">ParameterValidator</span><span class="p">):</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>    <span class="o">...</span>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="c1"># Processor parameter validator</span>
+<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="nd">@register_processor_validator</span><span class="p">(</span><span class="s2">&quot;warming_level&quot;</span><span class="p">)</span>
+<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a><span class="k">def</span><span class="w"> </span><span class="nf">validate_warming_level</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>    <span class="o">...</span>
+</code></pre></div>
+<p><strong>Registry Storage</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">_PROCESSOR_REGISTRY</span> <span class="o">=</span> <span class="p">{}</span>          <span class="c1"># {key: (class, priority)}</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="n">_CATALOG_VALIDATOR_REGISTRY</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {catalog: validator_class}</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="n">_PROCESSOR_VALIDATOR_REGISTRY</span> <span class="o">=</span> <span class="p">{}</span> <span class="c1"># {processor_key: validator_fn}</span>
+</code></pre></div></p>
+<p><strong>Discovery</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># List all registered processors</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">_PROCESSOR_REGISTRY</span><span class="p">:</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="c1"># Get processor class and priority</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="bp">cls</span><span class="p">,</span> <span class="n">priority</span> <span class="o">=</span> <span class="n">_PROCESSOR_REGISTRY</span><span class="p">[</span><span class="s2">&quot;clip&quot;</span><span class="p">]</span>
+</code></pre></div></p>
+<h3 id="3-singleton-pattern-thread-safe">3. Singleton Pattern (Thread-Safe)</h3>
+<p><code>DataCatalog</code> uses double-checked locking:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">DataCatalog</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>    <span class="n">_instance</span> <span class="o">=</span> <span class="n">UNSET</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>    <span class="n">_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>        <span class="c1"># Fast path (no lock)</span>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_instance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">UNSET</span><span class="p">:</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>            <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_instance</span>
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>        <span class="c1"># Slow path (with lock) - only for first initialization</span>
+<a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a>        <span class="k">with</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+<a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>            <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_instance</span> <span class="ow">is</span> <span class="n">UNSET</span><span class="p">:</span>
+<a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a>                <span class="bp">cls</span><span class="o">.</span><span class="n">_instance</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+<a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a>                <span class="bp">cls</span><span class="o">.</span><span class="n">_instance</span><span class="o">.</span><span class="n">_initialized</span> <span class="o">=</span> <span class="kc">False</span>
+<a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a>        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_instance</span>
+</code></pre></div>
+<p><strong>Thread-Safety Contract</strong>:
+- Pass mutable state as parameters, not stored on singleton
+- Each thread can safely call methods concurrently
+- Catalog connections are immutable after initialization</p>
+<h3 id="4-lazy-evaluation-dask-integration">4. Lazy Evaluation (Dask Integration)</h3>
+<p>All operations return dask-backed xarray objects:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># ✅ CORRECT: Computation deferred</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">result</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>  <span class="c1"># Returns lazy xarray.Dataset</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">final</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="s1">&#39;time&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">compute</span><span class="p">()</span>  <span class="c1"># Triggers computation</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="c1"># ❌ INCORRECT: Eager loading</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="n">result</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>  <span class="c1"># Loads entire dataset!</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="n">final</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="s1">&#39;time&#39;</span><span class="p">)</span>  <span class="c1"># Already computed</span>
+</code></pre></div>
+<p><strong>Why Lazy Evaluation Matters</strong>:
+- Climate datasets are huge (100GB+ common)
+- <code>.load()</code> exhausts memory
+- Operations build a computation graph
+- <code>.compute()</code> only evaluates what's needed
+- Subset data spatially BEFORE aggregating to reduce computation</p>
+<hr />
+<h2 id="extending-the-system">Extending the System</h2>
+<h3 id="adding-a-new-processor">Adding a New Processor</h3>
+<p><strong>Steps</strong>:</p>
+<ol>
+<li>
+<p><strong>Create processor file</strong> in <code>climakitae/new_core/processors/</code>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># my_processor.py</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.processors.abc_data_processor</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>    <span class="n">DataProcessor</span><span class="p">,</span> <span class="n">register_processor</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="p">)</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.core.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">_NEW_ATTRS_KEY</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="nd">@register_processor</span><span class="p">(</span><span class="s2">&quot;my_key&quot;</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">250</span><span class="p">)</span>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyProcessor</span><span class="p">(</span><span class="n">DataProcessor</span><span class="p">):</span>
+<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+<a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;my_key&quot;</span>
+<a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">needs_catalog</span> <span class="o">=</span> <span class="kc">False</span>
+<a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a>
+<a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+<a id="__codelineno-21-15" name="__codelineno-21-15" href="#__codelineno-21-15"></a>        <span class="c1"># Transform data</span>
+<a id="__codelineno-21-16" name="__codelineno-21-16" href="#__codelineno-21-16"></a>        <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">result</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+<a id="__codelineno-21-17" name="__codelineno-21-17" href="#__codelineno-21-17"></a>
+<a id="__codelineno-21-18" name="__codelineno-21-18" href="#__codelineno-21-18"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">update_context</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+<a id="__codelineno-21-19" name="__codelineno-21-19" href="#__codelineno-21-19"></a>        <span class="k">if</span> <span class="n">_NEW_ATTRS_KEY</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">context</span><span class="p">:</span>
+<a id="__codelineno-21-20" name="__codelineno-21-20" href="#__codelineno-21-20"></a>            <span class="n">context</span><span class="p">[</span><span class="n">_NEW_ATTRS_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-21-21" name="__codelineno-21-21" href="#__codelineno-21-21"></a>        <span class="n">context</span><span class="p">[</span><span class="n">_NEW_ATTRS_KEY</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Filtered &gt; </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-21-22" name="__codelineno-21-22" href="#__codelineno-21-22"></a>
+<a id="__codelineno-21-23" name="__codelineno-21-23" href="#__codelineno-21-23"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">set_data_accessor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">catalog</span><span class="p">):</span>
+<a id="__codelineno-21-24" name="__codelineno-21-24" href="#__codelineno-21-24"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">needs_catalog</span><span class="p">:</span>
+<a id="__codelineno-21-25" name="__codelineno-21-25" href="#__codelineno-21-25"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_catalog</span> <span class="o">=</span> <span class="n">catalog</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Create validator</strong> (if processor has parameters):
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># my_processor_param_validator.py</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.param_validation.abc_param_validation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>    <span class="n">register_processor_validator</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="p">)</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="nd">@register_processor_validator</span><span class="p">(</span><span class="s2">&quot;my_key&quot;</span><span class="p">)</span>
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="k">def</span><span class="w"> </span><span class="nf">validate_my_processor</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+<a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a>    <span class="k">return</span> <span class="kc">True</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Add tests</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># tests/new_core/processors/test_my_processor.py</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">TestMyProcessor</span><span class="p">:</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_execute_threshold</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>        <span class="n">processor</span> <span class="o">=</span> <span class="n">MyProcessor</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>        <span class="n">data</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">({</span><span class="s2">&quot;temp&quot;</span><span class="p">:</span> <span class="p">([</span><span class="s2">&quot;x&quot;</span><span class="p">],</span> <span class="p">[</span><span class="mi">50</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">150</span><span class="p">])})</span>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>        <span class="n">result</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">{})</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a>        <span class="k">assert</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;temp&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;temp&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># NaN</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Import in module</strong>:
+   Ensure the processor is imported in <code>climakitae/new_core/processors/__init__.py</code>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.processors.my_processor</span><span class="w"> </span><span class="kn">import</span> <span class="n">MyProcessor</span>
+</code></pre></div></p>
+</li>
+</ol>
+<h3 id="adding-a-new-catalog-validator">Adding a New Catalog Validator</h3>
+<p><strong>Steps</strong>:</p>
+<ol>
+<li>
+<p><strong>Create validator</strong> in <code>climakitae/new_core/param_validation/</code>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1"># my_catalog_param_validator.py</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.param_validation.abc_param_validation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>    <span class="n">ParameterValidator</span><span class="p">,</span> <span class="n">register_catalog_validator</span>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="p">)</span>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="nd">@register_catalog_validator</span><span class="p">(</span><span class="s2">&quot;my_catalog&quot;</span><span class="p">)</span>
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyCatalogValidator</span><span class="p">(</span><span class="n">ParameterValidator</span><span class="p">):</span>
+<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">is_valid_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">):</span>
+<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a>        <span class="c1"># Validate required parameters</span>
+<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a>        <span class="k">if</span> <span class="s2">&quot;required_param&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">query</span><span class="p">:</span>
+<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a>            <span class="k">return</span> <span class="kc">None</span>
+<a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a>        <span class="c1"># Validate and normalize</span>
+<a id="__codelineno-25-13" name="__codelineno-25-13" href="#__codelineno-25-13"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_and_normalize</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Register catalog in DatasetFactory</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># In dataset_factory.py</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="bp">self</span><span class="o">.</span><span class="n">_catalog_to_validator_map</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>    <span class="s2">&quot;cadcat&quot;</span><span class="p">:</span> <span class="n">CadcatParamValidator</span><span class="p">(),</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a>    <span class="s2">&quot;renewable energy generation&quot;</span><span class="p">:</span> <span class="n">RenewablesParamValidator</span><span class="p">(),</span>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>    <span class="s2">&quot;my_catalog&quot;</span><span class="p">:</span> <span class="n">MyCatalogValidator</span><span class="p">(),</span>
+<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a><span class="p">}</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Add tests</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1"># tests/new_core/param_validation/test_my_catalog_param_validator.py</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">TestMyCatalogValidator</span><span class="p">:</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_valid_query</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a>        <span class="n">validator</span> <span class="o">=</span> <span class="n">MyCatalogValidator</span><span class="p">()</span>
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a>        <span class="n">query</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;required_param&quot;</span><span class="p">:</span> <span class="s2">&quot;value&quot;</span><span class="p">}</span>
+<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a>        <span class="n">result</span> <span class="o">=</span> <span class="n">validator</span><span class="o">.</span><span class="n">is_valid_query</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a>        <span class="k">assert</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+</code></pre></div></p>
+</li>
+</ol>
+<h3 id="adding-a-new-data-catalog">Adding a New Data Catalog</h3>
+<p><strong>Steps</strong>:</p>
+<ol>
+<li>
+<p><strong>Add URL constant</strong> in <code>climakitae/core/paths.py</code>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="n">MY_CATALOG_URL</span> <span class="o">=</span> <span class="s2">&quot;s3://bucket/path/my-catalog.json&quot;</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Initialize in DataCatalog</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="c1"># In data_access.py __init__()</span>
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="bp">self</span><span class="o">.</span><span class="n">_my_catalog_url</span> <span class="o">=</span> <span class="n">paths</span><span class="o">.</span><span class="n">MY_CATALOG_URL</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Add lazy property</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="nd">@property</span>
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">my_catalog</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_my_catalog&quot;</span><span class="p">):</span>
+<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_my_catalog</span> <span class="o">=</span> <span class="n">intake</span><span class="o">.</span><span class="n">open_esm_metastore</span><span class="p">(</span>
+<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_my_catalog_url</span>
+<a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a>        <span class="p">)</span>
+<a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_my_catalog</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Register in DatasetFactory</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="bp">self</span><span class="o">.</span><span class="n">_catalog_keys</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>    <span class="s2">&quot;cadcat&quot;</span><span class="p">:</span> <span class="s2">&quot;data&quot;</span><span class="p">,</span>
+<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>    <span class="s2">&quot;my_catalog&quot;</span><span class="p">:</span> <span class="s2">&quot;my_catalog&quot;</span><span class="p">,</span>  <span class="c1"># Maps to property name</span>
+<a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a><span class="p">}</span>
+</code></pre></div></p>
+</li>
+</ol>
+<hr />
+<h2 id="threading-concurrency">Threading &amp; Concurrency</h2>
+<h3 id="thread-safe-data-queries">Thread-Safe Data Queries</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">concurrent.futures</span>
+<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
+<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a>
+<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a><span class="c1"># ✅ CORRECT: Create new ClimateData instance per thread</span>
+<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">fetch_scenario</span><span class="p">(</span><span class="n">scenario</span><span class="p">):</span>
+<a id="__codelineno-32-6" name="__codelineno-32-6" href="#__codelineno-32-6"></a>    <span class="n">cd</span> <span class="o">=</span> <span class="n">ClimateData</span><span class="p">(</span><span class="n">verbosity</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># New instance</span>
+<a id="__codelineno-32-7" name="__codelineno-32-7" href="#__codelineno-32-7"></a>    <span class="k">return</span> <span class="p">(</span><span class="n">cd</span>
+<a id="__codelineno-32-8" name="__codelineno-32-8" href="#__codelineno-32-8"></a>        <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-32-9" name="__codelineno-32-9" href="#__codelineno-32-9"></a>        <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-32-10" name="__codelineno-32-10" href="#__codelineno-32-10"></a>        <span class="o">.</span><span class="n">experiment_id</span><span class="p">(</span><span class="n">scenario</span><span class="p">)</span>
+<a id="__codelineno-32-11" name="__codelineno-32-11" href="#__codelineno-32-11"></a>        <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-32-12" name="__codelineno-32-12" href="#__codelineno-32-12"></a>
+<a id="__codelineno-32-13" name="__codelineno-32-13" href="#__codelineno-32-13"></a><span class="k">with</span> <span class="n">concurrent</span><span class="o">.</span><span class="n">futures</span><span class="o">.</span><span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+<a id="__codelineno-32-14" name="__codelineno-32-14" href="#__codelineno-32-14"></a>    <span class="n">futures</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-32-15" name="__codelineno-32-15" href="#__codelineno-32-15"></a>        <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">fetch_scenario</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span> <span class="n">s</span>
+<a id="__codelineno-32-16" name="__codelineno-32-16" href="#__codelineno-32-16"></a>        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;historical&quot;</span><span class="p">,</span> <span class="s2">&quot;ssp245&quot;</span><span class="p">,</span> <span class="s2">&quot;ssp370&quot;</span><span class="p">]</span>
+<a id="__codelineno-32-17" name="__codelineno-32-17" href="#__codelineno-32-17"></a>    <span class="p">}</span>
+<a id="__codelineno-32-18" name="__codelineno-32-18" href="#__codelineno-32-18"></a>    <span class="n">results</span> <span class="o">=</span> <span class="p">{</span><span class="n">futures</span><span class="p">[</span><span class="n">f</span><span class="p">]:</span> <span class="n">f</span><span class="o">.</span><span class="n">result</span><span class="p">()</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">concurrent</span><span class="o">.</span><span class="n">futures</span><span class="o">.</span><span class="n">as_completed</span><span class="p">(</span><span class="n">futures</span><span class="p">)}</span>
+<a id="__codelineno-32-19" name="__codelineno-32-19" href="#__codelineno-32-19"></a>
+<a id="__codelineno-32-20" name="__codelineno-32-20" href="#__codelineno-32-20"></a><span class="c1"># ❌ INCORRECT: Sharing ClimateData across threads</span>
+<a id="__codelineno-32-21" name="__codelineno-32-21" href="#__codelineno-32-21"></a><span class="n">cd</span> <span class="o">=</span> <span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-32-22" name="__codelineno-32-22" href="#__codelineno-32-22"></a><span class="k">with</span> <span class="n">concurrent</span><span class="o">.</span><span class="n">futures</span><span class="o">.</span><span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+<a id="__codelineno-32-23" name="__codelineno-32-23" href="#__codelineno-32-23"></a>    <span class="n">futures</span> <span class="o">=</span> <span class="p">[</span><span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">cd</span><span class="o">.</span><span class="n">experiment_id</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">scenarios</span><span class="p">]</span>
+<a id="__codelineno-32-24" name="__codelineno-32-24" href="#__codelineno-32-24"></a>    <span class="c1"># Race condition: experiment_id() overwrites shared state</span>
+</code></pre></div>
+<h3 id="datacatalog-thread-safety">DataCatalog Thread Safety</h3>
+<p>The <code>DataCatalog</code> singleton is thread-safe by design:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="c1"># ✅ Thread-safe: Multiple threads accessing same catalog</span>
+<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">query_data</span><span class="p">(</span><span class="n">scenario</span><span class="p">):</span>
+<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a>    <span class="n">catalog</span> <span class="o">=</span> <span class="n">DataCatalog</span><span class="p">()</span>  <span class="c1"># Same instance for all threads</span>
+<a id="__codelineno-33-4" name="__codelineno-33-4" href="#__codelineno-33-4"></a>    <span class="k">return</span> <span class="n">catalog</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span>
+<a id="__codelineno-33-5" name="__codelineno-33-5" href="#__codelineno-33-5"></a>        <span class="p">{</span><span class="s2">&quot;variable_id&quot;</span><span class="p">:</span> <span class="s2">&quot;t2max&quot;</span><span class="p">,</span> <span class="s2">&quot;experiment_id&quot;</span><span class="p">:</span> <span class="n">scenario</span><span class="p">},</span>
+<a id="__codelineno-33-6" name="__codelineno-33-6" href="#__codelineno-33-6"></a>        <span class="n">catalog_key</span><span class="o">=</span><span class="s2">&quot;cadcat&quot;</span>  <span class="c1"># Passed as parameter, not stored</span>
+<a id="__codelineno-33-7" name="__codelineno-33-7" href="#__codelineno-33-7"></a>    <span class="p">)</span>
+<a id="__codelineno-33-8" name="__codelineno-33-8" href="#__codelineno-33-8"></a>
+<a id="__codelineno-33-9" name="__codelineno-33-9" href="#__codelineno-33-9"></a><span class="c1"># Each thread can safely call without locking</span>
+<a id="__codelineno-33-10" name="__codelineno-33-10" href="#__codelineno-33-10"></a><span class="k">with</span> <span class="n">concurrent</span><span class="o">.</span><span class="n">futures</span><span class="o">.</span><span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+<a id="__codelineno-33-11" name="__codelineno-33-11" href="#__codelineno-33-11"></a>    <span class="n">futures</span> <span class="o">=</span> <span class="p">[</span><span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">query_data</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">scenarios</span><span class="p">]</span>
+<a id="__codelineno-33-12" name="__codelineno-33-12" href="#__codelineno-33-12"></a>    <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">result</span><span class="p">()</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">futures</span><span class="p">]</span>
+</code></pre></div>
+<hr />
+<h2 id="internal-apis">Internal APIs</h2>
+<h3 id="accessing-registries-programmatically">Accessing Registries Programmatically</h3>
+<p><strong>Processors</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.processors.abc_data_processor</span><span class="w"> </span><span class="kn">import</span> <span class="n">_PROCESSOR_REGISTRY</span>
+<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a>
+<a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a><span class="c1"># List all processors in priority order</span>
+<a id="__codelineno-34-4" name="__codelineno-34-4" href="#__codelineno-34-4"></a><span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">priority</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span>
+<a id="__codelineno-34-5" name="__codelineno-34-5" href="#__codelineno-34-5"></a>    <span class="n">_PROCESSOR_REGISTRY</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span>
+<a id="__codelineno-34-6" name="__codelineno-34-6" href="#__codelineno-34-6"></a>    <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># Sort by priority</span>
+<a id="__codelineno-34-7" name="__codelineno-34-7" href="#__codelineno-34-7"></a><span class="p">):</span>
+<a id="__codelineno-34-8" name="__codelineno-34-8" href="#__codelineno-34-8"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">priority</span><span class="si">:</span><span class="s2">4d</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">key</span><span class="si">:</span><span class="s2">20s</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Validators</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.param_validation.abc_param_validation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a>    <span class="n">_CATALOG_VALIDATOR_REGISTRY</span><span class="p">,</span> <span class="n">_PROCESSOR_VALIDATOR_REGISTRY</span>
+<a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a><span class="p">)</span>
+<a id="__codelineno-35-4" name="__codelineno-35-4" href="#__codelineno-35-4"></a>
+<a id="__codelineno-35-5" name="__codelineno-35-5" href="#__codelineno-35-5"></a><span class="c1"># List all catalog validators</span>
+<a id="__codelineno-35-6" name="__codelineno-35-6" href="#__codelineno-35-6"></a><span class="k">for</span> <span class="n">catalog_key</span><span class="p">,</span> <span class="n">validator_class</span> <span class="ow">in</span> <span class="n">_CATALOG_VALIDATOR_REGISTRY</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-35-7" name="__codelineno-35-7" href="#__codelineno-35-7"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Catalog: </span><span class="si">{</span><span class="n">catalog_key</span><span class="si">:</span><span class="s2">30s</span><span class="si">}</span><span class="s2"> → </span><span class="si">{</span><span class="n">validator_class</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-35-8" name="__codelineno-35-8" href="#__codelineno-35-8"></a>
+<a id="__codelineno-35-9" name="__codelineno-35-9" href="#__codelineno-35-9"></a><span class="c1"># List all processor validators</span>
+<a id="__codelineno-35-10" name="__codelineno-35-10" href="#__codelineno-35-10"></a><span class="k">for</span> <span class="n">processor_key</span><span class="p">,</span> <span class="n">validator_fn</span> <span class="ow">in</span> <span class="n">_PROCESSOR_VALIDATOR_REGISTRY</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-35-11" name="__codelineno-35-11" href="#__codelineno-35-11"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processor: </span><span class="si">{</span><span class="n">processor_key</span><span class="si">:</span><span class="s2">30s</span><span class="si">}</span><span class="s2"> → </span><span class="si">{</span><span class="n">validator_fn</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+<h3 id="context-dictionary">Context Dictionary</h3>
+<p>Processors communicate via the <code>context</code> dict:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a><span class="n">result</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="p">{})</span>
+<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a>
+<a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a><span class="c1"># After execution, context contains metadata:</span>
+<a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a><span class="c1"># {</span>
+<a id="__codelineno-36-5" name="__codelineno-36-5" href="#__codelineno-36-5"></a><span class="c1">#     &quot;climate_data_attributes&quot;: {</span>
+<a id="__codelineno-36-6" name="__codelineno-36-6" href="#__codelineno-36-6"></a><span class="c1">#         &quot;clip&quot;: &quot;Clipped to bounding box (34.0, 35.0)&quot;,</span>
+<a id="__codelineno-36-7" name="__codelineno-36-7" href="#__codelineno-36-7"></a><span class="c1">#         &quot;time_slice&quot;: &quot;Subset to 2015-01-01 to 2015-12-31&quot;,</span>
+<a id="__codelineno-36-8" name="__codelineno-36-8" href="#__codelineno-36-8"></a><span class="c1">#         ...</span>
+<a id="__codelineno-36-9" name="__codelineno-36-9" href="#__codelineno-36-9"></a><span class="c1">#     }</span>
+<a id="__codelineno-36-10" name="__codelineno-36-10" href="#__codelineno-36-10"></a><span class="c1"># }</span>
+</code></pre></div>
+<p><strong>Access in processor</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.core.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">_NEW_ATTRS_KEY</span>
+<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a>
+<a id="__codelineno-37-3" name="__codelineno-37-3" href="#__codelineno-37-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+<a id="__codelineno-37-4" name="__codelineno-37-4" href="#__codelineno-37-4"></a>    <span class="k">if</span> <span class="n">_NEW_ATTRS_KEY</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">context</span><span class="p">:</span>
+<a id="__codelineno-37-5" name="__codelineno-37-5" href="#__codelineno-37-5"></a>        <span class="n">context</span><span class="p">[</span><span class="n">_NEW_ATTRS_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-37-6" name="__codelineno-37-6" href="#__codelineno-37-6"></a>    <span class="n">context</span><span class="p">[</span><span class="n">_NEW_ATTRS_KEY</span><span class="p">][</span><span class="s2">&quot;my_processor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Processed&quot;</span>
+<a id="__codelineno-37-7" name="__codelineno-37-7" href="#__codelineno-37-7"></a>    <span class="k">return</span> <span class="n">result</span>
+</code></pre></div></p>
+<hr />
+<h2 id="testing-new-components">Testing New Components</h2>
+<h3 id="test-structure">Test Structure</h3>
+<p>Tests mirror source structure:
+- Source: <code>climakitae/new_core/processors/clip.py</code>
+- Tests: <code>tests/new_core/processors/test_clip.py</code></p>
+<h3 id="mocking-strategy">Mocking Strategy</h3>
+<p><strong>Patch at import location</strong> (not definition):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="c1"># ✅ CORRECT: Patch where imported</span>
+<a id="__codelineno-38-2" name="__codelineno-38-2" href="#__codelineno-38-2"></a><span class="nd">@patch</span><span class="p">(</span><span class="s2">&quot;climakitae.new_core.user_interface.DatasetFactory&quot;</span><span class="p">)</span>
+<a id="__codelineno-38-3" name="__codelineno-38-3" href="#__codelineno-38-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mock_factory</span><span class="p">):</span>
+<a id="__codelineno-38-4" name="__codelineno-38-4" href="#__codelineno-38-4"></a>    <span class="o">...</span>
+<a id="__codelineno-38-5" name="__codelineno-38-5" href="#__codelineno-38-5"></a>
+<a id="__codelineno-38-6" name="__codelineno-38-6" href="#__codelineno-38-6"></a><span class="c1"># ❌ INCORRECT: Patch at definition</span>
+<a id="__codelineno-38-7" name="__codelineno-38-7" href="#__codelineno-38-7"></a><span class="nd">@patch</span><span class="p">(</span><span class="s2">&quot;climakitae.new_core.dataset_factory.DatasetFactory&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="test-data-fixtures">Test Data Fixtures</h3>
+<p>Use <code>tests/conftest.py</code> fixtures for realistic datasets:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_my_processor</span><span class="p">(</span><span class="n">test_data_2022_monthly_45km</span><span class="p">):</span>
+<a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Test processor with sample xarray dataset.&quot;&quot;&quot;</span>
+<a id="__codelineno-39-3" name="__codelineno-39-3" href="#__codelineno-39-3"></a>    <span class="n">processor</span> <span class="o">=</span> <span class="n">MyProcessor</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<a id="__codelineno-39-4" name="__codelineno-39-4" href="#__codelineno-39-4"></a>    <span class="n">result</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">test_data_2022_monthly_45km</span><span class="p">,</span> <span class="p">{})</span>
+<a id="__codelineno-39-5" name="__codelineno-39-5" href="#__codelineno-39-5"></a>    <span class="k">assert</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+</code></pre></div>
+<hr />
+<h2 id="common-pitfalls">Common Pitfalls</h2>
+<table>
+<thead>
+<tr>
+<th>Pitfall</th>
+<th>Problem</th>
+<th>Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>In-place mutation</strong></td>
+<td>Breaks lazy evaluation</td>
+<td>Return new objects: <code>return data.where(...)</code> not <code>data.values[:] = ...</code></td>
+</tr>
+<tr>
+<td><strong>Eager loading</strong></td>
+<td>OOM errors on large datasets</td>
+<td>Never call <code>.load()</code> or <code>.compute()</code> in processors</td>
+</tr>
+<tr>
+<td><strong>Shared mutable state</strong></td>
+<td>Race conditions in threads</td>
+<td>Pass parameters, don't store on singleton</td>
+</tr>
+<tr>
+<td><strong>Query reset after .get()</strong></td>
+<td>Lost context in loops</td>
+<td>Create new <code>ClimateData()</code> per query</td>
+</tr>
+<tr>
+<td><strong>Wrong patch location</strong></td>
+<td>Mocks don't intercept calls</td>
+<td>Patch import location: <code>"module.ClassName"</code></td>
+</tr>
+<tr>
+<td><strong>Forgetting registration</strong></td>
+<td>Components not discovered</td>
+<td>Use <code>@register_*</code> decorators at class definition</td>
+</tr>
+<tr>
+<td><strong>Context not updated</strong></td>
+<td>No metadata about processing</td>
+<td>Update <code>context[_NEW_ATTRS_KEY]</code> in processors</td>
+</tr>
+<tr>
+<td><strong>Priority conflicts</strong></td>
+<td>Wrong execution order</td>
+<td>Use priority ranges (0-99, 100-199, etc.)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="resources">Resources</h2>
+<ul>
+<li><strong>Registry Pattern</strong>: <code>climakitae/new_core/processors/abc_data_processor.py</code></li>
+<li><strong>Processor Template</strong>: <code>climakitae/new_core/processors/template.py</code></li>
+<li><strong>ClimateData</strong>: <code>climakitae/new_core/user_interface.py</code></li>
+<li><strong>Tests</strong>: <code>tests/new_core/</code></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright 2026, Cal-Adapt Analytics Engine
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "content.code.copy", "content.action.edit", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
