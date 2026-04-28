@@ -13,6 +13,18 @@
          <lastmod>2026-04-28</lastmod>
     </url>
     <url>
+         <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/core-boundaries/</loc>
+         <lastmod>2026-04-28</lastmod>
+    </url>
+    <url>
+         <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/core-data-interface/</loc>
+         <lastmod>2026-04-28</lastmod>
+    </url>
+    <url>
+         <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/core/</loc>
+         <lastmod>2026-04-28</lastmod>
+    </url>
+    <url>
          <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/data-access/</loc>
          <lastmod>2026-04-28</lastmod>
     </url>
@@ -25,7 +37,19 @@
          <lastmod>2026-04-28</lastmod>
     </url>
     <url>
+         <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/derived-variables/</loc>
+         <lastmod>2026-04-28</lastmod>
+    </url>
+    <url>
+         <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/explore/</loc>
+         <lastmod>2026-04-28</lastmod>
+    </url>
+    <url>
          <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/new-core/</loc>
+         <lastmod>2026-04-28</lastmod>
+    </url>
+    <url>
+         <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/param-validation-detailed/</loc>
          <lastmod>2026-04-28</lastmod>
     </url>
     <url>
@@ -33,7 +57,19 @@
          <lastmod>2026-04-28</lastmod>
     </url>
     <url>
+         <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/processor-utilities/</loc>
+         <lastmod>2026-04-28</lastmod>
+    </url>
+    <url>
          <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/processors/</loc>
+         <lastmod>2026-04-28</lastmod>
+    </url>
+    <url>
+         <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/tools/</loc>
+         <lastmod>2026-04-28</lastmod>
+    </url>
+    <url>
+         <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/util/</loc>
          <lastmod>2026-04-28</lastmod>
     </url>
     <url>
