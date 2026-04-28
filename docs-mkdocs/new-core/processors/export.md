@@ -2,202 +2,227 @@
 
 **Priority:** 9999 | **Category:** I/O & Archival
 
-Write climate data to disk in multiple formats (NetCDF, Zarr, CSV, GeoTIFF). Handle gridded datasets, multi-point extractions, and collections with optional location-based filenames and cloud storage support.
+Write climate data to disk in multiple formats (NetCDF, Zarr, CSV, GeoTIFF). Handle gridded datasets, multi-point extractions, and point collections with optional location-based filenames, S3 cloud storage, and format-specific export methods.
 
 ## Algorithm
 
+The processor handles **three distinct data structures** with conditional parameter behavior:
+
 ```mermaid
 flowchart TD
-    Start([Input: xr.Dataset<br/>or collection]) --> CheckFormat["Infer file format<br/>or use specified"]
+    Start([Input: xr.Dataset<br/>or collection]) --> CheckType{Input data<br/>type?}
     
-    CheckFormat --> CheckSeparated{Separated<br/>output?}
+    CheckType -->|Gridded| GridMode["<strong>Mode 1: Gridded Dataset</strong><br/>lat/lon dimensions<br/>size gt 1<br/>Single file mode"]
+    CheckType -->|closest_cell dim| PointMode["<strong>Mode 2: Multi-Point</strong><br/>closest_cell dimension<br/>from clip processor<br/>Conditional separation"]
+    CheckType -->|List/Dict| CollectionMode["<strong>Mode 3: Collection</strong><br/>List or dict of<br/>single-point datasets<br/>Item-based separation"]
     
-    CheckSeparated -->|No| SingleExport["Single file<br/>all data"]
-    CheckSeparated -->|Yes| CheckCollection{Collection<br/>type?}
+    GridMode --> GridParams["separated/location_based<br/>SILENTLY IGNORED<br/>Always single file"]
+    PointMode --> PointParams["separated:True<br/>splits on closest_cell<br/>location_based_naming<br/>controls filenames"]
+    CollectionMode --> CollParams["separated:True<br/>exports each item<br/>location_based_naming<br/>controls filenames"]
     
-    CheckCollection -->|Dict| LoopDict["Export each dict value<br/>to separate file"]
-    CheckCollection -->|closest_cell dim| SplitCells["Split closest_cell<br/>dimension"]
-    CheckCollection -->|List/Tuple| LoopList["Export each item<br/>to separate file"]
+    GridParams --> FormatSelect["Infer file format<br/>or use specified"]
+    PointParams --> FormatSelect
+    CollParams --> FormatSelect
     
-    SingleExport --> GenFilename["Generate filename<br/>add extension"]
-    LoopDict --> GenFilename
-    SplitCells --> GenFilename
-    LoopList --> GenFilename
+    FormatSelect -->|NetCDF| ExportNCDF["xarray.to_netcdf<br/>local filesystem<br/>CF conventions"]
+    FormatSelect -->|Zarr| ExportZarr["zarr-python<br/>local or S3<br/>cloud-optimized"]
+    FormatSelect -->|CSV| ExportCSV["to_csv with gzip<br/>tabular format<br/>time series friendly"]
+    FormatSelect -->|GeoTIFF| ExportGEO["rioxarray.to_raster<br/>single time slice<br/>GIS compatible"]
     
-    GenFilename --> CheckNaming{Location-based<br/>naming?}
+    ExportNCDF --> GenFilename["Generate filename<br/>with extension"]
+    ExportZarr --> GenFilename
+    ExportCSV --> GenFilename
+    ExportGEO --> GenFilename
     
-    CheckNaming -->|Yes| AddCoords["Append lat/lon<br/>to filename"]
-    CheckNaming -->|No| SelectFormat["Select export function<br/>by format"]
-    AddCoords --> SelectFormat
+    GenFilename --> CheckNaming{location_based_naming<br/>enabled?}
     
-    SelectFormat --> WriteCDF["NetCDF via xarray<br/>.to_netcdf"]
-    SelectFormat --> WriteZarr["Zarr local/S3<br/>.to_zarr"]
-    SelectFormat --> WriteCSV["CSV tabular<br/>.to_csv"]
-    SelectFormat --> WriteGEO["GeoTIFF raster<br/>rioxarray"]
+    CheckNaming -->|Yes + points| AddCoords["Append coords to name<br/>e.g. _34-0N_118-0W"]
+    CheckNaming -->|No or gridded| NoCoords["Use index or base name<br/>e.g. _0, _1"]
     
-    WriteCDF --> UpdateCtx["Update context & log"]
-    WriteZarr --> UpdateCtx
-    WriteCSV --> UpdateCtx
-    WriteGEO --> UpdateCtx
+    AddCoords --> Write["Write file to disk"]
+    NoCoords --> Write
     
-    UpdateCtx --> CheckReturn{Return<br/>data?}
+    Write --> CheckMethod{export_method}
     
-    CheckReturn -->|export_method:data| ReturnData["Return data + path"]
-    CheckReturn -->|export_method:skip_existing| ReturnSkip["Return None if exists"]
-    CheckReturn -->|export_method:none| ReturnNone["Return None"]
+    CheckMethod -->|data| ReturnData["Return data + path"]
+    CheckMethod -->|skip_existing| CheckExists{File exists?}
+    CheckExists -->|Yes| ReturnNone1["Return None"]
+    CheckExists -->|No| Write
+    CheckMethod -->|none| ReturnNone2["Return None"]
     
-    ReturnData --> End([Output: Dataset + metadata])
-    ReturnSkip --> End
-    ReturnNone --> End
+    ReturnData --> End([Output: Dataset<br/>+ export metadata])
+    ReturnNone1 --> End
+    ReturnNone2 --> End
     
-    click CheckFormat "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L85" "Infer file format"
-    click SingleExport "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L110" "Single file"
-    click LoopDict "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L125" "Export each dict value"
-    click SplitCells "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L140" "Split closest_cell dimension"
-    click LoopList "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L155" "Export each item"
-    click GenFilename "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L170" "Generate filename"
-    click AddCoords "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L185" "Append lat/lon"
-    click SelectFormat "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L200" "Select export function"
-    click WriteCDF "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L212" "NetCDF export"
-    click WriteZarr "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L220" "Zarr export"
-    click WriteCSV "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L228" "CSV export"
-    click WriteGEO "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L236" "GeoTIFF export"
-    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L250" "Update context"
-    click ReturnData "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L255" "Return data + path"
-    click ReturnSkip "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L260" "Return None if exists"
+    click CheckType "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L150" "Input type detection"
+    click GridMode "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L170" "Gridded dataset handling"
+    click PointMode "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L190" "closest_cell dimension"
+    click CollectionMode "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L210" "Collection of points"
+    click FormatSelect "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L240" "Format router"
+    click ExportNCDF "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L280" "NetCDF export"
+    click ExportZarr "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L290" "Zarr export S3/local"
+    click ExportCSV "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L300" "CSV export"
+    click ExportGEO "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L310" "GeoTIFF export"
 ```
 
-### Execution Flow
+## Data Handling Modes
 
-1. **Infer Format** (lines 85–95): Use `file_format` param or auto-detect from extension
-2. **Check Separation** (lines 110–160): Handle dict, Dataset, or list inputs
-3. **Generate Filename** (lines 170–190): Add extension and optional location coordinates
-4. **Select Export Function** (lines 200–240): Route to format-specific writer
-5. **Write File** (lines 212–240): Execute xarray/.to_zarr/CSV/GeoTIFF export
-6. **Update Context** (lines 250–255): Record export path and metadata
-7. **Return** (optional): Data + path if `export_method="data"`, None if `"none"`
+### Mode 1: Gridded Datasets ⚠️ Important
+Single xr.Dataset/xr.DataArray with `lat` and `lon` coordinate dimensions containing multiple values (e.g., shape `(time, lat, lon)`).
+
+**Key Behavior:**
+- Options `separated` and `location_based_naming` are **silently ignored**
+- Always exports to a **single file** (cannot split gridded data by location)
+- Single filename used with extension based on format
+
+**Example Input:**
+```python
+# Dataset from clip with single region or full state
+ds.dims  # {'time': 8760, 'lat': 150, 'lon': 100, 'sim': 5}
+```
+
+**Parameters Effective for This Mode:**
+- `filename`: Used for single output file
+- `file_format`: Determines output format
+- `export_method`: Controls return value
+- `mode`: For Zarr only
+
+**Parameters Ignored for This Mode:**
+- `separated` (always False, cannot split gridded data)
+- `location_based_naming` (no point coordinates to include)
+
+### Mode 2: Multi-Point Clip Results
+Single xr.Dataset/xr.DataArray with `closest_cell` dimension (output from clipping to multiple lat/lon points). The `closest_cell` dimension represents individual target points.
+
+**Key Behavior:**
+- When `separated=True`: Data **splits along `closest_cell` dimension**
+- Each slice becomes separate file with index or location-based name
+- When `separated=False`: All points in single file with `closest_cell` dimension preserved
+
+**Example Input:**
+```python
+# Dataset from clip with multiple points
+ds.dims  # {'time': 8760, 'closest_cell': 3, 'sim': 5}
+# 3 points: LA, SF, SD
+```
+
+**With `separated=True` + `location_based_naming=True`:**
+```
+myfile_34-05N_118-25W.nc  # LA
+myfile_37-77N_122-42W.nc  # SF
+myfile_32-72N_117-16W.nc  # SD
+```
+
+**With `separated=True` + `location_based_naming=False`:**
+```
+myfile_0.nc  # LA
+myfile_1.nc  # SF
+myfile_2.nc  # SD
+```
+
+**With `separated=False`:**
+```
+myfile.nc  # All 3 points, closest_cell dimension preserved
+```
+
+### Mode 3: Point Collections
+A **list** or **dict** of xr.Dataset/xr.DataArray objects, where each item represents a single spatial point (scalar `lat`/`lon` coordinates with size 1).
+
+**Typical Sources:**
+- Output from `batch_select()` with `return_data_and_metadata=False`
+- Lists returned by multi-point clipping with `separated=True`
+- Custom collections of point time series
+
+**Example Input:**
+```python
+# List of 3 datasets, each a single point
+data = [
+    ds_la,  # shape (time: 8760, sim: 5)
+    ds_sf,  # shape (time: 8760, sim: 5)
+    ds_sd   # shape (time: 8760, sim: 5)
+]
+```
+
+**With `separated=True` + `location_based_naming=True`:**
+- Each dataset exported separately
+- Filenames use lat/lon from dataset coordinates
+
+```
+myfile_34-05N_118-25W.nc  # LA
+myfile_37-77N_122-42W.nc  # SF
+myfile_32-72N_117-16W.nc  # SD
+```
+
+**With `separated=True` + `location_based_naming=False`:**
+```
+myfile_0.nc
+myfile_1.nc
+myfile_2.nc
+```
+
+**With `separated=False`:**
+- Each dataset exports with base filename
+- Duplicate filenames get `_1`, `_2`, `_3` suffixes
+
+## Export Formats
+
+| Format | Use Case | Compression | Local/S3 | Max Size | Speed |
+|--------|----------|-------------|----------|----------|-------|
+| **NetCDF** | Climate data standard, long-term archival | CF conventions + gzip | Local only | Unlimited | Fast |
+| **Zarr** | Cloud access, distributed computing, multi-file | Internal (optional) | Both (S3) | Unlimited | Fast |
+| **CSV** | Spreadsheet software, tabular analysis, publication | gzip optional | Local only | ~500MB practical | Slow |
+| **GeoTIFF** | Raster maps, GIS software (QGIS, ArcGIS) | Single time slice | S3 capable | 4GB limit | Fast |
+
+### Format-Specific Notes
+
+**NetCDF:**
+- CF conventions metadata preserved
+- Human-readable with ncdump
+- Local filesystem only
+- Best for archival
+
+**Zarr (S3 Mode):**
+- Requires bucket configuration
+- Streaming access without downloading
+- Chunked storage for efficient access
+- Path format: `s3://bucket/path/dataset.zarr`
+
+**CSV:**
+- Flattens multi-dimensional data to tabular format
+- Header row with coordinate/variable names
+- gzip compression applied by default
+- Slow for large datasets (>500MB)
+
+**GeoTIFF:**
+- Single time slice per file (select with time index)
+- Spatial reference (EPSG:4326) embedded
+- Useful for static maps/visualizations
+- Can be opened in QGIS, ArcGIS, Google Earth
 
 ## Parameters
 
-| Parameter | Type | Required | Default | Description | Constraints |
-|-----------|------|----------|---------|-------------|-------------|
-| `filename` | str | | "dataexport" | Base filename (no extension) | — |
-| `file_format` | str | | "NetCDF" | Output format | "NetCDF", "Zarr", "CSV", "GeoTIFF" |
-| `separated` | bool | | False | Export collections to separate files | — |
-| `location_based_naming` | bool | | False | Append lat/lon to filename | Only with separated=True |
-| `export_method` | str | | "data" | Return behavior | "data", "skip_existing", "none" |
-| `mode` | str | | "local" | Storage destination | "local", "s3" (Zarr only) |
+| Parameter | Type | Mode(s) | Description | Constraints |
+|-----------|------|---------|-------------|-------------|
+| `filename` | str | All | Base filename (no extension) | Default: "dataexport" |
+| `file_format` | str | All | Output format | "NetCDF", "Zarr", "CSV", "GeoTIFF" |
+| `separated` | bool | 2, 3 | Export items to separate files | Ignored for Mode 1 |
+| `location_based_naming` | bool | 2, 3 | Use lat/lon in filenames | Requires `separated=True` |
+| `export_method` | str | All | Return behavior | "data", "skip_existing", "none" |
+| `mode` | str | All (Zarr) | Storage destination | "local" or "s3" (Zarr only) |
+| `raw_filename` | str | — | Custom name for raw export | For `export_method="both"` |
+| `calc_filename` | str | — | Custom name for calculated export | For `export_method="both"` |
 
 ## Code References
 
 | Method | Lines | Purpose |
 |--------|-------|---------|
-| `__init__` | [70–105](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L70) | Parse and validate export parameters |
-| `execute` | [110–160](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L110) | Route input type and call export |
-| `_export_dataset` | [170–240](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L170) | Format-agnostic export logic |
-| `update_context` | [250–260](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L250) | Record export path and metadata |
-
-## Format Comparison
-
-| Format | Best For | Compression | Size | Speed | Cloud Ready |
-|--------|----------|-------------|------|-------|-------------|
-| NetCDF | Long-term archival, standard climate data | High | Medium | Fast | Limited |
-| Zarr | Cloud access, large datasets, multi-file | Medium | Large | Fast | ✓ Yes (S3) |
-| CSV | Tabular analysis, spreadsheet software | Low | Large | Slow | Limited |
-| GeoTIFF | Raster maps, GIS software, single slice | Medium | Medium | Fast | ✓ Yes (S3) |
-
-## Examples
-
-### Basic NetCDF Export
-
-```python
-from climakitae.new_core.user_interface import ClimateData
-
-data = (ClimateData()
-    .catalog("cadcat")
-    .activity_id("WRF")
-    .variable("t2max")
-    .table_id("day")
-    .grid_label("d03")
-    .processes({
-        "time_slice": ("2015-01-01", "2015-12-31"),
-        "clip": "Alameda",
-        "export": {
-            "filename": "alameda_2015_temps",
-            "file_format": "NetCDF"
-        }
-    })
-    .get())
-
-# Writes: alameda_2015_temps.nc
-```
-
-### Zarr Cloud Export
-
-```python
-# Cloud-optimized format for distributed access
-data = (ClimateData()
-    .catalog("cadcat")
-    .activity_id("WRF")
-    .variable("pr")
-    .table_id("mon")
-    .grid_label("d02")
-    .processes({
-        "export": {
-            "filename": "ca_precip_20yr",
-            "file_format": "Zarr",
-            "mode": "s3"  # Write to S3
-        }
-    })
-    .get())
-
-# Writes: s3://bucket/ca_precip_20yr.zarr/
-```
-
-### Separated Multi-Point Export
-
-```python
-# Export each city to separate file
-locations = [
-    (34.05, -118.25),    # LA
-    (37.77, -122.42),    # SF
-    (32.72, -117.16)     # SD
-]
-
-data = (ClimateData()
-    .catalog("cadcat")
-    .activity_id("WRF")
-    .variable("t2max")
-    .table_id("day")
-    .grid_label("d03")
-    .processes({
-        "clip": {
-            "boundaries": locations,
-            "separated": True
-        },
-        "export": {
-            "filename": "cities_temperatures",
-            "file_format": "NetCDF",
-            "separated": True,
-            "location_based_naming": True
-        }
-    })
-    .get())
-
-# Writes:
-# - cities_temperatures_34-05N_118-25W.nc  (LA)
-# - cities_temperatures_37-77N_122-42W.nc  (SF)
-# - cities_temperatures_32-72N_117-16W.nc  (SD)
-```
-
-### CSV for Spreadsheet Analysis
-
-```python
-# Export time series for Excel/Sheets
-data = (ClimateData()
-    .catalog("cadcat")
-    .activity_id("WRF")
-    .variable("t2max")
+| `__init__` | [70–140](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L70) | Parse and validate export parameters |
+| `execute` | [150–210](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L150) | Detect input type and route to handler |
+| `_export_single_dataset` | [220–250](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L220) | Export gridded dataset (Mode 1) |
+| `_export_with_closest_cell` | [260–300](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L260) | Export multi-point results (Mode 2) |
+| `_export_collection` | [310–350](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L310) | Export point collection (Mode 3) |
+| `_select_export_function` | [360–390](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L360) | Route to format-specific writer |
+| `update_context` | [400–415](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L400) | Record export path and metadata |
     .table_id("day")
     .grid_label("d03")
     .processes({

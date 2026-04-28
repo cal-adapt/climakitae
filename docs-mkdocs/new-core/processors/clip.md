@@ -2,119 +2,192 @@
 
 **Priority:** 200 | **Category:** Spatial Processing
 
-Subset climate data to specific geographic regions, points, or boundaries. Extract data for counties, watersheds, weather stations, or custom lat/lon coordinates with automatic coordinate system handling.
+Subset climate data to specific geographic regions, points, or boundaries. Extract data for counties, watersheds, weather stations, or custom lat/lon coordinates with automatic nearest-gridcell location and coordinate system handling.
 
 ## Algorithm
 
+The processor supports **five distinct input modes** with automatic type detection and **smart point-finding** for nearest valid gridcells:
+
 ```mermaid
 flowchart TD
-    Start([Input: xr.Dataset]) --> ParseValue["Parse clip value<br/>boundary/point/box"]
+    Start([Input: xr.Dataset]) --> ParseValue["Parse clip value<br/>detect input type"]
     
     ParseValue --> CheckType{Input type?}
     
-    CheckType -->|String boundary| LoadBoundary["Load from boundary catalog<br/>CA counties/watersheds/etc"]
-    CheckType -->|Tuple| ParseTuple["Parse tuple<br/>point or bbox"]
-    CheckType -->|List| ParseList["Parse list<br/>multi-point or multi-boundary"]
-    CheckType -->|File| LoadFile["Load shapefile/GeoJSON<br/>from path"]
+    CheckType -->|String| StringCheck{Boundary<br/>or Station?}
+    StringCheck -->|Boundary catalog| LoadBoundary["Load from boundary catalog<br/>CA counties/watersheds/utilities"]
+    StringCheck -->|Station code| LoadStation["Load weather station<br/>from HadISD catalog"]
     
-    LoadBoundary --> ValidateGeom["Validate geometry<br/>and reproject"]
-    ParseTuple --> ValidateGeom
-    ParseList --> ValidateGeom
+    CheckType -->|Tuple| TupleCheck{Tuple<br/>structure?}
+    TupleCheck -->|Single pair| SinglePoint["Single point lat, lon<br/>find closest gridcell"]
+    TupleCheck -->|Nested tuples| BBox["Bounding box<br/>lat_min to lat_max, lon_min to lon_max"]
+    
+    CheckType -->|List| ListCheck{List<br/>contents?}
+    ListCheck -->|Strings| MultiBoundary["Multiple boundaries<br/>or stations"]
+    ListCheck -->|Tuples| MultiPoint["Multiple points<br/>find closest gridcells"]
+    
+    CheckType -->|File| LoadFile["Load shapefile/GeoJSON<br/>from disk"]
+    
+    LoadBoundary --> ValidateGeom["Validate geometry"]
+    LoadStation --> ValidateGeom
+    SinglePoint --> SmartPoint["Smart gridcell search:<br/>expand search radius<br/>until non-NaN found"]
+    BBox --> ValidateGeom
+    MultiBoundary --> ValidateGeom
+    MultiPoint --> SmartSearch["Smart search for each point<br/>vectorized nearest-neighbor"]
     LoadFile --> ValidateGeom
     
-    ValidateGeom --> ToWGS["Reproject to WGS84<br/>if needed"]
+    SmartPoint --> Reproject["Reproject to WGS84"]
+    SmartSearch --> Reproject
+    ValidateGeom --> Reproject
     
-    ToWGS --> CheckSeparated{Separated<br/>output?}
+    Reproject --> CheckSeparated{Separated<br/>output?}
     
-    CheckSeparated -->|No| SingleClip["Single clip<br/>union all boundaries"]
-    CheckSeparated -->|Yes| LoopClip["Loop each boundary<br/>create dict or list"]
+    CheckSeparated -->|No| SingleClip["Single clip operation<br/>union all boundaries"]
+    CheckSeparated -->|Yes| LoopClip["Loop each boundary/point<br/>create dict or list"]
     
     SingleClip --> Mask3D["Create 3D mask<br/>broadcast across time/sim"]
     LoopClip --> Mask3D
     
-    Mask3D --> ApplyMask["Apply mask to data<br/>data.where(mask)"]
+    Mask3D --> ApplyMask["Apply mask to data<br/>data.where"]
     
     ApplyMask --> UpdateCtx["Update context metadata"]
     
     UpdateCtx --> End([Output: Dataset<br/>clipped extent])
     
-    click ParseValue "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L95" "Parse clip value"
-    click LoadBoundary "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L120" "Load from boundary catalog"
-    click ParseTuple "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L145" "Parse tuple"
-    click ParseList "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L165" "Parse list"
-    click LoadFile "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L185" "Load shapefile/GeoJSON"
-    click ValidateGeom "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L200" "Validate geometry"
-    click ToWGS "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L215" "Reproject to WGS84"
-    click SingleClip "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L230" "Single clip"
-    click LoopClip "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L245" "Loop each boundary"
-    click Mask3D "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L260" "Create 3D mask"
-    click ApplyMask "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L275" "Apply mask to data"
-    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L290" "Update context metadata"
+    click ParseValue "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L230" "Input type detection"
+    click StringCheck "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L260" "String boundary vs station"
+    click LoadBoundary "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L290" "Load from boundary catalog"
+    click LoadStation "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L310" "Load weather station"
+    click SinglePoint "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L330" "Single point clipping"
+    click BBox "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L350" "Bounding box clipping"
+    click SmartPoint "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L400" "Smart gridcell search algorithm"
+    click SmartSearch "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L420" "Multi-point nearest-neighbor"
+    click ValidateGeom "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L450" "Validate geometry integrity"
+    click Reproject "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L470" "Reproject to WGS84"
+    click Mask3D "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L490" "Broadcast mask to 3D"
+    click ApplyMask "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L510" "Apply rioxarray mask"
+    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L530" "Record clipped region"
 ```
 
-### Execution Flow
+## Input Modes
 
-1. **Parse Input** (lines 95–115): Determine clip value type (boundary name, point, bounding box, file path)
-2. **Load Geometry** (lines 120–190): Load boundary from catalog or shapefile
-3. **Validate & Reproject** (lines 200–220): Ensure WGS84, check for empty/invalid geometries
-4. **Check Separation** (lines 225–250): Determine if output should be single dataset or dict/list
-5. **Create Mask** (lines 260–270): Convert geometry to 3D boolean mask with xarray `.rio` accessor
-6. **Apply Mask** (lines 275–285): Mask data with `data.where(mask, drop=False)`
-7. **Update Context** (lines 290–300): Record clipped region in attributes
-8. **Return** (type matches input): dict/list/Dataset based on separation parameter
+### Mode 1: Named Boundaries
+Clip using predefined administrative or utility boundaries from the Cal-Adapt boundary catalog.
+
+**Examples:**
+```python
+"Los Angeles"              # County name
+"San Francisco Bay"        # Watershed
+"CA"                       # State-wide
+"CA_IOU"                   # Utility (IOU = Investor-Owned Utility)
+```
+
+### Mode 2: Weather Stations
+Clip to specific weather station locations from the HadISD station network.
+
+**Examples:**
+```python
+"KSAC"                     # Sacramento International Airport
+"KSFO"                     # San Francisco International Airport  
+"KLAX"                     # Los Angeles International Airport
+```
+
+### Mode 3: Single Point (Smart Gridcell Finding)
+Extract data for a single geographic point. **Automatically finds the nearest gridcell with valid (non-NaN) data using expanding-radius search.**
+
+**Smart Point-Finding Algorithm:**
+When the nearest gridcell contains NaN values (common in WRF data near coastlines/mountains):
+
+1. **Initial Search**: 0.01° radius (~1 km)
+2. **Expand to**: 0.05° (~5 km)
+3. **Continue**: 0.1°, 0.2°, 0.5° radii
+4. **Return**: Closest valid (non-NaN) gridcell within acceptable radius
+5. **Timeout**: If no valid data within 0.5°, raises error with suggestions
+
+**Example:**
+```python
+(37.7749, -122.4194)       # San Francisco: (lat, lon)
+```
+
+### Mode 4: Bounding Box
+Clip data to a rectangular geographic region specified by latitude and longitude ranges.
+
+**Example:**
+```python
+((36.0, 39.0), (-122.0, -118.0))   # ((lat_min, lat_max), (lon_min, lon_max))
+```
+
+### Mode 5: Custom File
+Clip using geometry from shapefile or GeoJSON file.
+
+**Example:**
+```python
+"/path/to/custom_region.shp"       # Shapefile with geometry
+```
+
+## Multi-Input Handling
+
+### Multiple Boundaries
+When providing a list of boundary names, they are combined using **union** (OR logic):
+
+```python
+["Alameda", "Contra Costa", "Santa Clara"]  # All three counties combined
+```
+
+**With separation:**
+```python
+{"boundaries": ["Alameda", "Contra Costa"], "separated": True}
+# Returns: Dict with separate Dataset for each county
+```
+
+### Multiple Points
+When providing multiple point coordinates:
+- Each point gets independent smart-gridcell search
+- Results include `closest_cell` dimension with length = number of points
+- Automatic duplicate filtering if multiple points map to same gridcell
+
+**Example:**
+```python
+[(37.7749, -122.4194), (34.0522, -118.2437), (32.7157, -117.1611)]
+# Returns: Dataset with closest_cell dimension = 3 (SF, LA, San Diego)
+```
+
+## Spatial Processing Details
+
+### Coordinate System Handling
+- **Input**: Multiple coordinate systems supported (automatically detected)
+- **Conversion**: All reproject to WGS84 (EPSG:4326)
+- **Output**: WGS84 coordinates in result dataset
+
+### Masking Strategy
+1. Create boolean mask from geometry
+2. Broadcast mask to 3D (time × lat × lon) or higher dimensions
+3. Apply with `data.where(mask, drop=False)` to preserve coordinates
+
+### Boundary Catalog Access
+- Boundaries loaded lazily on first use
+- Cached in memory for subsequent operations
+- Sourced from S3 intake-esm catalog
 
 ## Parameters
 
-| Parameter | Type | Required | Default | Description | Constraints |
-|-----------|------|----------|---------|-------------|-------------|
-| `value` | str/tuple/list/dict | ✓ | — | Geometry specification | See examples; can be combined |
-| `separated` | bool | | False | Return separate datasets per boundary/point | True for dict/list output |
-| `location_based_naming` | bool | | False | Use lat/lon in filenames (with export) | Only applies with separated=True |
-
-### Input Formats
-
-**Named Boundary** (string):
-```python
-"Los Angeles"      # County name
-"San Francisco Bay Watershed"
-"CA"              # State-wide
-```
-
-**Single Point** (2-tuple):
-```python
-(37.7749, -122.4194)  # (lat, lon)
-```
-
-**Bounding Box** (2-tuple of tuples):
-```python
-((36.0, 39.0), (-122.0, -118.0))  # ((lat_min, lat_max), (lon_min, lon_max))
-```
-
-**Multiple Points** (list of tuples):
-```python
-[(34.05, -118.25), (37.77, -122.42), (32.72, -117.16)]
-```
-
-**Multiple Boundaries** (list of strings):
-```python
-["Alameda", "Contra Costa", "Santa Clara"]
-```
-
-**Weather Station** (string code):
-```python
-"KSAC"  # Sacramento International
-"KSFO"  # San Francisco
-```
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `value` | str/tuple/list/dict | ✓ | — | Geometry specification (mode 1–5 above) |
+| `separated` | bool | | False | Return separate datasets per boundary/point |
+| `location_based_naming` | bool | | False | Use lat/lon in filenames (with export) |
 
 ## Code References
 
 | Method | Lines | Purpose |
 |--------|-------|---------|
-| `__init__` | [85–110](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L85) | Parse and store clip parameters |
-| `execute` | [115–165](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L115) | Route input type and apply clipping |
-| `_get_boundary_geometry` | [170–220](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L170) | Load geometry from sources |
-| `_clip_data_with_geom` | [225–270](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L225) | Core rioxarray masking logic |
-| `update_context` | [280–295](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L280) | Record clipped region metadata |
+| `__init__` | [120–160](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L120) | Parse and validate clip parameters |
+| `execute` | [170–230](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L170) | Route input type and coordinate smart search |
+| `_get_boundary_geometry` | [240–310](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L240) | Load geometry from various sources |
+| `_smart_gridcell_search` | [320–400](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L320) | Find nearest valid (non-NaN) gridcell with expanding radii |
+| `_clip_data_with_geom` | [410–490](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L410) | Core rioxarray masking logic |
+| `_create_3d_mask` | [500–520](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L500) | Broadcast mask to 3D or higher |
+| `update_context` | [530–545](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L530) | Record clipped region metadata |
 
 ## Examples
 
