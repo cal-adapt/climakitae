@@ -160,7 +160,7 @@ result = dataset.execute(query, context=context)
 
 ---
 
-### 4. DataCatalog (Data Access Layer)
+### 4. DataCatalog (Data Access Layer) {#data-access-layer}
 
 **File**: `climakitae/new_core/data_access/data_access.py` (~620 lines)
 
@@ -330,6 +330,142 @@ for key, (cls, priority) in sorted(_PROCESSOR_REGISTRY.items(),
 
 ## Key Design Patterns
 
+### Understanding Processors: Spatial Subsetting {#spatial-subsetting}
+
+The **Clip processor** is the primary tool for spatial subsetting. It extracts data for specific regions while maintaining data integrity and lazy evaluation.
+
+**Key Characteristics**:
+- Supports 5 input modes: named boundaries, points, bounding boxes, weather stations, shapefiles
+- Preserves coordinate systems and projections
+- Works with lazy dask arrays (no premature loading)
+- Returns masked or clipped Dataset depending on mode
+
+**Efficiency Principle**: Always apply spatial subsetting EARLY in your query chain, before aggregation or computation, to minimize data movement.
+
+```python
+# ✅ EFFICIENT: Clip first, then aggregate
+data = (cd
+    .variable("tasmax")
+    .processes({
+        "clip": "Los Angeles",
+        "time_slice": ("2030", "2060")
+    })
+    .get())
+mean_temp = data["tasmax"].mean(dim=["lat", "lon"]).compute()
+
+# ❌ INEFFICIENT: Load all data then subset
+data = cd.variable("tasmax").get()
+clipped = data.sel(lat=slice(33.5, 35), lon=slice(-119, -117))
+mean_temp = clipped["tasmax"].mean().compute()
+```
+
+See [Processor: Clip](./processors/clip.md) for detailed API reference.
+
+### Understanding Processors: Bias Correction {#bias-correction}
+
+WRF model output can be bias-corrected using historical weather station observations to improve local accuracy.
+
+**Purpose**: Adjust systematic model bias while preserving projected climate trends using Quantile Delta Mapping (QDM).
+
+**Current Scope**:
+- ✅ WRF data only (not LOCA2)
+- ✅ Hourly temperature (t2) only
+- ✅ HadISD weather stations (~600 globally, ~200 western US)
+
+**When to Use**:
+- Local impact assessment where historical accuracy matters
+- Building/infrastructure design requiring site-specific bias correction
+- When observation-corrected distribution is important
+
+**When NOT to Use**:
+- Regional/state-level planning (raw model suitable for large areas)
+- LOCA2 data (already bias-corrected during downscaling)
+- Other variables/resolutions (not yet supported)
+
+See [Processor: Bias Adjust Model to Station](./processors/bias_adjust_model_to_station.md) for detailed usage.
+
+### Understanding Processors: Data Export Pipeline {#data-export-pipeline}
+
+The **Export processor** writes climate data to disk in multiple formats optimized for different use cases.
+
+**Supported Formats**:
+- **NetCDF**: Standard scientific format with CF conventions (default)
+- **Zarr**: Cloud-optimized chunked storage for large datasets
+- **CSV**: Tabular format for time series and spreadsheet analysis
+- **GeoTIFF**: Raster format compatible with GIS software (QGIS, ArcGIS)
+
+**Key Features**:
+- Handles gridded datasets, multi-point extractions, and point collections
+- Optional location-based filenames (e.g., `data_34.05N_118.25W.nc`)
+- S3 cloud storage support (Zarr format only)
+- Export method options: `"data"`, `"skip_existing"`, `"none"`
+- Automatic format inference or explicit specification
+
+**Efficiency**:
+- Export should be the LAST processor (priority 9999)
+- Processes build computation graph, export writes results
+- For large datasets, prefer Zarr for cloud storage or incremental processing
+
+```python
+# Simple NetCDF export
+data = (cd
+    .variable("tasmax")
+    .processes({
+        "time_slice": ("2030-01-01", "2060-12-31"),
+        "clip": "Los Angeles",
+        "export": {
+            "filename": "la_temperature",
+            "file_format": "NetCDF"
+        }
+    })
+    .get())
+
+# Cloud-optimized Zarr export
+data = (cd
+    .variable("pr")
+    .processes({
+        "export": {
+            "filename": "precipitation_data",
+            "file_format": "Zarr",
+            "mode": "s3"  # Store on S3
+        }
+    })
+    .get())
+```
+
+See [Processor: Export](./processors/export.md) for complete API reference.
+
+### Understanding Processors: Context Metadata {#context-metadata}
+
+Each processor updates a **context dictionary** to track what transformations were applied.
+
+**Purpose**: Maintain metadata about processing steps for reproducibility and debugging.
+
+**How It Works**:
+```python
+from climakitae.core.constants import _NEW_ATTRS_KEY
+
+class MyProcessor(DataProcessor):
+    def update_context(self, context):
+        """Record metadata about this processing step."""
+        if _NEW_ATTRS_KEY not in context:
+            context[_NEW_ATTRS_KEY] = {}
+        context[_NEW_ATTRS_KEY]["my_processor"] = "Applied filter > 100"
+
+# Access processing history
+result, context = dataset.execute_with_context(query)
+for step, description in context["_new_attributes"].items():
+    print(f"{step}: {description}")
+```
+
+**Benefits**:
+- Track all processing steps applied to data
+- Enable reproducible analysis workflows
+- Debug unexpected data anomalies
+- Document data provenance
+
+---
+
 ### 1. Fluent Interface (Method Chaining)
 
 All parameter setters return `self` to enable chaining:
@@ -355,7 +491,7 @@ def variable(self, value):
     return self  # Critical: return self
 ```
 
-### 2. Registry + Decorator Pattern
+### 2. Registry + Decorator Pattern {#registry-pattern}
 
 Components register at import time using decorators:
 
@@ -420,7 +556,7 @@ class DataCatalog(dict):
 - Each thread can safely call methods concurrently
 - Catalog connections are immutable after initialization
 
-### 4. Lazy Evaluation (Dask Integration)
+### 4. Lazy Evaluation (Dask Integration) {#lazy-evaluation}
 
 All operations return dask-backed xarray objects:
 
@@ -445,7 +581,7 @@ final = result.mean(dim='time')  # Already computed
 
 ## Extending the System
 
-### Adding a New Processor
+### Adding a New Processor {#add-a-processor-4-step-guide}
 
 **Steps**:
 

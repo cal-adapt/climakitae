@@ -79,6 +79,31 @@ data = cd.get()
 3. **Query building**: Chain selections to narrow the search space
 4. **Error prevention**: The validator catches invalid combinations early
 
+### Discovering Available Boundaries {#available-boundaries}
+
+ClimateData provides multiple boundary types for spatial subsetting:
+
+**California Divisions:**
+- `ca_counties`: Administrative counties (58 total)
+- `ca_watersheds`: Hydrologic units at HUC8 level
+- `ca_census_tracts`: Census block groups and tracts
+
+**Regional/National:**
+- `us_states`: Western US states (11 states)
+
+**Infrastructure:**
+- `ious_pous`: California investor-owned and publicly-owned utilities
+- `electric_balancing_areas`: Electric grid authority boundaries
+- `forecast_zones`: NOAA NWS forecast zones
+
+```python
+# Discover available boundaries
+cd.show_boundary_options()                  # All types
+cd.show_boundary_options("ca_counties")    # All CA counties
+```
+
+For spatial subsetting examples, see [How-To → Clip Data](howto.md#clip-data).
+
 ---
 
 ## Lazy Evaluation with Dask and xarray
@@ -175,7 +200,7 @@ result = data["tasmax"].mean().compute()
 
 ---
 
-## Global Warming Levels (GWL)
+## Global Warming Levels (GWL) {#global-warming-levels}
 
 Global warming levels represent **future climate states defined by degrees of global warming**, rather than specific calendar years. This is more scientifically meaningful than time-based analysis.
 

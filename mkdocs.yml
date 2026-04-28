@@ -102,9 +102,20 @@ nav:
           - Dataset Factory: api/dataset-factory.md
           - Dataset Pipeline: api/dataset.md
           - Data Processors: api/processors.md
+          - Processor Utilities: api/processor-utilities.md
           - Parameter Validation: api/param-validation.md
+          - Parameter Validation (Detailed): api/param-validation-detailed.md
           - Data Access: api/data-access.md
+          - User-Facing Modules:
+              - Explore: api/explore.md
+              - Tools: api/tools.md
+              - Util: api/util.md
+          - Derived Variables: api/derived-variables.md
   - Migration:
       - Legacy to New Core: migration/legacy-to-new-core.md
   - Legacy API:
       - Status and Roadmap: legacy/status.md
+      - Core Module:
+          - Overview: api/core.md
+          - Data Interface (Detailed): api/core-data-interface.md
+          - Boundaries (Detailed): api/core-boundaries.md

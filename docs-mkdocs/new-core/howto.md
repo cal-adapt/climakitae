@@ -4,7 +4,7 @@ Common workflows and recipes for working with ClimateData.
 
 ---
 
-## Clip Data to a Spatial Region
+## Clip Data to a Spatial Region {#clip-data}
 
 Subset your data to a specific geographic area using boundaries, points, or bounding boxes.
 
@@ -115,7 +115,7 @@ spatial_mean = la_data["tasmax"].mean().compute()
 
 ---
 
-## Export Data to Files
+## Export Data to Files {#export-data}
 
 Save your climate data in multiple formats for external analysis, GIS, or archival.
 
@@ -238,7 +238,7 @@ annual_mean.to_netcdf("la_annual_means.nc")  # Annual averages
 
 ---
 
-## Warming Level-Based Analysis
+## Warming Level-Based Analysis {#warming-level-analysis}
 
 Query climate data relative to global warming thresholds instead of calendar years.
 
@@ -330,7 +330,7 @@ data = (cd
 
 ---
 
-## Bias Correction: Localize WRF to Weather Stations
+## Bias Correction: Localize WRF to Weather Stations {#bias-correction-station-localization}
 
 Use historical weather station observations to correct WRF model bias locally.
 
@@ -529,7 +529,7 @@ for county in counties:
 
 ---
 
-## Combining Multiple Techniques
+## Combining Multiple Techniques {#multi-model-ensemble}
 
 Here's a complete workflow using multiple concepts:
 
@@ -590,6 +590,93 @@ for region_name, region_data in results.items():
 # Step 4: Export summary
 # (See export section for file writing)
 ```
+
+---
+
+## Derived Variables & Climate Indices {#derived-variables}
+
+Compute derived climate metrics from primary variables using the climakitae.tools module.
+
+### Common Derived Variables
+
+```python
+from climakitae.tools.derived_variables import compute_hdd_cdd
+from climakitae.tools.indices import effective_temp, noaa_heat_index
+
+# Fetch base temperature data
+data = (cd
+    .variable("tasmax")
+    .table_id("day")
+    .grid_label("d03")
+    .processes({
+        "time_slice": ("2030-01-01", "2060-12-31"),
+        "clip": "Los Angeles"
+    })
+    .get())
+
+# Compute heating/cooling degree days
+hdd, cdd = compute_hdd_cdd(
+    data["tasmax"],
+    hdd_threshold=65,  # °F
+    cdd_threshold=65
+)
+
+# Compute effective temperature (energy demand)
+eff_temp = effective_temp(data["tasmax"])
+```
+
+### Available Functions
+
+- `compute_hdd_cdd()`: Heating/cooling degree days for building energy modeling
+- `effective_temp()`: Exponentially smoothed temperature for demand forecasting
+- `noaa_heat_index()`: Heat stress indicator combining temperature and humidity
+
+For complete list, see [Tools → Derived Variables](../api/derived-variables.md)
+
+---
+
+## Time-Based Queries {#time-based-queries}
+
+Query data using traditional calendar date ranges (alternative to warming level analysis).
+
+### Date Range Subsetting
+
+```python
+from climakitae.new_core.user_interface import ClimateData
+
+cd = ClimateData()
+
+# Specify exact date range
+data = (cd
+    .variable("tasmax")
+    .processes({
+        "time_slice": ("2030-01-01", "2060-12-31")  # 30-year period
+    })
+    .get())
+
+# Query by years only
+data = (cd
+    .variable("pr")
+    .processes({
+        "time_slice": (2050, 2100)  # 2050-2100
+    })
+    .get())
+
+# Single time point
+data = (cd
+    .variable("tasmax")
+    .processes({
+        "time_slice": ("2050-07-15", "2050-07-15")  # One day
+    })
+    .get())
+```
+
+### When to Use Time-Based vs. Warming Level
+
+**Time-Based**: Planning for specific calendar years, historical analysis  
+**Warming Level**: Climate impact assessment, multi-model consistency, policy targets
+
+For comparison and advanced usage, see [Warming Level Analysis](#warming-level-analysis).
 
 ---
 

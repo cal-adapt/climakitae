@@ -39,6 +39,148 @@ flowchart TD
     click MetricExec "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L370" "_calculate_metrics_single"
 ```
 
+## Detailed Mode Workflows
+
+### Mode 1: Basic Metrics Calculation Flow
+
+```mermaid
+flowchart TD
+    Start1([Input: xr.Dataset<br/>or DataArray]) --> CheckDim["Check if dimensions<br/>exist in data<br/>(L375)"]
+    
+    CheckDim --> GetAvail["Get available dimensions<br/>from data variables"]
+    GetAvail --> FilterDim["Filter requested dims<br/>against available dims"]
+    
+    FilterDim -->|None valid| WarnRetDim["Log warning<br/>return original<br/>(L390)"]
+    FilterDim -->|Valid dims exist| UseCalcDim["Use valid dimensions<br/>for calculation"]
+    
+    UseCalcDim --> CheckPerc{Percentiles<br/>requested?}
+    
+    CheckPerc -->|Yes| CalcPerc["Calculate percentiles<br/>via quantile()<br/>(L415)"]
+    CheckPerc -->|No| CheckMetric
+    
+    CalcPerc --> RenamePerc["Rename quantile coord<br/>to percentile"]
+    RenamePerc --> CheckMetric{Calculate<br/>metric too?}
+    
+    CheckMetric -->|Yes: percentiles_only=False| CalcMetric["Apply metric function<br/>min/max/mean/median/sum<br/>(L440)"]
+    CheckMetric -->|No: percentiles_only=True| Combine1
+    
+    CalcMetric --> Combine1["Combine percentiles<br/>+ metric results"]
+    
+    Combine1 --> CombineDataset{Dataset or<br/>DataArray?}
+    CombineDataset -->|Dataset| RenameVars["Rename vars:<br/>var_pN, var_metric<br/>(L455)"]
+    CombineDataset -->|DataArray| StackStats["Stack along<br/>statistic dimension<br/>(L470)"]
+    
+    RenameVars --> End1([Output: Dataset<br/>with named statistics])
+    StackStats --> End1
+    WarnRetDim --> End1
+    
+    click CheckDim "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L375" "Check dimensions"
+    click WarnRetDim "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L390" "Warning & return"
+    click CalcPerc "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L415" "Calculate percentiles"
+    click CalcMetric "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L440" "Apply metric function"
+    click RenameVars "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L455" "Rename variables"
+    click StackStats "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L470" "Stack results"
+```
+
+### Mode 2: Threshold Exceedance Flow
+
+```mermaid
+flowchart TD
+    Start2([Input: xr.Dataset<br/>or DataArray]) --> AddTime["Check for time dim<br/>add dummy if missing<br/>(L540)"]
+    
+    AddTime --> DefApply["Define _apply function<br/>for each variable"]
+    
+    DefApply --> ThreshComp["Create threshold mask:<br/>above/below comparison<br/>(L555)"]
+    
+    ThreshComp --> PreserveNaN["Preserve NaNs in mask<br/>using where not null"]
+    
+    PreserveNaN --> CheckDur{Duration<br/>filter?}
+    
+    CheckDur -->|No| CountExceed
+    CheckDur -->|Yes| ConvertDur["Convert duration tuple<br/>to timestep count<br/>(L565)"]
+    
+    ConvertDur --> GetFreq["Get data frequency<br/>from attrs"]
+    GetFreq --> CalcSteps["Map unit+frequency<br/>to n_steps"]
+    
+    CalcSteps --> RollingFilter["Apply rolling min<br/>for consecutive days<br/>(L585)"]
+    
+    RollingFilter --> CountExceed["Resample by period<br/>and sum exceedances<br/>(L590)"]
+    
+    CountExceed --> MinCount["Use min_count=1<br/>to preserve NaN vs 0"]
+    
+    MinCount --> ReturnDataset{Dataset or<br/>DataArray?}
+    
+    ReturnDataset -->|DataArray| Wrap["Wrap in Dataset<br/>with var name"]
+    ReturnDataset -->|Dataset| LoopVars["Loop apply()<br/>over all variables<br/>(L597)"]
+    
+    Wrap --> End2([Output: Dataset<br/>with exceedance counts])
+    LoopVars --> End2
+    
+    click AddTime "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L540" "Check/add time"
+    click ThreshComp "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L555" "Threshold comparison"
+    click ConvertDur "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L565" "Convert duration"
+    click RollingFilter "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L585" "Rolling filter"
+    click CountExceed "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L590" "Resample & count"
+    click LoopVars "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L597" "Loop over variables"
+```
+
+### Mode 3: 1-in-X Extreme Value Analysis Flow
+
+```mermaid
+flowchart TD
+    Start3([Input: xr.Dataset<br/>or DataArray]) --> HandleType{"Dataset or<br/>DataArray?"}
+    
+    HandleType -->|Dataset| CheckVars["Check number of<br/>variables<br/>(L640)"]
+    HandleType -->|DataArray| ExtractDA["Extract as DataArray"]
+    
+    CheckVars -->|Multiple vars| LoopVars["Process each variable<br/>recursively<br/>(L655)"]
+    CheckVars -->|Single var| ExtractDA
+    
+    LoopVars --> MergeResults["Rename & merge<br/>all variable results"]
+    MergeResults --> End3a([Return: Merged<br/>Dataset])
+    
+    ExtractDA --> CheckSim["Check for sim<br/>dimension required<br/>(L680)"]
+    
+    CheckSim -->|Missing| ErrorSim["Raise ValueError:<br/>sim dimension required"]
+    CheckSim -->|Present| MemMgmt
+    
+    MemMgmt["Smart memory mgmt:<br/>detect Dask chunks<br/>(L683)"] --> CheckSize{"Array<br/>size?"}
+    
+    CheckSize -->|Small| LoadMemory["Load into memory<br/>via compute()<br/>(L690)"]
+    CheckSize -->|Medium| ChunkedProc["Use Dask-aware<br/>chunked processing"]
+    CheckSize -->|Large| DaskOpt["Use Dask optimization<br/>with lazy evaluation"]
+    
+    LoadMemory --> CheckTime
+    ChunkedProc --> CheckTime
+    DaskOpt --> CheckTime
+    
+    CheckTime["Check time dimension<br/>add dummy if needed<br/>(L705)"] --> SetFreq["Set frequency attribute<br/>for duration filtering"]
+    
+    SetFreq --> Preprocess["Apply variable-specific<br/>preprocessing<br/>(L730)"]
+    
+    Preprocess --> LogParams["Log return periods<br/>or return values"]
+    
+    LogParams --> Vectorized["Call vectorized<br/>calculation<br/>(L750)"]
+    
+    Vectorized --> ExtractBlocks["Extract block maxima<br/>from each simulation"]
+    ExtractBlocks --> FitDist["Fit distribution<br/>GEV/Gamma/GenPareto"]
+    FitDist --> CalcReturn["Calculate return values<br/>for periods OR periods for values"]
+    CalcReturn --> KSTest["Run KS goodness-of-fit<br/>test on residuals"]
+    KSTest --> CompileResults["Compile return_values<br/>and p_values"]
+    
+    CompileResults --> End3b([Output: Dataset<br/>with return statistics])
+    ErrorSim --> End3b
+    
+    click CheckVars "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L640" "Check variables"
+    click LoopVars "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L655" "Process recursively"
+    click CheckSim "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L680" "Check sim dimension"
+    click MemMgmt "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L683" "Memory management"
+    click LoadMemory "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L690" "Load to memory"
+    click CheckTime "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L705" "Check time"
+    click Preprocess "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L730" "Preprocessing"
+    click Vectorized "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L750" "Vectorized calc"
+```
+
 ## Calculation Modes
 
 ### Mode 1: Basic Metrics (Default)
