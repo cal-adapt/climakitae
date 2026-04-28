@@ -73,6 +73,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Get Started: getting-started.md
+  - Notebook Gallery: notebook-gallery.md
   - New Core:
       - Overview: new-core/index.md
       - Core Concepts: new-core/concepts.md
