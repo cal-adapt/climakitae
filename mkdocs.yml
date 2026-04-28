@@ -79,6 +79,20 @@ nav:
       - Core Concepts: new-core/concepts.md
       - How-To Guides: new-core/howto.md
       - Architecture & Internals: new-core/architecture.md
+      - Processor Reference:
+          - Overview: new-core/processors/index.md
+          - TimeSlice: new-core/processors/time_slice.md
+          - WarmingLevel: new-core/processors/warming_level.md
+          - Clip: new-core/processors/clip.md
+          - Export: new-core/processors/export.md
+          - Concatenate: new-core/processors/concatenate.md
+          - ConvertUnits: new-core/processors/convert_units.md
+          - BiasAdjustToStation: new-core/processors/bias_adjust_model_to_station.md
+          - MetricCalc: new-core/processors/metric_calc.md
+          - FilterUnadjustedModels: new-core/processors/filter_unadjusted_models.md
+          - DropLeapDays: new-core/processors/drop_leap_days.md
+          - ConvertToLocalTime: new-core/processors/convert_to_local_time.md
+          - UpdateAttributes: new-core/processors/update_attributes.md
       - API Reference:
           - Main Entrypoint: api/new-core.md
           - Dataset Factory: api/dataset-factory.md
