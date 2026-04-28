@@ -1976,35 +1976,48 @@
 <p>Subset climate data to specific geographic regions, points, or boundaries. Extract data for counties, watersheds, weather stations, or custom lat/lon coordinates with automatic coordinate system handling.</p>
 <h2 id="algorithm">Algorithm</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart TD
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    Start([Input: xr.Dataset]) --&gt; ParseValue[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L95&#39;&gt;Parse clip value&lt;br/&gt;boundary/point/box&lt;/a&gt;&quot;]
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    Start([Input: xr.Dataset]) --&gt; ParseValue[&quot;Parse clip value&lt;br/&gt;boundary/point/box&quot;]
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    ParseValue --&gt; CheckType{Input type?}
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    CheckType --&gt;|String boundary| LoadBoundary[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L120&#39;&gt;Load from boundary catalog&lt;br/&gt;CA counties/watersheds/etc&lt;/a&gt;&quot;]
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    CheckType --&gt;|Tuple| ParseTuple[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L145&#39;&gt;Parse tuple&lt;br/&gt;point or bbox&lt;/a&gt;&quot;]
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    CheckType --&gt;|List| ParseList[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L165&#39;&gt;Parse list&lt;br/&gt;multi-point or multi-boundary&lt;/a&gt;&quot;]
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    CheckType --&gt;|File| LoadFile[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L185&#39;&gt;Load shapefile/GeoJSON&lt;br/&gt;from path&lt;/a&gt;&quot;]
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    CheckType --&gt;|String boundary| LoadBoundary[&quot;Load from boundary catalog&lt;br/&gt;CA counties/watersheds/etc&quot;]
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    CheckType --&gt;|Tuple| ParseTuple[&quot;Parse tuple&lt;br/&gt;point or bbox&quot;]
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    CheckType --&gt;|List| ParseList[&quot;Parse list&lt;br/&gt;multi-point or multi-boundary&quot;]
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    CheckType --&gt;|File| LoadFile[&quot;Load shapefile/GeoJSON&lt;br/&gt;from path&quot;]
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    LoadBoundary --&gt; ValidateGeom[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L200&#39;&gt;Validate geometry&lt;br/&gt;and reproject&lt;/a&gt;&quot;]
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    LoadBoundary --&gt; ValidateGeom[&quot;Validate geometry&lt;br/&gt;and reproject&quot;]
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    ParseTuple --&gt; ValidateGeom
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    ParseList --&gt; ValidateGeom
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    LoadFile --&gt; ValidateGeom
 <a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    ValidateGeom --&gt; ToWGS[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L215&#39;&gt;Reproject to WGS84&lt;br/&gt;if needed&lt;/a&gt;&quot;]
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    ValidateGeom --&gt; ToWGS[&quot;Reproject to WGS84&lt;br/&gt;if needed&quot;]
 <a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
 <a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    ToWGS --&gt; CheckSeparated{Separated&lt;br/&gt;output?}
 <a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    CheckSeparated --&gt;|No| SingleClip[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L230&#39;&gt;Single clip&lt;br/&gt;union all boundaries&lt;/a&gt;&quot;]
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    CheckSeparated --&gt;|Yes| LoopClip[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L245&#39;&gt;Loop each boundary&lt;br/&gt;create dict or list&lt;/a&gt;&quot;]
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    CheckSeparated --&gt;|No| SingleClip[&quot;Single clip&lt;br/&gt;union all boundaries&quot;]
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    CheckSeparated --&gt;|Yes| LoopClip[&quot;Loop each boundary&lt;br/&gt;create dict or list&quot;]
 <a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    SingleClip --&gt; Mask3D[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L260&#39;&gt;Create 3D mask&lt;br/&gt;broadcast across time/sim&lt;/a&gt;&quot;]
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    SingleClip --&gt; Mask3D[&quot;Create 3D mask&lt;br/&gt;broadcast across time/sim&quot;]
 <a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    LoopClip --&gt; Mask3D
 <a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>
-<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>    Mask3D --&gt; ApplyMask[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L275&#39;&gt;Apply mask to data&lt;br/&gt;data.where(mask)&lt;/a&gt;&quot;]
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>    Mask3D --&gt; ApplyMask[&quot;Apply mask to data&lt;br/&gt;data.where(mask)&quot;]
 <a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>
-<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>    ApplyMask --&gt; UpdateCtx[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L290&#39;&gt;Update context metadata&lt;/a&gt;&quot;]
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>    ApplyMask --&gt; UpdateCtx[&quot;Update context metadata&quot;]
 <a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>
 <a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>    UpdateCtx --&gt; End([Output: Dataset&lt;br/&gt;clipped extent])
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>    click ParseValue &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L95&quot; &quot;Parse clip value&quot;
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>    click LoadBoundary &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L120&quot; &quot;Load from boundary catalog&quot;
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>    click ParseTuple &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L145&quot; &quot;Parse tuple&quot;
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>    click ParseList &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L165&quot; &quot;Parse list&quot;
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>    click LoadFile &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L185&quot; &quot;Load shapefile/GeoJSON&quot;
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>    click ValidateGeom &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L200&quot; &quot;Validate geometry&quot;
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>    click ToWGS &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L215&quot; &quot;Reproject to WGS84&quot;
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>    click SingleClip &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L230&quot; &quot;Single clip&quot;
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>    click LoopClip &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L245&quot; &quot;Loop each boundary&quot;
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>    click Mask3D &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L260&quot; &quot;Create 3D mask&quot;
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>    click ApplyMask &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L275&quot; &quot;Apply mask to data&quot;
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>    click UpdateCtx &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L290&quot; &quot;Update context metadata&quot;
 </code></pre></div>
 <h3 id="execution-flow">Execution Flow</h3>
 <ol>

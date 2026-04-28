@@ -1978,30 +1978,38 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart TD
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    Start([Input: xr.Dataset&lt;br/&gt;or dict/list]) --&gt; CheckType{Input type?}
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    CheckType --&gt;|dict| DictPath[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L73&#39;&gt;Iterate over dict items&lt;/a&gt;&quot;]
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    CheckType --&gt;|Dataset| SinglePath[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L82&#39;&gt;Process single dataset&lt;/a&gt;&quot;]
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    CheckType --&gt;|list/tuple| ListPath[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L87&#39;&gt;Iterate over sequence&lt;/a&gt;&quot;]
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    CheckType --&gt;|dict| DictPath[&quot;Iterate over dict items&quot;]
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    CheckType --&gt;|Dataset| SinglePath[&quot;Process single dataset&quot;]
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    CheckType --&gt;|list/tuple| ListPath[&quot;Iterate over sequence&quot;]
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    DictPath --&gt; CoerceTime[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L59&#39;&gt;Coerce dates to Timestamp&lt;/a&gt;&quot;]
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    DictPath --&gt; CoerceTime[&quot;Coerce dates to Timestamp&quot;]
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    SinglePath --&gt; CoerceTime
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    ListPath --&gt; CoerceTime
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    CoerceTime --&gt; TimeSlice[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L164&#39;&gt;Slice time dimension&lt;br/&gt;data.sel(time=slice start:end)&lt;/a&gt;&quot;]
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    CoerceTime --&gt; TimeSlice[&quot;Slice time dimension&lt;br/&gt;data.sel(time=slice start:end)&quot;]
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    TimeSlice --&gt; HasSeasons{Seasons&lt;br/&gt;specified?}
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    HasSeasons --&gt;|Yes| FilterSeasons[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L165&#39;&gt;Filter by season&lt;br/&gt;where dt.season.isin()&lt;/a&gt;&quot;]
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    HasSeasons --&gt;|No| UpdateCtx[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L136&#39;&gt;Update context metadata&lt;/a&gt;&quot;]
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    HasSeasons --&gt;|Yes| FilterSeasons[&quot;Filter by season&lt;br/&gt;where dt.season.isin()&quot;]
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    HasSeasons --&gt;|No| UpdateCtx[&quot;Update context metadata&quot;]
 <a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
 <a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    FilterSeasons --&gt; UpdateCtx
 <a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    UpdateCtx --&gt; Return{Return&lt;br/&gt;collection?}
 <a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    Return --&gt;|dict| ReturnDict[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L73&#39;&gt;Return dict of datasets&lt;/a&gt;&quot;]
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    Return --&gt;|Dataset| ReturnDS[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L82&#39;&gt;Return single dataset&lt;/a&gt;&quot;]
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    Return --&gt;|list/tuple| ReturnList[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L87&#39;&gt;Return same collection type&lt;/a&gt;&quot;]
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    Return --&gt;|dict| ReturnDict[&quot;Return dict of datasets&quot;]
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    Return --&gt;|Dataset| ReturnDS[&quot;Return single dataset&quot;]
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    Return --&gt;|list/tuple| ReturnList[&quot;Return same collection type&quot;]
 <a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>
 <a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    ReturnDict --&gt; End([Output: transformed data])
 <a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>    ReturnDS --&gt; End
 <a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>    ReturnList --&gt; End
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>    click DictPath &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L73&quot; &quot;Iterate over dict items&quot;
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>    click SinglePath &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L82&quot; &quot;Process single dataset&quot;
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>    click ListPath &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L87&quot; &quot;Iterate over sequence&quot;
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>    click CoerceTime &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L59&quot; &quot;Coerce dates to Timestamp&quot;
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>    click TimeSlice &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L164&quot; &quot;Slice time dimension&quot;
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>    click FilterSeasons &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L165&quot; &quot;Filter by season&quot;
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>    click UpdateCtx &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L136&quot; &quot;Update context metadata&quot;
 </code></pre></div>
 <h3 id="execution-flow">Execution Flow</h3>
 <ol>

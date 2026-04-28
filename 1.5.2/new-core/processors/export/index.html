@@ -1898,47 +1898,63 @@
 <p>Write climate data to disk in multiple formats (NetCDF, Zarr, CSV, GeoTIFF). Handle gridded datasets, multi-point extractions, and collections with optional location-based filenames and cloud storage support.</p>
 <h2 id="algorithm">Algorithm</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart TD
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    Start([Input: xr.Dataset&lt;br/&gt;or collection]) --&gt; CheckFormat[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L85&#39;&gt;Infer file format&lt;br/&gt;or use specified&lt;/a&gt;&quot;]
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    Start([Input: xr.Dataset&lt;br/&gt;or collection]) --&gt; CheckFormat[&quot;Infer file format&lt;br/&gt;or use specified&quot;]
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    CheckFormat --&gt; CheckSeparated{Separated&lt;br/&gt;output?}
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    CheckSeparated --&gt;|No| SingleExport[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L110&#39;&gt;Single file&lt;br/&gt;all data&lt;/a&gt;&quot;]
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    CheckSeparated --&gt;|No| SingleExport[&quot;Single file&lt;br/&gt;all data&quot;]
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    CheckSeparated --&gt;|Yes| CheckCollection{Collection&lt;br/&gt;type?}
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    CheckCollection --&gt;|Dict| LoopDict[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L125&#39;&gt;Export each dict value&lt;br/&gt;to separate file&lt;/a&gt;&quot;]
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    CheckCollection --&gt;|closest_cell dim| SplitCells[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L140&#39;&gt;Split closest_cell&lt;br/&gt;dimension&lt;/a&gt;&quot;]
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    CheckCollection --&gt;|List/Tuple| LoopList[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L155&#39;&gt;Export each item&lt;br/&gt;to separate file&lt;/a&gt;&quot;]
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    CheckCollection --&gt;|Dict| LoopDict[&quot;Export each dict value&lt;br/&gt;to separate file&quot;]
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    CheckCollection --&gt;|closest_cell dim| SplitCells[&quot;Split closest_cell&lt;br/&gt;dimension&quot;]
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    CheckCollection --&gt;|List/Tuple| LoopList[&quot;Export each item&lt;br/&gt;to separate file&quot;]
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    SingleExport --&gt; GenFilename[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L170&#39;&gt;Generate filename&lt;br/&gt;add extension&lt;/a&gt;&quot;]
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    SingleExport --&gt; GenFilename[&quot;Generate filename&lt;br/&gt;add extension&quot;]
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    LoopDict --&gt; GenFilename
 <a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    SplitCells --&gt; GenFilename
 <a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    LoopList --&gt; GenFilename
 <a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
 <a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    GenFilename --&gt; CheckNaming{Location-based&lt;br/&gt;naming?}
 <a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    CheckNaming --&gt;|Yes| AddCoords[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L185&#39;&gt;Append lat/lon&lt;br/&gt;to filename&lt;/a&gt;&quot;]
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    CheckNaming --&gt;|No| SelectFormat[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L200&#39;&gt;Select export function&lt;br/&gt;by format&lt;/a&gt;&quot;]
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    CheckNaming --&gt;|Yes| AddCoords[&quot;Append lat/lon&lt;br/&gt;to filename&quot;]
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    CheckNaming --&gt;|No| SelectFormat[&quot;Select export function&lt;br/&gt;by format&quot;]
 <a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    AddCoords --&gt; SelectFormat
 <a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>
-<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    SelectFormat --&gt; WriteCDF[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L212&#39;&gt;NetCDF via xarray&lt;br/&gt;.to_netcdf&lt;/a&gt;&quot;]
-<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    SelectFormat --&gt; WriteZarr[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L220&#39;&gt;Zarr local/S3&lt;br/&gt;.to_zarr&lt;/a&gt;&quot;]
-<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>    SelectFormat --&gt; WriteCSV[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L228&#39;&gt;CSV tabular&lt;br/&gt;.to_csv&lt;/a&gt;&quot;]
-<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>    SelectFormat --&gt; WriteGEO[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L236&#39;&gt;GeoTIFF raster&lt;br/&gt;rioxarray&lt;/a&gt;&quot;]
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    SelectFormat --&gt; WriteCDF[&quot;NetCDF via xarray&lt;br/&gt;.to_netcdf&quot;]
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    SelectFormat --&gt; WriteZarr[&quot;Zarr local/S3&lt;br/&gt;.to_zarr&quot;]
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>    SelectFormat --&gt; WriteCSV[&quot;CSV tabular&lt;br/&gt;.to_csv&quot;]
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>    SelectFormat --&gt; WriteGEO[&quot;GeoTIFF raster&lt;br/&gt;rioxarray&quot;]
 <a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>
-<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>    WriteCDF --&gt; UpdateCtx[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L250&#39;&gt;Update context &amp; log&lt;/a&gt;&quot;]
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>    WriteCDF --&gt; UpdateCtx[&quot;Update context &amp; log&quot;]
 <a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>    WriteZarr --&gt; UpdateCtx
 <a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>    WriteCSV --&gt; UpdateCtx
 <a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>    WriteGEO --&gt; UpdateCtx
 <a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>
 <a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>    UpdateCtx --&gt; CheckReturn{Return&lt;br/&gt;data?}
 <a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>
-<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>    CheckReturn --&gt;|export_method:data| ReturnData[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L255&#39;&gt;Return data + path&lt;/a&gt;&quot;]
-<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>    CheckReturn --&gt;|export_method:skip_existing| ReturnSkip[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L260&#39;&gt;Return None if exists&lt;/a&gt;&quot;]
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>    CheckReturn --&gt;|export_method:data| ReturnData[&quot;Return data + path&quot;]
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>    CheckReturn --&gt;|export_method:skip_existing| ReturnSkip[&quot;Return None if exists&quot;]
 <a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>    CheckReturn --&gt;|export_method:none| ReturnNone[&quot;Return None&quot;]
 <a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>
 <a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>    ReturnData --&gt; End([Output: Dataset + metadata])
 <a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>    ReturnSkip --&gt; End
 <a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>    ReturnNone --&gt; End
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>
+<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>    click CheckFormat &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L85&quot; &quot;Infer file format&quot;
+<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>    click SingleExport &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L110&quot; &quot;Single file&quot;
+<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>    click LoopDict &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L125&quot; &quot;Export each dict value&quot;
+<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>    click SplitCells &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L140&quot; &quot;Split closest_cell dimension&quot;
+<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a>    click LoopList &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L155&quot; &quot;Export each item&quot;
+<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>    click GenFilename &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L170&quot; &quot;Generate filename&quot;
+<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a>    click AddCoords &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L185&quot; &quot;Append lat/lon&quot;
+<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a>    click SelectFormat &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L200&quot; &quot;Select export function&quot;
+<a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a>    click WriteCDF &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L212&quot; &quot;NetCDF export&quot;
+<a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a>    click WriteZarr &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L220&quot; &quot;Zarr export&quot;
+<a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a>    click WriteCSV &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L228&quot; &quot;CSV export&quot;
+<a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a>    click WriteGEO &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L236&quot; &quot;GeoTIFF export&quot;
+<a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a>    click UpdateCtx &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L250&quot; &quot;Update context&quot;
+<a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a>    click ReturnData &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L255&quot; &quot;Return data + path&quot;
+<a id="__codelineno-0-58" name="__codelineno-0-58" href="#__codelineno-0-58"></a>    click ReturnSkip &quot;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L260&quot; &quot;Return None if exists&quot;
 </code></pre></div>
 <h3 id="execution-flow">Execution Flow</h3>
 <ol>
