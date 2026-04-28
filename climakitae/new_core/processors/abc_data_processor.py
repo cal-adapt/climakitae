@@ -16,7 +16,7 @@ register_processor : Decorator for registering processor classes.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Iterable, Union
+from typing import Any, Callable, Dict, Iterable, Type, Union
 
 import xarray as xr
 
@@ -53,7 +53,7 @@ def register_processor(
 
     """
 
-    def decorator(cls):
+    def decorator(cls: Type[DataProcessor]) -> Type[DataProcessor]:
         # If no key is provided, generate one from the class name
         processor_key = (
             key
@@ -120,7 +120,7 @@ class DataProcessor(ABC):
         """
 
     @abstractmethod
-    def update_context(self, context: Dict[str, Any]):
+    def update_context(self, context: Dict[str, Any]) -> None:
         """Update the context with additional parameters.
 
         Parameters
@@ -135,7 +135,7 @@ class DataProcessor(ABC):
         """
 
     @abstractmethod
-    def set_data_accessor(self, catalog: DataCatalog):
+    def set_data_accessor(self, catalog: "DataCatalog") -> None:
         """Set the data accessor for the processor.
 
         Parameters

@@ -44,7 +44,7 @@ Examples
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from climakitae.core.constants import PROC_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
@@ -96,7 +96,7 @@ def register_catalog_validator(name: str):
 
     """
 
-    def decorator(cls):
+    def decorator(cls: Type[ParameterValidator]) -> Type[ParameterValidator]:
         _CATALOG_VALIDATOR_REGISTRY[name] = cls
         return cls
 
@@ -141,7 +141,7 @@ def register_processor_validator(name: str):
 
     """
 
-    def decorator(cls):
+    def decorator(cls: Type[ParameterValidator]) -> Type[ParameterValidator]:
         _PROCESSOR_VALIDATOR_REGISTRY[name] = cls
         return cls
 
@@ -624,7 +624,7 @@ class ParameterValidator(ABC):
             k: v for k, v in self.all_catalog_keys.items() if v is not UNSET
         }
 
-    def load_catalog_df(self):
+    def load_catalog_df(self) -> None:
         """Load the data catalog DataFrame and assign to instance attribute.
 
         Creates a DataCatalog instance and extracts its catalog DataFrame
