@@ -10,30 +10,38 @@ Subset climate data by date range and optional seasonal filters. Apply calendar-
 flowchart TD
     Start([Input: xr.Dataset<br/>or dict/list]) --> CheckType{Input type?}
     
-    CheckType -->|dict| DictPath["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L73'>Iterate over dict items</a>"]
-    CheckType -->|Dataset| SinglePath["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L82'>Process single dataset</a>"]
-    CheckType -->|list/tuple| ListPath["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L87'>Iterate over sequence</a>"]
+    CheckType -->|dict| DictPath["Iterate over dict items"]
+    CheckType -->|Dataset| SinglePath["Process single dataset"]
+    CheckType -->|list/tuple| ListPath["Iterate over sequence"]
     
-    DictPath --> CoerceTime["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L59'>Coerce dates to Timestamp</a>"]
+    DictPath --> CoerceTime["Coerce dates to Timestamp"]
     SinglePath --> CoerceTime
     ListPath --> CoerceTime
     
-    CoerceTime --> TimeSlice["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L164'>Slice time dimension<br/>data.sel(time=slice start:end)</a>"]
+    CoerceTime --> TimeSlice["Slice time dimension<br/>data.sel(time=slice start:end)"]
     TimeSlice --> HasSeasons{Seasons<br/>specified?}
     
-    HasSeasons -->|Yes| FilterSeasons["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L165'>Filter by season<br/>where dt.season.isin()</a>"]
-    HasSeasons -->|No| UpdateCtx["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L136'>Update context metadata</a>"]
+    HasSeasons -->|Yes| FilterSeasons["Filter by season<br/>where dt.season.isin()"]
+    HasSeasons -->|No| UpdateCtx["Update context metadata"]
     
     FilterSeasons --> UpdateCtx
     UpdateCtx --> Return{Return<br/>collection?}
     
-    Return -->|dict| ReturnDict["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L73'>Return dict of datasets</a>"]
-    Return -->|Dataset| ReturnDS["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L82'>Return single dataset</a>"]
-    Return -->|list/tuple| ReturnList["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L87'>Return same collection type</a>"]
+    Return -->|dict| ReturnDict["Return dict of datasets"]
+    Return -->|Dataset| ReturnDS["Return single dataset"]
+    Return -->|list/tuple| ReturnList["Return same collection type"]
     
     ReturnDict --> End([Output: transformed data])
     ReturnDS --> End
     ReturnList --> End
+    
+    click DictPath "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L73" "Iterate over dict items"
+    click SinglePath "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L82" "Process single dataset"
+    click ListPath "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L87" "Iterate over sequence"
+    click CoerceTime "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L59" "Coerce dates to Timestamp"
+    click TimeSlice "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L164" "Slice time dimension"
+    click FilterSeasons "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L165" "Filter by season"
+    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L136" "Update context metadata"
 ```
 
 ### Execution Flow

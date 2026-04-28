@@ -8,47 +8,63 @@ Write climate data to disk in multiple formats (NetCDF, Zarr, CSV, GeoTIFF). Han
 
 ```mermaid
 flowchart TD
-    Start([Input: xr.Dataset<br/>or collection]) --> CheckFormat["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L85'>Infer file format<br/>or use specified</a>"]
+    Start([Input: xr.Dataset<br/>or collection]) --> CheckFormat["Infer file format<br/>or use specified"]
     
     CheckFormat --> CheckSeparated{Separated<br/>output?}
     
-    CheckSeparated -->|No| SingleExport["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L110'>Single file<br/>all data</a>"]
+    CheckSeparated -->|No| SingleExport["Single file<br/>all data"]
     CheckSeparated -->|Yes| CheckCollection{Collection<br/>type?}
     
-    CheckCollection -->|Dict| LoopDict["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L125'>Export each dict value<br/>to separate file</a>"]
-    CheckCollection -->|closest_cell dim| SplitCells["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L140'>Split closest_cell<br/>dimension</a>"]
-    CheckCollection -->|List/Tuple| LoopList["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L155'>Export each item<br/>to separate file</a>"]
+    CheckCollection -->|Dict| LoopDict["Export each dict value<br/>to separate file"]
+    CheckCollection -->|closest_cell dim| SplitCells["Split closest_cell<br/>dimension"]
+    CheckCollection -->|List/Tuple| LoopList["Export each item<br/>to separate file"]
     
-    SingleExport --> GenFilename["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L170'>Generate filename<br/>add extension</a>"]
+    SingleExport --> GenFilename["Generate filename<br/>add extension"]
     LoopDict --> GenFilename
     SplitCells --> GenFilename
     LoopList --> GenFilename
     
     GenFilename --> CheckNaming{Location-based<br/>naming?}
     
-    CheckNaming -->|Yes| AddCoords["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L185'>Append lat/lon<br/>to filename</a>"]
-    CheckNaming -->|No| SelectFormat["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L200'>Select export function<br/>by format</a>"]
+    CheckNaming -->|Yes| AddCoords["Append lat/lon<br/>to filename"]
+    CheckNaming -->|No| SelectFormat["Select export function<br/>by format"]
     AddCoords --> SelectFormat
     
-    SelectFormat --> WriteCDF["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L212'>NetCDF via xarray<br/>.to_netcdf</a>"]
-    SelectFormat --> WriteZarr["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L220'>Zarr local/S3<br/>.to_zarr</a>"]
-    SelectFormat --> WriteCSV["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L228'>CSV tabular<br/>.to_csv</a>"]
-    SelectFormat --> WriteGEO["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L236'>GeoTIFF raster<br/>rioxarray</a>"]
+    SelectFormat --> WriteCDF["NetCDF via xarray<br/>.to_netcdf"]
+    SelectFormat --> WriteZarr["Zarr local/S3<br/>.to_zarr"]
+    SelectFormat --> WriteCSV["CSV tabular<br/>.to_csv"]
+    SelectFormat --> WriteGEO["GeoTIFF raster<br/>rioxarray"]
     
-    WriteCDF --> UpdateCtx["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L250'>Update context & log</a>"]
+    WriteCDF --> UpdateCtx["Update context & log"]
     WriteZarr --> UpdateCtx
     WriteCSV --> UpdateCtx
     WriteGEO --> UpdateCtx
     
     UpdateCtx --> CheckReturn{Return<br/>data?}
     
-    CheckReturn -->|export_method:data| ReturnData["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L255'>Return data + path</a>"]
-    CheckReturn -->|export_method:skip_existing| ReturnSkip["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L260'>Return None if exists</a>"]
+    CheckReturn -->|export_method:data| ReturnData["Return data + path"]
+    CheckReturn -->|export_method:skip_existing| ReturnSkip["Return None if exists"]
     CheckReturn -->|export_method:none| ReturnNone["Return None"]
     
     ReturnData --> End([Output: Dataset + metadata])
     ReturnSkip --> End
     ReturnNone --> End
+    
+    click CheckFormat "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L85" "Infer file format"
+    click SingleExport "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L110" "Single file"
+    click LoopDict "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L125" "Export each dict value"
+    click SplitCells "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L140" "Split closest_cell dimension"
+    click LoopList "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L155" "Export each item"
+    click GenFilename "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L170" "Generate filename"
+    click AddCoords "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L185" "Append lat/lon"
+    click SelectFormat "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L200" "Select export function"
+    click WriteCDF "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L212" "NetCDF export"
+    click WriteZarr "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L220" "Zarr export"
+    click WriteCSV "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L228" "CSV export"
+    click WriteGEO "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L236" "GeoTIFF export"
+    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L250" "Update context"
+    click ReturnData "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L255" "Return data + path"
+    click ReturnSkip "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L260" "Return None if exists"
 ```
 
 ### Execution Flow

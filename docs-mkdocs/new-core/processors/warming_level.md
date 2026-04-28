@@ -8,39 +8,52 @@ Subset climate data by global warming level thresholds instead of calendar dates
 
 ```mermaid
 flowchart TD
-    Start([Input: xr.Dataset<br/>with time dimension]) --> LoadGWL["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L91'>Load GWL lookup tables<br/>from S3 CSV</a>"]
+    Start([Input: xr.Dataset<br/>with time dimension]) --> LoadGWL["Load GWL lookup tables<br/>from S3 CSV"]
     
-    LoadGWL --> GetModels["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L105'>Extract model/scenario<br/>from data attributes</a>"]
+    LoadGWL --> GetModels["Extract model/scenario<br/>from data attributes"]
     
-    GetModels --> LoopGWL["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L120'>For each warming level</a>"]
+    GetModels --> LoopGWL["For each warming level"]
     
-    LoopGWL --> LookupWindow["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L125'>Look up central year<br/>from model-scenario pair</a>"]
+    LoopGWL --> LookupWindow["Look up central year<br/>from model-scenario pair"]
     
-    LookupWindow --> ComputeWindow["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L130'>Compute time window<br/>±warming_level_window years</a>"]
+    LookupWindow --> ComputeWindow["Compute time window<br/>±warming_level_window years"]
     
     ComputeWindow --> CheckWindow{Window<br/>valid?}
     
-    CheckWindow -->|No| LogWarn["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L145'>Log warning<br/>model doesn't reach GWL</a>"]
-    CheckWindow -->|Yes| SliceTime["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L150'>Slice to window years</a>"]
+    CheckWindow -->|No| LogWarn["Log warning<br/>model doesn't reach GWL"]
+    CheckWindow -->|Yes| SliceTime["Slice to window years"]
     
     LogWarn --> FilterMonth{Months<br/>filtered?}
     SliceTime --> FilterMonth
     
-    FilterMonth -->|Yes| FilterSeasons["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L155'>Keep only specified months</a>"]
-    FilterMonth -->|No| CreateCoord["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L160'>Create warming_level coordinate</a>"]
+    FilterMonth -->|Yes| FilterSeasons["Keep only specified months"]
+    FilterMonth -->|No| CreateCoord["Create warming_level coordinate"]
     
     FilterSeasons --> CreateCoord
     
-    CreateCoord --> Concat["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L170'>Concatenate GWL slices<br/>on warming_level dim</a>"]
+    CreateCoord --> Concat["Concatenate GWL slices<br/>on warming_level dim"]
     
-    Concat --> UpdateCtx["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L180'>Update context metadata</a>"]
+    Concat --> UpdateCtx["Update context metadata"]
     
     UpdateCtx --> DummyTime{Add dummy<br/>time?}
     
-    DummyTime -->|Yes| AddTime["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L185'>Replace offset dim<br/>with dummy time index</a>"]
+    DummyTime -->|Yes| AddTime["Replace offset dim<br/>with dummy time index"]
     DummyTime -->|No| End([Output: Dataset with<br/>warming_level coordinate])
     
     AddTime --> End
+    
+    click LoadGWL "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L91" "Load GWL lookup tables"
+    click GetModels "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L105" "Extract model/scenario"
+    click LoopGWL "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L120" "For each warming level"
+    click LookupWindow "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L125" "Look up central year"
+    click ComputeWindow "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L130" "Compute time window"
+    click LogWarn "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L145" "Log warning"
+    click SliceTime "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L150" "Slice to window years"
+    click FilterSeasons "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L155" "Keep only specified months"
+    click CreateCoord "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L160" "Create warming_level coordinate"
+    click Concat "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L170" "Concatenate GWL slices"
+    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L180" "Update context metadata"
+    click AddTime "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L185" "Replace offset dim"
 ```
 
 ### Execution Flow

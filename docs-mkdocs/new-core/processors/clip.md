@@ -8,35 +8,48 @@ Subset climate data to specific geographic regions, points, or boundaries. Extra
 
 ```mermaid
 flowchart TD
-    Start([Input: xr.Dataset]) --> ParseValue["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L95'>Parse clip value<br/>boundary/point/box</a>"]
+    Start([Input: xr.Dataset]) --> ParseValue["Parse clip value<br/>boundary/point/box"]
     
     ParseValue --> CheckType{Input type?}
     
-    CheckType -->|String boundary| LoadBoundary["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L120'>Load from boundary catalog<br/>CA counties/watersheds/etc</a>"]
-    CheckType -->|Tuple| ParseTuple["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L145'>Parse tuple<br/>point or bbox</a>"]
-    CheckType -->|List| ParseList["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L165'>Parse list<br/>multi-point or multi-boundary</a>"]
-    CheckType -->|File| LoadFile["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L185'>Load shapefile/GeoJSON<br/>from path</a>"]
+    CheckType -->|String boundary| LoadBoundary["Load from boundary catalog<br/>CA counties/watersheds/etc"]
+    CheckType -->|Tuple| ParseTuple["Parse tuple<br/>point or bbox"]
+    CheckType -->|List| ParseList["Parse list<br/>multi-point or multi-boundary"]
+    CheckType -->|File| LoadFile["Load shapefile/GeoJSON<br/>from path"]
     
-    LoadBoundary --> ValidateGeom["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L200'>Validate geometry<br/>and reproject</a>"]
+    LoadBoundary --> ValidateGeom["Validate geometry<br/>and reproject"]
     ParseTuple --> ValidateGeom
     ParseList --> ValidateGeom
     LoadFile --> ValidateGeom
     
-    ValidateGeom --> ToWGS["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L215'>Reproject to WGS84<br/>if needed</a>"]
+    ValidateGeom --> ToWGS["Reproject to WGS84<br/>if needed"]
     
     ToWGS --> CheckSeparated{Separated<br/>output?}
     
-    CheckSeparated -->|No| SingleClip["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L230'>Single clip<br/>union all boundaries</a>"]
-    CheckSeparated -->|Yes| LoopClip["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L245'>Loop each boundary<br/>create dict or list</a>"]
+    CheckSeparated -->|No| SingleClip["Single clip<br/>union all boundaries"]
+    CheckSeparated -->|Yes| LoopClip["Loop each boundary<br/>create dict or list"]
     
-    SingleClip --> Mask3D["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L260'>Create 3D mask<br/>broadcast across time/sim</a>"]
+    SingleClip --> Mask3D["Create 3D mask<br/>broadcast across time/sim"]
     LoopClip --> Mask3D
     
-    Mask3D --> ApplyMask["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L275'>Apply mask to data<br/>data.where(mask)</a>"]
+    Mask3D --> ApplyMask["Apply mask to data<br/>data.where(mask)"]
     
-    ApplyMask --> UpdateCtx["<a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L290'>Update context metadata</a>"]
+    ApplyMask --> UpdateCtx["Update context metadata"]
     
     UpdateCtx --> End([Output: Dataset<br/>clipped extent])
+    
+    click ParseValue "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L95" "Parse clip value"
+    click LoadBoundary "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L120" "Load from boundary catalog"
+    click ParseTuple "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L145" "Parse tuple"
+    click ParseList "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L165" "Parse list"
+    click LoadFile "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L185" "Load shapefile/GeoJSON"
+    click ValidateGeom "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L200" "Validate geometry"
+    click ToWGS "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L215" "Reproject to WGS84"
+    click SingleClip "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L230" "Single clip"
+    click LoopClip "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L245" "Loop each boundary"
+    click Mask3D "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L260" "Create 3D mask"
+    click ApplyMask "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L275" "Apply mask to data"
+    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L290" "Update context metadata"
 ```
 
 ### Execution Flow
