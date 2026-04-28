@@ -486,7 +486,7 @@ class Concat(DataProcessor):
 
     def update_context(
         self, context: Dict[str, Any], source_ids: List[str] | object = UNSET
-    ):
+    ) -> None:
         """Update the context with information about the concatenation transformation.
 
         Parameters
@@ -512,7 +512,7 @@ class Concat(DataProcessor):
 
         context[_NEW_ATTRS_KEY][self.name] = f"""{process_info}"""
 
-    def set_data_accessor(self, catalog: DataCatalog):
+    def set_data_accessor(self, catalog: DataCatalog) -> None:
         """Set the data catalog for this processor.
 
         Parameters

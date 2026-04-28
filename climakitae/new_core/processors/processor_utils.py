@@ -88,7 +88,7 @@ def is_station_identifier(value: str) -> bool:
     return False
 
 
-def find_station_match(station_identifier: str, stations_df):
+def find_station_match(station_identifier: str, stations_df)-> "pd.DataFrame":
     """
     Find matching station(s) in the stations DataFrame.
 
@@ -618,7 +618,7 @@ def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> 
         yearly_groups = data.groupby(data.time.dt.year)
 
         # Calculate ESS for each year block using apply with optimized function
-        def calc_ess_optimized(year_data):
+        def calc_ess_optimized(year_data) -> float:
             """Calculate ESS for a single year of data."""
             # Use autocorrelation function efficiently
             if (
@@ -653,7 +653,7 @@ def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> 
         # Apply ESS calculation efficiently
         ess_values = []
 
-        def process_spatial_ess(year_data, sample_step, max_samples):
+        def process_spatial_ess(year_data, sample_step, max_samples) -> list:
             """Process spatial ESS sampling for a given year of data."""
             spatial_sample = year_data.isel(
                 x=slice(None, None, max(1, year_data.sizes["x"] // sample_step)),
