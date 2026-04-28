@@ -10,25 +10,31 @@
       
       
       
+        <link rel="canonical" href="https://cal-adapt.github.io/climakitae/1.5.2/new-core/processors/concatenate/">
       
+      
+        <link rel="prev" href="../export/">
+      
+      
+        <link rel="next" href="../convert_units/">
       
       
         
       
       
-      <link rel="icon" href="/climakitae/1.5.2/docs/_static/cae-map.png">
+      <link rel="icon" href="../../../docs/_static/cae-map.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>climakitae</title>
+        <title>Concatenate - climakitae</title>
       
     
     
-      <link rel="stylesheet" href="/climakitae/1.5.2/assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="/climakitae/1.5.2/assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -47,9 +53,9 @@
       
     
     
-      <link rel="stylesheet" href="/climakitae/1.5.2/assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("/climakitae/1.5.2",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -73,6 +79,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#processor-concatenate" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -85,9 +96,9 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="/climakitae/1.5.2/." title="climakitae" class="md-header__button md-logo" aria-label="climakitae" data-md-component="logo">
+    <a href="../../.." title="climakitae" class="md-header__button md-logo" aria-label="climakitae" data-md-component="logo">
       
-  <img src="/climakitae/1.5.2/docs/_static/cae-map.png" alt="logo">
+  <img src="../../../docs/_static/cae-map.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -104,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              
+              Concatenate
             
           </span>
         </div>
@@ -220,9 +231,9 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="/climakitae/1.5.2/." title="climakitae" class="md-nav__button md-logo" aria-label="climakitae" data-md-component="logo">
+    <a href="../../.." title="climakitae" class="md-nav__button md-logo" aria-label="climakitae" data-md-component="logo">
       
-  <img src="/climakitae/1.5.2/docs/_static/cae-map.png" alt="logo">
+  <img src="../../../docs/_static/cae-map.png" alt="logo">
 
     </a>
     climakitae
@@ -249,7 +260,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/." class="md-nav__link">
+      <a href="../../.." class="md-nav__link">
         
   
   
@@ -276,7 +287,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/getting-started/" class="md-nav__link">
+      <a href="../../../getting-started/" class="md-nav__link">
         
   
   
@@ -303,7 +314,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/notebook-gallery/" class="md-nav__link">
+      <a href="../../../notebook-gallery/" class="md-nav__link">
         
   
   
@@ -327,8 +338,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -339,11 +352,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
           <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
@@ -364,7 +377,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -382,7 +395,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/" class="md-nav__link">
+      <a href="../../" class="md-nav__link">
         
   
   
@@ -410,7 +423,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/concepts/" class="md-nav__link">
+      <a href="../../concepts/" class="md-nav__link">
         
   
   
@@ -438,7 +451,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/howto/" class="md-nav__link">
+      <a href="../../howto/" class="md-nav__link">
         
   
   
@@ -466,7 +479,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/architecture/" class="md-nav__link">
+      <a href="../../architecture/" class="md-nav__link">
         
   
   
@@ -491,6 +504,8 @@
                 
   
   
+    
+  
   
   
     
@@ -500,11 +515,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" checked>
         
           
           <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="0">
@@ -525,7 +540,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -543,7 +558,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/processors/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -571,7 +586,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/processors/time_slice/" class="md-nav__link">
+      <a href="../time_slice/" class="md-nav__link">
         
   
   
@@ -599,7 +614,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/processors/warming_level/" class="md-nav__link">
+      <a href="../warming_level/" class="md-nav__link">
         
   
   
@@ -627,7 +642,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/processors/clip/" class="md-nav__link">
+      <a href="../clip/" class="md-nav__link">
         
   
   
@@ -655,7 +670,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/processors/export/" class="md-nav__link">
+      <a href="../export/" class="md-nav__link">
         
   
   
@@ -680,10 +695,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/processors/concatenate/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concatenate
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -699,6 +741,70 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#algorithm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithm
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -711,7 +817,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/processors/convert_units/" class="md-nav__link">
+      <a href="../convert_units/" class="md-nav__link">
         
   
   
@@ -739,7 +845,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/processors/bias_adjust_model_to_station/" class="md-nav__link">
+      <a href="../bias_adjust_model_to_station/" class="md-nav__link">
         
   
   
@@ -767,7 +873,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/processors/metric_calc/" class="md-nav__link">
+      <a href="../metric_calc/" class="md-nav__link">
         
   
   
@@ -795,7 +901,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/processors/filter_unadjusted_models/" class="md-nav__link">
+      <a href="../filter_unadjusted_models/" class="md-nav__link">
         
   
   
@@ -823,7 +929,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/processors/drop_leap_days/" class="md-nav__link">
+      <a href="../drop_leap_days/" class="md-nav__link">
         
   
   
@@ -851,7 +957,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/processors/convert_to_local_time/" class="md-nav__link">
+      <a href="../convert_to_local_time/" class="md-nav__link">
         
   
   
@@ -879,7 +985,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/new-core/processors/update_attributes/" class="md-nav__link">
+      <a href="../update_attributes/" class="md-nav__link">
         
   
   
@@ -964,7 +1070,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/api/new-core/" class="md-nav__link">
+      <a href="../../../api/new-core/" class="md-nav__link">
         
   
   
@@ -992,7 +1098,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/api/dataset-factory/" class="md-nav__link">
+      <a href="../../../api/dataset-factory/" class="md-nav__link">
         
   
   
@@ -1020,7 +1126,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/api/dataset/" class="md-nav__link">
+      <a href="../../../api/dataset/" class="md-nav__link">
         
   
   
@@ -1048,7 +1154,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/api/processors/" class="md-nav__link">
+      <a href="../../../api/processors/" class="md-nav__link">
         
   
   
@@ -1076,7 +1182,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/api/param-validation/" class="md-nav__link">
+      <a href="../../../api/param-validation/" class="md-nav__link">
         
   
   
@@ -1104,7 +1210,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/api/data-access/" class="md-nav__link">
+      <a href="../../../api/data-access/" class="md-nav__link">
         
   
   
@@ -1199,7 +1305,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/migration/legacy-to-new-core/" class="md-nav__link">
+      <a href="../../../migration/legacy-to-new-core/" class="md-nav__link">
         
   
   
@@ -1286,7 +1392,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/climakitae/1.5.2/legacy/status/" class="md-nav__link">
+      <a href="../../../legacy/status/" class="md-nav__link">
         
   
   
@@ -1331,6 +1437,60 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#algorithm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithm
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -1343,8 +1503,94 @@
               
               <article class="md-content__inner md-typeset">
                 
-  <h1>404 - Not found</h1>
+                  
 
+
+  
+    <a href="https://github.com/cal-adapt/climakitae/edit/main/docs-mkdocs/new-core/processors/concatenate.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="processor-concatenate">Processor: Concatenate</h1>
+<p><strong>Priority:</strong> 220 | <strong>Category:</strong> Data Assembly</p>
+<p>Merge multiple climate datasets by concatenating along specified dimensions. Combine data from different models, scenarios, or time periods into unified arrays.</p>
+<h2 id="algorithm">Algorithm</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart TD
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    Start([Input: list of Datasets]) --&gt; CheckInput{Input&lt;br/&gt;valid?}
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    CheckInput --&gt;|Empty| LogWarn[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L50&#39;&gt;Log warning&lt;br/&gt;no data&lt;/a&gt;&quot;]
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    CheckInput --&gt;|Valid| ParseDim[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L65&#39;&gt;Extract dimensions&lt;br/&gt;from parameters&lt;/a&gt;&quot;]
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    LogWarn --&gt; End1([Return input])
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    ParseDim --&gt; Loop[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L75&#39;&gt;For each dimension&lt;/a&gt;&quot;]
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    Loop --&gt; LoopConcat[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L85&#39;&gt;xr.concat along dim&lt;/a&gt;&quot;]
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    LoopConcat --&gt; UpdateCtx[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L95&#39;&gt;Update context&lt;/a&gt;&quot;]
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    UpdateCtx --&gt; End2([Output: merged Dataset])
+</code></pre></div>
+<h2 id="parameters">Parameters</h2>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dim</code></td>
+<td>str or list</td>
+<td>✓</td>
+<td>—</td>
+<td>Dimension(s) to concatenate along</td>
+</tr>
+</tbody>
+</table>
+<h2 id="examples">Examples</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Combine multiple models along &#39;sim&#39; dimension</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">data1</span> <span class="o">=</span> <span class="n">ClimateData</span><span class="p">()</span><span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span><span class="o">...</span><span class="n">get</span><span class="p">()</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">data2</span> <span class="o">=</span> <span class="n">ClimateData</span><span class="p">()</span><span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;LOCA2&quot;</span><span class="p">)</span><span class="o">...</span><span class="n">get</span><span class="p">()</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Merge via concatenate processor</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">merged</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>        <span class="s2">&quot;concatenate&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;dim&quot;</span><span class="p">:</span> <span class="s2">&quot;sim&quot;</span><span class="p">}</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="p">})</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+</code></pre></div>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="../">Processor Index</a></li>
+<li><a href="../../howto/#multi-model-ensemble">How-To Guides → Multi-Model Analysis</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
               </article>
             </div>
           
@@ -1393,10 +1639,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "/climakitae/1.5.2", "features": ["navigation.instant", "navigation.sections", "navigation.top", "content.code.copy", "content.action.edit", "content.tabs.link"], "search": "/climakitae/1.5.2/assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "content.code.copy", "content.action.edit", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="/climakitae/1.5.2/assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
