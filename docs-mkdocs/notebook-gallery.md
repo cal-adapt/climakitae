@@ -105,6 +105,28 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
 
 ---
 
+## Interactive Development Environment
+
+Want to develop and test new notebooks with climakitae? Launch a full development environment on Binder:
+
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/climakitae/main?urlpath=lab)
+
+This provides:
+- ✅ Jupyter Lab with full IDE features
+- ✅ climakitae installed in editable mode (source changes live-reload)
+- ✅ All documentation build tools (mkdocs, mkdocstrings)
+- ✅ Example notebooks from cae-notebooks
+- ✅ Complete development environment (pytest, black, isort, git)
+- ⏱️ Up to 6 hours of continuous usage per session
+
+Perfect for:
+- Testing notebook examples
+- Developing new climate analysis workflows
+- Contributing to climakitae or cae-notebooks
+- Learning the climakitae API interactively
+
+---
+
 ## Running Notebooks Locally
 
 ### Option 1: Binder (No Installation Required)
@@ -172,3 +194,14 @@ Access pre-installed notebooks on the [Cal-Adapt Analytics Engine JupyterHub](ht
 ## Contributing
 
 Have a notebook example you'd like to share? Contributions are welcome! See the [cae-notebooks CONTRIBUTING guide](https://github.com/cal-adapt/cae-notebooks/blob/main/README.md) for details.
+
+---
+
+## Binder Configuration
+
+The Binder environment is configured in `.binder/` with:
+- `runtime.txt`: Python 3.12
+- `environment.yml`: Conda dependencies (scientific computing, geospatial, Jupyter, documentation tools)
+- `postBuild`: Installs climakitae in editable mode, configures Jupyter Lab
+
+For details, see [.binder/README.md](https://github.com/cal-adapt/climakitae/blob/main/.binder/README.md).
