@@ -1519,20 +1519,19 @@
 <p><strong>Priority:</strong> 220 | <strong>Category:</strong> Data Assembly</p>
 <p>Merge multiple climate datasets by concatenating along specified dimensions. Combine data from different models, scenarios, or time periods into unified arrays.</p>
 <h2 id="algorithm">Algorithm</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart TD
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    Start([Input: list of Datasets]) --&gt; CheckInput{Input&lt;br/&gt;valid?}
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    CheckInput --&gt;|Empty| LogWarn[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L50&#39;&gt;Log warning&lt;br/&gt;no data&lt;/a&gt;&quot;]
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    CheckInput --&gt;|Valid| ParseDim[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L65&#39;&gt;Extract dimensions&lt;br/&gt;from parameters&lt;/a&gt;&quot;]
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    LogWarn --&gt; End1([Return input])
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    ParseDim --&gt; Loop[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L75&#39;&gt;For each dimension&lt;/a&gt;&quot;]
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    Loop --&gt; LoopConcat[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L85&#39;&gt;xr.concat along dim&lt;/a&gt;&quot;]
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    LoopConcat --&gt; UpdateCtx[&quot;&lt;a href=&#39;https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L95&#39;&gt;Update context&lt;/a&gt;&quot;]
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    UpdateCtx --&gt; End2([Output: merged Dataset])
-</code></pre></div>
+<pre class="mermaid"><code>flowchart TD
+    Start([Input: list of Datasets]) --&gt; CheckInput{Input&lt;br/&gt;valid?}
+
+    CheckInput --&gt;|Empty| LogWarn["&lt;a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L50'&gt;Log warning&lt;br/&gt;no data&lt;/a&gt;"]
+    CheckInput --&gt;|Valid| ParseDim["&lt;a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L65'&gt;Extract dimensions&lt;br/&gt;from parameters&lt;/a&gt;"]
+
+    LogWarn --&gt; End1([Return input])
+    ParseDim --&gt; Loop["&lt;a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L75'&gt;For each dimension&lt;/a&gt;"]
+
+    Loop --&gt; LoopConcat["&lt;a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L85'&gt;xr.concat along dim&lt;/a&gt;"]
+    LoopConcat --&gt; UpdateCtx["&lt;a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L95'&gt;Update context&lt;/a&gt;"]
+
+    UpdateCtx --&gt; End2([Output: merged Dataset])</code></pre>
 <h2 id="parameters">Parameters</h2>
 <table>
 <thead>
@@ -1555,23 +1554,23 @@
 </tbody>
 </table>
 <h2 id="examples">Examples</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Combine multiple models along &#39;sim&#39; dimension</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">data1</span> <span class="o">=</span> <span class="n">ClimateData</span><span class="p">()</span><span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span><span class="o">...</span><span class="n">get</span><span class="p">()</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">data2</span> <span class="o">=</span> <span class="n">ClimateData</span><span class="p">()</span><span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;LOCA2&quot;</span><span class="p">)</span><span class="o">...</span><span class="n">get</span><span class="p">()</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Merge via concatenate processor</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">merged</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>        <span class="s2">&quot;concatenate&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;dim&quot;</span><span class="p">:</span> <span class="s2">&quot;sim&quot;</span><span class="p">}</span>
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="p">})</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Combine multiple models along &#39;sim&#39; dimension</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">data1</span> <span class="o">=</span> <span class="n">ClimateData</span><span class="p">()</span><span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span><span class="o">...</span><span class="n">get</span><span class="p">()</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">data2</span> <span class="o">=</span> <span class="n">ClimateData</span><span class="p">()</span><span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;LOCA2&quot;</span><span class="p">)</span><span class="o">...</span><span class="n">get</span><span class="p">()</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># Merge via concatenate processor</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">merged</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>        <span class="s2">&quot;concatenate&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;dim&quot;</span><span class="p">:</span> <span class="s2">&quot;sim&quot;</span><span class="p">}</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="p">})</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
