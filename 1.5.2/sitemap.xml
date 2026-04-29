@@ -13,6 +13,10 @@
          <lastmod>2026-04-29</lastmod>
     </url>
     <url>
+         <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/climate-data/</loc>
+         <lastmod>2026-04-29</lastmod>
+    </url>
+    <url>
          <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/core-boundaries/</loc>
          <lastmod>2026-04-29</lastmod>
     </url>
@@ -42,10 +46,6 @@
     </url>
     <url>
          <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/explore/</loc>
-         <lastmod>2026-04-29</lastmod>
-    </url>
-    <url>
-         <loc>https://cal-adapt.github.io/climakitae/1.5.2/api/new-core/</loc>
          <lastmod>2026-04-29</lastmod>
     </url>
     <url>
@@ -90,10 +90,6 @@
     </url>
     <url>
          <loc>https://cal-adapt.github.io/climakitae/1.5.2/climate-data-interface/processors/</loc>
-         <lastmod>2026-04-29</lastmod>
-    </url>
-    <url>
-         <loc>https://cal-adapt.github.io/climakitae/1.5.2/climate-data-interface/processors/TEMPLATE/</loc>
          <lastmod>2026-04-29</lastmod>
     </url>
     <url>
@@ -149,7 +145,7 @@
          <lastmod>2026-04-29</lastmod>
     </url>
     <url>
-         <loc>https://cal-adapt.github.io/climakitae/1.5.2/migration/legacy-to-new-core/</loc>
+         <loc>https://cal-adapt.github.io/climakitae/1.5.2/migration/legacy-to-climate-data/</loc>
          <lastmod>2026-04-29</lastmod>
     </url>
 </urlset>
