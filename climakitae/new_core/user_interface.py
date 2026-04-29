@@ -57,7 +57,7 @@ def _with_info_verbosity(method):
     """
 
     @functools.wraps(method)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self, *args, **kwargs) -> Any:
         original_verbosity = self._verbosity
         try:
             # Temporarily set to INFO level (0) if currently more restrictive
