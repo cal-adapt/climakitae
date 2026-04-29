@@ -418,6 +418,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1908,6 +1919,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2021,12 +2043,12 @@
 - Precipitation: <code>mm</code>, <code>mm/d</code>, <code>mm/h</code> → <code>inches</code>, <code>kg m-2 s-1</code>
 - Wind: <code>m/s</code>, <code>m s-1</code> → <code>knots</code>, <code>mph</code>
 - Pressure: <code>Pa</code>, <code>hPa</code> → other pressure units
-- See <a href="../api/processors.md#convert-units">Unit Conversions</a> for complete list</p>
+- See <a href="../new-core/processors/convert_units/">Unit Conversions</a> for the complete list</p>
 <h2 id="next-steps">Next Steps</h2>
 <ul>
 <li><strong>Browse variables</strong>: Use <code>cd.show_variable_options()</code> to see all available climate variables</li>
 <li><strong>Explore boundaries</strong>: Use <code>cd.show_boundary_options()</code> to see geographic regions available for clipping</li>
-<li><strong>Learn processors</strong>: See the <a href="../api/processors/">processors guide</a> for spatial/temporal operations</li>
+<li><strong>Learn processors</strong>: See the <a href="../new-core/processors/">processor reference</a> for spatial/temporal operations</li>
 <li><strong>Try warming levels</strong>: Use <code>.processes({"warming_level": {"warming_levels": [1.5, 2.0]}})</code> for climate scenario analysis</li>
 <li><strong>Migrate from legacy</strong>: See <a href="../migration/legacy-to-new-core/">Legacy to New Core</a> if you're upgrading from the old API</li>
 </ul>
@@ -2037,7 +2059,13 @@ A: ClimateData accesses data from AWS S3. Check your internet connection. For of
 A: Pass a list of lat/lon tuples to <code>clip</code>: <code>"clip": [(34.05, -118.25), (37.77, -122.42)]</code></p>
 <p><strong>Q: Can I export the data to a file?</strong><br />
 A: Yes! Add <code>"export": {"filename": "my_data", "file_format": "NetCDF"}</code> to your processors dict.</p>
-<p>For more details, see the <a href="../api/new-core/">API reference pages</a> or explore other <a href="../migration/legacy-to-new-core/">guides and tutorials</a>.</p>
+<p>For more details, see the <a href="../api/new-core/">API reference</a>, browse <a href="../new-core/howto/">how-to guides</a>, or check the <a href="../migration/legacy-to-new-core/">migration guide</a> if you're moving from the legacy API.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="https://analytics.cal-adapt.org/data/about">Cal-Adapt Analytics Engine — About the data</a></li>
+<li><a href="https://analytics.cal-adapt.org/guidance/glossary">Cal-Adapt Analytics Engine — Glossary</a> (bias correction, GWLs, downscaling terminology)</li>
+<li><a href="https://analytics.cal-adapt.org/analytics/example">Cal-Adapt Analytics Engine — Example applications</a> (featured notebooks)</li>
+</ul>
 
 
 

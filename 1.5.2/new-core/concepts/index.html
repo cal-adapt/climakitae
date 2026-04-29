@@ -2332,7 +2332,7 @@
 <tr>
 <td><strong>Catalog</strong></td>
 <td>Data source collection</td>
-<td><code>"cadcat"</code>, <code>"renewable energy generation"</code></td>
+<td><code>"cadcat"</code>, <code>"renewable energy generation"</code>, <code>"hdp"</code></td>
 <td>Determines what datasets exist</td>
 </tr>
 <tr>
@@ -2344,20 +2344,20 @@
 <tr>
 <td><strong>Institution</strong></td>
 <td>Data producer</td>
-<td><code>"UCLA"</code>, <code>"CNRM"</code>, <code>"DWD"</code></td>
+<td><code>"UCLA"</code> (WRF), <code>"UCSD"</code> (LOCA2-Hybrid), <code>"ERA"</code> (ERA5 forcing)</td>
 <td>Different model implementations, bias characteristics</td>
 </tr>
 <tr>
 <td><strong>Source ID</strong></td>
 <td>Climate model</td>
-<td><code>"CNRM-CM6-1"</code>, <code>"ACCESS-CM2"</code></td>
-<td>Different model physics, skill varies</td>
+<td><code>"CESM2"</code>, <code>"EC-Earth3"</code>, <code>"MIROC6"</code>, <code>"CNRM-ESM2-1"</code>, …</td>
+<td>Different model physics; skill varies by region/variable</td>
 </tr>
 <tr>
 <td><strong>Experiment</strong></td>
 <td>Emissions scenario</td>
-<td><code>"historical"</code>, <code>"ssp245"</code>, <code>"ssp585"</code></td>
-<td>Different futures; historical is observation-based</td>
+<td><code>"historical"</code>, <code>"ssp245"</code>, <code>"ssp370"</code>, <code>"ssp585"</code></td>
+<td>Different futures; historical is observation-driven</td>
 </tr>
 <tr>
 <td><strong>Table ID</strong></td>
@@ -2368,13 +2368,13 @@
 <tr>
 <td><strong>Grid Label</strong></td>
 <td>Spatial resolution</td>
-<td><code>"d01"</code> (45km), <code>"d02"</code> (9km), <code>"d03"</code> (3km)</td>
+<td><code>"d01"</code> (45 km, WRF only), <code>"d02"</code> (9 km, WRF only), <code>"d03"</code> (3 km, both WRF and LOCA2-Hybrid)</td>
 <td>Local detail vs. state-wide coverage</td>
 </tr>
 <tr>
 <td><strong>Variable</strong></td>
 <td>Climate quantity</td>
-<td><code>"tasmax"</code>, <code>"pr"</code>, <code>"huss"</code></td>
+<td>WRF: <code>"t2max"</code>, <code>"t2min"</code>, <code>"prec"</code>, <code>"dew_point"</code>. LOCA2: <code>"tasmax"</code>, <code>"tasmin"</code>, <code>"pr"</code>.</td>
 <td>What you're analyzing</td>
 </tr>
 </tbody>
@@ -2395,9 +2395,9 @@
 <p><strong>Regional/National:</strong>
 - <code>us_states</code>: Western US states (11 states)</p>
 <p><strong>Infrastructure:</strong>
-- <code>ious_pous</code>: California investor-owned and publicly-owned utilities
-- <code>electric_balancing_areas</code>: Electric grid authority boundaries
-- <code>forecast_zones</code>: NOAA NWS forecast zones</p>
+- <code>ious_pous</code>: California investor-owned (IOU) and publicly-owned (POU) utilities
+- <code>electric_balancing_areas</code>: California electric balancing authority areas
+- <code>forecast_zones</code>: California Electricity Demand Forecast Zones (used by the California Energy Commission)</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Discover available boundaries</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">cd</span><span class="o">.</span><span class="n">show_boundary_options</span><span class="p">()</span>                  <span class="c1"># All types</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">cd</span><span class="o">.</span><span class="n">show_boundary_options</span><span class="p">(</span><span class="s2">&quot;ca_counties&quot;</span><span class="p">)</span>    <span class="c1"># All CA counties</span>
@@ -2618,7 +2618,7 @@
 <a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>    <span class="o">.</span><span class="n">experiment_id</span><span class="p">(</span><span class="s2">&quot;ssp370&quot;</span><span class="p">)</span>     <span class="c1"># High emissions scenario</span>
 <a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>             <span class="c1"># Daily data</span>
 <a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>           <span class="c1"># 3km resolution</span>
-<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;tasmax&quot;</span><span class="p">)</span>          <span class="c1"># Max temperature</span>
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>           <span class="c1"># WRF max temperature (LOCA2 uses &#39;tasmax&#39;)</span>
 <a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>
 <a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>    <span class="c1"># 2. Use processors to subset (maintains lazy eval)</span>
 <a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
@@ -2632,10 +2632,10 @@
 <a id="__codelineno-11-24" name="__codelineno-11-24" href="#__codelineno-11-24"></a>
 <a id="__codelineno-11-25" name="__codelineno-11-25" href="#__codelineno-11-25"></a><span class="c1"># 3. Now compute what you need (triggers lazy evaluation)</span>
 <a id="__codelineno-11-26" name="__codelineno-11-26" href="#__codelineno-11-26"></a><span class="c1"># Calculate mean at 2°C warming</span>
-<a id="__codelineno-11-27" name="__codelineno-11-27" href="#__codelineno-11-27"></a><span class="n">mean_temp</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;tasmax&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;lat&quot;</span><span class="p">,</span> <span class="s2">&quot;lon&quot;</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">compute</span><span class="p">()</span>
+<a id="__codelineno-11-27" name="__codelineno-11-27" href="#__codelineno-11-27"></a><span class="n">mean_temp</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;t2max&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;lat&quot;</span><span class="p">,</span> <span class="s2">&quot;lon&quot;</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">compute</span><span class="p">()</span>
 <a id="__codelineno-11-28" name="__codelineno-11-28" href="#__codelineno-11-28"></a>
 <a id="__codelineno-11-29" name="__codelineno-11-29" href="#__codelineno-11-29"></a><span class="c1"># Plot one snapshot</span>
-<a id="__codelineno-11-30" name="__codelineno-11-30" href="#__codelineno-11-30"></a><span class="n">data</span><span class="p">[</span><span class="s2">&quot;tasmax&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isel</span><span class="p">(</span><span class="n">sim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;RdYlBu_r&quot;</span><span class="p">)</span>
+<a id="__codelineno-11-30" name="__codelineno-11-30" href="#__codelineno-11-30"></a><span class="n">data</span><span class="p">[</span><span class="s2">&quot;t2max&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isel</span><span class="p">(</span><span class="n">sim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;RdYlBu_r&quot;</span><span class="p">)</span>
 <a id="__codelineno-11-31" name="__codelineno-11-31" href="#__codelineno-11-31"></a><span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Temperature at 2°C Global Warming - LA&quot;</span><span class="p">)</span>
 <a id="__codelineno-11-32" name="__codelineno-11-32" href="#__codelineno-11-32"></a><span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </code></pre></div>

@@ -2906,7 +2906,7 @@
 <p><strong>File</strong>: <code>climakitae/new_core/processors/abc_data_processor.py</code> (~150 lines)</p>
 <p><strong>Responsibility</strong>: Transform data while preserving lazy evaluation.</p>
 <p><strong>Required Methods</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nd">@register_processor</span><span class="p">(</span><span class="s2">&quot;my_processor&quot;</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">250</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nd">@register_processor</span><span class="p">(</span><span class="s2">&quot;my_processor&quot;</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">80</span><span class="p">)</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyProcessor</span><span class="p">(</span><span class="n">DataProcessor</span><span class="p">):</span>
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
 <a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
@@ -2928,13 +2928,19 @@
 <a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Optional: Receive DataCatalog reference if needs_catalog=True.&quot;&quot;&quot;</span>
 <a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_catalog</span> <span class="o">=</span> <span class="n">catalog</span>
 </code></pre></div>
-<p><strong>Priority System</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>0-99:    Pre-processing (bias correction, model filtering)
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>100-199: Core processing (time slicing, warming levels)
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>200-299: Spatial operations (clipping, aggregation)
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>300-399: Post-processing (unit conversion, attribute updates)
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>9999:    Export (must be last, writes to disk)
-</code></pre></div></p>
+<p><strong>Priority guidelines (real values used by the shipped processors):</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>0–10     : Pre-processing (filter_unadjusted_models=0, drop_leap_days=1,
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>          convert_units=5, warming_level=10) — catalog refinement &amp; GWL subset
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>50–70    : Combination + correction + spatial
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>          (concat=50, bias_adjust_model_to_station=60, clip=65,
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>           convert_to_local_time=70)
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>150–7500 : Temporal subsetting &amp; metric computation
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>          (time_slice=150, metric_calc=7500)
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>9998–9999: Finalization (update_attributes=9998, export=9999)
+</code></pre></div>
+<p>When registering a custom processor, pick a priority that puts it in the
+phase that matches its intent. See the <a href="../processors/">Processors index</a>
+for the full registry.</p>
 <p><strong>Key Rules</strong>:
 - <strong>No in-place mutation</strong>: Always return new objects
 - <strong>Preserve laziness</strong>: Don't call <code>.load()</code> or <code>.compute()</code>
@@ -3079,7 +3085,7 @@
 <h3 id="registry-pattern">2. Registry + Decorator Pattern</h3>
 <p>Components register at import time using decorators:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Processor registration</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="nd">@register_processor</span><span class="p">(</span><span class="s2">&quot;clip&quot;</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="nd">@register_processor</span><span class="p">(</span><span class="s2">&quot;clip&quot;</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">65</span><span class="p">)</span>
 <a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="k">class</span><span class="w"> </span><span class="nc">Clip</span><span class="p">(</span><span class="n">DataProcessor</span><span class="p">):</span>
 <a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>    <span class="o">...</span>
 <a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>
@@ -3157,7 +3163,7 @@
 <a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="p">)</span>
 <a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.core.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">_NEW_ATTRS_KEY</span>
 <a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>
-<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a><span class="nd">@register_processor</span><span class="p">(</span><span class="s2">&quot;my_key&quot;</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">250</span><span class="p">)</span>
+<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a><span class="nd">@register_processor</span><span class="p">(</span><span class="s2">&quot;my_key&quot;</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">80</span><span class="p">)</span>
 <a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyProcessor</span><span class="p">(</span><span class="n">DataProcessor</span><span class="p">):</span>
 <a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
 <a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
@@ -3450,7 +3456,7 @@
 <tr>
 <td><strong>Priority conflicts</strong></td>
 <td>Wrong execution order</td>
-<td>Use priority ranges (0-99, 100-199, etc.)</td>
+<td>Pick a priority that places the processor in the correct phase (see <a href="../processors/">Processors index</a>). Lower numbers run first.</td>
 </tr>
 </tbody>
 </table>

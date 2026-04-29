@@ -1906,124 +1906,121 @@
 <h1 id="processor-reference">Processor Reference</h1>
 <p>Processors transform climate data through a configurable pipeline. Each processor executes in priority order, handling a specific transformation task: temporal subsetting, spatial clipping, format conversion, aggregation, or metadata updates.</p>
 <h2 id="processor-registry">Processor Registry</h2>
-<p>All available processors with brief descriptions and execution order:</p>
+<p>All available processors, listed in execution order (lowest priority first).</p>
+<p>The <strong>registry key</strong> is the string you pass to <code>.processes({...})</code>. It is not always identical to the source filename — for example, the concatenation processor is registered under the key <code>"concat"</code>.</p>
 <table>
 <thead>
 <tr>
-<th>Processor</th>
-<th>Priority</th>
+<th>Registry key</th>
+<th style="text-align: right;">Priority</th>
+<th>Page</th>
 <th>Purpose</th>
-<th>Input</th>
-<th>Output</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><a href="time_slice/"><code>time_slice</code></a></td>
-<td>150</td>
-<td>Temporal subsetting by date range or seasons</td>
-<td>Dataset</td>
-<td>Dataset (same schema)</td>
+<td><code>filter_unadjusted_models</code></td>
+<td style="text-align: right;">0</td>
+<td><a href="filter_unadjusted_models/">filter_unadjusted_models</a></td>
+<td>Filter models by a-priori bias-adjustment status (default: enabled for WRF)</td>
 </tr>
 <tr>
-<td><a href="warming_level/"><code>warming_level</code></a></td>
-<td>160</td>
-<td>Temporal subsetting by global warming level thresholds</td>
-<td>Dataset</td>
-<td>Dataset (same schema)</td>
+<td><code>drop_leap_days</code></td>
+<td style="text-align: right;">1</td>
+<td><a href="drop_leap_days/">drop_leap_days</a></td>
+<td>Remove Feb 29 for calendar alignment</td>
 </tr>
 <tr>
-<td><a href="clip/"><code>clip</code></a></td>
-<td>200</td>
-<td>Spatial subsetting by geometry, points, or stations</td>
-<td>Dataset</td>
-<td>Dataset (reduced spatial extent)</td>
-</tr>
-<tr>
-<td><a href="convert_units/"><code>convert_units</code></a></td>
-<td>210</td>
+<td><code>convert_units</code></td>
+<td style="text-align: right;">5</td>
+<td><a href="convert_units/">convert_units</a></td>
 <td>Unit conversion for climate variables</td>
-<td>Dataset</td>
-<td>Dataset (converted units)</td>
 </tr>
 <tr>
-<td><a href="concatenate/"><code>concatenate</code></a></td>
-<td>220</td>
-<td>Dataset concatenation across specified dimensions</td>
-<td>Dataset list</td>
-<td>Dataset (merged)</td>
+<td><code>warming_level</code></td>
+<td style="text-align: right;">10</td>
+<td><a href="warming_level/">warming_level</a></td>
+<td>Subset around global warming-level thresholds</td>
 </tr>
 <tr>
-<td><a href="metric_calc/"><code>metric_calc</code></a></td>
-<td>230</td>
-<td>Compute derived metrics and indices</td>
-<td>Dataset</td>
-<td>Dataset (new variables)</td>
+<td><code>concat</code></td>
+<td style="text-align: right;">50</td>
+<td><a href="concatenate/">concatenate</a></td>
+<td>Concatenate datasets along the <code>sim</code> (or named) dimension</td>
 </tr>
 <tr>
-<td><a href="bias_adjust_model_to_station/"><code>bias_adjust_model_to_station</code></a></td>
-<td>240</td>
-<td>Bias correction using station observations</td>
-<td>Dataset</td>
-<td>Dataset (bias-adjusted)</td>
+<td><code>bias_adjust_model_to_station</code></td>
+<td style="text-align: right;">60</td>
+<td><a href="bias_adjust_model_to_station/">bias_adjust_model_to_station</a></td>
+<td>Quantile-delta-mapping bias correction using HadISD station observations</td>
 </tr>
 <tr>
-<td><a href="filter_unadjusted_models/"><code>filter_unadjusted_models</code></a></td>
-<td>250</td>
-<td>Filter models by bias-adjustment status</td>
-<td>Dataset</td>
-<td>Dataset (filtered sim dimension)</td>
+<td><code>clip</code></td>
+<td style="text-align: right;">65</td>
+<td><a href="clip/">clip</a></td>
+<td>Spatial subsetting by boundary, point(s), bbox, station, or shapefile</td>
 </tr>
 <tr>
-<td><a href="drop_leap_days/"><code>drop_leap_days</code></a></td>
-<td>260</td>
-<td>Remove leap days for calendar alignment</td>
-<td>Dataset</td>
-<td>Dataset (Feb 29 removed)</td>
+<td><code>convert_to_local_time</code></td>
+<td style="text-align: right;">70</td>
+<td><a href="convert_to_local_time/">convert_to_local_time</a></td>
+<td>Convert UTC to a local timezone</td>
 </tr>
 <tr>
-<td><a href="convert_to_local_time/"><code>convert_to_local_time</code></a></td>
-<td>270</td>
-<td>Convert UTC to local time zones</td>
-<td>Dataset</td>
-<td>Dataset (local time)</td>
+<td><code>time_slice</code></td>
+<td style="text-align: right;">150</td>
+<td><a href="time_slice/">time_slice</a></td>
+<td>Temporal subsetting by date range and optional season</td>
 </tr>
 <tr>
-<td><a href="update_attributes/"><code>update_attributes</code></a></td>
-<td>280</td>
-<td>Update dataset metadata attributes</td>
-<td>Dataset</td>
-<td>Dataset (updated attrs)</td>
+<td><code>metric_calc</code></td>
+<td style="text-align: right;">7500</td>
+<td><a href="metric_calc/">metric_calc</a></td>
+<td>Derived metrics, threshold exceedance, and 1-in-X return-period analysis</td>
 </tr>
 <tr>
-<td><a href="export/"><code>export</code></a></td>
-<td>9999</td>
-<td>Write data to storage (NetCDF, Zarr, CSV, GeoTIFF)</td>
-<td>Dataset</td>
-<td>Files (+ optional copy returned)</td>
+<td><code>update_attributes</code></td>
+<td style="text-align: right;">9998</td>
+<td><a href="update_attributes/">update_attributes</a></td>
+<td>Update dataset/variable attributes</td>
+</tr>
+<tr>
+<td><code>export</code></td>
+<td style="text-align: right;">9999</td>
+<td><a href="export/">export</a></td>
+<td>Write to NetCDF, Zarr, CSV, or GeoTIFF</td>
 </tr>
 </tbody>
 </table>
 <h2 id="execution-order">Execution Order</h2>
-<p>Processors execute in <strong>priority order</strong> (ascending). Within each workflow, only registered processors with configured parameters execute.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Phase 1: Temporal Processing (150-160)
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  ├─ time_slice (150)       — Calendar date/season filtering
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  └─ warming_level (160)    — Global warming level window selection
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>Phase 2: Spatial &amp; Conversion (200-280)
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  ├─ clip (200)                        — Geographic filtering
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  ├─ convert_units (210)               — Unit standardization
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  ├─ concatenate (220)                 — Dimension merging
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  ├─ metric_calc (230)                 — Index computation
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  ├─ bias_adjust_model_to_station (240) — Bias correction
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  ├─ filter_unadjusted_models (250)    — Model selection
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  ├─ drop_leap_days (260)              — Calendar normalization
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  ├─ convert_to_local_time (270)       — Timezone conversion
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  └─ update_attributes (280)           — Metadata finalization
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>Phase 3: Export (9999)
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>  └─ export (9999)          — File writing &amp; archival
+<p>Processors execute in <strong>priority order</strong> (ascending — lowest priority runs first). Within each workflow, only registered processors with configured parameters execute.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Phase 1: Catalog refinement (priority 0–10)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  ├─ filter_unadjusted_models (0)    — Drop models without a-priori bias adjustment
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  ├─ drop_leap_days (1)              — Calendar normalization
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  ├─ convert_units (5)               — Unit standardization
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  └─ warming_level (10)              — Global-warming-level window selection
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>Phase 2: Aggregation, correction, spatial (priority 50–70)
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  ├─ concat (50)                     — Concatenate along sim (or other) dimension
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  ├─ bias_adjust_model_to_station (60) — Station-based bias correction (WRF only)
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  ├─ clip (65)                       — Geographic filtering
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  └─ convert_to_local_time (70)      — Timezone conversion
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>Phase 3: Temporal subsetting &amp; metrics (priority 150–7500)
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  ├─ time_slice (150)                — Calendar date / season filtering
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  └─ metric_calc (7500)              — Derived metrics &amp; extreme-value analysis
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>Phase 4: Finalization (priority 9998–9999)
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>  ├─ update_attributes (9998)        — Metadata finalization
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>  └─ export (9999)                   — File writing &amp; archival
 </code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Why does spatial clipping run before time slicing?</p>
+<p><code>clip</code> (priority 65) runs before <code>time_slice</code> (priority 150) so that spatial
+subsetting reduces the data volume that subsequent steps must read. Reducing
+spatial extent first is usually the dominant performance win for gridded
+queries.</p>
+</div>
 <h2 id="architecture">Architecture</h2>
 <p>Each processor implements three core methods:</p>
 <ul>

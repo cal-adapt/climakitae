@@ -466,10 +466,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#primary-entrypoint" class="md-nav__link">
+  <a href="#how-to-read-this-section" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Primary entrypoint
+        How to read this section
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
       
     </span>
   </a>
@@ -1800,10 +1822,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#primary-entrypoint" class="md-nav__link">
+  <a href="#how-to-read-this-section" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Primary entrypoint
+        How to read this section
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
       
     </span>
   </a>
@@ -1836,17 +1880,67 @@
 
 
 <h1 id="new-core-overview">New Core Overview</h1>
-<p>The new core API is the primary interface for climakitae.</p>
+<p>The <strong>new core</strong> is the primary, actively developed interface for climakitae. It exposes a fluent / builder API rooted in the <code>ClimateData</code> class and a registry-based processor pipeline.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;mon&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>        <span class="s2">&quot;time_slice&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;2015-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2015-12-31&quot;</span><span class="p">),</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Los Angeles&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="p">})</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+</code></pre></div>
 <h2 id="design-goals">Design goals</h2>
 <ul>
-<li>Fluent method chaining for readable query construction</li>
-<li>Explicit processors for transformations</li>
-<li>Lazy xarray/dask-backed execution</li>
+<li><strong>Fluent method chaining</strong> for readable, top-to-bottom query construction.</li>
+<li><strong>Explicit, ordered processors</strong> for every transformation (clipping, time slicing, warming-level subsetting, unit conversion, export, …). See the <a href="processors/">Processors index</a>.</li>
+<li><strong>Lazy execution</strong> backed by <code>xarray</code> + <code>dask</code>. Queries return computation graphs; data only streams from S3 on <code>.compute()</code> / <code>.values</code> / <code>.plot()</code>.</li>
+<li><strong>Registry-based extensibility.</strong> New catalogs, validators, and processors register themselves at import time — no central wiring required.</li>
 </ul>
-<h2 id="primary-entrypoint">Primary entrypoint</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
-</code></pre></div>
-<p>In this docs overhaul, all new tutorials and API examples will prioritize the new core.</p>
+<h2 id="how-to-read-this-section">How to read this section</h2>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th>Read it when…</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="concepts/">Concepts</a></td>
+<td>You need the mental model — catalog hierarchy, lazy evaluation, available boundaries.</td>
+</tr>
+<tr>
+<td><a href="howto/">How-To Guides</a></td>
+<td>You have a concrete task (clip to a county, request hourly data, export to Zarr, …).</td>
+</tr>
+<tr>
+<td><a href="architecture/">Architecture</a></td>
+<td>You want to extend climakitae with a new processor / validator / catalog, or you're debugging the pipeline.</td>
+</tr>
+<tr>
+<td><a href="processors/">Processors</a></td>
+<td>You want the registry, priorities, and per-processor parameter shapes.</td>
+</tr>
+<tr>
+<td><a href="../api/new-core/">User Interface API</a></td>
+<td>You want the auto-generated <code>ClimateData</code> reference.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="status">Status</h2>
+<p>The new core has reached feature parity with the legacy <code>climakitae.core</code> interface for the catalogs that ship with <code>climakitae 1.4.x</code> (<code>cadcat</code>, <code>renewable energy generation</code>, <code>hdp</code>). All new features land here. See <a href="../legacy/status/">Legacy API status</a> for the migration timeline.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="https://analytics.cal-adapt.org/analytics/methods">Cal-Adapt Analytics Engine — Methods</a></li>
+<li><a href="https://analytics.cal-adapt.org/guidance/glossary">Cal-Adapt Analytics Engine — Glossary</a></li>
+<li><a href="../notebook-gallery/">Notebook Gallery</a></li>
+</ul>
 
 
 

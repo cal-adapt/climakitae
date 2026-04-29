@@ -2353,27 +2353,36 @@
 <ul>
 <li><strong>New work</strong>: Always use <code>new_core</code> (fluent API)</li>
 <li><strong>Existing code</strong>: Legacy APIs remain available and functional during transition</li>
-<li><strong>Timeline</strong>: No hard deadline; migrate at your own pace</li>
-<li><strong>Support</strong>: Both interfaces are maintained and fully featured</li>
+<li><strong>Timeline</strong>: A multi-phase deprecation plan is published in <a href="../../legacy/status/">Legacy API status</a>. No breaking changes in the current minor-release series.</li>
+<li><strong>Support</strong>: Both interfaces are maintained, but <code>new_core</code> is where all new features land.</li>
 </ul>
+<div class="admonition note">
+<p class="admonition-title">A note on field names</p>
+<p>The legacy <code>DataParameters</code> class is built on the <code>param</code> library and uses
+<em>human-readable</em> field names that mirror its GUI controls
+(<code>downscaling_method</code>, <code>resolution</code>, <code>timescale</code>, <code>area_subset</code>,
+<code>cached_area</code>, <code>scenario_ssp</code>, <code>time_slice</code> as a year-range tuple, etc.).
+The <code>new_core</code> interface uses <em>catalog-native</em> names (<code>activity_id</code>,
+<code>grid_label</code>, <code>table_id</code>, <code>experiment_id</code>, etc.). Watch for this when
+porting a script.</p>
+</div>
 <h2 id="quick-pattern-basic-query">Quick Pattern: Basic Query</h2>
 <h3 id="legacy-approach">❌ Legacy Approach</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.core.data_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataParameters</span><span class="p">,</span> <span class="n">get_data</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Build parameter dictionary</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">params</span> <span class="o">=</span> <span class="n">DataParameters</span><span class="p">()</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">params</span><span class="o">.</span><span class="n">catalog</span> <span class="o">=</span> <span class="s2">&quot;cadcat&quot;</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">params</span><span class="o">.</span><span class="n">activity_id</span> <span class="o">=</span> <span class="s2">&quot;WRF&quot;</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">params</span><span class="o">.</span><span class="n">table_id</span> <span class="o">=</span> <span class="s2">&quot;mon&quot;</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">params</span><span class="o">.</span><span class="n">grid_label</span> <span class="o">=</span> <span class="s2">&quot;d03&quot;</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">params</span><span class="o">.</span><span class="n">variable</span> <span class="o">=</span> <span class="s2">&quot;t2max&quot;</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">params</span><span class="o">.</span><span class="n">start_date</span> <span class="o">=</span> <span class="s2">&quot;2015-01-01&quot;</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">params</span><span class="o">.</span><span class="n">end_date</span> <span class="o">=</span> <span class="s2">&quot;2015-12-31&quot;</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">params</span><span class="o">.</span><span class="n">area_average</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Los Angeles&quot;</span><span class="p">]</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Build parameters using the legacy field names</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">params</span> <span class="o">=</span> <span class="n">DataParameters</span><span class="p">()</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">params</span><span class="o">.</span><span class="n">downscaling_method</span> <span class="o">=</span> <span class="s2">&quot;Dynamical&quot;</span>           <span class="c1"># WRF</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">params</span><span class="o">.</span><span class="n">resolution</span> <span class="o">=</span> <span class="s2">&quot;3 km&quot;</span>                         <span class="c1"># ≈ grid_label d03</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">params</span><span class="o">.</span><span class="n">timescale</span> <span class="o">=</span> <span class="s2">&quot;monthly&quot;</span>                       <span class="c1"># ≈ table_id &#39;mon&#39;</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">params</span><span class="o">.</span><span class="n">variable</span> <span class="o">=</span> <span class="s2">&quot;Maximum air temperature at 2m&quot;</span>  <span class="c1"># display name, not &#39;t2max&#39;</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">params</span><span class="o">.</span><span class="n">scenario_historical</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Historical Climate&quot;</span><span class="p">]</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">params</span><span class="o">.</span><span class="n">scenario_ssp</span> <span class="o">=</span> <span class="p">[]</span>                           <span class="c1"># historical-only example</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">params</span><span class="o">.</span><span class="n">time_slice</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2015</span><span class="p">,</span> <span class="mi">2015</span><span class="p">)</span>                   <span class="c1"># year range, NOT date strings</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">params</span><span class="o">.</span><span class="n">area_subset</span> <span class="o">=</span> <span class="s2">&quot;CA counties&quot;</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">params</span><span class="o">.</span><span class="n">cached_area</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Los Angeles County&quot;</span><span class="p">]</span>
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="c1"># Get data</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="n">data</span> <span class="o">=</span> <span class="n">get_data</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="n">data</span> <span class="o">=</span> <span class="n">get_data</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="new-core-approach">✅ New Core Approach</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
@@ -2428,14 +2437,15 @@
 <h2 id="pattern-clipping-spatial-subsetting">Pattern: Clipping / Spatial Subsetting</h2>
 <h3 id="legacy-approach_2">❌ Legacy Approach</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">params</span> <span class="o">=</span> <span class="n">DataParameters</span><span class="p">()</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">params</span><span class="o">.</span><span class="n">variable</span> <span class="o">=</span> <span class="s2">&quot;t2max&quot;</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">params</span><span class="o">.</span><span class="n">variable</span> <span class="o">=</span> <span class="s2">&quot;Maximum air temperature at 2m&quot;</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Named area</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">params</span><span class="o">.</span><span class="n">area_average</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Los Angeles&quot;</span><span class="p">]</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># OR for points, had limited options</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="n">params</span><span class="o">.</span><span class="n">latitude</span> <span class="o">=</span> <span class="mf">34.05</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="n">params</span><span class="o">.</span><span class="n">longitude</span> <span class="o">=</span> <span class="o">-</span><span class="mf">118.25</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Named area (boundary layer + cached entry)</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">params</span><span class="o">.</span><span class="n">area_subset</span> <span class="o">=</span> <span class="s2">&quot;CA counties&quot;</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">params</span><span class="o">.</span><span class="n">cached_area</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Los Angeles County&quot;</span><span class="p">]</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c1"># OR for a single point, set lat/lon ranges to a degenerate range</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="n">params</span><span class="o">.</span><span class="n">latitude</span> <span class="o">=</span> <span class="p">(</span><span class="mf">34.05</span><span class="p">,</span> <span class="mf">34.05</span><span class="p">)</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="n">params</span><span class="o">.</span><span class="n">longitude</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">118.25</span><span class="p">,</span> <span class="o">-</span><span class="mf">118.25</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="new-core-approach_2">✅ New Core Approach</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Named region</span>
@@ -2491,14 +2501,14 @@
 <h3 id="legacy-approach_4">❌ Legacy Approach</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.core.data_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataParameters</span><span class="p">,</span> <span class="n">get_data</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">scenarios</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ssp245&quot;</span><span class="p">,</span> <span class="s2">&quot;ssp370&quot;</span><span class="p">,</span> <span class="s2">&quot;ssp585&quot;</span><span class="p">]</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">scenarios</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;SSP 2-4.5&quot;</span><span class="p">,</span> <span class="s2">&quot;SSP 3-7.0&quot;</span><span class="p">,</span> <span class="s2">&quot;SSP 5-8.5&quot;</span><span class="p">]</span>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
 <a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>
 <a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="k">for</span> <span class="n">scenario</span> <span class="ow">in</span> <span class="n">scenarios</span><span class="p">:</span>
 <a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="n">params</span> <span class="o">=</span> <span class="n">DataParameters</span><span class="p">()</span>
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="n">params</span><span class="o">.</span><span class="n">scenario</span> <span class="o">=</span> <span class="n">scenario</span>
-<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    <span class="n">params</span><span class="o">.</span><span class="n">variable</span> <span class="o">=</span> <span class="s2">&quot;tasmax&quot;</span>
-<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>    <span class="c1"># ... set many other params ...</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="n">params</span><span class="o">.</span><span class="n">scenario_ssp</span> <span class="o">=</span> <span class="p">[</span><span class="n">scenario</span><span class="p">]</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    <span class="n">params</span><span class="o">.</span><span class="n">variable</span> <span class="o">=</span> <span class="s2">&quot;Maximum air temperature at 2m&quot;</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>    <span class="c1"># ... set downscaling_method, resolution, timescale, area_subset, etc. ...</span>
 <a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>    <span class="n">results</span><span class="p">[</span><span class="n">scenario</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_data</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="new-core-approach_4">✅ New Core Approach</h3>
@@ -2517,12 +2527,17 @@
 <hr />
 <h2 id="pattern-warming-level-analysis">Pattern: Warming Level Analysis</h2>
 <h3 id="legacy-approach_5">❌ Legacy Approach</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Not directly supported in legacy interface</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="c1"># Workaround: query multiple years manually</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">params</span> <span class="o">=</span> <span class="n">DataParameters</span><span class="p">()</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">params</span><span class="o">.</span><span class="n">start_year</span> <span class="o">=</span> <span class="mi">2050</span>  <span class="c1"># Approximate when warming reaches target</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="n">params</span><span class="o">.</span><span class="n">end_year</span> <span class="o">=</span> <span class="mi">2060</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Legacy supports warming-level workflows via the GWL approach toggle.</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">params</span> <span class="o">=</span> <span class="n">DataParameters</span><span class="p">()</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">params</span><span class="o">.</span><span class="n">approach</span> <span class="o">=</span> <span class="s2">&quot;Warming Level&quot;</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">params</span><span class="o">.</span><span class="n">warming_level</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">]</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="n">params</span><span class="o">.</span><span class="n">warming_level_window</span> <span class="o">=</span> <span class="mi">15</span>  <span class="c1"># ±15-year window around GWL crossing</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="n">params</span><span class="o">.</span><span class="n">variable</span> <span class="o">=</span> <span class="s2">&quot;Minimum air temperature at 2m&quot;</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="n">data</span> <span class="o">=</span> <span class="n">get_data</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
 </code></pre></div>
+<p>The Cal-Adapt <a href="https://analytics.cal-adapt.org/analytics/methods">Methods page</a>
+describes the warming-level fetching algorithm in more detail (and is itself
+still written against the legacy API).</p>
 <h3 id="new-core-approach_5">✅ New Core Approach</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Direct warming level support</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
@@ -2580,14 +2595,21 @@
 <hr />
 <h2 id="migration-checklist">Migration Checklist</h2>
 <ul>
-<li>[ ] Replace <code>from climakitae.core.data_interface import DataParameters, get_data</code> with <code>from climakitae.new_core.user_interface import ClimateData</code></li>
-<li>[ ] Convert <code>params.variable = "x"</code> to <code>.variable("x")</code></li>
-<li>[ ] Convert date ranges: <code>params.start_date</code> → <code>.processes({"time_slice": (...)})</code></li>
-<li>[ ] Convert clipping: <code>params.area_average</code> → <code>.processes({"clip": ...})</code></li>
-<li>[ ] Replace <code>get_data(params)</code> with <code>.get()</code></li>
-<li>[ ] Update option discovery to use <code>show_*_options()</code></li>
-<li>[ ] Move exports to processor-based pattern or <code>.to_netcdf()</code> / <code>.to_zarr()</code></li>
-<li>[ ] Test with real climate data to verify results match</li>
+<li>[ ] Replace <code>from climakitae.core.data_interface import DataParameters, get_data</code> with <code>from climakitae.new_core.user_interface import ClimateData</code>.</li>
+<li>[ ] Translate field names:<ul>
+<li><code>downscaling_method</code> ("Dynamical" / "Statistical") → <code>.activity_id("WRF" | "LOCA2")</code></li>
+<li><code>resolution</code> ("3 km" / "9 km" / "45 km") → <code>.grid_label("d03" | "d02" | "d01")</code></li>
+<li><code>timescale</code> ("hourly" / "daily" / "monthly") → <code>.table_id("1hr" | "day" | "mon")</code></li>
+<li><code>scenario_ssp</code> / <code>scenario_historical</code> → <code>.experiment_id(...)</code> (a list of <code>"ssp245"</code> / <code>"ssp370"</code> / <code>"ssp585"</code> / <code>"historical"</code>)</li>
+<li>Display variable name (e.g. "Maximum air temperature at 2m") → <code>.variable("&lt;variable_id&gt;")</code> such as <code>"t2max"</code> for WRF or <code>"tasmax"</code> for LOCA2.</li>
+</ul>
+</li>
+<li>[ ] Convert year ranges: <code>params.time_slice = (2015, 2050)</code> → <code>.processes({"time_slice": (2015, 2050)})</code> (or ISO date strings).</li>
+<li>[ ] Convert clipping: <code>params.area_subset</code> + <code>params.cached_area</code> → <code>.processes({"clip": "&lt;boundary name&gt;"})</code> or a <code>(lat, lon)</code> tuple.</li>
+<li>[ ] Replace <code>get_data(params)</code> with <code>.get()</code>.</li>
+<li>[ ] Update option discovery to use <code>show_*_options()</code> methods.</li>
+<li>[ ] Move exports to the <code>"export"</code> processor or call <code>.to_netcdf()</code> / <code>.to_zarr()</code> on the result.</li>
+<li>[ ] Run side-by-side comparison on a small slice to verify equivalent results before swapping production code.</li>
 </ul>
 <hr />
 <h2 id="still-using-legacy-questions">Still Using Legacy? Questions?</h2>

@@ -1584,10 +1584,54 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#current-stance" class="md-nav__link">
+  <a href="#tldr" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Current stance
+        TL;DR
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deprecation-timeline-planned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deprecation timeline (planned)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recommended-action" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended action
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-legacy-api-still-appears-in-the-wild" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the legacy API still appears in the wild
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
       
     </span>
   </a>
@@ -1778,10 +1822,54 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#current-stance" class="md-nav__link">
+  <a href="#tldr" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Current stance
+        TL;DR
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deprecation-timeline-planned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deprecation timeline (planned)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recommended-action" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended action
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-legacy-api-still-appears-in-the-wild" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the legacy API still appears in the wild
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
       
     </span>
   </a>
@@ -1814,14 +1902,67 @@
 
 
 <h1 id="legacy-api-status">Legacy API Status</h1>
-<p>Legacy interfaces are still supported for backward compatibility.</p>
-<h2 id="current-stance">Current stance</h2>
+<p><code>climakitae.core</code> (the legacy <code>DataParameters</code> / <code>get_data</code> interface) is <strong>still supported</strong> for backward compatibility, but is now in <strong>maintenance-only</strong> mode. All new development happens in <code>climakitae.new_core</code>.</p>
+<h2 id="tldr">TL;DR</h2>
 <ul>
-<li>Legacy documentation is retained during migration.</li>
-<li>New examples and tutorials are new-core-first.</li>
-<li>Legacy pages should include clear migration links.</li>
+<li>✅ Legacy code keeps working — no breaking changes are planned in the next minor release series.</li>
+<li>⚠️ All new features (processors, catalogs, validation, derived variables) ship to <code>new_core</code> only.</li>
+<li>📘 New tutorials, notebooks, and documentation use <code>ClimateData</code> (new core) exclusively.</li>
+<li>🚦 A multi-phase deprecation plan has been drafted; see the deprecation timeline below.</li>
 </ul>
-<p>For migration guidance, see <a href="../../migration/legacy-to-new-core/">Legacy to New Core</a>.</p>
+<h2 id="deprecation-timeline-planned">Deprecation timeline (planned)</h2>
+<p>The phased migration is tracked in the <code>climakitae-d91</code> epic on the project's issue tracker. A summary of the planned phases:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Phase</th>
+<th>Approximate window</th>
+<th>What changes for users</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td>Now → mid-2026</td>
+<td>Audit, freeze legacy feature set, publish migration guide. <strong>No runtime changes.</strong></td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td>Jul – Dec 2026</td>
+<td><code>DeprecationWarning</code> emitted on first import / first call to legacy <code>get_data</code>. Migration helper script published.</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td>Jan – Sep 2027</td>
+<td>Documentation site marks legacy pages as <em>deprecated</em>; banners in notebooks. Legacy still functional.</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td>Oct – Dec 2027</td>
+<td>Legacy <code>climakitae.core.data_interface</code> is removed. Final pre-removal release pinned for users who cannot migrate.</td>
+</tr>
+</tbody>
+</table>
+<p>Exact dates may shift based on community uptake and feedback. Watch the changelog for binding announcements.</p>
+<h2 id="recommended-action">Recommended action</h2>
+<ul>
+<li><strong>New projects</strong> — start with <a href="../../new-core/"><code>ClimateData</code></a>. Follow <a href="../../getting-started/">Get Started in 5 Minutes</a>.</li>
+<li><strong>Existing projects</strong> — read the <a href="../../migration/legacy-to-new-core/">Legacy → New Core migration guide</a>, pin a known-good <code>climakitae</code> version, and migrate at your own pace before Phase 4.</li>
+<li><strong>Notebook authors</strong> — replace <code>from climakitae.core.data_interface import get_data</code> with <code>from climakitae.new_core.user_interface import ClimateData</code>. The migration guide has a side-by-side comparison.</li>
+</ul>
+<h2 id="where-the-legacy-api-still-appears-in-the-wild">Where the legacy API still appears in the wild</h2>
+<p>Some Cal-Adapt resources continue to demonstrate the legacy API while we update them:</p>
+<ul>
+<li>The <a href="https://analytics.cal-adapt.org/analytics/methods">Cal-Adapt Analytics Engine — Methods page</a> documents the GWL workflow using <code>get_data</code>.</li>
+<li>Several <code>cae-notebooks</code> are mid-migration; the Notebook Gallery flags any that have not yet been ported.</li>
+</ul>
+<p>If you spot legacy usage that should be modernized, please open an issue on <a href="https://github.com/cal-adapt/climakitae/issues"><code>cal-adapt/climakitae</code></a>.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../../migration/legacy-to-new-core/">Legacy → New Core migration guide</a></li>
+<li><a href="../../api/core/">Legacy API reference</a></li>
+<li><a href="../../new-core/">New Core overview</a></li>
+</ul>
 
 
 
