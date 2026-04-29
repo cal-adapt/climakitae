@@ -88,7 +88,7 @@ def is_station_identifier(value: str) -> bool:
     return False
 
 
-def find_station_match(station_identifier: str, stations_df)-> "pd.DataFrame":
+def find_station_match(station_identifier: str, stations_df) -> "pd.DataFrame":
     """
     Find matching station(s) in the stations DataFrame.
 

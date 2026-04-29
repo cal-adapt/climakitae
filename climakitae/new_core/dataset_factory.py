@@ -363,7 +363,9 @@ class DatasetFactory:
             raise ValueError("Catalog key cannot be empty or None.")
         DataCatalog().set_catalog(key, catalog_url)
 
-    def register_validator(self, key: str, validator_class: Type[ParameterValidator]) -> None:
+    def register_validator(
+        self, key: str, validator_class: Type[ParameterValidator]
+    ) -> None:
         """Register a parameter validator with the factory.
 
         Parameters
@@ -376,7 +378,9 @@ class DatasetFactory:
         """
         self._validator_registry[key] = validator_class
 
-    def register_processing_step(self, step_type: str, step_class: Type[DataProcessor]) -> None:
+    def register_processing_step(
+        self, step_type: str, step_class: Type[DataProcessor]
+    ) -> None:
         """Register a processing step with the factory.
 
         Parameters

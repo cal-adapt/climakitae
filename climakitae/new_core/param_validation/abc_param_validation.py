@@ -60,7 +60,9 @@ _PROCESSOR_VALIDATOR_REGISTRY = {}
 logger = logging.getLogger(__name__)
 
 
-def register_catalog_validator(name: str) -> Callable[["Type[ParameterValidator]"], "Type[ParameterValidator]"]:
+def register_catalog_validator(
+    name: str,
+) -> Callable[["Type[ParameterValidator]"], "Type[ParameterValidator]"]:
     """Decorator to register a catalog validator class in the global registry.
 
     This decorator allows validator classes to be registered for use with
@@ -103,7 +105,9 @@ def register_catalog_validator(name: str) -> Callable[["Type[ParameterValidator]
     return decorator
 
 
-def register_processor_validator(name: str) -> Callable[["Type[ParameterValidator]"], "Type[ParameterValidator]"]:
+def register_processor_validator(
+    name: str,
+) -> Callable[["Type[ParameterValidator]"], "Type[ParameterValidator]"]:
     """Decorator to register a processor validator function in the global registry.
 
     This decorator allows processor validation functions to be registered for
