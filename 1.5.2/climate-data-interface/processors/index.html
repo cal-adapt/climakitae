@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://cal-adapt.github.io/climakitae/1.5.2/api/core-boundaries/">
+        <link rel="canonical" href="https://cal-adapt.github.io/climakitae/1.5.2/climate-data-interface/processors/">
       
       
       
@@ -23,7 +23,7 @@
     
     
       
-        <title>Core Boundaries (Detailed) - climakitae</title>
+        <title>Processor Reference - climakitae</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#core-boundaries-detailed" class="md-skip">
+        <a href="#processor-reference" class="md-skip">
           Skip to content
         </a>
       
@@ -111,7 +111,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Core Boundaries (Detailed)
+              Processor Reference
             
           </span>
         </div>
@@ -1020,7 +1020,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../new-core/" class="md-nav__link">
+      <a href="../../api/new-core/" class="md-nav__link">
         
   
   
@@ -1048,7 +1048,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../dataset-factory/" class="md-nav__link">
+      <a href="../../api/dataset-factory/" class="md-nav__link">
         
   
   
@@ -1076,7 +1076,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../dataset/" class="md-nav__link">
+      <a href="../../api/dataset/" class="md-nav__link">
         
   
   
@@ -1161,7 +1161,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../param-validation/" class="md-nav__link">
+      <a href="../../api/param-validation/" class="md-nav__link">
         
   
   
@@ -1189,7 +1189,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../data-access/" class="md-nav__link">
+      <a href="../../api/data-access/" class="md-nav__link">
         
   
   
@@ -1217,7 +1217,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../processor-utilities/" class="md-nav__link">
+      <a href="../../api/processor-utilities/" class="md-nav__link">
         
   
   
@@ -1302,7 +1302,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../explore/" class="md-nav__link">
+      <a href="../../api/explore/" class="md-nav__link">
         
   
   
@@ -1330,7 +1330,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tools/" class="md-nav__link">
+      <a href="../../api/tools/" class="md-nav__link">
         
   
   
@@ -1358,7 +1358,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../util/" class="md-nav__link">
+      <a href="../../api/util/" class="md-nav__link">
         
   
   
@@ -1386,7 +1386,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../derived-variables/" class="md-nav__link">
+      <a href="../../api/derived-variables/" class="md-nav__link">
         
   
   
@@ -1604,7 +1604,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../core/" class="md-nav__link">
+      <a href="../../api/core/" class="md-nav__link">
         
   
   
@@ -1659,10 +1659,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#processor-registry" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Overview
+        Processor Registry
       
     </span>
   </a>
@@ -1670,10 +1670,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#boundaries-class" class="md-nav__link">
+  <a href="#execution-order" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Boundaries Class
+        Execution Order
       
     </span>
   </a>
@@ -1681,10 +1681,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#climakitae.core.boundaries.Boundaries" class="md-nav__link">
+  <a href="#architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Boundaries
+        Architecture
       
     </span>
   </a>
@@ -1692,10 +1692,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#climakitae.core.boundaries.Boundaries.load" class="md-nav__link">
+  <a href="#how-to-read-these-diagrams" class="md-nav__link">
     <span class="md-ellipsis">
       
-        load
+        How to Read These Diagrams
       
     </span>
   </a>
@@ -1703,32 +1703,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#climakitae.core.boundaries.Boundaries.boundary_dict" class="md-nav__link">
+  <a href="#adding-a-new-processor" class="md-nav__link">
     <span class="md-ellipsis">
       
-        boundary_dict
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#available-boundary-types" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Available Boundary Types
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#usage-example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Usage Example
+        Adding a New Processor
       
     </span>
   </a>
@@ -1752,7 +1730,7 @@
 
 
   
-    <a href="https://github.com/cal-adapt/climakitae/edit/main/docs-mkdocs/api/core-boundaries.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/cal-adapt/climakitae/edit/main/docs-mkdocs/climate-data-interface/processors/index.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1760,416 +1738,162 @@
   
 
 
-<h1 id="core-boundaries-detailed">Core Boundaries (Detailed)</h1>
-<p>Geographic boundary management for climate data clipping.</p>
-<h2 id="overview">Overview</h2>
-<p><code>climakitae.core.boundaries</code> provides the <code>Boundaries</code> class for managing geographic regions used to subset climate data. It handles:
-- Loading predefined boundaries (counties, watersheds, utilities)
-- Lazy loading to minimize memory usage
-- Caching of boundary geometries
-- Geographic operations (clipping, spatial queries)</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Both legacy (<code>climakitae.core.boundaries</code>) and the ClimateData interface (<code>climakitae.new_core.data_access.boundaries</code>) implement similar functionality. New code should use the ClimateData version.</p>
-</div>
-<h2 id="boundaries-class">Boundaries Class</h2>
-
-
-<div class="doc doc-object doc-class">
-
-
-
-<a id="climakitae.core.boundaries.Boundaries"></a>
-    <div class="doc doc-contents first">
-
-
-
-        <p>Get geospatial polygon data from the S3 stored parquet catalog.
-Used to access boundaries for subsetting data by state, county, etc.</p>
-
-
-<p><span class="doc-section-title">Attributes:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td><code><span title="climakitae.core.boundaries.Boundaries._cat">_cat</span></code></td>
-            <td>
-                  <code><span title="intake.catalog.Catalog">Catalog</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Parquet boundary catalog instance</p>
-              </div>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td><code><span title="climakitae.core.boundaries.Boundaries._us_states">_us_states</span></code></td>
-            <td>
-                  <code><span title="pandas.DataFrame">DataFrame</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Table of US state names and geometries</p>
-              </div>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td><code><span title="climakitae.core.boundaries.Boundaries._ca_counties">_ca_counties</span></code></td>
-            <td>
-                  <code><span title="pandas.DataFrame">DataFrame</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Table of California county names and geometries
-Sorted by county name alphabetical order</p>
-              </div>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td><code><span title="climakitae.core.boundaries.Boundaries._ca_watersheds">_ca_watersheds</span></code></td>
-            <td>
-                  <code><span title="pandas.DataFrame">DataFrame</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Table of California watershed names and geometries
-Sorted by watershed name alphabetical order</p>
-              </div>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td><code><span title="climakitae.core.boundaries.Boundaries._ca_utilities">_ca_utilities</span></code></td>
-            <td>
-                  <code><span title="pandas.DataFrame">DataFrame</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Table of California IOUs and POUs, names and geometries</p>
-              </div>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td><code><span title="climakitae.core.boundaries.Boundaries._ca_forecast_zones">_ca_forecast_zones</span></code></td>
-            <td>
-                  <code><span title="pandas.DataFrame">DataFrame</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Table of California Demand Forecast Zones</p>
-              </div>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td><code><span title="climakitae.core.boundaries.Boundaries._ca_electric_balancing_areas">_ca_electric_balancing_areas</span></code></td>
-            <td>
-                  <code><span title="pandas.DataFrame">DataFrame</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Table of Electric Balancing Areas</p>
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-<p><span class="doc-section-title">Methods:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-            <tr class="doc-section-item">
-              <td><code><span title="climakitae.core.boundaries.Boundaries._get_us_states">_get_us_states</span></code></td>
-              <td>
-                <div class="doc-md-description">
-                  <p>Returns a dict of state abbreviations and indices</p>
-                </div>
-              </td>
-            </tr>
-            <tr class="doc-section-item">
-              <td><code><span title="climakitae.core.boundaries.Boundaries._get_ca_counties">_get_ca_counties</span></code></td>
-              <td>
-                <div class="doc-md-description">
-                  <p>Returns a dict of California counties and their indices</p>
-                </div>
-              </td>
-            </tr>
-            <tr class="doc-section-item">
-              <td><code><span title="climakitae.core.boundaries.Boundaries._get_ca_watersheds">_get_ca_watersheds</span></code></td>
-              <td>
-                <div class="doc-md-description">
-                  <p>Returns a dict for CA watersheds and their indices</p>
-                </div>
-              </td>
-            </tr>
-            <tr class="doc-section-item">
-              <td><code><span title="climakitae.core.boundaries.Boundaries._get_forecast_zones">_get_forecast_zones</span></code></td>
-              <td>
-                <div class="doc-md-description">
-                  <p>Returns a dict for CA electricity demand forecast zones</p>
-                </div>
-              </td>
-            </tr>
-            <tr class="doc-section-item">
-              <td><code><span title="climakitae.core.boundaries.Boundaries._get_ious_pous">_get_ious_pous</span></code></td>
-              <td>
-                <div class="doc-md-description">
-                  <p>Returns a dict for CA electric load serving entities IOUs &amp; POUs</p>
-                </div>
-              </td>
-            </tr>
-            <tr class="doc-section-item">
-              <td><code><span title="climakitae.core.boundaries.Boundaries._get_electric_balancing_areas">_get_electric_balancing_areas</span></code></td>
-              <td>
-                <div class="doc-md-description">
-                  <p>Returns a dict for CA Electric Balancing Authority Areas</p>
-                </div>
-              </td>
-            </tr>
-      </tbody>
-    </table>
-
-
-
-
-
-
-
-
-                  <details class="mkdocstrings-source">
-                    <summary>Source code in <code>climakitae/core/boundaries.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-52">52</a></span>
-<span class="normal"><a href="#__codelineno-0-53">53</a></span>
-<span class="normal"><a href="#__codelineno-0-54">54</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">boundary_catalog</span><span class="p">):</span>
-<a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="c1"># Connect intake Catalog to class</span>
-<a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span> <span class="o">=</span> <span class="n">boundary_catalog</span>
-</code></pre></div></td></tr></table></div>
-                  </details>
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-object doc-function">
-
-
-<h2 id="climakitae.core.boundaries.Boundaries.load" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">load</span><span class="p">()</span></code>
-
-</h2>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Read parquet files and sets class attributes.</p>
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>climakitae/core/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-56">56</a></span>
-<span class="normal"><a href="#__codelineno-0-57">57</a></span>
-<span class="normal"><a href="#__codelineno-0-58">58</a></span>
-<span class="normal"><a href="#__codelineno-0-59">59</a></span>
-<span class="normal"><a href="#__codelineno-0-60">60</a></span>
-<span class="normal"><a href="#__codelineno-0-61">61</a></span>
-<span class="normal"><a href="#__codelineno-0-62">62</a></span>
-<span class="normal"><a href="#__codelineno-0-63">63</a></span>
-<span class="normal"><a href="#__codelineno-0-64">64</a></span>
-<span class="normal"><a href="#__codelineno-0-65">65</a></span>
-<span class="normal"><a href="#__codelineno-0-66">66</a></span>
-<span class="normal"><a href="#__codelineno-0-67">67</a></span>
-<span class="normal"><a href="#__codelineno-0-68">68</a></span>
-<span class="normal"><a href="#__codelineno-0-69">69</a></span>
-<span class="normal"><a href="#__codelineno-0-70">70</a></span>
-<span class="normal"><a href="#__codelineno-0-71">71</a></span>
-<span class="normal"><a href="#__codelineno-0-72">72</a></span>
-<span class="normal"><a href="#__codelineno-0-73">73</a></span>
-<span class="normal"><a href="#__codelineno-0-74">74</a></span>
-<span class="normal"><a href="#__codelineno-0-75">75</a></span>
-<span class="normal"><a href="#__codelineno-0-76">76</a></span>
-<span class="normal"><a href="#__codelineno-0-77">77</a></span>
-<span class="normal"><a href="#__codelineno-0-78">78</a></span>
-<span class="normal"><a href="#__codelineno-0-79">79</a></span>
-<span class="normal"><a href="#__codelineno-0-80">80</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-56" name="__codelineno-0-56"></a><span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Read parquet files and sets class attributes.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_us_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">states</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-<a id="__codelineno-0-59" name="__codelineno-0-59"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_counties</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">counties</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s2">&quot;NAME&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-60" name="__codelineno-0-60"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_watersheds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">huc8</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s2">&quot;Name&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-61" name="__codelineno-0-61"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_utilities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">utilities</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-<a id="__codelineno-0-62" name="__codelineno-0-62"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">dfz</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-<a id="__codelineno-0-63" name="__codelineno-0-63"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">eba</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-<a id="__codelineno-0-64" name="__codelineno-0-64"></a>
-<a id="__codelineno-0-65" name="__codelineno-0-65"></a>    <span class="c1"># EBA CALISO polygon has two options</span>
-<a id="__codelineno-0-66" name="__codelineno-0-66"></a>    <span class="c1"># One of the polygons is super tiny, with a negligible area</span>
-<a id="__codelineno-0-67" name="__codelineno-0-67"></a>    <span class="c1"># Perhaps this is an error from the producers of the data</span>
-<a id="__codelineno-0-68" name="__codelineno-0-68"></a>    <span class="c1"># Just grab the CALISO polygon with the large area</span>
-<a id="__codelineno-0-69" name="__codelineno-0-69"></a>    <span class="n">tiny_caliso</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
-<a id="__codelineno-0-70" name="__codelineno-0-70"></a>        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="p">[</span><span class="s2">&quot;NAME&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;CALISO&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-71" name="__codelineno-0-71"></a>        <span class="o">&amp;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="p">[</span><span class="s2">&quot;SHAPE_Area&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">100</span><span class="p">)</span>
-<a id="__codelineno-0-72" name="__codelineno-0-72"></a>    <span class="p">]</span><span class="o">.</span><span class="n">index</span>
-<a id="__codelineno-0-73" name="__codelineno-0-73"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span>
-<a id="__codelineno-0-74" name="__codelineno-0-74"></a>        <span class="n">tiny_caliso</span>
-<a id="__codelineno-0-75" name="__codelineno-0-75"></a>    <span class="p">)</span>
-<a id="__codelineno-0-76" name="__codelineno-0-76"></a>
-<a id="__codelineno-0-77" name="__codelineno-0-77"></a>    <span class="c1"># For Forecast Zones named &quot;Other&quot;, replace that with the name of the county</span>
-<a id="__codelineno-0-78" name="__codelineno-0-78"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
-<a id="__codelineno-0-79" name="__codelineno-0-79"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span><span class="p">[</span><span class="s2">&quot;FZ_Name&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Other&quot;</span><span class="p">,</span> <span class="s2">&quot;FZ_Name&quot;</span>
-<a id="__codelineno-0-80" name="__codelineno-0-80"></a>    <span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span><span class="p">[</span><span class="s2">&quot;FZ_Def&quot;</span><span class="p">]</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h2 id="climakitae.core.boundaries.Boundaries.boundary_dict" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">boundary_dict</span><span class="p">()</span></code>
-
-</h2>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Return a dict of the other boundary dicts, used to populate ck.Select.</p>
-<p>This returns a dictionary of lookup dictionaries for each set of
-geoparquet files that the user might be choosing from. It is used to
-populate the <code>DataParameters</code> cached_area dynamically as the category
-in the area_subset parameter changes.</p>
-
-
-    <p><span class="doc-section-title">Returns:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                  <code><span title="dict">dict</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>climakitae/core/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-191">191</a></span>
-<span class="normal"><a href="#__codelineno-0-192">192</a></span>
-<span class="normal"><a href="#__codelineno-0-193">193</a></span>
-<span class="normal"><a href="#__codelineno-0-194">194</a></span>
-<span class="normal"><a href="#__codelineno-0-195">195</a></span>
-<span class="normal"><a href="#__codelineno-0-196">196</a></span>
-<span class="normal"><a href="#__codelineno-0-197">197</a></span>
-<span class="normal"><a href="#__codelineno-0-198">198</a></span>
-<span class="normal"><a href="#__codelineno-0-199">199</a></span>
-<span class="normal"><a href="#__codelineno-0-200">200</a></span>
-<span class="normal"><a href="#__codelineno-0-201">201</a></span>
-<span class="normal"><a href="#__codelineno-0-202">202</a></span>
-<span class="normal"><a href="#__codelineno-0-203">203</a></span>
-<span class="normal"><a href="#__codelineno-0-204">204</a></span>
-<span class="normal"><a href="#__codelineno-0-205">205</a></span>
-<span class="normal"><a href="#__codelineno-0-206">206</a></span>
-<span class="normal"><a href="#__codelineno-0-207">207</a></span>
-<span class="normal"><a href="#__codelineno-0-208">208</a></span>
-<span class="normal"><a href="#__codelineno-0-209">209</a></span>
-<span class="normal"><a href="#__codelineno-0-210">210</a></span>
-<span class="normal"><a href="#__codelineno-0-211">211</a></span>
-<span class="normal"><a href="#__codelineno-0-212">212</a></span>
-<span class="normal"><a href="#__codelineno-0-213">213</a></span>
-<span class="normal"><a href="#__codelineno-0-214">214</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-191" name="__codelineno-0-191"></a><span class="k">def</span><span class="w"> </span><span class="nf">boundary_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<a id="__codelineno-0-192" name="__codelineno-0-192"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a dict of the other boundary dicts, used to populate ck.Select.</span>
-<a id="__codelineno-0-193" name="__codelineno-0-193"></a>
-<a id="__codelineno-0-194" name="__codelineno-0-194"></a><span class="sd">    This returns a dictionary of lookup dictionaries for each set of</span>
-<a id="__codelineno-0-195" name="__codelineno-0-195"></a><span class="sd">    geoparquet files that the user might be choosing from. It is used to</span>
-<a id="__codelineno-0-196" name="__codelineno-0-196"></a><span class="sd">    populate the `DataParameters` cached_area dynamically as the category</span>
-<a id="__codelineno-0-197" name="__codelineno-0-197"></a><span class="sd">    in the area_subset parameter changes.</span>
-<a id="__codelineno-0-198" name="__codelineno-0-198"></a>
-<a id="__codelineno-0-199" name="__codelineno-0-199"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-200" name="__codelineno-0-200"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-201" name="__codelineno-0-201"></a><span class="sd">    dict</span>
-<a id="__codelineno-0-202" name="__codelineno-0-202"></a>
-<a id="__codelineno-0-203" name="__codelineno-0-203"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-204" name="__codelineno-0-204"></a>    <span class="n">all_options</span> <span class="o">=</span> <span class="p">{</span>
-<a id="__codelineno-0-205" name="__codelineno-0-205"></a>        <span class="s2">&quot;none&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;entire domain&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
-<a id="__codelineno-0-206" name="__codelineno-0-206"></a>        <span class="s2">&quot;lat/lon&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;coordinate selection&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
-<a id="__codelineno-0-207" name="__codelineno-0-207"></a>        <span class="s2">&quot;states&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_us_states</span><span class="p">(),</span>
-<a id="__codelineno-0-208" name="__codelineno-0-208"></a>        <span class="s2">&quot;CA counties&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_counties</span><span class="p">(),</span>
-<a id="__codelineno-0-209" name="__codelineno-0-209"></a>        <span class="s2">&quot;CA watersheds&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_watersheds</span><span class="p">(),</span>
-<a id="__codelineno-0-210" name="__codelineno-0-210"></a>        <span class="s2">&quot;CA Electric Load Serving Entities (IOU &amp; POU)&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ious_pous</span><span class="p">(),</span>
-<a id="__codelineno-0-211" name="__codelineno-0-211"></a>        <span class="s2">&quot;CA Electricity Demand Forecast Zones&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_forecast_zones</span><span class="p">(),</span>
-<a id="__codelineno-0-212" name="__codelineno-0-212"></a>        <span class="s2">&quot;CA Electric Balancing Authority Areas&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_electric_balancing_areas</span><span class="p">(),</span>
-<a id="__codelineno-0-213" name="__codelineno-0-213"></a>    <span class="p">}</span>
-<a id="__codelineno-0-214" name="__codelineno-0-214"></a>    <span class="k">return</span> <span class="n">all_options</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-
-
-  </div>
-
-    </div>
-
-</div><h2 id="available-boundary-types">Available Boundary Types</h2>
-<p>The Boundaries class provides access to several predefined boundary catalogs:</p>
-<ul>
-<li><strong>US States</strong> — Western US states</li>
-<li><strong>CA Counties</strong> — All 58 California counties</li>
-<li><strong>CA Watersheds</strong> — HUC8-level watersheds in California</li>
-<li><strong>CA Utilities</strong> — Investor-owned utilities (IOUs) and publicly-owned utilities (POUs)</li>
-<li><strong>CA Electric Zones</strong> — Electricity demand forecast zones</li>
-<li><strong>CA Balancing Authorities</strong> — Electric balancing authority areas</li>
-<li><strong>CA Census Tracts</strong> — Census tract boundaries</li>
-</ul>
-<h2 id="usage-example">Usage Example</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.core.boundaries</span><span class="w"> </span><span class="kn">import</span> <span class="n">Boundaries</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Initialize boundary loader</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">boundaries</span> <span class="o">=</span> <span class="n">Boundaries</span><span class="p">()</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Get available counties</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">counties</span> <span class="o">=</span> <span class="n">boundaries</span><span class="o">.</span><span class="n">available_counties</span><span class="p">()</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Get geometry for specific county</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">la_geom</span> <span class="o">=</span> <span class="n">boundaries</span><span class="o">.</span><span class="n">get_geometry</span><span class="p">(</span><span class="s2">&quot;Los Angeles&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># Multiple regions (union)</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">multi_geom</span> <span class="o">=</span> <span class="n">boundaries</span><span class="o">.</span><span class="n">get_geometry</span><span class="p">([</span><span class="s2">&quot;Alameda&quot;</span><span class="p">,</span> <span class="s2">&quot;Contra Costa&quot;</span><span class="p">])</span>
+<h1 id="processor-reference">Processor Reference</h1>
+<p><strong>What each processor does, with parameters and edge cases.</strong> If you'd rather
+start from a goal ("clip to a county", "export to Zarr"), use the
+<a href="../howto/">How-To Guides</a> instead.</p>
+<p>Processors transform climate data through a configurable pipeline. Each processor executes in priority order, handling a specific transformation task: temporal subsetting, spatial clipping, format conversion, aggregation, or metadata updates.</p>
+<h2 id="processor-registry">Processor Registry</h2>
+<p>All available processors, listed in execution order (lowest priority first).</p>
+<p>The <strong>registry key</strong> is the string you pass to <code>.processes({...})</code>. It is not always identical to the source filename — for example, the concatenation processor is registered under the key <code>"concat"</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Registry key</th>
+<th style="text-align: right;">Priority</th>
+<th>Page</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>filter_unadjusted_models</code></td>
+<td style="text-align: right;">0</td>
+<td><a href="filter_unadjusted_models/">filter_unadjusted_models</a></td>
+<td>Filter models by a-priori bias-adjustment status (default: enabled for WRF)</td>
+</tr>
+<tr>
+<td><code>drop_leap_days</code></td>
+<td style="text-align: right;">1</td>
+<td><a href="drop_leap_days/">drop_leap_days</a></td>
+<td>Remove Feb 29 for calendar alignment</td>
+</tr>
+<tr>
+<td><code>convert_units</code></td>
+<td style="text-align: right;">5</td>
+<td><a href="convert_units/">convert_units</a></td>
+<td>Unit conversion for climate variables</td>
+</tr>
+<tr>
+<td><code>warming_level</code></td>
+<td style="text-align: right;">10</td>
+<td><a href="warming_level/">warming_level</a></td>
+<td>Subset around global warming-level thresholds</td>
+</tr>
+<tr>
+<td><code>concat</code></td>
+<td style="text-align: right;">50</td>
+<td><a href="concatenate/">concatenate</a></td>
+<td>Concatenate datasets along the <code>sim</code> (or named) dimension</td>
+</tr>
+<tr>
+<td><code>bias_adjust_model_to_station</code></td>
+<td style="text-align: right;">60</td>
+<td><a href="bias_adjust_model_to_station/">bias_adjust_model_to_station</a></td>
+<td>Quantile-delta-mapping bias correction using HadISD station observations</td>
+</tr>
+<tr>
+<td><code>clip</code></td>
+<td style="text-align: right;">65</td>
+<td><a href="clip/">clip</a></td>
+<td>Spatial subsetting by boundary, point(s), bbox, station, or shapefile</td>
+</tr>
+<tr>
+<td><code>convert_to_local_time</code></td>
+<td style="text-align: right;">70</td>
+<td><a href="convert_to_local_time/">convert_to_local_time</a></td>
+<td>Convert UTC to a local timezone</td>
+</tr>
+<tr>
+<td><code>time_slice</code></td>
+<td style="text-align: right;">150</td>
+<td><a href="time_slice/">time_slice</a></td>
+<td>Temporal subsetting by date range and optional season</td>
+</tr>
+<tr>
+<td><code>metric_calc</code></td>
+<td style="text-align: right;">7500</td>
+<td><a href="metric_calc/">metric_calc</a></td>
+<td>Derived metrics, threshold exceedance, and 1-in-X return-period analysis</td>
+</tr>
+<tr>
+<td><code>update_attributes</code></td>
+<td style="text-align: right;">9998</td>
+<td><a href="update_attributes/">update_attributes</a></td>
+<td>Update dataset/variable attributes</td>
+</tr>
+<tr>
+<td><code>export</code></td>
+<td style="text-align: right;">9999</td>
+<td><a href="export/">export</a></td>
+<td>Write to NetCDF, Zarr, CSV, or GeoTIFF</td>
+</tr>
+</tbody>
+</table>
+<h2 id="execution-order">Execution Order</h2>
+<p>Processors execute in <strong>priority order</strong> (ascending — lowest priority runs first). Within each workflow, only registered processors with configured parameters execute.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Phase 1: Catalog refinement (priority 0–10)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  ├─ filter_unadjusted_models (0)    — Drop models without a-priori bias adjustment
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  ├─ drop_leap_days (1)              — Calendar normalization
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  ├─ convert_units (5)               — Unit standardization
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  └─ warming_level (10)              — Global-warming-level window selection
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>Phase 2: Aggregation, correction, spatial (priority 50–70)
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  ├─ concat (50)                     — Concatenate along sim (or other) dimension
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  ├─ bias_adjust_model_to_station (60) — Station-based bias correction (WRF only)
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  ├─ clip (65)                       — Geographic filtering
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  └─ convert_to_local_time (70)      — Timezone conversion
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>Phase 3: Temporal subsetting &amp; metrics (priority 150–7500)
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  ├─ time_slice (150)                — Calendar date / season filtering
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  └─ metric_calc (7500)              — Derived metrics &amp; extreme-value analysis
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>Phase 4: Finalization (priority 9998–9999)
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>  ├─ update_attributes (9998)        — Metadata finalization
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>  └─ export (9999)                   — File writing &amp; archival
 </code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Why does spatial clipping run before time slicing?</p>
+<p><code>clip</code> (priority 65) runs before <code>time_slice</code> (priority 150) so that spatial
+subsetting reduces the data volume that subsequent steps must read. Reducing
+spatial extent first is usually the dominant performance win for gridded
+queries.</p>
+</div>
+<h2 id="architecture">Architecture</h2>
+<p>Each processor implements three core methods:</p>
+<ul>
+<li><strong><code>__init__(value: Dict)</code></strong> — Parse and validate parameters</li>
+<li><strong><code>execute(data: Dataset, context: Dict) → Dataset</code></strong> — Apply transformation, handle branching (lists, dicts, single datasets)</li>
+<li><strong><code>update_context(context: Dict) → None</code></strong> — Record operation in dataset attributes</li>
+</ul>
+<p>The processor registry uses decorators:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nd">@register_processor</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s2">&quot;processor_name&quot;</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="n">N</span><span class="p">)</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">ProcessorName</span><span class="p">(</span><span class="n">DataProcessor</span><span class="p">):</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>        <span class="c1"># Transform data</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>        <span class="k">return</span> <span class="n">data</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">update_context</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>        <span class="c1"># Record metadata</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>        <span class="k">pass</span>
+</code></pre></div>
+<h2 id="how-to-read-these-diagrams">How to Read These Diagrams</h2>
+<p>Each processor page includes:</p>
+<ul>
+<li><strong>Algorithm flowchart</strong> — Execution flow with decision points</li>
+<li><strong>Code links</strong> — Click boxes to jump to source code</li>
+<li><strong>Parameter table</strong> — Valid inputs and constraints</li>
+<li><strong>Usage example</strong> — How to invoke via <code>ClimateData.processes()</code></li>
+</ul>
+<h2 id="adding-a-new-processor">Adding a New Processor</h2>
+<p>See <a href="../architecture/#add-a-processor-4-step-guide">Architecture → Extension Guide → Add a Processor</a> for step-by-step instructions. Summary:</p>
+<ol>
+<li>Create <code>climakitae/new_core/processors/my_processor.py</code> inheriting from <code>DataProcessor</code></li>
+<li>Implement <code>execute()</code> and <code>update_context()</code></li>
+<li>Decorate with <code>@register_processor(key="my_processor", priority=N)</code> </li>
+<li>Import in <code>__init__.py</code> to register at import time</li>
+<li>Add documentation page <code>docs-mkdocs/new-core/processors/my_processor.md</code></li>
+</ol>
 
 
 
