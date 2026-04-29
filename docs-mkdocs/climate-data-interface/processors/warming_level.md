@@ -1,6 +1,6 @@
 # Processor: WarmingLevel
 
-**Priority:** 160 | **Category:** Temporal Processing
+**Registry key:** `warming_level` &nbsp;|&nbsp; **Priority:** 10 &nbsp;|&nbsp; **Category:** Temporal Processing
 
 Subset climate data by global warming level thresholds instead of calendar dates. Transform time-series data to a warming-level-centric approach for climate impact analysis aligned with IPCC warming scenarios.
 

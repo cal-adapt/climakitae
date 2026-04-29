@@ -1,6 +1,6 @@
 # Processor: DropLeapDays
 
-**Priority:** 260 | **Category:** Calendar Processing
+**Registry key:** `drop_leap_days` &nbsp;|&nbsp; **Priority:** 1 &nbsp;|&nbsp; **Category:** Calendar Processing
 
 Remove leap days (February 29th) from climate data. Align datasets with different calendar representations for consistent time-series analysis.
 

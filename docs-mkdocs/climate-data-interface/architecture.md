@@ -2,6 +2,23 @@
 
 This guide explains the internal architecture of climakitae's `new_core` module for developers and contributors. It covers system design, component responsibilities, key patterns, and how to extend the system.
 
+!!! note "Audience"
+    This is the **contributor / extender** reference. If you only want to *use*
+    the ClimateData interface, start with [Core Concepts](concepts.md) or the
+    [How-To Guides](howto.md).
+
+## On this page
+
+- [System Overview](#system-overview) — pipeline architecture and data flow
+- [Core Components](#core-components) — `ClimateData`, `DatasetFactory`, `Dataset`, `DataCatalog`, registries
+- [Key Design Patterns](#key-design-patterns) — lazy evaluation, fluent builder, processor priorities, history tracking
+- [Extending the System](#extending-the-system) — adding processors, validators, catalogs
+- [Threading & Concurrency](#threading-concurrency) — per-thread instances, catalog singleton safety
+- [Internal APIs](#internal-apis) — registry inspection helpers
+- [Testing New Components](#testing-new-components) — unit / integration patterns
+- [Common Pitfalls](#common-pitfalls)
+- [Resources](#resources)
+
 ---
 
 ## System Overview
@@ -278,7 +295,7 @@ suggestions = validator._get_closest_options("tasxxx", "variable_id", n=3)
 **Required Methods**:
 
 ```python
-@register_processor("my_processor", priority=250)
+@register_processor("my_processor", priority=80)
 class MyProcessor(DataProcessor):
     def __init__(self, value):
         self.value = value
@@ -301,14 +318,22 @@ class MyProcessor(DataProcessor):
         self._catalog = catalog
 ```
 
-**Priority System**:
+**Priority guidelines (real values used by the shipped processors):**
+
 ```
-0-99:    Pre-processing (bias correction, model filtering)
-100-199: Core processing (time slicing, warming levels)
-200-299: Spatial operations (clipping, aggregation)
-300-399: Post-processing (unit conversion, attribute updates)
-9999:    Export (must be last, writes to disk)
+0–10     : Pre-processing (filter_unadjusted_models=0, drop_leap_days=1,
+          convert_units=5, warming_level=10) — catalog refinement & GWL subset
+50–70    : Combination + correction + spatial
+          (concat=50, bias_adjust_model_to_station=60, clip=65,
+           convert_to_local_time=70)
+150–7500 : Temporal subsetting & metric computation
+          (time_slice=150, metric_calc=7500)
+9998–9999: Finalization (update_attributes=9998, export=9999)
 ```
+
+When registering a custom processor, pick a priority that puts it in the
+phase that matches its intent. See the [Processors index](./processors/index.md)
+for the full registry.
 
 **Key Rules**:
 - **No in-place mutation**: Always return new objects
@@ -497,7 +522,7 @@ Components register at import time using decorators:
 
 ```python
 # Processor registration
-@register_processor("clip", priority=200)
+@register_processor("clip", priority=65)
 class Clip(DataProcessor):
     ...
 
@@ -593,7 +618,7 @@ final = result.mean(dim='time')  # Already computed
    )
    from climakitae.core.constants import _NEW_ATTRS_KEY
    
-   @register_processor("my_key", priority=250)
+   @register_processor("my_key", priority=80)
    class MyProcessor(DataProcessor):
        def __init__(self, value):
            self.value = value
@@ -883,7 +908,7 @@ def test_my_processor(test_data_2022_monthly_45km):
 | **Wrong patch location** | Mocks don't intercept calls | Patch import location: `"module.ClassName"` |
 | **Forgetting registration** | Components not discovered | Use `@register_*` decorators at class definition |
 | **Context not updated** | No metadata about processing | Update `context[_NEW_ATTRS_KEY]` in processors |
-| **Priority conflicts** | Wrong execution order | Use priority ranges (0-99, 100-199, etc.) |
+| **Priority conflicts** | Wrong execution order | Pick a priority that places the processor in the correct phase (see [Processors index](./processors/index.md)). Lower numbers run first. |
 
 ---
 

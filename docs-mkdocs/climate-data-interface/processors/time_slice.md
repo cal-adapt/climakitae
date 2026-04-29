@@ -1,6 +1,6 @@
 # Processor: TimeSlice
 
-**Priority:** 150 | **Category:** Temporal Processing
+**Registry key:** `time_slice` &nbsp;|&nbsp; **Priority:** 150 &nbsp;|&nbsp; **Category:** Temporal Processing
 
 Subset climate data by date range and optional seasonal filters. Apply calendar-based temporal windowing to extract specific time periods or seasons from multi-year datasets.
 

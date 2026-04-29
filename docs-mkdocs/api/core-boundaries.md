@@ -11,7 +11,7 @@ Geographic boundary management for climate data clipping.
 - Geographic operations (clipping, spatial queries)
 
 !!! note
-    Both legacy (`climakitae.core.boundaries`) and new core (`climakitae.new_core.data_access.boundaries`) implement similar functionality. New code should use the new core version.
+    Both legacy (`climakitae.core.boundaries`) and the ClimateData interface (`climakitae.new_core.data_access.boundaries`) implement similar functionality. New code should use the ClimateData version.
 
 ## Boundaries Class
 

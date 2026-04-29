@@ -1,4 +1,4 @@
-# API Reference: New Core
+# API Reference: ClimateData
 
 API reference for `climakitae.new_core` modules.
 

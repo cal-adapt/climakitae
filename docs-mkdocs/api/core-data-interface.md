@@ -38,8 +38,11 @@ For new code, use the modern `climakitae.new_core` interface. See the [migration
 from climakitae.core.data_interface import get_data, DataParameters
 
 params = DataParameters()
-params.variable = "tasmax"
-params.time_period = (2015, 2045)
+params.variable = "Maximum air temperature at 2m"
+params.time_slice = (2015, 2045)            # year-range tuple
+params.downscaling_method = "Statistical"    # \u2248 LOCA2
+params.resolution = "3 km"                   # \u2248 grid_label d03
+params.timescale = "monthly"                 # \u2248 table_id "mon"
 data = get_data(params)
 ```
 
@@ -49,6 +52,6 @@ from climakitae.new_core.user_interface import ClimateData
 
 data = (ClimateData()
     .variable("tasmax")
-    .timeframe(2015, 2045)
+    .processes({"time_slice": (2015, 2045)})
     .get())
 ```

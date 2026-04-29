@@ -1,6 +1,6 @@
 # Processor: BiasAdjustModelToStation
 
-**Priority:** 240 | **Category:** Data Refinement
+**Registry key:** `bias_adjust_model_to_station` &nbsp;|&nbsp; **Priority:** 60 &nbsp;|&nbsp; **Category:** Data Refinement
 
 Apply bias correction to WRF model data using quantile delta mapping (QDM) with weather station observations. Reduce systematic errors between model simulations and observed climate.
 

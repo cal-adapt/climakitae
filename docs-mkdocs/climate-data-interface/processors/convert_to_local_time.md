@@ -1,6 +1,6 @@
 # Processor: ConvertToLocalTime
 
-**Priority:** 270 | **Category:** Calendar Processing
+**Registry key:** `convert_to_local_time` &nbsp;|&nbsp; **Priority:** 70 &nbsp;|&nbsp; **Category:** Calendar Processing
 
 Convert UTC time to local time zones. Adjust timestamps for regional analysis where local time interpretation is critical (e.g., daily peak demand at local midnight vs UTC).
 

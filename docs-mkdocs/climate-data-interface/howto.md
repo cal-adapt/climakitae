@@ -1,6 +1,21 @@
 # How-To Guides
 
-Common workflows and recipes for working with ClimateData.
+**You have a goal — here's the recipe.** Each section below answers a concrete
+analysis question with a runnable `ClimateData` chain.
+
+For a parameter-by-parameter reference of any single processor, see
+[Processor Reference](processors/index.md).
+
+| Goal | Section |
+|---|---|
+| Clip to a county, watershed, point, or bbox | [Clip data to a spatial region](#clip-data) |
+| Save to NetCDF / Zarr / CSV / GeoTIFF | [Export data to files](#export-data) |
+| Query at 1.5 / 2 / 3 °C global warming | [Warming-level analysis](#warming-level-analysis) |
+| Localize WRF temperature to a station | [Bias correction](#bias-correction-station-localization) |
+| Process many points or scenarios | [Batch processing](#batch-processing-multiple-points-or-scenarios) |
+| Build a multi-model / multi-region pipeline | [Combining techniques](#multi-model-ensemble) |
+| Compute HDD / CDD / heat index / etc. | [Derived variables & climate indices](#derived-variables) |
+| Subset by calendar dates | [Time-based queries](#time-based-queries) |
 
 ---
 
@@ -143,7 +158,7 @@ data = (cd
 ```python
 # Zarr format: excellent for large datasets, cloud-native
 data = (cd
-    .variable("tasmax")
+    .variable("t2max")
     .activity_id("WRF")
     .institution_id("UCLA")  # Specify WRF producer
     .processes({
@@ -268,7 +283,8 @@ print(f"Time range: {data['time'].min().values} to {data['time'].max().values}")
 # All models show different years for 2°C warming
 # But with GWL, we can compare apples-to-apples
 
-models = ["CNRM-CM6-1", "ACCESS-CM2", "EC-Earth3"]
+# UCLA WRF source models (verify with cd.show_source_id_options())
+models = ["CESM2", "EC-Earth3", "MPI-ESM1-2-HR"]
 results = {}
 
 for model in models:
@@ -276,7 +292,7 @@ for model in models:
         .activity_id("WRF")
         .institution_id("UCLA")
         .source_id(model)
-        .variable("pr")
+        .variable("prec")  # WRF precipitation (LOCA2 uses 'pr')
         .processes({
             "warming_level": {
                 "warming_levels": [2.0],
@@ -286,7 +302,7 @@ for model in models:
         })
         .get())
     
-    results[model] = data["pr"].mean(dim=["lat", "lon", "time"]).compute()
+    results[model] = data["prec"].mean(dim=["lat", "lon", "time"]).compute()
 
 # Now all models are at exactly 2°C warming
 # Direct comparison: model_A vs model_B at same climate state
@@ -302,17 +318,17 @@ data = (cd
     .activity_id("WRF")
     .institution_id("UCLA")
     .experiment_id("ssp245")  # Moderate emissions
-    .variable("tasmax")
+    .variable("t2max")
     .processes({
         "warming_level": {"warming_levels": [4.0]}  # Very high warming
     })
     .get())
 
 # Check if data exists
-if data is None or data["tasmax"].isnull().all():
+if data is None or data["t2max"].isnull().all():
     print("Model doesn't reach 4°C in SSP2-4.5 scenario")
 else:
-    result = data["tasmax"].mean().compute()
+    result = data["t2max"].mean().compute()
 ```
 
 ### Warming Level Reference Periods
@@ -325,7 +341,7 @@ else:
 data = (cd
     .activity_id("WRF")
     .institution_id("UCLA")
-    .variable("tasmax")
+    .variable("t2max")
     .processes({
         "warming_level": {"warming_levels": [1.5, 2.0]}
     })
@@ -347,6 +363,7 @@ Use historical weather station observations to correct WRF model bias locally.
 # ⚠️  Currently WRF + hourly temperature only
 data = (cd
     .activity_id("WRF")
+    .institution_id("UCLA")      # Specify WRF producer
     .variable("t2")              # Hourly 2m temperature
     .table_id("1hr")             # Must be hourly
     .processes({
@@ -425,7 +442,7 @@ locations = pd.DataFrame({
 results = batch_select(
     cd,
     locations,
-    variable="tasmax",
+    variable="t2max",
     activity_id="WRF",
     institution_id="UCLA",  # Specify WRF producer
     table_id="mon"
@@ -433,7 +450,7 @@ results = batch_select(
 
 # Results: dict[location_name] = xr.Dataset
 for name, data in results.items():
-    print(f"{name}: {data['tasmax'].mean().compute():.1f} K")
+    print(f"{name}: {data['t2max'].mean().compute():.1f} K")
 ```
 
 ### Process Multiple Scenarios

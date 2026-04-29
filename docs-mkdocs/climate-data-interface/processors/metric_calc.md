@@ -1,6 +1,6 @@
 # Processor: MetricCalc
 
-**Priority:** 230 | **Category:** Analysis & Derived Variables
+**Registry key:** `metric_calc` &nbsp;|&nbsp; **Priority:** 7500 &nbsp;|&nbsp; **Category:** Analysis & Derived Variables
 
 Compute derived climate metrics and indices from base variables. Calculate heating/cooling degree days, heat indices, extreme event frequencies, threshold exceedance days, and return period statistics via extreme value distribution fitting.
 

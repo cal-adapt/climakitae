@@ -63,14 +63,14 @@ data = cd.get()
 
 | Level | Purpose | Examples | Impact |
 |-------|---------|----------|--------|
-| **Catalog** | Data source collection | `"cadcat"`, `"renewable energy generation"` | Determines what datasets exist |
+| **Catalog** | Data source collection | `"cadcat"`, `"renewable energy generation"`, `"hdp"` | Determines what datasets exist |
 | **Activity ID** | Downscaling method | `"WRF"` (dynamical), `"LOCA2"` (statistical) | Different variable names, coverage, bias |
-| **Institution** | Data producer | `"UCLA"`, `"CNRM"`, `"DWD"` | Different model implementations, bias characteristics |
-| **Source ID** | Climate model | `"CNRM-CM6-1"`, `"ACCESS-CM2"` | Different model physics, skill varies |
-| **Experiment** | Emissions scenario | `"historical"`, `"ssp245"`, `"ssp585"` | Different futures; historical is observation-based |
+| **Institution** | Data producer | `"UCLA"` (WRF), `"UCSD"` (LOCA2-Hybrid), `"ERA"` (ERA5 forcing) | Different model implementations, bias characteristics |
+| **Source ID** | Climate model | `"CESM2"`, `"EC-Earth3"`, `"MIROC6"`, `"CNRM-ESM2-1"`, … | Different model physics; skill varies by region/variable |
+| **Experiment** | Emissions scenario | `"historical"`, `"ssp245"`, `"ssp370"`, `"ssp585"` | Different futures; historical is observation-driven |
 | **Table ID** | Time resolution | `"1hr"`, `"day"`, `"mon"` | Memory/processing trade-off |
-| **Grid Label** | Spatial resolution | `"d01"` (45km), `"d02"` (9km), `"d03"` (3km) | Local detail vs. state-wide coverage |
-| **Variable** | Climate quantity | `"tasmax"`, `"pr"`, `"huss"` | What you're analyzing |
+| **Grid Label** | Spatial resolution | `"d01"` (45 km, WRF only), `"d02"` (9 km, WRF only), `"d03"` (3 km, both WRF and LOCA2-Hybrid) | Local detail vs. state-wide coverage |
+| **Variable** | Climate quantity | WRF: `"t2max"`, `"t2min"`, `"prec"`, `"dew_point"`. LOCA2: `"tasmax"`, `"tasmin"`, `"pr"`. | What you're analyzing |
 
 ### Why Hierarchy Matters
 
@@ -92,9 +92,9 @@ ClimateData provides multiple boundary types for spatial subsetting:
 - `us_states`: Western US states (11 states)
 
 **Infrastructure:**
-- `ious_pous`: California investor-owned and publicly-owned utilities
-- `electric_balancing_areas`: Electric grid authority boundaries
-- `forecast_zones`: NOAA NWS forecast zones
+- `ious_pous`: California investor-owned (IOU) and publicly-owned (POU) utilities
+- `electric_balancing_areas`: California electric balancing authority areas
+- `forecast_zones`: California Electricity Demand Forecast Zones (used by the California Energy Commission)
 
 ```python
 # Discover available boundaries
@@ -309,7 +309,7 @@ data = (cd
     .experiment_id("ssp370")     # High emissions scenario
     .table_id("day")             # Daily data
     .grid_label("d03")           # 3km resolution
-    .variable("tasmax")          # Max temperature
+    .variable("t2max")           # WRF max temperature (LOCA2 uses 'tasmax')
     
     # 2. Use processors to subset (maintains lazy eval)
     .processes({
@@ -323,10 +323,10 @@ data = (cd
 
 # 3. Now compute what you need (triggers lazy evaluation)
 # Calculate mean at 2°C warming
-mean_temp = data["tasmax"].mean(dim=["lat", "lon", "time"]).compute()
+mean_temp = data["t2max"].mean(dim=["lat", "lon", "time"]).compute()
 
 # Plot one snapshot
-data["tasmax"].isel(sim=0, time=0).plot(cmap="RdYlBu_r")
+data["t2max"].isel(sim=0, time=0).plot(cmap="RdYlBu_r")
 plt.title("Temperature at 2°C Global Warming - LA")
 plt.show()
 ```

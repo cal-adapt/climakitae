@@ -1,6 +1,6 @@
 # Processor: Clip
 
-**Priority:** 200 | **Category:** Spatial Processing
+**Registry key:** `clip` &nbsp;|&nbsp; **Priority:** 65 &nbsp;|&nbsp; **Category:** Spatial Processing
 
 Subset climate data to specific geographic regions, points, or boundaries. Extract data for counties, watersheds, weather stations, or custom lat/lon coordinates with automatic nearest-gridcell location and coordinate system handling.
 

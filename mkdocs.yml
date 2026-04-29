@@ -8,6 +8,21 @@ edit_uri: edit/main/docs-mkdocs/
 docs_dir: docs-mkdocs
 site_dir: site
 
+# TEMPLATE.md is an authoring scaffold (not user docs); exclude from the build
+# so its placeholder cross-refs do not trigger autorefs warnings.
+exclude_docs: |
+  new-core/processors/TEMPLATE.md
+
+# Pages that build (so autorefs and direct URLs keep working) but are kept
+# out of the sidebar to reduce visual noise. The ``*-detailed`` pages exist
+# only to host the autodoc directive after the matching landing page was
+# converted into a pointer; users should land on the parent page.
+not_in_nav: |
+  api/param-validation-detailed.md
+  api/core-data-interface.md
+  api/core-boundaries.md
+  api/processors.md
+
 copyright: Copyright 2026, Cal-Adapt Analytics Engine
 
 theme:
@@ -21,8 +36,6 @@ theme:
     - content.code.copy
     - content.action.edit
     - content.tabs.link
-  # Version selector dropdown
-  version_selector: true
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -78,7 +91,7 @@ nav:
   - Home: index.md
   - Get Started: getting-started.md
   - Notebook Gallery: notebook-gallery.md
-  - New Core:
+  - ClimateData:
       - Overview: new-core/index.md
       - Core Concepts: new-core/concepts.md
       - How-To Guides: new-core/howto.md
@@ -98,24 +111,21 @@ nav:
           - ConvertToLocalTime: new-core/processors/convert_to_local_time.md
           - UpdateAttributes: new-core/processors/update_attributes.md
       - API Reference:
-          - Main Entrypoint: api/new-core.md
-          - Dataset Factory: api/dataset-factory.md
-          - Dataset Pipeline: api/dataset.md
-          - Data Processors: api/processors.md
-          - Processor Utilities: api/processor-utilities.md
-          - Parameter Validation: api/param-validation.md
-          - Parameter Validation (Detailed): api/param-validation-detailed.md
-          - Data Access: api/data-access.md
+          - User Interface:
+              - Main Entrypoint: api/new-core.md
+              - Dataset Factory: api/dataset-factory.md
+              - Dataset Pipeline: api/dataset.md
+          - Internals:
+              - Parameter Validation: api/param-validation.md
+              - Data Access: api/data-access.md
+              - Processor Utilities: api/processor-utilities.md
           - User-Facing Modules:
               - Explore: api/explore.md
               - Tools: api/tools.md
               - Util: api/util.md
-          - Derived Variables: api/derived-variables.md
+              - Derived Variables: api/derived-variables.md
   - Migration:
-      - Legacy to New Core: migration/legacy-to-new-core.md
+      - Legacy to ClimateData: migration/legacy-to-new-core.md
   - Legacy API:
       - Status and Roadmap: legacy/status.md
-      - Core Module:
-          - Overview: api/core.md
-          - Data Interface (Detailed): api/core-data-interface.md
-          - Boundaries (Detailed): api/core-boundaries.md
+      - Reference: api/core.md

@@ -27,6 +27,34 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
 
 ---
 
+### Interactive Data Access & Visualization
+
+**Retrieve, subset, and visualize Cal-Adapt catalog data via a graphical user interface.**
+
+- **Level**: Beginner – Intermediate
+- **Key Topics**: Interactive widgets • GUI-driven querying • climakitaegui visualization
+- **Use Case**: Featured on the [Cal-Adapt Analytics Engine — Example Applications](https://analytics.cal-adapt.org/analytics/example) page as the entry point for non-coding workflows.
+
+**Links**:
+- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/data-access/interactive_data_access_and_viz.ipynb)
+- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=data-access/interactive_data_access_and_viz.ipynb) Launch on Binder
+
+---
+
+### Localization Methodology (Bias Correction at a Station)
+
+**Walk through the quantile delta mapping (QDM) process used to localize gridded WRF data to a weather station.**
+
+- **Level**: Advanced
+- **Key Topics**: Bias correction • QDM • station observations • `bias_adjust_model_to_station` processor
+- **Background**: See the Cal-Adapt [Methods page](https://analytics.cal-adapt.org/analytics/methods) for the algorithmic context.
+
+**Links**:
+- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/collaborative/DFU/localization_methodology.ipynb)
+- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=collaborative/DFU/localization_methodology.ipynb) Launch on Binder
+
+---
+
 ## Analysis & Climate Science
 
 ### Global Warming Levels: Methods & Applications
@@ -62,8 +90,8 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
   - Visualizing compound conditions (e.g., heat + humidity)
 
 **Links**:
-- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/analysis/thresholds_tools.ipynb)
-- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=analysis/thresholds_tools.ipynb) Launch on Binder
+- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/analysis/threshold_exceedance.ipynb)
+- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=analysis/threshold_exceedance.ipynb) Launch on Binder
 
 ---
 
@@ -184,9 +212,12 @@ Access pre-installed notebooks on the [Cal-Adapt Analytics Engine JupyterHub](ht
 
 ## For More Information
 
-- **climakitae Documentation**: [https://climakitae.readthedocs.io/](https://climakitae.readthedocs.io/)
+- **climakitae Documentation**: this site (cal-adapt.github.io/climakitae)
 - **cae-notebooks Repository**: [https://github.com/cal-adapt/cae-notebooks](https://github.com/cal-adapt/cae-notebooks)
 - **Cal-Adapt Analytics Engine**: [https://analytics.cal-adapt.org/](https://analytics.cal-adapt.org/)
+  - [Example applications](https://analytics.cal-adapt.org/analytics/example)
+  - [Methods](https://analytics.cal-adapt.org/analytics/methods)
+  - [Glossary](https://analytics.cal-adapt.org/guidance/glossary)
 - **Cal-Adapt Overview**: [https://cal-adapt.org/](https://cal-adapt.org/)
 
 ---

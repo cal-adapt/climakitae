@@ -1,6 +1,6 @@
 # Processor: UpdateAttributes
 
-**Priority:** 280 | **Category:** Metadata Management
+**Registry key:** `update_attributes` &nbsp;|&nbsp; **Priority:** 9998 &nbsp;|&nbsp; **Category:** Metadata Management
 
 Update dataset and variable attributes with custom metadata. Add provenance information, units, descriptions, or other CF-compliant metadata.
 

@@ -80,8 +80,15 @@ data_celsius = (cd
 
 # Or convert Celsius to Fahrenheit
 data_fahrenheit = (cd
-    ...
+    .catalog("cadcat")
+    .activity_id("WRF")
+    .institution_id("UCLA")
+    .table_id("mon")
+    .grid_label("d03")
+    .variable("t2max")
     .processes({
+        "time_slice": ("2015-01-01", "2015-12-31"),
+        "clip": "Los Angeles",
         "convert_units": "degF"  # Convert K → °F
     })
     .get())
@@ -92,15 +99,15 @@ data_fahrenheit = (cd
 - Precipitation: `mm`, `mm/d`, `mm/h` → `inches`, `kg m-2 s-1`
 - Wind: `m/s`, `m s-1` → `knots`, `mph`
 - Pressure: `Pa`, `hPa` → other pressure units
-- See [Unit Conversions](../api/processors.md#convert-units) for complete list
+- See [Unit Conversions](new-core/processors/convert_units.md) for the complete list
 
 ## Next Steps
 
 - **Browse variables**: Use `cd.show_variable_options()` to see all available climate variables
 - **Explore boundaries**: Use `cd.show_boundary_options()` to see geographic regions available for clipping
-- **Learn processors**: See the [processors guide](api/processors.md) for spatial/temporal operations
+- **Learn processors**: See the [processor reference](new-core/processors/index.md) for spatial/temporal operations
 - **Try warming levels**: Use `.processes({"warming_level": {"warming_levels": [1.5, 2.0]}})` for climate scenario analysis
-- **Migrate from legacy**: See [Legacy to New Core](migration/legacy-to-new-core.md) if you're upgrading from the old API
+- **Migrate from legacy**: See [Legacy to ClimateData](migration/legacy-to-new-core.md) if you're upgrading from the old API
 
 ## Troubleshooting
 
@@ -113,4 +120,10 @@ A: Pass a list of lat/lon tuples to `clip`: `"clip": [(34.05, -118.25), (37.77, 
 **Q: Can I export the data to a file?**  
 A: Yes! Add `"export": {"filename": "my_data", "file_format": "NetCDF"}` to your processors dict.
 
-For more details, see the [API reference pages](api/new-core.md) or explore other [guides and tutorials](migration/legacy-to-new-core.md).
+For more details, see the [API reference](api/new-core.md), browse [how-to guides](new-core/howto.md), or check the [migration guide](migration/legacy-to-new-core.md) if you're moving from the legacy API.
+
+## See also
+
+- [Cal-Adapt Analytics Engine — About the data](https://analytics.cal-adapt.org/data/about)
+- [Cal-Adapt Analytics Engine — Glossary](https://analytics.cal-adapt.org/guidance/glossary) (bias correction, GWLs, downscaling terminology)
+- [Cal-Adapt Analytics Engine — Example applications](https://analytics.cal-adapt.org/analytics/example) (featured notebooks)
