@@ -25,10 +25,11 @@ import matplotlib.pyplot as plt
 # Initialize the climate data interface
 cd = ClimateData()
 
-# Query WRF temperature data for Los Angeles, 2015
+# Query WRF temperature data for Los Angeles County, 2015
 data = (cd
     .catalog("cadcat")
     .activity_id("WRF")
+    .institution_id("UCLA")  # UCLA WRF model (recommended)
     .table_id("mon")
     .grid_label("d03")
     .variable("t2max")
@@ -54,8 +55,44 @@ plt.show()
 5. **`variable("t2max")`** — Requested daily maximum temperature
 6. **`processes()`** — Applied transformations:
    - **`time_slice`** — Subset to calendar year 2015
-   - **`clip`** — Subset to Los Angeles county boundary
+   - **`clip`** — Subset to Los Angeles County boundary
 7. **`.get()`** — Execute the query (returns lazy-loaded xarray Dataset)
+
+### About Temperature Units
+
+WRF data is returned in **Kelvin (K)**, following meteorological conventions. Use the `convert_units` processor to convert to other units:
+
+```python
+# Convert to Celsius during the query
+data_celsius = (cd
+    .catalog("cadcat")
+    .activity_id("WRF")
+    .institution_id("UCLA")
+    .table_id("mon")
+    .grid_label("d03")
+    .variable("t2max")
+    .processes({
+        "time_slice": ("2015-01-01", "2015-12-31"),
+        "clip": "Los Angeles",
+        "convert_units": "degC"  # Convert K → °C
+    })
+    .get())
+
+# Or convert Celsius to Fahrenheit
+data_fahrenheit = (cd
+    ...
+    .processes({
+        "convert_units": "degF"  # Convert K → °F
+    })
+    .get())
+```
+
+**Available unit conversions:**
+- Temperature: `K` → `degC`, `degF`
+- Precipitation: `mm`, `mm/d`, `mm/h` → `inches`, `kg m-2 s-1`
+- Wind: `m/s`, `m s-1` → `knots`, `mph`
+- Pressure: `Pa`, `hPa` → other pressure units
+- See [Unit Conversions](../api/processors.md#convert-units) for complete list
 
 ## Next Steps
 

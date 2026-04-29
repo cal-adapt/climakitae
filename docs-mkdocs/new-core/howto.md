@@ -20,7 +20,7 @@ data = (cd
     .variable("tasmax")
     .table_id("mon")
     .grid_label("d03")
-    .processes({"clip": "Los Angeles"})
+    .processes({"clip": "Los Angeles"})  # "Los Angeles" = Los Angeles County
     .get())
 
 # Multiple counties (union)
@@ -145,6 +145,7 @@ data = (cd
 data = (cd
     .variable("tasmax")
     .activity_id("WRF")
+    .institution_id("UCLA")  # Specify WRF producer
     .processes({
         "time_slice": ("2015-01-01", "2050-12-31"),
         "export": {
@@ -252,7 +253,7 @@ data = (cd
     .processes({
         "warming_level": {
             "warming_levels": [1.5, 2.0, 3.0],
-            "warming_level_window": 15  # ±15 years
+            "warming_level_window": 15  # ±15 years around target (default: 30 years)
         }
     })
     .get())
@@ -272,6 +273,8 @@ results = {}
 
 for model in models:
     data = (cd
+        .activity_id("WRF")
+        .institution_id("UCLA")
         .source_id(model)
         .variable("pr")
         .processes({
@@ -296,6 +299,8 @@ for model, precip in results.items():
 ```python
 # Some models don't reach certain warming levels in low-emission scenarios
 data = (cd
+    .activity_id("WRF")
+    .institution_id("UCLA")
     .experiment_id("ssp245")  # Moderate emissions
     .variable("tasmax")
     .processes({
@@ -318,6 +323,8 @@ else:
 
 # 1.5°C, 2°C targets → reference to 1850-1900
 data = (cd
+    .activity_id("WRF")
+    .institution_id("UCLA")
     .variable("tasmax")
     .processes({
         "warming_level": {"warming_levels": [1.5, 2.0]}
@@ -377,14 +384,23 @@ data = (cd
 
 ### Limitations
 
-```python
-# Bias correction currently limited to:
-# ✅ WRF data only (not LOCA2)
-# ✅ Hourly temperature (t2) only
-# ✅ HadISD weather stations (~600 globally, ~200 in western US)
+**Currently available for:**
+- ✅ WRF data only (not LOCA2 statistical downscaling)
+- ✅ Hourly temperature (t2) only  
+- ✅ HadISD weather stations (~600 globally, ~200 in western US)
 
-# For other variables/models: use direct model output or alternative bias correction
-```
+**Why these limitations?**
+
+Bias correction requires:
+- **High-frequency observations** (hourly) to capture temperature variability that drives quantile mapping
+- **WRF hourly data** because WRF's fast-varying dynamics need point-wise calibration
+- **LOCA2 is already bias-corrected** by design using quantile mapping to observations during downscaling (no bias correction needed)
+- **Weather station coverage** — only HadISD provides consistent historical hourly data
+
+**For other scenarios:**
+- Use direct model output (LOCA2 is already bias-corrected)
+- Implement alternative bias correction method for daily/monthly aggregates
+- Contact support for custom approaches
 
 ---
 
@@ -411,6 +427,7 @@ results = batch_select(
     locations,
     variable="tasmax",
     activity_id="WRF",
+    institution_id="UCLA",  # Specify WRF producer
     table_id="mon"
 )
 
@@ -432,6 +449,8 @@ for scenario in scenarios:
     scenario_data = {}
     for gwl in warming_levels:
         data = (cd
+            .activity_id("WRF")
+            .institution_id("UCLA")
             .experiment_id(scenario)
             .variable("tasmax")
             .processes({
@@ -516,6 +535,8 @@ for county in counties:
     else:
         # Query and cache
         data = (cd
+            .activity_id("WRF")
+            .institution_id("UCLA")
             .variable("tasmax")
             .processes({
                 "time_slice": ("2030-01-01", "2060-12-31"),
@@ -557,7 +578,7 @@ for region_name, counties in regions.items():
         data = (cd
             .catalog("cadcat")
             .activity_id("WRF")
-            .institution_id("UCLA")
+            .institution_id("UCLA")  # UCLA WRF model: recommended for California
             .experiment_id("ssp245")
             .variable("tasmax")
             .table_id("day")
@@ -604,21 +625,24 @@ from climakitae.tools.derived_variables import compute_hdd_cdd
 from climakitae.tools.indices import effective_temp, noaa_heat_index
 
 # Fetch base temperature data
+# Note: convert_units processor ensures correct units for derived variable functions
 data = (cd
     .variable("tasmax")
     .table_id("day")
     .grid_label("d03")
     .processes({
         "time_slice": ("2030-01-01", "2060-12-31"),
-        "clip": "Los Angeles"
+        "clip": "Los Angeles",
+        "convert_units": "degC"  # Derived functions expect Celsius
     })
     .get())
 
 # Compute heating/cooling degree days
+# Thresholds are in °C for converted data
 hdd, cdd = compute_hdd_cdd(
     data["tasmax"],
-    hdd_threshold=65,  # °F
-    cdd_threshold=65
+    hdd_threshold=18.3,  # °C (standard: ~65°F)
+    cdd_threshold=18.3   # °C (standard: ~65°F)
 )
 
 # Compute effective temperature (energy demand)
