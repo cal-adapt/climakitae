@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
     units="K",
     source="builtin",
 )
-def calc_heat_index(ds):
+def calc_heat_index(ds) -> "xr.Dataset":
     """Calculate heat index from temperature and relative humidity.
 
     Parameters
@@ -137,7 +137,7 @@ def calc_heat_index(ds):
     units="K",
     source="builtin",
 )
-def calc_wind_chill(ds):
+def calc_wind_chill(ds) -> "xr.Dataset":
     """Calculate wind chill from temperature and wind components.
 
     Parameters
@@ -205,7 +205,7 @@ def calc_wind_chill(ds):
     units="K",
     source="builtin",
 )
-def calc_diurnal_temperature_range_loca(ds):
+def calc_diurnal_temperature_range_loca(ds) -> "xr.Dataset":
     """Calculate diurnal (daily) temperature range.
 
     Parameters
@@ -241,7 +241,7 @@ def calc_diurnal_temperature_range_loca(ds):
     units="K",
     source="builtin",
 )
-def calc_diurnal_temperature_range_wrf(ds):
+def calc_diurnal_temperature_range_wrf(ds) -> "xr.Dataset":
     """Calculate diurnal (daily) temperature range from WRF variables.
 
     Parameters
@@ -277,7 +277,7 @@ def calc_diurnal_temperature_range_wrf(ds):
     units="K",
     source="builtin",
 )
-def calc_hdd_wrf(ds, threshold_k=None, threshold_c=None, threshold_f=None):
+def calc_hdd_wrf(ds, threshold_k=None, threshold_c=None, threshold_f=None) -> "xr.Dataset":
     """Calculate heating degree days from WRF temperature data.
 
     Parameters
@@ -340,7 +340,7 @@ def calc_hdd_wrf(ds, threshold_k=None, threshold_c=None, threshold_f=None):
     units="K",
     source="builtin",
 )
-def calc_cdd_wrf(ds, threshold_k=None, threshold_c=None, threshold_f=None):
+def calc_cdd_wrf(ds, threshold_k=None, threshold_c=None, threshold_f=None) -> "xr.Dataset":
     """Calculate cooling degree days from WRF temperature data.
 
     Parameters
@@ -403,7 +403,7 @@ def calc_cdd_wrf(ds, threshold_k=None, threshold_c=None, threshold_f=None):
     units="K",
     source="builtin",
 )
-def calc_hdd_loca(ds, threshold_k=None, threshold_c=None, threshold_f=None):
+def calc_hdd_loca(ds, threshold_k=None, threshold_c=None, threshold_f=None) -> "xr.Dataset":
     """Calculate heating degree days from LOCA2 temperature data.
 
     Parameters
@@ -466,7 +466,7 @@ def calc_hdd_loca(ds, threshold_k=None, threshold_c=None, threshold_f=None):
     units="K",
     source="builtin",
 )
-def calc_cdd_loca(ds, threshold_k=None, threshold_c=None, threshold_f=None):
+def calc_cdd_loca(ds, threshold_k=None, threshold_c=None, threshold_f=None) -> "xr.Dataset":
     """Calculate cooling degree days from LOCA2 temperature data.
 
     Parameters

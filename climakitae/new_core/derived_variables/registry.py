@@ -107,7 +107,7 @@ def _wrap_with_metadata_preservation(
     from functools import wraps
 
     @wraps(func)
-    def wrapped(ds):
+    def wrapped(ds) -> "xr.Dataset | xr.DataArray":
         # Capture variables present before calling the function so we can detect
         # which variables (if any) the function actually added.
         before_vars = set(ds.data_vars) if ds is not None else set()
