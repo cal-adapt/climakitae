@@ -2839,18 +2839,22 @@ installation, or other distinguishing characteristics.</p>
 <span class="normal"><a href="#__codelineno-0-374">374</a></span>
 <span class="normal"><a href="#__codelineno-0-375">375</a></span>
 <span class="normal"><a href="#__codelineno-0-376">376</a></span>
-<span class="normal"><a href="#__codelineno-0-377">377</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-366" name="__codelineno-0-366"></a><span class="k">def</span><span class="w"> </span><span class="nf">register_validator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">validator_class</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">ParameterValidator</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-367" name="__codelineno-0-367"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Register a parameter validator with the factory.</span>
-<a id="__codelineno-0-368" name="__codelineno-0-368"></a>
-<a id="__codelineno-0-369" name="__codelineno-0-369"></a><span class="sd">    Parameters</span>
-<a id="__codelineno-0-370" name="__codelineno-0-370"></a><span class="sd">    ----------</span>
-<a id="__codelineno-0-371" name="__codelineno-0-371"></a><span class="sd">    key : str</span>
-<a id="__codelineno-0-372" name="__codelineno-0-372"></a><span class="sd">        Identifier for the validator (approach, data_type combination)</span>
-<a id="__codelineno-0-373" name="__codelineno-0-373"></a><span class="sd">    validator_class : Type[ParameterValidator]</span>
-<a id="__codelineno-0-374" name="__codelineno-0-374"></a><span class="sd">        Validator class to register</span>
-<a id="__codelineno-0-375" name="__codelineno-0-375"></a>
-<a id="__codelineno-0-376" name="__codelineno-0-376"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-377" name="__codelineno-0-377"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">validator_class</span>
+<span class="normal"><a href="#__codelineno-0-377">377</a></span>
+<span class="normal"><a href="#__codelineno-0-378">378</a></span>
+<span class="normal"><a href="#__codelineno-0-379">379</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-366" name="__codelineno-0-366"></a><span class="k">def</span><span class="w"> </span><span class="nf">register_validator</span><span class="p">(</span>
+<a id="__codelineno-0-367" name="__codelineno-0-367"></a>    <span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">validator_class</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">ParameterValidator</span><span class="p">]</span>
+<a id="__codelineno-0-368" name="__codelineno-0-368"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-369" name="__codelineno-0-369"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Register a parameter validator with the factory.</span>
+<a id="__codelineno-0-370" name="__codelineno-0-370"></a>
+<a id="__codelineno-0-371" name="__codelineno-0-371"></a><span class="sd">    Parameters</span>
+<a id="__codelineno-0-372" name="__codelineno-0-372"></a><span class="sd">    ----------</span>
+<a id="__codelineno-0-373" name="__codelineno-0-373"></a><span class="sd">    key : str</span>
+<a id="__codelineno-0-374" name="__codelineno-0-374"></a><span class="sd">        Identifier for the validator (approach, data_type combination)</span>
+<a id="__codelineno-0-375" name="__codelineno-0-375"></a><span class="sd">    validator_class : Type[ParameterValidator]</span>
+<a id="__codelineno-0-376" name="__codelineno-0-376"></a><span class="sd">        Validator class to register</span>
+<a id="__codelineno-0-377" name="__codelineno-0-377"></a>
+<a id="__codelineno-0-378" name="__codelineno-0-378"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-379" name="__codelineno-0-379"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">validator_class</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2920,9 +2924,7 @@ installation, or other distinguishing characteristics.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/dataset_factory.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-379">379</a></span>
-<span class="normal"><a href="#__codelineno-0-380">380</a></span>
-<span class="normal"><a href="#__codelineno-0-381">381</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-381">381</a></span>
 <span class="normal"><a href="#__codelineno-0-382">382</a></span>
 <span class="normal"><a href="#__codelineno-0-383">383</a></span>
 <span class="normal"><a href="#__codelineno-0-384">384</a></span>
@@ -2931,18 +2933,24 @@ installation, or other distinguishing characteristics.</p>
 <span class="normal"><a href="#__codelineno-0-387">387</a></span>
 <span class="normal"><a href="#__codelineno-0-388">388</a></span>
 <span class="normal"><a href="#__codelineno-0-389">389</a></span>
-<span class="normal"><a href="#__codelineno-0-390">390</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-379" name="__codelineno-0-379"></a><span class="k">def</span><span class="w"> </span><span class="nf">register_processing_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">step_class</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">DataProcessor</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-380" name="__codelineno-0-380"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Register a processing step with the factory.</span>
-<a id="__codelineno-0-381" name="__codelineno-0-381"></a>
-<a id="__codelineno-0-382" name="__codelineno-0-382"></a><span class="sd">    Parameters</span>
-<a id="__codelineno-0-383" name="__codelineno-0-383"></a><span class="sd">    ----------</span>
-<a id="__codelineno-0-384" name="__codelineno-0-384"></a><span class="sd">    step_type : str</span>
-<a id="__codelineno-0-385" name="__codelineno-0-385"></a><span class="sd">        Identifier for the processing step</span>
-<a id="__codelineno-0-386" name="__codelineno-0-386"></a><span class="sd">    step_class : Type[DataProcessor]</span>
-<a id="__codelineno-0-387" name="__codelineno-0-387"></a><span class="sd">        Processing step class to register</span>
-<a id="__codelineno-0-388" name="__codelineno-0-388"></a>
-<a id="__codelineno-0-389" name="__codelineno-0-389"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-390" name="__codelineno-0-390"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_processing_step_registry</span><span class="p">[</span><span class="n">step_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">step_class</span>
+<span class="normal"><a href="#__codelineno-0-390">390</a></span>
+<span class="normal"><a href="#__codelineno-0-391">391</a></span>
+<span class="normal"><a href="#__codelineno-0-392">392</a></span>
+<span class="normal"><a href="#__codelineno-0-393">393</a></span>
+<span class="normal"><a href="#__codelineno-0-394">394</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-381" name="__codelineno-0-381"></a><span class="k">def</span><span class="w"> </span><span class="nf">register_processing_step</span><span class="p">(</span>
+<a id="__codelineno-0-382" name="__codelineno-0-382"></a>    <span class="bp">self</span><span class="p">,</span> <span class="n">step_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">step_class</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">DataProcessor</span><span class="p">]</span>
+<a id="__codelineno-0-383" name="__codelineno-0-383"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-384" name="__codelineno-0-384"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Register a processing step with the factory.</span>
+<a id="__codelineno-0-385" name="__codelineno-0-385"></a>
+<a id="__codelineno-0-386" name="__codelineno-0-386"></a><span class="sd">    Parameters</span>
+<a id="__codelineno-0-387" name="__codelineno-0-387"></a><span class="sd">    ----------</span>
+<a id="__codelineno-0-388" name="__codelineno-0-388"></a><span class="sd">    step_type : str</span>
+<a id="__codelineno-0-389" name="__codelineno-0-389"></a><span class="sd">        Identifier for the processing step</span>
+<a id="__codelineno-0-390" name="__codelineno-0-390"></a><span class="sd">    step_class : Type[DataProcessor]</span>
+<a id="__codelineno-0-391" name="__codelineno-0-391"></a><span class="sd">        Processing step class to register</span>
+<a id="__codelineno-0-392" name="__codelineno-0-392"></a>
+<a id="__codelineno-0-393" name="__codelineno-0-393"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-394" name="__codelineno-0-394"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_processing_step_registry</span><span class="p">[</span><span class="n">step_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">step_class</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3019,11 +3027,7 @@ installation, or other distinguishing characteristics.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/dataset_factory.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-392">392</a></span>
-<span class="normal"><a href="#__codelineno-0-393">393</a></span>
-<span class="normal"><a href="#__codelineno-0-394">394</a></span>
-<span class="normal"><a href="#__codelineno-0-395">395</a></span>
-<span class="normal"><a href="#__codelineno-0-396">396</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-396">396</a></span>
 <span class="normal"><a href="#__codelineno-0-397">397</a></span>
 <span class="normal"><a href="#__codelineno-0-398">398</a></span>
 <span class="normal"><a href="#__codelineno-0-399">399</a></span>
@@ -3061,49 +3065,53 @@ installation, or other distinguishing characteristics.</p>
 <span class="normal"><a href="#__codelineno-0-431">431</a></span>
 <span class="normal"><a href="#__codelineno-0-432">432</a></span>
 <span class="normal"><a href="#__codelineno-0-433">433</a></span>
-<span class="normal"><a href="#__codelineno-0-434">434</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-392" name="__codelineno-0-392"></a><span class="k">def</span><span class="w"> </span><span class="nf">create_validator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val_reg_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ParameterValidator</span><span class="p">]:</span>
-<a id="__codelineno-0-393" name="__codelineno-0-393"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a parameter validator based on data_type and approach.</span>
-<a id="__codelineno-0-394" name="__codelineno-0-394"></a>
-<a id="__codelineno-0-395" name="__codelineno-0-395"></a><span class="sd">    Parameters</span>
-<a id="__codelineno-0-396" name="__codelineno-0-396"></a><span class="sd">    ----------</span>
-<a id="__codelineno-0-397" name="__codelineno-0-397"></a><span class="sd">    val_reg_key : str</span>
-<a id="__codelineno-0-398" name="__codelineno-0-398"></a><span class="sd">        Key for the validator (data_type_approach)</span>
-<a id="__codelineno-0-399" name="__codelineno-0-399"></a>
-<a id="__codelineno-0-400" name="__codelineno-0-400"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-401" name="__codelineno-0-401"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-402" name="__codelineno-0-402"></a><span class="sd">    ParameterValidator or None</span>
-<a id="__codelineno-0-403" name="__codelineno-0-403"></a><span class="sd">        An appropriate parameter validator, or None if not found.</span>
-<a id="__codelineno-0-404" name="__codelineno-0-404"></a>
-<a id="__codelineno-0-405" name="__codelineno-0-405"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-406" name="__codelineno-0-406"></a>    <span class="k">if</span> <span class="n">val_reg_key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span><span class="p">:</span>
-<a id="__codelineno-0-407" name="__codelineno-0-407"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span><span class="p">[</span><span class="n">val_reg_key</span><span class="p">](</span><span class="bp">self</span><span class="o">.</span><span class="n">_catalog</span><span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-434">434</a></span>
+<span class="normal"><a href="#__codelineno-0-435">435</a></span>
+<span class="normal"><a href="#__codelineno-0-436">436</a></span>
+<span class="normal"><a href="#__codelineno-0-437">437</a></span>
+<span class="normal"><a href="#__codelineno-0-438">438</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-396" name="__codelineno-0-396"></a><span class="k">def</span><span class="w"> </span><span class="nf">create_validator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val_reg_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ParameterValidator</span><span class="p">]:</span>
+<a id="__codelineno-0-397" name="__codelineno-0-397"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a parameter validator based on data_type and approach.</span>
+<a id="__codelineno-0-398" name="__codelineno-0-398"></a>
+<a id="__codelineno-0-399" name="__codelineno-0-399"></a><span class="sd">    Parameters</span>
+<a id="__codelineno-0-400" name="__codelineno-0-400"></a><span class="sd">    ----------</span>
+<a id="__codelineno-0-401" name="__codelineno-0-401"></a><span class="sd">    val_reg_key : str</span>
+<a id="__codelineno-0-402" name="__codelineno-0-402"></a><span class="sd">        Key for the validator (data_type_approach)</span>
+<a id="__codelineno-0-403" name="__codelineno-0-403"></a>
+<a id="__codelineno-0-404" name="__codelineno-0-404"></a><span class="sd">    Returns</span>
+<a id="__codelineno-0-405" name="__codelineno-0-405"></a><span class="sd">    -------</span>
+<a id="__codelineno-0-406" name="__codelineno-0-406"></a><span class="sd">    ParameterValidator or None</span>
+<a id="__codelineno-0-407" name="__codelineno-0-407"></a><span class="sd">        An appropriate parameter validator, or None if not found.</span>
 <a id="__codelineno-0-408" name="__codelineno-0-408"></a>
-<a id="__codelineno-0-409" name="__codelineno-0-409"></a>    <span class="c1"># check for typo or close matches</span>
-<a id="__codelineno-0-410" name="__codelineno-0-410"></a>    <span class="n">closest</span> <span class="o">=</span> <span class="n">_get_closest_options</span><span class="p">(</span><span class="n">val_reg_key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-<a id="__codelineno-0-411" name="__codelineno-0-411"></a>
-<a id="__codelineno-0-412" name="__codelineno-0-412"></a>    <span class="k">match</span> <span class="nb">len</span><span class="p">(</span><span class="n">closest</span><span class="p">):</span>
-<a id="__codelineno-0-413" name="__codelineno-0-413"></a>        <span class="k">case</span> <span class="mi">0</span><span class="p">:</span>
-<a id="__codelineno-0-414" name="__codelineno-0-414"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-<a id="__codelineno-0-415" name="__codelineno-0-415"></a>                <span class="s2">&quot;No validator registered for &#39;</span><span class="si">%s</span><span class="s2">&#39;. Available options: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-416" name="__codelineno-0-416"></a>                <span class="n">val_reg_key</span><span class="p">,</span>
-<a id="__codelineno-0-417" name="__codelineno-0-417"></a>                <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
-<a id="__codelineno-0-418" name="__codelineno-0-418"></a>            <span class="p">)</span>
-<a id="__codelineno-0-419" name="__codelineno-0-419"></a>            <span class="k">return</span> <span class="kc">None</span>
-<a id="__codelineno-0-420" name="__codelineno-0-420"></a>        <span class="k">case</span> <span class="mi">1</span><span class="p">:</span>
-<a id="__codelineno-0-421" name="__codelineno-0-421"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-<a id="__codelineno-0-422" name="__codelineno-0-422"></a>                <span class="s2">&quot;Using closest match &#39;</span><span class="si">%s</span><span class="s2">&#39; for validator &#39;</span><span class="si">%s</span><span class="s2">&#39;.&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-423" name="__codelineno-0-423"></a>                <span class="n">closest</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
-<a id="__codelineno-0-424" name="__codelineno-0-424"></a>                <span class="n">val_reg_key</span><span class="p">,</span>
-<a id="__codelineno-0-425" name="__codelineno-0-425"></a>            <span class="p">)</span>
-<a id="__codelineno-0-426" name="__codelineno-0-426"></a>            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span><span class="p">[</span><span class="n">closest</span><span class="p">[</span><span class="mi">0</span><span class="p">]](</span><span class="bp">self</span><span class="o">.</span><span class="n">_catalog</span><span class="p">)</span>
-<a id="__codelineno-0-427" name="__codelineno-0-427"></a>        <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
-<a id="__codelineno-0-428" name="__codelineno-0-428"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-<a id="__codelineno-0-429" name="__codelineno-0-429"></a>                <span class="s2">&quot;Multiple closest matches found for &#39;</span><span class="si">%s</span><span class="s2">&#39;: </span><span class="si">%s</span><span class="s2">. &quot;</span>
-<a id="__codelineno-0-430" name="__codelineno-0-430"></a>                <span class="s2">&quot;Please specify a more precise key.&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-431" name="__codelineno-0-431"></a>                <span class="n">val_reg_key</span><span class="p">,</span>
-<a id="__codelineno-0-432" name="__codelineno-0-432"></a>                <span class="n">closest</span><span class="p">,</span>
-<a id="__codelineno-0-433" name="__codelineno-0-433"></a>            <span class="p">)</span>
-<a id="__codelineno-0-434" name="__codelineno-0-434"></a>            <span class="k">return</span> <span class="kc">None</span>
+<a id="__codelineno-0-409" name="__codelineno-0-409"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-410" name="__codelineno-0-410"></a>    <span class="k">if</span> <span class="n">val_reg_key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span><span class="p">:</span>
+<a id="__codelineno-0-411" name="__codelineno-0-411"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span><span class="p">[</span><span class="n">val_reg_key</span><span class="p">](</span><span class="bp">self</span><span class="o">.</span><span class="n">_catalog</span><span class="p">)</span>
+<a id="__codelineno-0-412" name="__codelineno-0-412"></a>
+<a id="__codelineno-0-413" name="__codelineno-0-413"></a>    <span class="c1"># check for typo or close matches</span>
+<a id="__codelineno-0-414" name="__codelineno-0-414"></a>    <span class="n">closest</span> <span class="o">=</span> <span class="n">_get_closest_options</span><span class="p">(</span><span class="n">val_reg_key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<a id="__codelineno-0-415" name="__codelineno-0-415"></a>
+<a id="__codelineno-0-416" name="__codelineno-0-416"></a>    <span class="k">match</span> <span class="nb">len</span><span class="p">(</span><span class="n">closest</span><span class="p">):</span>
+<a id="__codelineno-0-417" name="__codelineno-0-417"></a>        <span class="k">case</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-418" name="__codelineno-0-418"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-419" name="__codelineno-0-419"></a>                <span class="s2">&quot;No validator registered for &#39;</span><span class="si">%s</span><span class="s2">&#39;. Available options: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-420" name="__codelineno-0-420"></a>                <span class="n">val_reg_key</span><span class="p">,</span>
+<a id="__codelineno-0-421" name="__codelineno-0-421"></a>                <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
+<a id="__codelineno-0-422" name="__codelineno-0-422"></a>            <span class="p">)</span>
+<a id="__codelineno-0-423" name="__codelineno-0-423"></a>            <span class="k">return</span> <span class="kc">None</span>
+<a id="__codelineno-0-424" name="__codelineno-0-424"></a>        <span class="k">case</span> <span class="mi">1</span><span class="p">:</span>
+<a id="__codelineno-0-425" name="__codelineno-0-425"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-426" name="__codelineno-0-426"></a>                <span class="s2">&quot;Using closest match &#39;</span><span class="si">%s</span><span class="s2">&#39; for validator &#39;</span><span class="si">%s</span><span class="s2">&#39;.&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-427" name="__codelineno-0-427"></a>                <span class="n">closest</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+<a id="__codelineno-0-428" name="__codelineno-0-428"></a>                <span class="n">val_reg_key</span><span class="p">,</span>
+<a id="__codelineno-0-429" name="__codelineno-0-429"></a>            <span class="p">)</span>
+<a id="__codelineno-0-430" name="__codelineno-0-430"></a>            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span><span class="p">[</span><span class="n">closest</span><span class="p">[</span><span class="mi">0</span><span class="p">]](</span><span class="bp">self</span><span class="o">.</span><span class="n">_catalog</span><span class="p">)</span>
+<a id="__codelineno-0-431" name="__codelineno-0-431"></a>        <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+<a id="__codelineno-0-432" name="__codelineno-0-432"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-433" name="__codelineno-0-433"></a>                <span class="s2">&quot;Multiple closest matches found for &#39;</span><span class="si">%s</span><span class="s2">&#39;: </span><span class="si">%s</span><span class="s2">. &quot;</span>
+<a id="__codelineno-0-434" name="__codelineno-0-434"></a>                <span class="s2">&quot;Please specify a more precise key.&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-435" name="__codelineno-0-435"></a>                <span class="n">val_reg_key</span><span class="p">,</span>
+<a id="__codelineno-0-436" name="__codelineno-0-436"></a>                <span class="n">closest</span><span class="p">,</span>
+<a id="__codelineno-0-437" name="__codelineno-0-437"></a>            <span class="p">)</span>
+<a id="__codelineno-0-438" name="__codelineno-0-438"></a>            <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3198,11 +3206,7 @@ values are the values to filter by.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/dataset_factory.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-478">478</a></span>
-<span class="normal"><a href="#__codelineno-0-479">479</a></span>
-<span class="normal"><a href="#__codelineno-0-480">480</a></span>
-<span class="normal"><a href="#__codelineno-0-481">481</a></span>
-<span class="normal"><a href="#__codelineno-0-482">482</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-482">482</a></span>
 <span class="normal"><a href="#__codelineno-0-483">483</a></span>
 <span class="normal"><a href="#__codelineno-0-484">484</a></span>
 <span class="normal"><a href="#__codelineno-0-485">485</a></span>
@@ -3249,58 +3253,62 @@ values are the values to filter by.</p>
 <span class="normal"><a href="#__codelineno-0-526">526</a></span>
 <span class="normal"><a href="#__codelineno-0-527">527</a></span>
 <span class="normal"><a href="#__codelineno-0-528">528</a></span>
-<span class="normal"><a href="#__codelineno-0-529">529</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-478" name="__codelineno-0-478"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_catalog_options</span><span class="p">(</span>
-<a id="__codelineno-0-479" name="__codelineno-0-479"></a>    <span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-480" name="__codelineno-0-480"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<a id="__codelineno-0-481" name="__codelineno-0-481"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get available options for a specific catalog.</span>
-<a id="__codelineno-0-482" name="__codelineno-0-482"></a>
-<a id="__codelineno-0-483" name="__codelineno-0-483"></a><span class="sd">    Parameters</span>
-<a id="__codelineno-0-484" name="__codelineno-0-484"></a><span class="sd">    ----------</span>
-<a id="__codelineno-0-485" name="__codelineno-0-485"></a><span class="sd">    key : str</span>
-<a id="__codelineno-0-486" name="__codelineno-0-486"></a><span class="sd">        Key of the catalog to query.</span>
-<a id="__codelineno-0-487" name="__codelineno-0-487"></a><span class="sd">    query : dict, optional</span>
-<a id="__codelineno-0-488" name="__codelineno-0-488"></a><span class="sd">        A dictionary to filter the catalog options. The keys of the</span>
-<a id="__codelineno-0-489" name="__codelineno-0-489"></a><span class="sd">        dictionary should correspond to columns in the catalog, and the</span>
-<a id="__codelineno-0-490" name="__codelineno-0-490"></a><span class="sd">        values are the values to filter by.</span>
-<a id="__codelineno-0-491" name="__codelineno-0-491"></a>
-<a id="__codelineno-0-492" name="__codelineno-0-492"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-493" name="__codelineno-0-493"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-494" name="__codelineno-0-494"></a><span class="sd">    List[str]</span>
-<a id="__codelineno-0-495" name="__codelineno-0-495"></a><span class="sd">        List of available options for the specified catalog.</span>
-<a id="__codelineno-0-496" name="__codelineno-0-496"></a>
-<a id="__codelineno-0-497" name="__codelineno-0-497"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-498" name="__codelineno-0-498"></a>    <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_catalog_df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-<a id="__codelineno-0-499" name="__codelineno-0-499"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Catalog key &#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&#39; not found.&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-500" name="__codelineno-0-500"></a>    <span class="n">filtered_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_catalog_df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-<a id="__codelineno-0-501" name="__codelineno-0-501"></a>    <span class="k">if</span> <span class="n">query</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-502" name="__codelineno-0-502"></a>        <span class="c1"># Filter the catalog DataFrame based on the query</span>
-<a id="__codelineno-0-503" name="__codelineno-0-503"></a>        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">query</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-<a id="__codelineno-0-504" name="__codelineno-0-504"></a>            <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">filtered_df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-<a id="__codelineno-0-505" name="__codelineno-0-505"></a>                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
-<a id="__codelineno-0-506" name="__codelineno-0-506"></a>                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-<a id="__codelineno-0-507" name="__codelineno-0-507"></a>                        <span class="c1"># Empty list - no filtering needed for this key</span>
-<a id="__codelineno-0-508" name="__codelineno-0-508"></a>                        <span class="k">continue</span>
-<a id="__codelineno-0-509" name="__codelineno-0-509"></a>                    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-<a id="__codelineno-0-510" name="__codelineno-0-510"></a>                        <span class="c1"># Single element - use exact or partial match</span>
-<a id="__codelineno-0-511" name="__codelineno-0-511"></a>                        <span class="n">filtered_df</span> <span class="o">=</span> <span class="n">filtered_df</span><span class="p">[</span>
-<a id="__codelineno-0-512" name="__codelineno-0-512"></a>                            <span class="n">filtered_df</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span>
-<a id="__codelineno-0-513" name="__codelineno-0-513"></a>                                <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">case</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">na</span><span class="o">=</span><span class="kc">False</span>
-<a id="__codelineno-0-514" name="__codelineno-0-514"></a>                            <span class="p">)</span>
-<a id="__codelineno-0-515" name="__codelineno-0-515"></a>                        <span class="p">]</span>
-<a id="__codelineno-0-516" name="__codelineno-0-516"></a>                    <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-517" name="__codelineno-0-517"></a>                        <span class="c1"># Multiple elements - match any of them (partial match)</span>
-<a id="__codelineno-0-518" name="__codelineno-0-518"></a>                        <span class="n">pattern</span> <span class="o">=</span> <span class="s2">&quot;|&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">v</span><span class="p">])</span>
-<a id="__codelineno-0-519" name="__codelineno-0-519"></a>                        <span class="n">filtered_df</span> <span class="o">=</span> <span class="n">filtered_df</span><span class="p">[</span>
-<a id="__codelineno-0-520" name="__codelineno-0-520"></a>                            <span class="n">filtered_df</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span>
-<a id="__codelineno-0-521" name="__codelineno-0-521"></a>                                <span class="n">pattern</span><span class="p">,</span> <span class="n">case</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">na</span><span class="o">=</span><span class="kc">False</span>
-<a id="__codelineno-0-522" name="__codelineno-0-522"></a>                            <span class="p">)</span>
-<a id="__codelineno-0-523" name="__codelineno-0-523"></a>                        <span class="p">]</span>
-<a id="__codelineno-0-524" name="__codelineno-0-524"></a>                <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-525" name="__codelineno-0-525"></a>                    <span class="c1"># Single value - do not use partial match</span>
-<a id="__codelineno-0-526" name="__codelineno-0-526"></a>                    <span class="n">filtered_df</span> <span class="o">=</span> <span class="n">filtered_df</span><span class="p">[</span>
-<a id="__codelineno-0-527" name="__codelineno-0-527"></a>                        <span class="n">filtered_df</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-<a id="__codelineno-0-528" name="__codelineno-0-528"></a>                    <span class="p">]</span>
-<a id="__codelineno-0-529" name="__codelineno-0-529"></a>    <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">filtered_df</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">unique</span><span class="p">()))</span>
+<span class="normal"><a href="#__codelineno-0-529">529</a></span>
+<span class="normal"><a href="#__codelineno-0-530">530</a></span>
+<span class="normal"><a href="#__codelineno-0-531">531</a></span>
+<span class="normal"><a href="#__codelineno-0-532">532</a></span>
+<span class="normal"><a href="#__codelineno-0-533">533</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-482" name="__codelineno-0-482"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_catalog_options</span><span class="p">(</span>
+<a id="__codelineno-0-483" name="__codelineno-0-483"></a>    <span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-484" name="__codelineno-0-484"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<a id="__codelineno-0-485" name="__codelineno-0-485"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get available options for a specific catalog.</span>
+<a id="__codelineno-0-486" name="__codelineno-0-486"></a>
+<a id="__codelineno-0-487" name="__codelineno-0-487"></a><span class="sd">    Parameters</span>
+<a id="__codelineno-0-488" name="__codelineno-0-488"></a><span class="sd">    ----------</span>
+<a id="__codelineno-0-489" name="__codelineno-0-489"></a><span class="sd">    key : str</span>
+<a id="__codelineno-0-490" name="__codelineno-0-490"></a><span class="sd">        Key of the catalog to query.</span>
+<a id="__codelineno-0-491" name="__codelineno-0-491"></a><span class="sd">    query : dict, optional</span>
+<a id="__codelineno-0-492" name="__codelineno-0-492"></a><span class="sd">        A dictionary to filter the catalog options. The keys of the</span>
+<a id="__codelineno-0-493" name="__codelineno-0-493"></a><span class="sd">        dictionary should correspond to columns in the catalog, and the</span>
+<a id="__codelineno-0-494" name="__codelineno-0-494"></a><span class="sd">        values are the values to filter by.</span>
+<a id="__codelineno-0-495" name="__codelineno-0-495"></a>
+<a id="__codelineno-0-496" name="__codelineno-0-496"></a><span class="sd">    Returns</span>
+<a id="__codelineno-0-497" name="__codelineno-0-497"></a><span class="sd">    -------</span>
+<a id="__codelineno-0-498" name="__codelineno-0-498"></a><span class="sd">    List[str]</span>
+<a id="__codelineno-0-499" name="__codelineno-0-499"></a><span class="sd">        List of available options for the specified catalog.</span>
+<a id="__codelineno-0-500" name="__codelineno-0-500"></a>
+<a id="__codelineno-0-501" name="__codelineno-0-501"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-502" name="__codelineno-0-502"></a>    <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_catalog_df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+<a id="__codelineno-0-503" name="__codelineno-0-503"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Catalog key &#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&#39; not found.&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-504" name="__codelineno-0-504"></a>    <span class="n">filtered_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_catalog_df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<a id="__codelineno-0-505" name="__codelineno-0-505"></a>    <span class="k">if</span> <span class="n">query</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-506" name="__codelineno-0-506"></a>        <span class="c1"># Filter the catalog DataFrame based on the query</span>
+<a id="__codelineno-0-507" name="__codelineno-0-507"></a>        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">query</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-0-508" name="__codelineno-0-508"></a>            <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">filtered_df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+<a id="__codelineno-0-509" name="__codelineno-0-509"></a>                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+<a id="__codelineno-0-510" name="__codelineno-0-510"></a>                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-511" name="__codelineno-0-511"></a>                        <span class="c1"># Empty list - no filtering needed for this key</span>
+<a id="__codelineno-0-512" name="__codelineno-0-512"></a>                        <span class="k">continue</span>
+<a id="__codelineno-0-513" name="__codelineno-0-513"></a>                    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+<a id="__codelineno-0-514" name="__codelineno-0-514"></a>                        <span class="c1"># Single element - use exact or partial match</span>
+<a id="__codelineno-0-515" name="__codelineno-0-515"></a>                        <span class="n">filtered_df</span> <span class="o">=</span> <span class="n">filtered_df</span><span class="p">[</span>
+<a id="__codelineno-0-516" name="__codelineno-0-516"></a>                            <span class="n">filtered_df</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span>
+<a id="__codelineno-0-517" name="__codelineno-0-517"></a>                                <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">case</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">na</span><span class="o">=</span><span class="kc">False</span>
+<a id="__codelineno-0-518" name="__codelineno-0-518"></a>                            <span class="p">)</span>
+<a id="__codelineno-0-519" name="__codelineno-0-519"></a>                        <span class="p">]</span>
+<a id="__codelineno-0-520" name="__codelineno-0-520"></a>                    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-521" name="__codelineno-0-521"></a>                        <span class="c1"># Multiple elements - match any of them (partial match)</span>
+<a id="__codelineno-0-522" name="__codelineno-0-522"></a>                        <span class="n">pattern</span> <span class="o">=</span> <span class="s2">&quot;|&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">v</span><span class="p">])</span>
+<a id="__codelineno-0-523" name="__codelineno-0-523"></a>                        <span class="n">filtered_df</span> <span class="o">=</span> <span class="n">filtered_df</span><span class="p">[</span>
+<a id="__codelineno-0-524" name="__codelineno-0-524"></a>                            <span class="n">filtered_df</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span>
+<a id="__codelineno-0-525" name="__codelineno-0-525"></a>                                <span class="n">pattern</span><span class="p">,</span> <span class="n">case</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">na</span><span class="o">=</span><span class="kc">False</span>
+<a id="__codelineno-0-526" name="__codelineno-0-526"></a>                            <span class="p">)</span>
+<a id="__codelineno-0-527" name="__codelineno-0-527"></a>                        <span class="p">]</span>
+<a id="__codelineno-0-528" name="__codelineno-0-528"></a>                <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-529" name="__codelineno-0-529"></a>                    <span class="c1"># Single value - do not use partial match</span>
+<a id="__codelineno-0-530" name="__codelineno-0-530"></a>                    <span class="n">filtered_df</span> <span class="o">=</span> <span class="n">filtered_df</span><span class="p">[</span>
+<a id="__codelineno-0-531" name="__codelineno-0-531"></a>                        <span class="n">filtered_df</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+<a id="__codelineno-0-532" name="__codelineno-0-532"></a>                    <span class="p">]</span>
+<a id="__codelineno-0-533" name="__codelineno-0-533"></a>    <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">filtered_df</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">unique</span><span class="p">()))</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3346,25 +3354,25 @@ values are the values to filter by.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/dataset_factory.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-531">531</a></span>
-<span class="normal"><a href="#__codelineno-0-532">532</a></span>
-<span class="normal"><a href="#__codelineno-0-533">533</a></span>
-<span class="normal"><a href="#__codelineno-0-534">534</a></span>
-<span class="normal"><a href="#__codelineno-0-535">535</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-535">535</a></span>
 <span class="normal"><a href="#__codelineno-0-536">536</a></span>
 <span class="normal"><a href="#__codelineno-0-537">537</a></span>
 <span class="normal"><a href="#__codelineno-0-538">538</a></span>
 <span class="normal"><a href="#__codelineno-0-539">539</a></span>
-<span class="normal"><a href="#__codelineno-0-540">540</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-531" name="__codelineno-0-531"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_validators</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<a id="__codelineno-0-532" name="__codelineno-0-532"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a list of available validators.</span>
-<a id="__codelineno-0-533" name="__codelineno-0-533"></a>
-<a id="__codelineno-0-534" name="__codelineno-0-534"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-535" name="__codelineno-0-535"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-536" name="__codelineno-0-536"></a><span class="sd">    List[str]</span>
-<a id="__codelineno-0-537" name="__codelineno-0-537"></a><span class="sd">        List of available validators.</span>
-<a id="__codelineno-0-538" name="__codelineno-0-538"></a>
-<a id="__codelineno-0-539" name="__codelineno-0-539"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-540" name="__codelineno-0-540"></a>    <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+<span class="normal"><a href="#__codelineno-0-540">540</a></span>
+<span class="normal"><a href="#__codelineno-0-541">541</a></span>
+<span class="normal"><a href="#__codelineno-0-542">542</a></span>
+<span class="normal"><a href="#__codelineno-0-543">543</a></span>
+<span class="normal"><a href="#__codelineno-0-544">544</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-535" name="__codelineno-0-535"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_validators</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<a id="__codelineno-0-536" name="__codelineno-0-536"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a list of available validators.</span>
+<a id="__codelineno-0-537" name="__codelineno-0-537"></a>
+<a id="__codelineno-0-538" name="__codelineno-0-538"></a><span class="sd">    Returns</span>
+<a id="__codelineno-0-539" name="__codelineno-0-539"></a><span class="sd">    -------</span>
+<a id="__codelineno-0-540" name="__codelineno-0-540"></a><span class="sd">    List[str]</span>
+<a id="__codelineno-0-541" name="__codelineno-0-541"></a><span class="sd">        List of available validators.</span>
+<a id="__codelineno-0-542" name="__codelineno-0-542"></a>
+<a id="__codelineno-0-543" name="__codelineno-0-543"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-544" name="__codelineno-0-544"></a>    <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3441,11 +3449,7 @@ values are the values to filter by.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/dataset_factory.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-542">542</a></span>
-<span class="normal"><a href="#__codelineno-0-543">543</a></span>
-<span class="normal"><a href="#__codelineno-0-544">544</a></span>
-<span class="normal"><a href="#__codelineno-0-545">545</a></span>
-<span class="normal"><a href="#__codelineno-0-546">546</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-546">546</a></span>
 <span class="normal"><a href="#__codelineno-0-547">547</a></span>
 <span class="normal"><a href="#__codelineno-0-548">548</a></span>
 <span class="normal"><a href="#__codelineno-0-549">549</a></span>
@@ -3463,29 +3467,33 @@ values are the values to filter by.</p>
 <span class="normal"><a href="#__codelineno-0-561">561</a></span>
 <span class="normal"><a href="#__codelineno-0-562">562</a></span>
 <span class="normal"><a href="#__codelineno-0-563">563</a></span>
-<span class="normal"><a href="#__codelineno-0-564">564</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-542" name="__codelineno-0-542"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_valid_processors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">catalog_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<a id="__codelineno-0-543" name="__codelineno-0-543"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a list of valid processors for a specific catalog.</span>
-<a id="__codelineno-0-544" name="__codelineno-0-544"></a>
-<a id="__codelineno-0-545" name="__codelineno-0-545"></a><span class="sd">    Parameters</span>
-<a id="__codelineno-0-546" name="__codelineno-0-546"></a><span class="sd">    ----------</span>
-<a id="__codelineno-0-547" name="__codelineno-0-547"></a><span class="sd">    catalog_key : str</span>
-<a id="__codelineno-0-548" name="__codelineno-0-548"></a><span class="sd">        The catalog key to filter processors by (required).</span>
-<a id="__codelineno-0-549" name="__codelineno-0-549"></a>
-<a id="__codelineno-0-550" name="__codelineno-0-550"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-551" name="__codelineno-0-551"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-552" name="__codelineno-0-552"></a><span class="sd">    List[str]</span>
-<a id="__codelineno-0-553" name="__codelineno-0-553"></a><span class="sd">        List of processors valid for the specified catalog.</span>
-<a id="__codelineno-0-554" name="__codelineno-0-554"></a>
-<a id="__codelineno-0-555" name="__codelineno-0-555"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-556" name="__codelineno-0-556"></a>    <span class="n">all_processors</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_processing_step_registry</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
-<a id="__codelineno-0-557" name="__codelineno-0-557"></a>
-<a id="__codelineno-0-558" name="__codelineno-0-558"></a>    <span class="c1"># Get the validator for this catalog to determine invalid processors</span>
-<a id="__codelineno-0-559" name="__codelineno-0-559"></a>    <span class="n">validator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_validator</span><span class="p">(</span><span class="n">catalog_key</span><span class="p">)</span>
-<a id="__codelineno-0-560" name="__codelineno-0-560"></a>    <span class="k">if</span> <span class="n">validator</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">validator</span><span class="p">,</span> <span class="s2">&quot;invalid_processors&quot;</span><span class="p">):</span>
-<a id="__codelineno-0-561" name="__codelineno-0-561"></a>        <span class="n">invalid_processors</span> <span class="o">=</span> <span class="n">validator</span><span class="o">.</span><span class="n">invalid_processors</span>
-<a id="__codelineno-0-562" name="__codelineno-0-562"></a>        <span class="k">return</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">all_processors</span> <span class="k">if</span> <span class="n">p</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">invalid_processors</span><span class="p">]</span>
-<a id="__codelineno-0-563" name="__codelineno-0-563"></a>
-<a id="__codelineno-0-564" name="__codelineno-0-564"></a>    <span class="k">return</span> <span class="n">all_processors</span>
+<span class="normal"><a href="#__codelineno-0-564">564</a></span>
+<span class="normal"><a href="#__codelineno-0-565">565</a></span>
+<span class="normal"><a href="#__codelineno-0-566">566</a></span>
+<span class="normal"><a href="#__codelineno-0-567">567</a></span>
+<span class="normal"><a href="#__codelineno-0-568">568</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-546" name="__codelineno-0-546"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_valid_processors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">catalog_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<a id="__codelineno-0-547" name="__codelineno-0-547"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a list of valid processors for a specific catalog.</span>
+<a id="__codelineno-0-548" name="__codelineno-0-548"></a>
+<a id="__codelineno-0-549" name="__codelineno-0-549"></a><span class="sd">    Parameters</span>
+<a id="__codelineno-0-550" name="__codelineno-0-550"></a><span class="sd">    ----------</span>
+<a id="__codelineno-0-551" name="__codelineno-0-551"></a><span class="sd">    catalog_key : str</span>
+<a id="__codelineno-0-552" name="__codelineno-0-552"></a><span class="sd">        The catalog key to filter processors by (required).</span>
+<a id="__codelineno-0-553" name="__codelineno-0-553"></a>
+<a id="__codelineno-0-554" name="__codelineno-0-554"></a><span class="sd">    Returns</span>
+<a id="__codelineno-0-555" name="__codelineno-0-555"></a><span class="sd">    -------</span>
+<a id="__codelineno-0-556" name="__codelineno-0-556"></a><span class="sd">    List[str]</span>
+<a id="__codelineno-0-557" name="__codelineno-0-557"></a><span class="sd">        List of processors valid for the specified catalog.</span>
+<a id="__codelineno-0-558" name="__codelineno-0-558"></a>
+<a id="__codelineno-0-559" name="__codelineno-0-559"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-560" name="__codelineno-0-560"></a>    <span class="n">all_processors</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_processing_step_registry</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+<a id="__codelineno-0-561" name="__codelineno-0-561"></a>
+<a id="__codelineno-0-562" name="__codelineno-0-562"></a>    <span class="c1"># Get the validator for this catalog to determine invalid processors</span>
+<a id="__codelineno-0-563" name="__codelineno-0-563"></a>    <span class="n">validator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_validator</span><span class="p">(</span><span class="n">catalog_key</span><span class="p">)</span>
+<a id="__codelineno-0-564" name="__codelineno-0-564"></a>    <span class="k">if</span> <span class="n">validator</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">validator</span><span class="p">,</span> <span class="s2">&quot;invalid_processors&quot;</span><span class="p">):</span>
+<a id="__codelineno-0-565" name="__codelineno-0-565"></a>        <span class="n">invalid_processors</span> <span class="o">=</span> <span class="n">validator</span><span class="o">.</span><span class="n">invalid_processors</span>
+<a id="__codelineno-0-566" name="__codelineno-0-566"></a>        <span class="k">return</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">all_processors</span> <span class="k">if</span> <span class="n">p</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">invalid_processors</span><span class="p">]</span>
+<a id="__codelineno-0-567" name="__codelineno-0-567"></a>
+<a id="__codelineno-0-568" name="__codelineno-0-568"></a>    <span class="k">return</span> <span class="n">all_processors</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3531,25 +3539,25 @@ values are the values to filter by.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/dataset_factory.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-566">566</a></span>
-<span class="normal"><a href="#__codelineno-0-567">567</a></span>
-<span class="normal"><a href="#__codelineno-0-568">568</a></span>
-<span class="normal"><a href="#__codelineno-0-569">569</a></span>
-<span class="normal"><a href="#__codelineno-0-570">570</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-570">570</a></span>
 <span class="normal"><a href="#__codelineno-0-571">571</a></span>
 <span class="normal"><a href="#__codelineno-0-572">572</a></span>
 <span class="normal"><a href="#__codelineno-0-573">573</a></span>
 <span class="normal"><a href="#__codelineno-0-574">574</a></span>
-<span class="normal"><a href="#__codelineno-0-575">575</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-566" name="__codelineno-0-566"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_stations</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<a id="__codelineno-0-567" name="__codelineno-0-567"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a list of available station datasets.</span>
-<a id="__codelineno-0-568" name="__codelineno-0-568"></a>
-<a id="__codelineno-0-569" name="__codelineno-0-569"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-570" name="__codelineno-0-570"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-571" name="__codelineno-0-571"></a><span class="sd">    List[str]</span>
-<a id="__codelineno-0-572" name="__codelineno-0-572"></a><span class="sd">        List of available station datasets.</span>
-<a id="__codelineno-0-573" name="__codelineno-0-573"></a>
-<a id="__codelineno-0-574" name="__codelineno-0-574"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-575" name="__codelineno-0-575"></a>    <span class="k">return</span> <span class="n">DataCatalog</span><span class="p">()[</span><span class="s2">&quot;stations&quot;</span><span class="p">][</span><span class="s2">&quot;station&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="normal"><a href="#__codelineno-0-575">575</a></span>
+<span class="normal"><a href="#__codelineno-0-576">576</a></span>
+<span class="normal"><a href="#__codelineno-0-577">577</a></span>
+<span class="normal"><a href="#__codelineno-0-578">578</a></span>
+<span class="normal"><a href="#__codelineno-0-579">579</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-570" name="__codelineno-0-570"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_stations</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<a id="__codelineno-0-571" name="__codelineno-0-571"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a list of available station datasets.</span>
+<a id="__codelineno-0-572" name="__codelineno-0-572"></a>
+<a id="__codelineno-0-573" name="__codelineno-0-573"></a><span class="sd">    Returns</span>
+<a id="__codelineno-0-574" name="__codelineno-0-574"></a><span class="sd">    -------</span>
+<a id="__codelineno-0-575" name="__codelineno-0-575"></a><span class="sd">    List[str]</span>
+<a id="__codelineno-0-576" name="__codelineno-0-576"></a><span class="sd">        List of available station datasets.</span>
+<a id="__codelineno-0-577" name="__codelineno-0-577"></a>
+<a id="__codelineno-0-578" name="__codelineno-0-578"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-579" name="__codelineno-0-579"></a>    <span class="k">return</span> <span class="n">DataCatalog</span><span class="p">()[</span><span class="s2">&quot;stations&quot;</span><span class="p">][</span><span class="s2">&quot;station&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3628,11 +3636,7 @@ all available boundary types if the specified type is not found.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/dataset_factory.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-577">577</a></span>
-<span class="normal"><a href="#__codelineno-0-578">578</a></span>
-<span class="normal"><a href="#__codelineno-0-579">579</a></span>
-<span class="normal"><a href="#__codelineno-0-580">580</a></span>
-<span class="normal"><a href="#__codelineno-0-581">581</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-581">581</a></span>
 <span class="normal"><a href="#__codelineno-0-582">582</a></span>
 <span class="normal"><a href="#__codelineno-0-583">583</a></span>
 <span class="normal"><a href="#__codelineno-0-584">584</a></span>
@@ -3647,26 +3651,30 @@ all available boundary types if the specified type is not found.</p>
 <span class="normal"><a href="#__codelineno-0-593">593</a></span>
 <span class="normal"><a href="#__codelineno-0-594">594</a></span>
 <span class="normal"><a href="#__codelineno-0-595">595</a></span>
-<span class="normal"><a href="#__codelineno-0-596">596</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-577" name="__codelineno-0-577"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_boundaries</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">boundary_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<a id="__codelineno-0-578" name="__codelineno-0-578"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a list of available boundary datasets.</span>
-<a id="__codelineno-0-579" name="__codelineno-0-579"></a>
-<a id="__codelineno-0-580" name="__codelineno-0-580"></a><span class="sd">    Parameters</span>
-<a id="__codelineno-0-581" name="__codelineno-0-581"></a><span class="sd">    ----------</span>
-<a id="__codelineno-0-582" name="__codelineno-0-582"></a><span class="sd">    boundary_type : str</span>
-<a id="__codelineno-0-583" name="__codelineno-0-583"></a><span class="sd">        The type of boundary datasets to retrieve. If the type is not found</span>
-<a id="__codelineno-0-584" name="__codelineno-0-584"></a><span class="sd">        in the cache, returns all available boundary types.</span>
-<a id="__codelineno-0-585" name="__codelineno-0-585"></a>
-<a id="__codelineno-0-586" name="__codelineno-0-586"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-587" name="__codelineno-0-587"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-588" name="__codelineno-0-588"></a><span class="sd">    List[str]</span>
-<a id="__codelineno-0-589" name="__codelineno-0-589"></a><span class="sd">        List of available boundary datasets for the specified type, or</span>
-<a id="__codelineno-0-590" name="__codelineno-0-590"></a><span class="sd">        all available boundary types if the specified type is not found.</span>
-<a id="__codelineno-0-591" name="__codelineno-0-591"></a>
-<a id="__codelineno-0-592" name="__codelineno-0-592"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-593" name="__codelineno-0-593"></a>    <span class="k">if</span> <span class="n">boundary_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">DataCatalog</span><span class="p">()</span><span class="o">.</span><span class="n">boundaries</span><span class="o">.</span><span class="n">_lookup_cache</span><span class="p">:</span>
-<a id="__codelineno-0-594" name="__codelineno-0-594"></a>        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">DataCatalog</span><span class="p">()</span><span class="o">.</span><span class="n">boundaries</span><span class="o">.</span><span class="n">_lookup_cache</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-<a id="__codelineno-0-595" name="__codelineno-0-595"></a>    <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-596" name="__codelineno-0-596"></a>        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">DataCatalog</span><span class="p">()</span><span class="o">.</span><span class="n">boundaries</span><span class="o">.</span><span class="n">_lookup_cache</span><span class="p">[</span><span class="n">boundary_type</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="normal"><a href="#__codelineno-0-596">596</a></span>
+<span class="normal"><a href="#__codelineno-0-597">597</a></span>
+<span class="normal"><a href="#__codelineno-0-598">598</a></span>
+<span class="normal"><a href="#__codelineno-0-599">599</a></span>
+<span class="normal"><a href="#__codelineno-0-600">600</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-581" name="__codelineno-0-581"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_boundaries</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">boundary_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<a id="__codelineno-0-582" name="__codelineno-0-582"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a list of available boundary datasets.</span>
+<a id="__codelineno-0-583" name="__codelineno-0-583"></a>
+<a id="__codelineno-0-584" name="__codelineno-0-584"></a><span class="sd">    Parameters</span>
+<a id="__codelineno-0-585" name="__codelineno-0-585"></a><span class="sd">    ----------</span>
+<a id="__codelineno-0-586" name="__codelineno-0-586"></a><span class="sd">    boundary_type : str</span>
+<a id="__codelineno-0-587" name="__codelineno-0-587"></a><span class="sd">        The type of boundary datasets to retrieve. If the type is not found</span>
+<a id="__codelineno-0-588" name="__codelineno-0-588"></a><span class="sd">        in the cache, returns all available boundary types.</span>
+<a id="__codelineno-0-589" name="__codelineno-0-589"></a>
+<a id="__codelineno-0-590" name="__codelineno-0-590"></a><span class="sd">    Returns</span>
+<a id="__codelineno-0-591" name="__codelineno-0-591"></a><span class="sd">    -------</span>
+<a id="__codelineno-0-592" name="__codelineno-0-592"></a><span class="sd">    List[str]</span>
+<a id="__codelineno-0-593" name="__codelineno-0-593"></a><span class="sd">        List of available boundary datasets for the specified type, or</span>
+<a id="__codelineno-0-594" name="__codelineno-0-594"></a><span class="sd">        all available boundary types if the specified type is not found.</span>
+<a id="__codelineno-0-595" name="__codelineno-0-595"></a>
+<a id="__codelineno-0-596" name="__codelineno-0-596"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-597" name="__codelineno-0-597"></a>    <span class="k">if</span> <span class="n">boundary_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">DataCatalog</span><span class="p">()</span><span class="o">.</span><span class="n">boundaries</span><span class="o">.</span><span class="n">_lookup_cache</span><span class="p">:</span>
+<a id="__codelineno-0-598" name="__codelineno-0-598"></a>        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">DataCatalog</span><span class="p">()</span><span class="o">.</span><span class="n">boundaries</span><span class="o">.</span><span class="n">_lookup_cache</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<a id="__codelineno-0-599" name="__codelineno-0-599"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-600" name="__codelineno-0-600"></a>        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">DataCatalog</span><span class="p">()</span><span class="o">.</span><span class="n">boundaries</span><span class="o">.</span><span class="n">_lookup_cache</span><span class="p">[</span><span class="n">boundary_type</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3690,23 +3698,23 @@ all available boundary types if the specified type is not found.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/dataset_factory.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-598">598</a></span>
-<span class="normal"><a href="#__codelineno-0-599">599</a></span>
-<span class="normal"><a href="#__codelineno-0-600">600</a></span>
-<span class="normal"><a href="#__codelineno-0-601">601</a></span>
-<span class="normal"><a href="#__codelineno-0-602">602</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-602">602</a></span>
 <span class="normal"><a href="#__codelineno-0-603">603</a></span>
 <span class="normal"><a href="#__codelineno-0-604">604</a></span>
 <span class="normal"><a href="#__codelineno-0-605">605</a></span>
-<span class="normal"><a href="#__codelineno-0-606">606</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-598" name="__codelineno-0-598"></a><span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-599" name="__codelineno-0-599"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Reset the factory state, clearing all registered catalogs, validators, and processors.</span>
-<a id="__codelineno-0-600" name="__codelineno-0-600"></a>
-<a id="__codelineno-0-601" name="__codelineno-0-601"></a><span class="sd">    This method is useful for reinitializing the factory without creating a new instance.</span>
-<a id="__codelineno-0-602" name="__codelineno-0-602"></a>
-<a id="__codelineno-0-603" name="__codelineno-0-603"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-604" name="__codelineno-0-604"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span> <span class="o">=</span> <span class="n">_CATALOG_VALIDATOR_REGISTRY</span>
-<a id="__codelineno-0-605" name="__codelineno-0-605"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_processing_step_registry</span> <span class="o">=</span> <span class="n">_PROCESSOR_REGISTRY</span>
-<a id="__codelineno-0-606" name="__codelineno-0-606"></a>    <span class="n">DataCatalog</span><span class="p">()</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+<span class="normal"><a href="#__codelineno-0-606">606</a></span>
+<span class="normal"><a href="#__codelineno-0-607">607</a></span>
+<span class="normal"><a href="#__codelineno-0-608">608</a></span>
+<span class="normal"><a href="#__codelineno-0-609">609</a></span>
+<span class="normal"><a href="#__codelineno-0-610">610</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-602" name="__codelineno-0-602"></a><span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-603" name="__codelineno-0-603"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Reset the factory state, clearing all registered catalogs, validators, and processors.</span>
+<a id="__codelineno-0-604" name="__codelineno-0-604"></a>
+<a id="__codelineno-0-605" name="__codelineno-0-605"></a><span class="sd">    This method is useful for reinitializing the factory without creating a new instance.</span>
+<a id="__codelineno-0-606" name="__codelineno-0-606"></a>
+<a id="__codelineno-0-607" name="__codelineno-0-607"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-608" name="__codelineno-0-608"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_validator_registry</span> <span class="o">=</span> <span class="n">_CATALOG_VALIDATOR_REGISTRY</span>
+<a id="__codelineno-0-609" name="__codelineno-0-609"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_processing_step_registry</span> <span class="o">=</span> <span class="n">_PROCESSOR_REGISTRY</span>
+<a id="__codelineno-0-610" name="__codelineno-0-610"></a>    <span class="n">DataCatalog</span><span class="p">()</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
