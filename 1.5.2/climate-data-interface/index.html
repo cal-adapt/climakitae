@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#climatedata-interface-overview" class="md-skip">
+        <a href="#climakitae-interface-overview" class="md-skip">
           Skip to content
         </a>
       
@@ -466,10 +466,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-to-read-this-section" class="md-nav__link">
+  <a href="#how-to-read-the-documentation-sections" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How to read this section
+        How to read the documentation sections
       
     </span>
   </a>
@@ -1767,10 +1767,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-to-read-this-section" class="md-nav__link">
+  <a href="#how-to-read-the-documentation-sections" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How to read this section
+        How to read the documentation sections
       
     </span>
   </a>
@@ -1824,8 +1824,8 @@
   
 
 
-<h1 id="climatedata-interface-overview">ClimateData Interface Overview</h1>
-<p>The <strong>ClimateData interface</strong> is the primary, actively developed interface for climakitae. It exposes a fluent / builder API rooted in the <code>ClimateData</code> class and a registry-based processor pipeline.</p>
+<h1 id="climakitae-interface-overview">Climakitae Interface Overview</h1>
+<p>The <strong><code>ClimateData</code> interface</strong> is the primary, actively developed interface for <code>climakitae</code>. It exposes a fluent / builder API rooted in the <code>ClimateData</code> class and a registry-based processor pipeline.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
@@ -1836,18 +1836,19 @@
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>        <span class="s2">&quot;time_slice&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;2015-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2015-12-31&quot;</span><span class="p">),</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Los Angeles&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Los Angeles County&quot;</span><span class="p">,</span>
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="p">})</span>
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
 </code></pre></div>
 <h2 id="design-goals">Design goals</h2>
+<p>The <code>ClimateData</code> interface is designed with with the following goals in mind:  </p>
 <ul>
-<li><strong>Fluent method chaining</strong> for readable, top-to-bottom query construction.</li>
-<li><strong>Explicit, ordered processors</strong> for every transformation (clipping, time slicing, warming-level subsetting, unit conversion, export, …). See the <a href="processors/">Processors index</a>.</li>
-<li><strong>Lazy execution</strong> backed by <code>xarray</code> + <code>dask</code>. Queries return computation graphs; data only streams from S3 on <code>.compute()</code> / <code>.values</code> / <code>.plot()</code>.</li>
+<li><strong>Fluent method chaining</strong> for readable, top-to-bottom query construction and a familiarity to other packages like <code>xarray</code> and <code>pandas</code>.</li>
+<li><strong>Explicit, ordered processors</strong> for ease of use across transformations (clipping, time slicing, warming-level subsetting, unit conversion, export, …). See the <a href="processors/">Processors index</a>.</li>
+<li><strong>Lazy execution</strong> backed by <code>xarray</code> + <code>dask</code>. Queries return xarray objects with lazy arrays; data only streams from S3 when calling <code>.compute()</code> / <code>.values</code> / <code>.plot()</code>.</li>
 <li><strong>Registry-based extensibility.</strong> New catalogs, validators, and processors register themselves at import time — no central wiring required.</li>
 </ul>
-<h2 id="how-to-read-this-section">How to read this section</h2>
+<h2 id="how-to-read-the-documentation-sections">How to read the documentation sections</h2>
 <table>
 <thead>
 <tr>

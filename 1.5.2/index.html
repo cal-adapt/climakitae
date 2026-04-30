@@ -1847,7 +1847,7 @@
 a modern Python API.</p>
 <p>ClimakitAE provides programmatic access to:</p>
 <ul>
-<li><strong>WRF dynamical downscaling</strong> — 3 km / 9 km / 45 km, hourly to monthly</li>
+<li><strong>WRF dynamical downscaling</strong> — 3 km / 9 km / 45 km, hourly to monthly  </li>
 <li><strong>LOCA2 statistical downscaling</strong> — bias-corrected CMIP6 at 3 km</li>
 <li><strong>Flexible processing</strong> — spatial clipping, temporal subsetting, warming-level analysis, unit conversion</li>
 </ul>
@@ -1871,12 +1871,12 @@ a modern Python API.</p>
 <a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
 <a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>        <span class="s2">&quot;time_slice&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;2015-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2015-12-31&quot;</span><span class="p">),</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Los Angeles&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Los Angeles County&quot;</span><span class="p">,</span>
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>        <span class="s2">&quot;convert_units&quot;</span><span class="p">:</span> <span class="s2">&quot;degF&quot;</span><span class="p">,</span>
 <a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="p">})</span>
 <a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
 <a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="n">data</span><span class="p">[</span><span class="s2">&quot;t2max&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isel</span><span class="p">(</span><span class="n">sim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="s2">&quot;time&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="n">data</span><span class="p">[</span><span class="s2">&quot;t2max&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isel</span><span class="p">(</span><span class="n">sim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="s2">&quot;time&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;lon&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;lat&quot;</span><span class="p">)</span>
 </code></pre></div>
 <p>Full walkthrough: <strong><a href="getting-started/">Getting Started</a></strong>.</p>
 <hr />
