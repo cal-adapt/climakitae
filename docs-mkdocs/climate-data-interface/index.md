@@ -1,6 +1,6 @@
-# ClimateData Interface Overview
+# Climakitae Interface Overview
 
-The **ClimateData interface** is the primary, actively developed interface for climakitae. It exposes a fluent / builder API rooted in the `ClimateData` class and a registry-based processor pipeline.
+The **`ClimateData` interface** is the primary, actively developed interface for `climakitae`. It exposes a fluent / builder API rooted in the `ClimateData` class and a registry-based processor pipeline.
 
 ```python
 from climakitae.new_core.user_interface import ClimateData
@@ -13,19 +13,21 @@ data = (ClimateData()
     .variable("t2max")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
-        "clip": "Los Angeles",
+        "clip": "Los Angeles County",
     })
     .get())
 ```
 
 ## Design goals
 
-- **Fluent method chaining** for readable, top-to-bottom query construction.
-- **Explicit, ordered processors** for every transformation (clipping, time slicing, warming-level subsetting, unit conversion, export, …). See the [Processors index](processors/index.md).
-- **Lazy execution** backed by `xarray` + `dask`. Queries return computation graphs; data only streams from S3 on `.compute()` / `.values` / `.plot()`.
+The `ClimateData` interface is designed with with the following goals in mind:  
+
+- **Fluent method chaining** for readable, top-to-bottom query construction and a familiarity to other packages like `xarray` and `pandas`.
+- **Explicit, ordered processors** for ease of use across transformations (clipping, time slicing, warming-level subsetting, unit conversion, export, …). See the [Processors index](processors/index.md).
+- **Lazy execution** backed by `xarray` + `dask`. Queries return xarray objects with lazy arrays; data only streams from S3 when calling `.compute()` / `.values` / `.plot()`.
 - **Registry-based extensibility.** New catalogs, validators, and processors register themselves at import time — no central wiring required.
 
-## How to read this section
+## How to read the documentation sections
 
 | Page | Read it when… |
 |------|---------------|

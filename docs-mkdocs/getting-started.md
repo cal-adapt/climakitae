@@ -35,7 +35,8 @@ data = (cd
     .variable("t2max")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
-        "clip": "Los Angeles"
+        "clip": "Los Angeles County",
+        "convert_units": "degF"
     })
     .get())
 
@@ -73,7 +74,7 @@ data_celsius = (cd
     .variable("t2max")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
-        "clip": "Los Angeles",
+        "clip": "Los Angeles County",
         "convert_units": "degC"  # Convert K → °C
     })
     .get())
@@ -88,7 +89,7 @@ data_fahrenheit = (cd
     .variable("t2max")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
-        "clip": "Los Angeles",
+        "clip": "Los Angeles County",
         "convert_units": "degF"  # Convert K → °F
     })
     .get())

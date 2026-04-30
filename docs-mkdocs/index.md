@@ -5,7 +5,7 @@ a modern Python API.
 
 ClimakitAE provides programmatic access to:
 
-- **WRF dynamical downscaling** — 3 km / 9 km / 45 km, hourly to monthly
+- **WRF dynamical downscaling** — 3 km / 9 km / 45 km, hourly to monthly  
 - **LOCA2 statistical downscaling** — bias-corrected CMIP6 at 3 km
 - **Flexible processing** — spatial clipping, temporal subsetting, warming-level analysis, unit conversion
 
@@ -37,12 +37,12 @@ data = (cd
     .variable("t2max")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
-        "clip": "Los Angeles",
+        "clip": "Los Angeles County",
         "convert_units": "degF",
     })
     .get())
 
-data["t2max"].isel(sim=0).mean(dim="time").plot()
+data["t2max"].isel(sim=0).mean(dim="time").plot(x="lon", y="lat")
 ```
 
 Full walkthrough: **[Getting Started](getting-started.md)**.
