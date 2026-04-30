@@ -99,15 +99,15 @@ data_fahrenheit = (cd
 - Precipitation: `mm`, `mm/d`, `mm/h` → `inches`, `kg m-2 s-1`
 - Wind: `m/s`, `m s-1` → `knots`, `mph`
 - Pressure: `Pa`, `hPa` → other pressure units
-- See [Unit Conversions](new-core/processors/convert_units.md) for the complete list
+- See [Unit Conversions](climate-data-interface/processors/convert_units.md) for the complete list
 
 ## Next Steps
 
 - **Browse variables**: Use `cd.show_variable_options()` to see all available climate variables
 - **Explore boundaries**: Use `cd.show_boundary_options()` to see geographic regions available for clipping
-- **Learn processors**: See the [processor reference](new-core/processors/index.md) for spatial/temporal operations
+- **Learn processors**: See the [processor reference](climate-data-interface/processors/index.md) for spatial/temporal operations
 - **Try warming levels**: Use `.processes({"warming_level": {"warming_levels": [1.5, 2.0]}})` for climate scenario analysis
-- **Migrate from legacy**: See [Legacy to ClimateData](migration/legacy-to-new-core.md) if you're upgrading from the old API
+- **Migrate from legacy**: See [Legacy to ClimateData](migration/legacy-to-climate-data.md) if you're upgrading from the old API
 
 ## Troubleshooting
 
@@ -120,7 +120,7 @@ A: Pass a list of lat/lon tuples to `clip`: `"clip": [(34.05, -118.25), (37.77, 
 **Q: Can I export the data to a file?**  
 A: Yes! Add `"export": {"filename": "my_data", "file_format": "NetCDF"}` to your processors dict.
 
-For more details, see the [API reference](api/new-core.md), browse [how-to guides](new-core/howto.md), or check the [migration guide](migration/legacy-to-new-core.md) if you're moving from the legacy API.
+For more details, see the [API reference](api/climate-data.md), browse [how-to guides](climate-data-interface/howto.md), or check the [migration guide](migration/legacy-to-climate-data.md) if you're moving from the legacy API.
 
 ## See also
 

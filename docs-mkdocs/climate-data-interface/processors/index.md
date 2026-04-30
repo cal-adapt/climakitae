@@ -98,4 +98,4 @@ See [Architecture → Extension Guide → Add a Processor](../architecture.md#ad
 2. Implement `execute()` and `update_context()`
 3. Decorate with `@register_processor(key="my_processor", priority=N)` 
 4. Import in `__init__.py` to register at import time
-5. Add documentation page `docs-mkdocs/new-core/processors/my_processor.md`
+5. Add documentation page `docs-mkdocs/climate-data-interface/processors/my_processor.md`

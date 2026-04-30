@@ -60,7 +60,7 @@ Full walkthrough: **[Getting Started](getting-started.md)**.
     Recipes for clipping, exporting, warming-level queries, bias adjustment,
     multi-point batches, and derived indices.
 
-    [How-To Guides &rarr;](new-core/howto.md)
+    [How-To Guides &rarr;](climate-data-interface/howto.md)
 
 -   **Understand the API**
 
@@ -69,8 +69,8 @@ Full walkthrough: **[Getting Started](getting-started.md)**.
     Design goals, data hierarchy, the processing pipeline, and per-processor
     parameter reference.
 
-    [Core Concepts &rarr;](new-core/concepts.md) &middot;
-    [Processor Reference &rarr;](new-core/processors/index.md)
+    [Core Concepts &rarr;](climate-data-interface/concepts.md) &middot;
+    [Processor Reference &rarr;](climate-data-interface/processors/index.md)
 
 -   **Migrate from the legacy API**
 
@@ -79,7 +79,7 @@ Full walkthrough: **[Getting Started](getting-started.md)**.
     Side-by-side comparison of `get_data()` / `DataParameters` and the new
     `ClimateData` builder.
 
-    [Migration Guide &rarr;](migration/legacy-to-new-core.md)
+    [Migration Guide &rarr;](migration/legacy-to-climate-data.md)
 
 </div>
 

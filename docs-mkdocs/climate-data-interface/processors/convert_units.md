@@ -22,7 +22,23 @@ flowchart TD
     Apply --> UpdateAttrs[Update 'units' attr & new_attrs context]
     Warn --> UpdateAttrs
     UpdateAttrs --> End([Output: same shape, converted units])
+
+    click Convert "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L218" "_convert_units"
+    click Lookup "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L17" "UNIT_CONVERSIONS table"
+    click UpdateAttrs "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L192" "update_context"
 ```
+
+## Code References
+
+| Method | Lines | Purpose |
+|--------|-------|---------|
+| `__init__` | [128\u2013143](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L128) | Store target unit |
+| `execute` | [145\u2013190](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L145) | UNSET check; route by container type |
+| `update_context` | [192\u2013212](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L192) | Write conversion to `new_attrs` |
+| `set_data_accessor` | [214\u2013216](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L214) | Catalog reference |
+| `_convert_units` | [218\u2013](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L218) | Per-variable lookup + apply |
+| `_handle_precipitation_to_flux` | [70\u201378](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L70) | mm \u2194 flux helper |
+| `_handle_flux_to_precipitation` | [80\u201395](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L80) | flux \u2194 mm helper |
 
 ## Parameter shape
 

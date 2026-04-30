@@ -341,5 +341,5 @@ Key takeaways:
 ## Next Steps
 
 - See [Getting Started](../getting-started.md) for a quick tutorial
-- Review [Migration Guide](../migration/legacy-to-new-core.md) if upgrading from legacy API
-- Check [API Reference](../api/new-core.md) for detailed parameter documentation
+- Review [Migration Guide](../migration/legacy-to-climate-data.md) if upgrading from legacy API
+- Check [API Reference](../api/climate-data.md) for detailed parameter documentation

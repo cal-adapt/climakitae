@@ -286,5 +286,5 @@ data = (ClimateData()
 ## Still Using Legacy? Questions?
 
 - Legacy interface remains fully supported in `climakitae.core`
-- For new_core API details, see the [API Reference section](../api/new-core.md)
+- For new_core API details, see the [API Reference section](../api/climate-data.md)
 - See [Legacy API status](../legacy/status.md) for deprecation timeline

@@ -6,67 +6,80 @@ Subset climate data to specific geographic regions, points, or boundaries. Extra
 
 ## Algorithm
 
-The processor supports **five distinct input modes** with automatic type detection and **smart point-finding** for nearest valid gridcells:
+`Clip` runs in two phases: first it parses `self.value` into a geometry (or routes to a point-based path), then it dispatches over the input data type and calls the appropriate clipper.
 
 ```mermaid
 flowchart TD
-    Start([Input: xr.Dataset]) --> ParseValue["Parse clip value<br/>detect input type"]
-    
-    ParseValue --> CheckType{Input type?}
-    
-    CheckType -->|String| StringCheck{Boundary<br/>or Station?}
-    StringCheck -->|Boundary catalog| LoadBoundary["Load from boundary catalog<br/>CA counties/watersheds/utilities"]
-    StringCheck -->|Station code| LoadStation["Load weather station<br/>from HadISD catalog"]
-    
-    CheckType -->|Tuple| TupleCheck{Tuple<br/>structure?}
-    TupleCheck -->|Single pair| SinglePoint["Single point lat, lon<br/>find closest gridcell"]
-    TupleCheck -->|Nested tuples| BBox["Bounding box<br/>lat_min to lat_max, lon_min to lon_max"]
-    
-    CheckType -->|List| ListCheck{List<br/>contents?}
-    ListCheck -->|Strings| MultiBoundary["Multiple boundaries<br/>or stations"]
-    ListCheck -->|Tuples| MultiPoint["Multiple points<br/>find closest gridcells"]
-    
-    CheckType -->|File| LoadFile["Load shapefile/GeoJSON<br/>from disk"]
-    
-    LoadBoundary --> ValidateGeom["Validate geometry"]
-    LoadStation --> ValidateGeom
-    SinglePoint --> SmartPoint["Smart gridcell search:<br/>expand search radius<br/>until non-NaN found"]
-    BBox --> ValidateGeom
-    MultiBoundary --> ValidateGeom
-    MultiPoint --> SmartSearch["Smart search for each point<br/>vectorized nearest-neighbor"]
-    LoadFile --> ValidateGeom
-    
-    SmartPoint --> Reproject["Reproject to WGS84"]
-    SmartSearch --> Reproject
-    ValidateGeom --> Reproject
-    
-    Reproject --> CheckSeparated{Separated<br/>output?}
-    
-    CheckSeparated -->|No| SingleClip["Single clip operation<br/>union all boundaries"]
-    CheckSeparated -->|Yes| LoopClip["Loop each boundary/point<br/>create dict or list"]
-    
-    SingleClip --> Mask3D["Create 3D mask<br/>broadcast across time/sim"]
-    LoopClip --> Mask3D
-    
-    Mask3D --> ApplyMask["Apply mask to data<br/>data.where"]
-    
-    ApplyMask --> UpdateCtx["Update context metadata"]
-    
-    UpdateCtx --> End([Output: Dataset<br/>clipped extent])
-    
-    click ParseValue "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L230" "Input type detection"
-    click StringCheck "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L260" "String boundary vs station"
-    click LoadBoundary "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L290" "Load from boundary catalog"
-    click LoadStation "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L310" "Load weather station"
-    click SinglePoint "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L330" "Single point clipping"
-    click BBox "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L350" "Bounding box clipping"
-    click SmartPoint "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L400" "Smart gridcell search algorithm"
-    click SmartSearch "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L420" "Multi-point nearest-neighbor"
-    click ValidateGeom "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L450" "Validate geometry integrity"
-    click Reproject "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L470" "Reproject to WGS84"
-    click Mask3D "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L490" "Broadcast mask to 3D"
-    click ApplyMask "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L510" "Apply rioxarray mask"
-    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L530" "Record clipped region"
+    Init([__init__: parse value, detect mode]) --> Init2["Set flags:<br/>is_single_point / is_multi_point /<br/>separated / extract_points / persist"]
+    Init2 --> Start([execute])
+    Start --> MatchValue{match self.value}
+
+    MatchValue -->|str| StrCheck{Station id?}
+    StrCheck -->|Yes| StationCoords["_get_station_coordinates<br/>(sets is_station, is_single_point)"]
+    StrCheck -->|No| PathCheck{File path exists?}
+    PathCheck -->|Yes| ReadFile["gpd.read_file(value)"]
+    PathCheck -->|No| BoundaryLookup["_get_boundary_geometry"]
+
+    MatchValue -->|list| ListCheck{All station ids?}
+    ListCheck -->|Yes| MultiStation["_convert_stations_to_points"]
+    ListCheck -->|No — lat/lon tuples| MultiPoint["is_multi_point<br/>(use point_list)"]
+    ListCheck -->|No — separated boundaries| Sep["separated path<br/>(per-boundary loop)"]
+    ListCheck -->|No — union| MultiBoundary["_get_multi_boundary_geometry<br/>(union)"]
+
+    MatchValue -->|tuple len 2 of floats| SinglePt["is_single_point<br/>(lat, lon)"]
+    MatchValue -->|tuple of tuples| BBox["shapely.box → GeoDataFrame<br/>(EPSG:4326)"]
+    MatchValue -->|other| RaiseValue["raise ValueError"]
+
+    StationCoords --> DispatchResult
+    ReadFile --> DispatchResult
+    BoundaryLookup --> DispatchResult
+    MultiStation --> DispatchResult
+    MultiPoint --> DispatchResult
+    Sep --> DispatchResult
+    MultiBoundary --> DispatchResult
+    SinglePt --> DispatchResult
+    BBox --> DispatchResult
+
+    DispatchResult{match result}
+    DispatchResult -->|dict| LoopDict["For each (key, value):<br/>route by mode flag"]
+    DispatchResult -->|Dataset / DataArray| RouteSingle["Route by mode flag"]
+    DispatchResult -->|list / tuple| LoopList["Per-item route, preserve container type"]
+
+    LoopDict --> ChooseClipper
+    RouteSingle --> ChooseClipper
+    LoopList --> ChooseClipper
+
+    ChooseClipper{Mode flag}
+    ChooseClipper -->|is_single_point| ClipPoint["_clip_data_to_point<br/>(closest cell, fallback to 3x3 neighborhood mean)"]
+    ChooseClipper -->|is_multi_point| ClipMaskPts["_clip_data_to_points_as_mask<br/>(mask or extract along 'points' dim)"]
+    ChooseClipper -->|separated| ClipSep["_clip_data_separated<br/>(one geom per boundary)"]
+    ChooseClipper -->|geom set| ClipGeom["_clip_data_with_geom<br/>(rio.clip)"]
+
+    ClipPoint --> CheckPersist{persist?}
+    ClipMaskPts --> CheckPersist
+    ClipSep --> CheckPersist
+    ClipGeom --> CheckPersist
+
+    CheckPersist -->|Yes| Compute[".compute() to collapse Dask graph"]
+    CheckPersist -->|No| UpdateCtx
+    Compute --> UpdateCtx["update_context"]
+    UpdateCtx --> End([Output: clipped data, same container as input])
+
+    click Init "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L186" "__init__"
+    click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L294" "execute"
+    click MatchValue "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L303" "First match: parse self.value"
+    click StationCoords "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L541" "_get_station_coordinates"
+    click ReadFile "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L318" "gpd.read_file"
+    click BoundaryLookup "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1443" "_get_boundary_geometry"
+    click MultiStation "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L570" "_convert_stations_to_points"
+    click MultiBoundary "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1683" "_get_multi_boundary_geometry (union)"
+    click BBox "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L355" "shapely.box → GeoDataFrame"
+    click DispatchResult "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L386" "Second match: dispatch by result type"
+    click ClipPoint "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L665" "_clip_data_to_point"
+    click ClipMaskPts "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1061" "_clip_data_to_points_as_mask"
+    click ClipSep "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1348" "_clip_data_separated"
+    click ClipGeom "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L595" "_clip_data_with_geom"
+    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L479" "update_context"
 ```
 
 ## Input Modes
@@ -92,17 +105,19 @@ Clip to specific weather station locations from the HadISD station network.
 "KLAX"                     # Los Angeles International Airport
 ```
 
-### Mode 3: Single Point (Smart Gridcell Finding)
-Extract data for a single geographic point. **Automatically finds the nearest gridcell with valid (non-NaN) data using expanding-radius search.**
+### Mode 3: Single Point (Closest Valid Gridcell)
+Extract data for a single geographic point. The processor first selects the geographically closest gridcell; if that cell is all-NaN (common in WRF data near coastlines/mountains/masked regions) it falls back to a **3×3 index-space neighborhood** around the nearest cell and returns the **mean of the valid (non-NaN) cells in that neighborhood**.
 
-**Smart Point-Finding Algorithm:**
-When the nearest gridcell contains NaN values (common in WRF data near coastlines/mountains):
+**Algorithm (`_clip_data_to_point`, line 665):**
 
-1. **Initial Search**: 0.01° radius (~1 km)
-2. **Expand to**: 0.05° (~5 km)
-3. **Continue**: 0.1°, 0.2°, 0.5° radii
-4. **Return**: Closest valid (non-NaN) gridcell within acceptable radius
-5. **Timeout**: If no valid data within 0.5°, raises error with suggestions
+1. Call `get_closest_gridcell(dataset, lat, lon)` and check if it has valid data on a sample slice.
+2. If valid, return that cell.
+3. If NaN, find the nearest grid index (`(idx1, idx2)`) along the spatial dims (`x`/`y` for WRF, `lat`/`lon` for LOCA2). For projected grids, lat/lon are first transformed to the dataset's CRS via `pyproj.Transformer`.
+4. Iterate the 3×3 neighborhood `(di, dj) ∈ {-1, 0, 1}²`, skipping out-of-bounds and all-NaN cells.
+5. If any valid neighbors exist, `xr.concat(neighbors, dim="nearest_cell").mean(dim="nearest_cell")` and reassign mean lat/lon coords; otherwise return `None`.
+6. Fallback paths handle averaging failures by returning the center cell directly.
+
+> The earlier docs described an expanding-radius search (0.01° → 0.05° → ... → 0.5°). That was never the implementation; the current behavior is the index-space 3×3 mean above.
 
 **Example:**
 ```python
@@ -155,39 +170,56 @@ When providing multiple point coordinates:
 ## Spatial Processing Details
 
 ### Coordinate System Handling
-- **Input**: Multiple coordinate systems supported (automatically detected)
-- **Conversion**: All reproject to WGS84 (EPSG:4326)
-- **Output**: WGS84 coordinates in result dataset
+- **Data CRS detection** (`_clip_data_with_geom`, line 595): if `data.rio.crs` is unset, the processor detects WRF data by the presence of a `Lambert_Conformal` coordinate and writes the CRS from `spatial_ref` or CF-convention attributes; otherwise it assumes EPSG:4326 (LOCA2 lat/lon).
+- **Boundary CRS**: boundaries are assumed to be EPSG:4326 (a warning is logged if no CRS is set).
+- **Reprojection direction**: when `data.rio.crs != gdf.crs`, the **GeoDataFrame is reprojected to the data's CRS** — the data stays in its native projection (i.e., WRF output remains in Lambert Conformal).
 
 ### Masking Strategy
-1. Create boolean mask from geometry
-2. Broadcast mask to 3D (time × lat × lon) or higher dimensions
-3. Apply with `data.where(mask, drop=False)` to preserve coordinates
+Geometry-based clipping uses `rioxarray`:
+
+```python
+data.rio.clip(gdf.geometry.apply(mapping), gdf.crs, drop=True, all_touched=True)
+```
+
+- `all_touched=True` includes cells that any part of the geometry touches.
+- `drop=True` trims the bounding box to the clipped extent.
+
+For multi-point clipping, `_clip_data_to_points_as_mask` either applies a points-mask in place or extracts along a new `points` dimension when `extract_points=True` (set by `{"points": [...], "separated": True}`).
+
+### Persisting to Memory
+When `persist=True` (constructor arg or `persist` key in dict input), the processor calls `.compute()` on the result before returning. This collapses the Dask task graph and is recommended for large multi-point clipping followed by 1-in-X analysis or other graph-heavy operations.
 
 ### Boundary Catalog Access
-- Boundaries loaded lazily on first use
-- Cached in memory for subsequent operations
-- Sourced from S3 intake-esm catalog
+- Boundaries loaded lazily via `_get_boundary_geometry` (line 1443) / `_get_multi_boundary_geometry` (line 1683).
+- Sourced from S3 intake-esm catalog and cached for the process lifetime.
 
 ## Parameters
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `value` | str/tuple/list/dict | ✓ | — | Geometry specification (mode 1–5 above) |
-| `separated` | bool | | False | Return separate datasets per boundary/point |
-| `location_based_naming` | bool | | False | Use lat/lon in filenames (with export) |
+| `value` | str / list / tuple / dict | ✓ | — | Geometry specification (modes 1–5 above). For dict input, must contain `boundaries` *or* `points`. |
+| `separated` | bool (in dict input) | | False | For boundaries: keep each as its own dataset entry. For points: extract along a new `points` dimension. |
+| `persist` | bool (in dict input or constructor) | | False | Call `.compute()` after clipping to collapse the Dask task graph. Recommended for large multi-point workflows. |
 
 ## Code References
 
 | Method | Lines | Purpose |
 |--------|-------|---------|
-| `__init__` | [120–160](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L120) | Parse and validate clip parameters |
-| `execute` | [170–230](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L170) | Route input type and coordinate smart search |
-| `_get_boundary_geometry` | [240–310](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L240) | Load geometry from various sources |
-| `_smart_gridcell_search` | [320–400](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L320) | Find nearest valid (non-NaN) gridcell with expanding radii |
-| `_clip_data_with_geom` | [410–490](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L410) | Core rioxarray masking logic |
-| `_create_3d_mask` | [500–520](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L500) | Broadcast mask to 3D or higher |
-| `update_context` | [530–545](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L530) | Record clipped region metadata |
+| `__init__` | [186–291](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L186) | Parse `value`, set mode flags (`is_single_point`, `is_multi_point`, `separated`, `extract_points`, `persist`) |
+| `execute` | [294–477](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L294) | Two-phase: parse value → geom (line 303), then dispatch over result type (line 386); optional `.compute()` if `persist` |
+| `update_context` | [479–535](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L479) | Record clipped-region metadata under `new_attrs["clip"]` |
+| `set_data_accessor` | [537–539](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L537) | Receive `DataCatalog` reference for boundary/station lookups |
+| `_get_station_coordinates` | [541–568](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L541) | HadISD station code → (lat, lon, metadata) |
+| `_convert_stations_to_points` | [570–593](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L570) | Multi-station list → point_list + metadata list |
+| `_clip_data_with_geom` | [595–663](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L595) | CRS detection + `rio.clip(all_touched=True, drop=True)` |
+| `_clip_data_to_point` | [665–878](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L665) | Closest cell, fallback to 3×3 index-space neighborhood mean |
+| `_clip_data_to_multiple_points` | [880–961](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L880) | Vectorized multi-point selection |
+| `_clip_data_to_multiple_points_fallback` | [963–1059](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L963) | Fallback path used when vectorized lookup fails |
+| `_clip_data_to_points_as_mask` | [1061–1346](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1061) | Mask-based multi-point clip; supports `extract_points` along new `points` dim |
+| `_clip_data_separated` | [1348–1441](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1348) | Per-boundary clipping returning dict/list keyed by boundary |
+| `_get_boundary_geometry` | [1443–1503](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1443) | Single boundary key → GeoDataFrame |
+| `_get_multi_boundary_geometry` | [1683–1749](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1683) | Multi-boundary union via `_combine_geometries` |
+| `_combine_geometries` | [1751–](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1751) | Geometry union helper |
 
 ## Examples
 
@@ -332,35 +364,29 @@ data = (ClimateData()
 
 ### Geometry Loading
 
-Clip loads from multiple sources in order:
+Clip resolves `self.value` to a geometry (or to a point-mode flag) in this order:
 
-1. **Boundary Catalog** (S3): Pre-registered CA regions (counties, watersheds, electric zones)
-2. **Weather Stations** (CSV): HadISD global station metadata
-3. **User Files**: Shapefiles, GeoJSON, or other OGR-supported formats
+1. **String** → station id (`is_station_identifier`, line 305) → file path (`os.path.exists`, line 318) → boundary key (`_get_boundary_geometry`, line 320).
+2. **List** → all-station list (line 324) → lat/lon tuples (`is_multi_point`, line 340) → separated boundaries (line 343) → union of boundaries (`_get_multi_boundary_geometry`, line 345).
+3. **Tuple** → single `(lat, lon)` (line 347) or bbox `((lat_min, lat_max), (lon_min, lon_max))` (line 355, builds `shapely.box` in EPSG:4326).
 
-### 3D Masking
+### Result Dispatch
 
-For multi-dimensional data `(time, sim, lat, lon)`, the processor broadcasts the 2D mask:
+The second `match` (line 386) routes the input data:
 
-```python
-mask_3d = mask.broadcast_like(data)  # Extend mask to all dims
-clipped = data.where(mask_3d, drop=False)  # False keeps masked areas as NaN
-```
+- **dict**: per-key clip; mode flag selects the clipper.
+- **Dataset / DataArray**: single clip via the matching mode’s clipper.
+- **list / tuple**: per-item clip, container type preserved; `None` results filtered out for point modes.
 
-Using `drop=False` preserves grid structure for later operations.
+### Persist (`persist=True`)
 
-### Separated Output
-
-When `separated=True`:
-
-- **Single boundaries** → List of datasets (one per boundary)
-- **Multiple points** → Dict keyed by `(lat, lon)` or index
+After clipping, if `self.persist` is true the processor calls `.compute()` on the result (per-value for dicts, on the whole object otherwise). This collapses very large Dask task graphs that arise from multi-point clipping followed by quantile or block operations and prevents OOMs in downstream steps.
 
 ### Error Handling
 
-- **Invalid boundary name**: Log warning, skip or raise error
-- **Empty geometry**: Return None or empty dataset
-- **Out-of-bounds point**: Return nearest grid cell (clip snaps to WRF grid)
+- Invalid station code, missing boundary key, or unsupported `value` type → `ValueError`.
+- All-NaN single point with no valid 3×3 neighbors → `_clip_data_to_point` returns `None`; the per-item paths filter these out.
+- Failed CRS detection on WRF data missing required CF attributes → `ValueError` with the missing key.
 
 ## Common Patterns
 

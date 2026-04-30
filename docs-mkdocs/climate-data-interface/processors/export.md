@@ -2,67 +2,62 @@
 
 **Registry key:** `export` &nbsp;|&nbsp; **Priority:** 9999 &nbsp;|&nbsp; **Category:** I/O & Archival
 
-Write climate data to disk in multiple formats (NetCDF, Zarr, CSV, GeoTIFF). Handle gridded datasets, multi-point extractions, and point collections with optional location-based filenames, S3 cloud storage, and format-specific export methods.
+Write climate data to disk in NetCDF, Zarr, or CSV. Handles gridded datasets, multi-point clip results (`closest_cell` dimension), and collections (lists/tuples/dicts of single-point datasets) with optional location-based filenames and S3 storage for Zarr.
 
 ## Algorithm
 
-The processor handles **three distinct data structures** with conditional parameter behavior:
+`Export` runs at priority 9999 (last). It dispatches by `export_method` first, then by data structure.
 
 ```mermaid
 flowchart TD
-    Start([Input: xr.Dataset<br/>or collection]) --> CheckType{Input data<br/>type?}
-    
-    CheckType -->|Gridded| GridMode["<strong>Mode 1: Gridded Dataset</strong><br/>lat/lon dimensions<br/>size gt 1<br/>Single file mode"]
-    CheckType -->|closest_cell dim| PointMode["<strong>Mode 2: Multi-Point</strong><br/>closest_cell dimension<br/>from clip processor<br/>Conditional separation"]
-    CheckType -->|List/Dict| CollectionMode["<strong>Mode 3: Collection</strong><br/>List or dict of<br/>single-point datasets<br/>Item-based separation"]
-    
-    GridMode --> GridParams["separated/location_based<br/>SILENTLY IGNORED<br/>Always single file"]
-    PointMode --> PointParams["separated:True<br/>splits on closest_cell<br/>location_based_naming<br/>controls filenames"]
-    CollectionMode --> CollParams["separated:True<br/>exports each item<br/>location_based_naming<br/>controls filenames"]
-    
-    GridParams --> FormatSelect["Infer file format<br/>or use specified"]
-    PointParams --> FormatSelect
-    CollParams --> FormatSelect
-    
-    FormatSelect -->|NetCDF| ExportNCDF["xarray.to_netcdf<br/>local filesystem<br/>CF conventions"]
-    FormatSelect -->|Zarr| ExportZarr["zarr-python<br/>local or S3<br/>cloud-optimized"]
-    FormatSelect -->|CSV| ExportCSV["to_csv with gzip<br/>tabular format<br/>time series friendly"]
-    FormatSelect -->|GeoTIFF| ExportGEO["rioxarray.to_raster<br/>single time slice<br/>GIS compatible"]
-    
-    ExportNCDF --> GenFilename["Generate filename<br/>with extension"]
-    ExportZarr --> GenFilename
-    ExportCSV --> GenFilename
-    ExportGEO --> GenFilename
-    
-    GenFilename --> CheckNaming{location_based_naming<br/>enabled?}
-    
-    CheckNaming -->|Yes + points| AddCoords["Append coords to name<br/>e.g. _34-0N_118-0W"]
-    CheckNaming -->|No or gridded| NoCoords["Use index or base name<br/>e.g. _0, _1"]
-    
-    AddCoords --> Write["Write file to disk"]
-    NoCoords --> Write
-    
-    Write --> CheckMethod{export_method}
-    
-    CheckMethod -->|data| ReturnData["Return data + path"]
-    CheckMethod -->|skip_existing| CheckExists{File exists?}
-    CheckExists -->|Yes| ReturnNone1["Return None"]
-    CheckExists -->|No| Write
-    CheckMethod -->|none| ReturnNone2["Return None"]
-    
-    ReturnData --> End([Output: Dataset<br/>+ export metadata])
-    ReturnNone1 --> End
-    ReturnNone2 --> End
-    
-    click CheckType "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L150" "Input type detection"
-    click GridMode "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L170" "Gridded dataset handling"
-    click PointMode "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L190" "closest_cell dimension"
-    click CollectionMode "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L210" "Collection of points"
-    click FormatSelect "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L240" "Format router"
-    click ExportNCDF "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L280" "NetCDF export"
-    click ExportZarr "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L290" "Zarr export S3/local"
-    click ExportCSV "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L300" "CSV export"
-    click ExportGEO "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L310" "GeoTIFF export"
+    Init([__init__: parse value dict]) --> Validate["_validate_parameters<br/>(format ∈ {zarr, netcdf, csv}; mode ∈ {local, s3};<br/>s3 requires zarr; export_method valid)"]
+    Validate --> Start([execute])
+    Start --> MethodCheck{export_method}
+
+    MethodCheck -->|none| ReturnNoop["print message,<br/>return data unchanged"]
+    MethodCheck -->|raw / calculate / both + dict result| HandleDict["_handle_dict_result<br/>(raw_data / calc_data keys)"]
+    MethodCheck -->|raw / calculate / both + non-dict| HandleSel["_handle_selective_export<br/>(uses _determine_data_type)"]
+    MethodCheck -->|data / skip_existing| ExportData["_export_data"]
+
+    ExportData --> MatchResult{match result}
+    MatchResult -->|Dataset / DataArray| HasCC{closest_cell dim<br/>and separated?}
+    HasCC -->|Yes| SplitCC["_split_and_export_closest_cells"]
+    HasCC -->|No| ExportSingle1["export_single"]
+    MatchResult -->|dict| LoopDict["For each value:<br/>list/tuple → _export_collection,<br/>else → export_single"]
+    MatchResult -->|list / tuple| ExportColl["_export_collection"]
+    MatchResult -->|other| RaiseType["raise TypeError"]
+
+    SplitCC --> ExportSingleN["export_single per slice<br/>(filename via _generate_filename)"]
+    ExportColl --> ExportSingleN
+    LoopDict --> ExportSingleN
+    ExportSingle1 --> WriteOne
+    ExportSingleN --> WriteOne
+
+    WriteOne["export_single:<br/>1. _generate_filename + extension<br/>2. skip_existing check / unique filename<br/>3. _clean_attrs_for_netcdf"]
+    WriteOne --> FormatMatch{match req_format}
+    FormatMatch -->|zarr| Zarr["_export_to_zarr<br/>(local or s3)"]
+    FormatMatch -->|netcdf| NCDF["_export_to_netcdf"]
+    FormatMatch -->|csv| CSV["_export_to_csv (gzip)"]
+
+    Zarr --> Done
+    NCDF --> Done
+    CSV --> Done
+    HandleDict --> Done
+    HandleSel --> Done
+    Done([Return original data unchanged — chainable])
+    ReturnNoop --> Done
+
+    click Init "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L197" "__init__"
+    click Validate "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L238" "_validate_parameters"
+    click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L326" "execute"
+    click ExportData "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L394" "_export_data dispatcher"
+    click MatchResult "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L432" "match result"
+    click SplitCC "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L820" "_split_and_export_closest_cells"
+    click ExportColl "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L457" "_export_collection"
+    click HandleDict "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L573" "_handle_dict_result"
+    click HandleSel "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L590" "_handle_selective_export"
+    click WriteOne "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L1064" "export_single"
+    click FormatMatch "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L1103" "match req_format"
 ```
 
 ## Data Handling Modes
@@ -166,63 +161,67 @@ myfile_2.nc
 
 ## Export Formats
 
-| Format | Use Case | Compression | Local/S3 | Max Size | Speed |
-|--------|----------|-------------|----------|----------|-------|
-| **NetCDF** | Climate data standard, long-term archival | CF conventions + gzip | Local only | Unlimited | Fast |
-| **Zarr** | Cloud access, distributed computing, multi-file | Internal (optional) | Both (S3) | Unlimited | Fast |
-| **CSV** | Spreadsheet software, tabular analysis, publication | gzip optional | Local only | ~500MB practical | Slow |
-| **GeoTIFF** | Raster maps, GIS software (QGIS, ArcGIS) | Single time slice | S3 capable | 4GB limit | Fast |
+| Format | Use Case | Compression | Local/S3 | Notes |
+|--------|----------|-------------|----------|-------|
+| **NetCDF** | Climate data standard, archival | netCDF4 / zlib | Local only | Default; preserves CF metadata |
+| **Zarr** | Cloud / chunked I/O | Internal | Both (S3 requires `mode="s3"`) | Path: `s3://bucket/...zarr` |
+| **CSV** | Tabular / spreadsheets | gzip (`.csv.gz`) | Local only | Slow for large datasets |
+
+> The Export processor does **not** support GeoTIFF. For GIS raster output, use `rioxarray` directly on the returned `xr.Dataset` after `.get()`.
 
 ### Format-Specific Notes
 
-**NetCDF:**
-- CF conventions metadata preserved
-- Human-readable with ncdump
-- Local filesystem only
-- Best for archival
+**NetCDF (`_export_to_netcdf`)**
+- Attributes are sanitized via `_clean_attrs_for_netcdf` before writing.
+- Best for archival, ncdump-readable.
 
-**Zarr (S3 Mode):**
-- Requires bucket configuration
-- Streaming access without downloading
-- Chunked storage for efficient access
-- Path format: `s3://bucket/path/dataset.zarr`
+**Zarr (`_export_to_zarr`)**
+- `mode="local"` (default) writes to current working directory.
+- `mode="s3"` writes to S3 — requires bucket configured outside the processor; only `Zarr` is allowed when `mode="s3"`.
+- Attributes also sanitized prior to write to keep parity with the NetCDF path.
 
-**CSV:**
-- Flattens multi-dimensional data to tabular format
-- Header row with coordinate/variable names
-- gzip compression applied by default
-- Slow for large datasets (>500MB)
-
-**GeoTIFF:**
-- Single time slice per file (select with time index)
-- Spatial reference (EPSG:4326) embedded
-- Useful for static maps/visualizations
-- Can be opened in QGIS, ArcGIS, Google Earth
+**CSV (`_export_to_csv`)**
+- gzip-compressed (`.csv.gz`).
+- Practical only for small / point datasets.
 
 ## Parameters
 
 | Parameter | Type | Mode(s) | Description | Constraints |
 |-----------|------|---------|-------------|-------------|
-| `filename` | str | All | Base filename (no extension) | Default: "dataexport" |
-| `file_format` | str | All | Output format | "NetCDF", "Zarr", "CSV", "GeoTIFF" |
-| `separated` | bool | 2, 3 | Export items to separate files | Ignored for Mode 1 |
-| `location_based_naming` | bool | 2, 3 | Use lat/lon in filenames | Requires `separated=True` |
-| `export_method` | str | All | Return behavior | "data", "skip_existing", "none" |
-| `mode` | str | All (Zarr) | Storage destination | "local" or "s3" (Zarr only) |
-| `raw_filename` | str | — | Custom name for raw export | For `export_method="both"` |
-| `calc_filename` | str | — | Custom name for calculated export | For `export_method="both"` |
+| `filename` | str | All | Base filename (no extension) | Default: `"dataexport"` |
+| `file_format` | str | All | Output format | `"NetCDF"`, `"Zarr"`, `"CSV"` (case-insensitive; aliases inferred) |
+| `mode` | str | All | Storage destination | `"local"` or `"s3"`; `"s3"` requires `file_format="Zarr"` |
+| `separated` | bool | 2, 3 | Export items to separate files | Ignored for gridded data without `closest_cell` |
+| `location_based_naming` | bool | 2, 3 | Use lat/lon in filenames | Effective when items have scalar lat/lon |
+| `filename_template` | str / None | All | Custom filename template | Optional |
+| `export_method` | str | All | Return / handler routing | `"data"`, `"skip_existing"`, `"raw"`, `"calculate"`, `"both"`, `"none"` |
+| `raw_filename` | str / None | — | Custom name for raw export | Used by `_handle_dict_result` / `_handle_selective_export` |
+| `calc_filename` | str / None | — | Custom name for calculated export | Used by `_handle_dict_result` / `_handle_selective_export` |
+| `fail_on_error` | bool | All | Raise vs warn on write failure | Default: bool |
 
 ## Code References
 
 | Method | Lines | Purpose |
 |--------|-------|---------|
-| `__init__` | [70–140](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L70) | Parse and validate export parameters |
-| `execute` | [150–210](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L150) | Detect input type and route to handler |
-| `_export_single_dataset` | [220–250](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L220) | Export gridded dataset (Mode 1) |
-| `_export_with_closest_cell` | [260–300](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L260) | Export multi-point results (Mode 2) |
-| `_export_collection` | [310–350](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L310) | Export point collection (Mode 3) |
-| `_select_export_function` | [360–390](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L360) | Route to format-specific writer |
-| `update_context` | [400–415](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L400) | Record export path and metadata |
+| `__init__` | [197–237](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L197) | Parse `value` dict, set defaults |
+| `_validate_parameters` | [238–325](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L238) | Validate format / mode / export_method / types |
+| `execute` | [326–393](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L326) | Route by `export_method`; returns input unchanged |
+| `_export_data` | [394–455](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L394) | `match result` dispatcher (Dataset/DataArray, dict, list/tuple) |
+| `_export_collection` | [457–511](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L457) | List/tuple handler honoring `separated` and `location_based_naming` |
+| `_export_single_from_collection` | [513–571](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L513) | Per-item write inside `_export_collection` |
+| `_handle_dict_result` | [573–588](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L573) | `raw_data` / `calc_data` dict (e.g., `cava_data`) |
+| `_handle_selective_export` | [590–618](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L590) | Selective raw/calculate/both for non-dict inputs |
+| `_determine_data_type` | [620–646](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L620) | Classify input as raw vs calculated |
+| `_export_with_suffix` | [648–674](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L648) | Append suffix (`_raw`, `_calc`) and write |
+| `update_context` | [676–696](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L676) | Record export metadata in context |
+| `_clean_attrs_for_netcdf` | [702–761](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L702) | Sanitize attrs for NetCDF/Zarr serialization |
+| `_is_single_point_data` | [763–785](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L763) | Detect scalar lat/lon |
+| `_has_closest_cell_dimension` | [787–818](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L787) | Multi-point clip detection |
+| `_split_and_export_closest_cells` | [820–902](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L820) | Split along `closest_cell` and write each slice |
+| `_extract_point_coordinates` | [904–964](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L904) | Pull (lat, lon) for filename suffix |
+| `_generate_filename` | [966–1030](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L966) | Build base filename (location_based or template) |
+| `_get_unique_filename` | [1032–1062](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L1032) | Add `_1`, `_2`, ... when target exists |
+| `export_single` | [1064–1127](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L1064) | `match req_format` and call format writer |
     .table_id("day")
     .grid_label("d03")
     .processes({
@@ -237,29 +236,6 @@ myfile_2.nc
 
 # Writes: sf_daily_max_temp.csv
 # Columns: time, t2max (one row per day)
-```
-
-### GeoTIFF for GIS
-
-```python
-# Single raster layer for ArcGIS/QGIS
-data = (ClimateData()
-    .catalog("cadcat")
-    .activity_id("WRF")
-    .variable("pr")
-    .table_id("mon")
-    .grid_label("d02")
-    .processes({
-        "time_slice": ("2015-06-01", "2015-08-31"),  # Summer
-        "export": {
-            "filename": "ca_summer_precip_2015",
-            "file_format": "GeoTIFF"
-        }
-    })
-    .get())
-
-# Writes: ca_summer_precip_2015.tif
-# GIS-compatible with lat/lon metadata
 ```
 
 ## Implementation Details
@@ -285,12 +261,6 @@ else:
 
 ```python
 data.to_csv(filename)  # Works for time series at single points
-```
-
-**GeoTIFF**: Single time step, spatial (lat, lon) only
-
-```python
-data.isel(time=0).rio.to_raster(filename)  # Exports first time slice
 ```
 
 ### Skip Existing

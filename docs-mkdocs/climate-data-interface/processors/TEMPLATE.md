@@ -123,7 +123,7 @@ This is later attached to output dataset attributes and stored in exported files
 
 ## Creating a Processor Page
 
-1. **Copy this template** to `docs-mkdocs/new-core/processors/processor_name.md`
+1. **Copy this template** to `docs-mkdocs/climate-data-interface/processors/processor_name.md`
 2. **Read the source code** (`climakitae/new_core/processors/processor_name.py`)
 3. **Customize sections**:
    - Replace `processor_name` throughout

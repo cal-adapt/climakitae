@@ -2,407 +2,188 @@
 
 **Registry key:** `metric_calc` &nbsp;|&nbsp; **Priority:** 7500 &nbsp;|&nbsp; **Category:** Analysis & Derived Variables
 
-Compute derived climate metrics and indices from base variables. Calculate heating/cooling degree days, heat indices, extreme event frequencies, threshold exceedance days, and return period statistics via extreme value distribution fitting.
+Reduce a dataset along one or more dimensions using a basic statistic (`min` / `max` / `mean` / `median` / `sum`), optionally compute percentiles alongside it, count threshold exceedances, or fit extreme-value distributions to estimate return periods.
+
+## Three calculation modes
+
+`__init__` reads the value dict and chooses a mode at execute time based on which sub-config is present:
+
+| Mode | Triggered by | Output |
+|------|--------------|--------|
+| **Basic / percentiles** | neither `thresholds` nor `one_in_x` | reduced Dataset/DataArray; if both metric and percentiles are requested for a Dataset, variables are renamed `<var>_p<N>` and `<var>_<metric>` |
+| **Threshold exceedance** | `thresholds={...}` | counts of qualifying timesteps per period |
+| **1-in-X extreme value** | `one_in_x={...}` | `return_values` and `p_values` (KS goodness-of-fit) |
+
+> The earlier doc used the key `one_in_x_config`. The actual key is **`one_in_x`** (`__init__` calls `value.get("one_in_x", UNSET)`). Earlier doc also listed metrics like `hdd_cdd`, `heat_index`, `effective_temp`, `noaa_heat_index` — those live in `climakitae.tools.indices` / `derived_variables`, not in this processor. The supported `metric` values here are exactly `min`, `max`, `mean` (default), `median`, `sum`.
 
 ## Algorithm
 
-The processor has **three distinct calculation modes** selected by parameters:
+```mermaid
+flowchart TD
+    Init([__init__]) --> ParseValue{which sub-config?}
+    ParseValue -->|one_in_x| SetupOIX[_setup_one_in_x_parameters]
+    ParseValue -->|thresholds| SetupTh[_setup_threshold_parameters]
+    ParseValue -->|neither| Basic[Basic metric/percentiles only]
+
+    SetupOIX --> Exec
+    SetupTh --> Exec
+    Basic --> Exec
+
+    Exec([execute]) --> PickFn{Which fn?}
+    PickFn -->|thresholds set| ThFn[_calculate_threshold_single]
+    PickFn -->|one_in_x set| OIXFn[_calculate_one_in_x_single]
+    PickFn -->|else| BasicFn[_calculate_metrics_single]
+
+    ThFn --> Dispatch[Dispatch over result:<br/>Dataset/DataArray, dict, list, tuple]
+    OIXFn --> Dispatch
+    BasicFn --> Dispatch
+
+    Dispatch --> UpdateCtx[update_context]
+    UpdateCtx --> End([Output])
+
+    click Init "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L145" "__init__"
+    click SetupOIX "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L191" "_setup_one_in_x_parameters"
+    click SetupTh "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L262" "_setup_threshold_parameters"
+    click Exec "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L305" "execute"
+    click BasicFn "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L372" "_calculate_metrics_single"
+    click ThFn "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L512" "_calculate_threshold_single"
+    click OIXFn "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L595" "_calculate_one_in_x_single"
+    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1387" "update_context"
+```
+
+### Basic / percentiles flow
 
 ```mermaid
 flowchart TD
-    Start([Input: xr.Dataset<br/>or collection]) --> Route{Which config<br/>is set?}
-    
-    Route -->|thresholds| ThreshMode["<strong>Mode 1: Threshold Exceedance</strong><br/>Count days where variable<br/>exceeds threshold"]
-    Route -->|one_in_x_config| ExtremeMode["<strong>Mode 2: 1-in-X Extreme Analysis</strong><br/>Fit distribution to extremes<br/>return period statistics"]
-    Route -->|neither| MetricMode["<strong>Mode 3: Basic Metrics</strong><br/>Calculate standard metrics<br/>HDD/CDD/heat index/etc"]
-    
-    ThreshMode --> ThreshExec["Execute _calculate_threshold_single()"]
-    ExtremeMode --> ExtremeExec["Execute _calculate_one_in_x_single()"]
-    MetricMode --> MetricExec["Execute _calculate_metrics_single()"]
-    
-    ThreshExec --> ThreshDetail["Count exceedances over period<br/>optionally filter by duration<br/>return days/frequency"]
-    ExtremeExec --> ExtremeDetail["Extract block maxima<br/>fit GEV/Gamma/GenPareto<br/>compute return periods<br/>KS goodness-of-fit test"]
-    MetricExec --> MetricDetail["Compute min/max/mean/median<br/>optionally percentiles<br/>add to dataset"]
-    
-    ThreshDetail --> UpdateCtx["Update context with<br/>calculation metadata"]
-    ExtremeDetail --> UpdateCtx
-    MetricDetail --> UpdateCtx
-    
-    UpdateCtx --> End([Output: Dataset<br/>+ computed metric/statistic])
-    
-    click Route "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L330" "Mode selection branching"
-    click ThreshMode "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L520" "Threshold exceedance logic"
-    click ExtremeMode "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L600" "One-in-X extreme value analysis"
-    click MetricMode "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L370" "Basic metric calculation"
-    click ThreshExec "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L520" "_calculate_threshold_single"
-    click ExtremeExec "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L600" "_calculate_one_in_x_single"
-    click MetricExec "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L370" "_calculate_metrics_single"
+    A([_calculate_metrics_single]) --> B[Resolve dim list against<br/>data.dims; warn + return on miss]
+    B --> C{percentiles set?}
+    C -->|Yes| D[data.quantile(percentiles/100, dim);<br/>rename quantile -> percentile]
+    C -->|No| E
+    D --> E{percentiles_only?}
+    E -->|Yes| F[Return percentile result]
+    E -->|No| G[Apply metric_functions[self.metric]:<br/>min / max / mean / median / sum]
+    G --> H{Combine?}
+    H -->|Dataset + both| I[Rename combined vars:<br/>var_pN, var_metric]
+    H -->|DataArray + both| J[concat along 'statistic' dim]
+    H -->|Single| K[Return as-is]
 ```
 
-## Detailed Mode Workflows
+### Threshold flow (`_calculate_threshold_single`)
 
-### Mode 1: Basic Metrics Calculation Flow
+`thresholds` config keys (validated in `_setup_threshold_parameters`):
 
-```mermaid
-flowchart TD
-    Start1([Input: xr.Dataset<br/>or DataArray]) --> CheckDim["Check if dimensions<br/>exist in data<br/>(L375)"]
-    
-    CheckDim --> GetAvail["Get available dimensions<br/>from data variables"]
-    GetAvail --> FilterDim["Filter requested dims<br/>against available dims"]
-    
-    FilterDim -->|None valid| WarnRetDim["Log warning<br/>return original<br/>(L390)"]
-    FilterDim -->|Valid dims exist| UseCalcDim["Use valid dimensions<br/>for calculation"]
-    
-    UseCalcDim --> CheckPerc{Percentiles<br/>requested?}
-    
-    CheckPerc -->|Yes| CalcPerc["Calculate percentiles<br/>via quantile()<br/>(L415)"]
-    CheckPerc -->|No| CheckMetric
-    
-    CalcPerc --> RenamePerc["Rename quantile coord<br/>to percentile"]
-    RenamePerc --> CheckMetric{Calculate<br/>metric too?}
-    
-    CheckMetric -->|Yes: percentiles_only=False| CalcMetric["Apply metric function<br/>min/max/mean/median/sum<br/>(L440)"]
-    CheckMetric -->|No: percentiles_only=True| Combine1
-    
-    CalcMetric --> Combine1["Combine percentiles<br/>+ metric results"]
-    
-    Combine1 --> CombineDataset{Dataset or<br/>DataArray?}
-    CombineDataset -->|Dataset| RenameVars["Rename vars:<br/>var_pN, var_metric<br/>(L455)"]
-    CombineDataset -->|DataArray| StackStats["Stack along<br/>statistic dimension<br/>(L470)"]
-    
-    RenameVars --> End1([Output: Dataset<br/>with named statistics])
-    StackStats --> End1
-    WarnRetDim --> End1
-    
-    click CheckDim "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L375" "Check dimensions"
-    click WarnRetDim "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L390" "Warning & return"
-    click CalcPerc "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L415" "Calculate percentiles"
-    click CalcMetric "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L440" "Apply metric function"
-    click RenameVars "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L455" "Rename variables"
-    click StackStats "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L470" "Stack results"
-```
+| Key | Type | Default | Notes |
+|-----|------|---------|-------|
+| `threshold_value` | float | required | Comparison value (in data units). |
+| `threshold_direction` | `"above"` / `"below"` | required | |
+| `period` | `(int, str)` | `(1, "year")` | Aggregation period; unit must be `"year"` or `"month"`. |
+| `duration` | optional | `UNSET` | Minimum consecutive timesteps qualifying as an event. |
 
-### Mode 2: Threshold Exceedance Flow
+Cannot be combined with `metric`, `percentiles`, or `one_in_x`.
 
-```mermaid
-flowchart TD
-    Start2([Input: xr.Dataset<br/>or DataArray]) --> AddTime["Check for time dim<br/>add dummy if missing<br/>(L540)"]
-    
-    AddTime --> DefApply["Define _apply function<br/>for each variable"]
-    
-    DefApply --> ThreshComp["Create threshold mask:<br/>above/below comparison<br/>(L555)"]
-    
-    ThreshComp --> PreserveNaN["Preserve NaNs in mask<br/>using where not null"]
-    
-    PreserveNaN --> CheckDur{Duration<br/>filter?}
-    
-    CheckDur -->|No| CountExceed
-    CheckDur -->|Yes| ConvertDur["Convert duration tuple<br/>to timestep count<br/>(L565)"]
-    
-    ConvertDur --> GetFreq["Get data frequency<br/>from attrs"]
-    GetFreq --> CalcSteps["Map unit+frequency<br/>to n_steps"]
-    
-    CalcSteps --> RollingFilter["Apply rolling min<br/>for consecutive days<br/>(L585)"]
-    
-    RollingFilter --> CountExceed["Resample by period<br/>and sum exceedances<br/>(L590)"]
-    
-    CountExceed --> MinCount["Use min_count=1<br/>to preserve NaN vs 0"]
-    
-    MinCount --> ReturnDataset{Dataset or<br/>DataArray?}
-    
-    ReturnDataset -->|DataArray| Wrap["Wrap in Dataset<br/>with var name"]
-    ReturnDataset -->|Dataset| LoopVars["Loop apply()<br/>over all variables<br/>(L597)"]
-    
-    Wrap --> End2([Output: Dataset<br/>with exceedance counts])
-    LoopVars --> End2
-    
-    click AddTime "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L540" "Check/add time"
-    click ThreshComp "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L555" "Threshold comparison"
-    click ConvertDur "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L565" "Convert duration"
-    click RollingFilter "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L585" "Rolling filter"
-    click CountExceed "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L590" "Resample & count"
-    click LoopVars "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L597" "Loop over variables"
-```
+### 1-in-X flow (`_calculate_one_in_x_single`)
 
-### Mode 3: 1-in-X Extreme Value Analysis Flow
+`one_in_x` config keys (validated in `_setup_one_in_x_parameters`):
 
-```mermaid
-flowchart TD
-    Start3([Input: xr.Dataset<br/>or DataArray]) --> HandleType{"Dataset or<br/>DataArray?"}
-    
-    HandleType -->|Dataset| CheckVars["Check number of<br/>variables<br/>(L640)"]
-    HandleType -->|DataArray| ExtractDA["Extract as DataArray"]
-    
-    CheckVars -->|Multiple vars| LoopVars["Process each variable<br/>recursively<br/>(L655)"]
-    CheckVars -->|Single var| ExtractDA
-    
-    LoopVars --> MergeResults["Rename & merge<br/>all variable results"]
-    MergeResults --> End3a([Return: Merged<br/>Dataset])
-    
-    ExtractDA --> CheckSim["Check for sim<br/>dimension required<br/>(L680)"]
-    
-    CheckSim -->|Missing| ErrorSim["Raise ValueError:<br/>sim dimension required"]
-    CheckSim -->|Present| MemMgmt
-    
-    MemMgmt["Smart memory mgmt:<br/>detect Dask chunks<br/>(L683)"] --> CheckSize{"Array<br/>size?"}
-    
-    CheckSize -->|Small| LoadMemory["Load into memory<br/>via compute()<br/>(L690)"]
-    CheckSize -->|Medium| ChunkedProc["Use Dask-aware<br/>chunked processing"]
-    CheckSize -->|Large| DaskOpt["Use Dask optimization<br/>with lazy evaluation"]
-    
-    LoadMemory --> CheckTime
-    ChunkedProc --> CheckTime
-    DaskOpt --> CheckTime
-    
-    CheckTime["Check time dimension<br/>add dummy if needed<br/>(L705)"] --> SetFreq["Set frequency attribute<br/>for duration filtering"]
-    
-    SetFreq --> Preprocess["Apply variable-specific<br/>preprocessing<br/>(L730)"]
-    
-    Preprocess --> LogParams["Log return periods<br/>or return values"]
-    
-    LogParams --> Vectorized["Call vectorized<br/>calculation<br/>(L750)"]
-    
-    Vectorized --> ExtractBlocks["Extract block maxima<br/>from each simulation"]
-    ExtractBlocks --> FitDist["Fit distribution<br/>GEV/Gamma/GenPareto"]
-    FitDist --> CalcReturn["Calculate return values<br/>for periods OR periods for values"]
-    CalcReturn --> KSTest["Run KS goodness-of-fit<br/>test on residuals"]
-    KSTest --> CompileResults["Compile return_values<br/>and p_values"]
-    
-    CompileResults --> End3b([Output: Dataset<br/>with return statistics])
-    ErrorSim --> End3b
-    
-    click CheckVars "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L640" "Check variables"
-    click LoopVars "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L655" "Process recursively"
-    click CheckSim "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L680" "Check sim dimension"
-    click MemMgmt "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L683" "Memory management"
-    click LoadMemory "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L690" "Load to memory"
-    click CheckTime "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L705" "Check time"
-    click Preprocess "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L730" "Preprocessing"
-    click Vectorized "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L750" "Vectorized calc"
-```
+| Key | Type | Default | Notes |
+|-----|------|---------|-------|
+| `return_periods` | array-like | one of these | Periods to compute (mutually exclusive with `return_values`). |
+| `return_values` | array-like | one of these | Pre-set values to compute exceedance probabilities for. |
+| `distribution` | str | `"gev"` | `"gev"`, `"gamma"`, `"genpareto"`. |
+| `extremes_type` | `"max"` / `"min"` | `"max"` | |
+| `event_duration` | `(int, str)` | `(1, "day")` | Block duration. |
+| `grouped_duration` | optional | `UNSET` | |
+| `block_size` | int | `1` | |
+| `goodness_of_fit_test` | bool | `True` | KS test on residuals. |
+| `print_goodness_of_fit` | bool | `True` | |
+| `variable_preprocessing` | dict | `{}` | Preprocessing config. |
 
-## Calculation Modes
+Internally the workflow extracts block extrema, fits the chosen distribution, and produces `return_values` plus `p_values` (KS p-value) DataArrays. Heavy lifting is in the vectorized helpers listed under [Code References](#code-references).
 
-### Mode 1: Basic Metrics (Default)
-Calculate standard climate summary statistics when `metric` is specified.
+## Top-level parameters (basic mode)
 
-**Supported Metrics:**
-- `hdd_cdd`: Heating/Cooling degree days (threshold-based)
-- `heat_index`: Combined heat stress (temperature + humidity)
-- `effective_temp`: Exponentially smoothed temperature for energy models
-- `noaa_heat_index`: NOAA heat index (NWS formula)
-- Custom metrics via `climakitae.tools.indices`
-
-**Output:** Dataset with new variable (e.g., `hdd`, `cdd`, `heat_index`)
-
-### Mode 2: Threshold Exceedance
-Count days where a variable exceeds (or falls below) a threshold, optionally filtered by consecutive-day duration.
-
-**Configuration:** `thresholds` dictionary with:
-- `threshold_value`: Numeric threshold (e.g., 95 for 95°F)
-- `threshold_direction`: "above" or "below"
-- `period`: Time period for aggregation ("yearly", "monthly", "seasonal")
-- `duration`: Optional minimum consecutive days for event filtering
-
-**Output:** Dataset with exceedance count variable (e.g., `days_above_95F`)
-
-**Use Cases:**
-- Heat wave frequency (consecutive days above threshold)
-- Frost occurrence analysis (days below freezing)
-- Precipitation extremes (rain days above 50mm)
-
-### Mode 3: 1-in-X Extreme Value Analysis ⚠️ Advanced
-Fit statistical distributions to climate extremes and compute return period statistics. Uses block maxima extraction and statistical distribution fitting (GEV, Gamma, Generalized Pareto).
-
-**Configuration:** `one_in_x_config` dictionary with:
-- `return_periods`: List of return periods (e.g., [2, 5, 10, 20, 50, 100]) **OR**
-- `return_values`: Pre-defined return values to calculate probabilities for
-- `distribution`: "gev", "gamma", "genpareto" (default: "gev")
-- `extremes_type`: "max" or "min" (default: "max")
-- `event_duration`: Duration for block maxima extraction (days/months/years)
-- `block_size`: Block size for GEV fitting (default: 365 for annual blocks)
-- `goodness_of_fit_test`: "ks" for Kolmogorov-Smirnov test (default: "ks")
-- `variable_preprocessing`: Data preprocessing before fitting
-
-**Output:** Dataset with `return_values` and `p_values` (KS test p-value) variables
-
-**Scientific Details:**
-- Extreme value theory provides probabilities for rare events beyond observed data
-- GEV (Generalized Extreme Value) distribution: Standard for climate extremes
-- Block Maxima Approach: Extract maximum/minimum from fixed time blocks
-- Goodness-of-fit testing: KS test validates distribution fit quality
-- Returns both estimated values and uncertainty via p-values
-
-**Use Cases:**
-- Estimate 100-year temperature events from 30 years of data
-- Characterize tail behavior of precipitation distributions
-- Infrastructure design (what's the 1-in-500-year storm?)
-- Climate change impacts (return period shifts between scenarios)
-
-## Supported Metrics Reference
-
-| Metric | Variables Required | Periods | Return Type |
-|--------|-------------------|---------|-------------|
-| `hdd_cdd` | tasmax, tasmin | yearly, seasonal, monthly | New vars: hdd, cdd (days) |
-| `heat_index` | tasmax, humidity | any | New var: heat_index (°C) |
-| `effective_temp` | tasmax | any | New var: effective_temp (°C) |
-| `noaa_heat_index` | tasmax, humidity | any | New var: heat_index_noaa (°C) |
-| Threshold exceedance | any numeric | yearly, monthly, seasonal | New var: exceedance_count (days) |
-| Extreme value fit | tasmax/tasmin/pr | N/A | New vars: return_values, p_values |
-
-## Parameters
-
-| Parameter | Type | Mode(s) | Description |
-|-----------|------|---------|-------------|
-| `metric` | str | Mode 1 | Metric name (hdd_cdd, heat_index, etc.) |
-| `percentiles` | list | Mode 1 | Optional percentile values (e.g., [5, 25, 50, 75, 95]) |
-| `percentiles_only` | bool | Mode 1 | If True, return only percentiles (skip min/max/mean) |
-| `dim` | str/list | Modes 1–3 | Dimensions to compute over (e.g., "time", ["lat", "lon"]) |
-| `keepdims` | bool | Modes 1–3 | If True, keep reduced dimensions as size 1 |
-| `skipna` | bool | Modes 1–3 | If True, skip NaN values in calculations |
-| **Threshold Mode (2)** | | | |
-| `threshold_value` | float | Mode 2 | Threshold for comparison |
-| `threshold_direction` | str | Mode 2 | "above" or "below" |
-| `period` | str | Mode 2 | "yearly", "monthly", "seasonal" |
-| `duration` | int | Mode 2 | Optional: minimum consecutive days for event |
-| **Extreme Value Mode (3)** | | | |
-| `return_periods` | list[int] | Mode 3 | Return periods to compute (e.g., [2, 5, 10, 20, 100]) |
-| `return_values` | list[float] | Mode 3 | Pre-defined values for probability estimation |
-| `distribution` | str | Mode 3 | "gev", "gamma", or "genpareto" |
-| `extremes_type` | str | Mode 3 | "max" or "min" |
-| `event_duration` | str | Mode 3 | "day", "month", "year" for block extraction |
-| `block_size` | int | Mode 3 | Number of time units per block |
-| `goodness_of_fit_test` | str | Mode 3 | "ks" for Kolmogorov-Smirnov test |
-| `variable_preprocessing` | dict | Mode 3 | Data preprocessing config |
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `metric` | str | `"mean"` | `"min"`, `"max"`, `"mean"`, `"median"`, `"sum"`. |
+| `percentiles` | list[float] | `UNSET` | Percentile values 0–100; output stored on coord `percentile`. |
+| `percentiles_only` | bool | `False` | Skip the metric reduction. |
+| `dim` (or `dims`) | str / list[str] | `"time"` | Dimensions to reduce over. Missing dims are filtered with a warning. |
+| `keepdims` | bool | `False` | (Reserved; passed through where supported.) |
+| `skipna` | bool | `True` | Pass to underlying xarray reductions. |
 
 ## Examples
 
-### Mode 1: Basic Metrics (HDD/CDD)
+### Basic mean + percentiles
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
-
-# Compute heating/cooling degree days (65°F threshold)
 data = (ClimateData()
-    .catalog("cadcat")
-    .activity_id("WRF")
-    .variable("t2max")
-    .table_id("day")
-    .grid_label("d03")
+    .catalog("cadcat").activity_id("WRF").institution_id("UCLA")
+    .variable("t2max").table_id("day").grid_label("d03")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
         "metric_calc": {
-            "metric": "hdd_cdd",
-            "percentiles": [10, 50, 90],  # Optional: include percentiles
-            "keepdims": False
-        }
+            "metric": "mean",
+            "percentiles": [10, 50, 90],
+            "dim": "time",
+        },
     })
     .get())
-
-# Result: Dataset with variables hdd (heating degree days) and cdd (cooling degree days)
+# Dataset variables: t2max_p10, t2max_p50, t2max_p90, t2max_mean
 ```
 
-### Mode 2: Threshold Exceedance
+### Threshold exceedance (annual count of days above 35 °C, 3-day events)
 
 ```python
-# Count consecutive days with temperature above 95°F (35°C)
-data = (ClimateData()
-    .catalog("cadcat")
-    .activity_id("WRF")
-    .variable("t2max")
-    .table_id("day")
-    .grid_label("d03")
-    .processes({
-        "time_slice": ("2015-01-01", "2015-12-31"),
-        "metric_calc": {
-            "thresholds": {
-                "threshold_value": 95,
-                "threshold_direction": "above",
-                "period": "yearly",
-                "duration": 3  # At least 3 consecutive days
-            }
+.processes({
+    "metric_calc": {
+        "thresholds": {
+            "threshold_value": 35.0,
+            "threshold_direction": "above",
+            "period": (1, "year"),
+            "duration": 3,
         }
-    })
-    .get())
-
-# Result: Dataset with variable days_above_95F (count of qualifying events)
+    }
+})
 ```
 
-### Mode 3: 1-in-X Extreme Value Analysis
+### 1-in-X return periods
 
 ```python
-# Estimate 100-year return period temperatures
-# Uses GEV distribution fit to annual maxima
-data = (ClimateData()
-    .catalog("cadcat")
-    .activity_id("WRF")
-    .variable("t2max")
-    .table_id("day")
-    .grid_label("d03")
-    .processes({
-        "time_slice": ("1995-01-01", "2024-12-31"),  # 30 years of data
-        "metric_calc": {
-            "one_in_x_config": {
-                "return_periods": [2, 5, 10, 20, 50, 100],
-                "distribution": "gev",
-                "extremes_type": "max",
-                "event_duration": "year",
-                "block_size": 365,
-                "goodness_of_fit_test": "ks"
-            }
+.processes({
+    "metric_calc": {
+        "one_in_x": {
+            "return_periods": [2, 5, 10, 20, 50, 100],
+            "distribution": "gev",
+            "extremes_type": "max",
+            "event_duration": (1, "year"),
+            "block_size": 1,
         }
-    })
-    .get())
-
-# Result: Dataset with variables:
-# - return_values: Estimated temperature for each return period
-# - p_values: Kolmogorov-Smirnov test p-values (>0.05 indicates good fit)
-```
-
-### Mode 1: Heat Index (Temperature + Humidity)
-
-```python
-# Compute NOAA heat index when both temperature and humidity available
-data = (ClimateData()
-    .catalog("cadcat")
-    .activity_id("WRF")
-    .variable("t2max")
-    .table_id("day")
-    .grid_label("d02")
-    .processes({
-        "metric_calc": {
-            "metric": "noaa_heat_index",
-            "dim": "time",  # Compute over time dimension
-            "skipna": True
-        }
-    })
-    .get())
-
-# Result: Dataset with heat_index_noaa variable
+    }
+})
 ```
 
 ## Code References
 
 | Method | Lines | Purpose |
 |--------|-------|---------|
-| `__init__` | [50–260](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L50) | Parse metric/threshold/extreme configs |
-| `execute` | [310–360](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L310) | Route to appropriate calculation mode |
-| `_calculate_metrics_single` | [370–510](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L370) | Mode 1: basic metrics/percentiles |
-| `_calculate_threshold_single` | [520–595](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L520) | Mode 2: threshold exceedance counting |
-| `_calculate_one_in_x_single` | [600–740](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L600) | Mode 3: extreme value distribution fitting |
-| `_fit_return_variable_1d` | [750–850](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L750) | GEV/Gamma/GenPareto fitting with KS test |
+| `__init__` | [145–189](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L145) | Parse top-level + dispatch sub-config setup |
+| `_setup_one_in_x_parameters` | [191–260](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L191) | Validate periods/values, set distribution & defaults |
+| `_setup_threshold_parameters` | [262–303](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L262) | Validate threshold dict, normalize period tuple |
+| `execute` | [305–370](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L305) | Pick `process_fn`, dispatch over result type |
+| `_calculate_metrics_single` | [372–510](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L372) | Quantile + min/max/mean/median/sum reductions |
+| `_calculate_threshold_single` | [512–593](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L512) | Threshold mask, optional duration filter, resample-sum |
+| `_calculate_one_in_x_single` | [595–720](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L595) | Drives 1-in-X analysis per simulation |
+| `_fit_return_variable_1d` | [722–848](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L722) | Per-pixel distribution fit |
+| `_calculate_one_in_x_vectorized` | [850–927](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L850) | Vectorized fit pathway |
+| `_calculate_adaptive_batch_size` | [929–1037](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L929) | Pick spatial batch size from dataset shape |
+| `_process_simulation_batch` | [1039–1165](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1039) | Run one batch through the fit pipeline |
+| `_fit_distributions_vectorized` | [1167–1214](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1167) | NumPy-vectorized fitting |
+| `_fit_with_early_spatial_batching` | [1216–1346](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1216) | Memory-aware spatial batching |
+| `_preprocess_variable_for_one_in_x` | [1348–1385](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1348) | Apply user-supplied preprocessing |
+| `update_context` | [1387–](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1387) | Tag `new_attrs` with computed metric metadata |
 
-## Performance Notes
+## See also
 
-- **Mode 1 (Metrics):** Fast, 100x100 grid ~100ms
-- **Mode 2 (Thresholds):** Fast, depends on duration filtering
-- **Mode 3 (Extreme Value):** Slow, distribution fitting is I/O-bound. ~50-100s for 100x100 grid
-- Use `dask.compute()` for large spatial domains with Mode 3
-
-## See Also
-
-- [Processor Index](index.md)
-- [climakitae.tools.indices](https://github.com/cal-adapt/climakitae/blob/main/climakitae/tools/indices.py)
-- [climakitae.tools.derived_variables](https://github.com/cal-adapt/climakitae/blob/main/climakitae/tools/derived_variables.py)
-- [How-To Guides → Derived Variables](../howto.md#derived-variables)
-- [Extreme Value Theory](https://en.wikipedia.org/wiki/Extreme_value_theory)
+- [Processor index](index.md)
+- [`climakitae/new_core/processors/metric_calc.py`](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py)
+- For HDD/CDD, heat index, etc., see `climakitae.tools.indices` and `climakitae.tools.derived_variables` (separate modules, not invoked by `metric_calc`).

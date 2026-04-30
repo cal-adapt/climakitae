@@ -33,7 +33,7 @@ data = (ClimateData()
 | [How-To Guides](howto.md) | You have a concrete task (clip to a county, request hourly data, export to Zarr, …). |
 | [Architecture](architecture.md) | You want to extend climakitae with a new processor / validator / catalog, or you're debugging the pipeline. |
 | [Processors](processors/index.md) | You want the registry, priorities, and per-processor parameter shapes. |
-| [User Interface API](../api/new-core.md) | You want the auto-generated `ClimateData` reference. |
+| [User Interface API](../api/climate-data.md) | You want the auto-generated `ClimateData` reference. |
 
 ## Status
 

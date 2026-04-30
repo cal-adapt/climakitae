@@ -29,7 +29,7 @@ The legacy data interface module providing function-based API for climate data a
 
 ## Migration Note
 
-For new code, use the modern `climakitae.new_core` interface. See the [migration guide](../migration/legacy-to-new-core.md) for detailed upgrade instructions.
+For new code, use the modern `climakitae.new_core` interface. See the [migration guide](../migration/legacy-to-climate-data.md) for detailed upgrade instructions.
 
 ### Quick Example
 

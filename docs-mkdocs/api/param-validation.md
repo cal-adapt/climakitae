@@ -7,10 +7,10 @@ Catalog-specific parameter validators normalize and check user queries before th
 | You want… | Read |
 |-----------|------|
 | Auto-generated reference for every validator | [Parameter Validation (Detailed)](param-validation-detailed.md) |
-| How validators fit into pipeline execution | [Architecture — Registry Pattern](../new-core/architecture.md#registry-pattern) |
-| How to add a new catalog validator | [Architecture — Adding a New Catalog Validator](../new-core/architecture.md#adding-a-new-catalog-validator) |
+| How validators fit into pipeline execution | [Architecture — Registry Pattern](../climate-data-interface/architecture.md#registry-pattern) |
+| How to add a new catalog validator | [Architecture — Adding a New Catalog Validator](../climate-data-interface/architecture.md#adding-a-new-catalog-validator) |
 
 ## See also
 
-- [How-To Guides](../new-core/howto.md)
-- [Concepts — Catalog Hierarchy](../new-core/concepts.md#catalog-hierarchy)
+- [How-To Guides](../climate-data-interface/howto.md)
+- [Concepts — Catalog Hierarchy](../climate-data-interface/concepts.md#catalog-hierarchy)

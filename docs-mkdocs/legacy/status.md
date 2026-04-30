@@ -24,8 +24,8 @@ Exact dates may shift based on community uptake and feedback. Watch the changelo
 
 ## Recommended action
 
-- **New projects** — start with [`ClimateData`](../new-core/index.md). Follow [Get Started in 5 Minutes](../getting-started.md).
-- **Existing projects** — read the [Legacy → ClimateData migration guide](../migration/legacy-to-new-core.md), pin a known-good `climakitae` version, and migrate at your own pace before Phase 4.
+- **New projects** — start with [`ClimateData`](../climate-data-interface/index.md). Follow [Get Started in 5 Minutes](../getting-started.md).
+- **Existing projects** — read the [Legacy → ClimateData migration guide](../migration/legacy-to-climate-data.md), pin a known-good `climakitae` version, and migrate at your own pace before Phase 4.
 - **Notebook authors** — replace `from climakitae.core.data_interface import get_data` with `from climakitae.new_core.user_interface import ClimateData`. The migration guide has a side-by-side comparison.
 
 ## Where the legacy API still appears in the wild
@@ -39,6 +39,6 @@ If you spot legacy usage that should be modernized, please open an issue on [`ca
 
 ## See also
 
-- [Legacy → ClimateData migration guide](../migration/legacy-to-new-core.md)
+- [Legacy → ClimateData migration guide](../migration/legacy-to-climate-data.md)
 - [Legacy API reference](../api/core.md)
-- [ClimateData Interface overview](../new-core/index.md)
+- [ClimateData Interface overview](../climate-data-interface/index.md)

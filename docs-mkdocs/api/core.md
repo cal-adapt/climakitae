@@ -1,6 +1,6 @@
 # Legacy Core Module
 
-The legacy `climakitae.core` module provides the original function-based interface for climate data access. It is maintained for backward compatibility; new code should use [`climakitae.new_core.user_interface.ClimateData`](new-core.md) instead. See [Legacy API status](../legacy/status.md) for the deprecation timeline.
+The legacy `climakitae.core` module provides the original function-based interface for climate data access. It is maintained for backward compatibility; new code should use [`climakitae.new_core.user_interface.ClimateData`](climate-data.md) instead. See [Legacy API status](../legacy/status.md) for the deprecation timeline.
 
 ## Submodule reference
 
@@ -60,4 +60,4 @@ data = (ClimateData()
     .get())
 ```
 
-See the [Legacy → ClimateData migration guide](../migration/legacy-to-new-core.md).
+See the [Legacy → ClimateData migration guide](../migration/legacy-to-climate-data.md).

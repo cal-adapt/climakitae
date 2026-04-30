@@ -724,5 +724,5 @@ For comparison and advanced usage, see [Warming Level Analysis](#warming-level-a
 ## Next Steps
 
 - Review [Core Concepts](concepts.md) for deeper understanding of hierarchy and lazy evaluation
-- Check [API Reference](../api/new-core.md) for complete parameter documentation
-- See [Migration Guide](../migration/legacy-to-new-core.md) if upgrading from legacy API
+- Check [API Reference](../api/climate-data.md) for complete parameter documentation
+- See [Migration Guide](../migration/legacy-to-climate-data.md) if upgrading from legacy API

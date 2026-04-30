@@ -93,5 +93,5 @@ class MyProcessor(DataProcessor):
 
 ## See Also
 
-- [Key Processor Patterns](../new-core/architecture.md#key-design-patterns)
-- [Adding a Processor](../new-core/architecture.md#add-a-processor-4-step-guide)
+- [Key Processor Patterns](../climate-data-interface/architecture.md#key-design-patterns)
+- [Adding a Processor](../climate-data-interface/architecture.md#add-a-processor-4-step-guide)
