@@ -920,10 +920,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
+  <a href="#example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Examples
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code References
       
     </span>
   </a>
@@ -934,7 +945,7 @@
   <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
       
-        See Also
+        See also
       
     </span>
   </a>
@@ -1780,10 +1791,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
+  <a href="#example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Examples
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code References
       
     </span>
   </a>
@@ -1794,7 +1816,7 @@
   <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
       
-        See Also
+        See also
       
     </span>
   </a>
@@ -1828,29 +1850,108 @@
 
 <h1 id="processor-dropleapdays">Processor: DropLeapDays</h1>
 <p><strong>Registry key:</strong> <code>drop_leap_days</code> &nbsp;|&nbsp; <strong>Priority:</strong> 1 &nbsp;|&nbsp; <strong>Category:</strong> Calendar Processing</p>
-<p>Remove leap days (February 29th) from climate data. Align datasets with different calendar representations for consistent time-series analysis.</p>
+<p>Remove February 29 entries from the time dimension. Useful when aligning datasets that use different calendar conventions (e.g., 365-day vs Gregorian) for ensemble work.</p>
 <h2 id="algorithm">Algorithm</h2>
-<p>Filter time dimension to exclude any dates matching February 29.</p>
+<pre class="mermaid"><code>flowchart TD
+    Start([execute]) --&gt; ValueMatch{match self.value}
+    ValueMatch --&gt;|"yes"| Process[_process_data]
+    ValueMatch --&gt;|"no"| Pass[Return result unchanged]
+    ValueMatch --&gt;|other| Raise[Raise ValueError]
+
+    Process --&gt; ResultMatch{match result}
+    ResultMatch --&gt;|dict| LoopDict[Per-value: _drop_leap_days]
+    ResultMatch --&gt;|Dataset / DataArray| Single[_drop_leap_days]
+    ResultMatch --&gt;|list / tuple| LoopList[Per-item _drop_leap_days, preserve container]
+    ResultMatch --&gt;|other| Warn[Log warning, return unchanged]
+
+    LoopDict --&gt; Drop[_drop_leap_days:&lt;br/&gt;find time entries where month==2 and day==29,&lt;br/&gt;obj.drop_sel(time=leap_days)]
+    Single --&gt; Drop
+    LoopList --&gt; Drop
+    Drop --&gt; UpdateCtx[update_context]
+    UpdateCtx --&gt; End([Output: Feb 29 dropped])
+
+    click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py#L63" "execute"
+    click Process "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py#L113" "_process_data"
+    click Drop "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py#L178" "_drop_leap_days"
+    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py#L154" "update_context"</code></pre>
 <h2 id="parameters">Parameters</h2>
-<p>None — no configuration needed.</p>
-<h2 id="examples">Examples</h2>
+<p>The processor takes a <strong>single string</strong> (not a dict):</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>value</code></td>
+<td><code>str</code></td>
+<td><code>"yes"</code></td>
+<td><code>"yes"</code> to drop Feb 29; <code>"no"</code> to pass through unchanged. Anything else raises <code>ValueError</code>.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Earlier docs claimed "no configuration needed" and showed <code>"drop_leap_days": {}</code> as the example. That call would actually raise an <code>AttributeError</code> because <code>__init__</code> calls <code>value.lower()</code>. Use <code>"drop_leap_days": "yes"</code> or simply omit the processor.</p>
+</blockquote>
+<p>If the data lacks a <code>time</code> dimension, <code>_drop_leap_days</code> returns it unchanged. If no Feb 29 entries are found, it also returns unchanged.</p>
+<h2 id="example">Example</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Remove leap days for 365-day year consistency</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">.</span><span class="n">institution_id</span><span class="p">(</span><span class="s2">&quot;UCLA&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">&quot;drop_leap_days&quot;</span><span class="p">:</span> <span class="p">{}</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="p">})</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span><span class="s2">&quot;drop_leap_days&quot;</span><span class="p">:</span> <span class="s2">&quot;yes&quot;</span><span class="p">})</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
 </code></pre></div>
-<h2 id="see-also">See Also</h2>
+<h2 id="code-references">Code References</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Lines</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>__init__</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py#L48">48–61</a></td>
+<td>Lowercase and store value</td>
+</tr>
+<tr>
+<td><code>execute</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py#L63">63–111</a></td>
+<td><code>match self.value</code> (yes/no/other)</td>
+</tr>
+<tr>
+<td><code>_process_data</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py#L113">113–152</a></td>
+<td>Dispatch over result type via <code>match result</code></td>
+</tr>
+<tr>
+<td><code>update_context</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py#L154">154–172</a></td>
+<td>Tag <code>new_attrs</code> with applied operation</td>
+</tr>
+<tr>
+<td><code>_drop_leap_days</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py#L178">178–</a></td>
+<td>Build <code>time</code> mask and call <code>drop_sel</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="see-also">See also</h2>
 <ul>
-<li><a href="../">Processor Index</a></li>
+<li><a href="../">Processor index</a></li>
+<li><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py"><code>climakitae/new_core/processors/drop_leap_days.py</code></a></li>
 </ul>
 
 

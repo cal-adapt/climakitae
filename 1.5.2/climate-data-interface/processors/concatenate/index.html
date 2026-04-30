@@ -769,6 +769,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#code-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code References
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#parameter-shape" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1808,6 +1819,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#code-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code References
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#parameter-shape" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1918,12 +1940,64 @@ is registered under the key <strong><code>"concat"</code></strong>. Always use <
 <pre class="mermaid"><code>flowchart TD
     Start([Input: dict / list of Datasets]) --&gt; CheckType{Single&lt;br/&gt;Dataset?}
     CheckType --&gt;|Yes| Pass[Return unchanged]
-    CheckType --&gt;|No| Route{catalog == 'hdp'?}
+    CheckType --&gt;|No| Route{context['catalog']&lt;br/&gt;== 'hdp'?}
     Route --&gt;|Yes| HDP[_execute_hdp_concat&lt;br/&gt;concat along station]
-    Route --&gt;|No| Gridded[_execute_gridded_concat&lt;br/&gt;concat along sim with source_id labels]
-    HDP --&gt; Update[Update context attrs]
+    Route --&gt;|No| Gridded[_execute_gridded_concat&lt;br/&gt;match result: dict / iterable&lt;br/&gt;concat along sim with source_id labels]
+    HDP --&gt; Update[update_context]
     Gridded --&gt; Update
-    Update --&gt; End([Output: single Dataset])</code></pre>
+    Update --&gt; End([Output: single Dataset])
+
+    click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L65" "execute"
+    click HDP "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L105" "_execute_hdp_concat"
+    click Gridded "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L174" "_execute_gridded_concat (match result @228)"
+    click Update "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L487" "update_context"</code></pre>
+<h2 id="code-references">Code References</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Lines</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>__init__</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L49">49\u201363</a></td>
+<td>Store <code>value</code> (defaults to <code>"sim"</code> if non-string)</td>
+</tr>
+<tr>
+<td><code>execute</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L65">65\u2013103</a></td>
+<td>Single-input passthrough; route by <code>context["catalog"]</code></td>
+</tr>
+<tr>
+<td><code>_execute_hdp_concat</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L105">105\u2013172</a></td>
+<td>HDP-station concat path</td>
+</tr>
+<tr>
+<td><code>_execute_gridded_concat</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L174">174\u2013460</a></td>
+<td>Gridded concat with <code>match result</code> (line 228) over dict / iterable</td>
+</tr>
+<tr>
+<td><code>_align_time_dim</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L462">462\u2013485</a></td>
+<td>Align time coordinates before concat</td>
+</tr>
+<tr>
+<td><code>update_context</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L487">487\u2013513</a></td>
+<td>Record concat dim and source_id list in context</td>
+</tr>
+<tr>
+<td><code>set_data_accessor</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L515">515\u2013517</a></td>
+<td>Receive <code>DataCatalog</code> reference</td>
+</tr>
+</tbody>
+</table>
 <h2 id="parameter-shape">Parameter shape</h2>
 <p>The processor takes a <strong>single string</strong>: the name of the new dimension. The default is <code>"sim"</code>, which is what almost every multi-model workflow wants.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="o">.</span><span class="n">processes</span><span class="p">({</span><span class="s2">&quot;concat&quot;</span><span class="p">:</span> <span class="s2">&quot;sim&quot;</span><span class="p">})</span>

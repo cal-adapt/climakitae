@@ -870,21 +870,38 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#parameter-shape" class="md-nav__link">
+  <a href="#algorithm" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Parameter shape
+        Algorithm
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Algorithm">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#membership-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Membership test
       
     </span>
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#algorithm" class="md-nav__link">
+  <a href="#parameters" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Algorithm
+        Parameters
       
     </span>
   </a>
@@ -896,6 +913,17 @@
     <span class="md-ellipsis">
       
         Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code References
       
     </span>
   </a>
@@ -1758,21 +1786,38 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#parameter-shape" class="md-nav__link">
+  <a href="#algorithm" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Parameter shape
+        Algorithm
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Algorithm">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#membership-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Membership test
       
     </span>
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#algorithm" class="md-nav__link">
+  <a href="#parameters" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Algorithm
+        Parameters
       
     </span>
   </a>
@@ -1784,6 +1829,17 @@
     <span class="md-ellipsis">
       
         Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code References
       
     </span>
   </a>
@@ -1828,18 +1884,42 @@
 
 <h1 id="processor-filterunadjustedmodels">Processor: FilterUnadjustedModels</h1>
 <p><strong>Registry key:</strong> <code>filter_unadjusted_models</code> &nbsp;|&nbsp; <strong>Priority:</strong> 0 &nbsp;|&nbsp; <strong>Category:</strong> Data Selection</p>
-<p>Filter climate models by a-priori bias-adjustment status. By default the new-core pipeline applies this processor to WRF queries, dropping <code>source_id</code> values that lack a-priori bias adjustment so that downstream analysis works on a homogeneous ensemble.</p>
-<h2 id="parameter-shape">Parameter shape</h2>
-<p>The processor takes a <strong>single string</strong> with one of two values:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="o">.</span><span class="n">processes</span><span class="p">({</span><span class="s2">&quot;filter_unadjusted_models&quot;</span><span class="p">:</span> <span class="s2">&quot;yes&quot;</span><span class="p">})</span>  <span class="c1"># default — drop unadjusted models</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="o">.</span><span class="n">processes</span><span class="p">({</span><span class="s2">&quot;filter_unadjusted_models&quot;</span><span class="p">:</span> <span class="s2">&quot;no&quot;</span><span class="p">})</span>   <span class="c1"># opt out — keep all models</span>
-</code></pre></div>
+<p>Drop WRF model entries whose <code>(activity_id, source_id, member_id)</code> tuple is in the curated <code>NON_WRF_BA_MODELS</code> list (models without a-priori bias adjustment). Used by default in the new-core pipeline so downstream analysis runs against a homogeneous WRF ensemble.</p>
+<h2 id="algorithm">Algorithm</h2>
+<pre class="mermaid"><code>flowchart TD
+    Start([execute]) --&gt; ValueMatch{match self.value}
+
+    ValueMatch --&gt;|"yes"| ContainsCheck{_contains_unadjusted_models?}
+    ContainsCheck --&gt;|Yes| WarnRemoved[Log warning:&lt;br/&gt;models removed]
+    ContainsCheck --&gt;|No| ReturnAsIs[Return result unchanged]
+    WarnRemoved --&gt; Remove[_remove_unadjusted_models&lt;br/&gt;(per-entry filter; single Dataset → None)]
+    Remove --&gt; End
+
+    ValueMatch --&gt;|"no"| ContainsCheck2{_contains_unadjusted_models?}
+    ContainsCheck2 --&gt;|Yes| WarnKept[Log warning:&lt;br/&gt;proceed with caution]
+    ContainsCheck2 --&gt;|No| Pass[Return result unchanged]
+    WarnKept --&gt; Pass
+
+    ValueMatch --&gt;|other| Raise[Raise ValueError]
+
+    ReturnAsIs --&gt; End([Output])
+    Pass --&gt; End
+
+    click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L65" "execute"
+    click ContainsCheck "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L129" "_contains_unadjusted_models"
+    click ContainsCheck2 "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L129" "_contains_unadjusted_models"
+    click Remove "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L173" "_remove_unadjusted_models"</code></pre>
+<h3 id="membership-test">Membership test</h3>
+<p><code>_contains_unadjusted_models</code> reads <code>intake_esm_attrs:activity_id</code>, <code>intake_esm_attrs:source_id</code>, and <code>intake_esm_attrs:member_id</code> from the dataset's <code>attrs</code>, joins them as <code>f"{activity}_{source}_{member}"</code>, and checks for membership in the <code>NON_WRF_BA_MODELS</code> constant in <a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/core/constants.py"><code>climakitae/core/constants.py</code></a>.</p>
+<p>For dict / list / tuple inputs the test recurses, returning <code>True</code> if any contained dataset is unadjusted. For a single matching <code>xr.Dataset</code>/<code>xr.DataArray</code>, <code>_remove_unadjusted_models</code> returns <code>None</code>; for a dict/list/tuple it removes only the matching entries and preserves the container type.</p>
+<h2 id="parameters">Parameters</h2>
+<p>The processor takes a <strong>single string</strong> (case-insensitive):</p>
 <table>
 <thead>
 <tr>
 <th>Field</th>
 <th>Type</th>
-<th>Allowed values</th>
+<th>Allowed</th>
 <th>Default</th>
 <th>Description</th>
 </tr>
@@ -1848,48 +1928,82 @@
 <tr>
 <td><code>value</code></td>
 <td><code>str</code></td>
-<td><code>"yes"</code>, <code>"no"</code> (case-insensitive)</td>
+<td><code>"yes"</code> / <code>"no"</code></td>
 <td><code>"yes"</code></td>
-<td><code>"yes"</code> removes the models listed in <code>NON_WRF_BA_MODELS</code> (see <a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/core/constants.py"><code>climakitae/core/constants.py</code></a>). <code>"no"</code> is a no-op.</td>
+<td><code>"yes"</code> removes unadjusted entries; <code>"no"</code> keeps them but logs a warning. Anything else raises <code>ValueError</code>.</td>
 </tr>
 </tbody>
 </table>
 <div class="admonition note">
 <p class="admonition-title">Default behavior</p>
-<p>This processor is added automatically to the pipeline by <code>ClimateData</code> for
-bias-relevant WRF queries. If you want to <em>include</em> unadjusted models, pass
-<code>"filter_unadjusted_models": "no"</code> explicitly.</p>
+<p><code>ClimateData</code> inserts this processor automatically for bias-relevant WRF
+queries. To explicitly <em>include</em> unadjusted models, pass
+<code>"filter_unadjusted_models": "no"</code>.</p>
 </div>
-<h2 id="algorithm">Algorithm</h2>
-<p>Filters the <code>source_id</code> (or <code>sim</code>) dimension by membership in the curated WRF a-priori-adjusted model list.</p>
 <h2 id="examples">Examples</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Default: drop unadjusted models (this is what runs implicitly for WRF)</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span><span class="s2">&quot;filter_unadjusted_models&quot;</span><span class="p">:</span> <span class="s2">&quot;yes&quot;</span><span class="p">})</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Opt-out: keep all models</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="n">data_all</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span><span class="s2">&quot;filter_unadjusted_models&quot;</span><span class="p">:</span> <span class="s2">&quot;no&quot;</span><span class="p">})</span>
-<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Default: drop unadjusted models</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">institution_id</span><span class="p">(</span><span class="s2">&quot;UCLA&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span><span class="s2">&quot;filter_unadjusted_models&quot;</span><span class="p">:</span> <span class="s2">&quot;yes&quot;</span><span class="p">})</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># Opt out: keep all models (warning logged)</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">data_all</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">institution_id</span><span class="p">(</span><span class="s2">&quot;UCLA&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span><span class="s2">&quot;filter_unadjusted_models&quot;</span><span class="p">:</span> <span class="s2">&quot;no&quot;</span><span class="p">})</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
 </code></pre></div>
+<h2 id="code-references">Code References</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Lines</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>__init__</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L51">51–63</a></td>
+<td>Lowercase + store value</td>
+</tr>
+<tr>
+<td><code>execute</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L65">65–127</a></td>
+<td><code>match self.value</code>; warn + filter or warn + pass</td>
+</tr>
+<tr>
+<td><code>_contains_unadjusted_models</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L129">129–171</a></td>
+<td>Build model_id from <code>intake_esm_attrs:*</code>, check NON_WRF_BA_MODELS</td>
+</tr>
+<tr>
+<td><code>_remove_unadjusted_models</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L173">173–225</a></td>
+<td>Drop matching entries; preserve container type</td>
+</tr>
+<tr>
+<td><code>update_context</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L227">227–246</a></td>
+<td>(No-op for context attrs in this processor's flow)</td>
+</tr>
+<tr>
+<td><code>set_data_accessor</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L248">248–</a></td>
+<td>Unused stub</td>
+</tr>
+</tbody>
+</table>
 <h2 id="see-also">See also</h2>
 <ul>
 <li><a href="../">Processor index</a></li>
 <li><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py"><code>climakitae/new_core/processors/filter_unadjusted_models.py</code></a></li>
-<li>Cal-Adapt: Analytics Engine — <a href="https://analytics.cal-adapt.org/guidance/about_climate_projections_and_models">About climate projections and models</a></li>
+<li><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/core/constants.py"><code>NON_WRF_BA_MODELS</code> and <code>WRF_BA_MODELS</code> in <code>core/constants.py</code></a></li>
 </ul>
 
 

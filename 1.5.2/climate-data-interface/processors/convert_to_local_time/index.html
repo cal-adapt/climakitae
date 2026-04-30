@@ -945,13 +945,41 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#frequency-requirement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frequency requirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
+  <a href="#example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Examples
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code References
       
     </span>
   </a>
@@ -962,7 +990,7 @@
   <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
       
-        See Also
+        See also
       
     </span>
   </a>
@@ -1777,13 +1805,41 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#frequency-requirement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frequency requirement
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
+  <a href="#example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Examples
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code References
       
     </span>
   </a>
@@ -1794,7 +1850,7 @@
   <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
       
-        See Also
+        See also
       
     </span>
   </a>
@@ -1828,51 +1884,146 @@
 
 <h1 id="processor-converttolocaltime">Processor: ConvertToLocalTime</h1>
 <p><strong>Registry key:</strong> <code>convert_to_local_time</code> &nbsp;|&nbsp; <strong>Priority:</strong> 70 &nbsp;|&nbsp; <strong>Category:</strong> Calendar Processing</p>
-<p>Convert UTC time to local time zones. Adjust timestamps for regional analysis where local time interpretation is critical (e.g., daily peak demand at local midnight vs UTC).</p>
+<p>Convert hourly time coordinates from UTC to the local time zone inferred from the data's central latitude/longitude. Optionally reindex the time axis to a regular hourly grid that handles daylight saving time gaps and duplicates.</p>
 <h2 id="algorithm">Algorithm</h2>
-<p>Reindex time coordinate from UTC to specified timezone(s).</p>
+<ol>
+<li>If <code>convert == "yes"</code>, branch by catalog:</li>
+<li><code>hdp</code> → <code>_convert_to_local_time_hdp</code> (use first station's lat/lon).</li>
+<li>otherwise → <code>_convert_to_local_time_gridded</code> (compute central lat/lon; bail out with a warning if the dataset is not hourly).</li>
+<li><code>_find_timezone_and_convert</code> looks up the IANA zone for that point via <code>timezonefinder</code>, converts the time index from UTC to that zone with <code>pandas</code>, and tags the variable's <code>timezone</code> attribute.</li>
+<li>If <code>reindex_time_axis == "yes"</code>, deduplicate timestamps that collide on DST fall-back and fill the missing spring-forward hour with NaN.</li>
+</ol>
+<pre class="mermaid"><code>flowchart TD
+    Start([execute]) --&gt; ValueMatch{match self.value}
+    ValueMatch --&gt;|"no"| Passthrough[Return result unchanged]
+    ValueMatch --&gt;|other| Raise[Raise ValueError]
+    ValueMatch --&gt;|"yes"| CatalogCheck{context['catalog']&lt;br/&gt;== 'hdp'?}
+
+    CatalogCheck --&gt;|Yes| HDPFunc[func = _convert_to_local_time_hdp]
+    CatalogCheck --&gt;|No| GridFunc[func = _convert_to_local_time_gridded]
+
+    HDPFunc --&gt; ResultMatch{match result}
+    GridFunc --&gt; ResultMatch
+    ResultMatch --&gt;|dict| LoopDict[For each value: func]
+    ResultMatch --&gt;|Dataset / DataArray| Single[func]
+    ResultMatch --&gt;|list / tuple| LoopList[Per-item func, preserve container]
+    ResultMatch --&gt;|other| LogWarn[Log warning]
+
+    LoopDict --&gt; Convert
+    Single --&gt; Convert
+    LoopList --&gt; Convert
+
+    Convert["_find_timezone_and_convert&lt;br/&gt;(timezonefinder + tz_convert)"]
+    Convert --&gt; Reindex{reindex_time_axis&lt;br/&gt;== 'yes'?}
+    Reindex --&gt;|Yes| DST[Dedupe DST fall-back duplicates;&lt;br/&gt;insert NaN for spring-forward gap]
+    Reindex --&gt;|No| TagAttr
+    DST --&gt; TagAttr[Assign 'timezone' attr per variable]
+    TagAttr --&gt; UpdateCtx[update_context]
+    UpdateCtx --&gt; End([Output: time-converted data])
+
+    click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L88" "execute"
+    click GridFunc "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L212" "_convert_to_local_time_gridded"
+    click HDPFunc "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L269" "_convert_to_local_time_hdp"
+    click Convert "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L320" "_find_timezone_and_convert"
+    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L186" "update_context"</code></pre>
 <h2 id="parameters">Parameters</h2>
+<p>The processor takes a <strong>dict</strong>:</p>
 <table>
 <thead>
 <tr>
-<th>Parameter</th>
-<th>Type</th>
+<th>Key</th>
+<th>Values</th>
+<th>Default</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>timezone</code></td>
-<td>str or dict</td>
-<td>Timezone (e.g., "US/Pacific", "US/Eastern")</td>
+<td><code>convert</code></td>
+<td><code>"yes"</code> / <code>"no"</code></td>
+<td><code>"no"</code></td>
+<td>Master switch. If <code>"no"</code> (or omitted), the processor is a no-op.</td>
 </tr>
 <tr>
-<td><code>lon_based</code></td>
-<td>bool</td>
-<td>Auto-determine timezone from longitude (optional)</td>
+<td><code>reindex_time_axis</code></td>
+<td><code>"yes"</code> / <code>"no"</code></td>
+<td><code>"no"</code></td>
+<td>After conversion, deduplicate DST collisions and insert NaN for the missing spring-forward hour.</td>
 </tr>
 </tbody>
 </table>
-<h2 id="examples">Examples</h2>
+<blockquote>
+<p>Earlier docs described <code>timezone</code> and <code>lon_based</code> keys. Those are <strong>not implemented</strong> — the timezone is always inferred from the data's central lat/lon via <code>timezonefinder</code>.</p>
+</blockquote>
+<h3 id="frequency-requirement">Frequency requirement</h3>
+<p><code>_convert_to_local_time_gridded</code> only converts hourly data. If the dataset's <code>frequency</code> attribute (or inferred timestep) is not <code>"1hr"</code>, it logs a warning and returns the data unchanged.</p>
+<h2 id="example">Example</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Convert to Pacific time</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">.</span><span class="n">institution_id</span><span class="p">(</span><span class="s2">&quot;UCLA&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;1hr&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">&quot;convert_to_local_time&quot;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>            <span class="s2">&quot;timezone&quot;</span><span class="p">:</span> <span class="s2">&quot;US/Pacific&quot;</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>        <span class="p">}</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="p">})</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Los Angeles&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>        <span class="s2">&quot;convert_to_local_time&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;convert&quot;</span><span class="p">:</span> <span class="s2">&quot;yes&quot;</span><span class="p">,</span> <span class="s2">&quot;reindex_time_axis&quot;</span><span class="p">:</span> <span class="s2">&quot;yes&quot;</span><span class="p">},</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="p">})</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
 </code></pre></div>
-<h2 id="see-also">See Also</h2>
+<h2 id="code-references">Code References</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Lines</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>__init__</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L66">66–86</a></td>
+<td>Read <code>convert</code> and <code>reindex_time_axis</code> from value dict</td>
+</tr>
+<tr>
+<td><code>execute</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L88">88–184</a></td>
+<td>Catalog-routed dispatch over result types</td>
+</tr>
+<tr>
+<td><code>update_context</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L186">186–206</a></td>
+<td>Record applied timezone in <code>new_attrs</code></td>
+</tr>
+<tr>
+<td><code>_convert_to_local_time_gridded</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L212">212–267</a></td>
+<td>Central-pixel lat/lon → conversion (hourly only)</td>
+</tr>
+<tr>
+<td><code>_convert_to_local_time_hdp</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L269">269–293</a></td>
+<td>First-station lat/lon → conversion</td>
+</tr>
+<tr>
+<td><code>_contains_leap_days</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L295">295–318</a></td>
+<td>Detect Feb 29 entries</td>
+</tr>
+<tr>
+<td><code>_find_timezone_and_convert</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L320">320–</a></td>
+<td><code>timezonefinder</code> lookup + <code>tz_convert</code>, optional reindex, set <code>timezone</code> attr</td>
+</tr>
+</tbody>
+</table>
+<h2 id="see-also">See also</h2>
 <ul>
-<li><a href="../">Processor Index</a></li>
+<li><a href="../">Processor index</a></li>
+<li><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py"><code>climakitae/new_core/processors/convert_to_local_time.py</code></a></li>
 </ul>
 
 

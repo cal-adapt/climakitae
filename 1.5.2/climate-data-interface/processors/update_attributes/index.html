@@ -962,6 +962,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Algorithm">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-gets-merged" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What gets merged
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -976,10 +993,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
+  <a href="#example-implicit" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Examples
+        Example (implicit)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code References
       
     </span>
   </a>
@@ -990,7 +1018,7 @@
   <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
       
-        See Also
+        See also
       
     </span>
   </a>
@@ -1766,6 +1794,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Algorithm">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-gets-merged" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What gets merged
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1780,10 +1825,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
+  <a href="#example-implicit" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Examples
+        Example (implicit)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code References
       
     </span>
   </a>
@@ -1794,7 +1850,7 @@
   <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
       
-        See Also
+        See also
       
     </span>
   </a>
@@ -1828,62 +1884,109 @@
 
 <h1 id="processor-updateattributes">Processor: UpdateAttributes</h1>
 <p><strong>Registry key:</strong> <code>update_attributes</code> &nbsp;|&nbsp; <strong>Priority:</strong> 9998 &nbsp;|&nbsp; <strong>Category:</strong> Metadata Management</p>
-<p>Update dataset and variable attributes with custom metadata. Add provenance information, units, descriptions, or other CF-compliant metadata.</p>
+<p>Internal "finalizer" that merges every processing-step note that other processors stashed in <code>context["new_attrs"]</code> onto the result's <code>.attrs</code>, and fills in standard coordinate attributes from <code>common_attrs</code>. Runs near the end of the pipeline (priority 9998) and is added implicitly by <code>ClimateData</code>.</p>
+<blockquote>
+<p>The earlier doc described user-facing <code>attrs</code> and <code>var_attrs</code> parameters. Those are <strong>not</strong> how this processor works — its <code>value</code> argument is unused and defaults to <code>UNSET</code>. The data merged into <code>.attrs</code> is whatever earlier processors added to <code>context["new_attrs"]</code> via their own <code>update_context</code> methods.</p>
+</blockquote>
 <h2 id="algorithm">Algorithm</h2>
-<p>Apply attribute updates to dataset and/or individual variables.</p>
+<pre class="mermaid"><code>flowchart TD
+    Start([execute]) --&gt; CtxCheck{self.name in context?}
+    CtxCheck --&gt;|No| EnsureCtx[update_context:&lt;br/&gt;add 'update_attributes' marker into&lt;br/&gt;context['new_attrs']]
+    CtxCheck --&gt;|Yes| ResultMatch
+    EnsureCtx --&gt; ResultMatch{match result}
+
+    ResultMatch --&gt;|dict| LoopDict[For each value:&lt;br/&gt;attrs |= context['new_attrs'];&lt;br/&gt;fill dim attrs from common_attrs]
+    ResultMatch --&gt;|Dataset / DataArray| Single[attrs |= context['new_attrs'];&lt;br/&gt;update dim attrs from common_attrs]
+    ResultMatch --&gt;|list / tuple| LoopList[For each item:&lt;br/&gt;attrs |= context['new_attrs']]
+    ResultMatch --&gt;|other| TypeErr[raise TypeError]
+
+    LoopDict --&gt; Done
+    Single --&gt; Done
+    LoopList --&gt; Done
+    Done([Output: result with&lt;br/&gt;processing-history attrs])
+
+    click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/update_attributes.py#L79" "execute"
+    click EnsureCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/update_attributes.py#L123" "update_context"</code></pre>
+<h3 id="what-gets-merged">What gets merged</h3>
+<ul>
+<li><code>context["new_attrs"]</code> is a dict that earlier processors populate from inside their own <code>update_context</code> methods (e.g. <code>clip</code> records the boundary, <code>time_slice</code> records the start/end, <code>convert_units</code> records source and target units).</li>
+<li>The merge uses <code>attrs | context["new_attrs"]</code>, so <code>new_attrs</code> keys overwrite existing ones with the same name.</li>
+<li>For a single Dataset/DataArray, dim coords also get <code>common_attrs.get(dim, {})</code> applied (CF-compliant labels for <code>time</code>, <code>lat</code>, <code>lon</code>, etc.).</li>
+</ul>
 <h2 id="parameters">Parameters</h2>
 <table>
 <thead>
 <tr>
-<th>Parameter</th>
+<th>Field</th>
 <th>Type</th>
-<th>Description</th>
+<th>Default</th>
+<th>Notes</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>attrs</code></td>
-<td>dict</td>
-<td>Global dataset attributes</td>
-</tr>
-<tr>
-<td><code>var_attrs</code></td>
-<td>dict</td>
-<td>Per-variable attributes (nested dict)</td>
+<td><code>value</code></td>
+<td><code>Any</code></td>
+<td><code>UNSET</code></td>
+<td>Unused. The processor's behavior depends entirely on the pipeline <code>context</code>. Including this in <code>.processes({...})</code> manually has no extra effect.</td>
 </tr>
 </tbody>
 </table>
-<h2 id="examples">Examples</h2>
+<h2 id="example-implicit">Example (implicit)</h2>
+<p>You normally never reference this processor directly:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Add custom metadata</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">&quot;update_attributes&quot;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>            <span class="s2">&quot;attrs&quot;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>                <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;California WRF Maximum Temperature&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>                <span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="s2">&quot;UCLA WRF Downscaling&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>                <span class="s2">&quot;institution&quot;</span><span class="p">:</span> <span class="s2">&quot;Cal-Adapt Analytics Engine&quot;</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>            <span class="p">},</span>
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>            <span class="s2">&quot;var_attrs&quot;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>                <span class="s2">&quot;t2max&quot;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>                    <span class="s2">&quot;units&quot;</span><span class="p">:</span> <span class="s2">&quot;K&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>                    <span class="s2">&quot;long_name&quot;</span><span class="p">:</span> <span class="s2">&quot;2-meter maximum air temperature&quot;</span>
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>                <span class="p">}</span>
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>            <span class="p">}</span>
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>        <span class="p">}</span>
-<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    <span class="p">})</span>
-<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">institution_id</span><span class="p">(</span><span class="s2">&quot;UCLA&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>        <span class="s2">&quot;time_slice&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;2030-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2060-12-31&quot;</span><span class="p">),</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Los Angeles&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="p">})</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># update_attributes runs automatically at priority 9998. The result&#39;s .attrs</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="c1"># now includes summaries of the time_slice and clip operations as recorded</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="c1"># by their respective update_context methods.</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">attrs</span><span class="p">)</span>
 </code></pre></div>
-<h2 id="see-also">See Also</h2>
+<h2 id="code-references">Code References</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Lines</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>__init__</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/update_attributes.py#L67">67–77</a></td>
+<td>Store unused <code>value</code>; set name</td>
+</tr>
+<tr>
+<td><code>execute</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/update_attributes.py#L79">79–121</a></td>
+<td>Ensure context entry; merge <code>new_attrs</code> per result type</td>
+</tr>
+<tr>
+<td><code>update_context</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/update_attributes.py#L123">123–144</a></td>
+<td>Add <code>"update_attributes"</code> marker into <code>context["new_attrs"]</code></td>
+</tr>
+<tr>
+<td><code>set_data_accessor</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/update_attributes.py#L146">146–</a></td>
+<td>Unused stub</td>
+</tr>
+</tbody>
+</table>
+<h2 id="see-also">See also</h2>
 <ul>
-<li><a href="../">Processor Index</a></li>
-<li><a href="../../architecture/#context-metadata">Architecture → Context Metadata</a></li>
+<li><a href="../">Processor index</a></li>
+<li><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/update_attributes.py"><code>climakitae/new_core/processors/update_attributes.py</code></a></li>
+<li><code>common_attrs</code> (CF coord defaults) used here lives alongside the processors module.</li>
 </ul>
 
 

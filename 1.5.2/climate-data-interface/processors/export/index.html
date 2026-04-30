@@ -1962,63 +1962,58 @@
 
 <h1 id="processor-export">Processor: Export</h1>
 <p><strong>Registry key:</strong> <code>export</code> &nbsp;|&nbsp; <strong>Priority:</strong> 9999 &nbsp;|&nbsp; <strong>Category:</strong> I/O &amp; Archival</p>
-<p>Write climate data to disk in multiple formats (NetCDF, Zarr, CSV, GeoTIFF). Handle gridded datasets, multi-point extractions, and point collections with optional location-based filenames, S3 cloud storage, and format-specific export methods.</p>
+<p>Write climate data to disk in NetCDF, Zarr, or CSV. Handles gridded datasets, multi-point clip results (<code>closest_cell</code> dimension), and collections (lists/tuples/dicts of single-point datasets) with optional location-based filenames and S3 storage for Zarr.</p>
 <h2 id="algorithm">Algorithm</h2>
-<p>The processor handles <strong>three distinct data structures</strong> with conditional parameter behavior:</p>
+<p><code>Export</code> runs at priority 9999 (last). It dispatches by <code>export_method</code> first, then by data structure.</p>
 <pre class="mermaid"><code>flowchart TD
-    Start([Input: xr.Dataset&lt;br/&gt;or collection]) --&gt; CheckType{Input data&lt;br/&gt;type?}
+    Init([__init__: parse value dict]) --&gt; Validate["_validate_parameters&lt;br/&gt;(format ∈ {zarr, netcdf, csv}; mode ∈ {local, s3};&lt;br/&gt;s3 requires zarr; export_method valid)"]
+    Validate --&gt; Start([execute])
+    Start --&gt; MethodCheck{export_method}
 
-    CheckType --&gt;|Gridded| GridMode["&lt;strong&gt;Mode 1: Gridded Dataset&lt;/strong&gt;&lt;br/&gt;lat/lon dimensions&lt;br/&gt;size gt 1&lt;br/&gt;Single file mode"]
-    CheckType --&gt;|closest_cell dim| PointMode["&lt;strong&gt;Mode 2: Multi-Point&lt;/strong&gt;&lt;br/&gt;closest_cell dimension&lt;br/&gt;from clip processor&lt;br/&gt;Conditional separation"]
-    CheckType --&gt;|List/Dict| CollectionMode["&lt;strong&gt;Mode 3: Collection&lt;/strong&gt;&lt;br/&gt;List or dict of&lt;br/&gt;single-point datasets&lt;br/&gt;Item-based separation"]
+    MethodCheck --&gt;|none| ReturnNoop["print message,&lt;br/&gt;return data unchanged"]
+    MethodCheck --&gt;|raw / calculate / both + dict result| HandleDict["_handle_dict_result&lt;br/&gt;(raw_data / calc_data keys)"]
+    MethodCheck --&gt;|raw / calculate / both + non-dict| HandleSel["_handle_selective_export&lt;br/&gt;(uses _determine_data_type)"]
+    MethodCheck --&gt;|data / skip_existing| ExportData["_export_data"]
 
-    GridMode --&gt; GridParams["separated/location_based&lt;br/&gt;SILENTLY IGNORED&lt;br/&gt;Always single file"]
-    PointMode --&gt; PointParams["separated:True&lt;br/&gt;splits on closest_cell&lt;br/&gt;location_based_naming&lt;br/&gt;controls filenames"]
-    CollectionMode --&gt; CollParams["separated:True&lt;br/&gt;exports each item&lt;br/&gt;location_based_naming&lt;br/&gt;controls filenames"]
+    ExportData --&gt; MatchResult{match result}
+    MatchResult --&gt;|Dataset / DataArray| HasCC{closest_cell dim&lt;br/&gt;and separated?}
+    HasCC --&gt;|Yes| SplitCC["_split_and_export_closest_cells"]
+    HasCC --&gt;|No| ExportSingle1["export_single"]
+    MatchResult --&gt;|dict| LoopDict["For each value:&lt;br/&gt;list/tuple → _export_collection,&lt;br/&gt;else → export_single"]
+    MatchResult --&gt;|list / tuple| ExportColl["_export_collection"]
+    MatchResult --&gt;|other| RaiseType["raise TypeError"]
 
-    GridParams --&gt; FormatSelect["Infer file format&lt;br/&gt;or use specified"]
-    PointParams --&gt; FormatSelect
-    CollParams --&gt; FormatSelect
+    SplitCC --&gt; ExportSingleN["export_single per slice&lt;br/&gt;(filename via _generate_filename)"]
+    ExportColl --&gt; ExportSingleN
+    LoopDict --&gt; ExportSingleN
+    ExportSingle1 --&gt; WriteOne
+    ExportSingleN --&gt; WriteOne
 
-    FormatSelect --&gt;|NetCDF| ExportNCDF["xarray.to_netcdf&lt;br/&gt;local filesystem&lt;br/&gt;CF conventions"]
-    FormatSelect --&gt;|Zarr| ExportZarr["zarr-python&lt;br/&gt;local or S3&lt;br/&gt;cloud-optimized"]
-    FormatSelect --&gt;|CSV| ExportCSV["to_csv with gzip&lt;br/&gt;tabular format&lt;br/&gt;time series friendly"]
-    FormatSelect --&gt;|GeoTIFF| ExportGEO["rioxarray.to_raster&lt;br/&gt;single time slice&lt;br/&gt;GIS compatible"]
+    WriteOne["export_single:&lt;br/&gt;1. _generate_filename + extension&lt;br/&gt;2. skip_existing check / unique filename&lt;br/&gt;3. _clean_attrs_for_netcdf"]
+    WriteOne --&gt; FormatMatch{match req_format}
+    FormatMatch --&gt;|zarr| Zarr["_export_to_zarr&lt;br/&gt;(local or s3)"]
+    FormatMatch --&gt;|netcdf| NCDF["_export_to_netcdf"]
+    FormatMatch --&gt;|csv| CSV["_export_to_csv (gzip)"]
 
-    ExportNCDF --&gt; GenFilename["Generate filename&lt;br/&gt;with extension"]
-    ExportZarr --&gt; GenFilename
-    ExportCSV --&gt; GenFilename
-    ExportGEO --&gt; GenFilename
+    Zarr --&gt; Done
+    NCDF --&gt; Done
+    CSV --&gt; Done
+    HandleDict --&gt; Done
+    HandleSel --&gt; Done
+    Done([Return original data unchanged — chainable])
+    ReturnNoop --&gt; Done
 
-    GenFilename --&gt; CheckNaming{location_based_naming&lt;br/&gt;enabled?}
-
-    CheckNaming --&gt;|Yes + points| AddCoords["Append coords to name&lt;br/&gt;e.g. _34-0N_118-0W"]
-    CheckNaming --&gt;|No or gridded| NoCoords["Use index or base name&lt;br/&gt;e.g. _0, _1"]
-
-    AddCoords --&gt; Write["Write file to disk"]
-    NoCoords --&gt; Write
-
-    Write --&gt; CheckMethod{export_method}
-
-    CheckMethod --&gt;|data| ReturnData["Return data + path"]
-    CheckMethod --&gt;|skip_existing| CheckExists{File exists?}
-    CheckExists --&gt;|Yes| ReturnNone1["Return None"]
-    CheckExists --&gt;|No| Write
-    CheckMethod --&gt;|none| ReturnNone2["Return None"]
-
-    ReturnData --&gt; End([Output: Dataset&lt;br/&gt;+ export metadata])
-    ReturnNone1 --&gt; End
-    ReturnNone2 --&gt; End
-
-    click CheckType "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L150" "Input type detection"
-    click GridMode "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L170" "Gridded dataset handling"
-    click PointMode "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L190" "closest_cell dimension"
-    click CollectionMode "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L210" "Collection of points"
-    click FormatSelect "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L240" "Format router"
-    click ExportNCDF "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L280" "NetCDF export"
-    click ExportZarr "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L290" "Zarr export S3/local"
-    click ExportCSV "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L300" "CSV export"
-    click ExportGEO "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L310" "GeoTIFF export"</code></pre>
+    click Init "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L197" "__init__"
+    click Validate "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L238" "_validate_parameters"
+    click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L326" "execute"
+    click ExportData "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L394" "_export_data dispatcher"
+    click MatchResult "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L432" "match result"
+    click SplitCC "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L820" "_split_and_export_closest_cells"
+    click ExportColl "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L457" "_export_collection"
+    click HandleDict "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L573" "_handle_dict_result"
+    click HandleSel "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L590" "_handle_selective_export"
+    click WriteOne "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L1064" "export_single"
+    click FormatMatch "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L1103" "match req_format"</code></pre>
 <h2 id="data-handling-modes">Data Handling Modes</h2>
 <h3 id="mode-1-gridded-datasets-important">Mode 1: Gridded Datasets ⚠️ Important</h3>
 <p>Single xr.Dataset/xr.DataArray with <code>lat</code> and <code>lon</code> coordinate dimensions containing multiple values (e.g., shape <code>(time, lat, lon)</code>).</p>
@@ -2099,66 +2094,47 @@
 <th>Use Case</th>
 <th>Compression</th>
 <th>Local/S3</th>
-<th>Max Size</th>
-<th>Speed</th>
+<th>Notes</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><strong>NetCDF</strong></td>
-<td>Climate data standard, long-term archival</td>
-<td>CF conventions + gzip</td>
+<td>Climate data standard, archival</td>
+<td>netCDF4 / zlib</td>
 <td>Local only</td>
-<td>Unlimited</td>
-<td>Fast</td>
+<td>Default; preserves CF metadata</td>
 </tr>
 <tr>
 <td><strong>Zarr</strong></td>
-<td>Cloud access, distributed computing, multi-file</td>
-<td>Internal (optional)</td>
-<td>Both (S3)</td>
-<td>Unlimited</td>
-<td>Fast</td>
+<td>Cloud / chunked I/O</td>
+<td>Internal</td>
+<td>Both (S3 requires <code>mode="s3"</code>)</td>
+<td>Path: <code>s3://bucket/...zarr</code></td>
 </tr>
 <tr>
 <td><strong>CSV</strong></td>
-<td>Spreadsheet software, tabular analysis, publication</td>
-<td>gzip optional</td>
+<td>Tabular / spreadsheets</td>
+<td>gzip (<code>.csv.gz</code>)</td>
 <td>Local only</td>
-<td>~500MB practical</td>
-<td>Slow</td>
-</tr>
-<tr>
-<td><strong>GeoTIFF</strong></td>
-<td>Raster maps, GIS software (QGIS, ArcGIS)</td>
-<td>Single time slice</td>
-<td>S3 capable</td>
-<td>4GB limit</td>
-<td>Fast</td>
+<td>Slow for large datasets</td>
 </tr>
 </tbody>
 </table>
+<blockquote>
+<p>The Export processor does <strong>not</strong> support GeoTIFF. For GIS raster output, use <code>rioxarray</code> directly on the returned <code>xr.Dataset</code> after <code>.get()</code>.</p>
+</blockquote>
 <h3 id="format-specific-notes">Format-Specific Notes</h3>
-<p><strong>NetCDF:</strong>
-- CF conventions metadata preserved
-- Human-readable with ncdump
-- Local filesystem only
-- Best for archival</p>
-<p><strong>Zarr (S3 Mode):</strong>
-- Requires bucket configuration
-- Streaming access without downloading
-- Chunked storage for efficient access
-- Path format: <code>s3://bucket/path/dataset.zarr</code></p>
-<p><strong>CSV:</strong>
-- Flattens multi-dimensional data to tabular format
-- Header row with coordinate/variable names
-- gzip compression applied by default
-- Slow for large datasets (&gt;500MB)</p>
-<p><strong>GeoTIFF:</strong>
-- Single time slice per file (select with time index)
-- Spatial reference (EPSG:4326) embedded
-- Useful for static maps/visualizations
-- Can be opened in QGIS, ArcGIS, Google Earth</p>
+<p><strong>NetCDF (<code>_export_to_netcdf</code>)</strong>
+- Attributes are sanitized via <code>_clean_attrs_for_netcdf</code> before writing.
+- Best for archival, ncdump-readable.</p>
+<p><strong>Zarr (<code>_export_to_zarr</code>)</strong>
+- <code>mode="local"</code> (default) writes to current working directory.
+- <code>mode="s3"</code> writes to S3 — requires bucket configured outside the processor; only <code>Zarr</code> is allowed when <code>mode="s3"</code>.
+- Attributes also sanitized prior to write to keep parity with the NetCDF path.</p>
+<p><strong>CSV (<code>_export_to_csv</code>)</strong>
+- gzip-compressed (<code>.csv.gz</code>).
+- Practical only for small / point datasets.</p>
 <h2 id="parameters">Parameters</h2>
 <table>
 <thead>
@@ -2176,56 +2152,70 @@
 <td>str</td>
 <td>All</td>
 <td>Base filename (no extension)</td>
-<td>Default: "dataexport"</td>
+<td>Default: <code>"dataexport"</code></td>
 </tr>
 <tr>
 <td><code>file_format</code></td>
 <td>str</td>
 <td>All</td>
 <td>Output format</td>
-<td>"NetCDF", "Zarr", "CSV", "GeoTIFF"</td>
+<td><code>"NetCDF"</code>, <code>"Zarr"</code>, <code>"CSV"</code> (case-insensitive; aliases inferred)</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td>str</td>
+<td>All</td>
+<td>Storage destination</td>
+<td><code>"local"</code> or <code>"s3"</code>; <code>"s3"</code> requires <code>file_format="Zarr"</code></td>
 </tr>
 <tr>
 <td><code>separated</code></td>
 <td>bool</td>
 <td>2, 3</td>
 <td>Export items to separate files</td>
-<td>Ignored for Mode 1</td>
+<td>Ignored for gridded data without <code>closest_cell</code></td>
 </tr>
 <tr>
 <td><code>location_based_naming</code></td>
 <td>bool</td>
 <td>2, 3</td>
 <td>Use lat/lon in filenames</td>
-<td>Requires <code>separated=True</code></td>
+<td>Effective when items have scalar lat/lon</td>
+</tr>
+<tr>
+<td><code>filename_template</code></td>
+<td>str / None</td>
+<td>All</td>
+<td>Custom filename template</td>
+<td>Optional</td>
 </tr>
 <tr>
 <td><code>export_method</code></td>
 <td>str</td>
 <td>All</td>
-<td>Return behavior</td>
-<td>"data", "skip_existing", "none"</td>
-</tr>
-<tr>
-<td><code>mode</code></td>
-<td>str</td>
-<td>All (Zarr)</td>
-<td>Storage destination</td>
-<td>"local" or "s3" (Zarr only)</td>
+<td>Return / handler routing</td>
+<td><code>"data"</code>, <code>"skip_existing"</code>, <code>"raw"</code>, <code>"calculate"</code>, <code>"both"</code>, <code>"none"</code></td>
 </tr>
 <tr>
 <td><code>raw_filename</code></td>
-<td>str</td>
+<td>str / None</td>
 <td>—</td>
 <td>Custom name for raw export</td>
-<td>For <code>export_method="both"</code></td>
+<td>Used by <code>_handle_dict_result</code> / <code>_handle_selective_export</code></td>
 </tr>
 <tr>
 <td><code>calc_filename</code></td>
-<td>str</td>
+<td>str / None</td>
 <td>—</td>
 <td>Custom name for calculated export</td>
-<td>For <code>export_method="both"</code></td>
+<td>Used by <code>_handle_dict_result</code> / <code>_handle_selective_export</code></td>
+</tr>
+<tr>
+<td><code>fail_on_error</code></td>
+<td>bool</td>
+<td>All</td>
+<td>Raise vs warn on write failure</td>
+<td>Default: bool</td>
 </tr>
 </tbody>
 </table>
@@ -2241,38 +2231,98 @@
 <tbody>
 <tr>
 <td><code>__init__</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L70">70–140</a></td>
-<td>Parse and validate export parameters</td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L197">197–237</a></td>
+<td>Parse <code>value</code> dict, set defaults</td>
+</tr>
+<tr>
+<td><code>_validate_parameters</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L238">238–325</a></td>
+<td>Validate format / mode / export_method / types</td>
 </tr>
 <tr>
 <td><code>execute</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L150">150–210</a></td>
-<td>Detect input type and route to handler</td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L326">326–393</a></td>
+<td>Route by <code>export_method</code>; returns input unchanged</td>
 </tr>
 <tr>
-<td><code>_export_single_dataset</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L220">220–250</a></td>
-<td>Export gridded dataset (Mode 1)</td>
-</tr>
-<tr>
-<td><code>_export_with_closest_cell</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L260">260–300</a></td>
-<td>Export multi-point results (Mode 2)</td>
+<td><code>_export_data</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L394">394–455</a></td>
+<td><code>match result</code> dispatcher (Dataset/DataArray, dict, list/tuple)</td>
 </tr>
 <tr>
 <td><code>_export_collection</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L310">310–350</a></td>
-<td>Export point collection (Mode 3)</td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L457">457–511</a></td>
+<td>List/tuple handler honoring <code>separated</code> and <code>location_based_naming</code></td>
 </tr>
 <tr>
-<td><code>_select_export_function</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L360">360–390</a></td>
-<td>Route to format-specific writer</td>
+<td><code>_export_single_from_collection</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L513">513–571</a></td>
+<td>Per-item write inside <code>_export_collection</code></td>
+</tr>
+<tr>
+<td><code>_handle_dict_result</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L573">573–588</a></td>
+<td><code>raw_data</code> / <code>calc_data</code> dict (e.g., <code>cava_data</code>)</td>
+</tr>
+<tr>
+<td><code>_handle_selective_export</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L590">590–618</a></td>
+<td>Selective raw/calculate/both for non-dict inputs</td>
+</tr>
+<tr>
+<td><code>_determine_data_type</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L620">620–646</a></td>
+<td>Classify input as raw vs calculated</td>
+</tr>
+<tr>
+<td><code>_export_with_suffix</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L648">648–674</a></td>
+<td>Append suffix (<code>_raw</code>, <code>_calc</code>) and write</td>
 </tr>
 <tr>
 <td><code>update_context</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L400">400–415</a></td>
-<td>Record export path and metadata</td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L676">676–696</a></td>
+<td>Record export metadata in context</td>
+</tr>
+<tr>
+<td><code>_clean_attrs_for_netcdf</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L702">702–761</a></td>
+<td>Sanitize attrs for NetCDF/Zarr serialization</td>
+</tr>
+<tr>
+<td><code>_is_single_point_data</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L763">763–785</a></td>
+<td>Detect scalar lat/lon</td>
+</tr>
+<tr>
+<td><code>_has_closest_cell_dimension</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L787">787–818</a></td>
+<td>Multi-point clip detection</td>
+</tr>
+<tr>
+<td><code>_split_and_export_closest_cells</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L820">820–902</a></td>
+<td>Split along <code>closest_cell</code> and write each slice</td>
+</tr>
+<tr>
+<td><code>_extract_point_coordinates</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L904">904–964</a></td>
+<td>Pull (lat, lon) for filename suffix</td>
+</tr>
+<tr>
+<td><code>_generate_filename</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L966">966–1030</a></td>
+<td>Build base filename (location_based or template)</td>
+</tr>
+<tr>
+<td><code>_get_unique_filename</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L1032">1032–1062</a></td>
+<td>Add <code>_1</code>, <code>_2</code>, ... when target exists</td>
+</tr>
+<tr>
+<td><code>export_single</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L1064">1064–1127</a></td>
+<td><code>match req_format</code> and call format writer</td>
 </tr>
 <tr>
 <td>.table_id("day")</td>
@@ -2333,95 +2383,74 @@
 </table>
 <h1 id="writes-sf_daily_max_tempcsv">Writes: sf_daily_max_temp.csv</h1>
 <h1 id="columns-time-t2max-one-row-per-day">Columns: time, t2max (one row per day)</h1>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>### GeoTIFF for GIS
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>## Implementation Details
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>```python
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a># Single raster layer for ArcGIS/QGIS
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>data = (ClimateData()
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    .catalog(&quot;cadcat&quot;)
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    .activity_id(&quot;WRF&quot;)
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    .variable(&quot;pr&quot;)
-<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    .table_id(&quot;mon&quot;)
-<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>    .grid_label(&quot;d02&quot;)
-<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>    .processes({
-<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>        &quot;time_slice&quot;: (&quot;2015-06-01&quot;, &quot;2015-08-31&quot;),  # Summer
-<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>        &quot;export&quot;: {
-<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>            &quot;filename&quot;: &quot;ca_summer_precip_2015&quot;,
-<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>            &quot;file_format&quot;: &quot;GeoTIFF&quot;
-<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a>        }
-<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a>    })
-<a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a>    .get())
-<a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a>
-<a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a># Writes: ca_summer_precip_2015.tif
-<a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a># GIS-compatible with lat/lon metadata
-</code></pre></div>
-<h2 id="implementation-details">Implementation Details</h2>
-<h3 id="format-specific-behavior">Format-Specific Behavior</h3>
-<p><strong>NetCDF</strong>: Uses xarray <code>.to_netcdf()</code> with CF conventions and compression</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">data</span><span class="o">.</span><span class="n">to_netcdf</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;netcdf4&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="p">{</span><span class="n">var</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;zlib&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">data_vars</span><span class="p">})</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>### Format-Specific Behavior
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>**NetCDF**: Uses xarray `.to_netcdf()` with CF conventions and compression
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>```python
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>data.to_netcdf(filename, engine=&quot;netcdf4&quot;, encoding={var: {&quot;zlib&quot;: True} for var in data.data_vars})
 </code></pre></div>
 <p><strong>Zarr</strong>: Chunked cloud-optimized format (local or S3)</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;s3&quot;</span><span class="p">:</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    <span class="n">data</span><span class="o">.</span><span class="n">to_zarr</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;s3://bucket/</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">.zarr&quot;</span><span class="p">)</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="n">data</span><span class="o">.</span><span class="n">to_zarr</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;./</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">.zarr&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;s3&quot;</span><span class="p">:</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="n">data</span><span class="o">.</span><span class="n">to_zarr</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;s3://bucket/</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">.zarr&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="n">data</span><span class="o">.</span><span class="n">to_zarr</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;./</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">.zarr&quot;</span><span class="p">)</span>
 </code></pre></div>
 <p><strong>CSV</strong>: Flattens spatial dims; requires scalar or point data</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">data</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>  <span class="c1"># Works for time series at single points</span>
-</code></pre></div>
-<p><strong>GeoTIFF</strong>: Single time step, spatial (lat, lon) only</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">data</span><span class="o">.</span><span class="n">isel</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">rio</span><span class="o">.</span><span class="n">to_raster</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>  <span class="c1"># Exports first time slice</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">data</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>  <span class="c1"># Works for time series at single points</span>
 </code></pre></div>
 <h3 id="skip-existing">Skip Existing</h3>
 <p>With <code>export_method="skip_existing"</code>, processor checks if file exists before writing:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="k">return</span> <span class="kc">None</span>  <span class="c1"># Don&#39;t overwrite</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="n">export_and_return_path</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="k">return</span> <span class="kc">None</span>  <span class="c1"># Don&#39;t overwrite</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="n">export_and_return_path</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="location-based-naming">Location-Based Naming</h3>
 <p>Coordinates are formatted as compass directions:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># (37.7749, -122.4194) → &quot;37-77N_122-42W&quot;</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="n">lat_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">abs</span><span class="p">(</span><span class="n">lat</span><span class="p">)</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}{</span><span class="s1">&#39;NS&#39;</span><span class="p">[</span><span class="n">lat</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">lon_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">abs</span><span class="p">(</span><span class="n">lon</span><span class="p">)</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}{</span><span class="s1">&#39;EW&#39;</span><span class="p">[</span><span class="n">lon</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">lat_str</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">lon_str</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># (37.7749, -122.4194) → &quot;37-77N_122-42W&quot;</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">lat_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">abs</span><span class="p">(</span><span class="n">lat</span><span class="p">)</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}{</span><span class="s1">&#39;NS&#39;</span><span class="p">[</span><span class="n">lat</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">lon_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">abs</span><span class="p">(</span><span class="n">lon</span><span class="p">)</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}{</span><span class="s1">&#39;EW&#39;</span><span class="p">[</span><span class="n">lon</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">lat_str</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">lon_str</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span>
 </code></pre></div>
 <h2 id="common-patterns">Common Patterns</h2>
 <h3 id="multi-format-export">Multi-Format Export</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
-<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>        <span class="s2">&quot;time_slice&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;2015-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2015-12-31&quot;</span><span class="p">),</span>
-<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Alameda&quot;</span>
-<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>    <span class="p">})</span>
-<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
-<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>
-<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a><span class="c1"># Export to multiple formats</span>
-<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a><span class="n">data</span><span class="o">.</span><span class="n">to_netcdf</span><span class="p">(</span><span class="s2">&quot;alameda_2015.nc&quot;</span><span class="p">)</span>
-<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a><span class="n">data</span><span class="o">.</span><span class="n">to_zarr</span><span class="p">(</span><span class="s2">&quot;alameda_2015.zarr&quot;</span><span class="p">)</span>
-<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a><span class="n">data</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s2">&quot;alameda_2015.csv&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>        <span class="s2">&quot;time_slice&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;2015-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2015-12-31&quot;</span><span class="p">),</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Alameda&quot;</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>    <span class="p">})</span>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="c1"># Export to multiple formats</span>
+<a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a><span class="n">data</span><span class="o">.</span><span class="n">to_netcdf</span><span class="p">(</span><span class="s2">&quot;alameda_2015.nc&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a><span class="n">data</span><span class="o">.</span><span class="n">to_zarr</span><span class="p">(</span><span class="s2">&quot;alameda_2015.zarr&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="n">data</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s2">&quot;alameda_2015.csv&quot;</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="batch-export-loop">Batch Export Loop</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">counties</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Alameda&quot;</span><span class="p">,</span> <span class="s2">&quot;Contra Costa&quot;</span><span class="p">,</span> <span class="s2">&quot;Santa Clara&quot;</span><span class="p">]</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="k">for</span> <span class="n">county</span> <span class="ow">in</span> <span class="n">counties</span><span class="p">:</span>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>        <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>        <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>        <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
-<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>        <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
-<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>        <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
-<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>        <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>            <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="n">county</span><span class="p">,</span>
-<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>            <span class="s2">&quot;export&quot;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>                <span class="s2">&quot;filename&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">county</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s2">_2015&quot;</span><span class="p">,</span>
-<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>                <span class="s2">&quot;file_format&quot;</span><span class="p">:</span> <span class="s2">&quot;NetCDF&quot;</span>
-<a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>            <span class="p">}</span>
-<a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>        <span class="p">})</span>
-<a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>        <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">counties</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Alameda&quot;</span><span class="p">,</span> <span class="s2">&quot;Contra Costa&quot;</span><span class="p">,</span> <span class="s2">&quot;Santa Clara&quot;</span><span class="p">]</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="k">for</span> <span class="n">county</span> <span class="ow">in</span> <span class="n">counties</span><span class="p">:</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>        <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>        <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>        <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>        <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>        <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>        <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>            <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="n">county</span><span class="p">,</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>            <span class="s2">&quot;export&quot;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>                <span class="s2">&quot;filename&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">county</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s2">_2015&quot;</span><span class="p">,</span>
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>                <span class="s2">&quot;file_format&quot;</span><span class="p">:</span> <span class="s2">&quot;NetCDF&quot;</span>
+<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>            <span class="p">}</span>
+<a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a>        <span class="p">})</span>
+<a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a>        <span class="o">.</span><span class="n">get</span><span class="p">())</span>
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>

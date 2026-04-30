@@ -797,6 +797,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#code-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code References
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#parameter-shape" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1819,6 +1830,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#code-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code References
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#parameter-shape" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1944,7 +1966,58 @@
     Lookup --&gt;|Miss| Warn[Warn and leave unchanged]
     Apply --&gt; UpdateAttrs[Update 'units' attr &amp; new_attrs context]
     Warn --&gt; UpdateAttrs
-    UpdateAttrs --&gt; End([Output: same shape, converted units])</code></pre>
+    UpdateAttrs --&gt; End([Output: same shape, converted units])
+
+    click Convert "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L218" "_convert_units"
+    click Lookup "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L17" "UNIT_CONVERSIONS table"
+    click UpdateAttrs "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L192" "update_context"</code></pre>
+<h2 id="code-references">Code References</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Lines</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>__init__</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L128">128\u2013143</a></td>
+<td>Store target unit</td>
+</tr>
+<tr>
+<td><code>execute</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L145">145\u2013190</a></td>
+<td>UNSET check; route by container type</td>
+</tr>
+<tr>
+<td><code>update_context</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L192">192\u2013212</a></td>
+<td>Write conversion to <code>new_attrs</code></td>
+</tr>
+<tr>
+<td><code>set_data_accessor</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L214">214\u2013216</a></td>
+<td>Catalog reference</td>
+</tr>
+<tr>
+<td><code>_convert_units</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L218">218\u2013</a></td>
+<td>Per-variable lookup + apply</td>
+</tr>
+<tr>
+<td><code>_handle_precipitation_to_flux</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L70">70\u201378</a></td>
+<td>mm \u2194 flux helper</td>
+</tr>
+<tr>
+<td><code>_handle_flux_to_precipitation</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L80">80\u201395</a></td>
+<td>flux \u2194 mm helper</td>
+</tr>
+</tbody>
+</table>
 <h2 id="parameter-shape">Parameter shape</h2>
 <p>The processor takes a <strong>single string</strong>: the target unit. The source unit is read from the variable's <code>units</code> attribute.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="o">.</span><span class="n">processes</span><span class="p">({</span><span class="s2">&quot;convert_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&lt;target unit&gt;&quot;</span><span class="p">})</span>

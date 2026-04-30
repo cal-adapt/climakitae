@@ -2314,21 +2314,21 @@
     ReturnDS --&gt; End
     ReturnList --&gt; End
 
-    click DictPath "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L73" "Iterate over dict items"
-    click SinglePath "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L82" "Process single dataset"
-    click ListPath "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L87" "Iterate over sequence"
-    click CoerceTime "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L59" "Coerce dates to Timestamp"
-    click TimeSlice "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L164" "Slice time dimension"
-    click FilterSeasons "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L165" "Filter by season"
-    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L136" "Update context metadata"</code></pre>
+    click DictPath "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L109" "Iterate over dict items"
+    click SinglePath "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L116" "Process single dataset"
+    click ListPath "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L120" "Iterate over sequence"
+    click CoerceTime "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L71" "Coerce dates to Timestamp (call site in __init__)"
+    click TimeSlice "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L162" "Slice time dimension"
+    click FilterSeasons "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L164" "Filter by season"
+    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L131" "Update context metadata"</code></pre>
 <h3 id="execution-flow">Execution Flow</h3>
 <ol>
-<li><strong>Initialization</strong> (lines 52–68): Parse dates parameter (tuple or dict), coerce to pandas Timestamps, store optional seasons</li>
-<li><strong>Input Routing</strong> (lines 73–91): Determine input type (dict/Dataset/list) and iterate appropriately</li>
-<li><strong>Time Slicing</strong> (lines 164–165): Select by time range using <code>xr.Dataset.sel(time=slice(start, end))</code></li>
-<li><strong>Season Filtering</strong> (line 165–166): If seasons provided, filter with <code>where(dt.season.isin(seasons), drop=True)</code></li>
-<li><strong>Context Update</strong> (lines 136–145): Record operation in <code>context["new_attrs"]</code></li>
-<li><strong>Return</strong> (lines 73–91): Return transformed data in same structure as input</li>
+<li><strong>Initialization</strong> (lines 52–73): Parse dates parameter (tuple or dict), coerce to pandas Timestamps via <code>_coerce_to_dates</code>, store optional seasons</li>
+<li><strong>Input Routing</strong> (lines 108–129): <code>match</code> statement dispatches on <code>dict</code> / <code>xr.Dataset|DataArray</code> / <code>list|tuple</code>; unsupported types log a warning at line 127</li>
+<li><strong>Time Slicing</strong> (line 162): <code>obj.sel(time=slice(self.value[0], self.value[1]))</code></li>
+<li><strong>Season Filtering</strong> (lines 163–164): If <code>self.seasons is not UNSET</code>, apply <code>where(obj.time.dt.season.isin(self.seasons), drop=True)</code></li>
+<li><strong>Context Update</strong> (lines 131–151): <code>update_context</code> records the operation under <code>context["new_attrs"]["time_slice"]</code></li>
+<li><strong>Return</strong>: Same container type as input (dict / Dataset|DataArray / list|tuple)</li>
 </ol>
 <h2 id="parameters">Parameters</h2>
 <table>
@@ -2406,23 +2406,28 @@
 <tbody>
 <tr>
 <td><code>__init__</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L52">52–68</a></td>
-<td>Parse and validate dates, seasons</td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L52">52–73</a></td>
+<td>Parse and normalize <code>value</code>/<code>dates</code>/<code>seasons</code></td>
 </tr>
 <tr>
 <td><code>execute</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L73">73–91</a></td>
-<td>Route input type and apply slicing</td>
-</tr>
-<tr>
-<td><code>_subset_time_and_season</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L161">161–167</a></td>
-<td>Core xarray slicing and filtering logic</td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L76">76–129</a></td>
+<td>Route by input type and apply slicing</td>
 </tr>
 <tr>
 <td><code>update_context</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L136">136–145</a></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L131">131–151</a></td>
 <td>Record operation metadata</td>
+</tr>
+<tr>
+<td><code>set_data_accessor</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L153">153–155</a></td>
+<td>No-op placeholder (interface compliance)</td>
+</tr>
+<tr>
+<td><code>_subset_time_and_season</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L157">157–165</a></td>
+<td>Core xarray <code>.sel</code> + season <code>.where</code> logic</td>
 </tr>
 </tbody>
 </table>

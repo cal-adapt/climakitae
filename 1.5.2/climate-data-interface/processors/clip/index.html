@@ -747,10 +747,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#mode-3-single-point-smart-gridcell-finding" class="md-nav__link">
+  <a href="#mode-3-single-point-closest-valid-gridcell" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Mode 3: Single Point (Smart Gridcell Finding)
+        Mode 3: Single Point (Closest Valid Gridcell)
       
     </span>
   </a>
@@ -851,6 +851,17 @@
     <span class="md-ellipsis">
       
         Masking Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#persisting-to-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persisting to Memory
       
     </span>
   </a>
@@ -1013,10 +1024,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3d-masking" class="md-nav__link">
+  <a href="#result-dispatch" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3D Masking
+        Result Dispatch
       
     </span>
   </a>
@@ -1024,10 +1035,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#separated-output" class="md-nav__link">
+  <a href="#persist-persisttrue" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Separated Output
+        Persist (persist=True)
       
     </span>
   </a>
@@ -2158,10 +2169,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#mode-3-single-point-smart-gridcell-finding" class="md-nav__link">
+  <a href="#mode-3-single-point-closest-valid-gridcell" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Mode 3: Single Point (Smart Gridcell Finding)
+        Mode 3: Single Point (Closest Valid Gridcell)
       
     </span>
   </a>
@@ -2262,6 +2273,17 @@
     <span class="md-ellipsis">
       
         Masking Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#persisting-to-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persisting to Memory
       
     </span>
   </a>
@@ -2424,10 +2446,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3d-masking" class="md-nav__link">
+  <a href="#result-dispatch" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3D Masking
+        Result Dispatch
       
     </span>
   </a>
@@ -2435,10 +2457,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#separated-output" class="md-nav__link">
+  <a href="#persist-persisttrue" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Separated Output
+        Persist (persist=True)
       
     </span>
   </a>
@@ -2540,65 +2562,78 @@
 <p><strong>Registry key:</strong> <code>clip</code> &nbsp;|&nbsp; <strong>Priority:</strong> 65 &nbsp;|&nbsp; <strong>Category:</strong> Spatial Processing</p>
 <p>Subset climate data to specific geographic regions, points, or boundaries. Extract data for counties, watersheds, weather stations, or custom lat/lon coordinates with automatic nearest-gridcell location and coordinate system handling.</p>
 <h2 id="algorithm">Algorithm</h2>
-<p>The processor supports <strong>five distinct input modes</strong> with automatic type detection and <strong>smart point-finding</strong> for nearest valid gridcells:</p>
+<p><code>Clip</code> runs in two phases: first it parses <code>self.value</code> into a geometry (or routes to a point-based path), then it dispatches over the input data type and calls the appropriate clipper.</p>
 <pre class="mermaid"><code>flowchart TD
-    Start([Input: xr.Dataset]) --&gt; ParseValue["Parse clip value&lt;br/&gt;detect input type"]
+    Init([__init__: parse value, detect mode]) --&gt; Init2["Set flags:&lt;br/&gt;is_single_point / is_multi_point /&lt;br/&gt;separated / extract_points / persist"]
+    Init2 --&gt; Start([execute])
+    Start --&gt; MatchValue{match self.value}
 
-    ParseValue --&gt; CheckType{Input type?}
+    MatchValue --&gt;|str| StrCheck{Station id?}
+    StrCheck --&gt;|Yes| StationCoords["_get_station_coordinates&lt;br/&gt;(sets is_station, is_single_point)"]
+    StrCheck --&gt;|No| PathCheck{File path exists?}
+    PathCheck --&gt;|Yes| ReadFile["gpd.read_file(value)"]
+    PathCheck --&gt;|No| BoundaryLookup["_get_boundary_geometry"]
 
-    CheckType --&gt;|String| StringCheck{Boundary&lt;br/&gt;or Station?}
-    StringCheck --&gt;|Boundary catalog| LoadBoundary["Load from boundary catalog&lt;br/&gt;CA counties/watersheds/utilities"]
-    StringCheck --&gt;|Station code| LoadStation["Load weather station&lt;br/&gt;from HadISD catalog"]
+    MatchValue --&gt;|list| ListCheck{All station ids?}
+    ListCheck --&gt;|Yes| MultiStation["_convert_stations_to_points"]
+    ListCheck --&gt;|No — lat/lon tuples| MultiPoint["is_multi_point&lt;br/&gt;(use point_list)"]
+    ListCheck --&gt;|No — separated boundaries| Sep["separated path&lt;br/&gt;(per-boundary loop)"]
+    ListCheck --&gt;|No — union| MultiBoundary["_get_multi_boundary_geometry&lt;br/&gt;(union)"]
 
-    CheckType --&gt;|Tuple| TupleCheck{Tuple&lt;br/&gt;structure?}
-    TupleCheck --&gt;|Single pair| SinglePoint["Single point lat, lon&lt;br/&gt;find closest gridcell"]
-    TupleCheck --&gt;|Nested tuples| BBox["Bounding box&lt;br/&gt;lat_min to lat_max, lon_min to lon_max"]
+    MatchValue --&gt;|tuple len 2 of floats| SinglePt["is_single_point&lt;br/&gt;(lat, lon)"]
+    MatchValue --&gt;|tuple of tuples| BBox["shapely.box → GeoDataFrame&lt;br/&gt;(EPSG:4326)"]
+    MatchValue --&gt;|other| RaiseValue["raise ValueError"]
 
-    CheckType --&gt;|List| ListCheck{List&lt;br/&gt;contents?}
-    ListCheck --&gt;|Strings| MultiBoundary["Multiple boundaries&lt;br/&gt;or stations"]
-    ListCheck --&gt;|Tuples| MultiPoint["Multiple points&lt;br/&gt;find closest gridcells"]
+    StationCoords --&gt; DispatchResult
+    ReadFile --&gt; DispatchResult
+    BoundaryLookup --&gt; DispatchResult
+    MultiStation --&gt; DispatchResult
+    MultiPoint --&gt; DispatchResult
+    Sep --&gt; DispatchResult
+    MultiBoundary --&gt; DispatchResult
+    SinglePt --&gt; DispatchResult
+    BBox --&gt; DispatchResult
 
-    CheckType --&gt;|File| LoadFile["Load shapefile/GeoJSON&lt;br/&gt;from disk"]
+    DispatchResult{match result}
+    DispatchResult --&gt;|dict| LoopDict["For each (key, value):&lt;br/&gt;route by mode flag"]
+    DispatchResult --&gt;|Dataset / DataArray| RouteSingle["Route by mode flag"]
+    DispatchResult --&gt;|list / tuple| LoopList["Per-item route, preserve container type"]
 
-    LoadBoundary --&gt; ValidateGeom["Validate geometry"]
-    LoadStation --&gt; ValidateGeom
-    SinglePoint --&gt; SmartPoint["Smart gridcell search:&lt;br/&gt;expand search radius&lt;br/&gt;until non-NaN found"]
-    BBox --&gt; ValidateGeom
-    MultiBoundary --&gt; ValidateGeom
-    MultiPoint --&gt; SmartSearch["Smart search for each point&lt;br/&gt;vectorized nearest-neighbor"]
-    LoadFile --&gt; ValidateGeom
+    LoopDict --&gt; ChooseClipper
+    RouteSingle --&gt; ChooseClipper
+    LoopList --&gt; ChooseClipper
 
-    SmartPoint --&gt; Reproject["Reproject to WGS84"]
-    SmartSearch --&gt; Reproject
-    ValidateGeom --&gt; Reproject
+    ChooseClipper{Mode flag}
+    ChooseClipper --&gt;|is_single_point| ClipPoint["_clip_data_to_point&lt;br/&gt;(closest cell, fallback to 3x3 neighborhood mean)"]
+    ChooseClipper --&gt;|is_multi_point| ClipMaskPts["_clip_data_to_points_as_mask&lt;br/&gt;(mask or extract along 'points' dim)"]
+    ChooseClipper --&gt;|separated| ClipSep["_clip_data_separated&lt;br/&gt;(one geom per boundary)"]
+    ChooseClipper --&gt;|geom set| ClipGeom["_clip_data_with_geom&lt;br/&gt;(rio.clip)"]
 
-    Reproject --&gt; CheckSeparated{Separated&lt;br/&gt;output?}
+    ClipPoint --&gt; CheckPersist{persist?}
+    ClipMaskPts --&gt; CheckPersist
+    ClipSep --&gt; CheckPersist
+    ClipGeom --&gt; CheckPersist
 
-    CheckSeparated --&gt;|No| SingleClip["Single clip operation&lt;br/&gt;union all boundaries"]
-    CheckSeparated --&gt;|Yes| LoopClip["Loop each boundary/point&lt;br/&gt;create dict or list"]
+    CheckPersist --&gt;|Yes| Compute[".compute() to collapse Dask graph"]
+    CheckPersist --&gt;|No| UpdateCtx
+    Compute --&gt; UpdateCtx["update_context"]
+    UpdateCtx --&gt; End([Output: clipped data, same container as input])
 
-    SingleClip --&gt; Mask3D["Create 3D mask&lt;br/&gt;broadcast across time/sim"]
-    LoopClip --&gt; Mask3D
-
-    Mask3D --&gt; ApplyMask["Apply mask to data&lt;br/&gt;data.where"]
-
-    ApplyMask --&gt; UpdateCtx["Update context metadata"]
-
-    UpdateCtx --&gt; End([Output: Dataset&lt;br/&gt;clipped extent])
-
-    click ParseValue "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L230" "Input type detection"
-    click StringCheck "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L260" "String boundary vs station"
-    click LoadBoundary "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L290" "Load from boundary catalog"
-    click LoadStation "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L310" "Load weather station"
-    click SinglePoint "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L330" "Single point clipping"
-    click BBox "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L350" "Bounding box clipping"
-    click SmartPoint "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L400" "Smart gridcell search algorithm"
-    click SmartSearch "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L420" "Multi-point nearest-neighbor"
-    click ValidateGeom "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L450" "Validate geometry integrity"
-    click Reproject "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L470" "Reproject to WGS84"
-    click Mask3D "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L490" "Broadcast mask to 3D"
-    click ApplyMask "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L510" "Apply rioxarray mask"
-    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L530" "Record clipped region"</code></pre>
+    click Init "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L186" "__init__"
+    click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L294" "execute"
+    click MatchValue "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L303" "First match: parse self.value"
+    click StationCoords "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L541" "_get_station_coordinates"
+    click ReadFile "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L318" "gpd.read_file"
+    click BoundaryLookup "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1443" "_get_boundary_geometry"
+    click MultiStation "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L570" "_convert_stations_to_points"
+    click MultiBoundary "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1683" "_get_multi_boundary_geometry (union)"
+    click BBox "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L355" "shapely.box → GeoDataFrame"
+    click DispatchResult "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L386" "Second match: dispatch by result type"
+    click ClipPoint "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L665" "_clip_data_to_point"
+    click ClipMaskPts "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1061" "_clip_data_to_points_as_mask"
+    click ClipSep "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1348" "_clip_data_separated"
+    click ClipGeom "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L595" "_clip_data_with_geom"
+    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L479" "update_context"</code></pre>
 <h2 id="input-modes">Input Modes</h2>
 <h3 id="mode-1-named-boundaries">Mode 1: Named Boundaries</h3>
 <p>Clip using predefined administrative or utility boundaries from the Cal-Adapt boundary catalog.</p>
@@ -2615,17 +2650,20 @@
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="s2">&quot;KSFO&quot;</span>                     <span class="c1"># San Francisco International Airport  </span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="s2">&quot;KLAX&quot;</span>                     <span class="c1"># Los Angeles International Airport</span>
 </code></pre></div></p>
-<h3 id="mode-3-single-point-smart-gridcell-finding">Mode 3: Single Point (Smart Gridcell Finding)</h3>
-<p>Extract data for a single geographic point. <strong>Automatically finds the nearest gridcell with valid (non-NaN) data using expanding-radius search.</strong></p>
-<p><strong>Smart Point-Finding Algorithm:</strong>
-When the nearest gridcell contains NaN values (common in WRF data near coastlines/mountains):</p>
+<h3 id="mode-3-single-point-closest-valid-gridcell">Mode 3: Single Point (Closest Valid Gridcell)</h3>
+<p>Extract data for a single geographic point. The processor first selects the geographically closest gridcell; if that cell is all-NaN (common in WRF data near coastlines/mountains/masked regions) it falls back to a <strong>3×3 index-space neighborhood</strong> around the nearest cell and returns the <strong>mean of the valid (non-NaN) cells in that neighborhood</strong>.</p>
+<p><strong>Algorithm (<code>_clip_data_to_point</code>, line 665):</strong></p>
 <ol>
-<li><strong>Initial Search</strong>: 0.01° radius (~1 km)</li>
-<li><strong>Expand to</strong>: 0.05° (~5 km)</li>
-<li><strong>Continue</strong>: 0.1°, 0.2°, 0.5° radii</li>
-<li><strong>Return</strong>: Closest valid (non-NaN) gridcell within acceptable radius</li>
-<li><strong>Timeout</strong>: If no valid data within 0.5°, raises error with suggestions</li>
+<li>Call <code>get_closest_gridcell(dataset, lat, lon)</code> and check if it has valid data on a sample slice.</li>
+<li>If valid, return that cell.</li>
+<li>If NaN, find the nearest grid index (<code>(idx1, idx2)</code>) along the spatial dims (<code>x</code>/<code>y</code> for WRF, <code>lat</code>/<code>lon</code> for LOCA2). For projected grids, lat/lon are first transformed to the dataset's CRS via <code>pyproj.Transformer</code>.</li>
+<li>Iterate the 3×3 neighborhood <code>(di, dj) ∈ {-1, 0, 1}²</code>, skipping out-of-bounds and all-NaN cells.</li>
+<li>If any valid neighbors exist, <code>xr.concat(neighbors, dim="nearest_cell").mean(dim="nearest_cell")</code> and reassign mean lat/lon coords; otherwise return <code>None</code>.</li>
+<li>Fallback paths handle averaging failures by returning the center cell directly.</li>
 </ol>
+<blockquote>
+<p>The earlier docs described an expanding-radius search (0.01° → 0.05° → ... → 0.5°). That was never the implementation; the current behavior is the index-space 3×3 mean above.</p>
+</blockquote>
 <p><strong>Example:</strong>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">(</span><span class="mf">37.7749</span><span class="p">,</span> <span class="o">-</span><span class="mf">122.4194</span><span class="p">)</span>       <span class="c1"># San Francisco: (lat, lon)</span>
 </code></pre></div></p>
@@ -2660,21 +2698,25 @@ When the nearest gridcell contains NaN values (common in WRF data near coastline
 <h2 id="spatial-processing-details">Spatial Processing Details</h2>
 <h3 id="coordinate-system-handling">Coordinate System Handling</h3>
 <ul>
-<li><strong>Input</strong>: Multiple coordinate systems supported (automatically detected)</li>
-<li><strong>Conversion</strong>: All reproject to WGS84 (EPSG:4326)</li>
-<li><strong>Output</strong>: WGS84 coordinates in result dataset</li>
+<li><strong>Data CRS detection</strong> (<code>_clip_data_with_geom</code>, line 595): if <code>data.rio.crs</code> is unset, the processor detects WRF data by the presence of a <code>Lambert_Conformal</code> coordinate and writes the CRS from <code>spatial_ref</code> or CF-convention attributes; otherwise it assumes EPSG:4326 (LOCA2 lat/lon).</li>
+<li><strong>Boundary CRS</strong>: boundaries are assumed to be EPSG:4326 (a warning is logged if no CRS is set).</li>
+<li><strong>Reprojection direction</strong>: when <code>data.rio.crs != gdf.crs</code>, the <strong>GeoDataFrame is reprojected to the data's CRS</strong> — the data stays in its native projection (i.e., WRF output remains in Lambert Conformal).</li>
 </ul>
 <h3 id="masking-strategy">Masking Strategy</h3>
-<ol>
-<li>Create boolean mask from geometry</li>
-<li>Broadcast mask to 3D (time × lat × lon) or higher dimensions</li>
-<li>Apply with <code>data.where(mask, drop=False)</code> to preserve coordinates</li>
-</ol>
+<p>Geometry-based clipping uses <code>rioxarray</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">data</span><span class="o">.</span><span class="n">rio</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">gdf</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">mapping</span><span class="p">),</span> <span class="n">gdf</span><span class="o">.</span><span class="n">crs</span><span class="p">,</span> <span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">all_touched</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<ul>
+<li><code>all_touched=True</code> includes cells that any part of the geometry touches.</li>
+<li><code>drop=True</code> trims the bounding box to the clipped extent.</li>
+</ul>
+<p>For multi-point clipping, <code>_clip_data_to_points_as_mask</code> either applies a points-mask in place or extracts along a new <code>points</code> dimension when <code>extract_points=True</code> (set by <code>{"points": [...], "separated": True}</code>).</p>
+<h3 id="persisting-to-memory">Persisting to Memory</h3>
+<p>When <code>persist=True</code> (constructor arg or <code>persist</code> key in dict input), the processor calls <code>.compute()</code> on the result before returning. This collapses the Dask task graph and is recommended for large multi-point clipping followed by 1-in-X analysis or other graph-heavy operations.</p>
 <h3 id="boundary-catalog-access">Boundary Catalog Access</h3>
 <ul>
-<li>Boundaries loaded lazily on first use</li>
-<li>Cached in memory for subsequent operations</li>
-<li>Sourced from S3 intake-esm catalog</li>
+<li>Boundaries loaded lazily via <code>_get_boundary_geometry</code> (line 1443) / <code>_get_multi_boundary_geometry</code> (line 1683).</li>
+<li>Sourced from S3 intake-esm catalog and cached for the process lifetime.</li>
 </ul>
 <h2 id="parameters">Parameters</h2>
 <table>
@@ -2690,24 +2732,24 @@ When the nearest gridcell contains NaN values (common in WRF data near coastline
 <tbody>
 <tr>
 <td><code>value</code></td>
-<td>str/tuple/list/dict</td>
+<td>str / list / tuple / dict</td>
 <td>✓</td>
 <td>—</td>
-<td>Geometry specification (mode 1–5 above)</td>
+<td>Geometry specification (modes 1–5 above). For dict input, must contain <code>boundaries</code> <em>or</em> <code>points</code>.</td>
 </tr>
 <tr>
 <td><code>separated</code></td>
-<td>bool</td>
+<td>bool (in dict input)</td>
 <td></td>
 <td>False</td>
-<td>Return separate datasets per boundary/point</td>
+<td>For boundaries: keep each as its own dataset entry. For points: extract along a new <code>points</code> dimension.</td>
 </tr>
 <tr>
-<td><code>location_based_naming</code></td>
-<td>bool</td>
+<td><code>persist</code></td>
+<td>bool (in dict input or constructor)</td>
 <td></td>
 <td>False</td>
-<td>Use lat/lon in filenames (with export)</td>
+<td>Call <code>.compute()</code> after clipping to collapse the Dask task graph. Recommended for large multi-point workflows.</td>
 </tr>
 </tbody>
 </table>
@@ -2723,183 +2765,220 @@ When the nearest gridcell contains NaN values (common in WRF data near coastline
 <tbody>
 <tr>
 <td><code>__init__</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L120">120–160</a></td>
-<td>Parse and validate clip parameters</td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L186">186–291</a></td>
+<td>Parse <code>value</code>, set mode flags (<code>is_single_point</code>, <code>is_multi_point</code>, <code>separated</code>, <code>extract_points</code>, <code>persist</code>)</td>
 </tr>
 <tr>
 <td><code>execute</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L170">170–230</a></td>
-<td>Route input type and coordinate smart search</td>
-</tr>
-<tr>
-<td><code>_get_boundary_geometry</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L240">240–310</a></td>
-<td>Load geometry from various sources</td>
-</tr>
-<tr>
-<td><code>_smart_gridcell_search</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L320">320–400</a></td>
-<td>Find nearest valid (non-NaN) gridcell with expanding radii</td>
-</tr>
-<tr>
-<td><code>_clip_data_with_geom</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L410">410–490</a></td>
-<td>Core rioxarray masking logic</td>
-</tr>
-<tr>
-<td><code>_create_3d_mask</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L500">500–520</a></td>
-<td>Broadcast mask to 3D or higher</td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L294">294–477</a></td>
+<td>Two-phase: parse value → geom (line 303), then dispatch over result type (line 386); optional <code>.compute()</code> if <code>persist</code></td>
 </tr>
 <tr>
 <td><code>update_context</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L530">530–545</a></td>
-<td>Record clipped region metadata</td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L479">479–535</a></td>
+<td>Record clipped-region metadata under <code>new_attrs["clip"]</code></td>
+</tr>
+<tr>
+<td><code>set_data_accessor</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L537">537–539</a></td>
+<td>Receive <code>DataCatalog</code> reference for boundary/station lookups</td>
+</tr>
+<tr>
+<td><code>_get_station_coordinates</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L541">541–568</a></td>
+<td>HadISD station code → (lat, lon, metadata)</td>
+</tr>
+<tr>
+<td><code>_convert_stations_to_points</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L570">570–593</a></td>
+<td>Multi-station list → point_list + metadata list</td>
+</tr>
+<tr>
+<td><code>_clip_data_with_geom</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L595">595–663</a></td>
+<td>CRS detection + <code>rio.clip(all_touched=True, drop=True)</code></td>
+</tr>
+<tr>
+<td><code>_clip_data_to_point</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L665">665–878</a></td>
+<td>Closest cell, fallback to 3×3 index-space neighborhood mean</td>
+</tr>
+<tr>
+<td><code>_clip_data_to_multiple_points</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L880">880–961</a></td>
+<td>Vectorized multi-point selection</td>
+</tr>
+<tr>
+<td><code>_clip_data_to_multiple_points_fallback</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L963">963–1059</a></td>
+<td>Fallback path used when vectorized lookup fails</td>
+</tr>
+<tr>
+<td><code>_clip_data_to_points_as_mask</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1061">1061–1346</a></td>
+<td>Mask-based multi-point clip; supports <code>extract_points</code> along new <code>points</code> dim</td>
+</tr>
+<tr>
+<td><code>_clip_data_separated</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1348">1348–1441</a></td>
+<td>Per-boundary clipping returning dict/list keyed by boundary</td>
+</tr>
+<tr>
+<td><code>_get_boundary_geometry</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1443">1443–1503</a></td>
+<td>Single boundary key → GeoDataFrame</td>
+</tr>
+<tr>
+<td><code>_get_multi_boundary_geometry</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1683">1683–1749</a></td>
+<td>Multi-boundary union via <code>_combine_geometries</code></td>
+</tr>
+<tr>
+<td><code>_combine_geometries</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1751">1751–</a></td>
+<td>Geometry union helper</td>
 </tr>
 </tbody>
 </table>
 <h2 id="examples">Examples</h2>
 <h3 id="single-county">Single County</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
-<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Alameda&quot;</span>
-<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>    <span class="p">})</span>
-<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Alameda&quot;</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>    <span class="p">})</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
 </code></pre></div>
 <h3 id="multiple-counties-separated">Multiple Counties (Separated)</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Get each county in separate dataset</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;pr&quot;</span><span class="p">)</span>
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;mon&quot;</span><span class="p">)</span>
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d02&quot;</span><span class="p">)</span>
-<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>            <span class="s2">&quot;boundaries&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;Alameda&quot;</span><span class="p">,</span> <span class="s2">&quot;Contra Costa&quot;</span><span class="p">,</span> <span class="s2">&quot;Santa Clara&quot;</span><span class="p">],</span>
-<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>            <span class="s2">&quot;separated&quot;</span><span class="p">:</span> <span class="kc">True</span>
-<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>        <span class="p">}</span>
-<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>    <span class="p">})</span>
-<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
-<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>
-<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="c1"># data is dict: {&quot;Alameda&quot;: ds1, &quot;Contra Costa&quot;: ds2, &quot;Santa Clara&quot;: ds3}</span>
-</code></pre></div>
-<h3 id="single-latlon-point">Single Lat/Lon Point</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Closest grid cell to San Francisco</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Get each county in separate dataset</span>
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
 <a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
 <a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
-<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
-<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;pr&quot;</span><span class="p">)</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;mon&quot;</span><span class="p">)</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d02&quot;</span><span class="p">)</span>
 <a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">37.7749</span><span class="p">,</span> <span class="o">-</span><span class="mf">122.4194</span><span class="p">)</span>
-<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>    <span class="p">})</span>
-<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
-<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>
-<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="c1"># Scalar lat/lon coordinates (size 1)</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>            <span class="s2">&quot;boundaries&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;Alameda&quot;</span><span class="p">,</span> <span class="s2">&quot;Contra Costa&quot;</span><span class="p">,</span> <span class="s2">&quot;Santa Clara&quot;</span><span class="p">],</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>            <span class="s2">&quot;separated&quot;</span><span class="p">:</span> <span class="kc">True</span>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>        <span class="p">}</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>    <span class="p">})</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>
+<a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a><span class="c1"># data is dict: {&quot;Alameda&quot;: ds1, &quot;Contra Costa&quot;: ds2, &quot;Santa Clara&quot;: ds3}</span>
+</code></pre></div>
+<h3 id="single-latlon-point">Single Lat/Lon Point</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Closest grid cell to San Francisco</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">37.7749</span><span class="p">,</span> <span class="o">-</span><span class="mf">122.4194</span><span class="p">)</span>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>    <span class="p">})</span>
+<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="c1"># Scalar lat/lon coordinates (size 1)</span>
 </code></pre></div>
 <h3 id="multiple-points-separated">Multiple Points (Separated)</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Time series for 3 cities</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">locations</span> <span class="o">=</span> <span class="p">[</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="p">(</span><span class="mf">34.05</span><span class="p">,</span> <span class="o">-</span><span class="mf">118.25</span><span class="p">),</span>    <span class="c1"># Los Angeles</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="p">(</span><span class="mf">37.77</span><span class="p">,</span> <span class="o">-</span><span class="mf">122.42</span><span class="p">),</span>    <span class="c1"># San Francisco</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="p">(</span><span class="mf">32.72</span><span class="p">,</span> <span class="o">-</span><span class="mf">117.16</span><span class="p">)</span>     <span class="c1"># San Diego</span>
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="p">]</span>
-<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>
-<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
-<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
-<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
-<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
-<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
-<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
-<a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a>            <span class="s2">&quot;boundaries&quot;</span><span class="p">:</span> <span class="n">locations</span><span class="p">,</span>
-<a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a>            <span class="s2">&quot;separated&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a>            <span class="s2">&quot;location_based_naming&quot;</span><span class="p">:</span> <span class="kc">True</span>
-<a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a>        <span class="p">}</span>
-<a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a>    <span class="p">})</span>
-<a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
-<a id="__codelineno-11-22" name="__codelineno-11-22" href="#__codelineno-11-22"></a>
-<a id="__codelineno-11-23" name="__codelineno-11-23" href="#__codelineno-11-23"></a><span class="c1"># data is dict with lat/lon in keys</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Time series for 3 cities</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">locations</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="p">(</span><span class="mf">34.05</span><span class="p">,</span> <span class="o">-</span><span class="mf">118.25</span><span class="p">),</span>    <span class="c1"># Los Angeles</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="p">(</span><span class="mf">37.77</span><span class="p">,</span> <span class="o">-</span><span class="mf">122.42</span><span class="p">),</span>    <span class="c1"># San Francisco</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    <span class="p">(</span><span class="mf">32.72</span><span class="p">,</span> <span class="o">-</span><span class="mf">117.16</span><span class="p">)</span>     <span class="c1"># San Diego</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="p">]</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
+<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a>            <span class="s2">&quot;boundaries&quot;</span><span class="p">:</span> <span class="n">locations</span><span class="p">,</span>
+<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>            <span class="s2">&quot;separated&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>            <span class="s2">&quot;location_based_naming&quot;</span><span class="p">:</span> <span class="kc">True</span>
+<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a>        <span class="p">}</span>
+<a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a>    <span class="p">})</span>
+<a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a>
+<a id="__codelineno-12-23" name="__codelineno-12-23" href="#__codelineno-12-23"></a><span class="c1"># data is dict with lat/lon in keys</span>
 </code></pre></div>
 <h3 id="bounding-box">Bounding Box</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Bay Area region (rough bbox)</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;pr&quot;</span><span class="p">)</span>
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;mon&quot;</span><span class="p">)</span>
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
-<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="p">((</span><span class="mf">37.5</span><span class="p">,</span> <span class="mf">38.5</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mf">123.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">121.5</span><span class="p">))</span>
-<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>    <span class="p">})</span>
-<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
-</code></pre></div>
-<h3 id="weather-station">Weather Station</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Sacramento airport observations reference point</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Bay Area region (rough bbox)</span>
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
 <a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
 <a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;pr&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;mon&quot;</span><span class="p">)</span>
 <a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
 <a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;KSAC&quot;</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="p">((</span><span class="mf">37.5</span><span class="p">,</span> <span class="mf">38.5</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mf">123.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">121.5</span><span class="p">))</span>
 <a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>    <span class="p">})</span>
 <a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
 </code></pre></div>
-<h3 id="chained-clip-warming-level-export">Chained: Clip → Warming Level → Export</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="o">.</span><span class="n">experiment_id</span><span class="p">(</span><span class="s2">&quot;ssp245&quot;</span><span class="p">)</span>
+<h3 id="weather-station">Weather Station</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># Sacramento airport observations reference point</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
 <a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
 <a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
 <a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
 <a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Los Angeles&quot;</span><span class="p">,</span>
-<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>        <span class="s2">&quot;warming_level&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;warming_levels&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">]},</span>
-<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>        <span class="s2">&quot;export&quot;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>            <span class="s2">&quot;filename&quot;</span><span class="p">:</span> <span class="s2">&quot;la_warming&quot;</span><span class="p">,</span>
-<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>            <span class="s2">&quot;file_format&quot;</span><span class="p">:</span> <span class="s2">&quot;NetCDF&quot;</span>
-<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>        <span class="p">}</span>
-<a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a>    <span class="p">})</span>
-<a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;KSAC&quot;</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>    <span class="p">})</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+</code></pre></div>
+<h3 id="chained-clip-warming-level-export">Chained: Clip → Warming Level → Export</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="o">.</span><span class="n">experiment_id</span><span class="p">(</span><span class="s2">&quot;ssp245&quot;</span><span class="p">)</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2max&quot;</span><span class="p">)</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Los Angeles&quot;</span><span class="p">,</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>        <span class="s2">&quot;warming_level&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;warming_levels&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">]},</span>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>        <span class="s2">&quot;export&quot;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>            <span class="s2">&quot;filename&quot;</span><span class="p">:</span> <span class="s2">&quot;la_warming&quot;</span><span class="p">,</span>
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>            <span class="s2">&quot;file_format&quot;</span><span class="p">:</span> <span class="s2">&quot;NetCDF&quot;</span>
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>        <span class="p">}</span>
+<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a>    <span class="p">})</span>
+<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
 </code></pre></div>
 <h2 id="implementation-details">Implementation Details</h2>
 <h3 id="geometry-loading">Geometry Loading</h3>
-<p>Clip loads from multiple sources in order:</p>
+<p>Clip resolves <code>self.value</code> to a geometry (or to a point-mode flag) in this order:</p>
 <ol>
-<li><strong>Boundary Catalog</strong> (S3): Pre-registered CA regions (counties, watersheds, electric zones)</li>
-<li><strong>Weather Stations</strong> (CSV): HadISD global station metadata</li>
-<li><strong>User Files</strong>: Shapefiles, GeoJSON, or other OGR-supported formats</li>
+<li><strong>String</strong> → station id (<code>is_station_identifier</code>, line 305) → file path (<code>os.path.exists</code>, line 318) → boundary key (<code>_get_boundary_geometry</code>, line 320).</li>
+<li><strong>List</strong> → all-station list (line 324) → lat/lon tuples (<code>is_multi_point</code>, line 340) → separated boundaries (line 343) → union of boundaries (<code>_get_multi_boundary_geometry</code>, line 345).</li>
+<li><strong>Tuple</strong> → single <code>(lat, lon)</code> (line 347) or bbox <code>((lat_min, lat_max), (lon_min, lon_max))</code> (line 355, builds <code>shapely.box</code> in EPSG:4326).</li>
 </ol>
-<h3 id="3d-masking">3D Masking</h3>
-<p>For multi-dimensional data <code>(time, sim, lat, lon)</code>, the processor broadcasts the 2D mask:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">mask_3d</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">broadcast_like</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>  <span class="c1"># Extend mask to all dims</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">clipped</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">mask_3d</span><span class="p">,</span> <span class="n">drop</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># False keeps masked areas as NaN</span>
-</code></pre></div>
-<p>Using <code>drop=False</code> preserves grid structure for later operations.</p>
-<h3 id="separated-output">Separated Output</h3>
-<p>When <code>separated=True</code>:</p>
+<h3 id="result-dispatch">Result Dispatch</h3>
+<p>The second <code>match</code> (line 386) routes the input data:</p>
 <ul>
-<li><strong>Single boundaries</strong> → List of datasets (one per boundary)</li>
-<li><strong>Multiple points</strong> → Dict keyed by <code>(lat, lon)</code> or index</li>
+<li><strong>dict</strong>: per-key clip; mode flag selects the clipper.</li>
+<li><strong>Dataset / DataArray</strong>: single clip via the matching mode’s clipper.</li>
+<li><strong>list / tuple</strong>: per-item clip, container type preserved; <code>None</code> results filtered out for point modes.</li>
 </ul>
+<h3 id="persist-persisttrue">Persist (<code>persist=True</code>)</h3>
+<p>After clipping, if <code>self.persist</code> is true the processor calls <code>.compute()</code> on the result (per-value for dicts, on the whole object otherwise). This collapses very large Dask task graphs that arise from multi-point clipping followed by quantile or block operations and prevents OOMs in downstream steps.</p>
 <h3 id="error-handling">Error Handling</h3>
 <ul>
-<li><strong>Invalid boundary name</strong>: Log warning, skip or raise error</li>
-<li><strong>Empty geometry</strong>: Return None or empty dataset</li>
-<li><strong>Out-of-bounds point</strong>: Return nearest grid cell (clip snaps to WRF grid)</li>
+<li>Invalid station code, missing boundary key, or unsupported <code>value</code> type → <code>ValueError</code>.</li>
+<li>All-NaN single point with no valid 3×3 neighbors → <code>_clip_data_to_point</code> returns <code>None</code>; the per-item paths filter these out.</li>
+<li>Failed CRS detection on WRF data missing required CF attributes → <code>ValueError</code> with the missing key.</li>
 </ul>
 <h2 id="common-patterns">Common Patterns</h2>
 <h3 id="county-loop">County Loop</h3>

@@ -847,10 +847,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
+  <a href="#example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Examples
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code References
       
     </span>
   </a>
@@ -861,7 +872,7 @@
   <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
       
-        See Also
+        See also
       
     </span>
   </a>
@@ -1802,10 +1813,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
+  <a href="#example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Examples
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code References
       
     </span>
   </a>
@@ -1816,7 +1838,7 @@
   <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
       
-        See Also
+        See also
       
     </span>
   </a>
@@ -1850,69 +1872,169 @@
 
 <h1 id="processor-biasadjustmodeltostation">Processor: BiasAdjustModelToStation</h1>
 <p><strong>Registry key:</strong> <code>bias_adjust_model_to_station</code> &nbsp;|&nbsp; <strong>Priority:</strong> 60 &nbsp;|&nbsp; <strong>Category:</strong> Data Refinement</p>
-<p>Apply bias correction to WRF model data using quantile delta mapping (QDM) with weather station observations. Reduce systematic errors between model simulations and observed climate.</p>
+<p>Apply quantile delta mapping (QDM) bias correction to gridded climate model data using HadISD weather station observations as the training reference. Output is bias-corrected at the requested station locations, with one data variable per station.</p>
 <h2 id="algorithm">Algorithm</h2>
 <pre class="mermaid"><code>flowchart TD
-    Start([Input: WRF Dataset]) --&gt; CheckActivity["&lt;a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L85'&gt;Verify activity_id&lt;br/&gt;= WRF&lt;/a&gt;"]
+    Start([execute]) --&gt; DictCheck{result is dict?}
+    DictCheck --&gt;|Yes| ExecDict[_execute_dict&lt;br/&gt;per-key recursion]
+    DictCheck --&gt;|No| LoadObs[_load_station_data&lt;br/&gt;HadISD reference]
+    LoadObs --&gt; TypeCheck{Dataset / DataArray?}
+    TypeCheck --&gt;|Yes| ProcSingle[_process_single_dataset]
+    TypeCheck --&gt;|No| TypeErr[raise TypeError]
 
-    CheckActivity --&gt;|Not WRF| Warn["&lt;a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L95'&gt;Log warning&lt;br/&gt;return unmodified&lt;/a&gt;"]
-    CheckActivity --&gt;|WRF| LoadObs["&lt;a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L105'&gt;Load station&lt;br/&gt;observations&lt;/a&gt;"]
+    ExecDict --&gt; ProcSingle
+    ProcSingle --&gt; Preproc[_preprocess_hadisd&lt;br/&gt;(rename, K conversion, attrs)]
+    Preproc --&gt; BiasCorrect[_bias_correct_model_data&lt;br/&gt;QDM via xclim]
+    BiasCorrect --&gt; UpdateCtx[update_context]
+    UpdateCtx --&gt; End([Output: Dataset with one variable per station])
 
-    Warn --&gt; End1([Return original data])
-    LoadObs --&gt; CheckVar["&lt;a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L115'&gt;Check variable&lt;br/&gt;support&lt;/a&gt;"]
-
-    CheckVar --&gt;|Unsupported| Warn2["&lt;a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L120'&gt;Log note&lt;br/&gt;return unmodified&lt;/a&gt;"]
-    CheckVar --&gt;|Supported| QDM["&lt;a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L130'&gt;Apply QDM&lt;br/&gt;quantile matching&lt;/a&gt;"]
-
-    Warn2 --&gt; End2([Return original data])
-    QDM --&gt; UpdateCtx["&lt;a href='https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L145'&gt;Update context&lt;/a&gt;"]
-
-    UpdateCtx --&gt; End3([Output: bias-adjusted&lt;br/&gt;Dataset])</code></pre>
+    click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L790" "execute"
+    click ExecDict "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L723" "_execute_dict"
+    click LoadObs "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L243" "_load_station_data"
+    click ProcSingle "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L510" "_process_single_dataset"
+    click Preproc "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L185" "_preprocess_hadisd"
+    click BiasCorrect "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L309" "_bias_correct_model_data"
+    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L864" "update_context"</code></pre>
 <h2 id="parameters">Parameters</h2>
+<p>The processor takes a <strong>dict</strong>:</p>
 <table>
 <thead>
 <tr>
-<th>Parameter</th>
+<th>Key</th>
 <th>Type</th>
+<th>Default</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>stations</code></td>
-<td>list</td>
-<td>Station codes (e.g., ["KSAC", "KSFO"])</td>
+<td><code>list[str]</code></td>
+<td><code>[]</code></td>
+<td>Station names to bias-correct against. Required for non-trivial use.</td>
+</tr>
+<tr>
+<td><code>historical_slice</code></td>
+<td><code>tuple[int, int]</code></td>
+<td><code>(1980, 2014)</code></td>
+<td>Years used as the training period.</td>
+</tr>
+<tr>
+<td><code>window</code></td>
+<td><code>int</code></td>
+<td><code>90</code></td>
+<td>Window size (days) for seasonal grouping in QDM.</td>
+</tr>
+<tr>
+<td><code>nquantiles</code></td>
+<td><code>int</code></td>
+<td><code>20</code></td>
+<td>Number of quantiles for the QDM mapping.</td>
+</tr>
+<tr>
+<td><code>group</code></td>
+<td><code>str</code></td>
+<td><code>"time.dayofyear"</code></td>
+<td>Temporal grouping passed to <code>xclim</code> QDM.</td>
+</tr>
+<tr>
+<td><code>kind</code></td>
+<td><code>str</code></td>
+<td><code>"+"</code></td>
+<td>Adjustment kind: <code>"+"</code> (additive) or <code>"*"</code> (multiplicative).</td>
 </tr>
 </tbody>
 </table>
 <h2 id="requirements">Requirements</h2>
 <ul>
-<li><strong>Activity ID</strong>: Must be "WRF" (dynamical downscaling)</li>
-<li><strong>Variables</strong>: Currently supports <code>t2</code> (hourly temperature)</li>
-<li><strong>Data</strong>: Must span sufficient historical period for QDM training</li>
+<li><strong>Activity ID</strong>: WRF (dynamical downscaling). LOCA2 already includes statistical bias correction at the watershed level and is not the intended input.</li>
+<li><strong>Variable</strong>: Designed for hourly temperature (<code>t2</code>); the underlying station observations are HadISD temperature.</li>
+<li><strong>Time coverage</strong>: Input must include the historical training period (default 1980–2014). HadISD reference data is available through 2014‑08‑31.</li>
+<li><strong>Calendar</strong>: All inputs are converted to a <code>noleap</code> calendar internally for consistency.</li>
 </ul>
-<h2 id="examples">Examples</h2>
+<h2 id="example">Example</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Bias-correct WRF data at Sacramento observation point</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">&quot;cadcat&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">.</span><span class="n">institution_id</span><span class="p">(</span><span class="s2">&quot;UCLA&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;1hr&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">&quot;bias_adjust_model_to_station&quot;</span><span class="p">:</span> <span class="p">{</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>            <span class="s2">&quot;stations&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;KSAC&quot;</span><span class="p">]</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>        <span class="p">}</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="p">})</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">&quot;time_slice&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;1980-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2050-12-31&quot;</span><span class="p">),</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>        <span class="s2">&quot;bias_adjust_model_to_station&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;stations&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;KSAC&quot;</span><span class="p">,</span> <span class="s2">&quot;KSFO&quot;</span><span class="p">]},</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="p">})</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="c1"># Result: one data variable per station, time-sliced to requested range.</span>
 </code></pre></div>
-<h2 id="see-also">See Also</h2>
+<h2 id="code-references">Code References</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Lines</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>__init__</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L148">148–183</a></td>
+<td>Read configuration dict with defaults</td>
+</tr>
+<tr>
+<td><code>_preprocess_hadisd</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L185">185–241</a></td>
+<td>Rename / unit-convert / attribute the raw HadISD slice</td>
+</tr>
+<tr>
+<td><code>_load_station_data</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L243">243–307</a></td>
+<td>Resolve station IDs, load HadISD subset, return reference Dataset</td>
+</tr>
+<tr>
+<td><code>_bias_correct_model_data</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L309">309–508</a></td>
+<td>Build QDM (<code>xclim</code>) train/adjust per station</td>
+</tr>
+<tr>
+<td><code>_process_single_dataset</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L510">510–721</a></td>
+<td>Load reference, run QDM via <code>xarray.map</code>, return per-station vars</td>
+</tr>
+<tr>
+<td><code>_execute_dict</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L723">723–788</a></td>
+<td>Recursive dict path</td>
+</tr>
+<tr>
+<td><code>execute</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L790">790–862</a></td>
+<td>Dispatcher: dict / Dataset / DataArray</td>
+</tr>
+<tr>
+<td><code>update_context</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L864">864–891</a></td>
+<td>Record stations and QDM parameters in <code>new_attrs</code></td>
+</tr>
+<tr>
+<td><code>set_data_accessor</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L893">893–</a></td>
+<td>Receive <code>DataCatalog</code> reference (used by <code>_load_station_data</code>)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Earlier docs implied an early "activity_id == WRF" guard with line numbers in the 80–145 range. Those line numbers do not exist in the source — the file's first method (<code>__init__</code>) starts at line 148. The activity-id constraint is enforced by data availability rather than an explicit early-return check.</p>
+</blockquote>
+<h2 id="see-also">See also</h2>
 <ul>
-<li><a href="../">Processor Index</a></li>
-<li><a href="../../howto/#bias-correction-station-localization">How-To Guides → Bias Correction</a></li>
-<li><a href="../../architecture/#bias-correction">Architecture → Bias Correction</a></li>
+<li><a href="../">Processor index</a></li>
+<li><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py"><code>climakitae/new_core/processors/bias_adjust_model_to_station.py</code></a></li>
+<li><a href="../../howto/#bias-correction-station-localization">How-To: bias correction</a></li>
 </ul>
 
 

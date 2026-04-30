@@ -830,6 +830,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#time_delta-reindexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        time_delta Reindexing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#edge-cases" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -845,6 +856,17 @@
     <span class="md-ellipsis">
       
         Dummy Time (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#context-side-effects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context Side Effects
       
     </span>
   </a>
@@ -2103,6 +2125,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#time_delta-reindexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        time_delta Reindexing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#edge-cases" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2118,6 +2151,17 @@
     <span class="md-ellipsis">
       
         Dummy Time (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#context-side-effects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context Side Effects
       
     </span>
   </a>
@@ -2209,65 +2253,77 @@
 <p>Subset climate data by global warming level thresholds instead of calendar dates. Transform time-series data to a warming-level-centric approach for climate impact analysis aligned with IPCC warming scenarios.</p>
 <h2 id="algorithm">Algorithm</h2>
 <pre class="mermaid"><code>flowchart TD
-    Start([Input: xr.Dataset&lt;br/&gt;with time dimension]) --&gt; LoadGWL["Load GWL lookup tables&lt;br/&gt;from S3 CSV"]
+    Init([__init__: validate dict, store params,&lt;br/&gt;eagerly load GWL_1850_1900 + GWL_1981_2010 CSVs]) --&gt; Start([execute: dict of xr.Datasets / DataArrays])
+    Start --&gt; Reformat["reformat_member_ids:&lt;br/&gt;split member_id dim into key suffixes"]
+    Reformat --&gt; Extend["extend_time_domain:&lt;br/&gt;splice historical onto SSP scenarios"]
+    Extend --&gt; CenterYears["get_center_years:&lt;br/&gt;look up center year per (key, wl)"]
+    CenterYears --&gt; LoopKeys["For each simulation key"]
+    LoopKeys --&gt; LoopWL["For each (year, wl) pair"]
+    LoopWL --&gt; CheckNaN{Year is NaN?}
+    CheckNaN --&gt;|Yes| WarnSkip["Warn + skip this WL"]
+    CheckNaN --&gt;|No| ComputeWindow["start = center - window&lt;br/&gt;end = center + window - 1"]
+    ComputeWindow --&gt; CheckComplete{_determine_is_complete_wl?}
+    CheckComplete --&gt;|No| WarnSkip
+    CheckComplete --&gt;|Yes| SliceTime["da_slice = data.sel(time=slice(start, end))"]
+    SliceTime --&gt; DropFeb29["Drop Feb 29"]
+    DropFeb29 --&gt; CheckMonths{warming_level_months&lt;br/&gt;specified?}
+    CheckMonths --&gt;|Yes| FilterMonths["Filter to specified months"]
+    CheckMonths --&gt;|No| SwapDim["Swap time dim → time_delta&lt;br/&gt;(range -L/2 .. L/2)"]
+    FilterMonths --&gt; SwapDim
+    SwapDim --&gt; ExpandDims["expand_dims warming_level&lt;br/&gt;+ assign simulation coord"]
+    ExpandDims --&gt; Append["Append to slices"]
+    WarnSkip --&gt; NextWL{More WLs?}
+    Append --&gt; NextWL
+    NextWL --&gt;|Yes| LoopWL
+    NextWL --&gt;|No| Concat["xr.concat(slices, dim='warming_level', join='outer')"]
+    Concat --&gt; CheckDummy{add_dummy_time?}
+    CheckDummy --&gt;|Yes| AddDummy["add_dummy_time_to_wl"]
+    CheckDummy --&gt;|No| StoreCtx["context['_sim_centered_years'] = ..."]
+    AddDummy --&gt; StoreCtx
+    StoreCtx --&gt; UpdateCtx["update_context (writes new_attrs)"]
+    UpdateCtx --&gt; NextKey{More keys?}
+    NextKey --&gt;|Yes| LoopKeys
+    NextKey --&gt;|No| End([Output: dict of Datasets&lt;br/&gt;with warming_level + time_delta dims])
 
-    LoadGWL --&gt; GetModels["Extract model/scenario&lt;br/&gt;from data attributes"]
-
-    GetModels --&gt; LoopGWL["For each warming level"]
-
-    LoopGWL --&gt; LookupWindow["Look up central year&lt;br/&gt;from model-scenario pair"]
-
-    LookupWindow --&gt; ComputeWindow["Compute time window&lt;br/&gt;±warming_level_window years"]
-
-    ComputeWindow --&gt; CheckWindow{Window&lt;br/&gt;valid?}
-
-    CheckWindow --&gt;|No| LogWarn["Log warning&lt;br/&gt;model doesn't reach GWL"]
-    CheckWindow --&gt;|Yes| SliceTime["Slice to window years"]
-
-    LogWarn --&gt; FilterMonth{Months&lt;br/&gt;filtered?}
-    SliceTime --&gt; FilterMonth
-
-    FilterMonth --&gt;|Yes| FilterSeasons["Keep only specified months"]
-    FilterMonth --&gt;|No| CreateCoord["Create warming_level coordinate"]
-
-    FilterSeasons --&gt; CreateCoord
-
-    CreateCoord --&gt; Concat["Concatenate GWL slices&lt;br/&gt;on warming_level dim"]
-
-    Concat --&gt; UpdateCtx["Update context metadata"]
-
-    UpdateCtx --&gt; DummyTime{Add dummy&lt;br/&gt;time?}
-
-    DummyTime --&gt;|Yes| AddTime["Replace offset dim&lt;br/&gt;with dummy time index"]
-    DummyTime --&gt;|No| End([Output: Dataset with&lt;br/&gt;warming_level coordinate])
-
-    AddTime --&gt; End
-
-    click LoadGWL "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L91" "Load GWL lookup tables"
-    click GetModels "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L105" "Extract model/scenario"
-    click LoopGWL "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L120" "For each warming level"
-    click LookupWindow "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L125" "Look up central year"
-    click ComputeWindow "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L130" "Compute time window"
-    click LogWarn "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L145" "Log warning"
-    click SliceTime "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L150" "Slice to window years"
-    click FilterSeasons "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L155" "Keep only specified months"
-    click CreateCoord "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L160" "Create warming_level coordinate"
-    click Concat "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L170" "Concatenate GWL slices"
-    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L180" "Update context metadata"
-    click AddTime "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L185" "Replace offset dim"</code></pre>
+    click Init "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L73" "__init__ (eager CSV load at L91-94)"
+    click Reformat "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L132" "reformat_member_ids call site"
+    click Extend "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L135" "extend_time_domain call site"
+    click CenterYears "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L150" "get_center_years call site"
+    click LoopKeys "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L165" "Outer key loop"
+    click LoopWL "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L173" "Inner (year, wl) loop"
+    click CheckNaN "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L174" "NaN year guard"
+    click ComputeWindow "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L186" "Window math"
+    click CheckComplete "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L189" "_determine_is_complete_wl"
+    click SliceTime "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L201" "Time slice"
+    click DropFeb29 "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L204" "Drop Feb 29"
+    click FilterMonths "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L208" "warming_level_months filter"
+    click SwapDim "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L215" "Swap time → time_delta"
+    click ExpandDims "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L222" "expand_dims + assign_coords"
+    click Concat "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L251" "xr.concat"
+    click AddDummy "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L256" "add_dummy_time_to_wl"
+    click StoreCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L267" "Store sim_centered_years in context"
+    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L308" "update_context method"</code></pre>
 <h3 id="execution-flow">Execution Flow</h3>
 <ol>
-<li><strong>Load Lookup Tables</strong> (lines 91–100): Read global warming level timing from S3 CSVs (1850–1900 and 1981–2010 references)</li>
-<li><strong>Extract Metadata</strong> (lines 105–115): Get model and scenario from data attributes</li>
-<li><strong>Loop Over Warming Levels</strong> (lines 120–175): For each GWL:</li>
-<li>Look up central year when model reaches that warming level</li>
-<li>Compute ±window year range</li>
-<li>Slice time dimension to window</li>
-<li><strong>Filter by Month</strong> (lines 155–160, optional): Keep only specified months if provided</li>
-<li><strong>Create Coordinate</strong> (lines 165–170): Add <code>warming_level</code> coordinate to sliced data</li>
-<li><strong>Concatenate</strong> (line 170): Merge all GWL slices along new <code>warming_level</code> dimension</li>
-<li><strong>Update Context</strong> (lines 180–185): Record operation and window information</li>
-<li><strong>Optional Dummy Time</strong> (lines 185–195): Replace offset-from-center dimension with dummy time index if needed</li>
+<li><strong>Initialization</strong> (lines 73–111): Validate dict, store <code>warming_levels</code>, <code>warming_level_window</code> (default 15), <code>warming_level_months</code> (default <code>UNSET</code>), <code>add_dummy_time</code> (default <code>False</code>). <strong>Eagerly loads two CSV lookup tables</strong> (<code>gwl_1850-1900ref.csv</code> at L91 and <code>gwl_1981-2010ref.csv</code> at L94). Sets <code>self.name = "warming_level_simple"</code> (note: this is the metadata key written to context).</li>
+<li><strong>Defensive Reload</strong> (lines 120–129): If <code>warming_level_times</code> is somehow <code>None</code>, attempt to reload from CSV; raise <code>RuntimeError</code> on failure.</li>
+<li><strong>Member ID Reformatting</strong> (line 132 → method at line 343): <code>reformat_member_ids</code> splits any <code>member_id</code> dimension into separate dict keys with <code>key.member_id</code> suffix.</li>
+<li><strong>Time Domain Extension</strong> (line 135): <code>extend_time_domain</code> (helper) splices historical onto SSP scenarios so the data range covers 1980/1850 – 2100.</li>
+<li><strong>Center-Year Lookup</strong> (line 150 → method at line 376): <code>get_center_years</code> returns <code>{key: [year_for_wl1, year_for_wl2, ...]}</code>. Lookup uses tuple <code>(activity_id, member_id, source_id)</code> parsed from each key.</li>
+<li><strong>Per-Key, Per-WL Slicing</strong> (lines 165–249, nested loops):</li>
+<li>Skip key if no center years (line 168).</li>
+<li>Skip individual WLs where <code>year</code> is <code>None</code>/<code>NaN</code> (lines 174–177).</li>
+<li>Compute window: <code>start_year = center - window</code>, <code>end_year = center + window - 1</code> (lines 184–185).</li>
+<li>Skip incomplete WLs via <code>_determine_is_complete_wl</code> (lines 188–198).</li>
+<li><code>data.sel(time=slice(start, end))</code> (line 201).</li>
+<li>Drop Feb 29 leap days (lines 204–205).</li>
+<li>Optional month filter via <code>warming_level_months</code> (lines 208–211).</li>
+<li>Swap <code>time</code> dim for <code>time_delta</code> index (range <code>-L/2 .. L/2</code>) (lines 215–219).</li>
+<li><code>expand_dims({"warming_level": [wl]})</code> (line 222) + assign <code>simulation</code> coord (line 225).</li>
+<li>Append to local <code>slices</code> list.</li>
+<li><strong>Concatenation</strong> (lines 251–253): <code>xr.concat(slices, dim="warming_level", join="outer", fill_value=np.nan)</code>.</li>
+<li><strong>Optional Dummy Time</strong> (line 256): If <code>add_dummy_time=True</code>, <code>add_dummy_time_to_wl(ret[key])</code> restores a synthetic <code>time</code> axis.</li>
+<li><strong>Context Bookkeeping</strong> (lines 267, 271): Store <code>_sim_centered_years</code> mapping in context for downstream <code>concatenate</code> reconstruction; <code>update_context</code> writes a description under <code>context["new_attrs"]["warming_level_simple"]</code>.</li>
 </ol>
 <h2 id="parameters">Parameters</h2>
 <table>
@@ -2328,23 +2384,33 @@
 <tbody>
 <tr>
 <td><code>__init__</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L70">70–95</a></td>
-<td>Parse and validate warming level parameters</td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L73">73–111</a></td>
+<td>Validate config, store params, eagerly load GWL CSV lookup tables (L91, L94)</td>
 </tr>
 <tr>
 <td><code>execute</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L105">105–195</a></td>
-<td>Route input and apply GWL transformation</td>
-</tr>
-<tr>
-<td><code>_transform_gwl</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L200">200–230</a></td>
-<td>Core GWL lookup and slicing logic</td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L113">113–273</a></td>
+<td>Reformat member ids, extend time, look up center years, slice + reshape per GWL, concatenate</td>
 </tr>
 <tr>
 <td><code>update_context</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L235">235–250</a></td>
-<td>Record GWL window and metadata</td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L308">308–329</a></td>
+<td>Write <code>new_attrs["warming_level_simple"]</code> description</td>
+</tr>
+<tr>
+<td><code>set_data_accessor</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L331">331–341</a></td>
+<td>Store catalog reference (currently unused)</td>
+</tr>
+<tr>
+<td><code>reformat_member_ids</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L343">343–374</a></td>
+<td>Split data with <code>member_id</code> dim into separate dict entries</td>
+</tr>
+<tr>
+<td><code>get_center_years</code></td>
+<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L376">376–521</a></td>
+<td>Per-(key, wl) center-year lookup against <code>warming_level_times</code> and <code>warming_level_times_idx</code></td>
 </tr>
 </tbody>
 </table>
@@ -2444,31 +2510,41 @@
 </code></pre></div>
 <h2 id="implementation-details">Implementation Details</h2>
 <h3 id="global-warming-level-lookup">Global Warming Level Lookup</h3>
-<p>GWL timing is pre-computed from climate model simulations and stored in S3 CSV files:</p>
+<p>GWL timing is pre-computed from climate model simulations and stored in CSV files shipped with <code>climakitae</code>:</p>
 <ul>
-<li><strong><code>gwl_1850-1900ref.csv</code></strong>: Years when each model reaches warming levels (1850–1900 baseline)</li>
-<li><strong><code>gwl_1981-2010ref.csv</code></strong>: Alternative reference period (1981–2010)</li>
+<li><strong><code>gwl_1850-1900ref.csv</code></strong>: Year/timestamp when each <code>(activity_id, member_id, source_id)</code> triple reaches each integer warming level (1850–1900 reference period). Used when the requested WL exists as a column in the table.</li>
+<li><strong><code>gwl_1981-2010ref.csv</code></strong> (loaded as <code>warming_level_times_idx</code>): Time-indexed table of running warming-level estimates per simulation column. Used as a fallback when the requested WL is not a column in <code>gwl_1850-1900ref.csv</code> — the processor finds the <strong>first</strong> time the simulation column crosses the requested level.</li>
 </ul>
-<p>Lookup keys are <code>(model, scenario, reference_period)</code>. If not found, processor returns None or logs warning.</p>
+<p>Lookup keys parse the dict key as <code>key.split(".")</code> and use <code>(key_list[2], member_id, key_list[3])</code>, which corresponds to <code>(activity_id, member_id, source_id)</code> in catalog terms. Missing entries log a warning and append <code>np.nan</code> for that warming level (the slice is then skipped).</p>
 <h3 id="time-windows">Time Windows</h3>
-<p>The processor creates a time window around the central year:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">central_year</span> <span class="o">=</span> <span class="n">lookup_table</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">model</span><span class="p">,</span> <span class="n">scenario</span><span class="p">,</span> <span class="n">gwl</span><span class="p">)]</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">window_start</span> <span class="o">=</span> <span class="n">central_year</span> <span class="o">-</span> <span class="n">warming_level_window</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">window_end</span> <span class="o">=</span> <span class="n">central_year</span> <span class="o">+</span> <span class="n">warming_level_window</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">time_slice</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">window_start</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">window_end</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">))</span>
+<p>The processor creates an asymmetric ([center-window, center+window-1]) window:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">start_year</span> <span class="o">=</span> <span class="n">center_year</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">warming_level_window</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">end_year</span> <span class="o">=</span> <span class="n">center_year</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">warming_level_window</span> <span class="o">-</span> <span class="mi">1</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">da_slice</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="nb">slice</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">start_year</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">end_year</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">))</span>
 </code></pre></div>
-<p>With default <code>warming_level_window=15</code>, this creates a 30-year window (±15 years).</p>
+<p>With default <code>warming_level_window=15</code>, this is a 30-year span. Feb 29 is then dropped to keep slice lengths consistent across leap and non-leap years.</p>
+<h3 id="time_delta-reindexing"><code>time_delta</code> Reindexing</h3>
+<p>After slicing, the <code>time</code> dimension is replaced with a centered integer offset:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">length</span> <span class="o">=</span> <span class="n">da_slice</span><span class="o">.</span><span class="n">sizes</span><span class="p">[</span><span class="s2">&quot;time&quot;</span><span class="p">]</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">time_delta</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="n">length</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">length</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">da_slice</span> <span class="o">=</span> <span class="n">da_slice</span><span class="o">.</span><span class="n">swap_dims</span><span class="p">({</span><span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="s2">&quot;time_delta&quot;</span><span class="p">})</span><span class="o">.</span><span class="n">drop_vars</span><span class="p">(</span><span class="s2">&quot;time&quot;</span><span class="p">)</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">da_slice</span> <span class="o">=</span> <span class="n">da_slice</span><span class="o">.</span><span class="n">assign_coords</span><span class="p">(</span><span class="n">time_delta</span><span class="o">=</span><span class="n">time_delta</span><span class="p">)</span>
+</code></pre></div>
+<p>This lets multiple warming levels (with different absolute years but matching window length) share a common dimension before <code>xr.concat</code>.</p>
 <h3 id="edge-cases">Edge Cases</h3>
 <ul>
-<li><strong>Model doesn't reach GWL</strong>: Processor logs warning, returns NaN for that level</li>
-<li><strong>Incomplete coverage</strong>: If some models reach GWL and others don't, multi-model ensemble may have uneven data</li>
-<li><strong>Monthly filtering</strong>: Applied after time slicing, so month counts may vary</li>
+<li><strong>Model doesn't reach GWL</strong>: <code>get_center_years</code> appends <code>np.nan</code>; the inner loop skips that WL with a warning.</li>
+<li><strong>Incomplete window</strong>: <code>_determine_is_complete_wl</code> returns <code>False</code> when the simulation lacks data on either end; skipped with a warning.</li>
+<li><strong>No valid WLs for a key</strong>: The key is removed from the result dict (lines 239–247).</li>
+<li><strong>Monthly filtering</strong>: Applied after time slicing, so per-WL counts may vary if some months are dropped.</li>
 </ul>
 <h3 id="dummy-time-optional">Dummy Time (Optional)</h3>
-<p>Some tools require a time dimension. Setting <code>add_dummy_time=True</code> replaces the <code>months_from_center</code> or <code>days_from_center</code> coordinate with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">dummy_time</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">time</span><span class="p">))</span>  <span class="c1"># [0, 1, 2, ...]</span>
-</code></pre></div>
-<p>This is useful for downstream analysis but loses temporal semantics.</p>
+<p>Some downstream tools require a real <code>time</code> dimension. Setting <code>add_dummy_time=True</code> calls <code>add_dummy_time_to_wl(ds)</code> which adds a synthetic, monotonically increasing time coordinate back onto the result. Useful for visualization but not climatologically meaningful.</p>
+<h3 id="context-side-effects">Context Side Effects</h3>
+<ul>
+<li><code>context["_sim_centered_years"]</code>: dict mapping each key to the list of valid center years (consumed downstream by <code>concatenate</code>).</li>
+<li><code>context["new_attrs"]["warming_level_simple"]</code>: description string (note the <code>_simple</code> suffix — this comes from <code>self.name</code>).</li>
+</ul>
 <h2 id="common-patterns">Common Patterns</h2>
 <h3 id="compare-scenarios-at-same-warming-level">Compare Scenarios at Same Warming Level</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Historical, SSP2-4.5, SSP5-8.5 at 2°C warming</span>
