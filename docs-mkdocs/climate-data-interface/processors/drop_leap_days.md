@@ -9,8 +9,8 @@ Remove February 29 entries from the time dimension. Useful when aligning dataset
 ```mermaid
 flowchart TD
     Start([execute]) --> ValueMatch{match self.value}
-    ValueMatch -->|"yes"| Process[_process_data]
-    ValueMatch -->|"no"| Pass[Return result unchanged]
+    ValueMatch -->|yes| Process[_process_data]
+    ValueMatch -->|no| Pass[Return result unchanged]
     ValueMatch -->|other| Raise[Raise ValueError]
 
     Process --> ResultMatch{match result}
@@ -19,7 +19,7 @@ flowchart TD
     ResultMatch -->|list / tuple| LoopList[Per-item _drop_leap_days, preserve container]
     ResultMatch -->|other| Warn[Log warning, return unchanged]
 
-    LoopDict --> Drop[_drop_leap_days:<br/>find time entries where month==2 and day==29,<br/>obj.drop_sel(time=leap_days)]
+    LoopDict --> Drop[_drop_leap_days:<br/>select time where month=2 and day=29;<br/>drop_sel those entries]
     Single --> Drop
     LoopList --> Drop
     Drop --> UpdateCtx[update_context]

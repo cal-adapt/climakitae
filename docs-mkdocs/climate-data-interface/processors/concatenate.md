@@ -17,7 +17,7 @@ The processor is invoked automatically when a query produces multiple datasets (
 flowchart TD
     Start([Input: dict / list of Datasets]) --> CheckType{Single<br/>Dataset?}
     CheckType -->|Yes| Pass[Return unchanged]
-    CheckType -->|No| Route{context['catalog']<br/>== 'hdp'?}
+    CheckType -->|No| Route{catalog == hdp?}
     Route -->|Yes| HDP[_execute_hdp_concat<br/>concat along station]
     Route -->|No| Gridded[_execute_gridded_concat<br/>match result: dict / iterable<br/>concat along sim with source_id labels]
     HDP --> Update[update_context]

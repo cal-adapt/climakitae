@@ -41,7 +41,7 @@ The `new_core` module uses a **pipeline architecture** with layered responsibili
                  ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ Dataset.execute() (dataset.py)                              │
-│ - Validates query against catalog validators               │
+│ - Validates query against catalog validators                │
 │ - Retrieves data from DataCatalog                           │
 │ - Runs processors in priority order                         │
 │ - Returns lazy xarray.Dataset                               │
@@ -49,15 +49,17 @@ The `new_core` module uses a **pipeline architecture** with layered responsibili
          ┌───────┴───────┬──────────────┬──────────────┐
          │               │              │              │
          ▼               ▼              ▼              ▼
-    ┌────────┐   ┌──────────────┐  ┌──────────┐  ┌──────────┐
-    │ Query  │   │ Validators   │  │Processors│  │DataAccess│
-    │ Params │   │ (Registry)   │  │(Registry)│  │(Singleton)
-    └────────┘   └──────────────┘  └──────────┘  └──────────┘
+    ┌────────┐   ┌──────────────┐  ┌──────────┐  ┌────────────┐
+    │ Query  │   │ Validators   │  │Processors│  │ DataAccess │
+    │ Params │   │ (Registry)   │  │(Registry)│  │ (Singleton)│
+    └────────┘   └──────────────┘  └──────────┘  └────────────┘
                         │
-                  ┌─────┴──────┐
-                  │ Catalog    │ Processor
-                  │ Validators │ Validators
-                  └────────────┘
+              ┌─────────┴─────────┐
+              │                   │
+        ┌─────┴──────┐   ┌────────┴───────┐
+        │  Catalog   │   │  Processor     │
+        │ Validators │   │  Validators    │
+        └────────────┘   └────────────────┘
 ```
 
 ### Data Flow

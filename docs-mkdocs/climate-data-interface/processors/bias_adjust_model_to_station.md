@@ -16,7 +16,7 @@ flowchart TD
     TypeCheck -->|No| TypeErr[raise TypeError]
 
     ExecDict --> ProcSingle
-    ProcSingle --> Preproc[_preprocess_hadisd<br/>(rename, K conversion, attrs)]
+    ProcSingle --> Preproc[_preprocess_hadisd<br/>rename, K to C, attrs]
     Preproc --> BiasCorrect[_bias_correct_model_data<br/>QDM via xclim]
     BiasCorrect --> UpdateCtx[update_context]
     UpdateCtx --> End([Output: Dataset with one variable per station])

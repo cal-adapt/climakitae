@@ -10,20 +10,20 @@ Drop WRF model entries whose `(activity_id, source_id, member_id)` tuple is in t
 flowchart TD
     Start([execute]) --> ValueMatch{match self.value}
 
-    ValueMatch -->|"yes"| ContainsCheck{_contains_unadjusted_models?}
+    ValueMatch -->|yes| ContainsCheck{_contains_unadjusted_models?}
     ContainsCheck -->|Yes| WarnRemoved[Log warning:<br/>models removed]
     ContainsCheck -->|No| ReturnAsIs[Return result unchanged]
-    WarnRemoved --> Remove[_remove_unadjusted_models<br/>(per-entry filter; single Dataset → None)]
-    Remove --> End
+    WarnRemoved --> Remove[_remove_unadjusted_models<br/>per-entry filter; single Dataset returns None]
+    Remove --> End([Output])
 
-    ValueMatch -->|"no"| ContainsCheck2{_contains_unadjusted_models?}
+    ValueMatch -->|no| ContainsCheck2{_contains_unadjusted_models?}
     ContainsCheck2 -->|Yes| WarnKept[Log warning:<br/>proceed with caution]
     ContainsCheck2 -->|No| Pass[Return result unchanged]
     WarnKept --> Pass
 
-    ValueMatch -->|other| Raise[Raise ValueError]
+    ValueMatch -->|other| RaiseErr[Raise ValueError]
 
-    ReturnAsIs --> End([Output])
+    ReturnAsIs --> End
     Pass --> End
 
     click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L65" "execute"

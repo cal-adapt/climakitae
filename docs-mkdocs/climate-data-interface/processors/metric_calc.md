@@ -55,20 +55,32 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A([_calculate_metrics_single]) --> B[Resolve dim list against<br/>data.dims; warn + return on miss]
+    A([_calculate_metrics_single]) --> B[Resolve dim list;<br/>warn and skip if dim missing]
     B --> C{percentiles set?}
-    C -->|Yes| D[data.quantile(percentiles/100, dim);<br/>rename quantile -> percentile]
-    C -->|No| E
-    D --> E{percentiles_only?}
-    E -->|Yes| F[Return percentile result]
-    E -->|No| G[Apply metric_functions[self.metric]:<br/>min / max / mean / median / sum]
-    G --> H{Combine?}
-    H -->|Dataset + both| I[Rename combined vars:<br/>var_pN, var_metric]
-    H -->|DataArray + both| J[concat along 'statistic' dim]
-    H -->|Single| K[Return as-is]
+    C -->|Yes| D[Compute quantiles at percentiles/100;<br/>rename coord: quantile to percentile]
+    C -->|No| E{percentiles_only?}
+    D --> E
+    E -->|Yes| F([Return percentile result])
+    E -->|No| G[Reduce by self.metric:<br/>min / max / mean / median / sum]
+    G --> H{Combine percentiles + metric?}
+    H -->|Dataset + both| I[Rename vars: var_pN and var_metric]
+    H -->|DataArray + both| J[concat along statistic dim]
+    H -->|Single| K([Return as-is])
 ```
 
 ### Threshold flow (`_calculate_threshold_single`)
+
+```mermaid
+flowchart TD
+    Start([_calculate_threshold_single]) --> Compare[Mask timesteps above or below threshold_value]
+    Compare --> DurCheck{duration set?}
+    DurCheck -->|Yes| Consec[Filter for consecutive runs<br/>of at least duration timesteps]
+    DurCheck -->|No| Resamp
+    Consec --> Resamp[Resample by period year or month;<br/>count qualifying timesteps]
+    Resamp --> End([Output: count per period])
+
+    click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L512" "_calculate_threshold_single"
+```
 
 `thresholds` config keys (validated in `_setup_threshold_parameters`):
 
@@ -82,6 +94,56 @@ flowchart TD
 Cannot be combined with `metric`, `percentiles`, or `one_in_x`.
 
 ### 1-in-X flow (`_calculate_one_in_x_single`)
+
+```mermaid
+flowchart TD
+    Start([_calculate_one_in_x_single]) --> MultiVar{Dataset with\nmultiple variables?}
+    MultiVar -->|Yes| Loop[Recurse once per variable;\nrename results with var prefix;\nxr.merge all]
+    MultiVar -->|No| SimCheck{sim dim present?}
+    Loop --> Done([Return merged Dataset])
+    SimCheck -->|No| ErrSim[raise ValueError]
+    SimCheck -->|Yes| MemCheck{Dask array size?}
+
+    MemCheck -->|small| Load[Load into memory]
+    MemCheck -->|medium or large| Keep[Keep as Dask]
+    Load --> TimeCheck
+    Keep --> TimeCheck
+
+    TimeCheck{time dim present?} -->|No| DummyTime[add_dummy_time_to_wl\nset frequency attr]
+    TimeCheck -->|Yes| FreqInfer[Infer frequency from\ntime delta if missing]
+    DummyTime --> Preproc
+    FreqInfer --> Preproc
+
+    Preproc[_preprocess_variable_for_one_in_x] --> Vectorized
+
+    Vectorized([_calculate_one_in_x_vectorized]) --> AdaptBatch[_calculate_adaptive_batch_size\nbased on array shape and memory]
+    AdaptBatch --> SplitSims[Split sim indices into\nsequential batches]
+    SplitSims --> BatchLoop[For each sim batch]
+
+    BatchLoop --> SpatialCheck{many spatial\npoints?}
+    SpatialCheck -->|Yes| SpatBatch[_fit_with_early_spatial_batching\n100 points at a time]
+    SpatialCheck -->|No| BlockMax[_get_block_maxima_optimized\nextract block extrema]
+    SpatBatch --> FitVec
+    BlockMax --> FitVec[_fit_distributions_vectorized\nfit GEV / gamma / genpareto\nper pixel per sim]
+
+    FitVec --> KSCheck{goodness_of_fit_test?}
+    KSCheck -->|Yes| KS[KS test on residuals;\ncompute p_values]
+    KSCheck -->|No| Assemble
+    KS --> Assemble[Assemble return_values\nand p_values as DataArrays]
+    Assemble --> GC[gc.collect after batch]
+    GC --> BatchLoop
+
+    BatchLoop -->|all batches done| Concat[xr.concat batch results\nalong sim dim]
+    Concat --> End([Output: Dataset with\nreturn_values and p_values])
+
+    click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L595" "_calculate_one_in_x_single"
+    click Preproc "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1348" "_preprocess_variable_for_one_in_x"
+    click Vectorized "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L850" "_calculate_one_in_x_vectorized"
+    click AdaptBatch "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L929" "_calculate_adaptive_batch_size"
+    click SpatBatch "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1216" "_fit_with_early_spatial_batching"
+    click BlockMax "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1039" "_process_simulation_batch"
+    click FitVec "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1167" "_fit_distributions_vectorized"
+```
 
 `one_in_x` config keys (validated in `_setup_one_in_x_parameters`):
 

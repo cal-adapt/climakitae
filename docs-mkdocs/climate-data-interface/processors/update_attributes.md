@@ -4,20 +4,18 @@
 
 Internal "finalizer" that merges every processing-step note that other processors stashed in `context["new_attrs"]` onto the result's `.attrs`, and fills in standard coordinate attributes from `common_attrs`. Runs near the end of the pipeline (priority 9998) and is added implicitly by `ClimateData`.
 
-> The earlier doc described user-facing `attrs` and `var_attrs` parameters. Those are **not** how this processor works — its `value` argument is unused and defaults to `UNSET`. The data merged into `.attrs` is whatever earlier processors added to `context["new_attrs"]` via their own `update_context` methods.
-
 ## Algorithm
 
 ```mermaid
 flowchart TD
     Start([execute]) --> CtxCheck{self.name in context?}
-    CtxCheck -->|No| EnsureCtx[update_context:<br/>add 'update_attributes' marker into<br/>context['new_attrs']]
+    CtxCheck -->|No| EnsureCtx[update_context:<br/>add update_attributes marker<br/>into context.new_attrs]
     CtxCheck -->|Yes| ResultMatch
     EnsureCtx --> ResultMatch{match result}
 
-    ResultMatch -->|dict| LoopDict[For each value:<br/>attrs |= context['new_attrs'];<br/>fill dim attrs from common_attrs]
-    ResultMatch -->|Dataset / DataArray| Single[attrs |= context['new_attrs'];<br/>update dim attrs from common_attrs]
-    ResultMatch -->|list / tuple| LoopList[For each item:<br/>attrs |= context['new_attrs']]
+    ResultMatch -->|dict| LoopDict[For each value:<br/>merge new_attrs into attrs;<br/>fill dim attrs from common_attrs]
+    ResultMatch -->|Dataset / DataArray| Single[merge new_attrs into attrs;<br/>update dim attrs from common_attrs]
+    ResultMatch -->|list / tuple| LoopList[For each item:<br/>merge new_attrs into attrs]
     ResultMatch -->|other| TypeErr[raise TypeError]
 
     LoopDict --> Done

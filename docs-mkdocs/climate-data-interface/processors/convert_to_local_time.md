@@ -15,9 +15,9 @@ Convert hourly time coordinates from UTC to the local time zone inferred from th
 ```mermaid
 flowchart TD
     Start([execute]) --> ValueMatch{match self.value}
-    ValueMatch -->|"no"| Passthrough[Return result unchanged]
+    ValueMatch -->|no| Passthrough[Return result unchanged]
     ValueMatch -->|other| Raise[Raise ValueError]
-    ValueMatch -->|"yes"| CatalogCheck{context['catalog']<br/>== 'hdp'?}
+    ValueMatch -->|yes| CatalogCheck{catalog == hdp?}
 
     CatalogCheck -->|Yes| HDPFunc[func = _convert_to_local_time_hdp]
     CatalogCheck -->|No| GridFunc[func = _convert_to_local_time_gridded]
@@ -33,10 +33,10 @@ flowchart TD
     Single --> Convert
     LoopList --> Convert
 
-    Convert["_find_timezone_and_convert<br/>(timezonefinder + tz_convert)"]
-    Convert --> Reindex{reindex_time_axis<br/>== 'yes'?}
-    Reindex -->|Yes| DST[Dedupe DST fall-back duplicates;<br/>insert NaN for spring-forward gap]
-    Reindex -->|No| TagAttr
+    Convert["_find_timezone_and_convert<br/>timezonefinder + tz_convert"]
+    Convert --> Reindex{reindex_time_axis == yes?}
+    Reindex -->|yes| DST[Dedupe DST fall-back duplicates;<br/>insert NaN for spring-forward gap]
+    Reindex -->|no| TagAttr
     DST --> TagAttr[Assign 'timezone' attr per variable]
     TagAttr --> UpdateCtx[update_context]
     UpdateCtx --> End([Output: time-converted data])
