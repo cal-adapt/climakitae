@@ -13,6 +13,7 @@ For a parameter-by-parameter reference of any single processor, see
 | Query at 1.5 / 2 / 3 °C global warming | [Warming-level analysis](#warming-level-analysis) |
 | Localize WRF temperature to a station | [Bias correction](#bias-correction-station-localization) |
 | Process many points or scenarios | [Batch processing](#batch-processing-multiple-points-or-scenarios) |
+| Scale computation with Coiled (AWS) | [Distributed computation with Coiled](#distributed-computation-with-coiled-aws) |
 | Build a multi-model / multi-region pipeline | [Combining techniques](#multi-model-ensemble) |
 | Compute HDD / CDD / heat index / etc. | [Derived variables & climate indices](#derived-variables) |
 | Subset by calendar dates | [Time-based queries](#time-based-queries) |
@@ -529,6 +530,50 @@ with Pool(processes=4) as pool:
 
 # Results computed in parallel on 4 cores
 ```
+
+### Distributed Computation with Coiled (AWS)
+
+climakitae returns lazy [Dask](https://docs.dask.org)-backed xarray objects, so any Dask scheduler — including a [Coiled](https://coiled.io) cluster — takes over automatically when `.compute()` is called. No climakitae-specific integration is needed.
+
+```python
+import coiled
+from climakitae.new_core.user_interface import ClimateData
+
+# Spin up a Coiled cluster in us-west-2 (same region as Cal-Adapt S3 data)
+cluster = coiled.Cluster(
+    n_workers=10,
+    region="us-west-2",
+    name="climakitae-batch",
+)
+client = cluster.get_client()  # Registers cluster as default Dask scheduler
+
+# From here, all .compute() calls run on the cluster
+cd = ClimateData(verbosity=-1)
+
+results = {}
+for scenario in ["historical", "ssp245", "ssp370", "ssp585"]:
+    data = (cd
+        .catalog("cadcat")
+        .activity_id("LOCA2")
+        .experiment_id(scenario)
+        .variable("tasmax")
+        .table_id("mon")
+        .grid_label("d03")
+        .processes({
+            "time_slice": ("2020-01-01", "2060-12-31"),
+            "clip": "Los Angeles",
+        })
+        .get())
+    # Computation is dispatched to Coiled workers
+    results[scenario] = data["tasmax"].mean(dim=["lat", "lon"]).compute()
+
+cluster.shutdown()
+```
+
+!!! tip "Region matters"
+    Place your Coiled cluster in `us-west-2`. Cal-Adapt data lives in S3 `us-west-2`
+    buckets, so workers co-located in the same region avoid egress costs and
+    significantly reduce transfer latency.
 
 ### Best Practice: Cache Intermediate Results
 
