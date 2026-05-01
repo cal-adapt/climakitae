@@ -87,6 +87,9 @@ markdown_extensions:
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
 
+extra_javascript:
+  - https://unpkg.com/mermaid@11/dist/mermaid.min.js
+
 nav:
   - Home: index.md
   - Get Started: getting-started.md

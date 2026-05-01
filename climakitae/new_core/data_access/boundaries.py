@@ -664,9 +664,9 @@ class Boundaries:
 
         Deprecated
         ----------
-        This method is deprecated as of version 1.5.0. Use preload_all() instead
-        for explicit preloading, or simply access data normally for automatic
-        lazy loading.
+        1.5.0
+            Use ``preload_all()`` instead for explicit preloading, or simply
+            access data normally for automatic lazy loading.
 
         """
         logger.warning(

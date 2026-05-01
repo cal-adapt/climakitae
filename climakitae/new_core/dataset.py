@@ -90,10 +90,6 @@ class Dataset:
     parameter validation, and sequential processing steps. It implements a fluent
     interface pattern allowing method chaining for building complex data workflows.
 
-    Parameters
-    ----------
-    None
-
     Attributes
     ----------
     data_access : DataCatalog or UNSET

@@ -116,15 +116,15 @@ def compute_dewpointtemp(
 
     Parameters
     ----------
-        temperature : xr.DataArray
-            Temperature in Kelvin (K)
-        rel_hum : xr.DataArray
-            Relative humidity (0-100 scale)
+    temperature : xr.DataArray
+        Temperature in Kelvin (K)
+    rel_hum : xr.DataArray
+        Relative humidity (0-100 scale)
 
     Returns
     -------
-        dew_point : xr.DataArray
-            Dew point (K)
+    dew_point : xr.DataArray
+        Dew point (K)
 
     """
     es = 0.611 * np.exp(
@@ -148,17 +148,17 @@ def compute_specific_humidity(
 
     Parameters
     ----------
-        tdps : xr.DataArray
-            Dew-point temperature, in K
-        pressure : xr.DataArray
-            Air pressure, in Pascals
-        name : str, optional
-            Name to assign to output DataArray
+    tdps : xr.DataArray
+        Dew-point temperature, in K
+    pressure : xr.DataArray
+        Air pressure, in Pascals
+    name : str, optional
+        Name to assign to output DataArray
 
     Returns
     -------
-        spec_hum : xr.DataArray
-            Specific humidity
+    spec_hum : xr.DataArray
+        Specific humidity
 
     """
 
@@ -188,19 +188,19 @@ def compute_relative_humidity(
 
     Parameters
     ----------
-        pressure : xr.DataArray
-            Pressure in hPa
-        temperature : xr.DataArray
-            Temperature in Celsius
-        mixing_ratio : xr.DataArray
-            Dimensionless mass mixing ratio in g/kg
-        name : str, optional
-            Name to assign to output DataArray
+    pressure : xr.DataArray
+        Pressure in hPa
+    temperature : xr.DataArray
+        Temperature in Celsius
+    mixing_ratio : xr.DataArray
+        Dimensionless mass mixing ratio in g/kg
+    name : str, optional
+        Name to assign to output DataArray
 
     Returns
     -------
-        rel_hum : xr.DataArray
-            Relative humidity
+    rel_hum : xr.DataArray
+        Relative humidity
 
     Source: https://www.weather.gov/media/epz/wxcalc/mixingRatio.pdf
 
@@ -243,19 +243,19 @@ def _convert_specific_humidity_to_relative_humidity(
 
     Parameters
     ----------
-        temperature : xr.DataArray
-            Temperature in Kelvin
-        q : xr.DataArray
-            Specific humidity, in g/kg
-        pressure : xr.DataArray
-            Pressure, in Pascals
-        name : str, optional
-            Name to assign to output DataArray
+    temperature : xr.DataArray
+        Temperature in Kelvin
+    q : xr.DataArray
+        Specific humidity, in g/kg
+    pressure : xr.DataArray
+        Pressure, in Pascals
+    name : str, optional
+        Name to assign to output DataArray
 
     Returns
     -------
-        rel_hum : xr.DataArray
-            Relative humidity
+    rel_hum : xr.DataArray
+        Relative humidity
 
     """
 
@@ -284,17 +284,17 @@ def compute_wind_mag(
 
     Parameters
     ----------
-        u10 : xr.DataArray
-            Zonal velocity at 10 meters height in m/s
-        v10 : xr.DataArray
-            Meridonal velocity at 10 meters height in m/s
-        name : str, optional
-            Name to assign to output DataArray
+    u10 : xr.DataArray
+        Zonal velocity at 10 meters height in m/s
+    v10 : xr.DataArray
+        Meridonal velocity at 10 meters height in m/s
+    name : str, optional
+        Name to assign to output DataArray
 
     Returns
     -------
-        wind_mag: xr.DataArray
-            Wind magnitude
+    wind_mag : xr.DataArray
+        Wind magnitude
 
     """
     wind_mag = np.sqrt(np.square(u10) + np.square(v10))
@@ -310,17 +310,17 @@ def compute_wind_dir(
 
     Parameters
     ----------
-        u10 : xr.DataArray
-            Zonal velocity at 10 meters height in m/s
-        v10 : xr.DataArray
-            Meridional velocity at 10 meters height in m/s
-        name : str, optional
-            Name to assign to output DataArray
+    u10 : xr.DataArray
+        Zonal velocity at 10 meters height in m/s
+    v10 : xr.DataArray
+        Meridional velocity at 10 meters height in m/s
+    name : str, optional
+        Name to assign to output DataArray
 
     Returns
     -------
-        wind_dir : xr.DataArray
-            Wind direction, in [0, 360] degrees, with 0/360 defined as north, by meteorological convention
+    wind_dir : xr.DataArray
+        Wind direction, in [0, 360] degrees, with 0/360 defined as north, by meteorological convention
 
     Notes
     -----
@@ -359,20 +359,20 @@ def compute_sea_level_pressure(
 
     Parameters
     ----------
-        psfc : xr.DataArray
-            Hourly surface pressure in Pascals
-        t2 : xr.DataArray
-            Hourly surface air temperature in Kelvin
-        q2 : xr.DataArray
-            Hourly surface mixing ratio
-        elevation : xr.DataArray
-            Elevation in meters
-        lapse_rate : Union[float, xr.DataArray]
-            Lapse rate in K/m. Default is 0.0065 K/m
-        average_t2 : bool (default True)
-            True to use 12-hour mean temperature
-        name : str, optional
-            Name to assign to output DataArray
+    psfc : xr.DataArray
+        Hourly surface pressure in Pascals
+    t2 : xr.DataArray
+        Hourly surface air temperature in Kelvin
+    q2 : xr.DataArray
+        Hourly surface mixing ratio
+    elevation : xr.DataArray
+        Elevation in meters
+    lapse_rate : Union[float, xr.DataArray]
+        Lapse rate in K/m. Default is 0.0065 K/m
+    average_t2 : bool, optional
+        True to use 12-hour mean temperature. Default is True.
+    name : str, optional
+        Name to assign to output DataArray
 
     Returns
     -------

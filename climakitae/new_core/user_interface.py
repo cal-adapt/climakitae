@@ -86,19 +86,28 @@ class ClimateData:
     querying with different combinations of parameters. All methods return the
     instance itself to enable method chaining.
 
-    Parameters supported in queries:
-    - verbosity: The logging verbosity level (e.g., -2, -1, 0, 1)
-    - log_file: Path to log file (if None, logs to stdout)
-    - catalog: The data catalog to use (e.g., "renewable energy generation", "cadcat")
-    - installation: The installation type (e.g., "pv_utility", "wind_offshore")
-    - activity_id: The activity identifier (e.g., "WRF", "LOCA2")
-    - institution_id: The institution identifier (e.g., "CNRM", "DWD")
-    - source_id: The source identifier (e.g., "GCM", "RCM", "Station")
-    - experiment_id: The experiment identifier (e.g., "historical", "ssp245")
-    - table_id: The temporal resolution (e.g., "1hr", "day", "mon")
-    - grid_label: The spatial resolution (e.g., "d01", "d02", "d03")
-    - variable_id: The climate variable (e.g., "tasmax", "pr", "cf")
-    - processes: Dictionary of data processing operations to apply
+    Other Parameters
+    ----------------
+    catalog : str
+        The data catalog to use (e.g., ``"renewable energy generation"``, ``"cadcat"``).
+    installation : str
+        The installation type (e.g., ``"pv_utility"``, ``"wind_offshore"``).
+    activity_id : str
+        The activity identifier (e.g., ``"WRF"``, ``"LOCA2"``).
+    institution_id : str
+        The institution identifier (e.g., ``"CNRM"``, ``"DWD"``).
+    source_id : str
+        The source identifier (e.g., ``"GCM"``, ``"RCM"``, ``"Station"``).
+    experiment_id : str or list of str
+        The experiment identifier (e.g., ``"historical"``, ``"ssp245"``).
+    table_id : str
+        The temporal resolution (e.g., ``"1hr"``, ``"day"``, ``"mon"``).
+    grid_label : str
+        The spatial resolution (e.g., ``"d01"``, ``"d02"``, ``"d03"``).
+    variable_id : str
+        The climate variable (e.g., ``"tasmax"``, ``"pr"``, ``"cf"``).
+    processes : dict
+        Dictionary of data processing operations to apply.
 
     Methods
     -------
@@ -130,11 +139,40 @@ class ClimateData:
         Set processing operations to apply to the data.
     get() -> Optional[xr.DataArray]
         Execute the query and retrieve the climate data.
-
-    Utility methods for exploring available options:
-    show_*_options() methods display available values for each parameter.
-    show_query() displays the current query configuration.
-    show_all_options() displays all available options for exploration.
+    show_query() -> None
+        Display the current query configuration.
+    show_catalog_options(show_n: int, optional) -> None
+        Display available catalog options.
+    show_installation_options(show_n: int, optional) -> None
+        Display available installation options.
+    show_activity_id_options(show_n: int, optional) -> None
+        Display available activity ID options.
+    show_institution_id_options(show_n: int, optional) -> None
+        Display available institution ID options.
+    show_source_id_options(show_n: int, optional) -> None
+        Display available source ID options.
+    show_experiment_id_options(show_n: int, optional) -> None
+        Display available experiment ID options.
+    show_table_id_options(show_n: int, optional) -> None
+        Display available table ID (temporal resolution) options.
+    show_grid_label_options(show_n: int, optional) -> None
+        Display available grid label (spatial resolution) options.
+    show_variable_options(show_n: int, optional) -> None
+        Display available climate variable options.
+    show_station_id_options(show_n: int, optional) -> None
+        Display available station ID options.
+    show_network_id_options(show_n: int, optional) -> None
+        Display available network ID options.
+    show_derived_variables() -> None
+        Display registered derived variables.
+    show_processors(show_n: int, optional) -> None
+        Display registered data processors.
+    show_station_options(show_n: int, optional) -> None
+        Display available weather station options.
+    show_boundary_options(boundary_type: str, optional) -> None
+        Display available boundary options; pass a boundary type to list sub-options.
+    show_all_options() -> None
+        Display all available options for exploration.
 
     Returns
     -------

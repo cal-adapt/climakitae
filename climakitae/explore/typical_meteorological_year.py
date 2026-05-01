@@ -1232,12 +1232,6 @@ class TMY:
         Output will be a list of dataframes per simulation.
         Print statements throughout the function indicate progress.
 
-        Parameters
-        -----------
-        top_df: pd.DataFrame
-            Table with column values month, simulation, and year
-            Each month-sim-yr combo represents the top candidate that has the lowest weighted sum from the FS statistic
-
         Notes
         -----
         Results are saved to the class variable `tmy_data_to_export`.
