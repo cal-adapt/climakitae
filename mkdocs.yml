@@ -141,3 +141,4 @@ nav:
   - Legacy API:
       - Status and Roadmap: legacy/status.md
       - Reference: api/core.md
+  - Contributing: contributing.md
