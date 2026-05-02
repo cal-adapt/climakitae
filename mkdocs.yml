@@ -27,8 +27,8 @@ copyright: Copyright 2026, Cal-Adapt Analytics Engine
 
 theme:
   name: material
-  logo: docs/_static/cae-map.png
-  favicon: docs/_static/cae-map.png
+  logo: _static/cae-map.png
+  favicon: _static/cae-map.png
   features:
     - navigation.instant
     - navigation.sections
