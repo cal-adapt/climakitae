@@ -437,5 +437,5 @@ data = (ClimateData()
 
 - [Processor Index](index.md)
 - [Architecture → Spatial Subsetting](../architecture.md#spatial-subsetting)
-- [How-To Guides → Clipping Data](../howto.md#clip-data)
+- [How-To Guides → Clipping Data](../howto/clip.md)
 - [CA Boundaries Reference](../concepts.md#available-boundaries)

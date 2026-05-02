@@ -332,6 +332,6 @@ for county in counties:
 ## See Also
 
 - [Processor Index](index.md)
-- [How-To Guides → Export Data](../howto.md#export-data)
+- [How-To Guides → Export Data](../howto/export.md)
 - [Architecture → Data Export](../architecture.md#data-export-pipeline)
 - xarray export docs: [.to_netcdf()](https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html)

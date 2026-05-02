@@ -315,5 +315,5 @@ multi_model_mean = data.mean(dim="sim")
 - [Processor Index](index.md)
 - [Time Slice Processor](time_slice.md) — Alternative: calendar-based temporal subsetting
 - [Architecture → Warming Levels Concept](../concepts.md#global-warming-levels)
-- [How-To Guides → Warming Level Analysis](../howto.md#warming-level-analysis)
+- [How-To Guides → Warming Level Analysis](../howto/warming-levels.md)
 - Cal-Adapt GWL Resources: [IPCC AR6 Warming Levels](https://www.ipcc.ch/)

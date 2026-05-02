@@ -306,4 +306,4 @@ anomaly = data.groupby("time.year").mean("time")
 - [Processor Index](index.md)
 - [Warming Level Processor](warming_level.md) — Alternative temporal subsetting by climate scenario
 - [Architecture → Extension Guide](../architecture.md#add-a-processor-4-step-guide)
-- [How-To Guides → Time-Based Queries](../howto.md#time-based-queries)
+- [How-To Guides → Time-Based Queries](../howto/time-based-queries.md)

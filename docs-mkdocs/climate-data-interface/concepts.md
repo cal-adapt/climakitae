@@ -1,6 +1,12 @@
 # Core Concepts
 
-Understanding these three foundational concepts will help you use climakitae effectively.
+Understanding these three foundational concepts will help you use climakitae effectively:
+
+1. **[Catalog Hierarchy](#catalog-hierarchy)** — how climate datasets are organized from broad collection down to individual variable, and how to navigate that hierarchy when building a query.
+2. **[Lazy Evaluation with Dask and xarray](#lazy-evaluation-with-dask-and-xarray)** — why data isn't loaded until you explicitly compute it, and how to work with that model efficiently.
+3. **[Global Warming Levels (GWL)](#global-warming-levels)** — a climate-science-meaningful way to define future time periods by degrees of global warming rather than calendar years.
+
+---
 
 ## Catalog Hierarchy
 
@@ -27,7 +33,7 @@ Variable ID
 
 ### Example: Navigating the Hierarchy
 
-You want monthly maximum temperature from WRF downscaling. Here's how it maps to the hierarchy:
+For example, let's say you want monthly maximum temperature from WRF downscaling. Here's how that maps to the hierarchy:
 
 ```python
 from climakitae.new_core.user_interface import ClimateData
@@ -102,7 +108,7 @@ cd.show_boundary_options()                  # All types
 cd.show_boundary_options("ca_counties")    # All CA counties
 ```
 
-For spatial subsetting examples, see [How-To → Clip Data](howto.md#clip-data).
+For spatial subsetting examples, see [How-To → Clip Data](howto/clip.md).
 
 ---
 
@@ -165,20 +171,20 @@ data = (cd.variable("tasmax")
 temp_mean = data["tasmax"].mean().compute()
 ```
 
-### dask and xarray Integration
+### Dask and xarray Integration
 
 ClimateData uses two complementary libraries:
 
 - **xarray**: Multi-dimensional labeled arrays (the data structure)
-  - Provides dimensions like `time`, `lat`, `lon`, `sim`
-  - Preserves metadata (attributes, coordinates)
-  - Works with both NumPy arrays and dask arrays transparently
+    - Provides dimensions like `time`, `lat`, `lon`, `sim`
+    - Preserves metadata (attributes, coordinates)
+    - Works with both NumPy arrays and Dask arrays transparently
 
-- **dask**: Parallel computing (the execution engine)
-  - Builds a task graph of pending operations
-  - Distributes computation across CPU cores
-  - Handles larger-than-memory datasets via chunking
-  - Can be deployed to clusters (Kubernetes, HPC) for distributed computing
+- **Dask**: Parallel computing (the execution engine)
+    - Builds a task graph of pending operations
+    - Distributes computation across CPU cores
+    - Handles larger-than-memory datasets via chunking
+    - Can be deployed to clusters (Kubernetes, HPC) for distributed computing
 
 ```python
 # Both use the same API
@@ -209,10 +215,10 @@ Global warming levels represent **future climate states defined by degrees of gl
 Climate impacts scale with global temperature increase, not calendar years:
 
 - **Time-based**: "In 2050, temperature will increase by X°C"
-  - Problem: Different models warm at different rates; 2050 is very different across models
-  
+    - Problem: Different models warm at different rates; 2050 is very different across models
+
 - **GWL-based**: "When Earth warms 2°C above pre-industrial, temperature will increase by Y°C"
-  - Advantage: Consistent across all models; directly tied to climate impacts
+    - Advantage: Consistent across all models; directly tied to climate impacts
 
 ### GWL Reference Periods
 

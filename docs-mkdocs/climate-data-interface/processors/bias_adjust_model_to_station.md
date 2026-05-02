@@ -91,4 +91,4 @@ data = (ClimateData()
 
 - [Processor index](index.md)
 - [`climakitae/new_core/processors/bias_adjust_model_to_station.py`](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py)
-- [How-To: bias correction](../howto.md#bias-correction-station-localization)
+- [How-To: bias correction](../howto/bias-correction.md)

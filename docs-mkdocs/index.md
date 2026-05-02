@@ -3,11 +3,10 @@
 Query, process, and analyze downscaled climate projections for California with
 a modern Python API.
 
-ClimakitAE provides programmatic access to:
-
-- **WRF dynamical downscaling** — 3 km / 9 km / 45 km, hourly to monthly  
-- **LOCA2 statistical downscaling** — bias-corrected CMIP6 at 3 km
-- **Flexible processing** — spatial clipping, temporal subsetting, warming-level analysis, unit conversion
+ClimakitAE provides programmatic access to **WRF dynamical downscaling**, **LOCA2
+statistical downscaling**, and several other relevant California climate datasets —
+with built-in tools for spatial clipping, temporal subsetting, warming-level analysis,
+unit conversion, and more.
 
 Built for climate scientists, environmental analysts, and Python developers.
 
