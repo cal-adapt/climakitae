@@ -10,31 +10,31 @@
       
       
       
-        <link rel="canonical" href="https://cal-adapt.github.io/climakitae/1.5.2/api/param-validation/">
+        <link rel="canonical" href="https://cal-adapt.github.io/climakitae/1.5.2/climate-data-interface/howto/bias-correction/">
       
       
-        <link rel="prev" href="../dataset/">
+        <link rel="prev" href="../warming-levels/">
       
       
-        <link rel="next" href="../data-access/">
+        <link rel="next" href="../batch-processing/">
       
       
         
       
       
-      <link rel="icon" href="../../_static/cae-map.png">
+      <link rel="icon" href="../../../_static/cae-map.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Parameter Validation - climakitae</title>
+        <title>Bias Correction - climakitae</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -53,9 +53,9 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#parameter-validation" class="md-skip">
+        <a href="#bias-correction-localize-wrf-to-weather-stations" class="md-skip">
           Skip to content
         </a>
       
@@ -96,9 +96,9 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="climakitae" class="md-header__button md-logo" aria-label="climakitae" data-md-component="logo">
+    <a href="../../.." title="climakitae" class="md-header__button md-logo" aria-label="climakitae" data-md-component="logo">
       
-  <img src="../../_static/cae-map.png" alt="logo">
+  <img src="../../../_static/cae-map.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -115,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Parameter Validation
+              Bias Correction
             
           </span>
         </div>
@@ -231,9 +231,9 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="climakitae" class="md-nav__button md-logo" aria-label="climakitae" data-md-component="logo">
+    <a href="../../.." title="climakitae" class="md-nav__button md-logo" aria-label="climakitae" data-md-component="logo">
       
-  <img src="../../_static/cae-map.png" alt="logo">
+  <img src="../../../_static/cae-map.png" alt="logo">
 
     </a>
     climakitae
@@ -260,7 +260,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href="../../.." class="md-nav__link">
         
   
   
@@ -287,7 +287,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/" class="md-nav__link">
+      <a href="../../../getting-started/" class="md-nav__link">
         
   
   
@@ -314,7 +314,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebook-gallery/" class="md-nav__link">
+      <a href="../../../notebook-gallery/" class="md-nav__link">
         
   
   
@@ -395,7 +395,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/" class="md-nav__link">
+      <a href="../../" class="md-nav__link">
         
   
   
@@ -423,7 +423,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/concepts/" class="md-nav__link">
+      <a href="../../concepts/" class="md-nav__link">
         
   
   
@@ -448,6 +448,8 @@
                 
   
   
+    
+  
   
   
     
@@ -457,11 +459,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" checked>
         
           
           <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
@@ -482,7 +484,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -500,7 +502,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/howto/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -528,7 +530,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/howto/clip/" class="md-nav__link">
+      <a href="../clip/" class="md-nav__link">
         
   
   
@@ -556,7 +558,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/howto/export/" class="md-nav__link">
+      <a href="../export/" class="md-nav__link">
         
   
   
@@ -584,7 +586,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/howto/warming-levels/" class="md-nav__link">
+      <a href="../warming-levels/" class="md-nav__link">
         
   
   
@@ -609,10 +611,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../climate-data-interface/howto/bias-correction/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bias Correction
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -628,6 +657,70 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#basic-localization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Localization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#available-weather-stations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Available Weather Stations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-bias-correction-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Bias Correction Works
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -640,7 +733,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/howto/batch-processing/" class="md-nav__link">
+      <a href="../batch-processing/" class="md-nav__link">
         
   
   
@@ -668,7 +761,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/howto/combining-techniques/" class="md-nav__link">
+      <a href="../combining-techniques/" class="md-nav__link">
         
   
   
@@ -696,7 +789,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/howto/derived-variables/" class="md-nav__link">
+      <a href="../derived-variables/" class="md-nav__link">
         
   
   
@@ -724,7 +817,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/howto/time-based-queries/" class="md-nav__link">
+      <a href="../time-based-queries/" class="md-nav__link">
         
   
   
@@ -760,7 +853,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/architecture/" class="md-nav__link">
+      <a href="../../architecture/" class="md-nav__link">
         
   
   
@@ -837,7 +930,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/processors/" class="md-nav__link">
+      <a href="../../processors/" class="md-nav__link">
         
   
   
@@ -865,7 +958,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/processors/time_slice/" class="md-nav__link">
+      <a href="../../processors/time_slice/" class="md-nav__link">
         
   
   
@@ -893,7 +986,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/processors/warming_level/" class="md-nav__link">
+      <a href="../../processors/warming_level/" class="md-nav__link">
         
   
   
@@ -921,7 +1014,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/processors/clip/" class="md-nav__link">
+      <a href="../../processors/clip/" class="md-nav__link">
         
   
   
@@ -949,7 +1042,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/processors/export/" class="md-nav__link">
+      <a href="../../processors/export/" class="md-nav__link">
         
   
   
@@ -977,7 +1070,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/processors/concatenate/" class="md-nav__link">
+      <a href="../../processors/concatenate/" class="md-nav__link">
         
   
   
@@ -1005,7 +1098,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/processors/convert_units/" class="md-nav__link">
+      <a href="../../processors/convert_units/" class="md-nav__link">
         
   
   
@@ -1033,7 +1126,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/processors/bias_adjust_model_to_station/" class="md-nav__link">
+      <a href="../../processors/bias_adjust_model_to_station/" class="md-nav__link">
         
   
   
@@ -1061,7 +1154,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/processors/metric_calc/" class="md-nav__link">
+      <a href="../../processors/metric_calc/" class="md-nav__link">
         
   
   
@@ -1089,7 +1182,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/processors/filter_unadjusted_models/" class="md-nav__link">
+      <a href="../../processors/filter_unadjusted_models/" class="md-nav__link">
         
   
   
@@ -1117,7 +1210,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/processors/drop_leap_days/" class="md-nav__link">
+      <a href="../../processors/drop_leap_days/" class="md-nav__link">
         
   
   
@@ -1145,7 +1238,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/processors/convert_to_local_time/" class="md-nav__link">
+      <a href="../../processors/convert_to_local_time/" class="md-nav__link">
         
   
   
@@ -1173,7 +1266,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../climate-data-interface/processors/update_attributes/" class="md-nav__link">
+      <a href="../../processors/update_attributes/" class="md-nav__link">
         
   
   
@@ -1206,8 +1299,6 @@
                 
   
   
-    
-  
   
   
     
@@ -1217,11 +1308,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
         
           
           <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="0">
@@ -1242,7 +1333,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1309,7 +1400,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../climate-data/" class="md-nav__link">
+      <a href="../../../api/climate-data/" class="md-nav__link">
         
   
   
@@ -1337,7 +1428,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../dataset-factory/" class="md-nav__link">
+      <a href="../../../api/dataset-factory/" class="md-nav__link">
         
   
   
@@ -1365,7 +1456,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../dataset/" class="md-nav__link">
+      <a href="../../../api/dataset/" class="md-nav__link">
         
   
   
@@ -1398,8 +1489,6 @@
                 
   
   
-    
-  
   
   
     
@@ -1409,11 +1498,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6_2" >
         
           
           <label class="md-nav__link" for="__nav_4_6_2" id="__nav_4_6_2_label" tabindex="0">
@@ -1434,7 +1523,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_6_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_6_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4_6_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1449,37 +1538,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Parameter Validation
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../../api/param-validation/" class="md-nav__link">
         
   
   
@@ -1495,48 +1557,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#where-to-look" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Where to look
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#see-also" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        See also
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1549,7 +1569,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../data-access/" class="md-nav__link">
+      <a href="../../../api/data-access/" class="md-nav__link">
         
   
   
@@ -1577,7 +1597,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../processor-utilities/" class="md-nav__link">
+      <a href="../../../api/processor-utilities/" class="md-nav__link">
         
   
   
@@ -1662,7 +1682,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../explore/" class="md-nav__link">
+      <a href="../../../api/explore/" class="md-nav__link">
         
   
   
@@ -1690,7 +1710,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tools/" class="md-nav__link">
+      <a href="../../../api/tools/" class="md-nav__link">
         
   
   
@@ -1718,7 +1738,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../util/" class="md-nav__link">
+      <a href="../../../api/util/" class="md-nav__link">
         
   
   
@@ -1746,7 +1766,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../derived-variables/" class="md-nav__link">
+      <a href="../../../api/derived-variables/" class="md-nav__link">
         
   
   
@@ -1849,7 +1869,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../migration/legacy-to-climate-data/" class="md-nav__link">
+      <a href="../../../migration/legacy-to-climate-data/" class="md-nav__link">
         
   
   
@@ -1936,7 +1956,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/status/" class="md-nav__link">
+      <a href="../../../legacy/status/" class="md-nav__link">
         
   
   
@@ -1964,7 +1984,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../core/" class="md-nav__link">
+      <a href="../../../api/core/" class="md-nav__link">
         
   
   
@@ -1999,7 +2019,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../contributing/" class="md-nav__link">
+      <a href="../../../contributing/" class="md-nav__link">
         
   
   
@@ -2046,10 +2066,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#where-to-look" class="md-nav__link">
+  <a href="#basic-localization" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Where to look
+        Basic Localization
       
     </span>
   </a>
@@ -2057,10 +2077,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#see-also" class="md-nav__link">
+  <a href="#available-weather-stations" class="md-nav__link">
     <span class="md-ellipsis">
       
-        See also
+        Available Weather Stations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-bias-correction-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Bias Correction Works
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
       
     </span>
   </a>
@@ -2084,7 +2126,7 @@
 
 
   
-    <a href="https://github.com/cal-adapt/climakitae/edit/main/docs-mkdocs/api/param-validation.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/cal-adapt/climakitae/edit/main/docs-mkdocs/climate-data-interface/howto/bias-correction.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2092,36 +2134,60 @@
   
 
 
-<h1 id="parameter-validation">Parameter Validation</h1>
-<p>Catalog-specific parameter validators normalize and check user queries before they hit the data catalog. The full auto-generated reference (base class, decorators, every validator) lives on <a href="../param-validation-detailed/">Parameter Validation (Detailed)</a>.</p>
-<h2 id="where-to-look">Where to look</h2>
-<table>
-<thead>
-<tr>
-<th>You want…</th>
-<th>Read</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Auto-generated reference for every validator</td>
-<td><a href="../param-validation-detailed/">Parameter Validation (Detailed)</a></td>
-</tr>
-<tr>
-<td>How validators fit into pipeline execution</td>
-<td><a href="../../climate-data-interface/architecture/#registry-pattern">Architecture — Registry Pattern</a></td>
-</tr>
-<tr>
-<td>How to add a new catalog validator</td>
-<td><a href="../../climate-data-interface/architecture/#adding-a-new-catalog-validator">Architecture — Adding a New Catalog Validator</a></td>
-</tr>
-</tbody>
-</table>
-<h2 id="see-also">See also</h2>
+<h1 id="bias-correction-localize-wrf-to-weather-stations">Bias Correction: Localize WRF to Weather Stations</h1>
+<p>Use historical weather station observations to correct WRF model bias locally.</p>
+<h2 id="basic-localization">Basic Localization</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># ⚠️  Currently WRF + hourly temperature only</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">cd</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="o">.</span><span class="n">activity_id</span><span class="p">(</span><span class="s2">&quot;WRF&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">.</span><span class="n">institution_id</span><span class="p">(</span><span class="s2">&quot;UCLA&quot;</span><span class="p">)</span>      <span class="c1"># Specify WRF producer</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">.</span><span class="n">variable</span><span class="p">(</span><span class="s2">&quot;t2&quot;</span><span class="p">)</span>              <span class="c1"># Hourly 2m temperature</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;1hr&quot;</span><span class="p">)</span>             <span class="c1"># Must be hourly</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>        <span class="s2">&quot;bias_adjust_model_to_station&quot;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>            <span class="s2">&quot;stations&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;KSAC&quot;</span><span class="p">,</span> <span class="s2">&quot;KSFO&quot;</span><span class="p">,</span> <span class="s2">&quot;KLAX&quot;</span><span class="p">]</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>        <span class="p">}</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="p">})</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="c1"># Data now bias-corrected to observations</span>
+</code></pre></div>
+<h2 id="available-weather-stations">Available Weather Stations</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># List all available weather stations</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">cd</span><span class="o">.</span><span class="n">show_station_options</span><span class="p">()</span>  <span class="c1"># Returns station codes (ICAO format)</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Use with clip to find nearby station</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">cd</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>        <span class="s2">&quot;bias_adjust_model_to_station&quot;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>            <span class="s2">&quot;stations&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;KSFO&quot;</span><span class="p">]</span>  <span class="c1"># San Francisco airport</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>        <span class="p">}</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="p">})</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
+</code></pre></div>
+<h2 id="how-bias-correction-works">How Bias Correction Works</h2>
 <ul>
-<li><a href="../../climate-data-interface/howto/">How-To Guides</a></li>
-<li><a href="../../climate-data-interface/concepts/#catalog-hierarchy">Concepts — Catalog Hierarchy</a></li>
+<li><strong>Training</strong>: Uses historical station observations (1981-2010 baseline)</li>
+<li><strong>Method</strong>: Quantile delta mapping (preserves model trends while matching observations)</li>
+<li><strong>Result</strong>: WRF temperature distribution matches local observations</li>
+<li><strong>Benefit</strong>: Reduces systematic bias for climate projections</li>
 </ul>
+<h2 id="limitations">Limitations</h2>
+<p><strong>Currently available for:</strong>
+- ✅ WRF data only (not LOCA2 statistical downscaling)
+- ✅ Hourly temperature (t2) only<br />
+- ✅ HadISD weather stations (~600 globally, ~200 in western US)</p>
+<p><strong>Why these limitations?</strong></p>
+<p>Bias correction requires:
+- <strong>High-frequency observations</strong> (hourly) to capture temperature variability that drives quantile mapping
+- <strong>WRF hourly data</strong> because WRF's fast-varying dynamics need point-wise calibration
+- <strong>LOCA2 is already bias-corrected</strong> by design using quantile mapping to observations during downscaling (no bias correction needed)
+- <strong>Weather station coverage</strong> — only HadISD provides consistent historical hourly data</p>
+<p><strong>For other scenarios:</strong>
+- Use direct model output (LOCA2 is already bias-corrected)
+- Implement alternative bias correction method for daily/monthly aggregates
+- Contact support for custom approaches</p>
+<hr />
 
 
 
@@ -2183,10 +2249,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "content.code.copy", "content.action.edit", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "content.code.copy", "content.action.edit", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@11/dist/mermaid.min.js"></script>
       
