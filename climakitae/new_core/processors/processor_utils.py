@@ -584,8 +584,22 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
         logger.warning("Could not calculate effective sample size: %s", e)
 
 
-def _calc_simplified_ess_by_sim(year_array):
-    # TODO: update doc
+def _calc_simplified_ess_by_sim(year_array: np.array) -> np.array:
+    """Function for calculating the effective sample size (ESS) of the provided data
+    using the logarithmic lag method to estimate this statistic for large data.
+
+    Parameters
+    ----------
+    data : xr.DataArray
+        Input array is assumed to be timeseries data with potential autocorrelation.
+
+    Returns
+    -------
+    np.array
+        Effective sample size.
+        Returned as a DataArray object so it can be utilized by xr.groupby and xr.resample.
+
+    """
     # Sample autocorrelation at key lags
     n = len(year_array)
     max_lag = min(n // MAX_LAG_DIVISOR, MAX_LAG_SAMPLES_GRIDDED)
@@ -600,20 +614,17 @@ def _calc_simplified_ess_by_sim(year_array):
     return ess
 
 
-def _calc_ess_by_sim(data: np.array) -> xr.DataArray:
+def _calc_ess_by_sim(data: np.array) -> np.array:
     """Function for calculating the effective sample size (ESS) of the provided data.
-    TODO: update doc
+
     Parameters
     ----------
     data : xr.DataArray
         Input array is assumed to be timeseries data with potential autocorrelation.
-    nlags : int, optional
-        Number of lags to use in the autocorrelation function, defaults to the length of
-        the timeseries.
 
     Returns
     -------
-    xr.DataArray
+    np.array
         Effective sample size.
         Returned as a DataArray object so it can be utilized by xr.groupby and xr.resample.
 
