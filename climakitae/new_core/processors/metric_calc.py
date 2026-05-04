@@ -88,6 +88,7 @@ class MetricCalc(DataProcessor):
           - bootstrap_runs (int, optional): Number of bootstrap runs for confidence intervals. Default: 100
           - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
           - variable_preprocessing (dict, optional): Variable-specific preprocessing options
+          - check_ess (bool, optional): Check the effective sample size. Default: TRUE
 
         Threshold Exceedance Count:
         - thresholds (dict, optional): Configuration for counting timesteps that exceed
@@ -265,6 +266,7 @@ class MetricCalc(DataProcessor):
         self.variable_preprocessing = self.one_in_x_config.get(
             "variable_preprocessing", {}
         )
+        self.check_ess = self.one_in_x_config.get("check_ess", True)
 
         # Confidence interval setting
         alpha = self.one_in_x_config.get("alpha", UNSET)
@@ -1029,6 +1031,7 @@ class MetricCalc(DataProcessor):
         kwargs = {
             "extremes_type": self.extremes_type,
             "block_size": self.block_size,
+            "check_ess": self.check_ess,
         }
 
         if self.event_duration == (1, "day"):
