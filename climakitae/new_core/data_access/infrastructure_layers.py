@@ -43,12 +43,14 @@ Examples
 
 """
 
+import io
 import logging
 import warnings
 from typing import Dict, List, Optional, Union
 
 import geopandas as gpd
 import pandas as pd
+import requests
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -262,6 +264,10 @@ class InfrastructureLayers:
         url = self._urls[key]
         try:
             logger.debug("Loading infrastructure layer '%s' from %s", key, url)
+            if url.startswith("https://") or url.startswith("http://"):
+                resp = requests.get(url, timeout=120)
+                resp.raise_for_status()
+                return gpd.read_parquet(io.BytesIO(resp.content))
             return gpd.read_parquet(url)
         except Exception as e:
             raise RuntimeError(
