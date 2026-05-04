@@ -34,26 +34,19 @@ import intake_esm
 import pandas as pd
 import xarray as xr
 
-from climakitae.core.constants import (
-    CATALOG_BOUNDARY,
-    CATALOG_CADCAT,
-    CATALOG_HDP,
-    CATALOG_REN_ENERGY_GEN,
-    UNSET,
-)
+from climakitae.core.constants import (CATALOG_BOUNDARY, CATALOG_CADCAT,
+                                       CATALOG_HDP, CATALOG_REN_ENERGY_GEN,
+                                       UNSET)
 
 # Module logger
 logger = logging.getLogger(__name__)
-from climakitae.core.paths import (
-    BOUNDARY_CATALOG_URL,
-    DATA_CATALOG_URL,
-    HADISD_STATIONS_URL,
-    HDP_CATALOG_URL,
-    INFRASTRUCTURE_LAYER_URLS,
-    RENEWABLES_CATALOG_URL,
-)
+from climakitae.core.paths import (BOUNDARY_CATALOG_URL, DATA_CATALOG_URL,
+                                   HADISD_STATIONS_URL, HDP_CATALOG_URL,
+                                   INFRASTRUCTURE_LAYER_URLS,
+                                   RENEWABLES_CATALOG_URL)
 from climakitae.new_core.data_access.boundaries import Boundaries
-from climakitae.new_core.data_access.infrastructure_layers import InfrastructureLayers
+from climakitae.new_core.data_access.infrastructure_layers import \
+    InfrastructureLayers
 from climakitae.util.utils import read_csv_file
 
 
@@ -695,9 +688,7 @@ class DataCatalog(dict):
             # or from the registry metadata as a fallback.
             try:
                 from climakitae.new_core.derived_variables.registry import (
-                    preserve_spatial_metadata,
-                    get_derived_variable_info,
-                )
+                    get_derived_variable_info, preserve_spatial_metadata)
 
                 source_vars_from_query = query.get("_source_variables") or []
 
@@ -785,7 +776,8 @@ class DataCatalog(dict):
             Dictionary of datasets with the derived variable computed.
 
         """
-        from climakitae.new_core.derived_variables import list_derived_variables
+        from climakitae.new_core.derived_variables import \
+            list_derived_variables
 
         derived_vars = list_derived_variables()
         if derived_var_name not in derived_vars:

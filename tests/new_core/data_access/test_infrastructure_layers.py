@@ -17,15 +17,9 @@ import pytest
 from shapely.geometry import LineString, Point
 
 from climakitae.new_core.data_access.infrastructure_layers import (
-    ALL_LAYER_KEYS,
-    LAYER_KEY_EIA_PLANTS,
-    LAYER_KEY_GEM_PLANTS,
-    LAYER_KEY_OSM_POWER,
-    LAYER_KEY_SUBSTATIONS,
-    LAYER_KEY_TRANSMISSION,
-    InfrastructureLayers,
-)
-
+    ALL_LAYER_KEYS, LAYER_KEY_EIA_PLANTS, LAYER_KEY_GEM_PLANTS,
+    LAYER_KEY_OSM_POWER, LAYER_KEY_SUBSTATIONS, LAYER_KEY_TRANSMISSION,
+    InfrastructureLayers)
 
 # ---------------------------------------------------------------------------
 # Helpers — sample GeoDataFrames
@@ -95,7 +89,7 @@ def _make_osm_gdf(n: int = 2) -> gpd.GeoDataFrame:
             "osm_id": [str(i) for i in range(n)],
             "name": [f"OSM {i}" for i in range(n)],
             "power_type": ["plant", "substation"][:n],
-            "fuel_type": ["Solar", ""] [:n],
+            "fuel_type": ["Solar", ""][:n],
             "capacity_mw": [50.0, float("nan")][:n],
             "voltage_kv": [float("nan"), 230.0][:n],
             "operator": ["PG&E", "SCE"][:n],
@@ -256,7 +250,9 @@ class TestInfrastructureLayersLazyLoad:
             "climakitae.new_core.data_access.infrastructure_layers.gpd.read_parquet",
             side_effect=FileNotFoundError("not found"),
         ):
-            with pytest.raises(RuntimeError, match="Failed to load infrastructure layer"):
+            with pytest.raises(
+                RuntimeError, match="Failed to load infrastructure layer"
+            ):
                 _ = self.infra.eia_plants
 
 
@@ -338,11 +334,11 @@ class TestInfrastructureLayersLookups:
         # Pre-inject loaded data to avoid gpd.read_parquet calls
         self.eia_gdf = _make_plants_gdf(n=3, source="EIA-860M")
         self.gem_gdf = _make_plants_gdf(n=2, source="GEM")
-        self.infra._InfrastructureLayers__eia_plants = (
-            self.infra._process_eia_plants(self.eia_gdf)
+        self.infra._InfrastructureLayers__eia_plants = self.infra._process_eia_plants(
+            self.eia_gdf
         )
-        self.infra._InfrastructureLayers__gem_plants = (
-            self.infra._process_gem_plants(self.gem_gdf)
+        self.infra._InfrastructureLayers__gem_plants = self.infra._process_gem_plants(
+            self.gem_gdf
         )
 
     def test_get_plants_by_name_returns_dict(self):
