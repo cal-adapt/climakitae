@@ -49,9 +49,11 @@ from climakitae.core.paths import (
     DATA_CATALOG_URL,
     HADISD_STATIONS_URL,
     HDP_CATALOG_URL,
+    INFRASTRUCTURE_LAYER_URLS,
     RENEWABLES_CATALOG_URL,
 )
 from climakitae.new_core.data_access.boundaries import Boundaries
+from climakitae.new_core.data_access.infrastructure_layers import InfrastructureLayers
 from climakitae.util.utils import read_csv_file
 
 
@@ -208,6 +210,9 @@ class DataCatalog(dict):
             self._boundaries = UNSET
             self._boundaries_lock = threading.Lock()
             self.available_boundaries = UNSET
+            # Initialize infrastructure layers with lazy loading
+            self._infrastructure = UNSET
+            self._infrastructure_lock = threading.Lock()
 
     @property
     def data(self) -> intake_esm.core.esm_datastore:
@@ -287,6 +292,38 @@ class DataCatalog(dict):
             if self._boundaries is UNSET:
                 self._boundaries = Boundaries(self.boundary)
         return self._boundaries
+
+    @property
+    def infrastructure(self) -> InfrastructureLayers:
+        """Access CA power plant and grid infrastructure data with lazy loading (thread-safe).
+
+        Returns an :class:`InfrastructureLayers` instance that lazily loads
+        GeoParquet files for EIA-860M plants, GEM projects, HIFLD transmission
+        lines, HIFLD substations, and OSM power infrastructure when each
+        layer is first accessed.
+
+        Returns
+        -------
+        InfrastructureLayers
+            The lazy-loading infrastructure data manager.
+
+        Examples
+        --------
+        >>> catalog = DataCatalog()
+        >>> plants = catalog.infrastructure.eia_plants
+        >>> by_fuel = catalog.infrastructure._get_plants_by_fuel_type()
+
+        """
+        # Fast path: already initialized
+        if self._infrastructure is not UNSET:
+            return self._infrastructure
+
+        # Slow path: acquire lock for initialization
+        with self._infrastructure_lock:
+            # Double-check after acquiring lock
+            if self._infrastructure is UNSET:
+                self._infrastructure = InfrastructureLayers(INFRASTRUCTURE_LAYER_URLS)
+        return self._infrastructure
 
     @property
     def derived_registry(self):

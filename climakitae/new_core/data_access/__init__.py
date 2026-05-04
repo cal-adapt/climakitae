@@ -16,5 +16,6 @@ climakitae.new_core.dataset_factory : Factory for creating datasets
 
 from .boundaries import Boundaries
 from .data_access import DataCatalog
+from .infrastructure_layers import InfrastructureLayers
 
-__all__ = ["DataCatalog", "Boundaries"]
+__all__ = ["DataCatalog", "Boundaries", "InfrastructureLayers"]

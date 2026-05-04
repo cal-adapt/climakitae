@@ -16,6 +16,23 @@ HDP_CATALOG_URL = "https://cadcat.s3.amazonaws.com/histwxstns/era-hdp-collection
 # S3 scratch bucket for exporting
 EXPORT_S3_BUCKET = "cadcat-tmp"
 
+# Infrastructure data layer URLs (CA power plant and grid data, EPSG:4326 GeoParquet)
+# TODO(scraping): GEM data is embedded in the ETL script; see
+# scripts/build_infrastructure_parquets.py for source URLs and update instructions.
+EIA860M_CA_PLANTS_URL = "https://cadcat.s3.amazonaws.com/infrastructure/eia860m_ca_plants.parquet"
+GEM_CA_PLANTS_URL = "https://cadcat.s3.amazonaws.com/infrastructure/gem_ca_plants.parquet"
+HIFLD_CA_TRANSMISSION_URL = "https://cadcat.s3.amazonaws.com/infrastructure/hifld_ca_transmission.parquet"
+HIFLD_CA_SUBSTATIONS_URL = "https://cadcat.s3.amazonaws.com/infrastructure/hifld_ca_substations.parquet"
+OSM_CA_POWER_URL = "https://cadcat.s3.amazonaws.com/infrastructure/osm_ca_power.parquet"
+
+INFRASTRUCTURE_LAYER_URLS = {
+    "eia_plants": EIA860M_CA_PLANTS_URL,
+    "gem_plants": GEM_CA_PLANTS_URL,
+    "transmission": HIFLD_CA_TRANSMISSION_URL,
+    "substations": HIFLD_CA_SUBSTATIONS_URL,
+    "osm_power": OSM_CA_POWER_URL,
+}
+
 # Colormap text files
 
 AE_ORANGE = "data/cmaps/ae_orange.txt"
