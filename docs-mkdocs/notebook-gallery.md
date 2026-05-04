@@ -33,11 +33,11 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
 
 - **Level**: Beginner – Intermediate
 - **Key Topics**: Interactive widgets • GUI-driven querying • climakitaegui visualization
-- **Use Case**: Featured on the [Cal-Adapt Analytics Engine — Example Applications](https://analytics.cal-adapt.org/analytics/example) page as the entry point for non-coding workflows.
+- **Use Case**: Featured on the [Cal-Adapt Analytics Engine — Example Applications](https://analytics.cal-adapt.org/analytics/applications/example) page as the entry point for non-coding workflows.
 
 **Links**:
-- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/data-access/interactive_data_access_and_viz.ipynb)
-- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=data-access/interactive_data_access_and_viz.ipynb) Launch on Binder
+- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/data-access/basic_data_access.ipynb)
+- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=data-access/basic_data_access.ipynb) Launch on Binder
 
 ---
 
@@ -215,7 +215,7 @@ Access pre-installed notebooks on the [Cal-Adapt Analytics Engine JupyterHub](ht
 - **climakitae Documentation**: this site (cal-adapt.github.io/climakitae)
 - **cae-notebooks Repository**: [https://github.com/cal-adapt/cae-notebooks](https://github.com/cal-adapt/cae-notebooks)
 - **Cal-Adapt Analytics Engine**: [https://analytics.cal-adapt.org/](https://analytics.cal-adapt.org/)
-  - [Example applications](https://analytics.cal-adapt.org/analytics/example)
+  - [Example applications](https://analytics.cal-adapt.org/analytics/applications/example)
   - [Methods](https://analytics.cal-adapt.org/analytics/methods)
   - [Glossary](https://analytics.cal-adapt.org/guidance/glossary)
 - **Cal-Adapt Overview**: [https://cal-adapt.org/](https://cal-adapt.org/)
