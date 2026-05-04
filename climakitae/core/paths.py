@@ -22,9 +22,7 @@ EXPORT_S3_BUCKET = "cadcat-tmp"
 EIA860M_CA_PLANTS_URL = (
     "https://cadcat.s3.amazonaws.com/parquet/eia860m_ca_plants.parquet"
 )
-GEM_CA_PLANTS_URL = (
-    "https://cadcat.s3.amazonaws.com/parquet/gem_ca_plants.parquet"
-)
+GEM_CA_PLANTS_URL = "https://cadcat.s3.amazonaws.com/parquet/gem_ca_plants.parquet"
 HIFLD_CA_TRANSMISSION_URL = (
     "https://cadcat.s3.amazonaws.com/parquet/hifld_ca_transmission.parquet"
 )
