@@ -190,7 +190,7 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
     grouped_duration = one_in_x_config.get("grouped_duration", UNSET)
     block_size = one_in_x_config.get("block_size", 1)
     goodness_of_fit_test = one_in_x_config.get("goodness_of_fit_test", True)
-    alpha = one_in_x_config.get("alpha", 0.05)
+    alpha = one_in_x_config.get("alpha", UNSET)
     bootstrap_runs = one_in_x_config.get("bootstrap_runs", 100)
     print_goodness_of_fit = one_in_x_config.get("print_goodness_of_fit", True)
     check_ess = one_in_x_config.get("check_ess", True)
@@ -331,12 +331,13 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
         return False
 
     # Validate confidence interval parameters alpha and bootstrap_runs
-    if not isinstance(alpha, float) or alpha <= 0 or alpha >= 1:
-        logger.warning(
-            "\n\nalpha must be a positive float less than 1. "
-            "\nPlease check the configuration."
-        )
-        return False
+    if alpha is not UNSET:
+        if not isinstance(alpha, float) or alpha <= 0 or alpha >= 1:
+            logger.warning(
+                "\n\nalpha must be a positive float less than 1. "
+                "\nPlease check the configuration."
+            )
+            return False
 
     if not isinstance(bootstrap_runs, int) or bootstrap_runs <= 0:
         logger.warning(

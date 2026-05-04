@@ -520,7 +520,7 @@ class TestValidateOneInXParameters:
         assert "block_size must be a positive integer." in caplog.text
 
     def test_invalid_bootstrap_runs_size(self, caplog):
-        """float(block_size) returns False."""
+        """float(bootstrap_runs) returns False."""
         with caplog.at_level(logging.WARNING):
             result = _validate_one_in_x_parameters(
                 {"return_periods": 10, "bootstrap_runs": 1.5}
@@ -529,7 +529,7 @@ class TestValidateOneInXParameters:
         assert "bootstrap_runs must be a positive integer." in caplog.text
 
     def test_invalid_alpha_size(self, caplog):
-        """float(alpha) returns False."""
+        """float(alpha_size) returns False."""
         with caplog.at_level(logging.WARNING):
             result = _validate_one_in_x_parameters({"return_periods": 10, "alpha": -1})
         assert result is False

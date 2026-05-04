@@ -176,7 +176,7 @@ def _get_block_maxima_optimized(
     duration: tuple[int, str] = UNSET,
     groupby: tuple[int, str] = UNSET,
     grouped_duration: tuple[int, str] = UNSET,
-    check_ess: bool = True,
+    check_ess: bool = False,
     block_size: int = 1,
     chunk_spatial: bool = True,
     max_memory_gb: float = 2.0,
@@ -261,7 +261,6 @@ def _get_block_maxima_optimized(
 
     # Handle NaN values efficiently
     # bms = _handle_nan_values_optimized(bms)
-
     return bms
 
 
@@ -463,7 +462,6 @@ def _apply_grouped_duration_filter_vectorized(
 
     """
     dur2_len, dur2_type = grouped_duration
-
     if dur2_type != "day":
         raise ValueError(
             "`grouped_duration` specification must be in days. example: `grouped_duration = (3, 'day')`."

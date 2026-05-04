@@ -84,10 +84,9 @@ class MetricCalc(DataProcessor):
           - grouped_duration (tuple, optional): Rolling window as (int, "day"). Use with event_duration=(1, "day"). Default UNSET
           - block_size (int, optional): Block size in years. Default: 1
           - goodness_of_fit_test (bool, optional): Perform KS test. Default: True
-          - alpha (float, optional): Significance level for confidence intervals. Default: 0.05
+          - alpha (float, optional): Significance level, between 0-1, for confidence intervals. Default UNSET
           - bootstrap_runs (int, optional): Number of bootstrap runs for confidence intervals. Default: 100
           - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
-          - check_ess (bool, optional): Check the effective sample size. Default: True
           - variable_preprocessing (dict, optional): Variable-specific preprocessing options
 
         Threshold Exceedance Count:
@@ -256,10 +255,6 @@ class MetricCalc(DataProcessor):
         self.event_duration = self.one_in_x_config.get("event_duration", (1, "day"))
         self.grouped_duration = self.one_in_x_config.get("grouped_duration", UNSET)
         self.block_size = self.one_in_x_config.get("block_size", 1)
-        self.conf_int_lower_bound = (
-            self.one_in_x_config.get("alpha", 0.05) * 100.0
-        ) / 2  # two-tailed confidence limit as percent
-        self.conf_int_upper_bound = 100.0 - self.conf_int_lower_bound
         self.bootstrap_runs = self.one_in_x_config.get("bootstrap_runs", 100)
         self.goodness_of_fit_test = self.one_in_x_config.get(
             "goodness_of_fit_test", True
@@ -267,10 +262,20 @@ class MetricCalc(DataProcessor):
         self.print_goodness_of_fit = self.one_in_x_config.get(
             "print_goodness_of_fit", True
         )
-        self.check_ess = self.one_in_x_config.get("check_ess", True)
         self.variable_preprocessing = self.one_in_x_config.get(
             "variable_preprocessing", {}
         )
+
+        # Confidence interval setting
+        alpha = self.one_in_x_config.get("alpha", UNSET)
+        if alpha is UNSET:
+            self.conf_int_lower_bound = UNSET
+            self.conf_int_upper_bound = UNSET
+        else:
+            self.conf_int_lower_bound = (
+                alpha * 100.0
+            ) / 2  # two-tailed confidence limit as percent
+            self.conf_int_upper_bound = 100.0 - self.conf_int_lower_bound
 
     def _setup_threshold_parameters(self) -> None:
         """Validate and store threshold exceedance config."""
@@ -746,11 +751,11 @@ class MetricCalc(DataProcessor):
         distr: str = "gev",
         block_size: int = 1,
         extremes_type: str = "max",
-    ) -> Union[np.array, float]:
+    ) -> np.ndarray | float:
         """Function for making a bootstrap-calculated value from input array
 
         Determines a bootstrap-calculated value for relevant parameters from an
-        inputed maximum series.
+        input maximum series.
 
         Parameters
         ----------
@@ -803,7 +808,7 @@ class MetricCalc(DataProcessor):
         block_size: int = 1,
         extremes_type: str = "max",
     ) -> tuple[float, float]:
-        """Function for genearating lower and upper limits of confidence interval
+        """Function for generating lower and upper limits of confidence interval
 
         Returns lower and upper limits of confidence interval given selected parameters.
 
@@ -1023,7 +1028,6 @@ class MetricCalc(DataProcessor):
         # Configure block maxima extraction
         kwargs = {
             "extremes_type": self.extremes_type,
-            "check_ess": self.check_ess,
             "block_size": self.block_size,
         }
 
@@ -1396,25 +1400,29 @@ class MetricCalc(DataProcessor):
             vectorize=True,
         )
 
-        conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
-            self._conf_int,
-            block_maxima_computed,
-            kwargs={
-                "return_periods": self.return_periods,
-                "return_values": self.return_values,
-                "distr": self.distribution,
-                "bootstrap_runs": self.bootstrap_runs,
-                "conf_int_lower_bound": self.conf_int_lower_bound,
-                "conf_int_upper_bound": self.conf_int_upper_bound,
-                "block_size": self.block_size,
-                "extremes_type": self.extremes_type,
-            },
-            input_core_dims=[[time_dim]],
-            output_core_dims=[["one_in_x"], ["one_in_x"]],
-            output_sizes={"one_in_x": output_length},
-            output_dtypes=("float", "float"),
-            vectorize=True,
-        )
+        if self.conf_int_lower_bound is not UNSET:
+            conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
+                self._conf_int,
+                block_maxima_computed,
+                kwargs={
+                    "return_periods": self.return_periods,
+                    "return_values": self.return_values,
+                    "distr": self.distribution,
+                    "bootstrap_runs": self.bootstrap_runs,
+                    "conf_int_lower_bound": self.conf_int_lower_bound,
+                    "conf_int_upper_bound": self.conf_int_upper_bound,
+                    "block_size": self.block_size,
+                    "extremes_type": self.extremes_type,
+                },
+                input_core_dims=[[time_dim]],
+                output_core_dims=[["one_in_x"], ["one_in_x"]],
+                output_sizes={"one_in_x": output_length},
+                output_dtypes=("float", "float"),
+                vectorize=True,
+            )
+        else:
+            conf_int_lower_limit = xr.zeros_like(return_data) * np.nan
+            conf_int_upper_limit = xr.zeros_like(return_data) * np.nan
 
         return return_data, conf_int_lower_limit, conf_int_upper_limit, p_values
 
@@ -1523,25 +1531,29 @@ class MetricCalc(DataProcessor):
             return_data_list.append(chunk_return_data)
             p_values_list.append(chunk_p_values)
 
-            chunk_conf_int_lower_limit, chunk_conf_int_upper_limit = xr.apply_ufunc(
-                self._conf_int,
-                chunk_block_maxima,
-                kwargs={
-                    "return_periods": self.return_periods,
-                    "return_values": self.return_values,
-                    "distr": self.distribution,
-                    "bootstrap_runs": self.bootstrap_runs,
-                    "conf_int_lower_bound": self.conf_int_lower_bound,
-                    "conf_int_upper_bound": self.conf_int_upper_bound,
-                    "block_size": self.block_size,
-                    "extremes_type": self.extremes_type,
-                },
-                input_core_dims=[[time_dim]],
-                output_core_dims=[["one_in_x"], ["one_in_x"]],
-                output_sizes={"one_in_x": output_length},
-                output_dtypes=("float", "float"),
-                vectorize=True,
-            )
+            if self.conf_int_lower_bound is not UNSET:
+                chunk_conf_int_lower_limit, chunk_conf_int_upper_limit = xr.apply_ufunc(
+                    self._conf_int,
+                    chunk_block_maxima,
+                    kwargs={
+                        "return_periods": self.return_periods,
+                        "return_values": self.return_values,
+                        "distr": self.distribution,
+                        "bootstrap_runs": self.bootstrap_runs,
+                        "conf_int_lower_bound": self.conf_int_lower_bound,
+                        "conf_int_upper_bound": self.conf_int_upper_bound,
+                        "block_size": self.block_size,
+                        "extremes_type": self.extremes_type,
+                    },
+                    input_core_dims=[[time_dim]],
+                    output_core_dims=[["one_in_x"], ["one_in_x"]],
+                    output_sizes={"one_in_x": output_length},
+                    output_dtypes=("float", "float"),
+                    vectorize=True,
+                )
+            else:
+                chunk_conf_int_lower_limit = xr.zeros_like(chunk_return_data) * np.nan
+                chunk_conf_int_upper_limit = xr.zeros_like(chunk_return_data) * np.nan
 
             conf_int_lower_limit_list.append(chunk_conf_int_lower_limit)
             conf_int_upper_limit_list.append(chunk_conf_int_upper_limit)
@@ -1751,12 +1763,14 @@ class MetricCalc(DataProcessor):
                     "conf_int_upper_limit": conf_int_upper_limit,
                 }
             )
-        if self.return_values is not UNSET:
+        elif self.return_values is not UNSET:
             result = xr.Dataset(
                 {
                     "return_periods": ret_vals,
                     "conf_int_period_lower_limit": conf_int_lower_limit,
                     "conf_int_period_upper_limit": conf_int_upper_limit,
+                    # Will return np.inf if demoninator is zero (often indicates
+                    # a bad distribution fit)
                     "return_probabilities": 1.0 / ret_vals,
                     "conf_int_prob_lower_limit": 1.0 / conf_int_upper_limit,
                     "conf_int_prob_upper_limit": 1.0 / conf_int_lower_limit,
@@ -1775,24 +1789,36 @@ class MetricCalc(DataProcessor):
             }
         )
 
-        # Add confidence level to attributes
-        for dataarray in [
-            "conf_int_period_lower_limit",
-            "conf_int_prob_lower_limit",
-            "conf_int_lower_limit",
-        ]:
-            if dataarray in result:
-                result[dataarray].attrs[
-                    "confidence interval lower bound"
-                ] = f"{self.conf_int_lower_bound}th percentile"
-        for dataarray in [
-            "conf_int_period_upper_limit",
-            "conf_int_prob_upper_limit",
-            "conf_int_upper_limit",
-        ]:
-            if dataarray in result:
-                result[dataarray].attrs[
-                    "confidence interval upper bound"
-                ] = f"{self.conf_int_upper_bound}th percentile"
+        if self.conf_int_upper_bound is UNSET:
+            # Do not return confidence limit variables
+            conf_list = [
+                "conf_int_period_lower_limit",
+                "conf_int_prob_lower_limit",
+                "conf_int_lower_limit",
+                "conf_int_period_upper_limit",
+                "conf_int_prob_upper_limit",
+                "conf_int_upper_limit",
+            ]
+            result = result.drop_vars(conf_list, errors="ignore")
+        else:
+            # Add confidence level to attributes
+            for dataarray in [
+                "conf_int_period_lower_limit",
+                "conf_int_prob_lower_limit",
+                "conf_int_lower_limit",
+            ]:
+                if dataarray in result:
+                    result[dataarray].attrs[
+                        "confidence_interval_lower_bound"
+                    ] = f"{self.conf_int_lower_bound}th percentile"
+            for dataarray in [
+                "conf_int_period_upper_limit",
+                "conf_int_prob_upper_limit",
+                "conf_int_upper_limit",
+            ]:
+                if dataarray in result:
+                    result[dataarray].attrs[
+                        "confidence_interval_upper_bound"
+                    ] = f"{self.conf_int_upper_bound}th percentile"
 
         return result
