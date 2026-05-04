@@ -56,13 +56,13 @@ plugins:
   - search
   - mkdocstrings:
       default_handler: python
-      import:
-        - https://docs.python-requests.org/en/latest/objects.inv
-        - https://xarray.pydata.org/en/stable/objects.inv
-        - https://dask.readthedocs.io/en/latest/objects.inv
-        - https://geopandas.org/objects.inv
       handlers:
         python:
+          import:
+            - https://docs.python-requests.org/en/latest/objects.inv
+            - https://xarray.pydata.org/en/stable/objects.inv
+            - https://dask.readthedocs.io/en/latest/objects.inv
+            - https://geopandas.org/objects.inv
           options:
             show_source: true
             show_docstring_description: true
