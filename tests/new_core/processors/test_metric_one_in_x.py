@@ -178,7 +178,6 @@ class TestMetricCalcOneInXInit:
             ("distribution", "weibull", "distribution"),
             ("extremes_type", "min", "extremes_type"),
             ("event_duration", (3, "hour"), "event_duration"),
-            ("block_size", 2, "block_size"),
             ("goodness_of_fit_test", False, "goodness_of_fit_test"),
             ("print_goodness_of_fit", False, "print_goodness_of_fit"),
         ],
@@ -197,6 +196,9 @@ class TestMetricCalcOneInXInit:
         assert processor.extremes_type == "max"
         assert processor.event_duration == (1, "day")
         assert processor.block_size == 1
+        assert processor.bootstrap_runs == 100
+        assert processor.conf_int_upper_bound is UNSET
+        assert processor.conf_int_lower_bound is UNSET
         assert processor.goodness_of_fit_test is True
         assert processor.print_goodness_of_fit is True
         assert processor.variable_preprocessing == {}
@@ -208,7 +210,8 @@ class TestMetricCalcOneInXInit:
             "distribution": "gamma",
             "extremes_type": "min",
             "event_duration": (6, "hour"),
-            "block_size": 2,
+            "bootstrap_runs": 50,
+            "alpha": 0.1,
             "goodness_of_fit_test": False,
             "print_goodness_of_fit": False,
             "variable_preprocessing": {"precipitation": {"remove_trace": True}},
@@ -221,7 +224,10 @@ class TestMetricCalcOneInXInit:
         assert processor.distribution == "gamma"
         assert processor.extremes_type == "min"
         assert processor.event_duration == (6, "hour")
-        assert processor.block_size == 2
+        assert processor.block_size == 1
+        assert processor.bootstrap_runs == 50
+        assert processor.conf_int_upper_bound == 95
+        assert processor.conf_int_lower_bound == 5
         assert processor.goodness_of_fit_test is False
         assert processor.print_goodness_of_fit is False
         assert processor.variable_preprocessing == {
@@ -657,6 +663,8 @@ class TestMetricCalcHelperMethods:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "event_duration": (1, "day"),
+                    "alpha": 0.05,
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -664,6 +672,16 @@ class TestMetricCalcHelperMethods:
         # Create mock return values and p-values
         ret_vals = xr.DataArray(
             np.array([[30.0, 35.0], [31.0, 36.0]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0", "sim_1"], "one_in_x": [10, 50]},
+        )
+        ci_lower = xr.DataArray(
+            np.array([[29.0, 34.0], [30.0, 35.0]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0", "sim_1"], "one_in_x": [10, 50]},
+        )
+        ci_upper = xr.DataArray(
+            np.array([[31.0, 36.0], [32.0, 36.0]]),
             dims=["sim", "one_in_x"],
             coords={"sim": ["sim_0", "sim_1"], "one_in_x": [10, 50]},
         )
@@ -681,10 +699,14 @@ class TestMetricCalcHelperMethods:
             },
         )
 
-        result = processor._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
+        result = processor._create_one_in_x_result_dataset(
+            ret_vals, ci_lower, ci_upper, p_vals, data_array
+        )
 
         assert isinstance(result, xr.Dataset)
         assert "return_values" in result.data_vars
+        assert "conf_int_lower_limit" in result.data_vars
+        assert "conf_int_upper_limit" in result.data_vars
         assert "p_values" in result.data_vars
         assert "groupby" in result.attrs
         assert "fitted_distr" in result.attrs
@@ -699,12 +721,24 @@ class TestMetricCalcHelperMethods:
                     "distribution": "gumbel",
                     "event_duration": (1, "day"),
                     "goodness_of_fit_test": False,
+                    "alpha": 0.05,
+                    "bootstrap_runs": 1,
                 }
             }
         )
 
         ret_vals = xr.DataArray(
             np.array([[30.0, 35.0]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
+        )
+        ci_lower = xr.DataArray(
+            np.array([[29.0, 30.0]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
+        )
+        ci_upper = xr.DataArray(
+            np.array([[31.0, 36.0]]),
             dims=["sim", "one_in_x"],
             coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
         )
@@ -717,12 +751,69 @@ class TestMetricCalcHelperMethods:
             },
         )
 
-        result = processor._create_one_in_x_result_dataset(ret_vals, None, data_array)
+        result = processor._create_one_in_x_result_dataset(
+            ret_vals, ci_lower, ci_upper, None, data_array
+        )
 
         assert isinstance(result, xr.Dataset)
         assert "return_values" in result.data_vars
+        assert "conf_int_lower_limit" in result.data_vars
+        assert "conf_int_upper_limit" in result.data_vars
+        assert "confidence_interval_lower_bound" in result["conf_int_lower_limit"].attrs
+        assert "confidence_interval_upper_bound" in result["conf_int_upper_limit"].attrs
         assert "p_values" not in result.data_vars
         assert result.attrs["fitted_distr"] == "gumbel"
+
+    def test_create_result_dataset_with_zero_values(self):
+        """Test _create_one_in_x_result_dataset without p-values."""
+        processor = MetricCalc(
+            {
+                "one_in_x": {
+                    "return_values": [10, 50],
+                    "distribution": "gumbel",
+                    "event_duration": (1, "day"),
+                    "goodness_of_fit_test": False,
+                    "alpha": 0.05,
+                    "bootstrap_runs": 1,
+                }
+            }
+        )
+
+        ret_vals = xr.DataArray(
+            np.array([[1, 0]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
+        )
+        ci_lower = xr.DataArray(
+            np.array([[0, np.nan]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
+        )
+        ci_upper = xr.DataArray(
+            np.array([[2, np.nan]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
+        )
+        data_array = xr.DataArray(
+            np.random.rand(100, 1),
+            dims=["time", "sim"],
+            coords={
+                "time": pd.date_range("2000-01-01", periods=100),
+                "sim": ["sim_0"],
+            },
+        )
+
+        result = processor._create_one_in_x_result_dataset(
+            ret_vals, ci_lower, ci_upper, None, data_array
+        )
+
+        assert isinstance(result, xr.Dataset)
+        assert "return_periods" in result.data_vars
+        assert "conf_int_period_lower_limit" in result.data_vars
+        assert "conf_int_period_upper_limit" in result.data_vars
+        assert np.isinf(result.return_probabilities.sel(one_in_x=50))
+        assert np.isinf(result.conf_int_prob_upper_limit.sel(one_in_x=10))
+        assert np.isnan(result.conf_int_prob_lower_limit.sel(one_in_x=50))
 
     def test_add_dummy_time_with_time_delta(self):
         """Test add_dummy_time_to_wl with time_delta dimension."""
@@ -841,7 +932,12 @@ class TestMetricCalcCalculateOneInXSingle:
     def test_one_in_x_missing_sim_dimension_raises(self):
         """Test that missing 'sim' dimension raises ValueError."""
         processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10, 50], "distribution": "gev"}}
+            {
+                "one_in_x": {
+                    "return_periods": [10, 50],
+                    "distribution": "gev",
+                }
+            }
         )
 
         # Create data without sim dimension
@@ -902,7 +998,12 @@ class TestMetricCalcAdaptiveBatchSize:
     def test_adaptive_batch_size_returns_valid_int(self, one_in_x_da_with_sim):
         """Test that adaptive batch size returns a valid integer."""
         processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10], "distribution": "gev"}}
+            {
+                "one_in_x": {
+                    "return_periods": [10],
+                    "distribution": "gev",
+                }
+            }
         )
 
         batch_size = processor._calculate_adaptive_batch_size(one_in_x_da_with_sim)
@@ -916,7 +1017,12 @@ class TestMetricCalcAdaptiveBatchSize:
         import sys
 
         processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10], "distribution": "gev"}}
+            {
+                "one_in_x": {
+                    "return_periods": [10],
+                    "distribution": "gev",
+                }
+            }
         )
 
         # Temporarily remove psutil from sys.modules to simulate ImportError
@@ -951,15 +1057,19 @@ class TestMetricCalcFitDistributionsVectorized:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "goodness_of_fit_test": True,
+                    "alpha": 0.05,
+                    "bootstrap_runs": 1,
                 }
             }
         )
 
-        return_values, p_values = processor._fit_distributions_vectorized(
-            block_maxima_data, "time"
+        return_values, ci_lower, ci_upper, p_values = (
+            processor._fit_distributions_vectorized(block_maxima_data, "time")
         )
 
         assert return_values is not None
+        assert ci_lower is not None
+        assert ci_upper is not None
         assert p_values is not None
         # Should have one_in_x dimension in return values
         assert "one_in_x" in return_values.dims
@@ -981,11 +1091,15 @@ class TestMetricCalcFitDistributionsVectorized:
         # Convert to dask
         dask_data = block_maxima_data.chunk({"time": 10, "sim": 1})
 
-        return_values, p_values = processor._fit_distributions_vectorized(
-            dask_data, "time"
+        return_values, ci_lower, ci_upper, p_values = (
+            processor._fit_distributions_vectorized(dask_data, "time")
         )
 
         assert return_values is not None
+        assert ci_lower is not None
+        assert ci_upper is not None
+        assert ci_lower.isnull().all()
+        assert ci_upper.isnull().all()
         assert "one_in_x" in return_values.dims
 
 
@@ -1132,7 +1246,6 @@ class TestMetricCalcSpatialBatching:
         block_maxima_kwargs = {
             "extremes_type": "max",
             "check_ess": False,
-            "block_size": 1,
             "groupby": (1, "day"),
         }
 
@@ -1158,6 +1271,8 @@ class TestMetricCalcSpatialBatching:
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
                     "event_duration": (1, "day"),
+                    "alpha": 0.05,
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -1165,7 +1280,6 @@ class TestMetricCalcSpatialBatching:
         block_maxima_kwargs = {
             "extremes_type": "max",
             "check_ess": False,
-            "block_size": 1,
             "groupby": (1, "day"),
         }
 
