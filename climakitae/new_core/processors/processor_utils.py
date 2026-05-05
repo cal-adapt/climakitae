@@ -588,7 +588,7 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
 
 def _calc_simplified_ess_by_sim(year_array: np.array) -> np.array:
     """Function for calculating the effective sample size (ESS) of the provided data
-    using the logarithmic lag method to estimate this statistic for large data.
+    using the logarithmic lag sampling method to estimate this statistic for large data.
 
     Parameters
     ----------
@@ -661,7 +661,7 @@ def _calc_average_ess_gridded_optimized(
 
     Returns
     -------
-    float
+    xr.DataArray or float
         Average effective sample size across sampled spatial locations.
         Returns fallback value if calculation fails.
 
@@ -790,7 +790,7 @@ def _calc_average_ess_timeseries_optimized(
 
     Returns
     -------
-    float
+    xr.DataArray or float
         Average effective sample size across temporal blocks.
         Returns fallback value if calculation fails.
 
