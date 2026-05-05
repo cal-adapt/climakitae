@@ -364,9 +364,11 @@ class Clip(DataProcessor):
                         crs=pyproj.CRS.from_epsg(4326),
                         # 4326 is WGS84 i.e. lat/lon
                     )
+            case gpd.GeoDataFrame():
+                geom = self.value
             case _:
                 raise ValueError(
-                    f"Invalid value type for clipping. Expected str, list, or tuple but got {type(self.value)}."
+                    f"Invalid value type for clipping. Expected str, list, tuple, or GeoDataFrame but got {type(self.value)}."
                 )
 
         if (
