@@ -570,7 +570,7 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
 
         if below_thresh_count > 0:
             logger.warning(
-                "\nSome simulations or time periods have an average effective sample size lower than the recommended threshold of %s. "
+                "Some simulations or time periods have an average effective sample size lower than the recommended threshold of %s. "
                 "This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities. "
                 "Consider using a longer block size to increase the effective sample size.",
                 MIN_ESS_THRESHOLD,
