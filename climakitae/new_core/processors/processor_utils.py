@@ -630,6 +630,9 @@ def _calc_ess_by_sim(data: np.array) -> np.array:
     np.array
         Effective sample size.
 
+    References
+    ----------
+    Zwiers, F. W., and H. von Storch, 1995: Taking Serial Correlation into Account in Tests of the Mean. J. Climate, 8, 336–351, https://doi.org/10.1175/1520-0442(1995)008<0336:TSCIAI>2.0.CO;2.
     """
     n = len(data)
     nlags = n
