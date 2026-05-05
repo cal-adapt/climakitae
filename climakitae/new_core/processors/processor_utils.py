@@ -566,6 +566,8 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
         else:
             # For timeseries data
             average_ess = _calc_average_ess_timeseries_optimized(da, block_size)
+        # Since the data can have multiple dimensions, count how many times the
+        # ESS falls below the threshold across the whole array.
         below_thresh_count = xr.where(average_ess < MIN_ESS_THRESHOLD, 1, 0).sum()
 
         if below_thresh_count > 0:
@@ -597,7 +599,6 @@ def _calc_simplified_ess_by_sim(year_array: np.array) -> np.array:
     -------
     np.array
         Effective sample size.
-        Returned as a DataArray object so it can be utilized by xr.groupby and xr.resample.
 
     """
     # Sample autocorrelation at key lags
@@ -628,7 +629,6 @@ def _calc_ess_by_sim(data: np.array) -> np.array:
     -------
     np.array
         Effective sample size.
-        Returned as a DataArray object so it can be utilized by xr.groupby and xr.resample.
 
     """
     n = len(data)

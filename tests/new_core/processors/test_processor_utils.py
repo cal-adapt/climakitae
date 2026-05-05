@@ -400,6 +400,7 @@ class TestGetBlockMaximaOptimized:
         )
 
         assert isinstance(result, xr.DataArray)
+        assert not np.isnan(result.any())
         # Should have called print for ESS checking
         assert mock_print.call_count >= 0  # May or may not trigger warnings
 
@@ -414,6 +415,7 @@ class TestGetBlockMaximaOptimized:
         )
 
         assert isinstance(result, xr.DataArray)
+        assert not np.isnan(result.any())
         assert result.attrs["extremes type"] == "maxima"
 
 
@@ -686,6 +688,20 @@ class TestCheckEffectiveSampleSizeOptimized:
         assert isinstance(gridded_data, xr.DataArray)
 
     @patch("builtins.print")
+    def test_ess_check_gridded_data_with_sim(self, _mock_print):
+        """Test ESS check for gridded data with a simulation dimension."""
+        # Create data with x,y dimensions as expected by the implementation
+        gridded_data = TestDataFactory.create_climate_dataset(
+            time_periods=365 * 3, lat_points=5, lon_points=5
+        ).rename({"lat": "x", "lon": "y"})
+        gridded_data = gridded_data.expand_dims(sim=["sim"])
+
+        _check_effective_sample_size_optimized(gridded_data, block_size=1)
+
+        # Function should run without errors (may or may not print warnings)
+        assert isinstance(gridded_data, xr.DataArray)
+
+    @patch("builtins.print")
     def test_ess_check_timeseries_data(self, mock_print, sample_timeseries_dataset):
         """Test ESS check for timeseries data."""
         _check_effective_sample_size_optimized(sample_timeseries_dataset, block_size=1)
@@ -726,6 +742,7 @@ class TestCalcAverageEssGriddedOptimized:
         result = _calc_average_ess_gridded_optimized(large_data, block_size=1)
 
         assert isinstance(result, (xr.DataArray))
+        assert not np.isnan(result.any())
 
     @pytest.mark.advanced
     def test_dask_array_ess_calculation(self):
@@ -760,6 +777,7 @@ class TestCalcAverageEssGriddedOptimized:
 
         # Should handle errors and return average of successful calculations
         assert isinstance(result, xr.DataArray)
+        assert not np.isnan(result.any())
 
     def test_ess_calculation_memory_error(self):
         """Test ESS calculation when MemoryError occurs."""
