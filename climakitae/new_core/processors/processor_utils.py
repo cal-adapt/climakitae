@@ -611,6 +611,8 @@ def _calc_simplified_ess_by_sim(year_array: np.array) -> np.array:
             if not np.isnan(corr):
                 autocorr_sum += corr * (n - lag) / n
     ess = n / (1 + 2 * autocorr_sum)
+    if np.isnan(ess):
+        ess = FALLBACK_ESS_VALUE
     return ess
 
 
@@ -636,6 +638,8 @@ def _calc_ess_by_sim(data: np.array) -> np.array:
     for k in range(1, len(acf)):
         sums = sums + (n - k) * acf[k] / n
     ess = n / (1 + 2 * sums)
+    if np.isnan(ess):
+        ess = FALLBACK_ESS_VALUE
     return ess
 
 
@@ -758,7 +762,7 @@ def _calc_average_ess_gridded_optimized(
                     except (ValueError, RuntimeError, IndexError):
                         continue
 
-        if ess_values:
+        if len(ess_values) > 0:
             ess_values = xr.concat(ess_values, dim="block").mean("block")
             return ess_values
         else:
@@ -829,9 +833,9 @@ def _calc_average_ess_timeseries_optimized(
                         vectorize=True,
                     )
                 ess_values.append(ess)
-            except (ValueError, RuntimeError, IndexError) as e:
+            except (ValueError, RuntimeError, IndexError):
                 continue
-        if ess_values:
+        if len(ess_values) > 0:
             ess_values = xr.concat(ess_values, dim="block").mean("block")
             return ess_values
         else:
