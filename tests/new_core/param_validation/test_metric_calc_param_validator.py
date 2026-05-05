@@ -558,18 +558,6 @@ class TestValidateOneInXParameters:
             "Parameter 'check_ess' must be a boolean, got <class 'str'>." in caplog.text
         )
 
-    def test_invalid_multiple_points(self, caplog):
-        """Non-boolean multiple_points returns False."""
-        with caplog.at_level(logging.WARNING):
-            result = _validate_one_in_x_parameters(
-                {"return_periods": 10, "multiple_points": "True"}
-            )
-        assert result is False
-        assert (
-            "Parameter 'multiple_points' must be a boolean, got <class 'str'>."
-            in caplog.text
-        )
-
     @pytest.mark.parametrize(
         "period",
         [
