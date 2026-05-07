@@ -6,60 +6,6 @@ Subset climate data by global warming level thresholds instead of calendar dates
 
 ## Algorithm
 
-```mermaid
-flowchart TD
-    Init([__init__: validate dict, store params,<br/>eagerly load GWL_1850_1900 + GWL_1981_2010 CSVs]) --> Start([execute: dict of xr.Datasets / DataArrays])
-    Start --> Reformat["reformat_member_ids:<br/>split member_id dim into key suffixes"]
-    Reformat --> Extend["extend_time_domain:<br/>splice historical onto SSP scenarios"]
-    Extend --> CenterYears["get_center_years:<br/>look up center year per (key, wl)"]
-    CenterYears --> LoopKeys["For each simulation key"]
-    LoopKeys --> LoopWL["For each (year, wl) pair"]
-    LoopWL --> CheckNaN{Year is NaN?}
-    CheckNaN -->|Yes| WarnSkip["Warn + skip this WL"]
-    CheckNaN -->|No| ComputeWindow["start = center - window<br/>end = center + window - 1"]
-    ComputeWindow --> CheckComplete{_determine_is_complete_wl?}
-    CheckComplete -->|No| WarnSkip
-    CheckComplete -->|Yes| SliceTime["da_slice = data.sel(time=slice(start, end))"]
-    SliceTime --> DropFeb29["Drop Feb 29"]
-    DropFeb29 --> CheckMonths{warming_level_months<br/>specified?}
-    CheckMonths -->|Yes| FilterMonths["Filter to specified months"]
-    CheckMonths -->|No| SwapDim["Swap time dim → time_delta<br/>(range -L/2 .. L/2)"]
-    FilterMonths --> SwapDim
-    SwapDim --> ExpandDims["expand_dims warming_level<br/>+ assign simulation coord"]
-    ExpandDims --> Append["Append to slices"]
-    WarnSkip --> NextWL{More WLs?}
-    Append --> NextWL
-    NextWL -->|Yes| LoopWL
-    NextWL -->|No| Concat["xr.concat(slices, dim='warming_level', join='outer')"]
-    Concat --> CheckDummy{add_dummy_time?}
-    CheckDummy -->|Yes| AddDummy["add_dummy_time_to_wl"]
-    CheckDummy -->|No| StoreCtx["context['_sim_centered_years'] = ..."]
-    AddDummy --> StoreCtx
-    StoreCtx --> UpdateCtx["update_context (writes new_attrs)"]
-    UpdateCtx --> NextKey{More keys?}
-    NextKey -->|Yes| LoopKeys
-    NextKey -->|No| End([Output: dict of Datasets<br/>with warming_level + time_delta dims])
-
-    click Init "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L73" "__init__ (eager CSV load at L91-94)"
-    click Reformat "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L132" "reformat_member_ids call site"
-    click Extend "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L135" "extend_time_domain call site"
-    click CenterYears "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L150" "get_center_years call site"
-    click LoopKeys "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L165" "Outer key loop"
-    click LoopWL "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L173" "Inner (year, wl) loop"
-    click CheckNaN "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L174" "NaN year guard"
-    click ComputeWindow "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L186" "Window math"
-    click CheckComplete "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L189" "_determine_is_complete_wl"
-    click SliceTime "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L201" "Time slice"
-    click DropFeb29 "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L204" "Drop Feb 29"
-    click FilterMonths "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L208" "warming_level_months filter"
-    click SwapDim "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L215" "Swap time → time_delta"
-    click ExpandDims "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L222" "expand_dims + assign_coords"
-    click Concat "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L251" "xr.concat"
-    click AddDummy "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L256" "add_dummy_time_to_wl"
-    click StoreCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L267" "Store sim_centered_years in context"
-    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L308" "update_context method"
-```
-
 ### Execution Flow
 
 1. **Initialization** (lines 73–111): Validate dict, store `warming_levels`, `warming_level_window` (default 15), `warming_level_months` (default `UNSET`), `add_dummy_time` (default `False`). **Eagerly loads two CSV lookup tables** (`gwl_1850-1900ref.csv` at L91 and `gwl_1981-2010ref.csv` at L94). Sets `self.name = "warming_level_simple"` (note: this is the metadata key written to context).

@@ -139,19 +139,19 @@ Want to develop and test new notebooks with climakitae? Launch a full developmen
 
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/climakitae/main?urlpath=lab)
 
-This provides:
-- ✅ Jupyter Lab with full IDE features
-- ✅ climakitae installed in editable mode (source changes live-reload)
-- ✅ All documentation build tools (mkdocs, mkdocstrings)
-- ✅ Example notebooks from cae-notebooks
-- ✅ Complete development environment (pytest, black, isort, git)
-- ⏱️ Up to 6 hours of continuous usage per session
+This provides:  
+- ✅ Jupyter Lab with full IDE features  
+- ✅ climakitae installed in editable mode (source changes live-reload)  
+- ✅ All documentation build tools (mkdocs, mkdocstrings)  
+- ✅ Example notebooks from cae-notebooks  
+- ✅ Complete development environment (pytest, black, isort, git)  
+- ⏱️ Up to 6 hours of continuous usage per session  
 
-Perfect for:
-- Testing notebook examples
-- Developing new climate analysis workflows
-- Contributing to climakitae or cae-notebooks
-- Learning the climakitae API interactively
+Perfect for:  
+- Testing notebook examples  
+- Developing new climate analysis workflows  
+- Contributing to climakitae or cae-notebooks  
+- Learning the climakitae API interactively  
 
 ---
 
@@ -161,15 +161,15 @@ Perfect for:
 
 Click any "Launch on Binder" button above to run notebooks in your browser without local setup. Binder automatically installs all dependencies.
 
-**Advantages**:
-- ✅ No installation needed
-- ✅ Works from any browser
-- ✅ Temporary session (changes not saved)
+**Advantages**:  
+- ✅ No installation needed  
+- ✅ Works from any browser  
+- ✅ Temporary session (changes not saved)  
 
-**Disadvantages**:
-- ⚠️ Limited computational resources
-- ⚠️ Session times out after 10 minutes of inactivity
-- ⚠️ Changes are not persisted
+**Disadvantages**:  
+- ⚠️ Limited computational resources  
+- ⚠️ Session times out after 10 minutes of inactivity  
+- ⚠️ Changes are not persisted  
 
 ### Option 2: Local Installation
 
@@ -201,24 +201,24 @@ Access pre-installed notebooks on the [Cal-Adapt Analytics Engine JupyterHub](ht
 
 ## Notebook Difficulty Progression
 
-**Suggested learning path**:
+**Suggested learning path**:  
 
-1. **Start**: Basic Climate Data Access (understand data model)
-2. **Next**: Global Warming Levels (key climakitae feature)
-3. **Then**: Threshold Exceedance or Model Uncertainty (real-world applications)
+1. **Start**: Basic Climate Data Access (understand data model)  
+2. **Next**: Global Warming Levels (key climakitae feature)  
+3. **Then**: Threshold Exceedance or Model Uncertainty (real-world applications)  
 4. **Advanced**: Time Series Transformations (custom analyses)
 
 ---
 
 ## For More Information
 
-- **climakitae Documentation**: this site (cal-adapt.github.io/climakitae)
-- **cae-notebooks Repository**: [https://github.com/cal-adapt/cae-notebooks](https://github.com/cal-adapt/cae-notebooks)
-- **Cal-Adapt Analytics Engine**: [https://analytics.cal-adapt.org/](https://analytics.cal-adapt.org/)
-  - [Example applications](https://analytics.cal-adapt.org/analytics/applications/example)
-  - [Methods](https://analytics.cal-adapt.org/analytics/methods)
-  - [Glossary](https://analytics.cal-adapt.org/guidance/glossary)
-- **Cal-Adapt Overview**: [https://cal-adapt.org/](https://cal-adapt.org/)
+- **climakitae Documentation**: this site (cal-adapt.github.io/climakitae)  
+- **cae-notebooks Repository**: [https://github.com/cal-adapt/cae-notebooks](https://github.com/cal-adapt/cae-notebooks)  
+- **Cal-Adapt Analytics Engine**: [https://analytics.cal-adapt.org/](https://analytics.cal-adapt.org/)  
+  - [Example applications](https://analytics.cal-adapt.org/analytics/applications/example)  
+  - [Methods](https://analytics.cal-adapt.org/analytics/methods)  
+  - [Glossary](https://analytics.cal-adapt.org/guidance/glossary)  
+- **Cal-Adapt Overview**: [https://cal-adapt.org/](https://cal-adapt.org/)  
 
 ---
 
@@ -230,9 +230,9 @@ Have a notebook example you'd like to share? Contributions are welcome! See the 
 
 ## Binder Configuration
 
-The Binder environment is configured in `.binder/` with:
-- `runtime.txt`: Python 3.12
-- `environment.yml`: Conda dependencies (scientific computing, geospatial, Jupyter, documentation tools)
-- `postBuild`: Installs climakitae in editable mode, configures Jupyter Lab
+The Binder environment is configured in `.binder/` with:  
+- `runtime.txt`: Python 3.12  
+- `environment.yml`: Conda dependencies (scientific computing, geospatial, Jupyter, documentation tools)  
+- `postBuild`: Installs climakitae in editable mode, configures Jupyter Lab  
 
 For details, see [.binder/README.md](https://github.com/cal-adapt/climakitae/blob/main/.binder/README.md).

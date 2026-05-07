@@ -46,22 +46,22 @@ data = (cd
 
 ## Limitations
 
-**Currently available for:**
-- ✅ WRF data only (not LOCA2 statistical downscaling)
+**Currently available for:**  
+- ✅ WRF data only (not LOCA2 statistical downscaling)  
 - ✅ Hourly temperature (t2) only  
-- ✅ HadISD weather stations (~600 globally, ~200 in western US)
+- ✅ HadISD weather stations (~600 globally, ~200 in western US)  
 
 **Why these limitations?**
 
-Bias correction requires:
-- **High-frequency observations** (hourly) to capture temperature variability that drives quantile mapping
-- **WRF hourly data** because WRF's fast-varying dynamics need point-wise calibration
-- **LOCA2 is already bias-corrected** by design using quantile mapping to observations during downscaling (no bias correction needed)
-- **Weather station coverage** — only HadISD provides consistent historical hourly data
+Bias correction requires:  
+- **High-frequency observations** (hourly) to capture temperature variability that drives quantile mapping  
+- **WRF hourly data** because WRF's fast-varying dynamics need point-wise calibration  
+- **LOCA2 is already bias-corrected** by design using quantile mapping to observations during downscaling (no bias correction needed)  
+- **Weather station coverage** — only HadISD provides consistent historical hourly data  
 
-**For other scenarios:**
-- Use direct model output (LOCA2 is already bias-corrected)
-- Implement alternative bias correction method for daily/monthly aggregates
-- Contact support for custom approaches
+**For other scenarios:**  
+- Use direct model output (LOCA2 is already bias-corrected)  
+- Implement alternative bias correction method for daily/monthly aggregates  
+- Contact support for custom approaches  
 
 ---

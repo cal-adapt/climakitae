@@ -95,20 +95,20 @@ data_fahrenheit = (cd
     .get())
 ```
 
-**Available unit conversions:**
-- Temperature: `K` → `degC`, `degF`
-- Precipitation: `mm`, `mm/d`, `mm/h` → `inches`, `kg m-2 s-1`
-- Wind: `m/s`, `m s-1` → `knots`, `mph`
-- Pressure: `Pa`, `hPa` → other pressure units
+**Available unit conversions:**  
+- Temperature: `K` → `degC`, `degF`  
+- Precipitation: `mm`, `mm/d`, `mm/h` → `inches`, `kg m-2 s-1`  
+- Wind: `m/s`, `m s-1` → `knots`, `mph`  
+- Pressure: `Pa`, `hPa` → other pressure units  
 - See [Unit Conversions](climate-data-interface/processors/convert_units.md) for the complete list
 
-## Next Steps
+## Next Steps  
 
-- **Browse variables**: Use `cd.show_variable_options()` to see all available climate variables
-- **Explore boundaries**: Use `cd.show_boundary_options()` to see geographic regions available for clipping
-- **Learn processors**: See the [processor reference](climate-data-interface/processors/index.md) for spatial/temporal operations
-- **Try warming levels**: Use `.processes({"warming_level": {"warming_levels": [1.5, 2.0]}})` for climate scenario analysis
-- **Migrate from legacy**: See [Legacy to ClimateData](migration/legacy-to-climate-data.md) if you're upgrading from the old API
+- **Browse variables**: Use `cd.show_variable_options()` to see all available climate variables  
+- **Explore boundaries**: Use `cd.show_boundary_options()` to see geographic regions available for clipping  
+- **Learn processors**: See the [processor reference](climate-data-interface/processors/index.md) for spatial/temporal operations  
+- **Try warming levels**: Use `.processes({"warming_level": {"warming_levels": [1.5, 2.0]}})` for climate scenario analysis  
+- **Migrate from legacy**: See [Legacy to ClimateData](migration/legacy-to-climate-data.md) if you're upgrading from the old API  
 
 ## Troubleshooting
 
@@ -125,6 +125,6 @@ For more details, see the [API reference](api/climate-data.md), browse [how-to g
 
 ## See also
 
-- [Cal-Adapt Analytics Engine — About the data](https://analytics.cal-adapt.org/data/about)
-- [Cal-Adapt Analytics Engine — Glossary](https://analytics.cal-adapt.org/guidance/glossary) (bias correction, GWLs, downscaling terminology)
+- [Cal-Adapt Analytics Engine — About the data](https://analytics.cal-adapt.org/data/about)  
+- [Cal-Adapt Analytics Engine — Glossary](https://analytics.cal-adapt.org/guidance/glossary) (bias correction, GWLs, downscaling terminology)  
 - [Cal-Adapt Analytics Engine — Example applications](https://analytics.cal-adapt.org/analytics/applications/example) (featured notebooks)

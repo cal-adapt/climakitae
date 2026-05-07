@@ -39,7 +39,7 @@ The `ClimateData` interface is designed with with the following goals in mind:
 
 ## Status
 
-The ClimateData interface has reached feature parity with the legacy `climakitae.core` interface for the catalogs that ship with `climakitae 1.4.x` (`cadcat`, `renewable energy generation`, `hdp`). All new features land here. See [Legacy API status](../legacy/status.md) for the migration timeline.
+The ClimateData interface has reached feature parity with the legacy `climakitae.core` interface for the catalogs that ship with `climakitae 1.5.x` (`cadcat`, `renewable energy generation`, `hdp`). All new features land here. See [Legacy API status](../legacy/status.md) for the migration timeline.
 
 ## See also
 

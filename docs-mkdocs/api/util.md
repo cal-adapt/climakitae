@@ -5,6 +5,7 @@ Supporting utilities for climate data processing, unit conversions, and visualiz
 ## Overview
 
 The `climakitae.util` module provides:
+
 - **General utilities** — Helper functions for data manipulation and analysis
 - **Warming level calculations** — Global warming level trajectory computations
 - **Unit conversions** — Climate variable unit transformation

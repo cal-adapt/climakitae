@@ -189,14 +189,14 @@ class MyCatalogValidator(ParameterValidator):
 
 ## PR Checklist
 
-Before opening a pull request:
+Before opening a pull request:  
 
-- [ ] `black climakitae/ tests/` passes (no diff)
-- [ ] `isort climakitae/ tests/` passes (no diff)
-- [ ] `uv run python -m pytest -n auto -m "not advanced"` passes
-- [ ] NumPy docstrings on every new public symbol
-- [ ] New features added to `new_core/`, not `core/`
-- [ ] Tests added that mirror the source structure
+- [ ] `black climakitae/ tests/` passes (no diff)  
+- [ ] `isort climakitae/ tests/` passes (no diff)  
+- [ ] `uv run python -m pytest -n auto -m "not advanced"` passes  
+- [ ] NumPy docstrings on every new public symbol  
+- [ ] New features added to `new_core/`, not `core/`  
+- [ ] Tests added that mirror the source structure  
 
 For significant changes, open a draft PR early and describe the motivation so
 reviewers can give feedback before full implementation.

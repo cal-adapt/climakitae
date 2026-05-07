@@ -11,16 +11,22 @@ cd = ClimateData()
 
 # Single county
 data = (cd
+    .catalog("cadcat")
+    .activity_id("LOCA2")
     .variable("tasmax")
     .table_id("mon")
     .grid_label("d03")
-    .processes({"clip": "Los Angeles"})  # "Los Angeles" = Los Angeles County
+    .processes({"clip": "Los Angeles County"})
     .get())
 
 # Multiple counties (union)
 data = (cd
+    .catalog("cadcat")
+    .activity_id("LOCA2")
     .variable("tasmax")
-    .processes({"clip": ["Alameda", "Contra Costa", "San Francisco Bay"]})
+    .table_id("mon")
+    .grid_label("d03")
+    .processes({"clip": ["Alameda County", "Contra Costa County", "Santa Clara County"]})
     .get())
 
 # Discover available regions
@@ -29,10 +35,12 @@ cd.show_boundary_options("ca_counties")  # All California counties
 ```
 
 **Available boundary types:**
+
 - `ca_counties`: California counties (58 total)
 - `ca_watersheds`: Hydrologic units (HUC8)
 - `ca_census_tracts`: Census geography
 - `us_states`: Western US states (11 states)
+- `ious_pous`: California investor-owned and public utilities
 - `forecast_zones`: NOAA forecast zones
 - `electric_balancing_areas`: Electric grid authorities
 
@@ -41,7 +49,11 @@ cd.show_boundary_options("ca_counties")  # All California counties
 ```python
 # Query closest grid cell to a point
 data = (cd
+    .catalog("cadcat")
+    .activity_id("LOCA2")
     .variable("tasmax")
+    .table_id("day")
+    .grid_label("d03")
     .processes({"clip": (37.7749, -122.4194)})  # San Francisco
     .get())
 
@@ -60,7 +72,11 @@ locations = [
 ]
 
 data = (cd
+    .catalog("cadcat")
+    .activity_id("LOCA2")
     .variable("tasmax")
+    .table_id("day")
+    .grid_label("d03")
     .processes({"clip": locations})
     .get())
 
@@ -76,7 +92,11 @@ sd_data = data.isel(closest_cell=2)
 ```python
 # Rectangular region: (lat_range, lon_range)
 data = (cd
+    .catalog("cadcat")
+    .activity_id("LOCA2")
     .variable("tasmax")
+    .table_id("mon")
+    .grid_label("d03")
     .processes({
         "clip": ((34.0, 36.0), (-121.0, -119.0))  # LA area
     })
@@ -92,9 +112,13 @@ data_subset = data.sel(lat=slice(34.5, 35.5), lon=slice(-120.5, -119.5))
 # Always clip FIRST, then aggregate
 # ✅ EFFICIENT
 data = (cd
+    .catalog("cadcat")
+    .activity_id("LOCA2")
     .variable("tasmax")
+    .table_id("mon")
+    .grid_label("d03")
     .processes({
-        "clip": "Los Angeles",
+        "clip": "Los Angeles County",
         "time_slice": ("2015-01-01", "2015-12-31")
     })
     .get())
@@ -102,7 +126,13 @@ data = (cd
 spatial_mean = data["tasmax"].mean(dim=["lat", "lon"]).compute()
 
 # ❌ INEFFICIENT (loads all data first)
-data_full = cd.variable("tasmax").get()
+data_full = (cd
+    .catalog("cadcat")
+    .activity_id("LOCA2")
+    .variable("tasmax")
+    .table_id("mon")
+    .grid_label("d03")
+    .get())
 la_data = data_full.sel(lat=slice(33.5, 35.5), lon=slice(-119, -117))
 spatial_mean = la_data["tasmax"].mean().compute()
 ```

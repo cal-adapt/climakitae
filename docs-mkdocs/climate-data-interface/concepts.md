@@ -89,17 +89,17 @@ data = cd.get()
 
 ClimateData provides multiple boundary types for spatial subsetting:
 
-**California Divisions:**
-- `ca_counties`: Administrative counties (58 total)
-- `ca_watersheds`: Hydrologic units at HUC8 level
-- `ca_census_tracts`: Census block groups and tracts
+**California Divisions:**  
+- `ca_counties`: Administrative counties (58 total)  
+- `ca_watersheds`: Hydrologic units at HUC8 level  
+- `ca_census_tracts`: Census block groups and tracts  
 
-**Regional/National:**
+**Regional/National:**  
 - `us_states`: Western US states (11 states)
 
-**Infrastructure:**
-- `ious_pous`: California investor-owned (IOU) and publicly-owned (POU) utilities
-- `electric_balancing_areas`: California electric balancing authority areas
+**Infrastructure:**  
+- `ious_pous`: California investor-owned (IOU) and publicly-owned (POU) utilities  
+- `electric_balancing_areas`: California electric balancing authority areas  
 - `forecast_zones`: California Electricity Demand Forecast Zones (used by the California Energy Commission)
 
 ```python
@@ -337,10 +337,10 @@ plt.title("Temperature at 2°C Global Warming - LA")
 plt.show()
 ```
 
-Key takeaways:
-- **Hierarchy**: Precise dataset selection → reduces ambiguity
-- **Lazy evaluation**: Efficient computation → explores 100GB datasets easily
-- **GWL**: Climate-science-meaningful analysis → policy-aligned results
+Key takeaways:  
+- **Hierarchy**: Precise dataset selection → reduces ambiguity  
+- **Lazy evaluation**: Efficient computation → explores 100GB datasets easily  
+- **GWL**: Climate-science-meaningful analysis → policy-aligned results  
 
 ---
 

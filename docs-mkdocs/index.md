@@ -68,7 +68,8 @@ Full walkthrough: **[Getting Started](getting-started.md)**.
     Design goals, data hierarchy, the processing pipeline, and per-processor
     parameter reference.
 
-    [Core Concepts &rarr;](climate-data-interface/concepts.md) &middot;
+    [Core Concepts &rarr;](climate-data-interface/concepts.md)  
+    
     [Processor Reference &rarr;](climate-data-interface/processors/index.md)
 
 -   **Migrate from the legacy API**

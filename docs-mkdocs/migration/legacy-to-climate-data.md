@@ -265,26 +265,26 @@ data = (ClimateData()
 
 ---
 
-## Migration Checklist
+## Migration Checklist  
 
-- [ ] Replace `from climakitae.core.data_interface import DataParameters, get_data` with `from climakitae.new_core.user_interface import ClimateData`.
-- [ ] Translate field names:
-    - `downscaling_method` ("Dynamical" / "Statistical") → `.activity_id("WRF" | "LOCA2")`
-    - `resolution` ("3 km" / "9 km" / "45 km") → `.grid_label("d03" | "d02" | "d01")`
-    - `timescale` ("hourly" / "daily" / "monthly") → `.table_id("1hr" | "day" | "mon")`
-    - `scenario_ssp` / `scenario_historical` → `.experiment_id(...)` (a list of `"ssp245"` / `"ssp370"` / `"ssp585"` / `"historical"`)
-    - Display variable name (e.g. "Maximum air temperature at 2m") → `.variable("<variable_id>")` such as `"t2max"` for WRF or `"tasmax"` for LOCA2.
-- [ ] Convert year ranges: `params.time_slice = (2015, 2050)` → `.processes({"time_slice": (2015, 2050)})` (or ISO date strings).
-- [ ] Convert clipping: `params.area_subset` + `params.cached_area` → `.processes({"clip": "<boundary name>"})` or a `(lat, lon)` tuple.
-- [ ] Replace `get_data(params)` with `.get()`.
-- [ ] Update option discovery to use `show_*_options()` methods.
-- [ ] Move exports to the `"export"` processor or call `.to_netcdf()` / `.to_zarr()` on the result.
-- [ ] Run side-by-side comparison on a small slice to verify equivalent results before swapping production code.
+- [ ] Replace `from climakitae.core.data_interface import DataParameters, get_data` with `from climakitae.new_core.user_interface import ClimateData`.  
+- [ ] Translate field names:  
+    - `downscaling_method` ("Dynamical" / "Statistical") → `.activity_id("WRF" | "LOCA2")`  
+    - `resolution` ("3 km" / "9 km" / "45 km") → `.grid_label("d03" | "d02" | "d01")`  
+    - `timescale` ("hourly" / "daily" / "monthly") → `.table_id("1hr" | "day" | "mon")`  
+    - `scenario_ssp` / `scenario_historical` → `.experiment_id(...)` (a list of `"ssp245"` / `"ssp370"` / `"ssp585"` / `"historical"`)  
+    - Display variable name (e.g. "Maximum air temperature at 2m") → `.variable("<variable_id>")` such as `"t2max"` for WRF or `"tasmax"` for LOCA2.  
+- [ ] Convert year ranges: `params.time_slice = (2015, 2050)` → `.processes({"time_slice": (2015, 2050)})` (or ISO date strings).  
+- [ ] Convert clipping: `params.area_subset` + `params.cached_area` → `.processes({"clip": "<boundary name>"})` or a `(lat, lon)` tuple.  
+- [ ] Replace `get_data(params)` with `.get()`.  
+- [ ] Update option discovery to use `show_*_options()` methods.  
+- [ ] Move exports to the `"export"` processor or call `.to_netcdf()` / `.to_zarr()` on the result.  
+- [ ] Run side-by-side comparison on a small slice to verify equivalent results before swapping production code.  
 
 ---
 
 ## Still Using Legacy? Questions?
 
-- Legacy interface remains fully supported in `climakitae.core`
-- For new_core API details, see the [API Reference section](../api/climate-data.md)
-- See [Legacy API status](../legacy/status.md) for deprecation timeline
+- Legacy interface remains fully supported in `climakitae.core`  
+- For new_core API details, see the [API Reference section](../api/climate-data.md)  
+- See [Legacy API status](../legacy/status.md) for deprecation timeline  

@@ -4,8 +4,8 @@ Internal utilities for data processor implementation.
 
 ## Overview
 
-The processor utilities modules provide base classes and helper functions for implementing data processors in the ClimateData interface architecture:
-- **Abstract base class** — `DataProcessor` base class and registry
+The processor utilities modules provide base classes and helper functions for implementing data processors in the ClimateData interface architecture:  
+- **Abstract base class** — `DataProcessor` base class and registry  
 - **Processor utilities** — Helper functions for common operations
 
 ## Data Processor Base Class

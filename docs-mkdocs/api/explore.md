@@ -4,7 +4,8 @@ High-level analysis and visualization tools for climate data exploration.
 
 ## Overview
 
-The `climakitae.explore` module provides user-friendly classes and functions for climate data analysis, including:
+The `climakitae.explore` module provides user-friendly classes and functions for climate data analysis, including:  
+
 - **Warming level analysis** — Analyze data by global warming thresholds
 - **Time series visualization** — Plot multi-model ensemble trends
 - **Uncertainty quantification** — CMIP6 ensemble analysis

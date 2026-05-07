@@ -5,13 +5,14 @@ Registry and utilities for climate-derived variable computation.
 ## Overview
 
 The `climakitae.new_core.derived_variables` module provides:
+
 - **Registry** — Centralized registry of available derived variables
 - **Utilities** — Helper functions for variable transformation
-- **Built-in derivations** — Pre-configured derived variables:
-  - Humidity indices (relative humidity, dew point)
-  - Temperature indices (effective temperature, heat index)
-  - Wind computations (wind speed, direction)
-  - Climate indices (growing degree days, etc.)
+- **Built-in derivations** — Pre-configured derived variables:  
+    - Humidity indices (relative humidity, dew point)  
+    - Temperature indices (effective temperature, heat index)  
+    - Wind computations (wind speed, direction)  
+    - Climate indices (growing degree days, etc.)  
 
 ## Registry
 

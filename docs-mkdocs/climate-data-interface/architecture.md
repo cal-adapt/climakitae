@@ -337,11 +337,11 @@ When registering a custom processor, pick a priority that puts it in the
 phase that matches its intent. See the [Processors index](./processors/index.md)
 for the full registry.
 
-**Key Rules**:
-- **No in-place mutation**: Always return new objects
-- **Preserve laziness**: Don't call `.load()` or `.compute()`
-- **Handle edge cases**: Return data with warnings instead of raising
-- **Update context**: Document what the processor did
+**Key Rules**:  
+- **No in-place mutation**: Always return new objects  
+- **Preserve laziness**: Don't call `.load()` or `.compute()`  
+- **Handle edge cases**: Return data with warnings instead of raising  
+- **Update context**: Document what the processor did  
 
 **Registry Access**:
 ```python
@@ -362,6 +362,7 @@ for key, (cls, priority) in sorted(_PROCESSOR_REGISTRY.items(),
 The **Clip processor** is the primary tool for spatial subsetting. It extracts data for specific regions while maintaining data integrity and lazy evaluation.
 
 **Key Characteristics**:
+
 - Supports 5 input modes: named boundaries, points, bounding boxes, weather stations, shapefiles
 - Preserves coordinate systems and projections
 - Works with lazy dask arrays (no premature loading)
@@ -395,16 +396,19 @@ WRF model output can be bias-corrected using historical weather station observat
 **Purpose**: Adjust systematic model bias while preserving projected climate trends using Quantile Delta Mapping (QDM).
 
 **Current Scope**:
+
 - ✅ WRF data only (not LOCA2)
 - ✅ Hourly temperature (t2) only
 - ✅ HadISD weather stations (~600 globally, ~200 western US)
 
 **When to Use**:
+
 - Local impact assessment where historical accuracy matters
 - Building/infrastructure design requiring site-specific bias correction
 - When observation-corrected distribution is important
 
 **When NOT to Use**:
+
 - Regional/state-level planning (raw model suitable for large areas)
 - LOCA2 data (already bias-corrected during downscaling)
 - Other variables/resolutions (not yet supported)
@@ -416,12 +420,14 @@ See [Processor: Bias Adjust Model to Station](./processors/bias_adjust_model_to_
 The **Export processor** writes climate data to disk in multiple formats optimized for different use cases.
 
 **Supported Formats**:
+
 - **NetCDF**: Standard scientific format with CF conventions (default)
 - **Zarr**: Cloud-optimized chunked storage for large datasets
 - **CSV**: Tabular format for time series and spreadsheet analysis
 - **GeoTIFF**: Raster format compatible with GIS software (QGIS, ArcGIS)
 
 **Key Features**:
+
 - Handles gridded datasets, multi-point extractions, and point collections
 - Optional location-based filenames (e.g., `data_34.05N_118.25W.nc`)
 - S3 cloud storage support (Zarr format only)
@@ -429,6 +435,7 @@ The **Export processor** writes climate data to disk in multiple formats optimiz
 - Automatic format inference or explicit specification
 
 **Efficiency**:
+
 - Export should be the LAST processor (priority 9999)
 - Processes build computation graph, export writes results
 - For large datasets, prefer Zarr for cloud storage or incremental processing
@@ -486,6 +493,7 @@ for step, description in context["_new_attributes"].items():
 ```
 
 **Benefits**:
+
 - Track all processing steps applied to data
 - Enable reproducible analysis workflows
 - Debug unexpected data anomalies
@@ -579,6 +587,7 @@ class DataCatalog(dict):
 ```
 
 **Thread-Safety Contract**:
+
 - Pass mutable state as parameters, not stored on singleton
 - Each thread can safely call methods concurrently
 - Catalog connections are immutable after initialization
@@ -598,6 +607,7 @@ final = result.mean(dim='time')  # Already computed
 ```
 
 **Why Lazy Evaluation Matters**:
+
 - Climate datasets are huge (100GB+ common)
 - `.load()` exhausts memory
 - Operations build a computation graph
@@ -868,6 +878,7 @@ def execute(self, result, context):
 ### Test Structure
 
 Tests mirror source structure:
+
 - Source: `climakitae/new_core/processors/clip.py`
 - Tests: `tests/new_core/processors/test_clip.py`
 
