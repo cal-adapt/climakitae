@@ -5,12 +5,13 @@ DataProcessor MetricCalc
 import gc
 import logging
 import time as time_module
-from typing import Any, Iterable
+from typing import Any, Iterable, Union
 
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import xarray as xr
+from pandas.errors import OutOfBoundsDatetime
 from tqdm.auto import tqdm
 
 from climakitae.core.constants import (
@@ -24,7 +25,10 @@ from climakitae.core.constants import (
     SMALL_ARRAY_THRESHOLD_BYTES,
     UNSET,
 )
-from climakitae.explore.threshold_tools import _get_distr_func, _get_fitted_distr
+from climakitae.explore.threshold_tools import (
+    _get_distr_func,
+    _get_fitted_distr,
+)
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
@@ -69,14 +73,19 @@ class MetricCalc(DataProcessor):
         - skipna (bool, optional): Whether to skip NaN values in calculations. Default: True
 
         1-in-X Return Value Analysis:
-        - one_in_x (dict, optional): Configuration for 1-in-X extreme value analysis.
-          If provided, performs extreme value analysis instead of basic metrics. Keys:
-          - return_periods (list): List of return periods (e.g., [10, 25, 50, 100])
+        - one_in_x (dict, optional): Configuration for annual 1-in-X extreme value analysis.
+          If provided, performs extreme value analysis instead of basic metrics. Only
+          one of "return_periods" or "return_values" can be set at a time. Keys:
+          - return_periods (list): List of return periods in years (e.g., [10, 25, 50, 100])
+          - return_values (list): List of return values (e.g., [100, 105, 110])
           - distribution (str, optional): Distribution for fitting ("gev", "genpareto", "gamma"). Default: "gev"
           - extremes_type (str, optional): "max" or "min". Default: "max"
           - event_duration (tuple, optional): Event duration as (int, str). Default: (1, "day")
+          - grouped_duration (tuple, optional): Rolling window as (int, "day"). Use with event_duration=(1, "day"). Default UNSET
           - block_size (int, optional): Block size in years. Default: 1
           - goodness_of_fit_test (bool, optional): Perform KS test. Default: True
+          - alpha (float, optional): Significance level, between 0-1, for confidence intervals. Default UNSET
+          - bootstrap_runs (int, optional): Number of bootstrap runs for confidence intervals. Default: 100
           - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
           - variable_preprocessing (dict, optional): Variable-specific preprocessing options
 
@@ -136,6 +145,7 @@ class MetricCalc(DataProcessor):
     - The processor preserves all attributes and coordinates from the input data
     - Results maintain the same structure as input (Dataset/DataArray/Iterable)
     - When both percentiles and metrics are calculated, the results are combined into a single output
+    - The 1-in-X return variable analysis uses a block size of 1 year
     """
 
     def __init__(self, value: dict[str, Any]):
@@ -192,22 +202,60 @@ class MetricCalc(DataProcessor):
                 "one_in_x_config cannot be UNSET when calling _setup_one_in_x_parameters"
             )
 
-        # Required parameter
-        self.return_periods = self.one_in_x_config.get("return_periods")
-        if self.return_periods is None or self.return_periods is UNSET:
-            raise ValueError("return_periods is required for 1-in-X calculations")
+        # Required parameters - either return_periods or return_values must be set
+        self.return_periods = self.one_in_x_config.get("return_periods", UNSET)
+        self.return_values = self.one_in_x_config.get("return_values", UNSET)
+        if self.return_periods is UNSET:
+            if self.return_values is UNSET:
+                raise ValueError(
+                    "return_periods or return_values is required for 1-in-X calculations"
+                )
+        if self.return_periods is not UNSET:
+            if self.return_values is not UNSET:
+                raise ValueError(
+                    "Only set one of return_periods or return_values for 1-in-X calculations"
+                )
+
+        # Setting up a helper function to convert the return_periods and return_values data
+        def _data_to_np_array(
+            data_to_convert: Union[list, tuple, np.ndarray],
+        ) -> np.ndarray:
+            """Take data in a list, tuple, or array format and return as a numpy array.
+
+            Parameters
+            ----------
+            data_to_convert: list, tuple or np.ndarray
+                Data to convert to numpy array format
+
+            Returns
+            -------
+            np.ndarray
+            """
+            match data_to_convert:
+                case np.ndarray():
+                    return data_to_convert
+                case float() | int():
+                    return np.array([data_to_convert])
+                case list() | tuple():
+                    return np.array(data_to_convert)
+                case _:
+                    raise ValueError(
+                        f"Expected type np.ndarray, list, or tuple. Got {type(data_to_convert)}."
+                    )
 
         # Convert to numpy array for consistency
-        if not isinstance(self.return_periods, (list, np.ndarray)):
-            self.return_periods = np.array([self.return_periods])
-        elif isinstance(self.return_periods, list):
-            self.return_periods = np.array(self.return_periods)
+        if self.return_periods is not UNSET:
+            self.return_periods = _data_to_np_array(self.return_periods)
+        elif self.return_values is not UNSET:
+            self.return_values = _data_to_np_array(self.return_values)
 
         # Optional parameters with defaults
         self.distribution = self.one_in_x_config.get("distribution", "gev")
         self.extremes_type = self.one_in_x_config.get("extremes_type", "max")
         self.event_duration = self.one_in_x_config.get("event_duration", (1, "day"))
+        self.grouped_duration = self.one_in_x_config.get("grouped_duration", UNSET)
         self.block_size = self.one_in_x_config.get("block_size", 1)
+        self.bootstrap_runs = self.one_in_x_config.get("bootstrap_runs", 100)
         self.goodness_of_fit_test = self.one_in_x_config.get(
             "goodness_of_fit_test", True
         )
@@ -217,6 +265,17 @@ class MetricCalc(DataProcessor):
         self.variable_preprocessing = self.one_in_x_config.get(
             "variable_preprocessing", {}
         )
+
+        # Confidence interval setting
+        alpha = self.one_in_x_config.get("alpha", UNSET)
+        if alpha is UNSET:
+            self.conf_int_lower_bound = UNSET
+            self.conf_int_upper_bound = UNSET
+        else:
+            self.conf_int_lower_bound = (
+                alpha * 100.0
+            ) / 2  # two-tailed confidence limit as percent
+            self.conf_int_upper_bound = 100.0 - self.conf_int_lower_bound
 
     def _setup_threshold_parameters(self) -> None:
         """Validate and store threshold exceedance config."""
@@ -590,12 +649,24 @@ class MetricCalc(DataProcessor):
                     logger.info("Processing variable: %s", var_name)
                     var_result = self._calculate_one_in_x_single(data[var_name])
                     # Rename variables to include source variable name
-                    var_result = var_result.rename(
-                        {
-                            "return_values": f"{var_name}_return_values",
-                            "p_values": f"{var_name}_p_values",
-                        }
-                    )
+                    if self.return_periods is not UNSET:
+                        var_result = var_result.rename(
+                            {
+                                "return_values": f"{var_name}_return_values",
+                                "conf_int_lower_limit": f"{var_name}_conf_int_lower_limit",
+                                "conf_int_upper_limit": f"{var_name}_conf_int_upper_limit",
+                                "p_values": f"{var_name}_p_values",
+                            }
+                        )
+                    else:
+                        var_result = var_result.rename(
+                            {
+                                "return_periods": f"{var_name}_return_periods",
+                                "conf_int_lower_limit": f"{var_name}_conf_int_lower_limit",
+                                "conf_int_upper_limit": f"{var_name}_conf_int_upper_limit",
+                                "p_values": f"{var_name}_p_values",
+                            }
+                        )
                     results.append(var_result)
 
                 # Merge all results into a single dataset
@@ -631,25 +702,172 @@ class MetricCalc(DataProcessor):
             else:
                 logger.info("Large array detected - using Dask optimization...")
 
-        # Check if we have a time dimension, and add dummy time if needed
+        # Check if we have a time dimension, and add dummy time or frequency if needed
         if "time" not in data_array.dims:
-            data_array = add_dummy_time_to_wl(data_array)
+            try:
+                data_array = add_dummy_time_to_wl(data_array)
+                # Frequency needed for _apply_duration_filter_vectorized later on
+                data_array.attrs["frequency"] = "day"
+            except OutOfBoundsDatetime:
+                data_array = add_dummy_time_to_wl(data_array, freq_name="1hr")
+                data_array.attrs["frequency"] = "1hr"
+        else:
+            # Check if we have a frequency
+            if data_array.attrs.get("frequency", "") == "":
+                # Check the time difference at first step
+                diff = data_array.time[1] - data_array.time[0]
+                if diff == np.timedelta64(1, "D"):
+                    data_array.attrs["frequency"] = "day"
+                elif diff == np.timedelta64(1, "h"):
+                    data_array.attrs["frequency"] = "1hr"
+                else:
+                    # monthly is the third allowed option
+                    data_array.attrs["frequency"] = "mon"
 
         # Apply variable-specific preprocessing
         data_array = self._preprocess_variable_for_one_in_x(data_array, var_name)
 
-        logger.info(
-            "Calculating 1-in-%s year return values using %s distribution...",
-            self.return_periods,
-            self.distribution,
-        )
+        if self.return_periods is not UNSET:
+            logger.info(
+                "Calculating 1-in-%s year return values using %s distribution...",
+                self.return_periods,
+                self.distribution,
+            )
+        else:
+            logger.info(
+                "Calculating return periods for return values %s using %s distribution...",
+                self.return_values,
+                self.distribution,
+            )
         return self._calculate_one_in_x_vectorized(data_array)
 
-    def _fit_return_values_1d(
+    def _bootstrap(
         self,
         block_maxima_1d: np.ndarray,
-        return_periods: np.ndarray,
+        return_periods: np.ndarray = UNSET,
+        return_values: np.ndarray = UNSET,
         distr: str = "gev",
+        block_size: int = 1,
+        extremes_type: str = "max",
+    ) -> np.ndarray | float:
+        """Function for making a bootstrap-calculated value from input array
+
+        Determines a bootstrap-calculated value for relevant parameters from an
+        input maximum series.
+
+        Parameters
+        ----------
+        block_maxima_1d : np.ndarray
+            Block maximum series
+        return_periods : np.ndarray
+            Array of return periods in years (e.g., [10, 25, 50, 100]).
+        return_values : np.ndarray
+            Array of return values in data units.
+        distr : str, optional
+            Distribution type for fitting. Options: "gev", "gumbel", "weibull",
+            "pearson3", "genpareto", "gamma". Default: "gev".
+        block_size : int, optional
+            Block size in years. Default: 1
+        extremes_type : str, optional
+            Type of extremes: "max" for maxima, "min" for minima. Default: "max".
+
+        Returns
+        -------
+        np.ndarray | float
+
+        """
+        sample_size = len(block_maxima_1d)
+        new_bms = np.random.choice(block_maxima_1d, size=sample_size, replace=True)
+
+        try:
+            result, _ = self._fit_return_variable_1d(
+                new_bms,
+                return_periods,
+                return_values,
+                distr,
+                block_size=block_size,
+                extremes_type=extremes_type,
+                get_p_value=False,
+            )
+        except (ValueError, ZeroDivisionError):
+            result = np.nan
+
+        return result
+
+    def _conf_int(
+        self,
+        block_maxima_1d: np.ndarray,
+        return_periods: np.ndarray = UNSET,
+        return_values: np.ndarray = UNSET,
+        distr: str = "gev",
+        bootstrap_runs: int = 100,
+        conf_int_lower_bound: float = 2.5,
+        conf_int_upper_bound: float = 97.5,
+        block_size: int = 1,
+        extremes_type: str = "max",
+    ) -> tuple[float, float]:
+        """Function for generating lower and upper limits of confidence interval
+
+        Returns lower and upper limits of confidence interval given selected parameters.
+
+        Parameters
+        ----------
+        block_maxima_1d : np.ndarray
+            Block maximum series
+        return_periods : np.ndarray
+            Array of return periods in years (e.g., [10, 25, 50, 100]).
+        return_values : np.ndarray
+            Array of return values in data units.
+        distr : str, optional
+            Distribution type for fitting. Options: "gev", "gumbel", "weibull",
+            "pearson3", "genpareto", "gamma". Default: "gev".
+        bootstrap_runs : int
+            Number of bootstrap samples
+        conf_int_lower_bound : float
+            Confidence interval lower bound
+        conf_int_upper_bound : float
+            Confidence interval upper bound
+        block_size : int
+            block size, in years, of the provided block maximum series
+        extremes_type : str, optional
+            Type of extremes: "max" for maxima, "min" for minima. Default: "max".
+
+        Returns
+        -------
+        float, float
+
+        """
+        bootstrap_values = []
+
+        for _ in range(bootstrap_runs):
+            result = self._bootstrap(
+                block_maxima_1d,
+                return_periods,
+                return_values,
+                distr,
+                block_size,
+                extremes_type,
+            )
+            bootstrap_values.append(result)
+
+        bootstrap_values = np.stack(bootstrap_values, axis=0)
+
+        conf_int_array = np.percentile(
+            bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound], axis=0
+        )
+
+        conf_int_lower_limit = conf_int_array[0]
+        conf_int_upper_limit = conf_int_array[1]
+
+        return conf_int_lower_limit, conf_int_upper_limit
+
+    def _fit_return_variable_1d(
+        self,
+        block_maxima_1d: np.ndarray,
+        return_periods: np.ndarray = UNSET,
+        return_values: np.ndarray = UNSET,
+        distr: str = "gev",
+        block_size: int = 1,
         extremes_type: str = "max",
         get_p_value: bool = False,
     ) -> tuple[np.ndarray, float]:
@@ -665,9 +883,13 @@ class MetricCalc(DataProcessor):
             1D array of block maxima values (e.g., annual maxima).
         return_periods : np.ndarray
             Array of return periods in years (e.g., [10, 25, 50, 100]).
+        return_values : np.ndarray
+            Array of return values in data units.
         distr : str, optional
             Distribution type for fitting. Options: "gev", "gumbel", "weibull",
             "pearson3", "genpareto", "gamma". Default: "gev".
+        block_size : int
+            block size, in years, of the provided block maximum series
         extremes_type : str, optional
             Type of extremes: "max" for maxima, "min" for minima. Default: "max".
         get_p_value : bool, optional
@@ -677,20 +899,24 @@ class MetricCalc(DataProcessor):
         -------
         tuple[np.ndarray, float]
             Tuple containing:
-            - return_values: Array of return values for each return period
+            - return_values or return_periods: Array of return values or periods for each return period
             - p_value: P-value from Kolmogorov-Smirnov test (np.nan if not calculated)
 
         Notes
         -----
         Requires at least MIN_VALID_DATA_POINTS (3) non-NaN values for fitting.
         Returns arrays of NaN if fitting fails.
+        return_periods and return_values are mutually exclusive parameters. return_periods will be used if both are provided.
         """
         # Remove NaN values
         valid_data = block_maxima_1d[~np.isnan(block_maxima_1d)]
 
         # Need at least 3 valid data points for meaningful distribution fitting
         if len(valid_data) < MIN_VALID_DATA_POINTS:
-            return np.full_like(return_periods, np.nan, dtype=float), np.nan
+            if return_periods is not UNSET:
+                return np.full_like(return_periods, np.nan, dtype=float), np.nan
+            else:
+                return np.full_like(return_values, np.nan, dtype=float), np.nan
 
         try:
             # _get_fitted_distr works with array-like inputs (numpy or xarray)
@@ -731,21 +957,64 @@ class MetricCalc(DataProcessor):
                 p_value = ks[1]
 
             # Calculate return values for each return period
-            event_prob = 1.0 / return_periods  # Assuming 1-year blocks
-            if extremes_type == "max":
-                return_events = 1.0 - event_prob
-            else:  # min
-                return_events = event_prob
-            return_values = np.round(
-                fitted_distr.ppf(return_events), RETURN_VALUE_PRECISION  # type: ignore[union-attr]
-            )
-            if get_p_value:
-                return return_values, p_value
+            if return_periods is not UNSET:
+                # Adjustment with block_size to get annual probability
+                event_prob = block_size / return_periods
+                if extremes_type == "max":
+                    return_events = 1.0 - event_prob
+                else:  # min
+                    return_events = event_prob
+                return_values = np.round(
+                    fitted_distr.ppf(return_events), RETURN_VALUE_PRECISION  # type: ignore[union-attr]
+                )
+
+                if get_p_value:
+                    return (
+                        return_values,
+                        p_value,
+                    )
+                else:
+                    return (
+                        return_values,
+                        np.nan,
+                    )
+
+            elif return_values is not UNSET:
+                # Use cumulative probability to get 1 year probability
+                # cumulative probability = 1 - (1 - 1/X)**M
+                # For example see https://journals.ametsoc.org/view/journals/atot/37/11/JTECH-D-20-0070.1.xml
+                cdf_val = fitted_distr.cdf(return_values) ** (1 / block_size)
+                if extremes_type == "max":
+                    return_prob = 1.0 - cdf_val
+                else:  # min
+                    return_prob = cdf_val
+                return_periods = 1.0 / return_prob
+
+                if get_p_value:
+                    return (
+                        return_periods,
+                        p_value,
+                    )
+                else:
+                    return (
+                        return_periods,
+                        np.nan,
+                    )
+
             else:
-                return return_values, np.nan
+                raise ValueError("one of return_periods or return_values must be set")
 
         except (ValueError, RuntimeError, np.linalg.LinAlgError):
-            return np.full_like(return_periods, np.nan), np.nan
+            if return_periods is not UNSET:
+                return (
+                    np.full_like(return_periods, np.nan),
+                    np.nan,
+                )
+            else:
+                return (
+                    np.full_like(return_values, np.nan),
+                    np.nan,
+                )
 
     def _calculate_one_in_x_vectorized(self, data_array: xr.DataArray) -> xr.Dataset:
         """
@@ -757,7 +1026,6 @@ class MetricCalc(DataProcessor):
         # Configure block maxima extraction
         kwargs = {
             "extremes_type": self.extremes_type,
-            "check_ess": False,
             "block_size": self.block_size,
         }
 
@@ -765,6 +1033,7 @@ class MetricCalc(DataProcessor):
             kwargs["groupby"] = self.event_duration
         elif self.event_duration[1] == "hour":
             kwargs["duration"] = self.event_duration
+        kwargs["grouped_duration"] = self.grouped_duration
 
         # Calculate adaptive batch size based on available memory
         batch_size = self._calculate_adaptive_batch_size(data_array)
@@ -821,7 +1090,7 @@ class MetricCalc(DataProcessor):
             "All batches complete. Combining %d batch results...", len(batch_results)
         )
         combined_ds = xr.concat(batch_results, dim="sim")
-        logger.info("Final result shape: %s", dict(combined_ds.dims))
+        logger.info("Final result shape: %s", dict(combined_ds.sizes))
 
         return combined_ds
 
@@ -981,8 +1250,10 @@ class MetricCalc(DataProcessor):
 
         if spatial_dim and spatial_size_check > SPATIAL_BATCH_SIZE:
             # Process spatial chunks sequentially - this avoids loading all data at once
-            return_values, p_values = self._fit_with_early_spatial_batching(
-                batch_data, block_maxima_kwargs, spatial_dim, SPATIAL_BATCH_SIZE
+            return_data, conf_int_lower_limit, conf_int_upper_limit, p_values = (
+                self._fit_with_early_spatial_batching(
+                    batch_data, block_maxima_kwargs, spatial_dim, SPATIAL_BATCH_SIZE
+                )
             )
         else:
             # Small enough to process all at once
@@ -1028,8 +1299,8 @@ class MetricCalc(DataProcessor):
                 n_fits,
             )
 
-            return_values, p_values = self._fit_distributions_vectorized(
-                block_maxima, time_dim
+            return_data, conf_int_lower_limit, conf_int_upper_limit, p_values = (
+                self._fit_distributions_vectorized(block_maxima, time_dim)
             )
 
         # If goodness-of-fit test is not requested, set p_values to None
@@ -1037,13 +1308,32 @@ class MetricCalc(DataProcessor):
             p_values = None
 
         # Assign return periods as coordinates
-        return_values = return_values.assign_coords(one_in_x=self.return_periods)
+        if self.return_periods is not UNSET:
+            return_data = return_data.assign_coords(one_in_x=self.return_periods)
+            conf_int_lower_limit = conf_int_lower_limit.assign_coords(
+                one_in_x=self.return_periods
+            )
+            conf_int_upper_limit = conf_int_upper_limit.assign_coords(
+                one_in_x=self.return_periods
+            )
+        elif self.return_values is not UNSET:
+            return_data = return_data.assign_coords(one_in_x=self.return_values)
+            conf_int_lower_limit = conf_int_lower_limit.assign_coords(
+                one_in_x=self.return_values
+            )
+            conf_int_upper_limit = conf_int_upper_limit.assign_coords(
+                one_in_x=self.return_values
+            )
 
         # Step 4: Create result dataset
         logger.info("Creating result dataset...")
         step_start = time_module.time()
         result_ds = self._create_one_in_x_result_dataset(
-            return_values, p_values, batch_data
+            return_data,
+            conf_int_lower_limit,
+            conf_int_upper_limit,
+            p_values,
+            batch_data,
         )
         logger.debug(
             "Result dataset creation took %.1fs", time_module.time() - step_start
@@ -1062,7 +1352,7 @@ class MetricCalc(DataProcessor):
 
     def _fit_distributions_vectorized(
         self, block_maxima: xr.DataArray, time_dim: str
-    ) -> tuple[xr.DataArray, xr.DataArray]:
+    ) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]:
         """
         Fit distributions using vectorized apply_ufunc.
 
@@ -1075,8 +1365,8 @@ class MetricCalc(DataProcessor):
 
         Returns
         -------
-        tuple[xr.DataArray, xr.DataArray]
-            Return values and p-values arrays
+        tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]
+            Return values, confidence intervals, and p-values arrays
         """
         # Compute block maxima to numpy first (small after yearly aggregation)
         if hasattr(block_maxima.data, "compute"):
@@ -1084,23 +1374,55 @@ class MetricCalc(DataProcessor):
         else:
             block_maxima_computed = block_maxima
 
+        if self.return_periods is not UNSET:
+            output_length = len(self.return_periods)
+        else:
+            output_length = len(self.return_values)
+
         # Apply the return value fitting function
-        return_values, p_values = xr.apply_ufunc(
-            self._fit_return_values_1d,
+        return_data, p_values = xr.apply_ufunc(
+            self._fit_return_variable_1d,
             block_maxima_computed,
             kwargs={
                 "return_periods": self.return_periods,
+                "return_values": self.return_values,
                 "distr": self.distribution,
+                "block_size": self.block_size,
+                "extremes_type": self.extremes_type,
                 "get_p_value": self.goodness_of_fit_test,
             },
             input_core_dims=[[time_dim]],
             output_core_dims=[["one_in_x"], []],
-            output_sizes={"one_in_x": len(self.return_periods)},
+            output_sizes={"one_in_x": output_length},
             output_dtypes=("float", "float"),
             vectorize=True,
         )
 
-        return return_values, p_values
+        if self.conf_int_lower_bound is not UNSET:
+            conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
+                self._conf_int,
+                block_maxima_computed,
+                kwargs={
+                    "return_periods": self.return_periods,
+                    "return_values": self.return_values,
+                    "distr": self.distribution,
+                    "bootstrap_runs": self.bootstrap_runs,
+                    "conf_int_lower_bound": self.conf_int_lower_bound,
+                    "conf_int_upper_bound": self.conf_int_upper_bound,
+                    "block_size": self.block_size,
+                    "extremes_type": self.extremes_type,
+                },
+                input_core_dims=[[time_dim]],
+                output_core_dims=[["one_in_x"], ["one_in_x"]],
+                output_sizes={"one_in_x": output_length},
+                output_dtypes=("float", "float"),
+                vectorize=True,
+            )
+        else:
+            conf_int_lower_limit = xr.zeros_like(return_data) * np.nan
+            conf_int_upper_limit = xr.zeros_like(return_data) * np.nan
+
+        return return_data, conf_int_lower_limit, conf_int_upper_limit, p_values
 
     def _fit_with_early_spatial_batching(
         self,
@@ -1108,7 +1430,7 @@ class MetricCalc(DataProcessor):
         block_maxima_kwargs: dict,
         spatial_dim: str,
         batch_size: int,
-    ) -> tuple[xr.DataArray, xr.DataArray]:
+    ) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]:
         """
         Fit distributions with EARLY spatial batching - before computing block maxima.
 
@@ -1129,8 +1451,8 @@ class MetricCalc(DataProcessor):
 
         Returns
         -------
-        tuple[xr.DataArray, xr.DataArray]
-            Return values and p-values arrays
+        tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]
+            Return values, confidence intervals, and p-values arrays
         """
         n_spatial = batch_data.sizes[spatial_dim]
         n_batches = int(np.ceil(n_spatial / batch_size))
@@ -1142,8 +1464,15 @@ class MetricCalc(DataProcessor):
             batch_size,
         )
 
-        return_values_list = []
+        return_data_list = []
+        conf_int_lower_limit_list = []
+        conf_int_upper_limit_list = []
         p_values_list = []
+        # Set expected length of ufunc return
+        if self.return_periods is not UNSET:
+            output_length = len(self.return_periods)
+        else:
+            output_length = len(self.return_values)
 
         step_start = time_module.time()
 
@@ -1176,23 +1505,56 @@ class MetricCalc(DataProcessor):
             time_dim = "time" if "time" in chunk_block_maxima.dims else "time_delta"
 
             # Step 3: Fit distributions for this spatial chunk
-            chunk_return_values, chunk_p_values = xr.apply_ufunc(
-                self._fit_return_values_1d,
+            (
+                chunk_return_data,
+                chunk_p_values,
+            ) = xr.apply_ufunc(
+                self._fit_return_variable_1d,
                 chunk_block_maxima,
                 kwargs={
                     "return_periods": self.return_periods,
+                    "return_values": self.return_values,
                     "distr": self.distribution,
+                    "block_size": self.block_size,
+                    "extremes_type": self.extremes_type,
                     "get_p_value": self.goodness_of_fit_test,
                 },
                 input_core_dims=[[time_dim]],
                 output_core_dims=[["one_in_x"], []],
-                output_sizes={"one_in_x": len(self.return_periods)},
+                output_sizes={"one_in_x": output_length},
                 output_dtypes=("float", "float"),
                 vectorize=True,
             )
 
-            return_values_list.append(chunk_return_values)
+            return_data_list.append(chunk_return_data)
             p_values_list.append(chunk_p_values)
+
+            if self.conf_int_lower_bound is not UNSET:
+                chunk_conf_int_lower_limit, chunk_conf_int_upper_limit = xr.apply_ufunc(
+                    self._conf_int,
+                    chunk_block_maxima,
+                    kwargs={
+                        "return_periods": self.return_periods,
+                        "return_values": self.return_values,
+                        "distr": self.distribution,
+                        "bootstrap_runs": self.bootstrap_runs,
+                        "conf_int_lower_bound": self.conf_int_lower_bound,
+                        "conf_int_upper_bound": self.conf_int_upper_bound,
+                        "block_size": self.block_size,
+                        "extremes_type": self.extremes_type,
+                    },
+                    input_core_dims=[[time_dim]],
+                    output_core_dims=[["one_in_x"], ["one_in_x"]],
+                    output_sizes={"one_in_x": output_length},
+                    output_dtypes=("float", "float"),
+                    vectorize=True,
+                )
+            else:
+                chunk_conf_int_lower_limit = xr.zeros_like(chunk_return_data) * np.nan
+                chunk_conf_int_upper_limit = xr.zeros_like(chunk_return_data) * np.nan
+
+            conf_int_lower_limit_list.append(chunk_conf_int_lower_limit)
+            conf_int_upper_limit_list.append(chunk_conf_int_upper_limit)
 
             # Clean up chunk data
             del chunk_data, chunk_block_maxima
@@ -1215,17 +1577,24 @@ class MetricCalc(DataProcessor):
 
         # Concatenate results along spatial dimension
         logger.info("Concatenating %d chunk results...", n_batches)
-        return_values = xr.concat(return_values_list, dim=spatial_dim)
+        return_data = xr.concat(return_data_list, dim=spatial_dim)
+        conf_int_lower_limit = xr.concat(conf_int_lower_limit_list, dim=spatial_dim)
+        conf_int_upper_limit = xr.concat(conf_int_upper_limit_list, dim=spatial_dim)
         p_values = xr.concat(p_values_list, dim=spatial_dim)
 
         # Clean up
-        del return_values_list, p_values_list
+        del (
+            return_data_list,
+            conf_int_lower_limit_list,
+            conf_int_upper_limit_list,
+            p_values_list,
+        )
         gc.collect()
 
         total_time = time_module.time() - step_start
         logger.info("Spatial processing complete (%.1fs total)", total_time)
 
-        return return_values, p_values
+        return return_data, conf_int_lower_limit, conf_int_upper_limit, p_values
 
     def _preprocess_variable_for_one_in_x(
         self, data: xr.DataArray, var_name: str
@@ -1257,6 +1626,7 @@ class MetricCalc(DataProcessor):
                 or "hourly" in str(data.attrs.get("frequency", "")).lower()
             ):
                 data = data.resample(time="1D").sum()
+                data.attrs["frequency"] = "day"
 
             # Remove trace precipitation
             if preprocessing.get("remove_trace", True):
@@ -1303,12 +1673,20 @@ class MetricCalc(DataProcessor):
             )
         elif self.one_in_x_config is not UNSET:
             # 1-in-X calculations
-            return_periods_str = ", ".join(map(str, self.return_periods))
-            description_parts.append(
-                f"1-in-X return values for periods [{return_periods_str}] were "
-                f"calculated using {self.distribution} distribution with "
-                f"{self.extremes_type} extremes over {self.event_duration[0]} {self.event_duration[1]} events"
-            )
+            if self.return_periods is not UNSET:
+                return_periods_str = ", ".join(map(str, self.return_periods))
+                description_parts.append(
+                    f"1-in-X return values for periods [{return_periods_str}] were "
+                    f"calculated using {self.distribution} distribution with "
+                    f"{self.extremes_type} extremes over {self.event_duration[0]} {self.event_duration[1]} events"
+                )
+            elif self.return_values is not UNSET:
+                return_values_str = ", ".join(map(str, self.return_values))
+                description_parts.append(
+                    f"1-in-X return periods for values [{return_values_str}] were "
+                    f"calculated using {self.distribution} distribution with "
+                    f"{self.extremes_type} extremes over {self.event_duration[0]} {self.event_duration[1]} events"
+                )
             transformation_description = (
                 f"Process '{self.name}' applied to the data. "
                 f"{' and '.join(description_parts)}."
@@ -1349,6 +1727,8 @@ class MetricCalc(DataProcessor):
     def _create_one_in_x_result_dataset(
         self,
         ret_vals: xr.DataArray,
+        conf_int_lower_limit: xr.DataArray,
+        conf_int_upper_limit: xr.DataArray,
         p_vals: xr.DataArray | None,
         data_array: xr.DataArray,
     ) -> xr.Dataset:
@@ -1358,7 +1738,11 @@ class MetricCalc(DataProcessor):
         Parameters
         ----------
         ret_vals : xr.DataArray
-            Return values DataArray
+            Return values or periods DataArray
+        conf_int_lower_limit : xr.DataArray
+            Lower bound of return variable confidence interval
+        conf_int_upper_limit: xr.DataArray
+            Upper bound of return variable confidence interval
         p_vals : xr.DataArray | None
             P-values DataArray
         data_array : xr.DataArray
@@ -1369,10 +1753,30 @@ class MetricCalc(DataProcessor):
         xr.Dataset
             Final result dataset with return_value and p_values
         """
+        if self.return_periods is not UNSET:
+            result = xr.Dataset(
+                {
+                    "return_values": ret_vals,
+                    "conf_int_lower_limit": conf_int_lower_limit,
+                    "conf_int_upper_limit": conf_int_upper_limit,
+                }
+            )
+        elif self.return_values is not UNSET:
+            result = xr.Dataset(
+                {
+                    "return_periods": ret_vals,
+                    "conf_int_period_lower_limit": conf_int_lower_limit,
+                    "conf_int_period_upper_limit": conf_int_upper_limit,
+                    # Will return np.inf if demoninator is zero (often indicates
+                    # a bad distribution fit)
+                    "return_probabilities": 1.0 / ret_vals,
+                    "conf_int_prob_lower_limit": 1.0 / conf_int_upper_limit,
+                    "conf_int_prob_upper_limit": 1.0 / conf_int_lower_limit,
+                }
+            )
+
         if p_vals is not None:
-            result = xr.Dataset({"return_values": ret_vals, "p_values": p_vals})
-        else:
-            result = xr.Dataset({"return_values": ret_vals})
+            result["p_values"] = p_vals
 
         # Add attributes
         result.attrs.update(
@@ -1382,5 +1786,37 @@ class MetricCalc(DataProcessor):
                 "sample_size": len(data_array.time),
             }
         )
+
+        if self.conf_int_upper_bound is UNSET:
+            # Do not return confidence limit variables
+            conf_list = [
+                "conf_int_period_lower_limit",
+                "conf_int_prob_lower_limit",
+                "conf_int_lower_limit",
+                "conf_int_period_upper_limit",
+                "conf_int_prob_upper_limit",
+                "conf_int_upper_limit",
+            ]
+            result = result.drop_vars(conf_list, errors="ignore")
+        else:
+            # Add confidence level to attributes
+            for dataarray in [
+                "conf_int_period_lower_limit",
+                "conf_int_prob_lower_limit",
+                "conf_int_lower_limit",
+            ]:
+                if dataarray in result:
+                    result[dataarray].attrs[
+                        "confidence_interval_lower_bound"
+                    ] = f"{self.conf_int_lower_bound}th percentile"
+            for dataarray in [
+                "conf_int_period_upper_limit",
+                "conf_int_prob_upper_limit",
+                "conf_int_upper_limit",
+            ]:
+                if dataarray in result:
+                    result[dataarray].attrs[
+                        "confidence_interval_upper_bound"
+                    ] = f"{self.conf_int_upper_bound}th percentile"
 
         return result

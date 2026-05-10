@@ -41,7 +41,7 @@ from climakitae.core.paths import (
     BOUNDARY_CATALOG_URL,
     DATA_CATALOG_URL,
     GWL_1850_1900_FILE,
-    STATIONS_CSV_PATH,
+    HADISD_STATIONS_URL,
     VARIABLE_DESCRIPTIONS_CSV_PATH,
 )
 from climakitae.util.unit_conversions import get_unit_conversion_options
@@ -506,7 +506,7 @@ class DataInterface:
             var_desc = VariableDescriptions()
             var_desc.load()
             self._variable_descriptions = var_desc.variable_descriptions
-            self._stations = read_csv_file(STATIONS_CSV_PATH)
+            self._stations = pd.read_csv(HADISD_STATIONS_URL)
             self._stations_gdf = gpd.GeoDataFrame(
                 self.stations,
                 crs="EPSG:4326",

@@ -19,7 +19,7 @@ from dask.diagnostics import ProgressBar
 
 from climakitae.core.paths import (
     EXPORT_S3_BUCKET,
-    STATIONS_CSV_PATH,
+    HADISD_STATIONS_URL,
     VARIABLE_DESCRIPTIONS_CSV_PATH,
 )
 from climakitae.util.utils import read_csv_file
@@ -525,7 +525,7 @@ def _ease_access_in_R(column_name: str) -> str:
     The function acts on one of the display names of the variables:
     https://github.com/cal-adapt/climakitae/blob/main/climakitae/data/variable_descriptions.csv
     or one of the station names:
-    https://github.com/cal-adapt/climakitae/blob/main/climakitae/data/hadisd_stations.csv
+    s3://cadcat/hadisd/hadisd_stations.csv
 
     """
     return (
@@ -639,7 +639,7 @@ def _dataset_to_dataframe(dataset: xr.Dataset) -> pd.DataFrame:
     df = _update_header(df, variable_unit_map)
 
     # Helpers for adding to header climate variable names associated w/ stations
-    station_df = read_csv_file(STATIONS_CSV_PATH)
+    station_df = pd.read_csv(HADISD_STATIONS_URL)
     station_lst = list(station_df.station)
 
     def _is_station(name):
@@ -1376,7 +1376,7 @@ def write_tmy_file(
     None
 
     """
-    station_df = read_csv_file(STATIONS_CSV_PATH)
+    station_df = pd.read_csv(HADISD_STATIONS_URL)
 
     # check that data passed is a DataFrame object
     if type(df) != pd.DataFrame:

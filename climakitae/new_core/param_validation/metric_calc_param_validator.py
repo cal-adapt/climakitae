@@ -183,46 +183,67 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
 
     # Extract parameters with defaults
     return_periods = one_in_x_config.get("return_periods")
+    return_values = one_in_x_config.get("return_values")
     distribution = one_in_x_config.get("distribution", "gev")
     extremes_type = one_in_x_config.get("extremes_type", "max")
     event_duration = one_in_x_config.get("event_duration", (1, "day"))
+    grouped_duration = one_in_x_config.get("grouped_duration", UNSET)
     block_size = one_in_x_config.get("block_size", 1)
     goodness_of_fit_test = one_in_x_config.get("goodness_of_fit_test", True)
+    alpha = one_in_x_config.get("alpha", UNSET)
+    bootstrap_runs = one_in_x_config.get("bootstrap_runs", 100)
     print_goodness_of_fit = one_in_x_config.get("print_goodness_of_fit", True)
     variable_preprocessing = one_in_x_config.get("variable_preprocessing", {})
 
     # Validate return_periods (required parameter)
-    if return_periods is None:
+    if return_periods is None and return_values is None:
         logger.warning(
-            "\n\nreturn_periods is required for 1-in-X calculations. "
-            "\nPlease provide a list of return periods (e.g., [10, 25, 50, 100])."
+            "\n\nEither return_periods or return_values is required for 1-in-X calculations."
+            "\nPlease provide a list of return periods (e.g., [10, 25, 50, 100])"
+            "\nor a list of return values (e.g. [90, 95, 100])."
         )
         return False
 
-    # Convert to numpy array for validation
-    if not isinstance(return_periods, (list, np.ndarray)):
-        return_periods_array = np.array([return_periods])
-    elif isinstance(return_periods, list):
-        return_periods_array = np.array(return_periods)
-    else:
-        return_periods_array = return_periods
-
-    if not isinstance(return_periods_array, np.ndarray):
+    if return_periods is not None and return_values is not None:
         logger.warning(
-            "\n\nreturn_periods must be convertible to numpy array. "
+            "\n\nCannot set both 'return_periods' and 'return_values'. Choose one."
+        )
+        return False
+
+    if return_periods is not None:
+        return_param = return_periods
+    elif return_values is not None:
+        return_param = return_values
+
+    # Check that parameter data type is one that can be converted to np.array
+    match return_param:
+        case np.ndarray():
+            return_param = return_param
+        case float() | int():
+            return_param = np.array([return_param])
+        case list() | tuple():
+            return_param = np.array(return_param)
+
+    if not isinstance(return_param, np.ndarray):
+        logger.warning(
+            "\n\nreturn_periods or return_values must be convertible to numpy array. "
             "\nPlease check the configuration."
         )
         return False
 
-    for rp in return_periods_array:
-        if not isinstance(rp, (int, float, np.integer, np.floating)) or rp < 1:
-            logger.warning(
-                "\n\nAll return periods must be numbers >= 1, got %s (type: %s). "
-                "\nPlease check the configuration.",
-                rp,
-                type(rp),
-            )
-            return False
+    # Check for valid return period entries (must be positive integer for # of years)
+    # Skip this check if the return_param array contains return values, as return values
+    # are allowed to be floats and/or negative values (for example, a negative temperature)
+    if return_periods is not None:
+        for rp in return_param:
+            if not isinstance(rp, (int, float, np.integer, np.floating)) or rp < 1:
+                logger.warning(
+                    "\n\nAll return periods must be numbers >= 1, got %s (type: %s). "
+                    "\nPlease check the configuration.",
+                    rp,
+                    type(rp),
+                )
+                return False
 
     # Validate distribution
     valid_distributions = ["gev", "genpareto", "gamma"]
@@ -267,10 +288,59 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
         )
         return False
 
+    # Validate grouped_duration
+    if grouped_duration is not UNSET:
+        if not isinstance(grouped_duration, tuple) or len(grouped_duration) != 2:
+            logger.warning(
+                "\n\ngrouped_duration must be a tuple of (int, str). "
+                "\nExample: (1, 'day')"
+            )
+            return False
+
+        duration_num, duration_unit = grouped_duration
+        if not isinstance(duration_num, int) or duration_num <= 0:
+            logger.warning(
+                "\n\ngrouped_duration number must be a positive integer. "
+                "\nPlease check the configuration."
+            )
+            return False
+
+        # Only implemented to group days
+        if duration_unit not in ["day"]:
+            logger.warning(
+                "\n\ngrouped_duration unit must be 'day'. "
+                "\nPlease check the configuration."
+            )
+            return False
+
+        # Must be used with event_duration = (1,'day')
+        if event_duration != (1, "day"):
+            logger.warning(
+                "\n\ngrouped_duration requires event_duration=(1,'day'). "
+                "\nPlease check the configuration."
+            )
+            return False
+
     # Validate block_size
     if not isinstance(block_size, int) or block_size <= 0:
         logger.warning(
             "\n\nblock_size must be a positive integer. "
+            "\nPlease check the configuration."
+        )
+        return False
+
+    # Validate confidence interval parameters alpha and bootstrap_runs
+    if alpha is not UNSET:
+        if not isinstance(alpha, float) or alpha <= 0 or alpha >= 1:
+            logger.warning(
+                "\n\nalpha must be a positive float less than 1. "
+                "\nPlease check the configuration."
+            )
+            return False
+
+    if not isinstance(bootstrap_runs, int) or bootstrap_runs <= 0:
+        logger.warning(
+            "\n\nbootstrap_runs must be a positive integer. "
             "\nPlease check the configuration."
         )
         return False

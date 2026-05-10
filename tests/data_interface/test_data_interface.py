@@ -17,6 +17,7 @@ from climakitae.core.data_interface import (
     _get_user_options,
     get_subsetting_options,
 )
+from climakitae.core.paths import HADISD_STATIONS_URL
 
 
 class TestDataInterface:
@@ -54,10 +55,7 @@ class TestDataInterface:
                 patch(
                     "climakitae.core.data_interface.VariableDescriptions"
                 ) as mock_var_desc,
-                patch(
-                    "climakitae.core.data_interface.STATIONS_CSV_PATH",
-                    "data/hadisd_stations.csv",
-                ),
+                patch("climakitae.core.data_interface.pd.read_csv") as mock_pd_read_csv,
                 patch(
                     "climakitae.core.data_interface.GWL_1850_1900_FILE",
                     "data/gwl_1850-1900ref.csv",
@@ -81,7 +79,8 @@ class TestDataInterface:
                 mock_stations_df.LON_X = [1, 2, 3]  # Example values
                 mock_stations_df.LAT_Y = [4, 5, 6]  # Example values
 
-                mock_read_csv.side_effect = [mock_stations_df, "mock_warming_levels"]
+                mock_pd_read_csv.return_value = mock_stations_df
+                mock_read_csv.return_value = "mock_warming_levels"
                 mock_intake.open_esm_datastore.return_value = "mock_data_catalog"
                 mock_intake.open_catalog.return_value = "mock_boundary_catalog"
                 mock_boundaries_instance = Mock()
@@ -98,7 +97,7 @@ class TestDataInterface:
                 # Verify all the necessary functions were called
                 mock_var_desc.assert_called_once()
                 mock_var_desc_instance.load.assert_called_once()
-                mock_read_csv.assert_any_call("data/hadisd_stations.csv")
+                mock_pd_read_csv.assert_called_once_with(HADISD_STATIONS_URL)
                 mock_gpd.GeoDataFrame.assert_called_once()
                 mock_intake.open_esm_datastore.assert_called_once_with(
                     "https://cadcat.s3.amazonaws.com/cae-collection.json"

@@ -12,7 +12,8 @@ from climakitae.core.constants import UNSET
 
 
 def calculate_ess(data: xr.DataArray, nlags: int = UNSET) -> xr.DataArray:
-    """Function for calculating the effective sample size (ESS) of the provided data.
+    """Function for calculating the effective sample size (ESS) of the provided data
+    using the autocorrelation of the data.
 
     Parameters
     ----------
@@ -27,6 +28,10 @@ def calculate_ess(data: xr.DataArray, nlags: int = UNSET) -> xr.DataArray:
     xr.DataArray
         Effective sample size.
         Returned as a DataArray object so it can be utilized by xr.groupby and xr.resample.
+
+    References
+    ----------
+    Zwiers, F. W., and H. von Storch, 1995: Taking Serial Correlation into Account in Tests of the Mean. J. Climate, 8, 336–351, https://doi.org/10.1175/1520-0442(1995)008<0336:TSCIAI>2.0.CO;2.
 
     """
     n = len(data)
@@ -339,7 +344,7 @@ def _calc_average_ess_gridded_data(data: xr.DataArray, block_size: int) -> float
         da_stacked = da_time_block.stack(spatial_dims=["x", "y"])
 
         # Compute ESS for the time block
-        ess_by_time_block = da_stacked.groupby("spatial_dims").apply(calculate_ess)
+        ess_by_time_block = da_stacked.groupby("spatial_dims").map(calculate_ess)
 
         # Compute mean ESS for time block and append to list
         ess_mean_by_time_block = ess_by_time_block.mean(skipna=True).item()
@@ -369,7 +374,7 @@ def _calc_average_ess_timeseries_data(data: xr.DataArray, block_size: int) -> fl
     """
     # Resample the data depending on the block size
     # Calculate ESS for each block
-    ess_by_time_block = data.resample(time=f"{block_size}YS").apply(calculate_ess)
+    ess_by_time_block = data.resample(time=f"{block_size}YS").map(calculate_ess)
 
     # Compute mean of all ESS values
     mean_ess = ess_by_time_block.mean(skipna=True).item()
@@ -604,6 +609,11 @@ def _calculate_return(
     np.ndarray
         Computed extreme value metric.
 
+    Notes
+    -----
+    The block size is used to get the annual probability of the desired event when
+    the block size is > 1 year.
+
     """
     try:
         if data_variable == "return_value":
@@ -618,6 +628,9 @@ def _calculate_return(
             return_value = fitted_distr.ppf(return_event)
             result = np.round(return_value, 5)
         else:
+            # Use cumulative probability to get 1 year probability
+            # cumulative probability = 1 - (1 - 1/X)**M
+            # For example see https://journals.ametsoc.org/view/journals/atot/37/11/JTECH-D-20-0070.1.xml
             cdf_val = fitted_distr.cdf(arg_value) ** (1 / block_size)
             match extremes_type:
                 case "max":
@@ -672,6 +685,8 @@ def _bootstrap(
         value to do the calculation to
     block_size : int
         block size, in years, of the provided block maximum series
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
 
     Returns
     -------
@@ -738,6 +753,8 @@ def _conf_int(
         Confidence interval upper bound
     block_size : int
         block size, in years, of the provided block maximum series
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
 
     Returns
     -------
@@ -805,6 +822,8 @@ def _get_return_variable(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
     dropna_time: boolean
         Whether to drop NaNs along the time axis
     dim_to_fit : str
@@ -861,12 +880,14 @@ def _get_return_variable(
             print("\n")
 
     # get block_size from the block maxima series attributes, if available. otherwise assume block size=1 year
-    if hasattr(bms, "block size"):
+    if hasattr(bms, "block_size"):
         block_size = int(
-            bms.attrs["block size"][0:-5]
+            bms.attrs["block_size"][0:-5]
         )  # expected string format from get_block_maxima: '2 year'; extract the integer value here
+        print(f"Found block_size of {block_size} in BMS attributes")
     else:
         block_size = 1
+        print("Using default block size of 1")
 
     def _return_variable(bms):
 
@@ -997,6 +1018,8 @@ def get_return_value(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
     dropna_time: boolean
         Whether to drop NaNs along the time axis
     dim_to_fit : str
@@ -1007,6 +1030,12 @@ def get_return_value(
     xarray.Dataset
         Dataset with return values and confidence intervals
 
+    Notes
+    -----
+    This function calls _get_return_variable, which will attempt to use the block_size
+    attribute from the BMS to get the block size. If the block_size attribute is not found,
+    an default of 1 will be used. The block size is used to get the annual probability of
+    the desired event when the block size is > 1 year.
     """
     return _get_return_variable(
         bms,
@@ -1053,6 +1082,8 @@ def get_return_prob(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
     dropna_time: boolean
         Whether to drop NaNs along the time axis
     dim_to_fit : str
@@ -1062,6 +1093,13 @@ def get_return_prob(
     -------
     xarray.Dataset
         Dataset with return probabilities and confidence intervals
+
+    Notes
+    -----
+    This function calls _get_return_variable, which will attempt to use the block_size
+    attribute from the BMS to get the block size. If the block_size attribute is not found,
+    an default of 1 will be used. The block size is used to get the annual probability of
+    the desired event when the block size is > 1 year.
 
     """
     return _get_return_variable(
@@ -1087,6 +1125,7 @@ def get_return_period(
     conf_int_lower_bound: float = 2.5,
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
+    extremes_type: str = "max",
     dropna_time: bool = False,
     dim_to_fit: str = "time",
 ) -> xr.Dataset:
@@ -1108,6 +1147,8 @@ def get_return_period(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
     dropna_time: boolean
         Whether to drop NaNs along the time axis
     dim_to_fit : str
@@ -1117,6 +1158,13 @@ def get_return_period(
     -------
     xarray.Dataset
         Dataset with return periods and confidence intervals
+
+    Notes
+    -----
+    This function calls _get_return_variable, which will attempt to use the block_size
+    attribute from the BMS to get the block size. If the block_size attribute is not found,
+    an default of 1 will be used. The block size is used to get the annual probability of
+    the desired event when the block size is > 1 year.
 
     """
     return _get_return_variable(
@@ -1128,6 +1176,7 @@ def get_return_period(
         conf_int_lower_bound,
         conf_int_upper_bound,
         multiple_points,
+        extremes_type,
         dropna_time=dropna_time,
         dim_to_fit=dim_to_fit,
     )
