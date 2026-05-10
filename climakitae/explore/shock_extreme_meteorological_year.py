@@ -2,8 +2,6 @@
 Functions for Shock Extreme Meteorological Year creation.
 
 This code has been ported from the cae-notebooks shock_extreme_meteorological_year notebook.
-It includes statistical code for creating cumulative distributions and the F-S statistic
-along with a TMY class that organizes the workflow code.
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -41,101 +39,145 @@ from climakitae.explore.typical_meteorological_year import (
 )
 
 
-def shock_fs_statistic(cdf_climatology, cdf_monthly):
+def find_hot_cold_extreme_from_median(
+    sub_month: xr.DataArray,
+    sub_clim: xr.DataArray,
+    target: float = 0.5,
+    extreme: str = "cold",  # "cold" or "hot"
+):
     """
-    Calculates the Finkelstein-Schafer statistic, specific to shock XMY calculation:
-    Relative difference between long-term climatology and candidate CDF, divided by number of days in month
-    Retaining the DIRECTION of the difference by not taking the absolute difference
-    """
-    days_per_mon = xr.DataArray(
-        data=[31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
-        coords={"month": np.arange(1, 13)},
-    )
-    # retain direction of difference by taking the difference, rather than absolute difference
-    fs_stat = (cdf_monthly - cdf_climatology).sel(data="probability") / days_per_mon
-
-    return fs_stat
-
-
-def shock_compute_weighted_fs_sum(
-    cdf_climatology: xr.Dataset, cdf_monthly: xr.Dataset
-) -> xr.DataArray:
-    """Sum f-s statistic over variable and bin number.
+    Identifies hottest or coldest year based on deviation from the median (CDF=0.5)
+    temperature value across years.
 
     Parameters
     ----------
-    cdf_climatology: xr.Dataset
-       Climatological CDF dataset (get_cdf result)
-    cdf_monthly: xr.Dataset
-       Monthly CDF dataset (get_cdf_monthly result)
+    sub_month : xr.DataArray
+        dims: (year, data, bin_number)
+
+
+    sub_clim : xr.DataArray
+        climatology with same structure
+
+    target : float
+        CDF level (default 0.5)
+
+    extreme : str
+        "cold" -> pick minimum deviation
+        "hot"  -> pick maximum deviation
 
     Returns
     -------
-    xr.DataArray
+    results : list
+        median values per year
+
+    worst_year : scalar
+        identified extreme year
     """
-    all_vars_fs = shock_fs_statistic(cdf_climatology, cdf_monthly)
-    weighted_fs = compute_weighted_fs(all_vars_fs)
 
-    # Sum
-    return (
-        weighted_fs.to_array().sum(dim=["variable", "bin_number"]).drop_vars(["data"])
-    )
+    # -----------------------------
+    # Step 1: climatology median (p50 reference)
+    # -----------------------------
+    clim_prob = sub_clim.sel(data="probability")
+    clim_bins = sub_clim.sel(data="bins")
 
+    clim_idx = np.abs(clim_prob - target).argmin(dim="bin_number")
+    clim_05 = clim_bins.isel(bin_number=clim_idx).values
 
-def shock_get_top_months(
-    extreme, da_fs: xr.DataArray, skip_last: bool = False
-) -> pd.DataFrame:
-    """Return dataframe of top months by simulation.
+    # -----------------------------
+    # Step 2: per-year median extraction
+    # -----------------------------
+    yr_prob = sub_month.sel(data="probability")
+    yr_bins = sub_month.sel(data="bins")
 
-    Parameters
-    ----------
-    exteme: str, 'hot' or 'cold'
-        Type of extreme
-    da_fs: xr.Dataset
-       Summed weighted f-s statistic
-    skip_last: bool
-        True to exclude the final month, e.g. if data missing after time conversion
+    idx_list = np.abs(yr_prob - target).argmin(dim="bin_number").values.tolist()
 
-    Returns
-    -------
-    pd.DataFrame
+    results = []
 
-    """
-    df_list = []
-    num_values = (
-        1  # Selecting the top value for now, persistence statistics calls for top 5
-    )
-    if extreme == "hot":
-        # select top positive ('hottest') value
-        direction = False
-    elif extreme == "cold":
-        # select top negative ('coldest') value
-        direction = True
+    years = sub_month["year"].values
+
+    for i, yr in enumerate(years):
+        idx = idx_list[i]
+
+        val = yr_bins.sel(year=yr).isel(bin_number=idx).values
+        results.append(val)
+
+    results = np.array(results)
+
+    # -----------------------------
+    # Step 3: compute anomalies vs climatology
+    # -----------------------------
+    anomaly = results - clim_05
+
+    # -----------------------------
+    # Step 4: pick extreme year
+    # -----------------------------
+    if extreme == "cold":
+        worst_idx = np.argmin(anomaly)  # most negative deviation
+    elif extreme == "hot":
+        worst_idx = np.argmax(anomaly)  # most positive deviation
     else:
-        raise ValueError(
-            f"Only extreme = 'hot' or 'cold' accepted. Received {extreme}."
-        )
-    for sim in da_fs.simulation.values:
-        for mon in da_fs.month.values:
-            da_i = da_fs.sel(month=mon, simulation=sim)
-            top_xr = da_i.sortby(da_i, ascending=direction)[:num_values].expand_dims(
-                ["month", "simulation"]
+        raise ValueError(f"Extreme must be 'cold' or 'hot', Received {extreme}.")
+
+    worst_year = years[worst_idx]
+
+    return results, anomaly, worst_year
+
+
+def generate_candidate_months(
+    cdf_monthly: xr.DataArray,
+    cdf_climatology: xr.DataArray,
+    extreme: str = "cold",  # "cold" or "hot"
+):
+    """
+    Run find_hot_cold_extreme_from_median() over entire input dataset.
+    Generate a dataframe of selected years per month and simulation
+        for input to XMY generation function.
+
+    Parameters
+    ----------
+    cdf_monthly : xr.DataArray
+        Monthly CDF to compare against climatological CDF
+
+    cdf_climatology : xr.DataArray
+        CDF representing climatology
+
+    extreme : str
+        The type of shock XMY.
+        "cold" -> pick minimum deviation
+        "hot"  -> pick maximum deviation
+
+    Returns
+    -------
+    top_df: dataframe of selected years per simulation and month
+    """
+
+    # select priority variable based on shock type
+    if extreme == "cold":
+        var = "Daily min air temperature"
+    elif extreme == "hot":
+        var = "Daily max air temperature"
+
+    # subset CDFs for priority variable
+    subset_clim = cdf_climatology[var]
+    subset_month = cdf_monthly[var]
+
+    results = []
+
+    # iterate over all simulations and months
+    for sim in cdf_monthly.sim.values:
+        clim_sim = subset_clim.sel(sim=sim)
+        month_sim = subset_month.sel(sim=sim)
+        for mon in cdf_monthly.month.values:
+            clim_mon = clim_sim.sel(month=mon)
+            month_mon = month_sim.sel(month=mon)
+            _, _, worst_year = find_hot_cold_extreme_from_median(
+                month_mon, clim_mon, extreme=extreme
             )
-            if num_values == 1 & skip_last:
-                # Check that last year/month not chosen
-                if top_xr.year == da_fs.year[-1]:
-                    if top_xr.month == da_fs.month[-1]:
-                        # If chosen, exclude it and pick the next match
-                        # This logic can be folded into persistence statistics when those are developed
-                        top_xr = da_i.sortby(da_i, ascending=direction)[
-                            1:2
-                        ].expand_dims(["month", "simulation"])
-            top_df_i = top_xr.to_dataframe(name="top_values")
-            df_list.append(top_df_i)
+            row = {"month": mon, "sim": sim, "year": worst_year}
+            results.append(row)
+    top_df = pd.DataFrame(results)
 
-    # Concatenate list together for all months and simulations
-    return pd.concat(df_list).drop(columns=["top_values"]).reset_index()
-
+    return top_df
 
 class shock_XMY:
     """Encapsulate the code needed to generate Typical Meteorological Year (TMY) files.
@@ -298,29 +340,29 @@ class shock_XMY:
         # These are fetched directly from the catalog in their native units.
         self._raw_vars = {
             "t2": "Air Temperature at 2m",
-            "q2": "Water Vapor Mixing Ratio at 2m",
-            "psfc": "Surface Pressure",
-            "u10": "u10",
-            "v10": "v10",
-            "swdnb": "Instantaneous downwelling shortwave flux at bottom",
-            "swddni": "Shortwave surface downward direct normal irradiance",
-            "swddif": "Shortwave surface downward diffuse irradiance",
-            "lwdnb": "Instantaneous downwelling longwave flux at bottom",
+            # "q2": "Water Vapor Mixing Ratio at 2m",
+            # "psfc": "Surface Pressure",
+            # "u10": "u10",
+            # "v10": "v10",
+            # "swdnb": "Instantaneous downwelling shortwave flux at bottom",
+            # "swddni": "Shortwave surface downward direct normal irradiance",
+            # "swddif": "Shortwave surface downward diffuse irradiance",
+            # "lwdnb": "Instantaneous downwelling longwave flux at bottom",
         }
-        # Full set of TMY variables (including derived) with desired units.
+        # Full set of shock XMY variables (including derived) with desired units.
         # Used for display name references throughout the rest of the TMY code.
         self.vars_and_units = {
             "Air Temperature at 2m": "degC",
-            "Dew point temperature": "degC",
-            "Relative humidity": "[0 to 100]",
-            "Instantaneous downwelling shortwave flux at bottom": "W/m2",
-            "Shortwave surface downward direct normal irradiance": "W/m2",
-            "Shortwave surface downward diffuse irradiance": "W/m2",
-            "Instantaneous downwelling longwave flux at bottom": "W/m2",
-            "Wind speed at 10m": "m s-1",
-            "Wind direction at 10m": "degrees",
-            "Surface Pressure": "Pa",
-            "Water Vapor Mixing Ratio at 2m": "g kg-1",
+            # "Dew point temperature": "degC",
+            # "Relative humidity": "[0 to 100]",
+            # "Instantaneous downwelling shortwave flux at bottom": "W/m2",
+            # "Shortwave surface downward direct normal irradiance": "W/m2",
+            # "Shortwave surface downward diffuse irradiance": "W/m2",
+            # "Instantaneous downwelling longwave flux at bottom": "W/m2",
+            # "Wind speed at 10m": "m s-1",
+            # "Wind direction at 10m": "degrees",
+            # "Surface Pressure": "Pa",
+            # "Water Vapor Mixing Ratio at 2m": "g kg-1",
         }
         self.verbose = verbose
         # These will get set later in analysis
@@ -895,28 +937,23 @@ class shock_XMY:
         # Remove the years for the Pinatubo eruption
         self.cdf_monthly = remove_pinatubo_years(self.cdf_monthly)
 
-    def set_weighted_statistic(self):
-        """Calculate the weighted F-S statistic."""
-        if self.cdf_climatology is UNSET:
-            self.set_cdf_climatology()
-        if self.cdf_monthly is UNSET:
-            self.set_cdf_monthly()
-        self._vprint("Calculating weighted F-S statistic.")
-        self.weighted_fs_sum = shock_compute_weighted_fs_sum(
-            self.cdf_climatology, self.cdf_monthly
-        )
-
     def set_top_months(self):
         """Calculate top months dataframe."""
         # Pass the weighted F-S sum data for simplicity
-        if self.weighted_fs_sum is UNSET:
-            self.set_weighted_statistic()
+
+        if self.cdf_climatology is UNSET:
+            self.set_cdf_climatology
+
+        if self.cdf_monthly is UNSET:
+            self.set_cdf_monthly
+
         self._vprint(
-            "Finding top months (highest F-S statistic in the direction of interest)"
+            "Finding top months (greatest deviation from climatological CDF median)."
         )
-        self.top_months = shock_get_top_months(
-            self.extreme, self.weighted_fs_sum, skip_last=self._skip_last
+        self.top_months = self.get_candidate_months(
+            self.cdf_monthly, self.cdf_climatology, self.extreme
         )
+    
 
     def show_xmy_data_to_export(self, simulation: str):
         """Show line plots of TMY data for single model.
@@ -1060,7 +1097,6 @@ class shock_XMY:
         self._vprint(f"Getting top months for {self.extreme} shock XMY.")
         self.set_cdf_climatology()
         self.set_cdf_monthly()
-        self.set_weighted_statistic()
         self.set_top_months()
 
     def generate_xmy(self):
