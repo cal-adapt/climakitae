@@ -1612,16 +1612,16 @@ def write_tmy_file(
                 # that matches the line-2 header written by _tmy_header.
                 tmy_data_cols = [
                     "time",
-                    "Air Temperature at 2m",
-                    "Dew point temperature",
-                    "Relative humidity",
-                    "Instantaneous downwelling shortwave flux at bottom",
-                    "Shortwave surface downward direct normal irradiance",
-                    "Shortwave surface downward diffuse irradiance",
-                    "Instantaneous downwelling longwave flux at bottom",
-                    "Wind speed at 10m",
-                    "Wind direction at 10m",
-                    "Surface Pressure",
+                    "Air temperature at 2m (degC)",
+                    "Dew point temperature at 2m (degC)",
+                    "Relative humidity (0-100)",
+                    "Instantaneous downwelling shortwave flux at bottom (W/m2)",
+                    "Shortwave surface downward direct normal irradiance (W/m2)",
+                    "Shortwave surface downward diffuse irradiance (W/m2)",
+                    "Instantaneous downwelling longwave flux at bottom (W/m2)",
+                    "Wind speed at 10m (m/s)",
+                    "Wind direction at 10m (degrees)",
+                    "Surface pressure (Pa)",
                 ]
                 df = df[tmy_data_cols]
                 dfAsString = df.to_csv(sep=",", header=False, index=False)
@@ -1671,7 +1671,6 @@ def write_tmy_file(
                 "Wind direction at 10m (degrees)",
                 "Surface pressure (Pa)",
             ]
-            print(df.columns)
 
             if "warming_level" in df.columns:
                 df["centered_year"] = pd.to_numeric(
