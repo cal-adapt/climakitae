@@ -28,108 +28,6 @@ from climakitae.explore.shock_extreme_meteorological_year import (
 class TestFunctionsForXMY:
     """Test the general functions that are not part of the shock_XMY class."""
 
-    def test_fs_statistic(self):
-        """Test F-S statistic computation on cdf data."""
-        test_data = np.arange(0, 365 * 3, 1)
-        test_data = test_data * np.ones((2, len(test_data)))
-        test_ds = xr.DataArray(
-            name="temperature",
-            data=test_data,
-            coords={
-                "simulation": ["sim1", "sim2"],
-                "time": pd.date_range(start="2001-01-01", end="2003-12-31"),
-            },
-        ).to_dataset()
-        result = get_cdf(test_ds)
-
-        # Since datasets are identical, fs should be zero
-        fs = shock_fs_statistic(result, result)
-        assert (fs["temperature"] == 0).all()
-
-        test_data2 = np.ones((365 * 3))
-        test_data2 = test_data2 * np.ones((2, len(test_data2)))
-        test_ds2 = xr.DataArray(
-            name="temperature",
-            data=test_data2,
-            coords={
-                "simulation": ["sim1", "sim2"],
-                "time": pd.date_range(start="2001-01-01", end="2003-12-31"),
-            },
-        ).to_dataset()
-        result2 = get_cdf(test_ds2)
-
-        # Should have non-zero differences now
-        fs = shock_fs_statistic(result, result2)
-        assert (fs["temperature"] != 0).any()
-
-    def test_compute_weighted_fs_sum(self):
-        """Check format and values of weighted F-S statistic sum."""
-        # Fake cdf climatology data
-        coords = {
-            "data": ["bins", "probability"],
-            "simulation": ["sim1", "sim2"],
-            "month": list(range(1, 13)),
-        }
-        dims = {"data": 2, "simulation": 2, "month": 12, "bin_number": 10}
-        probs = np.linspace(0.01, 1, 10)
-        bins = np.array(range(1, 11))
-        data = np.vstack((bins, probs))
-        data = np.expand_dims(data, [1, 2]) * np.ones((1, 2, 12, 1))
-        ds_clim = xr.DataArray(
-            name="Daily max air temperature",
-            data=data,
-            dims=dims,
-            coords=coords,
-        ).to_dataset()
-
-        # Fake cdf monthly data
-        coords = {
-            "data": ["bins", "probability"],
-            "simulation": ["sim1", "sim2"],
-            "month": list(range(1, 13)),
-            "year": list(range(2001, 2004)),
-        }
-        dims = {"data": 2, "simulation": 2, "month": 12, "year": 3, "bin_number": 10}
-        probs = np.linspace(0.05, 1, 10)
-        bins = np.array(range(1, 11))
-        data2 = np.vstack((bins, probs))
-        data2 = np.expand_dims(data2, [1, 2, 3]) * np.ones((1, 2, 12, 3, 1))
-        ds_month = xr.DataArray(
-            name="Daily max air temperature",
-            data=data2,
-            dims=dims,
-            coords=coords,
-        ).to_dataset()
-
-        # Populate required variables
-        vars_list = [
-            "Daily max air temperature",
-            "Daily min air temperature",
-            "Daily mean air temperature",
-            "Daily max dewpoint temperature",
-            "Daily min dewpoint temperature",
-            "Daily mean dewpoint temperature",
-            "Daily max wind speed",
-            "Daily mean wind speed",
-            "Global horizontal irradiance",
-            "Direct normal irradiance",
-        ]
-        for item in vars_list[1:]:
-            ds_clim[item] = (("data", "simulation", "month", "bin_number"), data)
-            ds_month[item] = (
-                ("data", "simulation", "month", "year", "bin_number"),
-                data2,
-            )
-
-        # Get weighted F-S statistics
-        result = shock_compute_weighted_fs_sum(ds_clim, ds_month)
-        assert isinstance(result, xr.DataArray)
-        assert result.shape == (2, 12, 3)
-        assert "month" in result.dims
-        # Spot check a row of values
-        test = result.sel(simulation="sim1", month=1).data
-        expected = np.array([0.00645161, 0.00645161, 0.00645161])
-        assert np.allclose(test, expected, atol=1e-9)
 
     def test_get_top_months_cold(self):
         """Check top months dataframe format and that month with lowest f-s value is chosen for cold shock XMY."""
@@ -754,14 +652,13 @@ class TestXMYClass:
         with (
             patch.object(xmy, "set_cdf_monthly") as mock_month,
             patch.object(xmy, "set_cdf_climatology") as mock_clim,
-            patch.object(xmy, "set_weighted_statistic") as mock_weight,
+
             patch.object(xmy, "set_top_months") as mock_top_months,
         ):
             xmy.get_candidate_months()
             # Check correct methods called
             mock_clim.assert_called_once()
             mock_month.assert_called_once()
-            mock_weight.assert_called_once()
             mock_top_months.assert_called_once()
 
     def test__make_8760_tables(self):

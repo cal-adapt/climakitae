@@ -245,8 +245,6 @@ class shock_XMY:
         CDF climatology data
     cdf_monthly: xr.Dataset
         CDF monthly data by model
-    weighted_fs_sum: xr.Dataset
-        Weighted F-S statistic results
     top_months: pd.DataFrame
         Table of top months by model
     all_vars: xr.Dataset
@@ -368,7 +366,6 @@ class shock_XMY:
         # These will get set later in analysis
         self.cdf_climatology = UNSET
         self.cdf_monthly = UNSET
-        self.weighted_fs_sum = UNSET
         self.top_months = UNSET
         self.all_vars = UNSET
         self.xmy_data_to_export = UNSET
