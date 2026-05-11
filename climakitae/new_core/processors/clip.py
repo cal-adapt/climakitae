@@ -32,8 +32,9 @@ Clipping Modes
    - Single point: `Clip((lat, lon))` - returns closest gridcell
    - Multiple points: `Clip([(lat1, lon1), (lat2, lon2)])` - returns closest gridcells
 
-4. **Custom Geometry**: Clip using custom shapefiles
+4. **Custom Geometry**: Clip using custom shapefiles or GeoDataFrames
    - Shapefile path: `Clip("/path/to/shapefile.shp")`
+   - GeoDataFrame: `Clip(gdf)` where ``gdf`` is a ``geopandas.GeoDataFrame``
 
 Key Features
 ------------
@@ -146,12 +147,13 @@ class Clip(DataProcessor):
 
     Parameters
     ----------
-    value : str | list | tuple | dict
+    value : str | list | tuple | dict | gpd.GeoDataFrame
         The value(s) to clip the data by. Can be:
         - str: Single boundary key, file path, or coordinate specification
         - list: Multiple boundary keys of the same category OR list of (lat, lon) tuples
         - tuple: Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max)) or single (lat, lon) point
         - dict: Configuration with ``boundaries`` or ``points`` key and optional flags
+        - gpd.GeoDataFrame: Clip directly using a GeoDataFrame geometry
 
     Examples
     --------
@@ -189,7 +191,7 @@ class Clip(DataProcessor):
 
         Parameters
         ----------
-        value : str | list | tuple | dict
+        value : str | list | tuple | dict | gpd.GeoDataFrame
             The value(s) to clip the data by. Can be:
             - str: Single boundary key, file path, station code/name, or coordinate specification
             - list: Multiple boundary keys, station codes/names, or (lat, lon) tuples for multiple points
@@ -201,6 +203,7 @@ class Clip(DataProcessor):
                 For points, extract along 'points' dimension instead of returning masked grid.
               - ``persist`` (bool): Compute data to memory after clipping (recommended for
                 multi-point clipping with downstream computations like 1-in-X analysis)
+            - gpd.GeoDataFrame: Clip directly using a GeoDataFrame geometry
         persist : bool, optional
             If True, compute the clipped data to memory after clipping. This collapses
             the Dask task graph, which is critical for efficient downstream operations
