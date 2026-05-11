@@ -18,7 +18,9 @@ from timezonefinder import TimezoneFinder
 from tqdm.auto import tqdm  # Progress bar
 
 from climakitae.core.constants import UNSET
-from climakitae.core.data_export import write_tmy_file
+# from climakitae.core.data_export import write_tmy_file
+#! until updated tmy export function is added, use this
+from climakitae.core.data_export import dev_write_tmy_file
 from climakitae.new_core.user_interface import ClimateData
 from climakitae.tools.derived_variables import (
     compute_dewpointtemp,
@@ -28,8 +30,6 @@ from climakitae.tools.derived_variables import (
 )
 
 from climakitae.explore.typical_meteorological_year import (
-    compute_weighted_fs,
-    WEIGHTS_PER_VAR,
     is_HadISD,
     get_cdf,
     remove_pinatubo_years,
@@ -178,6 +178,7 @@ def generate_candidate_months(
     top_df = pd.DataFrame(results)
 
     return top_df
+
 
 class shock_XMY:
     """Encapsulate the code needed to generate Typical Meteorological Year (TMY) files.
@@ -338,29 +339,29 @@ class shock_XMY:
         # These are fetched directly from the catalog in their native units.
         self._raw_vars = {
             "t2": "Air Temperature at 2m",
-            # "q2": "Water Vapor Mixing Ratio at 2m",
-            # "psfc": "Surface Pressure",
-            # "u10": "u10",
-            # "v10": "v10",
-            # "swdnb": "Instantaneous downwelling shortwave flux at bottom",
-            # "swddni": "Shortwave surface downward direct normal irradiance",
-            # "swddif": "Shortwave surface downward diffuse irradiance",
-            # "lwdnb": "Instantaneous downwelling longwave flux at bottom",
+            "q2": "Water Vapor Mixing Ratio at 2m",
+            "psfc": "Surface Pressure",
+            "u10": "u10",
+            "v10": "v10",
+            "swdnb": "Instantaneous downwelling shortwave flux at bottom",
+            "swddni": "Shortwave surface downward direct normal irradiance",
+            "swddif": "Shortwave surface downward diffuse irradiance",
+            "lwdnb": "Instantaneous downwelling longwave flux at bottom",
         }
         # Full set of shock XMY variables (including derived) with desired units.
         # Used for display name references throughout the rest of the TMY code.
         self.vars_and_units = {
             "Air Temperature at 2m": "degC",
-            # "Dew point temperature": "degC",
-            # "Relative humidity": "[0 to 100]",
-            # "Instantaneous downwelling shortwave flux at bottom": "W/m2",
-            # "Shortwave surface downward direct normal irradiance": "W/m2",
-            # "Shortwave surface downward diffuse irradiance": "W/m2",
-            # "Instantaneous downwelling longwave flux at bottom": "W/m2",
-            # "Wind speed at 10m": "m s-1",
-            # "Wind direction at 10m": "degrees",
-            # "Surface Pressure": "Pa",
-            # "Water Vapor Mixing Ratio at 2m": "g kg-1",
+            "Dew point temperature": "degC",
+            "Relative humidity": "[0 to 100]",
+            "Instantaneous downwelling shortwave flux at bottom": "W/m2",
+            "Shortwave surface downward direct normal irradiance": "W/m2",
+            "Shortwave surface downward diffuse irradiance": "W/m2",
+            "Instantaneous downwelling longwave flux at bottom": "W/m2",
+            "Wind speed at 10m": "m s-1",
+            "Wind direction at 10m": "degrees",
+            "Surface Pressure": "Pa",
+            "Water Vapor Mixing Ratio at 2m": "g kg-1",
         }
         self.verbose = verbose
         # These will get set later in analysis
@@ -913,24 +914,31 @@ class shock_XMY:
             dni_sum,
         ]
 
+        air_temp_var_arrays = [daily_tmax, daily_tmin]
+
         self.all_vars = xr.merge(daily_arrays)
         self._vprint("  Daily statistics ready.")
+        # subet all loaded variables to only air temperature, which is the only variable used to determine the candidate month
+        self.air_temp_vars = xr.merge(air_temp_var_arrays)
+        self.vprint(
+            "   Air temperature variables stored for use in finding candidate months."
+        )
 
     def set_cdf_climatology(self):
         """Calculate the long-term climatology for each index for each month so
         we can establish the baseline pattern.
         """
-        if self.all_vars is UNSET:
+        if self.air_temp_vars is UNSET:
             self.load_all_variables()
-        self._vprint("Calculating CDF climatology.")
-        self.cdf_climatology = get_cdf(self.all_vars)
+        self._vprint("Calculating CDF climatology using only air temp variables.")
+        self.cdf_climatology = get_cdf(self.air_temp_vars)
 
     def set_cdf_monthly(self):
         """Get CDF for each month and variable."""
-        if self.all_vars is UNSET:
+        if self.air_temp_vars is UNSET:
             self.load_all_variables()
-        self._vprint("Calculating monthly CDF.")
-        self.cdf_monthly = get_cdf_monthly(self.all_vars)
+        self._vprint("Calculating monthly CDF using only air temp variables.")
+        self.cdf_monthly = get_cdf_monthly(self.air_temp_vars)
         # Remove the years for the Pinatubo eruption
         self.cdf_monthly = remove_pinatubo_years(self.cdf_monthly)
 
@@ -950,7 +958,6 @@ class shock_XMY:
         self.top_months = self.get_candidate_months(
             self.cdf_monthly, self.cdf_climatology, self.extreme
         )
-    
 
     def show_xmy_data_to_export(self, simulation: str):
         """Show line plots of TMY data for single model.
@@ -1006,7 +1013,7 @@ class shock_XMY:
         with ProgressBar():
             all_vars_ds = self._hourly_data.compute()
 
-        # Construct TMY
+        # Construct XMY
         self._vprint(
             f"\n  STEP 2: Calculating {self.extreme} Shock Extreme Meteorological Year per model simulation\n  Progress bar shows code looping through each month in the year.\n"
         )
