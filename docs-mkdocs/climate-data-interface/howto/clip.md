@@ -36,13 +36,15 @@ cd.show_boundary_options("ca_counties")  # All California counties
 
 **Available boundary types:**
 
-- `ca_counties`: California counties (58 total)
-- `ca_watersheds`: Hydrologic units (HUC8)
-- `ca_census_tracts`: Census geography
-- `us_states`: Western US states (11 states)
-- `ious_pous`: California investor-owned and public utilities
-- `forecast_zones`: NOAA forecast zones
-- `electric_balancing_areas`: Electric grid authorities
+| Boundary Type | Description |
+|---------------|-------------|
+| `ca_counties` | California counties (58 total) |
+| `ca_watersheds` | Hydrologic units (HUC8) |
+| `ca_census_tracts` | Census geography |
+| `us_states` | Western US states (11 states) |
+| `ious_pous` | California investor-owned and public utilities |
+| `forecast_zones` | NOAA forecast zones |
+| `electric_balancing_areas` | Electric grid authorities |
 
 ## By Single Point (Lat/Lon)
 

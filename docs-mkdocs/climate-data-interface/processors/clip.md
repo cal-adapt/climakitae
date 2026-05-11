@@ -6,6 +6,21 @@ Subset climate data to specific geographic regions, points, or boundaries. Extra
 
 ## Algorithm
 
+```mermaid
+flowchart TD
+    A["Input value\n(str / list / tuple / dict)"] --> B{Parse type}
+    B -->|"Named string"| C["Load boundary or\nstation geometry"]
+    B -->|"Point tuple"| D["Find closest\ngrid cell(s)"]
+    B -->|"Bounding box"| E["Build bounding\nbox geometry"]
+    B -->|"File path"| F["Load custom\nshapefile"]
+    C & E & F --> G["Clip with rioxarray"]
+    D --> H["Select nearest\ngrid point(s)"]
+    G & H --> I{persist=True?}
+    I -->|Yes| J["compute()\nDask graph"]
+    I -->|No| K["Return lazy\nxarray result"]
+    J --> K
+```
+
 `Clip` runs in two phases: first it parses `self.value` into a geometry (or routes to a point-based path), then it dispatches over the input data type and calls the appropriate clipper. See [Geometry Loading](#geometry-loading) and [Result Dispatch](#result-dispatch) in the Implementation Details section below.
 
 ## Input Modes
