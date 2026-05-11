@@ -2870,6 +2870,18 @@
 <p><strong>Registry key:</strong> <code>clip</code> &nbsp;|&nbsp; <strong>Priority:</strong> 65 &nbsp;|&nbsp; <strong>Category:</strong> Spatial Processing</p>
 <p>Subset climate data to specific geographic regions, points, or boundaries. Extract data for counties, watersheds, weather stations, or custom lat/lon coordinates with automatic nearest-gridcell location and coordinate system handling.</p>
 <h2 id="algorithm">Algorithm</h2>
+<pre class="mermaid"><code>flowchart TD
+    A["Input value\n(str / list / tuple / dict)"] --&gt; B{Parse type}
+    B --&gt;|"Named string"| C["Load boundary or\nstation geometry"]
+    B --&gt;|"Point tuple"| D["Find closest\ngrid cell(s)"]
+    B --&gt;|"Bounding box"| E["Build bounding\nbox geometry"]
+    B --&gt;|"File path"| F["Load custom\nshapefile"]
+    C &amp; E &amp; F --&gt; G["Clip with rioxarray"]
+    D --&gt; H["Select nearest\ngrid point(s)"]
+    G &amp; H --&gt; I{persist=True?}
+    I --&gt;|Yes| J["compute()\nDask graph"]
+    I --&gt;|No| K["Return lazy\nxarray result"]
+    J --&gt; K</code></pre>
 <p><code>Clip</code> runs in two phases: first it parses <code>self.value</code> into a geometry (or routes to a point-based path), then it dispatches over the input data type and calls the appropriate clipper. See <a href="#geometry-loading">Geometry Loading</a> and <a href="#result-dispatch">Result Dispatch</a> in the Implementation Details section below.</p>
 <h2 id="input-modes">Input Modes</h2>
 <h3 id="mode-1-named-boundaries">Mode 1: Named Boundaries</h3>

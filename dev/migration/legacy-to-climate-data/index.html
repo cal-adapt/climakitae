@@ -2849,12 +2849,12 @@ still written against the legacy API).</p>
 <h2 id="migration-checklist">Migration Checklist</h2>
 <ul class="task-list">
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Replace <code>from climakitae.core.data_interface import DataParameters, get_data</code> with <code>from climakitae.new_core.user_interface import ClimateData</code>.  </li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Translate field names:  <ul>
-<li><code>downscaling_method</code> ("Dynamical" / "Statistical") → <code>.activity_id("WRF" | "LOCA2")</code>  </li>
-<li><code>resolution</code> ("3 km" / "9 km" / "45 km") → <code>.grid_label("d03" | "d02" | "d01")</code>  </li>
-<li><code>timescale</code> ("hourly" / "daily" / "monthly") → <code>.table_id("1hr" | "day" | "mon")</code>  </li>
-<li><code>scenario_ssp</code> / <code>scenario_historical</code> → <code>.experiment_id(...)</code> (a list of <code>"ssp245"</code> / <code>"ssp370"</code> / <code>"ssp585"</code> / <code>"historical"</code>)  </li>
-<li>Display variable name (e.g. "Maximum air temperature at 2m") → <code>.variable("&lt;variable_id&gt;")</code> such as <code>"t2max"</code> for WRF or <code>"tasmax"</code> for LOCA2.  </li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Translate field names:  <ul class="task-list">
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <code>downscaling_method</code> ("Dynamical" / "Statistical") → <code>.activity_id("WRF" | "LOCA2")</code>  </li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <code>resolution</code> ("3 km" / "9 km" / "45 km") → <code>.grid_label("d03" | "d02" | "d01")</code>  </li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <code>timescale</code> ("hourly" / "daily" / "monthly") → <code>.table_id("1hr" | "day" | "mon")</code>  </li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <code>scenario_ssp</code> / <code>scenario_historical</code> → <code>.experiment_id(...)</code> (a list of <code>"ssp245"</code> / <code>"ssp370"</code> / <code>"ssp585"</code> / <code>"historical"</code>)  </li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Display variable name (e.g. "Maximum air temperature at 2m") → <code>.variable("&lt;variable_id&gt;")</code> such as <code>"t2max"</code> for WRF or <code>"tasmax"</code> for LOCA2.  </li>
 </ul>
 </li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Convert year ranges: <code>params.time_slice = (2015, 2050)</code> → <code>.processes({"time_slice": (2015, 2050)})</code> (or ISO date strings).  </li>
