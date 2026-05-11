@@ -20,7 +20,7 @@ from tqdm.auto import tqdm  # Progress bar
 from climakitae.core.constants import UNSET
 # from climakitae.core.data_export import write_tmy_file
 #! until updated tmy export function is added, use this
-from climakitae.core.data_export import dev_write_tmy_file
+from climakitae.core.dev_data_export import write_tmy_file
 from climakitae.new_core.user_interface import ClimateData
 from climakitae.tools.derived_variables import (
     compute_dewpointtemp,
@@ -181,9 +181,9 @@ def generate_candidate_months(
 
 
 class shock_XMY:
-    """Encapsulate the code needed to generate Typical Meteorological Year (TMY) files.
+    """Encapsulate the code needed to generate Typical Meteorological Year (shock XMY) files.
 
-    Uses WRF hourly data to produce TMYs. User provides the start and end years along
+    Uses WRF hourly data to produce shock XMYs. User provides the start and end years along
     with location to generate file.
 
     How to set location: The location can either be provided as latitude and
@@ -214,9 +214,9 @@ class shock_XMY:
     station_name: str (optional)
         Long name of desired station
     latitude : float | int (optional)
-        Latitude for TMY data if station_name not set
+        Latitude for shock XMY data if station_name not set
     longitude : float | int (optional)
-        Longitude for TMY data if station_name not set
+        Longitude for shock XMY data if station_name not set
     verbose: bool
         True to increase verbosity
 
@@ -225,9 +225,9 @@ class shock_XMY:
     extreme: str
         extreme type, either "hot" or "cold"
     start_year: str
-        Initial year of TMY period
+        Initial year of shock XMY period
     end_year: str
-        Final year of TMY period
+        Final year of shock XMY period
     warming_level: float | int
         Warming level value
     lat_range: tuple
@@ -249,9 +249,9 @@ class shock_XMY:
     top_months: pd.DataFrame
         Table of top months by model
     all_vars: xr.Dataset
-        All loaded variables for TMY
+        All loaded variables for shock XMY
     xmy_data_to_export: dict[pd.Dataframe]
-        Dictionary of TMY results by simulation
+        Dictionary of shock XMY results by simulation
     _skip_last: bool
         Internal flag to track last year for warming level approach
     """
@@ -268,7 +268,7 @@ class shock_XMY:
         verbose: bool = True,
     ):
 
-        # Here we go through a few different ways to get the TMY location
+        # Here we go through a few different ways to get the shock XMY location
         match latitude, longitude, station_name:
             # UNSET will match to object type
             # Case 1: All variables set
@@ -279,19 +279,19 @@ class shock_XMY:
                     )
                 else:
                     print(
-                        f"Initializing TMY object for custom location: {latitude} N, {longitude} W with name '{station_name}'."
+                        f"Initializing shock XMY object for custom location: {latitude} N, {longitude} W with name '{station_name}'."
                     )
                     self._set_loc_from_lat_lon(latitude, longitude)
                     self.stn_name = station_name
             # Case 2: lat/lon provided, no station_name string
             case float() | int(), float() | int(), object():
                 print(
-                    f"Initializing TMY object for custom location: {latitude} N, {longitude} W."
+                    f"Initializing shock XMY object for custom location: {latitude} N, {longitude} W."
                 )
                 self._set_loc_from_lat_lon(latitude, longitude)
             # Case 3: station name provided, lat/lon not numeric
             case object(), object(), str():
-                print(f"Initializing TMY object for {station_name}.")
+                print(f"Initializing shock XMY object for {station_name}.")
                 self._set_loc_from_stn_name(station_name)
             # Last case: something else provided
             case _:
@@ -349,7 +349,7 @@ class shock_XMY:
             "lwdnb": "Instantaneous downwelling longwave flux at bottom",
         }
         # Full set of shock XMY variables (including derived) with desired units.
-        # Used for display name references throughout the rest of the TMY code.
+        # Used for display name references throughout the rest of the shock XMY code.
         self.vars_and_units = {
             "Air Temperature at 2m": "degC",
             "Dew point temperature": "degC",
@@ -504,11 +504,11 @@ class shock_XMY:
         if isinstance(data, xr.Dataset):
             data = data[variable_id]
 
-        # ClimateData uses "sim" dimension; rename to "simulation" for TMY pipeline
+        # ClimateData uses "sim" dimension; rename to "simulation" for shock XMY pipeline
         if "sim" in data.dims:
             data = data.rename({"sim": "simulation"})
 
-        # Drop warming_level dimension (always length 1 for TMY)
+        # Drop warming_level dimension (always length 1 for shock XMY)
         if "warming_level" in data.dims:
             data = data.squeeze("warming_level", drop=True)
 
@@ -517,7 +517,7 @@ class shock_XMY:
             self.start_year = data.time[0].dt.year.item()
             self.end_year = data.time[-1].dt.year.item()
 
-        # Filter to the 4 TMY simulations by matching source_id+member_id
+        # Filter to the 4 shock XMY simulations by matching source_id+member_id
         # ClimateData sim values: "wrf_ucla_ec-earth3_historical+ssp370_r1i1p1f1"
         # self.simulations values: "WRF_EC-Earth3_r1i1p1f1"
         all_sims = list(data.simulation.values)
@@ -641,7 +641,7 @@ class shock_XMY:
         Parameters
         ----------
         all_vars_ds: xr.Dataset
-           Timeseries of all loaded variables needed for TMY.
+           Timeseries of all loaded variables needed for shock XMY.
         top_months: pd.DataFrame
            Dataframe of top months by model.
 
@@ -683,11 +683,11 @@ class shock_XMY:
         return xmy_df_all
 
     def load_all_variables(self):
-        """Load hourly TMY variables and derive daily statistics for CDF/F-S.
+        """Load hourly shock XMY variables and derive daily statistics for CDF/F-S.
 
         Fetches hourly raw variables via ClimateData for the 8760 profile
         assembly, then derives ALL daily statistics from the hourly data
-        in local time.  This matches the original TMY code's approach and
+        in local time.  This matches the original shock XMY code's approach and
         avoids two problems with fetching daily catalog variables directly:
 
         1. **UTC vs local time**: Catalog daily variables are pre-aggregated
@@ -920,7 +920,7 @@ class shock_XMY:
         self._vprint("  Daily statistics ready.")
         # subet all loaded variables to only air temperature, which is the only variable used to determine the candidate month
         self.air_temp_vars = xr.merge(air_temp_var_arrays)
-        self.vprint(
+        self._vprint(
             "   Air temperature variables stored for use in finding candidate months."
         )
 
@@ -960,7 +960,7 @@ class shock_XMY:
         )
 
     def show_xmy_data_to_export(self, simulation: str):
-        """Show line plots of TMY data for single model.
+        """Show line plots of shock XMY data for single model.
 
         Parameters
         ----------
@@ -1020,7 +1020,7 @@ class shock_XMY:
 
         xmy_data_to_export = self._make_8760_tables(
             all_vars_ds, self.top_months
-        )  # Return dict of TMY by simulation
+        )  # Return dict of shock XMY by simulation
 
         self._vprint("  Smoothing data at transitions between months.")
         self._vprint("  Dropping water vapor mixing ratio.")
@@ -1046,7 +1046,7 @@ class shock_XMY:
                 xmy_data_to_export[sim]["scenario"] = "historical+ssp370"
 
         self.xmy_data_to_export = xmy_data_to_export
-        self._vprint("TMY analysis complete.")
+        self._vprint("shock XMY analysis complete.")
 
     def export_xmy_data(self, extension: str = "epw"):
         """Write XMY data to EPW file.
@@ -1096,7 +1096,7 @@ class shock_XMY:
         """Run CDF functions to get top candidates.
 
         This function can be used to view the candidate months
-        without running the entire TMY workflow.
+        without running the entire shock XMY workflow.
         """
         self._vprint(f"Getting top months for {self.extreme} shock XMY.")
         self.set_cdf_climatology()
