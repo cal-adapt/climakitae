@@ -4,6 +4,7 @@ import logging
 from typing import Dict, Union
 
 import numpy as np
+import re
 import statsmodels as sm
 import xarray as xr
 
@@ -583,7 +584,7 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
         logger.warning("Could not calculate effective sample size: %s", e)
 
 
-def _calc_simplified_ess_by_sim(year_array: np.ndarray) -> Union[np.ndarray, float]:
+def _calc_simplified_ess_by_sim(year_array: np.ndarray) -> float:
     """Function for calculating the effective sample size (ESS) of the provided data
     using the logarithmic lag sampling method to estimate this statistic for large data.
 
@@ -594,7 +595,7 @@ def _calc_simplified_ess_by_sim(year_array: np.ndarray) -> Union[np.ndarray, flo
 
     Returns
     -------
-    np.ndarray, float
+    float
         Effective sample size.
 
     """
@@ -614,7 +615,7 @@ def _calc_simplified_ess_by_sim(year_array: np.ndarray) -> Union[np.ndarray, flo
     return ess
 
 
-def _calc_ess_by_sim(data: np.ndarray) -> Union[np.ndarray, float]:
+def _calc_ess_by_sim(data: np.ndarray) -> float:
     """Function for calculating the effective sample size (ESS) of the provided data.
 
     Parameters
@@ -624,7 +625,7 @@ def _calc_ess_by_sim(data: np.ndarray) -> Union[np.ndarray, float]:
 
     Returns
     -------
-    np.ndarray, float
+    float
         Effective sample size.
 
     References
