@@ -18,6 +18,7 @@ from timezonefinder import TimezoneFinder
 from tqdm.auto import tqdm  # Progress bar
 
 from climakitae.core.constants import UNSET
+
 # from climakitae.core.data_export import write_tmy_file
 #! until updated tmy export function is added, use this
 from climakitae.core.dev_data_export import write_tmy_file
@@ -164,16 +165,16 @@ def generate_candidate_months(
     results = []
 
     # iterate over all simulations and months
-    for sim in cdf_monthly.sim.values:
-        clim_sim = subset_clim.sel(sim=sim)
-        month_sim = subset_month.sel(sim=sim)
+    for sim in cdf_monthly.simulation.values:
+        clim_sim = subset_clim.sel(simulation=sim)
+        month_sim = subset_month.sel(simulation=sim)
         for mon in cdf_monthly.month.values:
             clim_mon = clim_sim.sel(month=mon)
             month_mon = month_sim.sel(month=mon)
             _, _, worst_year = find_hot_cold_extreme_from_median(
                 month_mon, clim_mon, extreme=extreme
             )
-            row = {"month": mon, "sim": sim, "year": worst_year}
+            row = {"month": mon, "simulation": sim, "year": worst_year}
             results.append(row)
     top_df = pd.DataFrame(results)
 
@@ -250,6 +251,8 @@ class shock_XMY:
         Table of top months by model
     all_vars: xr.Dataset
         All loaded variables for shock XMY
+    air_temp_vars: xr.Dataset
+        Air temperature variables, for use in finding candidate months
     xmy_data_to_export: dict[pd.Dataframe]
         Dictionary of shock XMY results by simulation
     _skip_last: bool
@@ -333,6 +336,7 @@ class shock_XMY:
             "WRF_TaiESM1_r1i1p1f1",
             "WRF_MIROC6_r1i1p1f1",
         ]
+
         # Data only available for these scenarios
         self.scenario = ["Historical Climate", "SSP 3-7.0"]
         # Raw catalog variables to fetch (variable_id → display name)
@@ -369,6 +373,7 @@ class shock_XMY:
         self.cdf_monthly = UNSET
         self.top_months = UNSET
         self.all_vars = UNSET
+        self.air_temp_vars = UNSET
         self.xmy_data_to_export = UNSET
 
     def _set_loc_from_stn_name(self, station_name: str):
@@ -537,6 +542,7 @@ class shock_XMY:
 
         # Select and rename to legacy simulation names
         matched_cd_sims = list(sim_mapping.keys())
+
         data = data.sel(simulation=matched_cd_sims)
         data["simulation"] = [sim_mapping[s] for s in matched_cd_sims]
 
@@ -549,6 +555,7 @@ class shock_XMY:
         data = data.sel(
             {"time": slice(f"{self.start_year}-01-01-00", f"{self.end_year}-12-31-23")}
         )
+
         return data
 
     @staticmethod
@@ -947,15 +954,15 @@ class shock_XMY:
         # Pass the weighted F-S sum data for simplicity
 
         if self.cdf_climatology is UNSET:
-            self.set_cdf_climatology
+            self.set_cdf_climatology()
 
         if self.cdf_monthly is UNSET:
-            self.set_cdf_monthly
+            self.set_cdf_monthly()
 
         self._vprint(
             "Finding top months (greatest deviation from climatological CDF median)."
         )
-        self.top_months = self.get_candidate_months(
+        self.top_months = generate_candidate_months(
             self.cdf_monthly, self.cdf_climatology, self.extreme
         )
 
