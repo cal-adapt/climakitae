@@ -1,19 +1,14 @@
 """Utility functions for processing data arrays in climakitae."""
 
 import logging
-import math
-import re
-from typing import Dict, Union
 
 import numpy as np
 import statsmodels as sm
-import xarray as xr
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 from climakitae.core.constants import UNSET
-from climakitae.explore.threshold_tools import calculate_ess
 
 # Constants for effective sample size calculations
 MIN_ESS_THRESHOLD = 25  # Minimum effective sample size for reliable statistics
@@ -553,9 +548,9 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
 
     Notes
     -----
-    The function handles both gridded (x, y, time) and timeseries (time) data.
     For gridded data, spatial sampling is used to estimate representative ESS.
-    A warning is issued if ESS falls below the minimum threshold.
+    A warning is issued if ESS falls below the minimum threshold anywhere along
+    the time axis.
 
     """
     logger.info("Checking effective sample size over all dimensions...")
@@ -586,18 +581,18 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
         logger.warning("Could not calculate effective sample size: %s", e)
 
 
-def _calc_simplified_ess_by_sim(year_array: np.array) -> np.array:
+def _calc_simplified_ess_by_sim(year_array: np.ndarray) -> np.ndarray:
     """Function for calculating the effective sample size (ESS) of the provided data
     using the logarithmic lag sampling method to estimate this statistic for large data.
 
     Parameters
     ----------
-    data : xr.DataArray
+    year_array : np.ndarray
         Input array is assumed to be timeseries data with potential autocorrelation.
 
     Returns
     -------
-    np.array
+    np.ndarray
         Effective sample size.
 
     """
@@ -617,7 +612,7 @@ def _calc_simplified_ess_by_sim(year_array: np.array) -> np.array:
     return ess
 
 
-def _calc_ess_by_sim(data: np.array) -> np.array:
+def _calc_ess_by_sim(data: np.ndarray) -> np.ndarray:
     """Function for calculating the effective sample size (ESS) of the provided data.
 
     Parameters
@@ -627,7 +622,7 @@ def _calc_ess_by_sim(data: np.array) -> np.array:
 
     Returns
     -------
-    np.array
+    np.ndarray
         Effective sample size.
 
     References
