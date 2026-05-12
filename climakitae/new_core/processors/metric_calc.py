@@ -84,7 +84,7 @@ class MetricCalc(DataProcessor):
           - grouped_duration (tuple, optional): Rolling window as (int, "day"). Use with event_duration=(1, "day"). Default UNSET
           - block_size (int, optional): Block size in years. Default: 1
           - goodness_of_fit_test (bool, optional): Perform KS test. Default: True
-          - alpha (float, optional): Alpha value (1 - significance level) for confidence intervals. Default UNSET
+          - alpha (float, optional): Alpha value used for determining confidence intervals (or UNSET to skip confidence intervals). Default UNSET
           - bootstrap_runs (int, optional): Number of bootstrap runs for confidence intervals. Default: 100
           - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
           - variable_preprocessing (dict, optional): Variable-specific preprocessing options
