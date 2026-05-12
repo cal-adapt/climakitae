@@ -1,9 +1,11 @@
 """Utility functions for processing data arrays in climakitae."""
 
 import logging
+from typing import Dict, Union
 
 import numpy as np
 import statsmodels as sm
+import xarray as xr
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -581,7 +583,7 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
         logger.warning("Could not calculate effective sample size: %s", e)
 
 
-def _calc_simplified_ess_by_sim(year_array: np.ndarray) -> np.ndarray:
+def _calc_simplified_ess_by_sim(year_array: np.ndarray) -> Union[np.ndarray, float]:
     """Function for calculating the effective sample size (ESS) of the provided data
     using the logarithmic lag sampling method to estimate this statistic for large data.
 
@@ -592,7 +594,7 @@ def _calc_simplified_ess_by_sim(year_array: np.ndarray) -> np.ndarray:
 
     Returns
     -------
-    np.ndarray
+    np.ndarray, float
         Effective sample size.
 
     """
@@ -612,7 +614,7 @@ def _calc_simplified_ess_by_sim(year_array: np.ndarray) -> np.ndarray:
     return ess
 
 
-def _calc_ess_by_sim(data: np.ndarray) -> np.ndarray:
+def _calc_ess_by_sim(data: np.ndarray) -> Union[np.ndarray, float]:
     """Function for calculating the effective sample size (ESS) of the provided data.
 
     Parameters
@@ -622,7 +624,7 @@ def _calc_ess_by_sim(data: np.ndarray) -> np.ndarray:
 
     Returns
     -------
-    np.ndarray
+    np.ndarray, float
         Effective sample size.
 
     References
