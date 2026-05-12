@@ -1010,22 +1010,22 @@ class TestCalcAverageEssTimeseriesOptimized:
         gridded_data = TestDataFactory.create_climate_dataset(
             time_periods=365 * 3, lat_points=5, lon_points=5
         ).rename({"lat": "x", "lon": "y"})
-        test_array = gridded_data.isel(x=2, y=2).tasmax.data
+        test_array = gridded_data.isel(x=2, y=2).data
 
         result = _calc_ess_by_sim(test_array)
 
-        assert isinstance(result, np.ndarray)
+        assert isinstance(result, float)
 
     def test__calc_simplified_ess_by_sim(self):
         """Test that simplified helper function for ess returns array."""
         gridded_data = TestDataFactory.create_climate_dataset(
             time_periods=365 * 3, lat_points=5, lon_points=5
         ).rename({"lat": "x", "lon": "y"})
-        test_array = gridded_data.isel(x=2, y=2).tasmax.data
+        test_array = gridded_data.isel(x=2, y=2).data
 
         result = _calc_simplified_ess_by_sim(test_array)
 
-        assert isinstance(result, np.ndarray)
+        assert isinstance(result, float)
 
 
 class TestSetBlockMaximaAttributes:
