@@ -84,10 +84,11 @@ class MetricCalc(DataProcessor):
           - grouped_duration (tuple, optional): Rolling window as (int, "day"). Use with event_duration=(1, "day"). Default UNSET
           - block_size (int, optional): Block size in years. Default: 1
           - goodness_of_fit_test (bool, optional): Perform KS test. Default: True
-          - alpha (float, optional): Significance level, between 0-1, for confidence intervals. Default UNSET
+          - alpha (float, optional): Alpha value used for determining confidence intervals (or UNSET to skip confidence intervals). Default UNSET
           - bootstrap_runs (int, optional): Number of bootstrap runs for confidence intervals. Default: 100
           - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
           - variable_preprocessing (dict, optional): Variable-specific preprocessing options
+          - check_ess (bool, optional): Check the effective sample size. Default: TRUE
 
         Threshold Exceedance Count:
         - thresholds (dict, optional): Configuration for counting timesteps that exceed
@@ -265,6 +266,7 @@ class MetricCalc(DataProcessor):
         self.variable_preprocessing = self.one_in_x_config.get(
             "variable_preprocessing", {}
         )
+        self.check_ess = self.one_in_x_config.get("check_ess", True)
 
         # Confidence interval setting
         alpha = self.one_in_x_config.get("alpha", UNSET)
@@ -662,8 +664,10 @@ class MetricCalc(DataProcessor):
                         var_result = var_result.rename(
                             {
                                 "return_periods": f"{var_name}_return_periods",
-                                "conf_int_lower_limit": f"{var_name}_conf_int_lower_limit",
-                                "conf_int_upper_limit": f"{var_name}_conf_int_upper_limit",
+                                "conf_int_period_lower_limit": f"{var_name}_conf_int_period_lower_limit",
+                                "conf_int_period_upper_limit": f"{var_name}_conf_int_period_upper_limit",
+                                "conf_int_prob_lower_limit": f"{var_name}_conf_int_prob_lower_limit",
+                                "conf_int_prob_upper_limit": f"{var_name}_conf_int_prob_upper_limit",
                                 "p_values": f"{var_name}_p_values",
                             }
                         )
@@ -1027,6 +1031,7 @@ class MetricCalc(DataProcessor):
         kwargs = {
             "extremes_type": self.extremes_type,
             "block_size": self.block_size,
+            "check_ess": self.check_ess,
         }
 
         if self.event_duration == (1, "day"):

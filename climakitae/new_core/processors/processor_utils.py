@@ -1,17 +1,17 @@
 """Utility functions for processing data arrays in climakitae."""
 
 import logging
-import re
 from typing import Dict, Union
 
 import numpy as np
+import re
+import statsmodels as sm
 import xarray as xr
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 from climakitae.core.constants import UNSET
-from climakitae.explore.threshold_tools import calculate_ess
 
 # Constants for effective sample size calculations
 MIN_ESS_THRESHOLD = 25  # Minimum effective sample size for reliable statistics
@@ -551,39 +551,102 @@ def _check_effective_sample_size_optimized(da: xr.DataArray, block_size: int) ->
 
     Notes
     -----
-    The function handles both gridded (x, y, time) and timeseries (time) data.
     For gridded data, spatial sampling is used to estimate representative ESS.
-    A warning is issued if ESS falls below the minimum threshold.
+    A warning is issued if ESS falls below the minimum threshold anywhere along
+    the time axis.
 
     """
+    logger.info("Checking effective sample size over all dimensions...")
     try:
         if "x" in da.dims and "y" in da.dims:
             # For gridded data, use chunked computation
             average_ess = _calc_average_ess_gridded_optimized(da, block_size)
-        elif da.dims == ("time",):
+        else:
             # For timeseries data
             average_ess = _calc_average_ess_timeseries_optimized(da, block_size)
-        else:
-            logger.warning(
-                "The effective sample size can only be checked for timeseries or spatial data. "
-                "You provided data with the following dimensions: %s.",
-                da.dims,
-            )
-            return
+        # Since the data can have multiple dimensions, count how many times the
+        # ESS falls below the threshold across the whole array.
+        below_thresh_count = xr.where(average_ess < MIN_ESS_THRESHOLD, 1, 0).sum()
 
-        if average_ess < MIN_ESS_THRESHOLD:
+        if below_thresh_count > 0:
             logger.warning(
-                "The average effective sample size in your data is %s per block, which is lower than the recommended threshold of %s. "
+                "Some simulations or time periods have an average effective sample size lower than the recommended threshold of %s. "
                 "This may result in biased estimates of extreme value distributions when calculating return values, periods, and probabilities. "
                 "Consider using a longer block size to increase the effective sample size.",
-                round(average_ess, 2),
+                MIN_ESS_THRESHOLD,
+            )
+        else:
+            logger.info(
+                "All simulations and time periods have an average effective sample size greater than the recommended minimum of %s. ",
                 MIN_ESS_THRESHOLD,
             )
     except (ValueError, RuntimeError) as e:
         logger.warning("Could not calculate effective sample size: %s", e)
 
 
-def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> float:
+def _calc_simplified_ess_by_sim(year_array: np.ndarray) -> float:
+    """Function for calculating the effective sample size (ESS) of the provided data
+    using the logarithmic lag sampling method to estimate this statistic for large data.
+
+    Parameters
+    ----------
+    year_array : np.ndarray
+        Input array is assumed to be timeseries data with potential autocorrelation.
+
+    Returns
+    -------
+    float
+        Effective sample size.
+
+    """
+    # Sample autocorrelation at key lags
+    n = len(year_array)
+    max_lag = min(n // MAX_LAG_DIVISOR, MAX_LAG_SAMPLES_GRIDDED)
+    lags = np.logspace(0, np.log10(max_lag), AUTOCORR_LAG_SAMPLES_GRIDDED).astype(int)
+    autocorr_sum = 0
+    for lag in lags:
+        if lag < n - 1:
+            corr = np.corrcoef(year_array[:-lag], year_array[lag:])[0, 1]
+            if not np.isnan(corr):
+                autocorr_sum += corr * (n - lag) / n
+    ess = n / (1 + 2 * autocorr_sum)
+    if np.isnan(ess):
+        ess = FALLBACK_ESS_VALUE
+    return ess
+
+
+def _calc_ess_by_sim(data: np.ndarray) -> float:
+    """Function for calculating the effective sample size (ESS) of the provided data.
+
+    Parameters
+    ----------
+    data : xr.DataArray
+        Input array is assumed to be timeseries data with potential autocorrelation.
+
+    Returns
+    -------
+    float
+        Effective sample size.
+
+    References
+    ----------
+    Zwiers, F. W., and H. von Storch, 1995: Taking Serial Correlation into Account in Tests of the Mean. J. Climate, 8, 336–351, https://doi.org/10.1175/1520-0442(1995)008<0336:TSCIAI>2.0.CO;2.
+    """
+    n = len(data)
+    nlags = n
+    acf = sm.tsa.stattools.acf(data, nlags=nlags, fft=True)
+    sums = 0
+    for k in range(1, len(acf)):
+        sums = sums + (n - k) * acf[k] / n
+    ess = n / (1 + 2 * sums)
+    if np.isnan(ess):
+        ess = FALLBACK_ESS_VALUE
+    return ess
+
+
+def _calc_average_ess_gridded_optimized(
+    data: xr.DataArray, block_size: int
+) -> Union[xr.DataArray, float]:
     """Optimized ESS calculation for gridded data using vectorized operations.
 
     This function calculates the effective sample size for gridded datasets
@@ -599,7 +662,7 @@ def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> 
 
     Returns
     -------
-    float
+    xr.DataArray or float
         Average effective sample size across sampled spatial locations.
         Returns fallback value if calculation fails.
 
@@ -628,23 +691,23 @@ def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> 
             # Use approximate autocorrelation for speed
             n = len(year_data.time)
             if n > LARGE_DATASET_THRESHOLD:  # Use approximation for large datasets
-                # Sample autocorrelation at key lags
-                max_lag = min(n // MAX_LAG_DIVISOR, MAX_LAG_SAMPLES_GRIDDED)
-                lags = np.logspace(
-                    0, np.log10(max_lag), AUTOCORR_LAG_SAMPLES_GRIDDED
-                ).astype(int)
-                autocorr_sum = 0
-                for lag in lags:
-                    if lag < n - 1:
-                        corr = np.corrcoef(
-                            year_data.values[:-lag], year_data.values[lag:]
-                        )[0, 1]
-                        if not np.isnan(corr):
-                            autocorr_sum += corr * (n - lag) / n
-                ess = n / (1 + 2 * autocorr_sum)
+                ess = xr.apply_ufunc(
+                    _calc_simplified_ess_by_sim,
+                    year_data,
+                    input_core_dims=[["time"]],
+                    output_core_dims=[[]],
+                    vectorize=True,
+                )
+
             else:
                 # Use exact calculation for smaller datasets
-                ess = calculate_ess(year_data).item()
+                ess = xr.apply_ufunc(
+                    _calc_ess_by_sim,
+                    year_data,
+                    input_core_dims=[["time"]],
+                    output_core_dims=[[]],
+                    vectorize=True,
+                )
 
             return ess
 
@@ -700,7 +763,11 @@ def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> 
                     except (ValueError, RuntimeError, IndexError):
                         continue
 
-        return np.nanmean(ess_values) if ess_values else FALLBACK_ESS_VALUE
+        if len(ess_values) > 0:
+            ess_values = xr.concat(ess_values, dim="block").mean("block")
+            return ess_values
+        else:
+            return FALLBACK_ESS_VALUE
     except (ValueError, RuntimeError, MemoryError):
         # Fallback to simple estimate
         return FALLBACK_ESS_VALUE
@@ -708,7 +775,7 @@ def _calc_average_ess_gridded_optimized(data: xr.DataArray, block_size: int) -> 
 
 def _calc_average_ess_timeseries_optimized(
     data: xr.DataArray, block_size: int
-) -> float:
+) -> Union[xr.DataArray, float]:
     """Optimized ESS calculation for timeseries data.
 
     This function calculates the effective sample size for timeseries data
@@ -724,7 +791,7 @@ def _calc_average_ess_timeseries_optimized(
 
     Returns
     -------
-    float
+    xr.DataArray or float
         Average effective sample size across temporal blocks.
         Returns fallback value if calculation fails.
 
@@ -745,34 +812,35 @@ def _calc_average_ess_timeseries_optimized(
                 n = len(block_data.time)
                 if n < MIN_TIME_POINTS:
                     continue
-
                 # Simplified ESS calculation
                 if (
                     n > LARGE_TIMESERIES_THRESHOLD
                 ):  # Use approximation for large time series
                     # Sample autocorrelation at key lags
-                    max_lag = min(n // MAX_LAG_DIVISOR, MAX_LAG_SAMPLES_TIMESERIES)
-                    lags = np.logspace(
-                        0, np.log10(max_lag), AUTOCORR_LAG_SAMPLES_TIMESERIES
-                    ).astype(int)
-                    autocorr_sum = 0
-                    values = block_data.values
-                    for lag in lags:
-                        if lag < n - 1:
-                            corr = np.corrcoef(values[:-lag], values[lag:])[0, 1]
-                            if not np.isnan(corr):
-                                autocorr_sum += corr * (n - lag) / n
-                    ess = n / (1 + 2 * autocorr_sum)
+                    ess = xr.apply_ufunc(
+                        _calc_simplified_ess_by_sim,
+                        block_data,
+                        input_core_dims=[["time"]],
+                        output_core_dims=[[]],
+                        vectorize=True,
+                    )
                 else:
                     # Use exact calculation for smaller datasets
-                    ess = calculate_ess(block_data).item()
-
-                if not np.isnan(ess):
-                    ess_values.append(ess)
+                    ess = xr.apply_ufunc(
+                        _calc_ess_by_sim,
+                        block_data,
+                        input_core_dims=[["time"]],
+                        output_core_dims=[[]],
+                        vectorize=True,
+                    )
+                ess_values.append(ess)
             except (ValueError, RuntimeError, IndexError):
                 continue
-
-        return np.nanmean(ess_values) if ess_values else FALLBACK_ESS_VALUE
+        if len(ess_values) > 0:
+            ess_values = xr.concat(ess_values, dim="block").mean("block")
+            return ess_values
+        else:
+            return FALLBACK_ESS_VALUE
     except (ValueError, RuntimeError, MemoryError):
         return FALLBACK_ESS_VALUE
 

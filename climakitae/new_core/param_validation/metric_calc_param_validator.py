@@ -194,6 +194,7 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
     bootstrap_runs = one_in_x_config.get("bootstrap_runs", 100)
     print_goodness_of_fit = one_in_x_config.get("print_goodness_of_fit", True)
     variable_preprocessing = one_in_x_config.get("variable_preprocessing", {})
+    check_ess = one_in_x_config.get("check_ess", True)
 
     # Validate return_periods (required parameter)
     if return_periods is None and return_values is None:
@@ -349,6 +350,7 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
     for param_name, param_value in [
         ("goodness_of_fit_test", goodness_of_fit_test),
         ("print_goodness_of_fit", print_goodness_of_fit),
+        ("check_ess", check_ess),
     ]:
         if not isinstance(param_value, bool):
             logger.warning(
