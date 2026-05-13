@@ -96,6 +96,7 @@ data = cd.get()                         # Execute query, return xarray
 ```
 
 **Internal Contract**:
+
 - All parameter setters must `return self`
 - Query is reset after `.get()` is called
 - Parameter values stored internally, passed to DatasetFactory on `.get()`
@@ -224,6 +225,7 @@ self._current_key = catalog_key  # DON'T DO THIS
 ```
 
 **Connection Management**:
+
 - Catalogs loaded lazily on first access
 - intake-esm catalogs cached in `_catalogs` dict
 - Boundaries loaded on-demand via lazy property

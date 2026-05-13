@@ -15,13 +15,14 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
 - **Level**: Beginner
 - **Duration**: 10-15 minutes
 - **Key Topics**: Data selection • Spatial subsetting • Temporal subsetting • Export formats
-- **What You'll Learn**:
+- **What You'll Learn**:  
   - How to query the Cal-Adapt data catalog
   - Selecting variables, downscaling methods, and time periods
   - Clipping data to regions of interest
   - Exporting to NetCDF, CSV, and other formats
 
-**Links**:
+**Links**: 
+
 - [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/data-access/basic_data_access.ipynb)
 - [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=data-access/basic_data_access.ipynb) Launch on Binder
 
@@ -35,7 +36,7 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
 - **Key Topics**: Interactive widgets • GUI-driven querying • climakitaegui visualization
 - **Use Case**: Featured on the [Cal-Adapt Analytics Engine — Example Applications](https://analytics.cal-adapt.org/analytics/applications/example) page as the entry point for non-coding workflows.
 
-**Links**:
+**Links**:  
 - [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/data-access/basic_data_access.ipynb)
 - [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=data-access/basic_data_access.ipynb) Launch on Binder
 
@@ -49,7 +50,7 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
 - **Key Topics**: Bias correction • QDM • station observations • `bias_adjust_model_to_station` processor
 - **Background**: See the Cal-Adapt [Methods page](https://analytics.cal-adapt.org/analytics/methods) for the algorithmic context.
 
-**Links**:
+**Links**:  
 - [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/collaborative/DFU/localization_methodology.ipynb)
 - [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=collaborative/DFU/localization_methodology.ipynb) Launch on Binder
 
@@ -70,7 +71,7 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
   - Comparing impacts across different climate scenarios
   - Handling models that don't reach specific warming levels
 
-**Links**:
+**Links**:  
 - [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/analysis/warming_level_methods.ipynb)
 - [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=analysis/warming_level_methods.ipynb) Launch on Binder
 
@@ -89,7 +90,7 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
   - Analyzing how event frequency changes under warming
   - Visualizing compound conditions (e.g., heat + humidity)
 
-**Links**:
+**Links**:  
 - [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/analysis/threshold_exceedance.ipynb)
 - [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=analysis/threshold_exceedance.ipynb) Launch on Binder
 
@@ -108,7 +109,7 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
   - Visualizing model uncertainty with ensemble statistics
   - When to use ensemble mean vs. individual models
 
-**Links**:
+**Links**:  
 - [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/analysis/model_uncertainty.ipynb)
 - [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=analysis/model_uncertainty.ipynb) Launch on Binder
 
@@ -127,7 +128,7 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
   - Calculating rolling statistics for extreme event detection
   - Comparing different time-based analyses
 
-**Links**:
+**Links**:  
 - [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/analysis/timeseries_transformations.ipynb)
 - [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=analysis/timeseries_transformations.ipynb) Launch on Binder
 
@@ -140,6 +141,7 @@ Want to develop and test new notebooks with climakitae? Launch a full developmen
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/climakitae/main?urlpath=lab)
 
 This provides:  
+
 - ✅ Jupyter Lab with full IDE features  
 - ✅ climakitae installed in editable mode (source changes live-reload)  
 - ✅ All documentation build tools (mkdocs, mkdocstrings)  

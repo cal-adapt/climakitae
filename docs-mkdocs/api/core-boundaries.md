@@ -4,7 +4,7 @@ Geographic boundary management for climate data clipping.
 
 ## Overview
 
-`climakitae.core.boundaries` provides the `Boundaries` class for managing geographic regions used to subset climate data. It handles:
+`climakitae.core.boundaries` provides the `Boundaries` class for managing geographic regions used to subset climate data. It handles:  
 - Loading predefined boundaries (counties, watersheds, utilities)
 - Lazy loading to minimize memory usage
 - Caching of boundary geometries

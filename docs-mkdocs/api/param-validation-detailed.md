@@ -4,7 +4,8 @@ Catalog-specific parameter validators for climate data queries.
 
 ## Overview
 
-The `climakitae.new_core.param_validation` module provides catalog-specific validators that ensure climate data query parameters are valid before execution. Each validator:
+The `climakitae.new_core.param_validation` module provides catalog-specific validators that ensure climate data query parameters are valid before execution. Each validator:  
+
 - Validates required parameters for its catalog
 - Checks parameter compatibility
 - Suggests corrections for invalid parameters

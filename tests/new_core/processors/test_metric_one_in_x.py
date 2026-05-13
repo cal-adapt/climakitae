@@ -5,6 +5,7 @@ This module contains comprehensive unit tests for the 1-in-X return value calcul
 including initialization, distribution fitting, batch processing, and helper methods.
 
 The tests validate:
+
 - Proper initialization of 1-in-X configuration parameters
 - Statistical distribution fitting (GEV, Gumbel, Weibull, etc.)
 - Vectorized and batch processing of simulations

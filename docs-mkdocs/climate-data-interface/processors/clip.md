@@ -98,6 +98,7 @@ When providing a list of boundary names, they are combined using **union** (OR l
 
 ### Multiple Points
 When providing multiple point coordinates:
+
 - Each point gets independent smart-gridcell search
 - Results include `closest_cell` dimension with length = number of points
 - Automatic duplicate filtering if multiple points map to same gridcell

@@ -4,7 +4,7 @@ The legacy data interface module providing function-based API for climate data a
 
 ## Overview
 
-`climakitae.core.data_interface` is the main entry point for the legacy interface. It provides:
+`climakitae.core.data_interface` is the main entry point for the legacy interface. It provides:  
 - **DataParameters class** — Configuration object for data queries
 - **get_data() function** — Execute data queries with validation
 
