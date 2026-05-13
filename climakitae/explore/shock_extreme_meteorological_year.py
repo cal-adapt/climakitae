@@ -19,9 +19,7 @@ from tqdm.auto import tqdm  # Progress bar
 
 from climakitae.core.constants import UNSET
 
-# from climakitae.core.data_export import write_tmy_file
-#! until updated tmy export function is added, use this
-from climakitae.core.dev_data_export import write_tmy_file
+from climakitae.core.data_export import write_tmy_file
 from climakitae.new_core.user_interface import ClimateData
 from climakitae.tools.derived_variables import (
     compute_dewpointtemp,
