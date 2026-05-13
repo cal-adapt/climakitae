@@ -91,7 +91,7 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
   - Visualizing compound conditions (e.g., heat + humidity)
 
 **Links**:  
-- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/analysis/threshold_exceedance.ipynb)
+- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/analysis/threshold_tools.ipynb)
 - [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=analysis/threshold_tools.ipynb) Launch on Binder
 
 ---
