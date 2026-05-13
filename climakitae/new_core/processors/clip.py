@@ -100,6 +100,12 @@ Examples
 >>> processor = Clip("/path/to/custom_boundary.shp")
 >>> clipped_data = processor.execute(dataset, context)
 
+>>> # GeoDataFrame
+>>> import geopandas as gpd
+>>> gdf = gpd.read_file("/path/to/custom_boundary.shp")
+>>> processor = Clip(gdf)
+>>> clipped_data = processor.execute(dataset, context)
+
 Notes
 -----
 - The processor requires a DataCatalog to access predefined boundary data
@@ -183,6 +189,11 @@ class Clip(DataProcessor):
     Multiple points extracted to dimension:
     >>> clip = Clip({"points": [(37.7749, -122.4194), (34.0522, -118.2437)], "separated": True})
     >>> # Returns data with 'points' dimension containing each location's values
+
+    GeoDataFrame:
+    >>> import geopandas as gpd
+    >>> gdf = gpd.read_file("/path/to/custom_boundary.shp")
+    >>> clip = Clip(gdf)
     """
 
     def __init__(self, value, persist: bool = False):
