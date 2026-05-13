@@ -910,6 +910,21 @@ class TestClipIntegrationCoordinateBounds:
         assert "x" in result.dims or "lon" in result.dims
         assert "y" in result.dims or "lat" in result.dims
 
+    def test_clip_with_geodataframe_input(self):
+        """Test that a GeoDataFrame can be passed directly as the clip value."""
+        gdf = gpd.GeoDataFrame(
+            geometry=[box(-122, 35, -118, 40)], crs=pyproj.CRS.from_epsg(4326)
+        )
+        clip = Clip(gdf)
+        context = {}
+
+        result = clip.execute(self.dataset, context)
+
+        assert result is not None
+        assert isinstance(result, xr.Dataset)
+        assert result.sizes["y"] < self.dataset.sizes["y"]
+        assert result.sizes["x"] < self.dataset.sizes["x"]
+
 
 class TestClipBoundaryValidation:
     """Integration tests for boundary validation methods."""
