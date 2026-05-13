@@ -21,9 +21,9 @@ from climakitae.explore.shock_extreme_meteorological_year import (
     find_hot_cold_extreme_from_median,
 )
 
+
 class TestFunctionsForXMY:
     """Test the general functions that are not part of the shock_XMY class."""
-
 
     def test_get_top_months_cold(self):
         """Check top months dataframe format and that month with lowest f-s value is chosen for cold shock XMY."""
@@ -648,7 +648,6 @@ class TestXMYClass:
         with (
             patch.object(xmy, "set_cdf_monthly") as mock_month,
             patch.object(xmy, "set_cdf_climatology") as mock_clim,
-
             patch.object(xmy, "set_top_months") as mock_top_months,
         ):
             xmy.get_candidate_months()
