@@ -27,7 +27,6 @@
 - [ ] **How-to guides** (`docs-mkdocs/climate-data-interface/howto/`) — add a new guide if you introduced a non-obvious workflow
 - [ ] **Getting started / migration guides** (`docs-mkdocs/getting-started.md`, `docs-mkdocs/migration/`) — update if you changed the public API or added a new entry point
 - [ ] **Notebook gallery** (`docs-mkdocs/notebook-gallery.md`) — add a link if this PR introduces a new example notebook
-- [ ] **`cae-notebooks`** — update or add a notebook in `cae-notebooks/` that demonstrates the new or changed functionality
 - [ ] **`MAINTAINERS.md`** — update release notes, secrets inventory, or CI table if you changed workflows or infrastructure
 
 ## Code Quality
