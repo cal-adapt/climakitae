@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Install climakitae in editable mode with all dependencies
+pip install -e . --no-deps
+
+# Install any additional pip-only dependencies
+pip install \
+  param \
+  pydantic \
+  tqdm
+
+# Enable Jupyter Lab extensions
+jupyter labextension install @jupyter-widgets/jupyterlab-manager || true
+
+# Set up notebook kernel display name
+python -m ipykernel install --user --name climakitae --display-name "Python (climakitae)"
+
+echo "✓ Binder environment setup complete"
+echo "✓ climakitae installed in editable mode"
+echo "✓ Jupyter Lab configured"

@@ -132,6 +132,9 @@ venv.bak/
 # mkdocs documentation
 /site
 
+# Graph analysis output
+graphify-out/
+
 # mypy
 .mypy_cache/
 .dmypy.json
@@ -152,3 +155,12 @@ cython_debug/
 .local
 *.DS_Store
 
+# various additions
+*.beads
+*.log
+*.vscode
+**/AGENTS.md
+**/claude.*
+**/claude-*.*
+**/CLAUDE.*
+**/CLAUDE-*.*

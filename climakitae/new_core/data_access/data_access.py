@@ -289,7 +289,7 @@ class DataCatalog(dict):
         return self._boundaries
 
     @property
-    def derived_registry(self):
+    def derived_registry(self) -> "DerivedVariableRegistry":
         """Access the derived variable registry.
 
         The registry contains definitions for derived variables that can be

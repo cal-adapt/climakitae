@@ -128,7 +128,7 @@ class TimeSlice(DataProcessor):
                 msg = f"Invalid data type for subsetting. Expected xr.Dataset, dict, list, or tuple but got {type(result)}."
                 logger.warning(msg)
 
-    def update_context(self, context: Dict[str, Any]):
+    def update_context(self, context: Dict[str, Any]) -> None:
         """
         Update the context with information about the clipping operation, to be stored
                 in the "new_attrs" attribute.
@@ -150,7 +150,7 @@ class TimeSlice(DataProcessor):
             self.name
         ] = f"""Process '{self.name}' applied to the data. Slicing was done using the following value: {self.value}."""
 
-    def set_data_accessor(self, catalog: DataCatalog):
+    def set_data_accessor(self, catalog: DataCatalog) -> None:
         # Placeholder for setting data accessor
         pass
 

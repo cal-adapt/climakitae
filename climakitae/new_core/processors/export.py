@@ -673,7 +673,7 @@ class Export(DataProcessor):
             # Restore original filename
             self.filename = original_filename
 
-    def update_context(self, context: Dict[str, Any]):
+    def update_context(self, context: Dict[str, Any]) -> None:
         """
         Update the context with information about the transformation.
 
@@ -695,7 +695,7 @@ class Export(DataProcessor):
             self.name
         ] = f"""Process '{self.name}' applied to the data. Transformation was done using the following value: {value_str}."""
 
-    def set_data_accessor(self, catalog: DataCatalog):
+    def set_data_accessor(self, catalog: DataCatalog) -> None:
         # Placeholder for setting data accessor
         pass
 
@@ -718,7 +718,7 @@ class Export(DataProcessor):
         # Make a copy to avoid modifying the original
         data = data.copy()
 
-        def clean_attrs_dict(attrs_dict):
+        def clean_attrs_dict(attrs_dict: Dict[str, Any]) -> Dict[str, Any]:
             """Clean a dictionary of attributes."""
             cleaned = {}
             for k, v in attrs_dict.items():
@@ -1061,7 +1061,7 @@ class Export(DataProcessor):
                     f"Could not find unique filename after 10000 attempts for {base_filename}"
                 )
 
-    def export_single(self, data: Union[xr.Dataset, xr.DataArray]):
+    def export_single(self, data: Union[xr.Dataset, xr.DataArray]) -> None:
         """
         Export a single xr.Dataset or xr.DataArray to file.
 

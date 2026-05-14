@@ -7,6 +7,7 @@ These tests ensure that the processor behaves as expected under various scenario
 including different warming levels, time windows, and edge cases.
 
 The tests cover:
+
 - Basic functionality: Verifying that the processor correctly adjusts data for standard warming levels.
 - Boundary conditions: Ensuring correct behavior at the edges of the time windows.
 - Error handling: Confirming that appropriate exceptions are raised for invalid inputs.

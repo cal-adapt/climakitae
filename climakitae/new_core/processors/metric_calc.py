@@ -1640,7 +1640,7 @@ class MetricCalc(DataProcessor):
 
         return data
 
-    def update_context(self, context: dict[str, Any]):
+    def update_context(self, context: dict[str, Any]) -> None:
         """
         Update the context with information about the transformation.
 
@@ -1713,7 +1713,7 @@ class MetricCalc(DataProcessor):
 
         context[_NEW_ATTRS_KEY][self.name] = transformation_description
 
-    def set_data_accessor(self, catalog: DataCatalog):
+    def set_data_accessor(self, catalog: DataCatalog) -> None:
         """
         Set the data accessor for the processor.
 

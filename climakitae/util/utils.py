@@ -995,7 +995,8 @@ def readable_bytes(b: int) -> str:
 
     Parameters
     ----------
-    B : byte
+    b : int
+        Size in bytes.
 
     Returns
     -------
@@ -1388,17 +1389,17 @@ def convert_to_local_time(
 
     Parameters
     ----------
-        data : xr.DataArray | xr.Dataset
-            Input data.
-        grid_lon : float
-            Mean longitude of dataset if no lat/lon coordinates
-        grid_lat : float
-            Mean latitude of dataset if no lat/lon coordinates
+    data : xr.DataArray or xr.Dataset
+        Input data.
+    lon : float
+        Mean longitude of dataset if no lat/lon coordinates
+    lat : float
+        Mean latitude of dataset if no lat/lon coordinates
 
     Returns
     -------
-        xr.DataArray | xr.Dataset
-            Data with converted time coordinate.
+    xr.DataArray or xr.Dataset
+        Data with converted time coordinate.
 
     """
 

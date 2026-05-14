@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
     units="%",
     source="builtin",
 )
-def calc_relative_humidity_2m(ds):
+def calc_relative_humidity_2m(ds) -> "xr.Dataset":
     """Calculate relative humidity at 2m.
 
     Parameters
@@ -90,7 +90,7 @@ def calc_relative_humidity_2m(ds):
     units="K",
     source="builtin",
 )
-def calc_dew_point_2m(ds):
+def calc_dew_point_2m(ds) -> "xr.Dataset":
     """Calculate dew point temperature at 2m.
 
     Parameters
@@ -144,7 +144,7 @@ def calc_dew_point_2m(ds):
     units="kg/kg",
     source="builtin",
 )
-def calc_specific_humidity_2m(ds):
+def calc_specific_humidity_2m(ds) -> "xr.Dataset":
     """Calculate specific humidity at 2m.
 
     Parameters

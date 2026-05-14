@@ -116,7 +116,7 @@ class Template(DataProcessor):
         self.update_context(context)
         return result
 
-    def update_context(self, context: Dict[str, Any]):
+    def update_context(self, context: Dict[str, Any]) -> None:
         """Update the context with information about the transformation.
 
         Parameters
@@ -137,7 +137,7 @@ class Template(DataProcessor):
             self.name
         ] = f"""Process '{self.name}' applied to the data. Transformation was done using the following value: {self.value}."""
 
-    def set_data_accessor(self, catalog: DataCatalog):
+    def set_data_accessor(self, catalog: DataCatalog) -> None:
         """Set the data accessor for the processor.
 
         Parameters
