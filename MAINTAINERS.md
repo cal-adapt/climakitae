@@ -12,7 +12,7 @@ This document covers release tagging, deployment, third-party integrations, and 
 - [Publishing to PyPI](#publishing-to-pypi)
 - [Zenodo (DOI Archiving)](#zenodo-doi-archiving)
 - [Codecov (Coverage Tracking)](#codecov-coverage-tracking)
-- [ReadTheDocs](#readthedocs)
+- [Documentation](#documentation)
 - [CI Workflows Overview](#ci-workflows-overview)
 - [Secrets and Credentials](#secrets-and-credentials)
 - [Dependency Management](#dependency-management)
@@ -166,15 +166,17 @@ The [`ci-main.yml`](.github/workflows/ci-main.yml) workflow runs `pytest --cov -
 
 ---
 
-## ReadTheDocs
+## Documentation
 
-Documentation is hosted at <https://climakitae.readthedocs.io/> and built automatically by ReadTheDocs on every push to `main` and on each tagged release.
+Hosted at <https://cal-adapt.github.io/climakitae/>. Deployed automatically by the [`docs-mkdocs.yml`](.github/workflows/docs-mkdocs.yml) workflow on every push to `main` and on every `v*` tag.
 
-- Configuration: [`.readthedocs.yaml`](.readthedocs.yaml)
-- Local preview: `cd docs-mkdocs && mkdocs serve`
-- Full build: `mkdocs build`
+- Source: `docs-mkdocs/` directory + `mkdocs.yml`
+- Configuration: [`mkdocs.yml`](mkdocs.yml)
+- Local preview: `mkdocs serve` (from repo root)
+- Strict build (mirrors CI): `mkdocs build --strict`
+- Requirements: `docs/requirements-mkdocs.txt`
 
-For releases, ReadTheDocs creates a versioned docs snapshot matched to the tag. Make sure all new public symbols have NumPy-style docstrings before tagging — the docs build will fail otherwise.
+For releases, make sure all new public symbols have NumPy-style docstrings before tagging — the docs build will fail otherwise.
 
 ---
 
@@ -183,9 +185,12 @@ For releases, ReadTheDocs creates a versioned docs snapshot matched to the tag. 
 | Workflow | File | Trigger | What it does |
 |----------|------|---------|--------------|
 | `ci-main` | [`ci-main.yml`](.github/workflows/ci-main.yml) | Push to `main` | Black lint + full test suite on Python 3.12 & 3.13 + Codecov upload |
-| `ci-not-main` | `.github/workflows/ci-not-main.yml` | Push to any non-`main` branch | Black lint + basic tests (`not advanced`); advanced tests only if PR labeled **"Advanced Testing"** |
-| `publish` | [`publish.yml`](.github/workflows/publish.yml) | GitHub Release published (or manual dispatch) | Build + publish to PyPI via Trusted Publishing |
-| `docs-check` | `.github/workflows/docs-check.yml` | Pull requests | Validates docs build succeeds |
+| `ci-not-main` | [`ci-not-main.yml`](.github/workflows/ci-not-main.yml) | Push to any non-`main` branch | Black lint + basic tests (`not advanced`) on Python 3.12 & 3.13 |
+| `ci-not-main-pr` | [`ci-not-main-pr.yml`](.github/workflows/ci-not-main-pr.yml) | PR events (synchronize, reopened, labeled) | Black lint + basic tests always; advanced tests added when PR has **"Advanced Testing"** label |
+| `publish` | [`publish.yml`](.github/workflows/publish.yml) | GitHub Release published (or manual dispatch) | Basic tests → build wheel + sdist → `twine check` → publish to PyPI via Trusted Publishing |
+| `docs-mkdocs` | [`docs-mkdocs.yml`](.github/workflows/docs-mkdocs.yml) | Push to `main` or `v*` tag (or manual dispatch) | Builds MkDocs site and deploys to GitHub Pages |
+| `docs-check` | [`docs-check.yml`](.github/workflows/docs-check.yml) | PRs touching `docs-mkdocs/**`, `mkdocs.yml`, or `docs/requirements-mkdocs.txt` | Strict MkDocs build (warnings as errors) + Lychee external link check |
+| `send-issues-to-slack` | [`send-issues-to-slack.yml`](.github/workflows/send-issues-to-slack.yml) | Issue opened | Posts a Slack notification to the team channel |
 
 ---
 
@@ -193,7 +198,8 @@ For releases, ReadTheDocs creates a versioned docs snapshot matched to the tag. 
 
 | Secret name | Used by | Notes |
 |-------------|---------|-------|
-| `CODECOV_TOKEN` | `ci-main.yml` | Codecov upload; rotate at Codecov settings |
+| `CODECOV_TOKEN` | `ci-main.yml` | Codecov upload; rotate at <https://app.codecov.io/gh/cal-adapt/climakitae/settings> |
+| `SLACK_BOT_USER_OAUTH_ACCESS_TOKEN` | `send-issues-to-slack.yml` | Slack bot token for issue notifications; rotate in the Slack app settings |
 | *(none for PyPI)* | `publish.yml` | Uses PyPA Trusted Publishing — no token needed |
 
 Secrets are managed under **GitHub → Settings → Secrets and Variables → Actions**. Do not commit credentials or tokens to the repository.
