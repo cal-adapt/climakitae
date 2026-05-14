@@ -27,8 +27,36 @@ dependencies:
   
   # Intake ecosystem
   - intake
+  - intake-esm
+  - intake-geopandas
   - intake-xarray
-  
+
+  # Data access / cloud storage
+  - s3fs
+  - fsspec
+  - boto3
+  - botocore
+  - aiobotocore
+  - dask-gateway
+  - dask-geopandas
+  - numcodecs
+
+  # Additional geospatial
+  - rasterio
+  - rioxarray
+  - geopy
+
+  # Climate analysis
+  - xclim
+  - xmip
+  - statsmodels
+  - timezonefinder
+  - tqdm
+  - psutil
+  - pytz
+  - pydantic
+  - param
+
   # Visualization
   - matplotlib
   - seaborn
@@ -61,3 +89,10 @@ dependencies:
   - black
   - isort
   - flake8
+
+  # pip-only packages (not available or unreliable on conda-forge)
+  - pip:
+    - xsdba
+    - icechunk>=1.1.15
+    - iprogress>=0.4
+    - fastparquet
