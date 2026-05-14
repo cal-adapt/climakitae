@@ -3635,7 +3635,7 @@ but with "historical" instead of r"ssp.{3}" (e.g., "ssp245" becomes "historical"
                 <code>result</code>
             </td>
             <td>
-                  <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Union">Union</span>[<span title="xarray.Dataset">Dataset</span> | <span title="xarray.DataArray">DataArray</span>]]</code>
+                  <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Union">Union</span>[<a class="autorefs autorefs-external" title="xarray.Dataset" href="https://xarray.pydata.org/en/stable/generated/xarray.Dataset.html#xarray.Dataset">Dataset</a> | <a class="autorefs autorefs-external" title="xarray.DataArray" href="https://xarray.pydata.org/en/stable/generated/xarray.DataArray.html#xarray.DataArray">DataArray</a>]]</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -3661,7 +3661,7 @@ but with "historical" instead of r"ssp.{3}" (e.g., "ssp245" becomes "historical"
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><span title="typing.Union">Union</span>[<span title="xarray.Dataset">Dataset</span>, <span title="xarray.DataArray">DataArray</span>]</code>
+                  <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-external" title="xarray.Dataset" href="https://xarray.pydata.org/en/stable/generated/xarray.Dataset.html#xarray.Dataset">Dataset</a>, <a class="autorefs autorefs-external" title="xarray.DataArray" href="https://xarray.pydata.org/en/stable/generated/xarray.DataArray.html#xarray.DataArray">DataArray</a>]</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -3682,73 +3682,7 @@ but with "historical" instead of r"ssp.{3}" (e.g., "ssp245" becomes "historical"
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/processors/processor_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-891"> 891</a></span>
-<span class="normal"><a href="#__codelineno-0-892"> 892</a></span>
-<span class="normal"><a href="#__codelineno-0-893"> 893</a></span>
-<span class="normal"><a href="#__codelineno-0-894"> 894</a></span>
-<span class="normal"><a href="#__codelineno-0-895"> 895</a></span>
-<span class="normal"><a href="#__codelineno-0-896"> 896</a></span>
-<span class="normal"><a href="#__codelineno-0-897"> 897</a></span>
-<span class="normal"><a href="#__codelineno-0-898"> 898</a></span>
-<span class="normal"><a href="#__codelineno-0-899"> 899</a></span>
-<span class="normal"><a href="#__codelineno-0-900"> 900</a></span>
-<span class="normal"><a href="#__codelineno-0-901"> 901</a></span>
-<span class="normal"><a href="#__codelineno-0-902"> 902</a></span>
-<span class="normal"><a href="#__codelineno-0-903"> 903</a></span>
-<span class="normal"><a href="#__codelineno-0-904"> 904</a></span>
-<span class="normal"><a href="#__codelineno-0-905"> 905</a></span>
-<span class="normal"><a href="#__codelineno-0-906"> 906</a></span>
-<span class="normal"><a href="#__codelineno-0-907"> 907</a></span>
-<span class="normal"><a href="#__codelineno-0-908"> 908</a></span>
-<span class="normal"><a href="#__codelineno-0-909"> 909</a></span>
-<span class="normal"><a href="#__codelineno-0-910"> 910</a></span>
-<span class="normal"><a href="#__codelineno-0-911"> 911</a></span>
-<span class="normal"><a href="#__codelineno-0-912"> 912</a></span>
-<span class="normal"><a href="#__codelineno-0-913"> 913</a></span>
-<span class="normal"><a href="#__codelineno-0-914"> 914</a></span>
-<span class="normal"><a href="#__codelineno-0-915"> 915</a></span>
-<span class="normal"><a href="#__codelineno-0-916"> 916</a></span>
-<span class="normal"><a href="#__codelineno-0-917"> 917</a></span>
-<span class="normal"><a href="#__codelineno-0-918"> 918</a></span>
-<span class="normal"><a href="#__codelineno-0-919"> 919</a></span>
-<span class="normal"><a href="#__codelineno-0-920"> 920</a></span>
-<span class="normal"><a href="#__codelineno-0-921"> 921</a></span>
-<span class="normal"><a href="#__codelineno-0-922"> 922</a></span>
-<span class="normal"><a href="#__codelineno-0-923"> 923</a></span>
-<span class="normal"><a href="#__codelineno-0-924"> 924</a></span>
-<span class="normal"><a href="#__codelineno-0-925"> 925</a></span>
-<span class="normal"><a href="#__codelineno-0-926"> 926</a></span>
-<span class="normal"><a href="#__codelineno-0-927"> 927</a></span>
-<span class="normal"><a href="#__codelineno-0-928"> 928</a></span>
-<span class="normal"><a href="#__codelineno-0-929"> 929</a></span>
-<span class="normal"><a href="#__codelineno-0-930"> 930</a></span>
-<span class="normal"><a href="#__codelineno-0-931"> 931</a></span>
-<span class="normal"><a href="#__codelineno-0-932"> 932</a></span>
-<span class="normal"><a href="#__codelineno-0-933"> 933</a></span>
-<span class="normal"><a href="#__codelineno-0-934"> 934</a></span>
-<span class="normal"><a href="#__codelineno-0-935"> 935</a></span>
-<span class="normal"><a href="#__codelineno-0-936"> 936</a></span>
-<span class="normal"><a href="#__codelineno-0-937"> 937</a></span>
-<span class="normal"><a href="#__codelineno-0-938"> 938</a></span>
-<span class="normal"><a href="#__codelineno-0-939"> 939</a></span>
-<span class="normal"><a href="#__codelineno-0-940"> 940</a></span>
-<span class="normal"><a href="#__codelineno-0-941"> 941</a></span>
-<span class="normal"><a href="#__codelineno-0-942"> 942</a></span>
-<span class="normal"><a href="#__codelineno-0-943"> 943</a></span>
-<span class="normal"><a href="#__codelineno-0-944"> 944</a></span>
-<span class="normal"><a href="#__codelineno-0-945"> 945</a></span>
-<span class="normal"><a href="#__codelineno-0-946"> 946</a></span>
-<span class="normal"><a href="#__codelineno-0-947"> 947</a></span>
-<span class="normal"><a href="#__codelineno-0-948"> 948</a></span>
-<span class="normal"><a href="#__codelineno-0-949"> 949</a></span>
-<span class="normal"><a href="#__codelineno-0-950"> 950</a></span>
-<span class="normal"><a href="#__codelineno-0-951"> 951</a></span>
-<span class="normal"><a href="#__codelineno-0-952"> 952</a></span>
-<span class="normal"><a href="#__codelineno-0-953"> 953</a></span>
-<span class="normal"><a href="#__codelineno-0-954"> 954</a></span>
-<span class="normal"><a href="#__codelineno-0-955"> 955</a></span>
-<span class="normal"><a href="#__codelineno-0-956"> 956</a></span>
-<span class="normal"><a href="#__codelineno-0-957"> 957</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-957"> 957</a></span>
 <span class="normal"><a href="#__codelineno-0-958"> 958</a></span>
 <span class="normal"><a href="#__codelineno-0-959"> 959</a></span>
 <span class="normal"><a href="#__codelineno-0-960"> 960</a></span>
@@ -3817,142 +3751,208 @@ but with "historical" instead of r"ssp.{3}" (e.g., "ssp245" becomes "historical"
 <span class="normal"><a href="#__codelineno-0-1023">1023</a></span>
 <span class="normal"><a href="#__codelineno-0-1024">1024</a></span>
 <span class="normal"><a href="#__codelineno-0-1025">1025</a></span>
-<span class="normal"><a href="#__codelineno-0-1026">1026</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-891" name="__codelineno-0-891"></a><span class="k">def</span><span class="w"> </span><span class="nf">extend_time_domain</span><span class="p">(</span>
-<a id="__codelineno-0-892" name="__codelineno-0-892"></a>    <span class="n">result</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">]],</span>
-<a id="__codelineno-0-893" name="__codelineno-0-893"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">]:</span>
-<a id="__codelineno-0-894" name="__codelineno-0-894"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Extend the time domain of the input data to cover 1980-2100.</span>
-<a id="__codelineno-0-895" name="__codelineno-0-895"></a>
-<a id="__codelineno-0-896" name="__codelineno-0-896"></a><span class="sd">    This method ensures that all SSP scenarios have historical data</span>
-<a id="__codelineno-0-897" name="__codelineno-0-897"></a><span class="sd">    included in the time series, allowing for proper warming level calculations.</span>
-<a id="__codelineno-0-898" name="__codelineno-0-898"></a><span class="sd">    This is handled by concatenating historical data with SSP data and updating</span>
-<a id="__codelineno-0-899" name="__codelineno-0-899"></a><span class="sd">    the attributes to that of the SSP data. Historical data is expected to be</span>
-<a id="__codelineno-0-900" name="__codelineno-0-900"></a><span class="sd">    available in the input dictionary with keys formatted the same as SSP keys</span>
-<a id="__codelineno-0-901" name="__codelineno-0-901"></a><span class="sd">    but with &quot;historical&quot; instead of r&quot;ssp.{3}&quot; (e.g., &quot;ssp245&quot; becomes &quot;historical&quot;).</span>
-<a id="__codelineno-0-902" name="__codelineno-0-902"></a>
-<a id="__codelineno-0-903" name="__codelineno-0-903"></a><span class="sd">    Parameters</span>
-<a id="__codelineno-0-904" name="__codelineno-0-904"></a><span class="sd">    ----------</span>
-<a id="__codelineno-0-905" name="__codelineno-0-905"></a><span class="sd">    result : Dict[str, Union[xr.Dataset | xr.DataArray]]</span>
-<a id="__codelineno-0-906" name="__codelineno-0-906"></a><span class="sd">        A dictionary containing time-series data with keys representing different scenarios.</span>
-<a id="__codelineno-0-907" name="__codelineno-0-907"></a>
-<a id="__codelineno-0-908" name="__codelineno-0-908"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-909" name="__codelineno-0-909"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-910" name="__codelineno-0-910"></a><span class="sd">    Union[xr.Dataset, xr.DataArray]</span>
-<a id="__codelineno-0-911" name="__codelineno-0-911"></a><span class="sd">        The extended time-series data.</span>
-<a id="__codelineno-0-912" name="__codelineno-0-912"></a>
-<a id="__codelineno-0-913" name="__codelineno-0-913"></a><span class="sd">    Notes</span>
-<a id="__codelineno-0-914" name="__codelineno-0-914"></a><span class="sd">    -----</span>
-<a id="__codelineno-0-915" name="__codelineno-0-915"></a><span class="sd">    - By construction, this function will drop reanalysis data.</span>
-<a id="__codelineno-0-916" name="__codelineno-0-916"></a>
-<a id="__codelineno-0-917" name="__codelineno-0-917"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-918" name="__codelineno-0-918"></a>    <span class="n">ret</span> <span class="o">=</span> <span class="p">{}</span>
-<a id="__codelineno-0-919" name="__codelineno-0-919"></a>
-<a id="__codelineno-0-920" name="__codelineno-0-920"></a>    <span class="c1"># don&#39;t run twice, check if historical data was already prepended</span>
-<a id="__codelineno-0-921" name="__codelineno-0-921"></a>    <span class="c1"># this is to avoid unnecessary processing if the data has already been extended</span>
-<a id="__codelineno-0-922" name="__codelineno-0-922"></a>    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;historical_prepended&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
-<a id="__codelineno-0-923" name="__codelineno-0-923"></a>        <span class="k">return</span> <span class="n">result</span>  <span class="c1"># type: ignore</span>
-<a id="__codelineno-0-924" name="__codelineno-0-924"></a>
-<a id="__codelineno-0-925" name="__codelineno-0-925"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-<a id="__codelineno-0-926" name="__codelineno-0-926"></a>        <span class="s2">&quot;Prepending historical data to SSP scenarios. This is the default concatenation strategy for retrieved data in climakitae. &quot;</span>
-<a id="__codelineno-0-927" name="__codelineno-0-927"></a>        <span class="s2">&quot;To change this behavior, set &#39;concat&#39;: &#39;sim&#39; in your processes dictionary.&quot;</span>
-<a id="__codelineno-0-928" name="__codelineno-0-928"></a>    <span class="p">)</span>
-<a id="__codelineno-0-929" name="__codelineno-0-929"></a>
-<a id="__codelineno-0-930" name="__codelineno-0-930"></a>    <span class="c1"># Process SSP scenarios by finding and prepending historical data</span>
-<a id="__codelineno-0-931" name="__codelineno-0-931"></a>    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-<a id="__codelineno-0-932" name="__codelineno-0-932"></a>        <span class="k">if</span> <span class="s2">&quot;ssp&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
-<a id="__codelineno-0-933" name="__codelineno-0-933"></a>            <span class="c1"># drop non-SSP data since historical gets prepended</span>
-<a id="__codelineno-0-934" name="__codelineno-0-934"></a>            <span class="k">continue</span>
-<a id="__codelineno-0-935" name="__codelineno-0-935"></a>
-<a id="__codelineno-0-936" name="__codelineno-0-936"></a>        <span class="c1"># Find corresponding historical key by replacing SSP pattern with &quot;historical&quot;</span>
-<a id="__codelineno-0-937" name="__codelineno-0-937"></a>        <span class="n">hist_key</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;ssp.</span><span class="si">{3}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;historical&quot;</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
-<a id="__codelineno-0-938" name="__codelineno-0-938"></a>
-<a id="__codelineno-0-939" name="__codelineno-0-939"></a>        <span class="k">if</span> <span class="n">hist_key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
-<a id="__codelineno-0-940" name="__codelineno-0-940"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-<a id="__codelineno-0-941" name="__codelineno-0-941"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">No historical data found for </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2"> with key </span><span class="si">{</span><span class="n">hist_key</span><span class="si">}</span><span class="s2">. &quot;</span>
-<a id="__codelineno-0-942" name="__codelineno-0-942"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Historical data is required for time domain extension. &quot;</span>
-<a id="__codelineno-0-943" name="__codelineno-0-943"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Keeping original SSP data without historical extension.</span><span class="se">\n</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-944" name="__codelineno-0-944"></a>            <span class="p">)</span>
-<a id="__codelineno-0-945" name="__codelineno-0-945"></a>            <span class="n">ret</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span>
-<a id="__codelineno-0-946" name="__codelineno-0-946"></a>            <span class="k">continue</span>
-<a id="__codelineno-0-947" name="__codelineno-0-947"></a>
-<a id="__codelineno-0-948" name="__codelineno-0-948"></a>            <span class="c1"># Concatenate historical and SSP data along time dimension</span>
-<a id="__codelineno-0-949" name="__codelineno-0-949"></a>        <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-950" name="__codelineno-0-950"></a>            <span class="n">hist_data</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="n">hist_key</span><span class="p">]</span>
-<a id="__codelineno-0-951" name="__codelineno-0-951"></a>            <span class="c1"># Use proper xr.concat with explicit typing and optimized settings</span>
-<a id="__codelineno-0-952" name="__codelineno-0-952"></a>            <span class="c1"># compat=&quot;override&quot; skips expensive coordinate equality checks</span>
-<a id="__codelineno-0-953" name="__codelineno-0-953"></a>            <span class="c1"># coords=&quot;minimal&quot; avoids duplicating coordinates</span>
-<a id="__codelineno-0-954" name="__codelineno-0-954"></a>            <span class="n">concat_kwargs</span> <span class="o">=</span> <span class="p">{</span>
-<a id="__codelineno-0-955" name="__codelineno-0-955"></a>                <span class="s2">&quot;dim&quot;</span><span class="p">:</span> <span class="s2">&quot;time&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-956" name="__codelineno-0-956"></a>                <span class="s2">&quot;coords&quot;</span><span class="p">:</span> <span class="s2">&quot;minimal&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-957" name="__codelineno-0-957"></a>                <span class="s2">&quot;compat&quot;</span><span class="p">:</span> <span class="s2">&quot;override&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-958" name="__codelineno-0-958"></a>                <span class="s2">&quot;join&quot;</span><span class="p">:</span> <span class="s2">&quot;outer&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-959" name="__codelineno-0-959"></a>            <span class="p">}</span>
-<a id="__codelineno-0-960" name="__codelineno-0-960"></a>            <span class="n">hist_common</span> <span class="o">=</span> <span class="n">hist_data</span>
-<a id="__codelineno-0-961" name="__codelineno-0-961"></a>            <span class="n">data_common</span> <span class="o">=</span> <span class="n">data</span>
-<a id="__codelineno-0-962" name="__codelineno-0-962"></a>
-<a id="__codelineno-0-963" name="__codelineno-0-963"></a>            <span class="k">if</span> <span class="s2">&quot;member_id&quot;</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">dims</span> <span class="ow">and</span> <span class="s2">&quot;member_id&quot;</span> <span class="ow">in</span> <span class="n">hist_data</span><span class="o">.</span><span class="n">dims</span><span class="p">:</span>
-<a id="__codelineno-0-964" name="__codelineno-0-964"></a>                <span class="c1"># Find common member_ids between historical and SSP data</span>
-<a id="__codelineno-0-965" name="__codelineno-0-965"></a>                <span class="n">common_members</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">intersect1d</span><span class="p">(</span>
-<a id="__codelineno-0-966" name="__codelineno-0-966"></a>                    <span class="n">hist_data</span><span class="o">.</span><span class="n">member_id</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
-<a id="__codelineno-0-967" name="__codelineno-0-967"></a>                    <span class="n">data</span><span class="o">.</span><span class="n">member_id</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
-<a id="__codelineno-0-968" name="__codelineno-0-968"></a>                <span class="p">)</span>
-<a id="__codelineno-0-969" name="__codelineno-0-969"></a>
-<a id="__codelineno-0-970" name="__codelineno-0-970"></a>                <span class="c1"># Select only matching members</span>
-<a id="__codelineno-0-971" name="__codelineno-0-971"></a>                <span class="n">hist_common</span> <span class="o">=</span> <span class="n">hist_data</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">member_id</span><span class="o">=</span><span class="n">common_members</span><span class="p">)</span>
-<a id="__codelineno-0-972" name="__codelineno-0-972"></a>                <span class="n">data_common</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">member_id</span><span class="o">=</span><span class="n">common_members</span><span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-1026">1026</a></span>
+<span class="normal"><a href="#__codelineno-0-1027">1027</a></span>
+<span class="normal"><a href="#__codelineno-0-1028">1028</a></span>
+<span class="normal"><a href="#__codelineno-0-1029">1029</a></span>
+<span class="normal"><a href="#__codelineno-0-1030">1030</a></span>
+<span class="normal"><a href="#__codelineno-0-1031">1031</a></span>
+<span class="normal"><a href="#__codelineno-0-1032">1032</a></span>
+<span class="normal"><a href="#__codelineno-0-1033">1033</a></span>
+<span class="normal"><a href="#__codelineno-0-1034">1034</a></span>
+<span class="normal"><a href="#__codelineno-0-1035">1035</a></span>
+<span class="normal"><a href="#__codelineno-0-1036">1036</a></span>
+<span class="normal"><a href="#__codelineno-0-1037">1037</a></span>
+<span class="normal"><a href="#__codelineno-0-1038">1038</a></span>
+<span class="normal"><a href="#__codelineno-0-1039">1039</a></span>
+<span class="normal"><a href="#__codelineno-0-1040">1040</a></span>
+<span class="normal"><a href="#__codelineno-0-1041">1041</a></span>
+<span class="normal"><a href="#__codelineno-0-1042">1042</a></span>
+<span class="normal"><a href="#__codelineno-0-1043">1043</a></span>
+<span class="normal"><a href="#__codelineno-0-1044">1044</a></span>
+<span class="normal"><a href="#__codelineno-0-1045">1045</a></span>
+<span class="normal"><a href="#__codelineno-0-1046">1046</a></span>
+<span class="normal"><a href="#__codelineno-0-1047">1047</a></span>
+<span class="normal"><a href="#__codelineno-0-1048">1048</a></span>
+<span class="normal"><a href="#__codelineno-0-1049">1049</a></span>
+<span class="normal"><a href="#__codelineno-0-1050">1050</a></span>
+<span class="normal"><a href="#__codelineno-0-1051">1051</a></span>
+<span class="normal"><a href="#__codelineno-0-1052">1052</a></span>
+<span class="normal"><a href="#__codelineno-0-1053">1053</a></span>
+<span class="normal"><a href="#__codelineno-0-1054">1054</a></span>
+<span class="normal"><a href="#__codelineno-0-1055">1055</a></span>
+<span class="normal"><a href="#__codelineno-0-1056">1056</a></span>
+<span class="normal"><a href="#__codelineno-0-1057">1057</a></span>
+<span class="normal"><a href="#__codelineno-0-1058">1058</a></span>
+<span class="normal"><a href="#__codelineno-0-1059">1059</a></span>
+<span class="normal"><a href="#__codelineno-0-1060">1060</a></span>
+<span class="normal"><a href="#__codelineno-0-1061">1061</a></span>
+<span class="normal"><a href="#__codelineno-0-1062">1062</a></span>
+<span class="normal"><a href="#__codelineno-0-1063">1063</a></span>
+<span class="normal"><a href="#__codelineno-0-1064">1064</a></span>
+<span class="normal"><a href="#__codelineno-0-1065">1065</a></span>
+<span class="normal"><a href="#__codelineno-0-1066">1066</a></span>
+<span class="normal"><a href="#__codelineno-0-1067">1067</a></span>
+<span class="normal"><a href="#__codelineno-0-1068">1068</a></span>
+<span class="normal"><a href="#__codelineno-0-1069">1069</a></span>
+<span class="normal"><a href="#__codelineno-0-1070">1070</a></span>
+<span class="normal"><a href="#__codelineno-0-1071">1071</a></span>
+<span class="normal"><a href="#__codelineno-0-1072">1072</a></span>
+<span class="normal"><a href="#__codelineno-0-1073">1073</a></span>
+<span class="normal"><a href="#__codelineno-0-1074">1074</a></span>
+<span class="normal"><a href="#__codelineno-0-1075">1075</a></span>
+<span class="normal"><a href="#__codelineno-0-1076">1076</a></span>
+<span class="normal"><a href="#__codelineno-0-1077">1077</a></span>
+<span class="normal"><a href="#__codelineno-0-1078">1078</a></span>
+<span class="normal"><a href="#__codelineno-0-1079">1079</a></span>
+<span class="normal"><a href="#__codelineno-0-1080">1080</a></span>
+<span class="normal"><a href="#__codelineno-0-1081">1081</a></span>
+<span class="normal"><a href="#__codelineno-0-1082">1082</a></span>
+<span class="normal"><a href="#__codelineno-0-1083">1083</a></span>
+<span class="normal"><a href="#__codelineno-0-1084">1084</a></span>
+<span class="normal"><a href="#__codelineno-0-1085">1085</a></span>
+<span class="normal"><a href="#__codelineno-0-1086">1086</a></span>
+<span class="normal"><a href="#__codelineno-0-1087">1087</a></span>
+<span class="normal"><a href="#__codelineno-0-1088">1088</a></span>
+<span class="normal"><a href="#__codelineno-0-1089">1089</a></span>
+<span class="normal"><a href="#__codelineno-0-1090">1090</a></span>
+<span class="normal"><a href="#__codelineno-0-1091">1091</a></span>
+<span class="normal"><a href="#__codelineno-0-1092">1092</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-957" name="__codelineno-0-957"></a><span class="k">def</span><span class="w"> </span><span class="nf">extend_time_domain</span><span class="p">(</span>
+<a id="__codelineno-0-958" name="__codelineno-0-958"></a>    <span class="n">result</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">]],</span>
+<a id="__codelineno-0-959" name="__codelineno-0-959"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">]:</span>
+<a id="__codelineno-0-960" name="__codelineno-0-960"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Extend the time domain of the input data to cover 1980-2100.</span>
+<a id="__codelineno-0-961" name="__codelineno-0-961"></a>
+<a id="__codelineno-0-962" name="__codelineno-0-962"></a><span class="sd">    This method ensures that all SSP scenarios have historical data</span>
+<a id="__codelineno-0-963" name="__codelineno-0-963"></a><span class="sd">    included in the time series, allowing for proper warming level calculations.</span>
+<a id="__codelineno-0-964" name="__codelineno-0-964"></a><span class="sd">    This is handled by concatenating historical data with SSP data and updating</span>
+<a id="__codelineno-0-965" name="__codelineno-0-965"></a><span class="sd">    the attributes to that of the SSP data. Historical data is expected to be</span>
+<a id="__codelineno-0-966" name="__codelineno-0-966"></a><span class="sd">    available in the input dictionary with keys formatted the same as SSP keys</span>
+<a id="__codelineno-0-967" name="__codelineno-0-967"></a><span class="sd">    but with &quot;historical&quot; instead of r&quot;ssp.{3}&quot; (e.g., &quot;ssp245&quot; becomes &quot;historical&quot;).</span>
+<a id="__codelineno-0-968" name="__codelineno-0-968"></a>
+<a id="__codelineno-0-969" name="__codelineno-0-969"></a><span class="sd">    Parameters</span>
+<a id="__codelineno-0-970" name="__codelineno-0-970"></a><span class="sd">    ----------</span>
+<a id="__codelineno-0-971" name="__codelineno-0-971"></a><span class="sd">    result : Dict[str, Union[xr.Dataset | xr.DataArray]]</span>
+<a id="__codelineno-0-972" name="__codelineno-0-972"></a><span class="sd">        A dictionary containing time-series data with keys representing different scenarios.</span>
 <a id="__codelineno-0-973" name="__codelineno-0-973"></a>
-<a id="__codelineno-0-974" name="__codelineno-0-974"></a>            <span class="c1"># Capture variable-level attrs and spatial coords BEFORE concat</span>
-<a id="__codelineno-0-975" name="__codelineno-0-975"></a>            <span class="n">orig_var_attrs</span> <span class="o">=</span> <span class="p">{}</span>
-<a id="__codelineno-0-976" name="__codelineno-0-976"></a>            <span class="n">orig_spatial_coords</span> <span class="o">=</span> <span class="p">{}</span>
-<a id="__codelineno-0-977" name="__codelineno-0-977"></a>            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
-<a id="__codelineno-0-978" name="__codelineno-0-978"></a>                <span class="n">orig_var_attrs</span> <span class="o">=</span> <span class="p">{</span><span class="n">var</span><span class="p">:</span> <span class="nb">dict</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">)</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">data_vars</span><span class="p">}</span>
-<a id="__codelineno-0-979" name="__codelineno-0-979"></a>                <span class="n">spatial_coord_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Lambert_Conformal&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">]</span>
-<a id="__codelineno-0-980" name="__codelineno-0-980"></a>                <span class="n">orig_spatial_coords</span> <span class="o">=</span> <span class="p">{</span>
-<a id="__codelineno-0-981" name="__codelineno-0-981"></a>                    <span class="n">name</span><span class="p">:</span> <span class="n">data</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
-<a id="__codelineno-0-982" name="__codelineno-0-982"></a>                    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">spatial_coord_names</span>
-<a id="__codelineno-0-983" name="__codelineno-0-983"></a>                    <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">coords</span>
-<a id="__codelineno-0-984" name="__codelineno-0-984"></a>                <span class="p">}</span>
+<a id="__codelineno-0-974" name="__codelineno-0-974"></a><span class="sd">    Returns</span>
+<a id="__codelineno-0-975" name="__codelineno-0-975"></a><span class="sd">    -------</span>
+<a id="__codelineno-0-976" name="__codelineno-0-976"></a><span class="sd">    Union[xr.Dataset, xr.DataArray]</span>
+<a id="__codelineno-0-977" name="__codelineno-0-977"></a><span class="sd">        The extended time-series data.</span>
+<a id="__codelineno-0-978" name="__codelineno-0-978"></a>
+<a id="__codelineno-0-979" name="__codelineno-0-979"></a><span class="sd">    Notes</span>
+<a id="__codelineno-0-980" name="__codelineno-0-980"></a><span class="sd">    -----</span>
+<a id="__codelineno-0-981" name="__codelineno-0-981"></a><span class="sd">    - By construction, this function will drop reanalysis data.</span>
+<a id="__codelineno-0-982" name="__codelineno-0-982"></a>
+<a id="__codelineno-0-983" name="__codelineno-0-983"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-984" name="__codelineno-0-984"></a>    <span class="n">ret</span> <span class="o">=</span> <span class="p">{}</span>
 <a id="__codelineno-0-985" name="__codelineno-0-985"></a>
-<a id="__codelineno-0-986" name="__codelineno-0-986"></a>            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hist_common</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
-<a id="__codelineno-0-987" name="__codelineno-0-987"></a>                <span class="n">extended_data</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">hist_common</span><span class="p">,</span> <span class="n">data_common</span><span class="p">],</span> <span class="o">**</span><span class="n">concat_kwargs</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
-<a id="__codelineno-0-988" name="__codelineno-0-988"></a>            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
-<a id="__codelineno-0-989" name="__codelineno-0-989"></a>                <span class="n">hist_common</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span>
-<a id="__codelineno-0-990" name="__codelineno-0-990"></a>            <span class="p">):</span>
-<a id="__codelineno-0-991" name="__codelineno-0-991"></a>                <span class="n">extended_data</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">hist_common</span><span class="p">,</span> <span class="n">data_common</span><span class="p">],</span> <span class="o">**</span><span class="n">concat_kwargs</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
-<a id="__codelineno-0-992" name="__codelineno-0-992"></a>            <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-993" name="__codelineno-0-993"></a>                <span class="c1"># Handle mixed types by converting to same type</span>
-<a id="__codelineno-0-994" name="__codelineno-0-994"></a>                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data_common</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
-<a id="__codelineno-0-995" name="__codelineno-0-995"></a>                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hist_common</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">):</span>
-<a id="__codelineno-0-996" name="__codelineno-0-996"></a>                        <span class="n">hist_data</span> <span class="o">=</span> <span class="n">hist_common</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">()</span>
-<a id="__codelineno-0-997" name="__codelineno-0-997"></a>                    <span class="n">extended_data</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">hist_common</span><span class="p">,</span> <span class="n">data_common</span><span class="p">],</span> <span class="o">**</span><span class="n">concat_kwargs</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
-<a id="__codelineno-0-998" name="__codelineno-0-998"></a>                <span class="k">else</span><span class="p">:</span>  <span class="c1"># data is DataArray</span>
-<a id="__codelineno-0-999" name="__codelineno-0-999"></a>                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hist_common</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
-<a id="__codelineno-0-1000" name="__codelineno-0-1000"></a>                        <span class="n">data_common</span> <span class="o">=</span> <span class="n">data_common</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">()</span>
-<a id="__codelineno-0-1001" name="__codelineno-0-1001"></a>                    <span class="n">extended_data</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">hist_common</span><span class="p">,</span> <span class="n">data</span><span class="p">],</span> <span class="o">**</span><span class="n">concat_kwargs</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
-<a id="__codelineno-0-1002" name="__codelineno-0-1002"></a>
-<a id="__codelineno-0-1003" name="__codelineno-0-1003"></a>            <span class="c1"># Preserve SSP attributes (dataset-level)</span>
-<a id="__codelineno-0-1004" name="__codelineno-0-1004"></a>            <span class="n">extended_data</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">attrs</span><span class="p">)</span>
-<a id="__codelineno-0-1005" name="__codelineno-0-1005"></a>
-<a id="__codelineno-0-1006" name="__codelineno-0-1006"></a>            <span class="c1"># Restore variable-level attrs (including grid_mapping)</span>
-<a id="__codelineno-0-1007" name="__codelineno-0-1007"></a>            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">extended_data</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
-<a id="__codelineno-0-1008" name="__codelineno-0-1008"></a>                <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">var_attrs</span> <span class="ow">in</span> <span class="n">orig_var_attrs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-<a id="__codelineno-0-1009" name="__codelineno-0-1009"></a>                    <span class="k">if</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">extended_data</span><span class="o">.</span><span class="n">data_vars</span><span class="p">:</span>
-<a id="__codelineno-0-1010" name="__codelineno-0-1010"></a>                        <span class="n">extended_data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">var_attrs</span><span class="p">)</span>
-<a id="__codelineno-0-1011" name="__codelineno-0-1011"></a>
-<a id="__codelineno-0-1012" name="__codelineno-0-1012"></a>            <span class="c1"># Restore spatial coordinates (Lambert_Conformal, etc.)</span>
-<a id="__codelineno-0-1013" name="__codelineno-0-1013"></a>            <span class="k">for</span> <span class="n">coord_name</span><span class="p">,</span> <span class="n">coord_val</span> <span class="ow">in</span> <span class="n">orig_spatial_coords</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-<a id="__codelineno-0-1014" name="__codelineno-0-1014"></a>                <span class="k">if</span> <span class="n">coord_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">extended_data</span><span class="o">.</span><span class="n">coords</span><span class="p">:</span>
-<a id="__codelineno-0-1015" name="__codelineno-0-1015"></a>                    <span class="n">extended_data</span> <span class="o">=</span> <span class="n">extended_data</span><span class="o">.</span><span class="n">assign_coords</span><span class="p">({</span><span class="n">coord_name</span><span class="p">:</span> <span class="n">coord_val</span><span class="p">})</span>
-<a id="__codelineno-0-1016" name="__codelineno-0-1016"></a>            <span class="c1"># add key attr indicating historical data was prepended</span>
-<a id="__codelineno-0-1017" name="__codelineno-0-1017"></a>            <span class="n">extended_data</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;historical_prepended&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
-<a id="__codelineno-0-1018" name="__codelineno-0-1018"></a>            <span class="n">ret</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">extended_data</span>
-<a id="__codelineno-0-1019" name="__codelineno-0-1019"></a>
-<a id="__codelineno-0-1020" name="__codelineno-0-1020"></a>        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-1021" name="__codelineno-0-1021"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-<a id="__codelineno-0-1022" name="__codelineno-0-1022"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Failed to concatenate historical and SSP data for </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-1023" name="__codelineno-0-1023"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Since no historical data is available, this data is dropped.</span><span class="se">\n</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-1024" name="__codelineno-0-1024"></a>            <span class="p">)</span>
-<a id="__codelineno-0-1025" name="__codelineno-0-1025"></a>
-<a id="__codelineno-0-1026" name="__codelineno-0-1026"></a>    <span class="k">return</span> <span class="n">ret</span>
+<a id="__codelineno-0-986" name="__codelineno-0-986"></a>    <span class="c1"># don&#39;t run twice, check if historical data was already prepended</span>
+<a id="__codelineno-0-987" name="__codelineno-0-987"></a>    <span class="c1"># this is to avoid unnecessary processing if the data has already been extended</span>
+<a id="__codelineno-0-988" name="__codelineno-0-988"></a>    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;historical_prepended&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+<a id="__codelineno-0-989" name="__codelineno-0-989"></a>        <span class="k">return</span> <span class="n">result</span>  <span class="c1"># type: ignore</span>
+<a id="__codelineno-0-990" name="__codelineno-0-990"></a>
+<a id="__codelineno-0-991" name="__codelineno-0-991"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+<a id="__codelineno-0-992" name="__codelineno-0-992"></a>        <span class="s2">&quot;Prepending historical data to SSP scenarios. This is the default concatenation strategy for retrieved data in climakitae. &quot;</span>
+<a id="__codelineno-0-993" name="__codelineno-0-993"></a>        <span class="s2">&quot;To change this behavior, set &#39;concat&#39;: &#39;sim&#39; in your processes dictionary.&quot;</span>
+<a id="__codelineno-0-994" name="__codelineno-0-994"></a>    <span class="p">)</span>
+<a id="__codelineno-0-995" name="__codelineno-0-995"></a>
+<a id="__codelineno-0-996" name="__codelineno-0-996"></a>    <span class="c1"># Process SSP scenarios by finding and prepending historical data</span>
+<a id="__codelineno-0-997" name="__codelineno-0-997"></a>    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-0-998" name="__codelineno-0-998"></a>        <span class="k">if</span> <span class="s2">&quot;ssp&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
+<a id="__codelineno-0-999" name="__codelineno-0-999"></a>            <span class="c1"># drop non-SSP data since historical gets prepended</span>
+<a id="__codelineno-0-1000" name="__codelineno-0-1000"></a>            <span class="k">continue</span>
+<a id="__codelineno-0-1001" name="__codelineno-0-1001"></a>
+<a id="__codelineno-0-1002" name="__codelineno-0-1002"></a>        <span class="c1"># Find corresponding historical key by replacing SSP pattern with &quot;historical&quot;</span>
+<a id="__codelineno-0-1003" name="__codelineno-0-1003"></a>        <span class="n">hist_key</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;ssp.</span><span class="si">{3}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;historical&quot;</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+<a id="__codelineno-0-1004" name="__codelineno-0-1004"></a>
+<a id="__codelineno-0-1005" name="__codelineno-0-1005"></a>        <span class="k">if</span> <span class="n">hist_key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+<a id="__codelineno-0-1006" name="__codelineno-0-1006"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-1007" name="__codelineno-0-1007"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">No historical data found for </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2"> with key </span><span class="si">{</span><span class="n">hist_key</span><span class="si">}</span><span class="s2">. &quot;</span>
+<a id="__codelineno-0-1008" name="__codelineno-0-1008"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Historical data is required for time domain extension. &quot;</span>
+<a id="__codelineno-0-1009" name="__codelineno-0-1009"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Keeping original SSP data without historical extension.</span><span class="se">\n</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-1010" name="__codelineno-0-1010"></a>            <span class="p">)</span>
+<a id="__codelineno-0-1011" name="__codelineno-0-1011"></a>            <span class="n">ret</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span>
+<a id="__codelineno-0-1012" name="__codelineno-0-1012"></a>            <span class="k">continue</span>
+<a id="__codelineno-0-1013" name="__codelineno-0-1013"></a>
+<a id="__codelineno-0-1014" name="__codelineno-0-1014"></a>            <span class="c1"># Concatenate historical and SSP data along time dimension</span>
+<a id="__codelineno-0-1015" name="__codelineno-0-1015"></a>        <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-1016" name="__codelineno-0-1016"></a>            <span class="n">hist_data</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="n">hist_key</span><span class="p">]</span>
+<a id="__codelineno-0-1017" name="__codelineno-0-1017"></a>            <span class="c1"># Use proper xr.concat with explicit typing and optimized settings</span>
+<a id="__codelineno-0-1018" name="__codelineno-0-1018"></a>            <span class="c1"># compat=&quot;override&quot; skips expensive coordinate equality checks</span>
+<a id="__codelineno-0-1019" name="__codelineno-0-1019"></a>            <span class="c1"># coords=&quot;minimal&quot; avoids duplicating coordinates</span>
+<a id="__codelineno-0-1020" name="__codelineno-0-1020"></a>            <span class="n">concat_kwargs</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-0-1021" name="__codelineno-0-1021"></a>                <span class="s2">&quot;dim&quot;</span><span class="p">:</span> <span class="s2">&quot;time&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-1022" name="__codelineno-0-1022"></a>                <span class="s2">&quot;coords&quot;</span><span class="p">:</span> <span class="s2">&quot;minimal&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-1023" name="__codelineno-0-1023"></a>                <span class="s2">&quot;compat&quot;</span><span class="p">:</span> <span class="s2">&quot;override&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-1024" name="__codelineno-0-1024"></a>                <span class="s2">&quot;join&quot;</span><span class="p">:</span> <span class="s2">&quot;outer&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-1025" name="__codelineno-0-1025"></a>            <span class="p">}</span>
+<a id="__codelineno-0-1026" name="__codelineno-0-1026"></a>            <span class="n">hist_common</span> <span class="o">=</span> <span class="n">hist_data</span>
+<a id="__codelineno-0-1027" name="__codelineno-0-1027"></a>            <span class="n">data_common</span> <span class="o">=</span> <span class="n">data</span>
+<a id="__codelineno-0-1028" name="__codelineno-0-1028"></a>
+<a id="__codelineno-0-1029" name="__codelineno-0-1029"></a>            <span class="k">if</span> <span class="s2">&quot;member_id&quot;</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">dims</span> <span class="ow">and</span> <span class="s2">&quot;member_id&quot;</span> <span class="ow">in</span> <span class="n">hist_data</span><span class="o">.</span><span class="n">dims</span><span class="p">:</span>
+<a id="__codelineno-0-1030" name="__codelineno-0-1030"></a>                <span class="c1"># Find common member_ids between historical and SSP data</span>
+<a id="__codelineno-0-1031" name="__codelineno-0-1031"></a>                <span class="n">common_members</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">intersect1d</span><span class="p">(</span>
+<a id="__codelineno-0-1032" name="__codelineno-0-1032"></a>                    <span class="n">hist_data</span><span class="o">.</span><span class="n">member_id</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+<a id="__codelineno-0-1033" name="__codelineno-0-1033"></a>                    <span class="n">data</span><span class="o">.</span><span class="n">member_id</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+<a id="__codelineno-0-1034" name="__codelineno-0-1034"></a>                <span class="p">)</span>
+<a id="__codelineno-0-1035" name="__codelineno-0-1035"></a>
+<a id="__codelineno-0-1036" name="__codelineno-0-1036"></a>                <span class="c1"># Select only matching members</span>
+<a id="__codelineno-0-1037" name="__codelineno-0-1037"></a>                <span class="n">hist_common</span> <span class="o">=</span> <span class="n">hist_data</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">member_id</span><span class="o">=</span><span class="n">common_members</span><span class="p">)</span>
+<a id="__codelineno-0-1038" name="__codelineno-0-1038"></a>                <span class="n">data_common</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">member_id</span><span class="o">=</span><span class="n">common_members</span><span class="p">)</span>
+<a id="__codelineno-0-1039" name="__codelineno-0-1039"></a>
+<a id="__codelineno-0-1040" name="__codelineno-0-1040"></a>            <span class="c1"># Capture variable-level attrs and spatial coords BEFORE concat</span>
+<a id="__codelineno-0-1041" name="__codelineno-0-1041"></a>            <span class="n">orig_var_attrs</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-0-1042" name="__codelineno-0-1042"></a>            <span class="n">orig_spatial_coords</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-0-1043" name="__codelineno-0-1043"></a>            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
+<a id="__codelineno-0-1044" name="__codelineno-0-1044"></a>                <span class="n">orig_var_attrs</span> <span class="o">=</span> <span class="p">{</span><span class="n">var</span><span class="p">:</span> <span class="nb">dict</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">)</span> <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">data_vars</span><span class="p">}</span>
+<a id="__codelineno-0-1045" name="__codelineno-0-1045"></a>                <span class="n">spatial_coord_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Lambert_Conformal&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">]</span>
+<a id="__codelineno-0-1046" name="__codelineno-0-1046"></a>                <span class="n">orig_spatial_coords</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-0-1047" name="__codelineno-0-1047"></a>                    <span class="n">name</span><span class="p">:</span> <span class="n">data</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+<a id="__codelineno-0-1048" name="__codelineno-0-1048"></a>                    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">spatial_coord_names</span>
+<a id="__codelineno-0-1049" name="__codelineno-0-1049"></a>                    <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">coords</span>
+<a id="__codelineno-0-1050" name="__codelineno-0-1050"></a>                <span class="p">}</span>
+<a id="__codelineno-0-1051" name="__codelineno-0-1051"></a>
+<a id="__codelineno-0-1052" name="__codelineno-0-1052"></a>            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hist_common</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
+<a id="__codelineno-0-1053" name="__codelineno-0-1053"></a>                <span class="n">extended_data</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">hist_common</span><span class="p">,</span> <span class="n">data_common</span><span class="p">],</span> <span class="o">**</span><span class="n">concat_kwargs</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+<a id="__codelineno-0-1054" name="__codelineno-0-1054"></a>            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
+<a id="__codelineno-0-1055" name="__codelineno-0-1055"></a>                <span class="n">hist_common</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span>
+<a id="__codelineno-0-1056" name="__codelineno-0-1056"></a>            <span class="p">):</span>
+<a id="__codelineno-0-1057" name="__codelineno-0-1057"></a>                <span class="n">extended_data</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">hist_common</span><span class="p">,</span> <span class="n">data_common</span><span class="p">],</span> <span class="o">**</span><span class="n">concat_kwargs</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+<a id="__codelineno-0-1058" name="__codelineno-0-1058"></a>            <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-1059" name="__codelineno-0-1059"></a>                <span class="c1"># Handle mixed types by converting to same type</span>
+<a id="__codelineno-0-1060" name="__codelineno-0-1060"></a>                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data_common</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
+<a id="__codelineno-0-1061" name="__codelineno-0-1061"></a>                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hist_common</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">):</span>
+<a id="__codelineno-0-1062" name="__codelineno-0-1062"></a>                        <span class="n">hist_data</span> <span class="o">=</span> <span class="n">hist_common</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">()</span>
+<a id="__codelineno-0-1063" name="__codelineno-0-1063"></a>                    <span class="n">extended_data</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">hist_common</span><span class="p">,</span> <span class="n">data_common</span><span class="p">],</span> <span class="o">**</span><span class="n">concat_kwargs</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+<a id="__codelineno-0-1064" name="__codelineno-0-1064"></a>                <span class="k">else</span><span class="p">:</span>  <span class="c1"># data is DataArray</span>
+<a id="__codelineno-0-1065" name="__codelineno-0-1065"></a>                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hist_common</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
+<a id="__codelineno-0-1066" name="__codelineno-0-1066"></a>                        <span class="n">data_common</span> <span class="o">=</span> <span class="n">data_common</span><span class="o">.</span><span class="n">to_dataset</span><span class="p">()</span>
+<a id="__codelineno-0-1067" name="__codelineno-0-1067"></a>                    <span class="n">extended_data</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">hist_common</span><span class="p">,</span> <span class="n">data</span><span class="p">],</span> <span class="o">**</span><span class="n">concat_kwargs</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+<a id="__codelineno-0-1068" name="__codelineno-0-1068"></a>
+<a id="__codelineno-0-1069" name="__codelineno-0-1069"></a>            <span class="c1"># Preserve SSP attributes (dataset-level)</span>
+<a id="__codelineno-0-1070" name="__codelineno-0-1070"></a>            <span class="n">extended_data</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">attrs</span><span class="p">)</span>
+<a id="__codelineno-0-1071" name="__codelineno-0-1071"></a>
+<a id="__codelineno-0-1072" name="__codelineno-0-1072"></a>            <span class="c1"># Restore variable-level attrs (including grid_mapping)</span>
+<a id="__codelineno-0-1073" name="__codelineno-0-1073"></a>            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">extended_data</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
+<a id="__codelineno-0-1074" name="__codelineno-0-1074"></a>                <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">var_attrs</span> <span class="ow">in</span> <span class="n">orig_var_attrs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-0-1075" name="__codelineno-0-1075"></a>                    <span class="k">if</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">extended_data</span><span class="o">.</span><span class="n">data_vars</span><span class="p">:</span>
+<a id="__codelineno-0-1076" name="__codelineno-0-1076"></a>                        <span class="n">extended_data</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">var_attrs</span><span class="p">)</span>
+<a id="__codelineno-0-1077" name="__codelineno-0-1077"></a>
+<a id="__codelineno-0-1078" name="__codelineno-0-1078"></a>            <span class="c1"># Restore spatial coordinates (Lambert_Conformal, etc.)</span>
+<a id="__codelineno-0-1079" name="__codelineno-0-1079"></a>            <span class="k">for</span> <span class="n">coord_name</span><span class="p">,</span> <span class="n">coord_val</span> <span class="ow">in</span> <span class="n">orig_spatial_coords</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-0-1080" name="__codelineno-0-1080"></a>                <span class="k">if</span> <span class="n">coord_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">extended_data</span><span class="o">.</span><span class="n">coords</span><span class="p">:</span>
+<a id="__codelineno-0-1081" name="__codelineno-0-1081"></a>                    <span class="n">extended_data</span> <span class="o">=</span> <span class="n">extended_data</span><span class="o">.</span><span class="n">assign_coords</span><span class="p">({</span><span class="n">coord_name</span><span class="p">:</span> <span class="n">coord_val</span><span class="p">})</span>
+<a id="__codelineno-0-1082" name="__codelineno-0-1082"></a>            <span class="c1"># add key attr indicating historical data was prepended</span>
+<a id="__codelineno-0-1083" name="__codelineno-0-1083"></a>            <span class="n">extended_data</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;historical_prepended&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+<a id="__codelineno-0-1084" name="__codelineno-0-1084"></a>            <span class="n">ret</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">extended_data</span>
+<a id="__codelineno-0-1085" name="__codelineno-0-1085"></a>
+<a id="__codelineno-0-1086" name="__codelineno-0-1086"></a>        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-1087" name="__codelineno-0-1087"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-1088" name="__codelineno-0-1088"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Failed to concatenate historical and SSP data for </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-1089" name="__codelineno-0-1089"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Since no historical data is available, this data is dropped.</span><span class="se">\n</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-1090" name="__codelineno-0-1090"></a>            <span class="p">)</span>
+<a id="__codelineno-0-1091" name="__codelineno-0-1091"></a>
+<a id="__codelineno-0-1092" name="__codelineno-0-1092"></a>    <span class="k">return</span> <span class="n">ret</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4109,73 +4109,7 @@ StationBiasCorrection processor.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/processors/processor_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1029">1029</a></span>
-<span class="normal"><a href="#__codelineno-0-1030">1030</a></span>
-<span class="normal"><a href="#__codelineno-0-1031">1031</a></span>
-<span class="normal"><a href="#__codelineno-0-1032">1032</a></span>
-<span class="normal"><a href="#__codelineno-0-1033">1033</a></span>
-<span class="normal"><a href="#__codelineno-0-1034">1034</a></span>
-<span class="normal"><a href="#__codelineno-0-1035">1035</a></span>
-<span class="normal"><a href="#__codelineno-0-1036">1036</a></span>
-<span class="normal"><a href="#__codelineno-0-1037">1037</a></span>
-<span class="normal"><a href="#__codelineno-0-1038">1038</a></span>
-<span class="normal"><a href="#__codelineno-0-1039">1039</a></span>
-<span class="normal"><a href="#__codelineno-0-1040">1040</a></span>
-<span class="normal"><a href="#__codelineno-0-1041">1041</a></span>
-<span class="normal"><a href="#__codelineno-0-1042">1042</a></span>
-<span class="normal"><a href="#__codelineno-0-1043">1043</a></span>
-<span class="normal"><a href="#__codelineno-0-1044">1044</a></span>
-<span class="normal"><a href="#__codelineno-0-1045">1045</a></span>
-<span class="normal"><a href="#__codelineno-0-1046">1046</a></span>
-<span class="normal"><a href="#__codelineno-0-1047">1047</a></span>
-<span class="normal"><a href="#__codelineno-0-1048">1048</a></span>
-<span class="normal"><a href="#__codelineno-0-1049">1049</a></span>
-<span class="normal"><a href="#__codelineno-0-1050">1050</a></span>
-<span class="normal"><a href="#__codelineno-0-1051">1051</a></span>
-<span class="normal"><a href="#__codelineno-0-1052">1052</a></span>
-<span class="normal"><a href="#__codelineno-0-1053">1053</a></span>
-<span class="normal"><a href="#__codelineno-0-1054">1054</a></span>
-<span class="normal"><a href="#__codelineno-0-1055">1055</a></span>
-<span class="normal"><a href="#__codelineno-0-1056">1056</a></span>
-<span class="normal"><a href="#__codelineno-0-1057">1057</a></span>
-<span class="normal"><a href="#__codelineno-0-1058">1058</a></span>
-<span class="normal"><a href="#__codelineno-0-1059">1059</a></span>
-<span class="normal"><a href="#__codelineno-0-1060">1060</a></span>
-<span class="normal"><a href="#__codelineno-0-1061">1061</a></span>
-<span class="normal"><a href="#__codelineno-0-1062">1062</a></span>
-<span class="normal"><a href="#__codelineno-0-1063">1063</a></span>
-<span class="normal"><a href="#__codelineno-0-1064">1064</a></span>
-<span class="normal"><a href="#__codelineno-0-1065">1065</a></span>
-<span class="normal"><a href="#__codelineno-0-1066">1066</a></span>
-<span class="normal"><a href="#__codelineno-0-1067">1067</a></span>
-<span class="normal"><a href="#__codelineno-0-1068">1068</a></span>
-<span class="normal"><a href="#__codelineno-0-1069">1069</a></span>
-<span class="normal"><a href="#__codelineno-0-1070">1070</a></span>
-<span class="normal"><a href="#__codelineno-0-1071">1071</a></span>
-<span class="normal"><a href="#__codelineno-0-1072">1072</a></span>
-<span class="normal"><a href="#__codelineno-0-1073">1073</a></span>
-<span class="normal"><a href="#__codelineno-0-1074">1074</a></span>
-<span class="normal"><a href="#__codelineno-0-1075">1075</a></span>
-<span class="normal"><a href="#__codelineno-0-1076">1076</a></span>
-<span class="normal"><a href="#__codelineno-0-1077">1077</a></span>
-<span class="normal"><a href="#__codelineno-0-1078">1078</a></span>
-<span class="normal"><a href="#__codelineno-0-1079">1079</a></span>
-<span class="normal"><a href="#__codelineno-0-1080">1080</a></span>
-<span class="normal"><a href="#__codelineno-0-1081">1081</a></span>
-<span class="normal"><a href="#__codelineno-0-1082">1082</a></span>
-<span class="normal"><a href="#__codelineno-0-1083">1083</a></span>
-<span class="normal"><a href="#__codelineno-0-1084">1084</a></span>
-<span class="normal"><a href="#__codelineno-0-1085">1085</a></span>
-<span class="normal"><a href="#__codelineno-0-1086">1086</a></span>
-<span class="normal"><a href="#__codelineno-0-1087">1087</a></span>
-<span class="normal"><a href="#__codelineno-0-1088">1088</a></span>
-<span class="normal"><a href="#__codelineno-0-1089">1089</a></span>
-<span class="normal"><a href="#__codelineno-0-1090">1090</a></span>
-<span class="normal"><a href="#__codelineno-0-1091">1091</a></span>
-<span class="normal"><a href="#__codelineno-0-1092">1092</a></span>
-<span class="normal"><a href="#__codelineno-0-1093">1093</a></span>
-<span class="normal"><a href="#__codelineno-0-1094">1094</a></span>
-<span class="normal"><a href="#__codelineno-0-1095">1095</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1095">1095</a></span>
 <span class="normal"><a href="#__codelineno-0-1096">1096</a></span>
 <span class="normal"><a href="#__codelineno-0-1097">1097</a></span>
 <span class="normal"><a href="#__codelineno-0-1098">1098</a></span>
@@ -4210,108 +4144,174 @@ StationBiasCorrection processor.</p>
 <span class="normal"><a href="#__codelineno-0-1127">1127</a></span>
 <span class="normal"><a href="#__codelineno-0-1128">1128</a></span>
 <span class="normal"><a href="#__codelineno-0-1129">1129</a></span>
-<span class="normal"><a href="#__codelineno-0-1130">1130</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1029" name="__codelineno-0-1029"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_station_coordinates</span><span class="p">(</span>
-<a id="__codelineno-0-1030" name="__codelineno-0-1030"></a>    <span class="n">station_identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">catalog</span><span class="p">,</span> <span class="n">stations_df</span><span class="o">=</span><span class="kc">None</span>
-<a id="__codelineno-0-1031" name="__codelineno-0-1031"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
-<a id="__codelineno-0-1032" name="__codelineno-0-1032"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-1033" name="__codelineno-0-1033"></a><span class="sd">    Get lat/lon coordinates and metadata for a station identifier.</span>
-<a id="__codelineno-0-1034" name="__codelineno-0-1034"></a>
-<a id="__codelineno-0-1035" name="__codelineno-0-1035"></a><span class="sd">    This function provides a centralized way to extract station coordinates</span>
-<a id="__codelineno-0-1036" name="__codelineno-0-1036"></a><span class="sd">    from the catalog. It&#39;s used by both the Clip processor and the</span>
-<a id="__codelineno-0-1037" name="__codelineno-0-1037"></a><span class="sd">    StationBiasCorrection processor.</span>
-<a id="__codelineno-0-1038" name="__codelineno-0-1038"></a>
-<a id="__codelineno-0-1039" name="__codelineno-0-1039"></a><span class="sd">    Parameters</span>
-<a id="__codelineno-0-1040" name="__codelineno-0-1040"></a><span class="sd">    ----------</span>
-<a id="__codelineno-0-1041" name="__codelineno-0-1041"></a><span class="sd">    station_identifier : str</span>
-<a id="__codelineno-0-1042" name="__codelineno-0-1042"></a><span class="sd">        Station code (e.g., &quot;KSAC&quot;) or full station name (e.g., &quot;Sacramento (KSAC)&quot;)</span>
-<a id="__codelineno-0-1043" name="__codelineno-0-1043"></a><span class="sd">    catalog : DataCatalog</span>
-<a id="__codelineno-0-1044" name="__codelineno-0-1044"></a><span class="sd">        Data catalog instance for accessing station metadata</span>
-<a id="__codelineno-0-1045" name="__codelineno-0-1045"></a><span class="sd">    stations_df : pd.DataFrame, optional</span>
-<a id="__codelineno-0-1046" name="__codelineno-0-1046"></a><span class="sd">        Pre-loaded stations DataFrame. If None, will be loaded from catalog.</span>
-<a id="__codelineno-0-1047" name="__codelineno-0-1047"></a>
-<a id="__codelineno-0-1048" name="__codelineno-0-1048"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-1049" name="__codelineno-0-1049"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-1050" name="__codelineno-0-1050"></a><span class="sd">    tuple[float, float, dict]</span>
-<a id="__codelineno-0-1051" name="__codelineno-0-1051"></a><span class="sd">        Latitude, longitude, and station metadata dictionary containing:</span>
-<a id="__codelineno-0-1052" name="__codelineno-0-1052"></a><span class="sd">        - station_id: Station ID code</span>
-<a id="__codelineno-0-1053" name="__codelineno-0-1053"></a><span class="sd">        - station_name: Full station name</span>
-<a id="__codelineno-0-1054" name="__codelineno-0-1054"></a><span class="sd">        - city: City name</span>
-<a id="__codelineno-0-1055" name="__codelineno-0-1055"></a><span class="sd">        - state: State abbreviation</span>
-<a id="__codelineno-0-1056" name="__codelineno-0-1056"></a><span class="sd">        - elevation: Elevation value (if available)</span>
-<a id="__codelineno-0-1057" name="__codelineno-0-1057"></a>
-<a id="__codelineno-0-1058" name="__codelineno-0-1058"></a><span class="sd">    Raises</span>
-<a id="__codelineno-0-1059" name="__codelineno-0-1059"></a><span class="sd">    ------</span>
-<a id="__codelineno-0-1060" name="__codelineno-0-1060"></a><span class="sd">    RuntimeError</span>
-<a id="__codelineno-0-1061" name="__codelineno-0-1061"></a><span class="sd">        If catalog is not set or station data is not available</span>
-<a id="__codelineno-0-1062" name="__codelineno-0-1062"></a><span class="sd">    ValueError</span>
-<a id="__codelineno-0-1063" name="__codelineno-0-1063"></a><span class="sd">        If station is not found or multiple matches exist</span>
-<a id="__codelineno-0-1064" name="__codelineno-0-1064"></a>
-<a id="__codelineno-0-1065" name="__codelineno-0-1065"></a><span class="sd">    Examples</span>
-<a id="__codelineno-0-1066" name="__codelineno-0-1066"></a><span class="sd">    --------</span>
-<a id="__codelineno-0-1067" name="__codelineno-0-1067"></a><span class="sd">    &gt;&gt;&gt; lat, lon, metadata = get_station_coordinates(&quot;KSAC&quot;, catalog)</span>
-<a id="__codelineno-0-1068" name="__codelineno-0-1068"></a><span class="sd">    &gt;&gt;&gt; print(f&quot;Sacramento station at ({lat}, {lon})&quot;)</span>
-<a id="__codelineno-0-1069" name="__codelineno-0-1069"></a><span class="sd">    &gt;&gt;&gt; print(f&quot;Elevation: {metadata[&#39;elevation&#39;]}&quot;)</span>
-<a id="__codelineno-0-1070" name="__codelineno-0-1070"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-1071" name="__codelineno-0-1071"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.core.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">UNSET</span>
-<a id="__codelineno-0-1072" name="__codelineno-0-1072"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.data_access.data_access</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataCatalog</span>
-<a id="__codelineno-0-1073" name="__codelineno-0-1073"></a>
-<a id="__codelineno-0-1074" name="__codelineno-0-1074"></a>    <span class="c1"># Validate catalog</span>
-<a id="__codelineno-0-1075" name="__codelineno-0-1075"></a>    <span class="k">if</span> <span class="n">catalog</span> <span class="ow">is</span> <span class="n">UNSET</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">catalog</span><span class="p">,</span> <span class="n">DataCatalog</span><span class="p">):</span>
-<a id="__codelineno-0-1076" name="__codelineno-0-1076"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;DataCatalog is not set. Cannot access station data.&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-1077" name="__codelineno-0-1077"></a>
-<a id="__codelineno-0-1078" name="__codelineno-0-1078"></a>    <span class="c1"># Load stations if not provided</span>
-<a id="__codelineno-0-1079" name="__codelineno-0-1079"></a>    <span class="k">if</span> <span class="n">stations_df</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-1080" name="__codelineno-0-1080"></a>        <span class="n">stations_df</span> <span class="o">=</span> <span class="n">catalog</span><span class="p">[</span><span class="s2">&quot;stations&quot;</span><span class="p">]</span>
-<a id="__codelineno-0-1081" name="__codelineno-0-1081"></a>
-<a id="__codelineno-0-1082" name="__codelineno-0-1082"></a>    <span class="k">if</span> <span class="n">stations_df</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">stations_df</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-<a id="__codelineno-0-1083" name="__codelineno-0-1083"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Station data is not available in the catalog.&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-1084" name="__codelineno-0-1084"></a>
-<a id="__codelineno-0-1085" name="__codelineno-0-1085"></a>    <span class="c1"># Use the generalized matching logic</span>
-<a id="__codelineno-0-1086" name="__codelineno-0-1086"></a>    <span class="n">match</span> <span class="o">=</span> <span class="n">find_station_match</span><span class="p">(</span><span class="n">station_identifier</span><span class="p">,</span> <span class="n">stations_df</span><span class="p">)</span>
-<a id="__codelineno-0-1087" name="__codelineno-0-1087"></a>
-<a id="__codelineno-0-1088" name="__codelineno-0-1088"></a>    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">match</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-<a id="__codelineno-0-1089" name="__codelineno-0-1089"></a>        <span class="c1"># Station not found - provide suggestions</span>
-<a id="__codelineno-0-1090" name="__codelineno-0-1090"></a>        <span class="n">all_stations</span> <span class="o">=</span> <span class="n">stations_df</span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="o">+</span> <span class="n">stations_df</span><span class="p">[</span><span class="s2">&quot;station&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-<a id="__codelineno-0-1091" name="__codelineno-0-1091"></a>        <span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.param_validation.param_validation_tools</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-<a id="__codelineno-0-1092" name="__codelineno-0-1092"></a>            <span class="n">_get_closest_options</span><span class="p">,</span>
-<a id="__codelineno-0-1093" name="__codelineno-0-1093"></a>        <span class="p">)</span>
-<a id="__codelineno-0-1094" name="__codelineno-0-1094"></a>
-<a id="__codelineno-0-1095" name="__codelineno-0-1095"></a>        <span class="n">suggestions</span> <span class="o">=</span> <span class="n">_get_closest_options</span><span class="p">(</span><span class="n">station_identifier</span><span class="p">,</span> <span class="n">all_stations</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
-<a id="__codelineno-0-1096" name="__codelineno-0-1096"></a>
-<a id="__codelineno-0-1097" name="__codelineno-0-1097"></a>        <span class="n">error_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Station &#39;</span><span class="si">{</span><span class="n">station_identifier</span><span class="si">}</span><span class="s2">&#39; not found in station database.&quot;</span>
-<a id="__codelineno-0-1098" name="__codelineno-0-1098"></a>        <span class="k">if</span> <span class="n">suggestions</span><span class="p">:</span>
-<a id="__codelineno-0-1099" name="__codelineno-0-1099"></a>            <span class="n">error_msg</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Did you mean one of these?</span><span class="se">\n</span><span class="s2">  - &quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  - &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
-<a id="__codelineno-0-1100" name="__codelineno-0-1100"></a>                <span class="n">suggestions</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span>
-<a id="__codelineno-0-1101" name="__codelineno-0-1101"></a>            <span class="p">)</span>
-<a id="__codelineno-0-1102" name="__codelineno-0-1102"></a>        <span class="n">error_msg</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">To see all available stations, use: cd.show_station_options()&quot;</span>
-<a id="__codelineno-0-1103" name="__codelineno-0-1103"></a>
-<a id="__codelineno-0-1104" name="__codelineno-0-1104"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
-<a id="__codelineno-0-1105" name="__codelineno-0-1105"></a>
-<a id="__codelineno-0-1106" name="__codelineno-0-1106"></a>    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">match</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-<a id="__codelineno-0-1107" name="__codelineno-0-1107"></a>        <span class="c1"># Multiple matches found - show options</span>
-<a id="__codelineno-0-1108" name="__codelineno-0-1108"></a>        <span class="n">station_list</span> <span class="o">=</span> <span class="n">match</span><span class="p">[[</span><span class="s2">&quot;ID&quot;</span><span class="p">,</span> <span class="s2">&quot;station&quot;</span><span class="p">,</span> <span class="s2">&quot;city&quot;</span><span class="p">,</span> <span class="s2">&quot;state&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<a id="__codelineno-0-1109" name="__codelineno-0-1109"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-<a id="__codelineno-0-1110" name="__codelineno-0-1110"></a>            <span class="sa">f</span><span class="s2">&quot;Multiple stations match &#39;</span><span class="si">{</span><span class="n">station_identifier</span><span class="si">}</span><span class="s2">&#39;:</span><span class="se">\n</span><span class="si">{</span><span class="n">station_list</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-1111" name="__codelineno-0-1111"></a>            <span class="sa">f</span><span class="s2">&quot;Please use a more specific identifier.&quot;</span>
-<a id="__codelineno-0-1112" name="__codelineno-0-1112"></a>        <span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-1130">1130</a></span>
+<span class="normal"><a href="#__codelineno-0-1131">1131</a></span>
+<span class="normal"><a href="#__codelineno-0-1132">1132</a></span>
+<span class="normal"><a href="#__codelineno-0-1133">1133</a></span>
+<span class="normal"><a href="#__codelineno-0-1134">1134</a></span>
+<span class="normal"><a href="#__codelineno-0-1135">1135</a></span>
+<span class="normal"><a href="#__codelineno-0-1136">1136</a></span>
+<span class="normal"><a href="#__codelineno-0-1137">1137</a></span>
+<span class="normal"><a href="#__codelineno-0-1138">1138</a></span>
+<span class="normal"><a href="#__codelineno-0-1139">1139</a></span>
+<span class="normal"><a href="#__codelineno-0-1140">1140</a></span>
+<span class="normal"><a href="#__codelineno-0-1141">1141</a></span>
+<span class="normal"><a href="#__codelineno-0-1142">1142</a></span>
+<span class="normal"><a href="#__codelineno-0-1143">1143</a></span>
+<span class="normal"><a href="#__codelineno-0-1144">1144</a></span>
+<span class="normal"><a href="#__codelineno-0-1145">1145</a></span>
+<span class="normal"><a href="#__codelineno-0-1146">1146</a></span>
+<span class="normal"><a href="#__codelineno-0-1147">1147</a></span>
+<span class="normal"><a href="#__codelineno-0-1148">1148</a></span>
+<span class="normal"><a href="#__codelineno-0-1149">1149</a></span>
+<span class="normal"><a href="#__codelineno-0-1150">1150</a></span>
+<span class="normal"><a href="#__codelineno-0-1151">1151</a></span>
+<span class="normal"><a href="#__codelineno-0-1152">1152</a></span>
+<span class="normal"><a href="#__codelineno-0-1153">1153</a></span>
+<span class="normal"><a href="#__codelineno-0-1154">1154</a></span>
+<span class="normal"><a href="#__codelineno-0-1155">1155</a></span>
+<span class="normal"><a href="#__codelineno-0-1156">1156</a></span>
+<span class="normal"><a href="#__codelineno-0-1157">1157</a></span>
+<span class="normal"><a href="#__codelineno-0-1158">1158</a></span>
+<span class="normal"><a href="#__codelineno-0-1159">1159</a></span>
+<span class="normal"><a href="#__codelineno-0-1160">1160</a></span>
+<span class="normal"><a href="#__codelineno-0-1161">1161</a></span>
+<span class="normal"><a href="#__codelineno-0-1162">1162</a></span>
+<span class="normal"><a href="#__codelineno-0-1163">1163</a></span>
+<span class="normal"><a href="#__codelineno-0-1164">1164</a></span>
+<span class="normal"><a href="#__codelineno-0-1165">1165</a></span>
+<span class="normal"><a href="#__codelineno-0-1166">1166</a></span>
+<span class="normal"><a href="#__codelineno-0-1167">1167</a></span>
+<span class="normal"><a href="#__codelineno-0-1168">1168</a></span>
+<span class="normal"><a href="#__codelineno-0-1169">1169</a></span>
+<span class="normal"><a href="#__codelineno-0-1170">1170</a></span>
+<span class="normal"><a href="#__codelineno-0-1171">1171</a></span>
+<span class="normal"><a href="#__codelineno-0-1172">1172</a></span>
+<span class="normal"><a href="#__codelineno-0-1173">1173</a></span>
+<span class="normal"><a href="#__codelineno-0-1174">1174</a></span>
+<span class="normal"><a href="#__codelineno-0-1175">1175</a></span>
+<span class="normal"><a href="#__codelineno-0-1176">1176</a></span>
+<span class="normal"><a href="#__codelineno-0-1177">1177</a></span>
+<span class="normal"><a href="#__codelineno-0-1178">1178</a></span>
+<span class="normal"><a href="#__codelineno-0-1179">1179</a></span>
+<span class="normal"><a href="#__codelineno-0-1180">1180</a></span>
+<span class="normal"><a href="#__codelineno-0-1181">1181</a></span>
+<span class="normal"><a href="#__codelineno-0-1182">1182</a></span>
+<span class="normal"><a href="#__codelineno-0-1183">1183</a></span>
+<span class="normal"><a href="#__codelineno-0-1184">1184</a></span>
+<span class="normal"><a href="#__codelineno-0-1185">1185</a></span>
+<span class="normal"><a href="#__codelineno-0-1186">1186</a></span>
+<span class="normal"><a href="#__codelineno-0-1187">1187</a></span>
+<span class="normal"><a href="#__codelineno-0-1188">1188</a></span>
+<span class="normal"><a href="#__codelineno-0-1189">1189</a></span>
+<span class="normal"><a href="#__codelineno-0-1190">1190</a></span>
+<span class="normal"><a href="#__codelineno-0-1191">1191</a></span>
+<span class="normal"><a href="#__codelineno-0-1192">1192</a></span>
+<span class="normal"><a href="#__codelineno-0-1193">1193</a></span>
+<span class="normal"><a href="#__codelineno-0-1194">1194</a></span>
+<span class="normal"><a href="#__codelineno-0-1195">1195</a></span>
+<span class="normal"><a href="#__codelineno-0-1196">1196</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1095" name="__codelineno-0-1095"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_station_coordinates</span><span class="p">(</span>
+<a id="__codelineno-0-1096" name="__codelineno-0-1096"></a>    <span class="n">station_identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">catalog</span><span class="p">,</span> <span class="n">stations_df</span><span class="o">=</span><span class="kc">None</span>
+<a id="__codelineno-0-1097" name="__codelineno-0-1097"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+<a id="__codelineno-0-1098" name="__codelineno-0-1098"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-1099" name="__codelineno-0-1099"></a><span class="sd">    Get lat/lon coordinates and metadata for a station identifier.</span>
+<a id="__codelineno-0-1100" name="__codelineno-0-1100"></a>
+<a id="__codelineno-0-1101" name="__codelineno-0-1101"></a><span class="sd">    This function provides a centralized way to extract station coordinates</span>
+<a id="__codelineno-0-1102" name="__codelineno-0-1102"></a><span class="sd">    from the catalog. It&#39;s used by both the Clip processor and the</span>
+<a id="__codelineno-0-1103" name="__codelineno-0-1103"></a><span class="sd">    StationBiasCorrection processor.</span>
+<a id="__codelineno-0-1104" name="__codelineno-0-1104"></a>
+<a id="__codelineno-0-1105" name="__codelineno-0-1105"></a><span class="sd">    Parameters</span>
+<a id="__codelineno-0-1106" name="__codelineno-0-1106"></a><span class="sd">    ----------</span>
+<a id="__codelineno-0-1107" name="__codelineno-0-1107"></a><span class="sd">    station_identifier : str</span>
+<a id="__codelineno-0-1108" name="__codelineno-0-1108"></a><span class="sd">        Station code (e.g., &quot;KSAC&quot;) or full station name (e.g., &quot;Sacramento (KSAC)&quot;)</span>
+<a id="__codelineno-0-1109" name="__codelineno-0-1109"></a><span class="sd">    catalog : DataCatalog</span>
+<a id="__codelineno-0-1110" name="__codelineno-0-1110"></a><span class="sd">        Data catalog instance for accessing station metadata</span>
+<a id="__codelineno-0-1111" name="__codelineno-0-1111"></a><span class="sd">    stations_df : pd.DataFrame, optional</span>
+<a id="__codelineno-0-1112" name="__codelineno-0-1112"></a><span class="sd">        Pre-loaded stations DataFrame. If None, will be loaded from catalog.</span>
 <a id="__codelineno-0-1113" name="__codelineno-0-1113"></a>
-<a id="__codelineno-0-1114" name="__codelineno-0-1114"></a>    <span class="c1"># Extract coordinates and metadata</span>
-<a id="__codelineno-0-1115" name="__codelineno-0-1115"></a>    <span class="n">station_row</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-<a id="__codelineno-0-1116" name="__codelineno-0-1116"></a>    <span class="n">lat</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">station_row</span><span class="p">[</span><span class="s2">&quot;LAT_Y&quot;</span><span class="p">])</span>
-<a id="__codelineno-0-1117" name="__codelineno-0-1117"></a>    <span class="n">lon</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">station_row</span><span class="p">[</span><span class="s2">&quot;LON_X&quot;</span><span class="p">])</span>
-<a id="__codelineno-0-1118" name="__codelineno-0-1118"></a>
-<a id="__codelineno-0-1119" name="__codelineno-0-1119"></a>    <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
-<a id="__codelineno-0-1120" name="__codelineno-0-1120"></a>        <span class="s2">&quot;station_id&quot;</span><span class="p">:</span> <span class="n">station_row</span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">],</span>  <span class="c1"># 4-letter airport code (e.g., &quot;KSAC&quot;)</span>
-<a id="__codelineno-0-1121" name="__codelineno-0-1121"></a>        <span class="s2">&quot;station_id_numeric&quot;</span><span class="p">:</span> <span class="n">station_row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-<a id="__codelineno-0-1122" name="__codelineno-0-1122"></a>            <span class="s2">&quot;station id&quot;</span><span class="p">,</span> <span class="kc">None</span>
-<a id="__codelineno-0-1123" name="__codelineno-0-1123"></a>        <span class="p">),</span>  <span class="c1"># Numeric ID for HadISD files</span>
-<a id="__codelineno-0-1124" name="__codelineno-0-1124"></a>        <span class="s2">&quot;station_name&quot;</span><span class="p">:</span> <span class="n">station_row</span><span class="p">[</span><span class="s2">&quot;station&quot;</span><span class="p">],</span>
-<a id="__codelineno-0-1125" name="__codelineno-0-1125"></a>        <span class="s2">&quot;city&quot;</span><span class="p">:</span> <span class="n">station_row</span><span class="p">[</span><span class="s2">&quot;city&quot;</span><span class="p">],</span>
-<a id="__codelineno-0-1126" name="__codelineno-0-1126"></a>        <span class="s2">&quot;state&quot;</span><span class="p">:</span> <span class="n">station_row</span><span class="p">[</span><span class="s2">&quot;state&quot;</span><span class="p">],</span>
-<a id="__codelineno-0-1127" name="__codelineno-0-1127"></a>        <span class="s2">&quot;elevation&quot;</span><span class="p">:</span> <span class="n">station_row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;elevation&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
-<a id="__codelineno-0-1128" name="__codelineno-0-1128"></a>    <span class="p">}</span>
-<a id="__codelineno-0-1129" name="__codelineno-0-1129"></a>
-<a id="__codelineno-0-1130" name="__codelineno-0-1130"></a>    <span class="k">return</span> <span class="n">lat</span><span class="p">,</span> <span class="n">lon</span><span class="p">,</span> <span class="n">metadata</span>
+<a id="__codelineno-0-1114" name="__codelineno-0-1114"></a><span class="sd">    Returns</span>
+<a id="__codelineno-0-1115" name="__codelineno-0-1115"></a><span class="sd">    -------</span>
+<a id="__codelineno-0-1116" name="__codelineno-0-1116"></a><span class="sd">    tuple[float, float, dict]</span>
+<a id="__codelineno-0-1117" name="__codelineno-0-1117"></a><span class="sd">        Latitude, longitude, and station metadata dictionary containing:</span>
+<a id="__codelineno-0-1118" name="__codelineno-0-1118"></a><span class="sd">        - station_id: Station ID code</span>
+<a id="__codelineno-0-1119" name="__codelineno-0-1119"></a><span class="sd">        - station_name: Full station name</span>
+<a id="__codelineno-0-1120" name="__codelineno-0-1120"></a><span class="sd">        - city: City name</span>
+<a id="__codelineno-0-1121" name="__codelineno-0-1121"></a><span class="sd">        - state: State abbreviation</span>
+<a id="__codelineno-0-1122" name="__codelineno-0-1122"></a><span class="sd">        - elevation: Elevation value (if available)</span>
+<a id="__codelineno-0-1123" name="__codelineno-0-1123"></a>
+<a id="__codelineno-0-1124" name="__codelineno-0-1124"></a><span class="sd">    Raises</span>
+<a id="__codelineno-0-1125" name="__codelineno-0-1125"></a><span class="sd">    ------</span>
+<a id="__codelineno-0-1126" name="__codelineno-0-1126"></a><span class="sd">    RuntimeError</span>
+<a id="__codelineno-0-1127" name="__codelineno-0-1127"></a><span class="sd">        If catalog is not set or station data is not available</span>
+<a id="__codelineno-0-1128" name="__codelineno-0-1128"></a><span class="sd">    ValueError</span>
+<a id="__codelineno-0-1129" name="__codelineno-0-1129"></a><span class="sd">        If station is not found or multiple matches exist</span>
+<a id="__codelineno-0-1130" name="__codelineno-0-1130"></a>
+<a id="__codelineno-0-1131" name="__codelineno-0-1131"></a><span class="sd">    Examples</span>
+<a id="__codelineno-0-1132" name="__codelineno-0-1132"></a><span class="sd">    --------</span>
+<a id="__codelineno-0-1133" name="__codelineno-0-1133"></a><span class="sd">    &gt;&gt;&gt; lat, lon, metadata = get_station_coordinates(&quot;KSAC&quot;, catalog)</span>
+<a id="__codelineno-0-1134" name="__codelineno-0-1134"></a><span class="sd">    &gt;&gt;&gt; print(f&quot;Sacramento station at ({lat}, {lon})&quot;)</span>
+<a id="__codelineno-0-1135" name="__codelineno-0-1135"></a><span class="sd">    &gt;&gt;&gt; print(f&quot;Elevation: {metadata[&#39;elevation&#39;]}&quot;)</span>
+<a id="__codelineno-0-1136" name="__codelineno-0-1136"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-1137" name="__codelineno-0-1137"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.core.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">UNSET</span>
+<a id="__codelineno-0-1138" name="__codelineno-0-1138"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.data_access.data_access</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataCatalog</span>
+<a id="__codelineno-0-1139" name="__codelineno-0-1139"></a>
+<a id="__codelineno-0-1140" name="__codelineno-0-1140"></a>    <span class="c1"># Validate catalog</span>
+<a id="__codelineno-0-1141" name="__codelineno-0-1141"></a>    <span class="k">if</span> <span class="n">catalog</span> <span class="ow">is</span> <span class="n">UNSET</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">catalog</span><span class="p">,</span> <span class="n">DataCatalog</span><span class="p">):</span>
+<a id="__codelineno-0-1142" name="__codelineno-0-1142"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;DataCatalog is not set. Cannot access station data.&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-1143" name="__codelineno-0-1143"></a>
+<a id="__codelineno-0-1144" name="__codelineno-0-1144"></a>    <span class="c1"># Load stations if not provided</span>
+<a id="__codelineno-0-1145" name="__codelineno-0-1145"></a>    <span class="k">if</span> <span class="n">stations_df</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-1146" name="__codelineno-0-1146"></a>        <span class="n">stations_df</span> <span class="o">=</span> <span class="n">catalog</span><span class="p">[</span><span class="s2">&quot;stations&quot;</span><span class="p">]</span>
+<a id="__codelineno-0-1147" name="__codelineno-0-1147"></a>
+<a id="__codelineno-0-1148" name="__codelineno-0-1148"></a>    <span class="k">if</span> <span class="n">stations_df</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">stations_df</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-1149" name="__codelineno-0-1149"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Station data is not available in the catalog.&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-1150" name="__codelineno-0-1150"></a>
+<a id="__codelineno-0-1151" name="__codelineno-0-1151"></a>    <span class="c1"># Use the generalized matching logic</span>
+<a id="__codelineno-0-1152" name="__codelineno-0-1152"></a>    <span class="n">match</span> <span class="o">=</span> <span class="n">find_station_match</span><span class="p">(</span><span class="n">station_identifier</span><span class="p">,</span> <span class="n">stations_df</span><span class="p">)</span>
+<a id="__codelineno-0-1153" name="__codelineno-0-1153"></a>
+<a id="__codelineno-0-1154" name="__codelineno-0-1154"></a>    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">match</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-1155" name="__codelineno-0-1155"></a>        <span class="c1"># Station not found - provide suggestions</span>
+<a id="__codelineno-0-1156" name="__codelineno-0-1156"></a>        <span class="n">all_stations</span> <span class="o">=</span> <span class="n">stations_df</span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="o">+</span> <span class="n">stations_df</span><span class="p">[</span><span class="s2">&quot;station&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<a id="__codelineno-0-1157" name="__codelineno-0-1157"></a>        <span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.param_validation.param_validation_tools</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-0-1158" name="__codelineno-0-1158"></a>            <span class="n">_get_closest_options</span><span class="p">,</span>
+<a id="__codelineno-0-1159" name="__codelineno-0-1159"></a>        <span class="p">)</span>
+<a id="__codelineno-0-1160" name="__codelineno-0-1160"></a>
+<a id="__codelineno-0-1161" name="__codelineno-0-1161"></a>        <span class="n">suggestions</span> <span class="o">=</span> <span class="n">_get_closest_options</span><span class="p">(</span><span class="n">station_identifier</span><span class="p">,</span> <span class="n">all_stations</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<a id="__codelineno-0-1162" name="__codelineno-0-1162"></a>
+<a id="__codelineno-0-1163" name="__codelineno-0-1163"></a>        <span class="n">error_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Station &#39;</span><span class="si">{</span><span class="n">station_identifier</span><span class="si">}</span><span class="s2">&#39; not found in station database.&quot;</span>
+<a id="__codelineno-0-1164" name="__codelineno-0-1164"></a>        <span class="k">if</span> <span class="n">suggestions</span><span class="p">:</span>
+<a id="__codelineno-0-1165" name="__codelineno-0-1165"></a>            <span class="n">error_msg</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Did you mean one of these?</span><span class="se">\n</span><span class="s2">  - &quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  - &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+<a id="__codelineno-0-1166" name="__codelineno-0-1166"></a>                <span class="n">suggestions</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span>
+<a id="__codelineno-0-1167" name="__codelineno-0-1167"></a>            <span class="p">)</span>
+<a id="__codelineno-0-1168" name="__codelineno-0-1168"></a>        <span class="n">error_msg</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">To see all available stations, use: cd.show_station_options()&quot;</span>
+<a id="__codelineno-0-1169" name="__codelineno-0-1169"></a>
+<a id="__codelineno-0-1170" name="__codelineno-0-1170"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
+<a id="__codelineno-0-1171" name="__codelineno-0-1171"></a>
+<a id="__codelineno-0-1172" name="__codelineno-0-1172"></a>    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">match</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+<a id="__codelineno-0-1173" name="__codelineno-0-1173"></a>        <span class="c1"># Multiple matches found - show options</span>
+<a id="__codelineno-0-1174" name="__codelineno-0-1174"></a>        <span class="n">station_list</span> <span class="o">=</span> <span class="n">match</span><span class="p">[[</span><span class="s2">&quot;ID&quot;</span><span class="p">,</span> <span class="s2">&quot;station&quot;</span><span class="p">,</span> <span class="s2">&quot;city&quot;</span><span class="p">,</span> <span class="s2">&quot;state&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-0-1175" name="__codelineno-0-1175"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-1176" name="__codelineno-0-1176"></a>            <span class="sa">f</span><span class="s2">&quot;Multiple stations match &#39;</span><span class="si">{</span><span class="n">station_identifier</span><span class="si">}</span><span class="s2">&#39;:</span><span class="se">\n</span><span class="si">{</span><span class="n">station_list</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-1177" name="__codelineno-0-1177"></a>            <span class="sa">f</span><span class="s2">&quot;Please use a more specific identifier.&quot;</span>
+<a id="__codelineno-0-1178" name="__codelineno-0-1178"></a>        <span class="p">)</span>
+<a id="__codelineno-0-1179" name="__codelineno-0-1179"></a>
+<a id="__codelineno-0-1180" name="__codelineno-0-1180"></a>    <span class="c1"># Extract coordinates and metadata</span>
+<a id="__codelineno-0-1181" name="__codelineno-0-1181"></a>    <span class="n">station_row</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-0-1182" name="__codelineno-0-1182"></a>    <span class="n">lat</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">station_row</span><span class="p">[</span><span class="s2">&quot;LAT_Y&quot;</span><span class="p">])</span>
+<a id="__codelineno-0-1183" name="__codelineno-0-1183"></a>    <span class="n">lon</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">station_row</span><span class="p">[</span><span class="s2">&quot;LON_X&quot;</span><span class="p">])</span>
+<a id="__codelineno-0-1184" name="__codelineno-0-1184"></a>
+<a id="__codelineno-0-1185" name="__codelineno-0-1185"></a>    <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-0-1186" name="__codelineno-0-1186"></a>        <span class="s2">&quot;station_id&quot;</span><span class="p">:</span> <span class="n">station_row</span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">],</span>  <span class="c1"># 4-letter airport code (e.g., &quot;KSAC&quot;)</span>
+<a id="__codelineno-0-1187" name="__codelineno-0-1187"></a>        <span class="s2">&quot;station_id_numeric&quot;</span><span class="p">:</span> <span class="n">station_row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+<a id="__codelineno-0-1188" name="__codelineno-0-1188"></a>            <span class="s2">&quot;station id&quot;</span><span class="p">,</span> <span class="kc">None</span>
+<a id="__codelineno-0-1189" name="__codelineno-0-1189"></a>        <span class="p">),</span>  <span class="c1"># Numeric ID for HadISD files</span>
+<a id="__codelineno-0-1190" name="__codelineno-0-1190"></a>        <span class="s2">&quot;station_name&quot;</span><span class="p">:</span> <span class="n">station_row</span><span class="p">[</span><span class="s2">&quot;station&quot;</span><span class="p">],</span>
+<a id="__codelineno-0-1191" name="__codelineno-0-1191"></a>        <span class="s2">&quot;city&quot;</span><span class="p">:</span> <span class="n">station_row</span><span class="p">[</span><span class="s2">&quot;city&quot;</span><span class="p">],</span>
+<a id="__codelineno-0-1192" name="__codelineno-0-1192"></a>        <span class="s2">&quot;state&quot;</span><span class="p">:</span> <span class="n">station_row</span><span class="p">[</span><span class="s2">&quot;state&quot;</span><span class="p">],</span>
+<a id="__codelineno-0-1193" name="__codelineno-0-1193"></a>        <span class="s2">&quot;elevation&quot;</span><span class="p">:</span> <span class="n">station_row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;elevation&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+<a id="__codelineno-0-1194" name="__codelineno-0-1194"></a>    <span class="p">}</span>
+<a id="__codelineno-0-1195" name="__codelineno-0-1195"></a>
+<a id="__codelineno-0-1196" name="__codelineno-0-1196"></a>    <span class="k">return</span> <span class="n">lat</span><span class="p">,</span> <span class="n">lon</span><span class="p">,</span> <span class="n">metadata</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4453,123 +4453,123 @@ coordinates, used by processors that need to work with multiple stations.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/processors/processor_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1133">1133</a></span>
-<span class="normal"><a href="#__codelineno-0-1134">1134</a></span>
-<span class="normal"><a href="#__codelineno-0-1135">1135</a></span>
-<span class="normal"><a href="#__codelineno-0-1136">1136</a></span>
-<span class="normal"><a href="#__codelineno-0-1137">1137</a></span>
-<span class="normal"><a href="#__codelineno-0-1138">1138</a></span>
-<span class="normal"><a href="#__codelineno-0-1139">1139</a></span>
-<span class="normal"><a href="#__codelineno-0-1140">1140</a></span>
-<span class="normal"><a href="#__codelineno-0-1141">1141</a></span>
-<span class="normal"><a href="#__codelineno-0-1142">1142</a></span>
-<span class="normal"><a href="#__codelineno-0-1143">1143</a></span>
-<span class="normal"><a href="#__codelineno-0-1144">1144</a></span>
-<span class="normal"><a href="#__codelineno-0-1145">1145</a></span>
-<span class="normal"><a href="#__codelineno-0-1146">1146</a></span>
-<span class="normal"><a href="#__codelineno-0-1147">1147</a></span>
-<span class="normal"><a href="#__codelineno-0-1148">1148</a></span>
-<span class="normal"><a href="#__codelineno-0-1149">1149</a></span>
-<span class="normal"><a href="#__codelineno-0-1150">1150</a></span>
-<span class="normal"><a href="#__codelineno-0-1151">1151</a></span>
-<span class="normal"><a href="#__codelineno-0-1152">1152</a></span>
-<span class="normal"><a href="#__codelineno-0-1153">1153</a></span>
-<span class="normal"><a href="#__codelineno-0-1154">1154</a></span>
-<span class="normal"><a href="#__codelineno-0-1155">1155</a></span>
-<span class="normal"><a href="#__codelineno-0-1156">1156</a></span>
-<span class="normal"><a href="#__codelineno-0-1157">1157</a></span>
-<span class="normal"><a href="#__codelineno-0-1158">1158</a></span>
-<span class="normal"><a href="#__codelineno-0-1159">1159</a></span>
-<span class="normal"><a href="#__codelineno-0-1160">1160</a></span>
-<span class="normal"><a href="#__codelineno-0-1161">1161</a></span>
-<span class="normal"><a href="#__codelineno-0-1162">1162</a></span>
-<span class="normal"><a href="#__codelineno-0-1163">1163</a></span>
-<span class="normal"><a href="#__codelineno-0-1164">1164</a></span>
-<span class="normal"><a href="#__codelineno-0-1165">1165</a></span>
-<span class="normal"><a href="#__codelineno-0-1166">1166</a></span>
-<span class="normal"><a href="#__codelineno-0-1167">1167</a></span>
-<span class="normal"><a href="#__codelineno-0-1168">1168</a></span>
-<span class="normal"><a href="#__codelineno-0-1169">1169</a></span>
-<span class="normal"><a href="#__codelineno-0-1170">1170</a></span>
-<span class="normal"><a href="#__codelineno-0-1171">1171</a></span>
-<span class="normal"><a href="#__codelineno-0-1172">1172</a></span>
-<span class="normal"><a href="#__codelineno-0-1173">1173</a></span>
-<span class="normal"><a href="#__codelineno-0-1174">1174</a></span>
-<span class="normal"><a href="#__codelineno-0-1175">1175</a></span>
-<span class="normal"><a href="#__codelineno-0-1176">1176</a></span>
-<span class="normal"><a href="#__codelineno-0-1177">1177</a></span>
-<span class="normal"><a href="#__codelineno-0-1178">1178</a></span>
-<span class="normal"><a href="#__codelineno-0-1179">1179</a></span>
-<span class="normal"><a href="#__codelineno-0-1180">1180</a></span>
-<span class="normal"><a href="#__codelineno-0-1181">1181</a></span>
-<span class="normal"><a href="#__codelineno-0-1182">1182</a></span>
-<span class="normal"><a href="#__codelineno-0-1183">1183</a></span>
-<span class="normal"><a href="#__codelineno-0-1184">1184</a></span>
-<span class="normal"><a href="#__codelineno-0-1185">1185</a></span>
-<span class="normal"><a href="#__codelineno-0-1186">1186</a></span>
-<span class="normal"><a href="#__codelineno-0-1187">1187</a></span>
-<span class="normal"><a href="#__codelineno-0-1188">1188</a></span>
-<span class="normal"><a href="#__codelineno-0-1189">1189</a></span>
-<span class="normal"><a href="#__codelineno-0-1190">1190</a></span>
-<span class="normal"><a href="#__codelineno-0-1191">1191</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1133" name="__codelineno-0-1133"></a><span class="k">def</span><span class="w"> </span><span class="nf">convert_stations_to_points</span><span class="p">(</span>
-<a id="__codelineno-0-1134" name="__codelineno-0-1134"></a>    <span class="n">station_identifiers</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">catalog</span><span class="p">,</span> <span class="n">stations_df</span><span class="o">=</span><span class="kc">None</span>
-<a id="__codelineno-0-1135" name="__codelineno-0-1135"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]],</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]]:</span>
-<a id="__codelineno-0-1136" name="__codelineno-0-1136"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-1137" name="__codelineno-0-1137"></a><span class="sd">    Convert a list of station identifiers to lat/lon coordinates.</span>
-<a id="__codelineno-0-1138" name="__codelineno-0-1138"></a>
-<a id="__codelineno-0-1139" name="__codelineno-0-1139"></a><span class="sd">    This function provides batch conversion of station identifiers to</span>
-<a id="__codelineno-0-1140" name="__codelineno-0-1140"></a><span class="sd">    coordinates, used by processors that need to work with multiple stations.</span>
-<a id="__codelineno-0-1141" name="__codelineno-0-1141"></a>
-<a id="__codelineno-0-1142" name="__codelineno-0-1142"></a><span class="sd">    Parameters</span>
-<a id="__codelineno-0-1143" name="__codelineno-0-1143"></a><span class="sd">    ----------</span>
-<a id="__codelineno-0-1144" name="__codelineno-0-1144"></a><span class="sd">    station_identifiers : list[str]</span>
-<a id="__codelineno-0-1145" name="__codelineno-0-1145"></a><span class="sd">        List of station codes or names</span>
-<a id="__codelineno-0-1146" name="__codelineno-0-1146"></a><span class="sd">    catalog : DataCatalog</span>
-<a id="__codelineno-0-1147" name="__codelineno-0-1147"></a><span class="sd">        Data catalog instance for accessing station metadata</span>
-<a id="__codelineno-0-1148" name="__codelineno-0-1148"></a><span class="sd">    stations_df : pd.DataFrame, optional</span>
-<a id="__codelineno-0-1149" name="__codelineno-0-1149"></a><span class="sd">        Pre-loaded stations DataFrame. If None, will be loaded from catalog.</span>
-<a id="__codelineno-0-1150" name="__codelineno-0-1150"></a>
-<a id="__codelineno-0-1151" name="__codelineno-0-1151"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-1152" name="__codelineno-0-1152"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-1153" name="__codelineno-0-1153"></a><span class="sd">    tuple[list[tuple[float, float]], list[dict]]</span>
-<a id="__codelineno-0-1154" name="__codelineno-0-1154"></a><span class="sd">        List of (lat, lon) tuples and list of metadata dictionaries</span>
-<a id="__codelineno-0-1155" name="__codelineno-0-1155"></a>
-<a id="__codelineno-0-1156" name="__codelineno-0-1156"></a><span class="sd">    Raises</span>
-<a id="__codelineno-0-1157" name="__codelineno-0-1157"></a><span class="sd">    ------</span>
-<a id="__codelineno-0-1158" name="__codelineno-0-1158"></a><span class="sd">    ValueError</span>
-<a id="__codelineno-0-1159" name="__codelineno-0-1159"></a><span class="sd">        If any station is not found or if there are validation errors</span>
-<a id="__codelineno-0-1160" name="__codelineno-0-1160"></a>
-<a id="__codelineno-0-1161" name="__codelineno-0-1161"></a><span class="sd">    Examples</span>
-<a id="__codelineno-0-1162" name="__codelineno-0-1162"></a><span class="sd">    --------</span>
-<a id="__codelineno-0-1163" name="__codelineno-0-1163"></a><span class="sd">    &gt;&gt;&gt; stations = [&quot;KSAC&quot;, &quot;KSFO&quot;, &quot;KLAX&quot;]</span>
-<a id="__codelineno-0-1164" name="__codelineno-0-1164"></a><span class="sd">    &gt;&gt;&gt; points, metadata = convert_stations_to_points(stations, catalog)</span>
-<a id="__codelineno-0-1165" name="__codelineno-0-1165"></a><span class="sd">    &gt;&gt;&gt; for (lat, lon), meta in zip(points, metadata):</span>
-<a id="__codelineno-0-1166" name="__codelineno-0-1166"></a><span class="sd">    ...     print(f&quot;{meta[&#39;station_name&#39;]}: ({lat}, {lon})&quot;)</span>
-<a id="__codelineno-0-1167" name="__codelineno-0-1167"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-1168" name="__codelineno-0-1168"></a>    <span class="c1"># Load stations once if not provided</span>
-<a id="__codelineno-0-1169" name="__codelineno-0-1169"></a>    <span class="k">if</span> <span class="n">stations_df</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-1170" name="__codelineno-0-1170"></a>        <span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.core.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">UNSET</span>
-<a id="__codelineno-0-1171" name="__codelineno-0-1171"></a>        <span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.data_access.data_access</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataCatalog</span>
-<a id="__codelineno-0-1172" name="__codelineno-0-1172"></a>
-<a id="__codelineno-0-1173" name="__codelineno-0-1173"></a>        <span class="k">if</span> <span class="n">catalog</span> <span class="ow">is</span> <span class="n">UNSET</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">catalog</span><span class="p">,</span> <span class="n">DataCatalog</span><span class="p">):</span>
-<a id="__codelineno-0-1174" name="__codelineno-0-1174"></a>            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;DataCatalog is not set. Cannot access station data.&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-1175" name="__codelineno-0-1175"></a>        <span class="n">stations_df</span> <span class="o">=</span> <span class="n">catalog</span><span class="p">[</span><span class="s2">&quot;stations&quot;</span><span class="p">]</span>
-<a id="__codelineno-0-1176" name="__codelineno-0-1176"></a>
-<a id="__codelineno-0-1177" name="__codelineno-0-1177"></a>    <span class="n">points</span> <span class="o">=</span> <span class="p">[]</span>
-<a id="__codelineno-0-1178" name="__codelineno-0-1178"></a>    <span class="n">metadata_list</span> <span class="o">=</span> <span class="p">[]</span>
-<a id="__codelineno-0-1179" name="__codelineno-0-1179"></a>
-<a id="__codelineno-0-1180" name="__codelineno-0-1180"></a>    <span class="k">for</span> <span class="n">station_id</span> <span class="ow">in</span> <span class="n">station_identifiers</span><span class="p">:</span>
-<a id="__codelineno-0-1181" name="__codelineno-0-1181"></a>        <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-1182" name="__codelineno-0-1182"></a>            <span class="n">lat</span><span class="p">,</span> <span class="n">lon</span><span class="p">,</span> <span class="n">metadata</span> <span class="o">=</span> <span class="n">get_station_coordinates</span><span class="p">(</span>
-<a id="__codelineno-0-1183" name="__codelineno-0-1183"></a>                <span class="n">station_id</span><span class="p">,</span> <span class="n">catalog</span><span class="p">,</span> <span class="n">stations_df</span>
-<a id="__codelineno-0-1184" name="__codelineno-0-1184"></a>            <span class="p">)</span>
-<a id="__codelineno-0-1185" name="__codelineno-0-1185"></a>            <span class="n">points</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">lat</span><span class="p">,</span> <span class="n">lon</span><span class="p">))</span>
-<a id="__codelineno-0-1186" name="__codelineno-0-1186"></a>            <span class="n">metadata_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metadata</span><span class="p">)</span>
-<a id="__codelineno-0-1187" name="__codelineno-0-1187"></a>        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-1188" name="__codelineno-0-1188"></a>            <span class="c1"># Re-raise with context about which station failed</span>
-<a id="__codelineno-0-1189" name="__codelineno-0-1189"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error processing station &#39;</span><span class="si">{</span><span class="n">station_id</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-1190" name="__codelineno-0-1190"></a>
-<a id="__codelineno-0-1191" name="__codelineno-0-1191"></a>    <span class="k">return</span> <span class="n">points</span><span class="p">,</span> <span class="n">metadata_list</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1199">1199</a></span>
+<span class="normal"><a href="#__codelineno-0-1200">1200</a></span>
+<span class="normal"><a href="#__codelineno-0-1201">1201</a></span>
+<span class="normal"><a href="#__codelineno-0-1202">1202</a></span>
+<span class="normal"><a href="#__codelineno-0-1203">1203</a></span>
+<span class="normal"><a href="#__codelineno-0-1204">1204</a></span>
+<span class="normal"><a href="#__codelineno-0-1205">1205</a></span>
+<span class="normal"><a href="#__codelineno-0-1206">1206</a></span>
+<span class="normal"><a href="#__codelineno-0-1207">1207</a></span>
+<span class="normal"><a href="#__codelineno-0-1208">1208</a></span>
+<span class="normal"><a href="#__codelineno-0-1209">1209</a></span>
+<span class="normal"><a href="#__codelineno-0-1210">1210</a></span>
+<span class="normal"><a href="#__codelineno-0-1211">1211</a></span>
+<span class="normal"><a href="#__codelineno-0-1212">1212</a></span>
+<span class="normal"><a href="#__codelineno-0-1213">1213</a></span>
+<span class="normal"><a href="#__codelineno-0-1214">1214</a></span>
+<span class="normal"><a href="#__codelineno-0-1215">1215</a></span>
+<span class="normal"><a href="#__codelineno-0-1216">1216</a></span>
+<span class="normal"><a href="#__codelineno-0-1217">1217</a></span>
+<span class="normal"><a href="#__codelineno-0-1218">1218</a></span>
+<span class="normal"><a href="#__codelineno-0-1219">1219</a></span>
+<span class="normal"><a href="#__codelineno-0-1220">1220</a></span>
+<span class="normal"><a href="#__codelineno-0-1221">1221</a></span>
+<span class="normal"><a href="#__codelineno-0-1222">1222</a></span>
+<span class="normal"><a href="#__codelineno-0-1223">1223</a></span>
+<span class="normal"><a href="#__codelineno-0-1224">1224</a></span>
+<span class="normal"><a href="#__codelineno-0-1225">1225</a></span>
+<span class="normal"><a href="#__codelineno-0-1226">1226</a></span>
+<span class="normal"><a href="#__codelineno-0-1227">1227</a></span>
+<span class="normal"><a href="#__codelineno-0-1228">1228</a></span>
+<span class="normal"><a href="#__codelineno-0-1229">1229</a></span>
+<span class="normal"><a href="#__codelineno-0-1230">1230</a></span>
+<span class="normal"><a href="#__codelineno-0-1231">1231</a></span>
+<span class="normal"><a href="#__codelineno-0-1232">1232</a></span>
+<span class="normal"><a href="#__codelineno-0-1233">1233</a></span>
+<span class="normal"><a href="#__codelineno-0-1234">1234</a></span>
+<span class="normal"><a href="#__codelineno-0-1235">1235</a></span>
+<span class="normal"><a href="#__codelineno-0-1236">1236</a></span>
+<span class="normal"><a href="#__codelineno-0-1237">1237</a></span>
+<span class="normal"><a href="#__codelineno-0-1238">1238</a></span>
+<span class="normal"><a href="#__codelineno-0-1239">1239</a></span>
+<span class="normal"><a href="#__codelineno-0-1240">1240</a></span>
+<span class="normal"><a href="#__codelineno-0-1241">1241</a></span>
+<span class="normal"><a href="#__codelineno-0-1242">1242</a></span>
+<span class="normal"><a href="#__codelineno-0-1243">1243</a></span>
+<span class="normal"><a href="#__codelineno-0-1244">1244</a></span>
+<span class="normal"><a href="#__codelineno-0-1245">1245</a></span>
+<span class="normal"><a href="#__codelineno-0-1246">1246</a></span>
+<span class="normal"><a href="#__codelineno-0-1247">1247</a></span>
+<span class="normal"><a href="#__codelineno-0-1248">1248</a></span>
+<span class="normal"><a href="#__codelineno-0-1249">1249</a></span>
+<span class="normal"><a href="#__codelineno-0-1250">1250</a></span>
+<span class="normal"><a href="#__codelineno-0-1251">1251</a></span>
+<span class="normal"><a href="#__codelineno-0-1252">1252</a></span>
+<span class="normal"><a href="#__codelineno-0-1253">1253</a></span>
+<span class="normal"><a href="#__codelineno-0-1254">1254</a></span>
+<span class="normal"><a href="#__codelineno-0-1255">1255</a></span>
+<span class="normal"><a href="#__codelineno-0-1256">1256</a></span>
+<span class="normal"><a href="#__codelineno-0-1257">1257</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1199" name="__codelineno-0-1199"></a><span class="k">def</span><span class="w"> </span><span class="nf">convert_stations_to_points</span><span class="p">(</span>
+<a id="__codelineno-0-1200" name="__codelineno-0-1200"></a>    <span class="n">station_identifiers</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">catalog</span><span class="p">,</span> <span class="n">stations_df</span><span class="o">=</span><span class="kc">None</span>
+<a id="__codelineno-0-1201" name="__codelineno-0-1201"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]],</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]]:</span>
+<a id="__codelineno-0-1202" name="__codelineno-0-1202"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-1203" name="__codelineno-0-1203"></a><span class="sd">    Convert a list of station identifiers to lat/lon coordinates.</span>
+<a id="__codelineno-0-1204" name="__codelineno-0-1204"></a>
+<a id="__codelineno-0-1205" name="__codelineno-0-1205"></a><span class="sd">    This function provides batch conversion of station identifiers to</span>
+<a id="__codelineno-0-1206" name="__codelineno-0-1206"></a><span class="sd">    coordinates, used by processors that need to work with multiple stations.</span>
+<a id="__codelineno-0-1207" name="__codelineno-0-1207"></a>
+<a id="__codelineno-0-1208" name="__codelineno-0-1208"></a><span class="sd">    Parameters</span>
+<a id="__codelineno-0-1209" name="__codelineno-0-1209"></a><span class="sd">    ----------</span>
+<a id="__codelineno-0-1210" name="__codelineno-0-1210"></a><span class="sd">    station_identifiers : list[str]</span>
+<a id="__codelineno-0-1211" name="__codelineno-0-1211"></a><span class="sd">        List of station codes or names</span>
+<a id="__codelineno-0-1212" name="__codelineno-0-1212"></a><span class="sd">    catalog : DataCatalog</span>
+<a id="__codelineno-0-1213" name="__codelineno-0-1213"></a><span class="sd">        Data catalog instance for accessing station metadata</span>
+<a id="__codelineno-0-1214" name="__codelineno-0-1214"></a><span class="sd">    stations_df : pd.DataFrame, optional</span>
+<a id="__codelineno-0-1215" name="__codelineno-0-1215"></a><span class="sd">        Pre-loaded stations DataFrame. If None, will be loaded from catalog.</span>
+<a id="__codelineno-0-1216" name="__codelineno-0-1216"></a>
+<a id="__codelineno-0-1217" name="__codelineno-0-1217"></a><span class="sd">    Returns</span>
+<a id="__codelineno-0-1218" name="__codelineno-0-1218"></a><span class="sd">    -------</span>
+<a id="__codelineno-0-1219" name="__codelineno-0-1219"></a><span class="sd">    tuple[list[tuple[float, float]], list[dict]]</span>
+<a id="__codelineno-0-1220" name="__codelineno-0-1220"></a><span class="sd">        List of (lat, lon) tuples and list of metadata dictionaries</span>
+<a id="__codelineno-0-1221" name="__codelineno-0-1221"></a>
+<a id="__codelineno-0-1222" name="__codelineno-0-1222"></a><span class="sd">    Raises</span>
+<a id="__codelineno-0-1223" name="__codelineno-0-1223"></a><span class="sd">    ------</span>
+<a id="__codelineno-0-1224" name="__codelineno-0-1224"></a><span class="sd">    ValueError</span>
+<a id="__codelineno-0-1225" name="__codelineno-0-1225"></a><span class="sd">        If any station is not found or if there are validation errors</span>
+<a id="__codelineno-0-1226" name="__codelineno-0-1226"></a>
+<a id="__codelineno-0-1227" name="__codelineno-0-1227"></a><span class="sd">    Examples</span>
+<a id="__codelineno-0-1228" name="__codelineno-0-1228"></a><span class="sd">    --------</span>
+<a id="__codelineno-0-1229" name="__codelineno-0-1229"></a><span class="sd">    &gt;&gt;&gt; stations = [&quot;KSAC&quot;, &quot;KSFO&quot;, &quot;KLAX&quot;]</span>
+<a id="__codelineno-0-1230" name="__codelineno-0-1230"></a><span class="sd">    &gt;&gt;&gt; points, metadata = convert_stations_to_points(stations, catalog)</span>
+<a id="__codelineno-0-1231" name="__codelineno-0-1231"></a><span class="sd">    &gt;&gt;&gt; for (lat, lon), meta in zip(points, metadata):</span>
+<a id="__codelineno-0-1232" name="__codelineno-0-1232"></a><span class="sd">    ...     print(f&quot;{meta[&#39;station_name&#39;]}: ({lat}, {lon})&quot;)</span>
+<a id="__codelineno-0-1233" name="__codelineno-0-1233"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-1234" name="__codelineno-0-1234"></a>    <span class="c1"># Load stations once if not provided</span>
+<a id="__codelineno-0-1235" name="__codelineno-0-1235"></a>    <span class="k">if</span> <span class="n">stations_df</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-1236" name="__codelineno-0-1236"></a>        <span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.core.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">UNSET</span>
+<a id="__codelineno-0-1237" name="__codelineno-0-1237"></a>        <span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.data_access.data_access</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataCatalog</span>
+<a id="__codelineno-0-1238" name="__codelineno-0-1238"></a>
+<a id="__codelineno-0-1239" name="__codelineno-0-1239"></a>        <span class="k">if</span> <span class="n">catalog</span> <span class="ow">is</span> <span class="n">UNSET</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">catalog</span><span class="p">,</span> <span class="n">DataCatalog</span><span class="p">):</span>
+<a id="__codelineno-0-1240" name="__codelineno-0-1240"></a>            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;DataCatalog is not set. Cannot access station data.&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-1241" name="__codelineno-0-1241"></a>        <span class="n">stations_df</span> <span class="o">=</span> <span class="n">catalog</span><span class="p">[</span><span class="s2">&quot;stations&quot;</span><span class="p">]</span>
+<a id="__codelineno-0-1242" name="__codelineno-0-1242"></a>
+<a id="__codelineno-0-1243" name="__codelineno-0-1243"></a>    <span class="n">points</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-0-1244" name="__codelineno-0-1244"></a>    <span class="n">metadata_list</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-0-1245" name="__codelineno-0-1245"></a>
+<a id="__codelineno-0-1246" name="__codelineno-0-1246"></a>    <span class="k">for</span> <span class="n">station_id</span> <span class="ow">in</span> <span class="n">station_identifiers</span><span class="p">:</span>
+<a id="__codelineno-0-1247" name="__codelineno-0-1247"></a>        <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-1248" name="__codelineno-0-1248"></a>            <span class="n">lat</span><span class="p">,</span> <span class="n">lon</span><span class="p">,</span> <span class="n">metadata</span> <span class="o">=</span> <span class="n">get_station_coordinates</span><span class="p">(</span>
+<a id="__codelineno-0-1249" name="__codelineno-0-1249"></a>                <span class="n">station_id</span><span class="p">,</span> <span class="n">catalog</span><span class="p">,</span> <span class="n">stations_df</span>
+<a id="__codelineno-0-1250" name="__codelineno-0-1250"></a>            <span class="p">)</span>
+<a id="__codelineno-0-1251" name="__codelineno-0-1251"></a>            <span class="n">points</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">lat</span><span class="p">,</span> <span class="n">lon</span><span class="p">))</span>
+<a id="__codelineno-0-1252" name="__codelineno-0-1252"></a>            <span class="n">metadata_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metadata</span><span class="p">)</span>
+<a id="__codelineno-0-1253" name="__codelineno-0-1253"></a>        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-1254" name="__codelineno-0-1254"></a>            <span class="c1"># Re-raise with context about which station failed</span>
+<a id="__codelineno-0-1255" name="__codelineno-0-1255"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error processing station &#39;</span><span class="si">{</span><span class="n">station_id</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-1256" name="__codelineno-0-1256"></a>
+<a id="__codelineno-0-1257" name="__codelineno-0-1257"></a>    <span class="k">return</span> <span class="n">points</span><span class="p">,</span> <span class="n">metadata_list</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

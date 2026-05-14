@@ -3038,11 +3038,13 @@ the ClimateData interface, start with <a href="../concepts/">Core Concepts</a> o
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">cd</span><span class="o">.</span><span class="n">show_variable_options</span><span class="p">()</span>              <span class="c1"># Discover available variables</span>
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">data</span> <span class="o">=</span> <span class="n">cd</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>                         <span class="c1"># Execute query, return xarray</span>
 </code></pre></div></p>
-<p><strong>Internal Contract</strong>:
-- All parameter setters must <code>return self</code>
-- Query is reset after <code>.get()</code> is called
-- Parameter values stored internally, passed to DatasetFactory on <code>.get()</code>
-- Discovery methods (<code>show_*_options()</code>) delegate to DatasetFactory</p>
+<p><strong>Internal Contract</strong>:</p>
+<ul>
+<li>All parameter setters must <code>return self</code></li>
+<li>Query is reset after <code>.get()</code> is called</li>
+<li>Parameter values stored internally, passed to DatasetFactory on <code>.get()</code></li>
+<li>Discovery methods (<code>show_*_options()</code>) delegate to DatasetFactory</li>
+</ul>
 <hr />
 <h3 id="2-datasetfactory">2. DatasetFactory</h3>
 <p><strong>File</strong>: <code>climakitae/new_core/dataset_factory.py</code> (~600 lines)</p>
@@ -3148,11 +3150,13 @@ the ClimateData interface, start with <a href="../concepts/">Core Concepts</a> o
 <a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c1"># ❌ Not thread-safe: State stored on singleton</span>
 <a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="bp">self</span><span class="o">.</span><span class="n">_current_key</span> <span class="o">=</span> <span class="n">catalog_key</span>  <span class="c1"># DON&#39;T DO THIS</span>
 </code></pre></div></p>
-<p><strong>Connection Management</strong>:
-- Catalogs loaded lazily on first access
-- intake-esm catalogs cached in <code>_catalogs</code> dict
-- Boundaries loaded on-demand via lazy property
-- Thread lock ensures atomic initialization</p>
+<p><strong>Connection Management</strong>:</p>
+<ul>
+<li>Catalogs loaded lazily on first access</li>
+<li>intake-esm catalogs cached in <code>_catalogs</code> dict</li>
+<li>Boundaries loaded on-demand via lazy property</li>
+<li>Thread lock ensures atomic initialization</li>
+</ul>
 <hr />
 <h3 id="5-parametervalidator-registry-pattern">5. ParameterValidator (Registry Pattern)</h3>
 <p><strong>File</strong>: <code>climakitae/new_core/param_validation/abc_param_validation.py</code> (~550 lines)</p>

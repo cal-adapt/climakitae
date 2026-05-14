@@ -2847,22 +2847,22 @@ still written against the legacy API).</p>
 </table>
 <hr />
 <h2 id="migration-checklist">Migration Checklist</h2>
-<ul class="task-list">
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Replace <code>from climakitae.core.data_interface import DataParameters, get_data</code> with <code>from climakitae.new_core.user_interface import ClimateData</code>.  </li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Translate field names:  <ul class="task-list">
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <code>downscaling_method</code> ("Dynamical" / "Statistical") → <code>.activity_id("WRF" | "LOCA2")</code>  </li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <code>resolution</code> ("3 km" / "9 km" / "45 km") → <code>.grid_label("d03" | "d02" | "d01")</code>  </li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <code>timescale</code> ("hourly" / "daily" / "monthly") → <code>.table_id("1hr" | "day" | "mon")</code>  </li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> <code>scenario_ssp</code> / <code>scenario_historical</code> → <code>.experiment_id(...)</code> (a list of <code>"ssp245"</code> / <code>"ssp370"</code> / <code>"ssp585"</code> / <code>"historical"</code>)  </li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Display variable name (e.g. "Maximum air temperature at 2m") → <code>.variable("&lt;variable_id&gt;")</code> such as <code>"t2max"</code> for WRF or <code>"tasmax"</code> for LOCA2.  </li>
+<ul>
+<li>Replace <code>from climakitae.core.data_interface import DataParameters, get_data</code> with <code>from climakitae.new_core.user_interface import ClimateData</code>.  </li>
+<li>Translate field names:  <ul>
+<li><code>downscaling_method</code> ("Dynamical" / "Statistical") → <code>.activity_id("WRF" | "LOCA2")</code>  </li>
+<li><code>resolution</code> ("3 km" / "9 km" / "45 km") → <code>.grid_label("d03" | "d02" | "d01")</code>  </li>
+<li><code>timescale</code> ("hourly" / "daily" / "monthly") → <code>.table_id("1hr" | "day" | "mon")</code>  </li>
+<li><code>scenario_ssp</code> / <code>scenario_historical</code> → <code>.experiment_id(...)</code> (a list of <code>"ssp245"</code> / <code>"ssp370"</code> / <code>"ssp585"</code> / <code>"historical"</code>)  </li>
+<li>Display variable name (e.g. "Maximum air temperature at 2m") → <code>.variable("&lt;variable_id&gt;")</code> such as <code>"t2max"</code> for WRF or <code>"tasmax"</code> for LOCA2.  </li>
 </ul>
 </li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Convert year ranges: <code>params.time_slice = (2015, 2050)</code> → <code>.processes({"time_slice": (2015, 2050)})</code> (or ISO date strings).  </li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Convert clipping: <code>params.area_subset</code> + <code>params.cached_area</code> → <code>.processes({"clip": "&lt;boundary name&gt;"})</code> or a <code>(lat, lon)</code> tuple.  </li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Replace <code>get_data(params)</code> with <code>.get()</code>.  </li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Update option discovery to use <code>show_*_options()</code> methods.  </li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Move exports to the <code>"export"</code> processor or call <code>.to_netcdf()</code> / <code>.to_zarr()</code> on the result.  </li>
-<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Run side-by-side comparison on a small slice to verify equivalent results before swapping production code.  </li>
+<li>Convert year ranges: <code>params.time_slice = (2015, 2050)</code> → <code>.processes({"time_slice": (2015, 2050)})</code> (or ISO date strings).  </li>
+<li>Convert clipping: <code>params.area_subset</code> + <code>params.cached_area</code> → <code>.processes({"clip": "&lt;boundary name&gt;"})</code> or a <code>(lat, lon)</code> tuple.  </li>
+<li>Replace <code>get_data(params)</code> with <code>.get()</code>.  </li>
+<li>Update option discovery to use <code>show_*_options()</code> methods.  </li>
+<li>Move exports to the <code>"export"</code> processor or call <code>.to_netcdf()</code> / <code>.to_zarr()</code> on the result.  </li>
+<li>Run side-by-side comparison on a small slice to verify equivalent results before swapping production code.  </li>
 </ul>
 <hr />
 <h2 id="still-using-legacy-questions">Still Using Legacy? Questions?</h2>

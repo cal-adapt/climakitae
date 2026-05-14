@@ -2936,10 +2936,12 @@
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="c1"># Returns: Dict with separate Dataset for each county</span>
 </code></pre></div></p>
 <h3 id="multiple-points">Multiple Points</h3>
-<p>When providing multiple point coordinates:
-- Each point gets independent smart-gridcell search
-- Results include <code>closest_cell</code> dimension with length = number of points
-- Automatic duplicate filtering if multiple points map to same gridcell</p>
+<p>When providing multiple point coordinates:</p>
+<ul>
+<li>Each point gets independent smart-gridcell search</li>
+<li>Results include <code>closest_cell</code> dimension with length = number of points</li>
+<li>Automatic duplicate filtering if multiple points map to same gridcell</li>
+</ul>
 <p><strong>Example:</strong>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="p">[(</span><span class="mf">37.7749</span><span class="p">,</span> <span class="o">-</span><span class="mf">122.4194</span><span class="p">),</span> <span class="p">(</span><span class="mf">34.0522</span><span class="p">,</span> <span class="o">-</span><span class="mf">118.2437</span><span class="p">),</span> <span class="p">(</span><span class="mf">32.7157</span><span class="p">,</span> <span class="o">-</span><span class="mf">117.1611</span><span class="p">)]</span>
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="c1"># Returns: Dataset with closest_cell dimension = 3 (SF, LA, San Diego)</span>

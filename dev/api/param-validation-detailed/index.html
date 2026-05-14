@@ -2568,11 +2568,13 @@
 <h1 id="parameter-validation-detailed">Parameter Validation (Detailed)</h1>
 <p>Catalog-specific parameter validators for climate data queries.</p>
 <h2 id="overview">Overview</h2>
-<p>The <code>climakitae.new_core.param_validation</code> module provides catalog-specific validators that ensure climate data query parameters are valid before execution. Each validator:
-- Validates required parameters for its catalog
-- Checks parameter compatibility
-- Suggests corrections for invalid parameters
-- Handles edge cases (e.g., models that don't reach warming levels)</p>
+<p>The <code>climakitae.new_core.param_validation</code> module provides catalog-specific validators that ensure climate data query parameters are valid before execution. Each validator:  </p>
+<ul>
+<li>Validates required parameters for its catalog</li>
+<li>Checks parameter compatibility</li>
+<li>Suggests corrections for invalid parameters</li>
+<li>Handles edge cases (e.g., models that don't reach warming levels)</li>
+</ul>
 <h2 id="base-validator">Base Validator</h2>
 <p>All validators inherit from the abstract base class:</p>
 
@@ -4998,9 +5000,7 @@ or a tuple of coordinate bounds.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/param_validation/clip_param_validator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-29">29</a></span>
-<span class="normal"><a href="#__codelineno-0-30">30</a></span>
-<span class="normal"><a href="#__codelineno-0-31">31</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-31">31</a></span>
 <span class="normal"><a href="#__codelineno-0-32">32</a></span>
 <span class="normal"><a href="#__codelineno-0-33">33</a></span>
 <span class="normal"><a href="#__codelineno-0-34">34</a></span>
@@ -5059,68 +5059,74 @@ or a tuple of coordinate bounds.</p>
 <span class="normal"><a href="#__codelineno-0-87">87</a></span>
 <span class="normal"><a href="#__codelineno-0-88">88</a></span>
 <span class="normal"><a href="#__codelineno-0-89">89</a></span>
-<span class="normal"><a href="#__codelineno-0-90">90</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="nd">@register_processor_validator</span><span class="p">(</span><span class="s2">&quot;clip&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="k">def</span><span class="w"> </span><span class="nf">validate_clip_param</span><span class="p">(</span>
-<a id="__codelineno-0-31" name="__codelineno-0-31"></a>    <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
-<a id="__codelineno-0-32" name="__codelineno-0-32"></a>    <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
-<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<a id="__codelineno-0-34" name="__codelineno-0-34"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="sd">    Validate parameter passed to Clip Processor.</span>
-<a id="__codelineno-0-36" name="__codelineno-0-36"></a>
-<a id="__codelineno-0-37" name="__codelineno-0-37"></a><span class="sd">    This function validates and normalizes parameters for the Clip processor,</span>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a><span class="sd">    addressing common input validation issues:</span>
-<a id="__codelineno-0-39" name="__codelineno-0-39"></a>
-<a id="__codelineno-0-40" name="__codelineno-0-40"></a><span class="sd">    1. **Input Validation**: Rejects None values and mixed types</span>
-<a id="__codelineno-0-41" name="__codelineno-0-41"></a><span class="sd">    2. **Empty/Whitespace Handling**: Filters out empty/whitespace strings</span>
-<a id="__codelineno-0-42" name="__codelineno-0-42"></a><span class="sd">    3. **Case Sensitivity**: Provides consistent handling and warnings for case mismatches</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43"></a><span class="sd">    4. **Duplicate Handling**: Deduplicates boundary lists while preserving order</span>
-<a id="__codelineno-0-44" name="__codelineno-0-44"></a><span class="sd">    5. **Coordinate Validation**: Validates lat/lon coordinate bounds</span>
-<a id="__codelineno-0-45" name="__codelineno-0-45"></a>
-<a id="__codelineno-0-46" name="__codelineno-0-46"></a><span class="sd">    Parameters</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47"></a><span class="sd">    ----------</span>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a><span class="sd">    value : Any</span>
-<a id="__codelineno-0-49" name="__codelineno-0-49"></a><span class="sd">        Parameter value to validate. This can be a string, list of strings,</span>
-<a id="__codelineno-0-50" name="__codelineno-0-50"></a><span class="sd">        or a tuple of coordinate bounds.</span>
-<a id="__codelineno-0-51" name="__codelineno-0-51"></a>
-<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-53" name="__codelineno-0-53"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-54" name="__codelineno-0-54"></a><span class="sd">    bool:</span>
-<a id="__codelineno-0-55" name="__codelineno-0-55"></a><span class="sd">        True if the parameter is valid, otherwise raises an exception.</span>
-<a id="__codelineno-0-56" name="__codelineno-0-56"></a>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a><span class="sd">    Raises</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a><span class="sd">    ------</span>
-<a id="__codelineno-0-59" name="__codelineno-0-59"></a><span class="sd">    ValueError</span>
-<a id="__codelineno-0-60" name="__codelineno-0-60"></a><span class="sd">        If the input is invalid and cannot be corrected</span>
-<a id="__codelineno-0-61" name="__codelineno-0-61"></a><span class="sd">    TypeError</span>
-<a id="__codelineno-0-62" name="__codelineno-0-62"></a><span class="sd">        If the input type is not supported</span>
-<a id="__codelineno-0-63" name="__codelineno-0-63"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-64" name="__codelineno-0-64"></a>
-<a id="__codelineno-0-65" name="__codelineno-0-65"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;validate_clip_param called with value: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-90">90</a></span>
+<span class="normal"><a href="#__codelineno-0-91">91</a></span>
+<span class="normal"><a href="#__codelineno-0-92">92</a></span>
+<span class="normal"><a href="#__codelineno-0-93">93</a></span>
+<span class="normal"><a href="#__codelineno-0-94">94</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="nd">@register_processor_validator</span><span class="p">(</span><span class="s2">&quot;clip&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="k">def</span><span class="w"> </span><span class="nf">validate_clip_param</span><span class="p">(</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a>    <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+<a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+<a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37"></a><span class="sd">    Validate parameter passed to Clip Processor.</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>
+<a id="__codelineno-0-39" name="__codelineno-0-39"></a><span class="sd">    This function validates and normalizes parameters for the Clip processor,</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40"></a><span class="sd">    addressing common input validation issues:</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41"></a>
+<a id="__codelineno-0-42" name="__codelineno-0-42"></a><span class="sd">    1. **Input Validation**: Rejects None values and mixed types</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a><span class="sd">    2. **Empty/Whitespace Handling**: Filters out empty/whitespace strings</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a><span class="sd">    3. **Case Sensitivity**: Provides consistent handling and warnings for case mismatches</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="sd">    4. **Duplicate Handling**: Deduplicates boundary lists while preserving order</span>
+<a id="__codelineno-0-46" name="__codelineno-0-46"></a><span class="sd">    5. **Coordinate Validation**: Validates lat/lon coordinate bounds</span>
+<a id="__codelineno-0-47" name="__codelineno-0-47"></a>
+<a id="__codelineno-0-48" name="__codelineno-0-48"></a><span class="sd">    Parameters</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49"></a><span class="sd">    ----------</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50"></a><span class="sd">    value : Any</span>
+<a id="__codelineno-0-51" name="__codelineno-0-51"></a><span class="sd">        Parameter value to validate. This can be a string, list of strings,</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="sd">        or a tuple of coordinate bounds.</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53"></a>
+<a id="__codelineno-0-54" name="__codelineno-0-54"></a><span class="sd">    Returns</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55"></a><span class="sd">    -------</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a><span class="sd">    bool:</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a><span class="sd">        True if the parameter is valid, otherwise raises an exception.</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a>
+<a id="__codelineno-0-59" name="__codelineno-0-59"></a><span class="sd">    Raises</span>
+<a id="__codelineno-0-60" name="__codelineno-0-60"></a><span class="sd">    ------</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a><span class="sd">    ValueError</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a><span class="sd">        If the input is invalid and cannot be corrected</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a><span class="sd">    TypeError</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a><span class="sd">        If the input type is not supported</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65"></a><span class="sd">    &quot;&quot;&quot;</span>
 <a id="__codelineno-0-66" name="__codelineno-0-66"></a>
-<a id="__codelineno-0-67" name="__codelineno-0-67"></a>    <span class="c1"># Handle None values early</span>
-<a id="__codelineno-0-68" name="__codelineno-0-68"></a>    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">value</span> <span class="ow">is</span> <span class="n">UNSET</span><span class="p">:</span>
-<a id="__codelineno-0-69" name="__codelineno-0-69"></a>        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Clip parameter cannot be None. Please provide a valid boundary key, list of keys, file path, or coordinate bounds.&quot;</span>
-<a id="__codelineno-0-70" name="__codelineno-0-70"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-<a id="__codelineno-0-71" name="__codelineno-0-71"></a>        <span class="k">return</span> <span class="kc">False</span>
-<a id="__codelineno-0-72" name="__codelineno-0-72"></a>
-<a id="__codelineno-0-73" name="__codelineno-0-73"></a>    <span class="k">match</span> <span class="n">value</span><span class="p">:</span>
-<a id="__codelineno-0-74" name="__codelineno-0-74"></a>        <span class="k">case</span> <span class="nb">str</span><span class="p">():</span>
-<a id="__codelineno-0-75" name="__codelineno-0-75"></a>            <span class="k">return</span> <span class="n">_validate_string_param</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-<a id="__codelineno-0-76" name="__codelineno-0-76"></a>        <span class="k">case</span> <span class="nb">list</span><span class="p">():</span>
-<a id="__codelineno-0-77" name="__codelineno-0-77"></a>            <span class="k">return</span> <span class="n">_validate_list_param</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-<a id="__codelineno-0-78" name="__codelineno-0-78"></a>        <span class="k">case</span> <span class="nb">tuple</span><span class="p">():</span>
-<a id="__codelineno-0-79" name="__codelineno-0-79"></a>            <span class="k">return</span> <span class="n">_validate_tuple_param</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-<a id="__codelineno-0-80" name="__codelineno-0-80"></a>        <span class="k">case</span> <span class="nb">dict</span><span class="p">():</span>
-<a id="__codelineno-0-81" name="__codelineno-0-81"></a>            <span class="k">return</span> <span class="n">_validate_dict_param</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-<a id="__codelineno-0-82" name="__codelineno-0-82"></a>        <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
-<a id="__codelineno-0-83" name="__codelineno-0-83"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-<a id="__codelineno-0-84" name="__codelineno-0-84"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Invalid parameter type for Clip processor. &quot;</span>
-<a id="__codelineno-0-85" name="__codelineno-0-85"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Expected str, list, tuple, or dict, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">. &quot;</span>
-<a id="__codelineno-0-86" name="__codelineno-0-86"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Valid examples: &#39;CA&#39;, [&#39;CA&#39;, &#39;OR&#39;], ((32.0, 42.0), (-125.0, -114.0)), &quot;</span>
-<a id="__codelineno-0-87" name="__codelineno-0-87"></a>                <span class="sa">f</span><span class="s2">&quot;or </span><span class="se">{{</span><span class="s2">&#39;boundaries&#39;: [&#39;CA&#39;, &#39;OR&#39;], &#39;separated&#39;: True</span><span class="se">}}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-88" name="__codelineno-0-88"></a>            <span class="p">)</span>
-<a id="__codelineno-0-89" name="__codelineno-0-89"></a>
-<a id="__codelineno-0-90" name="__codelineno-0-90"></a>    <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;validate_clip_param called with value: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a>
+<a id="__codelineno-0-69" name="__codelineno-0-69"></a>    <span class="c1"># Handle None values early</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a>    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">value</span> <span class="ow">is</span> <span class="n">UNSET</span><span class="p">:</span>
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a>        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Clip parameter cannot be None. Please provide a valid boundary key, list of keys, file path, or coordinate bounds.&quot;</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-0-74" name="__codelineno-0-74"></a>
+<a id="__codelineno-0-75" name="__codelineno-0-75"></a>    <span class="k">match</span> <span class="n">value</span><span class="p">:</span>
+<a id="__codelineno-0-76" name="__codelineno-0-76"></a>        <span class="k">case</span> <span class="nb">str</span><span class="p">():</span>
+<a id="__codelineno-0-77" name="__codelineno-0-77"></a>            <span class="k">return</span> <span class="n">_validate_string_param</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+<a id="__codelineno-0-78" name="__codelineno-0-78"></a>        <span class="k">case</span> <span class="nb">list</span><span class="p">():</span>
+<a id="__codelineno-0-79" name="__codelineno-0-79"></a>            <span class="k">return</span> <span class="n">_validate_list_param</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+<a id="__codelineno-0-80" name="__codelineno-0-80"></a>        <span class="k">case</span> <span class="nb">tuple</span><span class="p">():</span>
+<a id="__codelineno-0-81" name="__codelineno-0-81"></a>            <span class="k">return</span> <span class="n">_validate_tuple_param</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82"></a>        <span class="k">case</span> <span class="nb">dict</span><span class="p">():</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a>            <span class="k">return</span> <span class="n">_validate_dict_param</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+<a id="__codelineno-0-84" name="__codelineno-0-84"></a>        <span class="k">case</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">():</span>
+<a id="__codelineno-0-85" name="__codelineno-0-85"></a>            <span class="k">return</span> <span class="kc">True</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a>        <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+<a id="__codelineno-0-87" name="__codelineno-0-87"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Invalid parameter type for Clip processor. &quot;</span>
+<a id="__codelineno-0-89" name="__codelineno-0-89"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Expected str, list, tuple, dict, or GeoDataFrame, but got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">. &quot;</span>
+<a id="__codelineno-0-90" name="__codelineno-0-90"></a>                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Valid examples: &#39;CA&#39;, [&#39;CA&#39;, &#39;OR&#39;], ((32.0, 42.0), (-125.0, -114.0)), &quot;</span>
+<a id="__codelineno-0-91" name="__codelineno-0-91"></a>                <span class="sa">f</span><span class="s2">&quot;or </span><span class="se">{{</span><span class="s2">&#39;boundaries&#39;: [&#39;CA&#39;, &#39;OR&#39;], &#39;separated&#39;: True</span><span class="se">}}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-92" name="__codelineno-0-92"></a>            <span class="p">)</span>
+<a id="__codelineno-0-93" name="__codelineno-0-93"></a>
+<a id="__codelineno-0-94" name="__codelineno-0-94"></a>    <span class="k">return</span> <span class="kc">False</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
