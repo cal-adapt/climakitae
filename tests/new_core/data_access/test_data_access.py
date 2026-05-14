@@ -21,6 +21,7 @@ from climakitae.core.paths import (
 from climakitae.new_core.data_access.data_access import (
     CATALOG_BOUNDARY,
     CATALOG_CADCAT,
+    CATALOG_CADCAT_PREVIEW,
     CATALOG_HDP,
     CATALOG_REN_ENERGY_GEN,
     UNSET,
@@ -137,13 +138,16 @@ class TestDataCatalogInitialization:
         *_, mock_open_esm, mock_open_catalog = mock_data_catalog_and_objs
 
         # Intake functions called with expected args
-        # Note: cadcat and renewables get registry= kwarg, HDP does not
-        assert mock_open_esm.call_count == 3
+        # Note: cadcat, renewables, cadcat_preview get registry= kwarg; HDP does not
+        assert mock_open_esm.call_count == 4
         # Extract just the URL from each call (first positional arg)
         call_urls = [call.args[0] for call in mock_open_esm.call_args_list]
         assert DATA_CATALOG_URL in call_urls
         assert RENEWABLES_CATALOG_URL in call_urls
         assert HDP_CATALOG_URL in call_urls
+        # cadcat_preview is loaded from a package-resolved absolute path that
+        # ends with the bundled collection JSON filename.
+        assert any(str(u).endswith("cae-preview-collection.json") for u in call_urls)
         mock_open_catalog.assert_called_once_with(BOUNDARY_CATALOG_URL)
 
     def test_contains_expected_catalog_keys(self, mock_data_catalog_and_objs: Tuple):
@@ -185,7 +189,12 @@ class TestDataCatalogInitialization:
 
         assert isinstance(df, pd.DataFrame)
         assert set(df["catalog"].unique()).issubset(
-            [CATALOG_REN_ENERGY_GEN, CATALOG_CADCAT, CATALOG_HDP]
+            [
+                CATALOG_REN_ENERGY_GEN,
+                CATALOG_CADCAT,
+                CATALOG_HDP,
+                CATALOG_CADCAT_PREVIEW,
+            ]
         )
 
     def test_initialized_state(self, mock_data_catalog_and_objs: Tuple):
@@ -426,14 +435,19 @@ class TestDataCatalogCatalogLoadFailures:
         _, mock_boundary_catalog, _, mock_stations_df = make_mock_objects()
 
         # Give each catalog its own mock so merge_catalogs doesn't mutate a shared df
-        mock_cadcat, mock_renewables = make_mock_objects()[0], make_mock_objects()[0]
+        mock_cadcat = make_mock_objects()[0]
+        mock_renewables = make_mock_objects()[0]
+        mock_preview = make_mock_objects()[0]
 
         def open_esm_side_effect(url, **kwargs):
             if url == HDP_CATALOG_URL:
                 raise Exception("Simulated HDP catalog load failure")
             elif url == RENEWABLES_CATALOG_URL:
                 return mock_renewables
-            return mock_cadcat
+            elif url == DATA_CATALOG_URL:
+                return mock_cadcat
+            # cadcat_preview URL is a package-resolved absolute path.
+            return mock_preview
 
         with (
             patch(
@@ -460,14 +474,19 @@ class TestDataCatalogCatalogLoadFailures:
         _, mock_boundary_catalog, _, mock_stations_df = make_mock_objects()
 
         # Give each catalog its own mock so merge_catalogs doesn't mutate a shared df
-        mock_cadcat, mock_hdp = make_mock_objects()[0], make_mock_objects()[0]
+        mock_cadcat = make_mock_objects()[0]
+        mock_hdp = make_mock_objects()[0]
+        mock_preview = make_mock_objects()[0]
 
         def open_esm_side_effect(url, **kwargs):
             if url == RENEWABLES_CATALOG_URL:
                 raise Exception("Simulated renewables catalog load failure")
             elif url == HDP_CATALOG_URL:
                 return mock_hdp
-            return mock_cadcat
+            elif url == DATA_CATALOG_URL:
+                return mock_cadcat
+            # cadcat_preview URL is a package-resolved absolute path.
+            return mock_preview
 
         with (
             patch(

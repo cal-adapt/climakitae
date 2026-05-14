@@ -86,3 +86,12 @@ gen,Dynamical,hourly,MW,Power generation,Power generation by the panel or turbin
 effective_temp_index_derived,Dynamical,daily,K,Effective Temperature,The sum of half of yesterday's effective temperature and half of the current day's actual temperature. Accounts for previous day's temperature due to consumer behavior and perception of the weather. ,ae_orange,TRUE,t2
 gen,Dynamical,daily,MW,Power generation,Power generation by the panel or turbine array. ,ae_orange,FALSE,None
 cf,Dynamical,daily,[0 to 1],Capacity factor,The ratio of power produced to the nameplate capacity. Power production can be estimated by multiplying capacity factor by nameplate capacity.,ae_orange,FALSE,None
+swddif,sup3r,hourly,W/m2,Diffuse downwelling shortwave radiation,Shortwave solar radiation reaching the surface after being scattered by the atmosphere (the diffuse component of the surface irradiance).,ae_orange,TRUE,None
+swddni,sup3r,hourly,W/m2,Direct normal shortwave radiation,Direct beam shortwave solar radiation reaching a surface oriented perpendicular to the sun (the direct normal component).,ae_orange,TRUE,None
+swdnb,sup3r,hourly,W/m2,Total downwelling shortwave radiation at surface,Total shortwave solar radiation reaching Earth's surface (global horizontal irradiance).,ae_orange,TRUE,None
+wd10,sup3r,hourly,degrees,Wind direction at 10m,Wind direction at 10 meters above the Earth's surface. By meteorological convention direction is defined as where wind originates from (i.e. North is 360 deg).,ae_orange,TRUE,None
+wd100,sup3r,hourly,degrees,Wind direction at 100m,Wind direction at 100 meters above the Earth's surface. Used for wind energy resource assessment at modern turbine hub heights.,ae_orange,TRUE,None
+wd200,sup3r,hourly,degrees,Wind direction at 200m,Wind direction at 200 meters above the Earth's surface. Used for wind energy resource assessment at tall turbine hub heights.,ae_orange,TRUE,None
+ws10,sup3r,hourly,m s-1,Wind speed at 10m,Wind speed at 10 meters above the Earth's surface.,ae_orange,TRUE,None
+ws100,sup3r,hourly,m s-1,Wind speed at 100m,Wind speed at 100 meters above the Earth's surface. Used for wind energy resource assessment at modern turbine hub heights.,ae_orange,TRUE,None
+ws200,sup3r,hourly,m s-1,Wind speed at 200m,Wind speed at 200 meters above the Earth's surface. Used for wind energy resource assessment at tall turbine hub heights.,ae_orange,TRUE,None

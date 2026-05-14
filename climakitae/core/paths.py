@@ -12,6 +12,12 @@ RENEWABLES_CATALOG_URL = (
     "https://wfclimres.s3.amazonaws.com/era/era-ren-collection.json"
 )
 HDP_CATALOG_URL = "https://cadcat.s3.amazonaws.com/histwxstns/era-hdp-collection.json"
+# The cadcat_preview catalog is an internal/pre-release collection. Phase 1
+# bundles the collection JSON + CSV with the package; Phase 2 will flip this
+# to an s3:// URL at ``s3://cadcat/preview/`` so that AWS credentials gate
+# access automatically (intake load will fail silently for unauthenticated
+# users and the catalog is simply skipped).
+CADCAT_PREVIEW_CATALOG_URL = "data/cae-preview-collection.json"
 
 # S3 scratch bucket for exporting
 EXPORT_S3_BUCKET = "cadcat-tmp"
