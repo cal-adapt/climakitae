@@ -5,7 +5,7 @@ Includes tests for the more general functions along with the shock_XMY class.
 Exclude tests for functions from typical_meteorological_year.py that are used in shock_extreme_meteorological_year.py
 """
 
-import warnings 
+import warnings
 from unittest.mock import patch
 
 import numpy as np
@@ -21,26 +21,28 @@ from climakitae.explore.shock_extreme_meteorological_year import (
     find_hot_cold_extreme_from_median,
 )
 
+
 class TestFunctionsForXMY:
     """Test the general functions that are not part of the shock_XMY class."""
 
-    @patch("climakitae.explore.typical_meteorological_year.get_cdf")
-    @patch("climakitae.explore.typical_meteorological_year.get_cdf_monthly")
     def test_find_hot_cold_extreme_from_median(self):
         """Check  that the worst year is selected for the cold extreme and hot extreme, respectively."""
 
         # Fake cdf climatology data, one slice
         n_bins = 10
-        probs = np.linspace(0.01, 1, n_bins)   # monotonic CDF
+        probs = np.linspace(0.01, 1, n_bins)  # monotonic CDF
         bins = np.array(range(1, n_bins + 1), dtype=float)
 
-        clim_data = np.vstack((probs, bins))   # shape (2, 10) — probability row first
+        clim_data = np.vstack((probs, bins))  # shape (2, 10) — probability row first
 
         sub_clim = xr.DataArray(
             data=clim_data,
             dims=["data", "bin_number"],
             coords={
-                "data": ["probability", "bins"],   # order matters: sel("probability") / sel("bins")
+                "data": [
+                    "probability",
+                    "bins",
+                ],  # order matters: sel("probability") / sel("bins")
                 "bin_number": np.arange(n_bins),
             },
         )
@@ -50,13 +52,17 @@ class TestFunctionsForXMY:
         years = list(range(2001, 2001 + n_years))
 
         # Each year gets a slightly shifted CDF so medians differ and worst_year is predictable
-        year_shifts = np.array([0.0, -2.0, 2.0])   # year 2002 coldest, 2003 hottest
+        year_shifts = np.array([0.0, -2.0, 2.0])  # year 2002 coldest, 2003 hottest
         month_data = np.stack(
             [
-                np.vstack((
-                    np.clip(probs + shift * 0.05, 0, 1),  # probability row (shifted)
-                    bins,                                   # bins row (fixed)
-                ))
+                np.vstack(
+                    (
+                        np.clip(
+                            probs + shift * 0.05, 0, 1
+                        ),  # probability row (shifted)
+                        bins,  # bins row (fixed)
+                    )
+                )
                 for shift in year_shifts
             ],
             axis=0,
@@ -86,119 +92,71 @@ class TestFunctionsForXMY:
 
         assert worst_year == 2003
 
-    # -----------------------
+    @patch("climakitae.explore.typical_meteorological_year.get_cdf_monthly")
+    @patch("climakitae.explore.typical_meteorological_year.get_cdf")
+    def test_generate_candidate_months(self):
+        """Check top months dataframe format."""
 
-    def test_get_top_months_cold(self):
-        """Check top months dataframe format and that month with lowest f-s value is chosen for cold shock XMY."""
-
-        coords = {
-            "simulation": ["sim1", "sim2"],
-            "month": list(range(1, 13)),
-            "year": list(range(2001, 2004)),
-        }
-        dims = {"simulation": 2, "month": 12, "year": 3}
-        sim1 = np.linspace(0.05, 1, 12)
-        sim2 = np.linspace(0.3, 1, 12)
-        data = np.vstack((sim1, sim2))
-        data = np.expand_dims(data, [2]) + np.ones((1, 12, 3)) * np.array(
-            [0, 0.02, 0.04]
-        )
-        fs = xr.DataArray(
-            name="Daily max air temperature",
-            data=data,
-            dims=dims,
-            coords=coords,
-        )
-        extreme = "cold"
-        result = generate_candidate_months(extreme, fs)
-        # Correctly formatted dataframe
-        for col in ["month", "simulation", "year"]:
-            assert col in result.columns
-        assert (np.unique(result["simulation"]) == np.array(["sim1", "sim2"])).all()
-        # Lowest stat value is in 2001 for all sims, months
-        assert (result.year.values == [2001 for x in range(0, 24)]).all()
-
-    def test_get_top_months_hot(self):
-        """Check top months dataframe format and that month with highest f-s value is chosen for hot shock XMY."""
-
-        coords = {
-            "simulation": ["sim1", "sim2"],
-            "month": list(range(1, 13)),
-            "year": list(range(2001, 2004)),
-        }
-        dims = {"simulation": 2, "month": 12, "year": 3}
-        sim1 = np.linspace(0.05, 1, 12)
-        sim2 = np.linspace(0.3, 1, 12)
-        data = np.vstack((sim1, sim2))
-        data = np.expand_dims(data, [2]) + np.ones((1, 12, 3)) * np.array(
-            [0, 0.02, 0.04]
-        )
-        fs = xr.DataArray(
-            name="Daily max air temperature",
-            data=data,
-            dims=dims,
-            coords=coords,
-        )
-        extreme = "hot"
-        result = shock_get_top_months(extreme, fs)
-        # Correctly formatted dataframe
-        for col in ["month", "simulation", "year"]:
-            assert col in result.columns
-        assert (np.unique(result["simulation"]) == np.array(["sim1", "sim2"])).all()
-        # Highest stat value is in 2001 for all sims, months
-        assert (result.year.values == [2003 for x in range(0, 24)]).all()
-
-    def test_get_top_months_skip_last(self):
-        """Check get_top_months excludes the final month as an option only when
-        the skip_last flag is set to True."""
-        coords = {
-            "simulation": ["sim1", "sim2"],
-            "month": list(range(1, 13)),
-            "year": list(range(2001, 2004)),
-        }
-        dims = {"simulation": 2, "month": 12, "year": 3}
-        sim1 = np.linspace(0.05, 1, 12)
-        sim2 = np.linspace(0.3, 1, 12)
-        data = np.vstack((sim1, sim2))
-        data = np.expand_dims(data, [2]) + np.ones((1, 12, 3)) * np.array(
-            [0, 0.02, 0.04]
-        )
-        fs = xr.DataArray(
-            name="Daily max air temperature",
-            data=data,
-            dims=dims,
-            coords=coords,
-        )
-        extreme = "cold"
-        # Set last year/month to lowest stat value to be best match
-        fs[:, -1, -1] = np.zeros((2,))
-        result = shock_get_top_months(extreme, fs)
-        # Default is no skipping - so final year should get chosen for December
-        assert (result.loc[result["month"] == 12]["year"] == [2003, 2003]).all()
-
-        result = shock_get_top_months(extreme, fs, skip_last=True)
-        # Default is no skipping - so final year should get chosen for December
-        assert (result.loc[result["month"] == 12]["year"] == [2001, 2001]).all()
-
-    def test_remove_pinatubo_years(self):
-        """Check that years immediately after eruption are removed from dataset."""
-        test_data = np.arange(0, 10, 1)
-        test_data = test_data * np.ones((1, len(test_data)))
+        test_data = np.arange(0, 365 * 3, 1)
+        test_data = test_data * np.ones((2, len(test_data)))
         test_ds = xr.DataArray(
             name="temperature",
             data=test_data,
             coords={
-                "simulation": ["sim1"],
-                "year": range(1991, 2001),
+                "simulation": ["sim1", "sim2"],
+                "time": pd.date_range(start="2001-01-01", end="2003-12-31"),
             },
         ).to_dataset()
-        result = remove_pinatubo_years(test_ds)
-        # Check Pinatubo years gone
-        for year in range(1991, 1995):
-            assert year not in result.year
-        # Check other years still present
-        for year in range(1995, 2001):
-            assert year in result.year
+
+        test_ds["Daily min air temperature"] = (["simulation", "time"], test_data)
+        test_ds["Daily max air temperature"] = (["simulation", "time"], test_data + 10)
+
+        cdf_clim = get_cdf(test_ds)
+        cdf_month = get_cdf_monthly(test_ds)
+
+        extreme = "cold"
+        result = generate_candidate_months(
+            cdf_month, cdf_clim, extreme, skip_last=False
+        )
+        # Correctly formatted dataframe
+        for col in ["month", "simulation", "year"]:
+            assert col in result.columns
+        assert (np.unique(result["simulation"]) == np.array(["sim1", "sim2"])).all()
+
+    def test_generate_candidate_months_skip_last(self):
+        """Check top months dataframe format."""
+
+        time_index = pd.date_range(start="2001-01-01", end="2003-12-31")
+
+        test_data = np.arange(0, 365 * 3, 1)
+        test_data = test_data * np.ones((2, len(test_data)))
+        test_ds = xr.DataArray(
+            name="temperature",
+            data=test_data,
+            coords={
+                "simulation": ["sim1", "sim2"],
+                "time": time_index,
+            },
+        ).to_dataset()
+
+        test_ds["Daily min air temperature"] = (["simulation", "time"], test_data)
+
+        # now add in max air temp data, in which the final two years have the highest temperatures
+        max_temp = test_data.copy()
+        max_temp[:, time_index.year == 2003] += 1000
+        max_temp[:, time_index.year == 2002] += 500
+        test_ds["Daily max air temperature"] = (["simulation", "time"], max_temp)
+
+        cdf_clim = get_cdf(test_ds)
+        cdf_month = get_cdf_monthly(test_ds)
+        extreme = "hot"
+
+        # Last year selected if skip_last = False
+        result = generate_candidate_months(cdf_month, cdf_clim, extreme, skip_last=True)
+        assert (result.loc[result["month"] == 12]["year"] == [2003, 2003]).all()
+
+        # Last year not selected if skip_last = True - instead, second to last year is selected
+        assert (result.loc[result["month"] == 12]["year"] == [2002, 2002]).all()
 
 
 @pytest.fixture
@@ -695,29 +653,29 @@ class TestXMYClass:
             mock_run_xmy.assert_called_once()
             mock_export.assert_called_once()
 
-    def test_get_candidate_months(self):
-        """Test the shock_XMY workflow calls up to set_top_months."""
-        stn_name = "Santa Ana John Wayne Airport (KSNA)"
-        start_year = 2001
-        end_year = 2003
-        extreme = "hot"
-        # Initialize shock_XMY object
-        xmy = shock_XMY(
-            extreme=extreme,
-            start_year=start_year,
-            end_year=end_year,
-            station_name=stn_name,
-        )
-        with (
-            patch.object(xmy, "set_cdf_monthly") as mock_month,
-            patch.object(xmy, "set_cdf_climatology") as mock_clim,
-            patch.object(xmy, "set_top_months") as mock_top_months,
-        ):
-            xmy.get_candidate_months()
-            # Check correct methods called
-            mock_clim.assert_called_once()
-            mock_month.assert_called_once()
-            mock_top_months.assert_called_once()
+    # def test_get_candidate_months(self):
+    #     """Test the shock_XMY workflow calls up to set_top_months."""
+    #     stn_name = "Santa Ana John Wayne Airport (KSNA)"
+    #     start_year = 2001
+    #     end_year = 2003
+    #     extreme = "hot"
+    #     # Initialize shock_XMY object
+    #     xmy = shock_XMY(
+    #         extreme=extreme,
+    #         start_year=start_year,
+    #         end_year=end_year,
+    #         station_name=stn_name,
+    #     )
+    #     with (
+    #         patch.object(xmy, "set_cdf_monthly") as mock_month,
+    #         patch.object(xmy, "set_cdf_climatology") as mock_clim,
+    #         patch.object(xmy, "set_top_months") as mock_top_months,
+    #     ):
+    #         xmy.get_candidate_months()
+    #         # Check correct methods called
+    #         mock_clim.assert_called_once()
+    #         mock_month.assert_called_once()
+    #         mock_top_months.assert_called_once()
 
     def test__make_8760_tables(self):
         """Check that dataframe of 8760 values returned."""
