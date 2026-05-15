@@ -20,6 +20,10 @@ from climakitae.explore.shock_extreme_meteorological_year import (
     generate_candidate_months,
     find_hot_cold_extreme_from_median,
 )
+from climakitae.explore.typical_meteorological_year import (
+    get_cdf,
+    get_cdf_monthly,
+)
 
 
 class TestFunctionsForXMY:
@@ -28,72 +32,53 @@ class TestFunctionsForXMY:
     def test_find_hot_cold_extreme_from_median(self):
         """Check  that the worst year is selected for the cold extreme and hot extreme, respectively."""
 
-        # Fake cdf climatology data, one slice
-        n_bins = 10
-        probs = np.linspace(0.01, 1, n_bins)  # monotonic CDF
-        bins = np.array(range(1, n_bins + 1), dtype=float)
+        time_index = pd.date_range(start="2001-01-01", end="2003-12-31")
 
-        clim_data = np.vstack((probs, bins))  # shape (2, 10) — probability row first
-
-        sub_clim = xr.DataArray(
-            data=clim_data,
-            dims=["data", "bin_number"],
+        test_data = np.arange(0, 365 * 3, 1)
+        test_data = test_data * np.ones((2, len(test_data)))
+        test_ds = xr.DataArray(
+            name="temperature",
+            data=test_data,
             coords={
-                "data": [
-                    "probability",
-                    "bins",
-                ],  # order matters: sel("probability") / sel("bins")
-                "bin_number": np.arange(n_bins),
+                "simulation": ["sim1", "sim2"],
+                "time": time_index,
             },
-        )
+        ).to_dataset()
 
-        # Fake cdf monthly data, on slice
-        n_years = 3
-        years = list(range(2001, 2001 + n_years))
+        min_temp = test_data.copy()
+        min_temp[:, time_index.year == 2002] -= 1000
+        test_ds["Daily min air temperature"] = (["simulation", "time"], min_temp)
 
-        # Each year gets a slightly shifted CDF so medians differ and worst_year is predictable
-        year_shifts = np.array([0.0, -2.0, 2.0])  # year 2002 coldest, 2003 hottest
-        month_data = np.stack(
-            [
-                np.vstack(
-                    (
-                        np.clip(
-                            probs + shift * 0.05, 0, 1
-                        ),  # probability row (shifted)
-                        bins,  # bins row (fixed)
-                    )
-                )
-                for shift in year_shifts
-            ],
-            axis=0,
-        )  # shape (3, 2, 10)
+        # now add in max air temp data, in which the final two years have the highest temperatures
+        max_temp = test_data.copy()
+        max_temp[:, time_index.year == 2003] += 1000
+        test_ds["Daily max air temperature"] = (["simulation", "time"], max_temp)
 
-        sub_month = xr.DataArray(
-            data=month_data,
-            dims=["year", "data", "bin_number"],
-            coords={
-                "year": years,
-                "data": ["probability", "bins"],
-                "bin_number": np.arange(n_bins),
-            },
-        )
-
+        cdf_clim = get_cdf(test_ds)
+        cdf_month = get_cdf_monthly(test_ds)
         target = 0.5
         extreme = "cold"
+        sub_clim = cdf_clim["Daily min air temperature"].sel(simulation="sim1", month=1)
+        sub_month = cdf_month["Daily min air temperature"].sel(
+            simulation="sim1", month=1
+        )
+
         results, anomaly, worst_year = find_hot_cold_extreme_from_median(
             sub_month, sub_clim, target, extreme
         )
         assert worst_year == 2002
 
         extreme = "hot"
+        sub_clim = cdf_clim["Daily max air temperature"].sel(simulation="sim1", month=1)
+        sub_month = cdf_month["Daily max air temperature"].sel(
+            simulation="sim1", month=1
+        )
+
         results, anomaly, worst_year = find_hot_cold_extreme_from_median(
             sub_month, sub_clim, target, extreme
         )
-
         assert worst_year == 2003
 
-    @patch("climakitae.explore.typical_meteorological_year.get_cdf_monthly")
-    @patch("climakitae.explore.typical_meteorological_year.get_cdf")
     def test_generate_candidate_months(self):
         """Check top months dataframe format."""
 
@@ -151,12 +136,17 @@ class TestFunctionsForXMY:
         cdf_month = get_cdf_monthly(test_ds)
         extreme = "hot"
 
-        # Last year selected if skip_last = False
-        result = generate_candidate_months(cdf_month, cdf_clim, extreme, skip_last=True)
-        assert (result.loc[result["month"] == 12]["year"] == [2003, 2003]).all()
+        # 2003 selected for all months when skip_last is False
+        result_no_skip = generate_candidate_months(
+            cdf_month, cdf_clim, extreme="hot", skip_last=False
+        )
+        assert (result_no_skip["year"] == 2003).all()
 
-        # Last year not selected if skip_last = True - instead, second to last year is selected
-        assert (result.loc[result["month"] == 12]["year"] == [2002, 2002]).all()
+        # 2003 excluded, and 2002 selected for all months when skip_last is True
+        result_skip = generate_candidate_months(
+            cdf_month, cdf_clim, extreme="hot", skip_last=True
+        )
+        assert (result_skip["year"] == 2002).all()
 
 
 @pytest.fixture
@@ -605,9 +595,11 @@ class TestXMYClass:
             mock_load.assert_called_once()
             mock_get_cdf.assert_called_once()
             assert xmy.cdf_climatology is not UNSET
+            # Check air_temp_vars passed as input to get_cdf_monthly
+            mock_get_cdf.assert_called_once_with(xmy.air_temp_vars)
 
-    @patch("climakitae.explore.shock_extreme_meteorological_year.get_cdf_monthly")
     @patch("climakitae.explore.shock_extreme_meteorological_year.remove_pinatubo_years")
+    @patch("climakitae.explore.shock_extreme_meteorological_year.get_cdf_monthly")
     def test_cdf_monthly(self, mock_get_cdf_monthly, mock_remove_pinatubo):
         """Check that data load and get_cdf_monthly get called."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
@@ -627,6 +619,8 @@ class TestXMYClass:
             mock_get_cdf_monthly.assert_called_once()
             mock_remove_pinatubo.assert_called_once()
             assert xmy.cdf_monthly is not UNSET
+            # Check air_temp_vars passed as input to get_cdf_monthly
+            mock_get_cdf_monthly.assert_called_once_with(xmy.air_temp_vars)
 
     def test_generate_xmy(self):
         """Test that all steps called in full workflow."""
@@ -653,29 +647,29 @@ class TestXMYClass:
             mock_run_xmy.assert_called_once()
             mock_export.assert_called_once()
 
-    # def test_get_candidate_months(self):
-    #     """Test the shock_XMY workflow calls up to set_top_months."""
-    #     stn_name = "Santa Ana John Wayne Airport (KSNA)"
-    #     start_year = 2001
-    #     end_year = 2003
-    #     extreme = "hot"
-    #     # Initialize shock_XMY object
-    #     xmy = shock_XMY(
-    #         extreme=extreme,
-    #         start_year=start_year,
-    #         end_year=end_year,
-    #         station_name=stn_name,
-    #     )
-    #     with (
-    #         patch.object(xmy, "set_cdf_monthly") as mock_month,
-    #         patch.object(xmy, "set_cdf_climatology") as mock_clim,
-    #         patch.object(xmy, "set_top_months") as mock_top_months,
-    #     ):
-    #         xmy.get_candidate_months()
-    #         # Check correct methods called
-    #         mock_clim.assert_called_once()
-    #         mock_month.assert_called_once()
-    #         mock_top_months.assert_called_once()
+    def test_get_candidate_months(self):
+        """Test the shock_XMY workflow calls up to set_top_months."""
+        stn_name = "Santa Ana John Wayne Airport (KSNA)"
+        start_year = 2001
+        end_year = 2003
+        extreme = "hot"
+        # Initialize shock_XMY object
+        xmy = shock_XMY(
+            extreme=extreme,
+            start_year=start_year,
+            end_year=end_year,
+            station_name=stn_name,
+        )
+        with (
+            patch.object(xmy, "set_cdf_monthly") as mock_month,
+            patch.object(xmy, "set_cdf_climatology") as mock_clim,
+            patch.object(xmy, "set_top_months") as mock_top_months,
+        ):
+            xmy.get_candidate_months()
+            # Check correct methods called
+            mock_clim.assert_called_once()
+            mock_month.assert_called_once()
+            mock_top_months.assert_called_once()
 
     def test__make_8760_tables(self):
         """Check that dataframe of 8760 values returned."""
@@ -764,25 +758,30 @@ class TestXMYClass:
                 result[varname][720], 1e-6
             )
 
-    @patch("climakitae.explore.shock_extreme_meteorological_year.shock_get_top_months")
-    # def test_set_top_months(self, mock_top_months):
-    #     """Check that set_top_months calls correct functions."""
-    #     stn_name = "Santa Ana John Wayne Airport (KSNA)"
-    #     start_year = 2001
-    #     end_year = 2003
-    #     extreme = "hot"
-    #     # Initialize shock_XMY object
-    #     xmy = shock_XMY(
-    #         extreme=extreme,
-    #         start_year=start_year,
-    #         end_year=end_year,
-    #         station_name=stn_name,
-    #     )
-    #     with patch.object(xmy, "set_weighted_statistic") as mock_fs:
-    #         xmy.set_top_months()
-    #         # Check correct methods called
-    #         mock_fs.assert_called_once()
-    #         mock_top_months.assert_called_once()
+    @patch(
+        "climakitae.explore.shock_extreme_meteorological_year.generate_candidate_months"
+    )
+    def test_set_top_months(self, mock_generate):
+        """Check that set_top_months calls correct functions."""
+        stn_name = "Santa Ana John Wayne Airport (KSNA)"
+        start_year = 2001
+        end_year = 2003
+        extreme = "hot"
+        # Initialize shock_XMY object
+        xmy = shock_XMY(
+            extreme=extreme,
+            start_year=start_year,
+            end_year=end_year,
+            station_name=stn_name,
+        )
+        with (
+            patch.object(xmy, "set_cdf_climatology") as mock_clim,
+            patch.object(xmy, "set_cdf_monthly") as mock_monthly,
+        ):
+            xmy.set_top_months()
+            mock_clim.assert_called_once()
+            mock_monthly.assert_called_once()
+            mock_generate.assert_called_once()
 
     def test_run_xmy_analysis_adds_scenario_column(self):
         """Check that run_xmy_analysis adds 'scenario' column in time mode."""
