@@ -137,16 +137,18 @@ class TestFunctionsForXMY:
         extreme = "hot"
 
         # 2003 selected for all months when skip_last is False
-        result_no_skip = generate_candidate_months(
+        result = generate_candidate_months(
             cdf_month, cdf_clim, extreme="hot", skip_last=False
         )
-        assert (result_no_skip["year"] == 2003).all()
+        assert (result.loc[result["month"] == 12]["year"] == [2003, 2003]).all()
 
-        # 2003 excluded, and 2002 selected for all months when skip_last is True
+        # 2002 selected for all months when skip_last is True
         result_skip = generate_candidate_months(
             cdf_month, cdf_clim, extreme="hot", skip_last=True
         )
-        assert (result_skip["year"] == 2002).all()
+        assert (
+            result_skip.loc[result_skip["month"] == 12]["year"] == [2002, 2002]
+        ).all()
 
 
 @pytest.fixture

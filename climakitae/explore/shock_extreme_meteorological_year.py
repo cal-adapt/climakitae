@@ -166,13 +166,6 @@ def generate_candidate_months(
 
     all_months = cdf_monthly.month.values
     last_month = int(all_months[-1])
-    last_year = int(cdf_monthly.year.values[-1])
-
-    if skip_last:
-        subset_month = subset_month.copy(deep=True)
-        subset_month.loc[dict(month=last_month, year=last_year)] = np.inf
-    else:
-        subset_month = subset_month
 
     results = []
 
@@ -184,10 +177,9 @@ def generate_candidate_months(
             clim_mon = clim_sim.sel(month=mon)
             month_mon = month_sim.sel(month=mon)
 
-            # if skipping last month, mask the final month of the final year, so it won't be considered
             if skip_last and int(mon) == last_month:
-                month_mon = month_mon.copy()
-                month_mon.loc[dict(year=last_year)] = np.inf
+                # Drop the final year entirely so it cannot be selected
+                month_mon = month_mon.sel(year=month_mon.year.values[:-1])
 
             _, _, worst_year = find_hot_cold_extreme_from_median(
                 month_mon, clim_mon, extreme=extreme
