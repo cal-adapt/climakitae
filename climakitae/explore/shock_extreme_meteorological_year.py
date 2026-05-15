@@ -163,10 +163,16 @@ def generate_candidate_months(
     # subset CDFs for priority variable
     subset_clim = cdf_climatology[var]
     subset_month = cdf_monthly[var]
-    
+
     all_months = cdf_monthly.month.values
     last_month = int(all_months[-1])
     last_year = int(cdf_monthly.year.values[-1])
+
+    if skip_last:
+        subset_month = subset_month.copy(deep=True)
+        subset_month.loc[dict(month=last_month, year=last_year)] = np.inf
+    else:
+        subset_month = subset_month
 
     results = []
 
@@ -182,7 +188,7 @@ def generate_candidate_months(
             if skip_last and int(mon) == last_month:
                 month_mon = month_mon.copy()
                 month_mon.loc[dict(year=last_year)] = np.inf
-                
+
             _, _, worst_year = find_hot_cold_extreme_from_median(
                 month_mon, clim_mon, extreme=extreme
             )
