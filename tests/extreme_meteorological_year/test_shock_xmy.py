@@ -5,7 +5,7 @@ Includes tests for the more general functions along with the shock_XMY class.
 Exclude tests for functions from typical_meteorological_year.py that are used in shock_extreme_meteorological_year.py
 """
 
-import warnings
+import warnings 
 from unittest.mock import patch
 
 import numpy as np
@@ -21,9 +21,72 @@ from climakitae.explore.shock_extreme_meteorological_year import (
     find_hot_cold_extreme_from_median,
 )
 
-
 class TestFunctionsForXMY:
     """Test the general functions that are not part of the shock_XMY class."""
+
+    @patch("climakitae.explore.typical_meteorological_year.get_cdf")
+    @patch("climakitae.explore.typical_meteorological_year.get_cdf_monthly")
+    def test_find_hot_cold_extreme_from_median(self):
+        """Check  that the worst year is selected for the cold extreme and hot extreme, respectively."""
+
+        # Fake cdf climatology data, one slice
+        n_bins = 10
+        probs = np.linspace(0.01, 1, n_bins)   # monotonic CDF
+        bins = np.array(range(1, n_bins + 1), dtype=float)
+
+        clim_data = np.vstack((probs, bins))   # shape (2, 10) — probability row first
+
+        sub_clim = xr.DataArray(
+            data=clim_data,
+            dims=["data", "bin_number"],
+            coords={
+                "data": ["probability", "bins"],   # order matters: sel("probability") / sel("bins")
+                "bin_number": np.arange(n_bins),
+            },
+        )
+
+        # Fake cdf monthly data, on slice
+        n_years = 3
+        years = list(range(2001, 2001 + n_years))
+
+        # Each year gets a slightly shifted CDF so medians differ and worst_year is predictable
+        year_shifts = np.array([0.0, -2.0, 2.0])   # year 2002 coldest, 2003 hottest
+        month_data = np.stack(
+            [
+                np.vstack((
+                    np.clip(probs + shift * 0.05, 0, 1),  # probability row (shifted)
+                    bins,                                   # bins row (fixed)
+                ))
+                for shift in year_shifts
+            ],
+            axis=0,
+        )  # shape (3, 2, 10)
+
+        sub_month = xr.DataArray(
+            data=month_data,
+            dims=["year", "data", "bin_number"],
+            coords={
+                "year": years,
+                "data": ["probability", "bins"],
+                "bin_number": np.arange(n_bins),
+            },
+        )
+
+        target = 0.5
+        extreme = "cold"
+        results, anomaly, worst_year = find_hot_cold_extreme_from_median(
+            sub_month, sub_clim, target, extreme
+        )
+        assert worst_year == 2002
+
+        extreme = "hot"
+        results, anomaly, worst_year = find_hot_cold_extreme_from_median(
+            sub_month, sub_clim, target, extreme
+        )
+
+        assert worst_year == 2003
+
+    # -----------------------
 
     def test_get_top_months_cold(self):
         """Check top months dataframe format and that month with lowest f-s value is chosen for cold shock XMY."""

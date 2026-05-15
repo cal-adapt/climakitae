@@ -125,7 +125,8 @@ def find_hot_cold_extreme_from_median(
 def generate_candidate_months(
     cdf_monthly: xr.DataArray,
     cdf_climatology: xr.DataArray,
-    extreme: str = "cold",  # "cold" or "hot"
+    extreme: str = "cold",
+    skip_last: bool = False,  # "cold" or "hot"
 ):
     """
     Run find_hot_cold_extreme_from_median() over entire input dataset.
@@ -145,6 +146,9 @@ def generate_candidate_months(
         "cold" -> pick minimum deviation
         "hot"  -> pick maximum deviation
 
+    skip_last: bool
+        True to exclude the final month, e.g. if data missing after time conversion
+
     Returns
     -------
     top_df: dataframe of selected years per simulation and month
@@ -159,6 +163,10 @@ def generate_candidate_months(
     # subset CDFs for priority variable
     subset_clim = cdf_climatology[var]
     subset_month = cdf_monthly[var]
+    
+    all_months = cdf_monthly.month.values
+    last_month = int(all_months[-1])
+    last_year = int(cdf_monthly.year.values[-1])
 
     results = []
 
@@ -169,6 +177,12 @@ def generate_candidate_months(
         for mon in cdf_monthly.month.values:
             clim_mon = clim_sim.sel(month=mon)
             month_mon = month_sim.sel(month=mon)
+
+            # if skipping last month, mask the final month of the final year, so it won't be considered
+            if skip_last and int(mon) == last_month:
+                month_mon = month_mon.copy()
+                month_mon.loc[dict(year=last_year)] = np.inf
+                
             _, _, worst_year = find_hot_cold_extreme_from_median(
                 month_mon, clim_mon, extreme=extreme
             )
