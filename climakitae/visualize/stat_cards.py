@@ -7,6 +7,7 @@ county climate reports.
 
 from __future__ import annotations
 
+import textwrap
 from typing import Sequence
 
 import matplotlib.pyplot as plt
@@ -27,7 +28,7 @@ def _draw_card(
     value_color: str,
     card_color: str,
     value_fontsize: float = 32,
-    caption_fontsize: float = 11,
+    caption_fontsize: float = 10,
 ) -> None:
     """Draw one stat card on ``ax`` (expects an empty axis)."""
     ax.set_xlim(0, 1)
@@ -54,15 +55,16 @@ def _draw_card(
         fontsize=value_fontsize,
         fontweight="bold",
     )
+    wrapped = textwrap.fill(caption, width=22)
     ax.text(
         0.5,
-        0.28,
-        caption,
+        0.26,
+        wrapped,
         ha="center",
         va="center",
+        multialignment="center",
         color=COLORS["navy"],
         fontsize=caption_fontsize,
-        wrap=True,
     )
 
 

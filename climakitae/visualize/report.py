@@ -77,7 +77,7 @@ def build_report_figure(
             nrows=4,
             ncols=1,
             height_ratios=[0.8, 2.4, 0.55 * n_rows + 0.8, 4.2],
-            hspace=0.55,
+            hspace=0.28,
             left=0.06,
             right=0.96,
             top=0.96,
