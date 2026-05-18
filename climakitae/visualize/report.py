@@ -1,0 +1,131 @@
+"""Composite report-page figure that assembles all the report components.
+
+Stacks: title strip → stat cards → summary table → grouped threshold bars
+into a single :class:`matplotlib.figure.Figure` suitable for export.
+
+All components are drawn directly onto a shared parent figure via nested
+:class:`matplotlib.gridspec.GridSpec` regions so the composite composes
+cleanly at any figsize.
+"""
+
+from __future__ import annotations
+
+from typing import Sequence
+
+import matplotlib.pyplot as plt
+import pandas as pd
+from matplotlib.figure import Figure
+from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
+
+from .stat_cards import StatItem, _draw_card
+from .style import COLORS, cae_report_style
+from .summary_table import (_draw_summary_table,  # noqa: F401
+                            render_summary_table)
+from .threshold_bars import (_draw_threshold_bars,  # noqa: F401
+                             render_threshold_bars)
+
+
+def build_report_figure(
+    *,
+    title: str,
+    subtitle: str | None,
+    stat_items: Sequence[StatItem],
+    summary_df: pd.DataFrame,
+    bars_df: pd.DataFrame,
+    bars_historical_col: str = "Historical",
+    bars_projection_col: str = "Projection",
+    bars_title: str = "Extreme Heat Thresholds: Historical vs Projected",
+    figsize: tuple[float, float] = (11.0, 13.0),
+) -> Figure:
+    """Build a single-page report-style figure.
+
+    Layout (top → bottom): title strip, stat cards row, summary table,
+    grouped historical-vs-projection bar chart.
+
+    Parameters
+    ----------
+    title : str
+        Big page title.
+    subtitle : str, optional
+        Smaller line under the title.
+    stat_items : sequence of (value, caption)
+        Items for the stat cards row.
+    summary_df : pandas.DataFrame
+        Metric × period table.
+    bars_df : pandas.DataFrame
+        Location × (Historical, Projection) for the bar chart.
+    bars_historical_col, bars_projection_col, bars_title : str
+        Forwarded to the bar chart.
+    figsize : tuple, default (11, 13)
+        Full figure size in inches.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+    """
+    n_cards = len(stat_items)
+    if n_cards == 0:
+        raise ValueError("stat_items must be non-empty")
+    if summary_df.empty:
+        raise ValueError("summary_df must be non-empty")
+
+    n_rows = summary_df.shape[0]
+
+    with cae_report_style():
+        fig = plt.figure(figsize=figsize)
+        outer = GridSpec(
+            nrows=4,
+            ncols=1,
+            height_ratios=[0.8, 2.4, 0.55 * n_rows + 0.8, 4.2],
+            hspace=0.55,
+            left=0.06,
+            right=0.96,
+            top=0.96,
+            bottom=0.06,
+            figure=fig,
+        )
+
+        ax_title = fig.add_subplot(outer[0, 0])
+        ax_title.set_axis_off()
+        ax_title.set_xlim(0, 1)
+        ax_title.set_ylim(0, 1)
+        ax_title.text(
+            0.0, 0.78, title, color=COLORS["navy"], fontsize=22, fontweight="bold"
+        )
+        if subtitle:
+            ax_title.text(0.0, 0.42, subtitle, color=COLORS["muted"], fontsize=12)
+        ax_title.plot([0.0, 1.0], [0.18, 0.18], color=COLORS["orange"], linewidth=2)
+
+        cards_gs = GridSpecFromSubplotSpec(
+            1, n_cards, subplot_spec=outer[1, 0], wspace=0.18
+        )
+        for i, (value, caption) in enumerate(stat_items):
+            ax_c = fig.add_subplot(cards_gs[0, i])
+            _draw_card(
+                ax_c,
+                value,
+                caption,
+                value_color=COLORS["orange"],
+                card_color=COLORS["cream"],
+            )
+
+        ax_table = fig.add_subplot(outer[2, 0])
+        _draw_summary_table(ax_table, summary_df)
+
+        ax_bars = fig.add_subplot(outer[3, 0])
+        _draw_threshold_bars(
+            ax_bars,
+            bars_df,
+            historical_col=bars_historical_col,
+            projection_col=bars_projection_col,
+            title=bars_title,
+        )
+
+    return fig
+
+
+__all__ = [
+    "build_report_figure",
+    "render_summary_table",
+    "render_threshold_bars",
+]
