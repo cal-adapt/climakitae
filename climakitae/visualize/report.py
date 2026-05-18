@@ -36,6 +36,7 @@ def build_report_figure(
     bars_projection_col: str = "Projection",
     bars_title: str = "Extreme Heat Thresholds: Historical vs Projected",
     figsize: tuple[float, float] = (11.0, 13.0),
+    footnote: str | None = None,
 ) -> Figure:
     """Build a single-page report-style figure.
 
@@ -120,6 +121,18 @@ def build_report_figure(
             projection_col=bars_projection_col,
             title=bars_title,
         )
+
+        if footnote:
+            fig.text(
+                0.06,
+                0.015,
+                footnote,
+                color=COLORS["muted"],
+                fontsize=8,
+                ha="left",
+                va="bottom",
+                wrap=True,
+            )
 
     return fig
 

@@ -7,6 +7,8 @@ values and thin rule separators.
 
 from __future__ import annotations
 
+import textwrap
+
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.axes import Axes
@@ -20,7 +22,7 @@ def _draw_summary_table(
     df: pd.DataFrame,
     *,
     value_fmt: str = "{:.1f}",
-    header_color: str = COLORS["cream"],
+    header_color: str = "#EDE0C4",
     value_color: str = COLORS["orange"],
     title: str | None = None,
 ) -> None:
@@ -55,18 +57,24 @@ def _draw_summary_table(
             ha="center",
             va="center",
             color=COLORS["navy"],
-            fontsize=11,
+            fontsize=12,
             fontweight="bold",
         )
 
     for i, metric in enumerate(df.index):
         y = 1.0 + i + 0.5
+        label_txt = (
+            textwrap.fill(str(metric), width=22)
+            if len(str(metric)) > 22
+            else str(metric)
+        )
         ax.text(
             0.9,
             y,
-            str(metric),
+            label_txt,
             ha="right",
             va="center",
+            multialignment="right",
             color=COLORS["navy"],
             fontsize=10,
             fontweight="bold",
@@ -103,7 +111,7 @@ def render_summary_table(
     title: str | None = None,
     value_fmt: str = "{:.1f}",
     figsize: tuple[float, float] | None = None,
-    header_color: str = COLORS["cream"],
+    header_color: str = \"#EDE0C4\",
     value_color: str = COLORS["orange"],
 ) -> Figure:
     """Render a metric × period summary table as a standalone figure."""
