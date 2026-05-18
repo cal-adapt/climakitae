@@ -15,6 +15,41 @@ from matplotlib.figure import Figure
 
 from .style import COLORS, cae_report_style
 
+
+def _draw_axis_break(ax: Axes) -> None:
+    """Draw a double-slash (//) break mark at the base of the y-axis spine.
+
+    Indicates to the reader that the y-axis does not start at zero.  Drawn
+    in axes-fraction coordinates so it scales with figure size.
+    """
+    d = 0.020   # half-width of each slash (axes-fraction x)
+    h = 0.022   # half-height of each slash (axes-fraction y)
+    gap = 0.030 # centre-to-centre spacing between the two slashes
+    for cx in [-gap / 2, gap / 2]:
+        # White knockout to interrupt the spine
+        ax.plot(
+            [cx - d, cx + d],
+            [-h, h],
+            transform=ax.transAxes,
+            clip_on=False,
+            color="white",
+            lw=4,
+            solid_capstyle="round",
+            zorder=5,
+        )
+        # Visible slash on top
+        ax.plot(
+            [cx - d, cx + d],
+            [-h, h],
+            transform=ax.transAxes,
+            clip_on=False,
+            color=COLORS["navy"],
+            lw=1.5,
+            solid_capstyle="round",
+            zorder=6,
+        )
+
+
 # Colour ramp for up to 4 warming-level periods (Historic → Near → Mid → Late-century)
 _PERIOD_COLORS: list[str] = [
     COLORS["historical"],  # Historic baseline — gold
@@ -119,6 +154,9 @@ def _draw_threshold_bars(
     hi = float(np.nanmax(all_vals)) if ymax is None else ymax
     pad = max(2.0, 0.05 * hi)
     ax.set_ylim(lo, hi + pad)
+
+    if lo > 0:
+        _draw_axis_break(ax)
 
     if show_legend:
         ax.legend(

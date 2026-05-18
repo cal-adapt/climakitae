@@ -35,6 +35,8 @@ def build_report_figure(
     bars_historical_col: str = "Historical",
     bars_projection_col: str = "Projection",
     bars_title: str = "Extreme Heat Thresholds: Historical vs Projected",
+    bars_ymin: float | None = None,
+    bars_ymax: float | None = None,
     figsize: tuple[float, float] = (11.0, 13.0),
     footnote: str | None = None,
 ) -> Figure:
@@ -57,6 +59,9 @@ def build_report_figure(
         Location × (Historical, Projection) for the bar chart.
     bars_historical_col, bars_projection_col, bars_title : str
         Forwarded to the bar chart.
+    bars_ymin, bars_ymax : float, optional
+        Y-axis bounds for the bar chart.  When ``bars_ymin > 0`` a
+        double-slash break mark is drawn at the base of the y-axis.
     figsize : tuple, default (11, 13)
         Full figure size in inches.
 
@@ -120,6 +125,8 @@ def build_report_figure(
             historical_col=bars_historical_col,
             projection_col=bars_projection_col,
             title=bars_title,
+            ymin=bars_ymin,
+            ymax=bars_ymax,
         )
 
         if footnote:

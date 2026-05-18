@@ -159,7 +159,7 @@ def compute_report_metrics(
         "Average High (°F)": {},
         "Average Low (°F)": {},
         f"Hot Days >{int(hot_day_threshold_F)}°F / yr": {},
-        f"Heat Waves ({heatwave_min_days}+ days) / yr": {},
+        f"Heat Waves \u2265{heatwave_min_days} days/yr": {},
         f"1-in-{return_period_years}-yr Daily Max (°F)": {},
     }
     for label, p in periods.items():
@@ -170,7 +170,7 @@ def compute_report_metrics(
         rows[f"Hot Days >{int(hot_day_threshold_F)}°F / yr"][label] = hot_days_per_year(
             p.tmax, hot_day_threshold_F
         )
-        rows[f"Heat Waves ({heatwave_min_days}+ days) / yr"][label] = (
+        rows[f"Heat Waves \u2265{heatwave_min_days} days/yr"][label] = (
             heat_waves_per_year(p.tmax, hot_day_threshold_F, heatwave_min_days)
         )
         rows[f"1-in-{return_period_years}-yr Daily Max (°F)"][label] = (
