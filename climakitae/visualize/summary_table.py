@@ -111,7 +111,7 @@ def render_summary_table(
     title: str | None = None,
     value_fmt: str = "{:.1f}",
     figsize: tuple[float, float] | None = None,
-    header_color: str = \"#EDE0C4\",
+    header_color: str = "#EDE0C4",
     value_color: str = COLORS["orange"],
 ) -> Figure:
     """Render a metric × period summary table as a standalone figure."""
