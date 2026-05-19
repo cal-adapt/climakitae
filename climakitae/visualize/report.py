@@ -19,10 +19,8 @@ from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 
 from .stat_cards import StatItem, _draw_card
 from .style import COLORS, cae_report_style
-from .summary_table import (_draw_summary_table,  # noqa: F401
-                            render_summary_table)
-from .threshold_bars import (_draw_threshold_bars,  # noqa: F401
-                             render_threshold_bars)
+from .summary_table import _draw_summary_table, render_summary_table  # noqa: F401
+from .threshold_bars import _draw_threshold_bars, render_threshold_bars  # noqa: F401
 
 
 def build_report_figure(

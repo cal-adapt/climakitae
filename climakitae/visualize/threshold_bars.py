@@ -17,45 +17,37 @@ from .style import COLORS, cae_report_style
 
 
 def _draw_axis_break(ax: Axes) -> None:
-    """Draw a double-slash (//) break mark at the base of the y-axis spine.
+    """Draw // break markers at the base of the y-axis spine.
 
-    Indicates to the reader that the y-axis does not start at zero.  Drawn
-    in axes-fraction coordinates so it scales with figure size.
+    Indicates to the reader that the y-axis does not start at zero.
+    Uses the matplotlib marker technique: a custom diagonal-line path
+    placed at two axes-fraction coordinates near the bottom-left corner
+    of the axes, so it scales correctly with any figure size.
+
+    See also
+    --------
+    https://matplotlib.org/stable/gallery/subplots_axes_and_figures/broken_axis.html
     """
-    d = 0.020   # half-width of each slash (axes-fraction x)
-    h = 0.022   # half-height of each slash (axes-fraction y)
-    gap = 0.030 # centre-to-centre spacing between the two slashes
-    for cx in [-gap / 2, gap / 2]:
-        # White knockout to interrupt the spine
-        ax.plot(
-            [cx - d, cx + d],
-            [-h, h],
-            transform=ax.transAxes,
-            clip_on=False,
-            color="white",
-            lw=4,
-            solid_capstyle="round",
-            zorder=5,
-        )
-        # Visible slash on top
-        ax.plot(
-            [cx - d, cx + d],
-            [-h, h],
-            transform=ax.transAxes,
-            clip_on=False,
-            color=COLORS["navy"],
-            lw=1.5,
-            solid_capstyle="round",
-            zorder=6,
-        )
+    d = 0.4  # slant ratio (height / width of the diagonal mark)
+    kwargs = dict(
+        marker=[(-1, -d), (1, d)],
+        markersize=10,
+        linestyle="none",
+        color=COLORS["navy"],
+        mec=COLORS["navy"],
+        mew=1.5,
+        clip_on=False,
+    )
+    # Two // marks side-by-side at the base of the y-axis spine
+    ax.plot([-0.022, 0.022], [0.0, 0.0], transform=ax.transAxes, **kwargs)
 
 
 # Colour ramp for up to 4 warming-level periods (Historic → Near → Mid → Late-century)
 _PERIOD_COLORS: list[str] = [
     COLORS["historical"],  # Historic baseline — gold
-    "#E89C41",             # Near-century — light orange
+    "#E89C41",  # Near-century — light orange
     COLORS["projection"],  # Mid-century — orange
-    "#B35520",             # Late-century — deep orange
+    "#B35520",  # Late-century — deep orange
 ]
 
 
@@ -114,6 +106,10 @@ def _draw_threshold_bars(
     n_locs = len(locations)
     if n_locs == 0:
         raise ValueError("_draw_threshold_bars requires at least one location")
+
+    # Ensure grid lines render behind bars (default matplotlib behaviour is
+    # to draw grid above patches when axes.axisbelow is 'line').
+    ax.set_axisbelow(True)
 
     colors = _bar_colors(n_series)
     x = np.arange(n_locs)
