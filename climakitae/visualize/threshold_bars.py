@@ -18,10 +18,10 @@ from .style import COLORS, cae_report_style
 
 # Colour ramp for up to 4 warming-level periods (Historic → Near → Mid → Late-century)
 _PERIOD_COLORS: list[str] = [
-    COLORS["historical"],  # Historic baseline — gold
-    "#E89C41",  # Near-century — light orange
-    COLORS["projection"],  # Mid-century — orange
-    "#B35520",  # Late-century — deep orange
+    COLORS["period_0"],  # Historic baseline — gold
+    COLORS["period_1"],  # Near-century — light orange
+    COLORS["period_2"],  # Mid-century — orange
+    COLORS["period_3"],  # Late-century — deep orange
 ]
 
 
@@ -99,7 +99,8 @@ def _draw_threshold_bars(
             width,
             color=colors[k],
             label=col,
-            edgecolor="none",
+            edgecolor="white",
+            linewidth=0.5,
         )
         for bar, v in zip(bars, vals):
             ax.text(
@@ -117,7 +118,7 @@ def _draw_threshold_bars(
     ax.set_xticklabels(locations, fontweight="bold")
     ax.set_ylabel(ylabel)
     if title:
-        ax.set_title(title, loc="left", pad=12)
+        ax.set_title(title, loc="left", pad=10)
 
     all_vals = df.to_numpy(dtype=float).ravel()
     lo = 0.0 if ymin is None else ymin
@@ -125,15 +126,21 @@ def _draw_threshold_bars(
     pad = max(2.0, 0.05 * hi)
     ax.set_ylim(lo, hi + pad)
 
+    # Clean up spines — keep only bottom
+    for spine in ("top", "right", "left"):
+        ax.spines[spine].set_visible(False)
+    ax.spines["bottom"].set_color(COLORS["navy"])
+    ax.tick_params(axis="y", length=0)
+
     if show_legend:
         ax.legend(
             loc="upper center",
+            bbox_to_anchor=(0.5, 1.0),
             ncol=min(n_series, 4),
             fontsize=9,
-            framealpha=0.9,
+            framealpha=0.95,
             edgecolor=COLORS["rule"],
         )
-    ax.spines["bottom"].set_color(COLORS["navy"])
 
 
 def render_threshold_bars(

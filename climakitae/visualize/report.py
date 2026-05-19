@@ -82,14 +82,14 @@ def build_report_figure(
     with cae_report_style():
         fig = plt.figure(figsize=figsize)
         outer = GridSpec(
-            nrows=4,
+            nrows=5,
             ncols=1,
-            height_ratios=[title_h, 1.8, 0.55 * n_rows + 0.8, 4.2],
-            hspace=0.12,
-            left=0.06,
-            right=0.96,
+            height_ratios=[title_h, 1.6, 0.52 * n_rows + 0.9, 0.25, 4.5],
+            hspace=0.18,
+            left=0.07,
+            right=0.95,
             top=0.96,
-            bottom=0.06,
+            bottom=0.07,
             figure=fig,
         )
 
@@ -111,7 +111,7 @@ def build_report_figure(
         ax_title.plot([0.0, 1.0], [0.05, 0.05], color=COLORS["orange"], linewidth=2)
 
         cards_gs = GridSpecFromSubplotSpec(
-            1, n_cards, subplot_spec=outer[1, 0], wspace=0.18
+            1, n_cards, subplot_spec=outer[1, 0], wspace=0.14
         )
         for i, (value, caption) in enumerate(stat_items):
             ax_c = fig.add_subplot(cards_gs[0, i])
@@ -126,7 +126,7 @@ def build_report_figure(
         ax_table = fig.add_subplot(outer[2, 0])
         _draw_summary_table(ax_table, summary_df)
 
-        ax_bars = fig.add_subplot(outer[3, 0])
+        ax_bars = fig.add_subplot(outer[4, 0])
         _draw_threshold_bars(
             ax_bars,
             bars_df,

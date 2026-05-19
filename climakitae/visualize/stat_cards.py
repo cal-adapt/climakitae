@@ -35,19 +35,22 @@ def _draw_card(
     ax.set_ylim(0, 1)
     ax.set_axis_off()
 
+    # Card background with a thin rule accent on the left edge
     ax.add_patch(
         FancyBboxPatch(
-            (0.04, 0.08),
+            (0.04, 0.06),
             0.92,
-            0.84,
+            0.88,
             boxstyle="round,pad=0.02,rounding_size=0.04",
-            linewidth=0,
+            linewidth=0.8,
+            edgecolor=COLORS["rule"],
             facecolor=card_color,
         )
     )
+    # Value (large bold number)
     ax.text(
         0.5,
-        0.66,
+        0.65,
         value,
         ha="center",
         va="center",
@@ -55,15 +58,18 @@ def _draw_card(
         fontsize=value_fontsize,
         fontweight="bold",
     )
-    wrapped = textwrap.fill(caption, width=22)
+    # Thin separator between value and caption
+    ax.plot([0.25, 0.75], [0.42, 0.42], color=COLORS["rule"], linewidth=0.8)
+    # Caption text
+    wrapped = textwrap.fill(caption, width=24)
     ax.text(
         0.5,
-        0.26,
+        0.24,
         wrapped,
         ha="center",
         va="center",
         multialignment="center",
-        color=COLORS["navy"],
+        color=COLORS["muted"],
         fontsize=caption_fontsize,
     )
 
