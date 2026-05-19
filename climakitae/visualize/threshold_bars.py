@@ -16,32 +16,6 @@ from matplotlib.figure import Figure
 from .style import COLORS, cae_report_style
 
 
-def _draw_axis_break(ax: Axes) -> None:
-    """Draw // break markers at the base of the y-axis spine.
-
-    Indicates to the reader that the y-axis does not start at zero.
-    Uses the matplotlib marker technique: a custom diagonal-line path
-    placed at two axes-fraction coordinates near the bottom-left corner
-    of the axes, so it scales correctly with any figure size.
-
-    See also
-    --------
-    https://matplotlib.org/stable/gallery/subplots_axes_and_figures/broken_axis.html
-    """
-    d = 0.4  # slant ratio (height / width of the diagonal mark)
-    kwargs = dict(
-        marker=[(-1, -d), (1, d)],
-        markersize=10,
-        linestyle="none",
-        color=COLORS["navy"],
-        mec=COLORS["navy"],
-        mew=1.5,
-        clip_on=False,
-    )
-    # Two // marks side-by-side at the base of the y-axis spine
-    ax.plot([-0.022, 0.022], [0.0, 0.0], transform=ax.transAxes, **kwargs)
-
-
 # Colour ramp for up to 4 warming-level periods (Historic → Near → Mid → Late-century)
 _PERIOD_COLORS: list[str] = [
     COLORS["historical"],  # Historic baseline — gold
@@ -151,14 +125,13 @@ def _draw_threshold_bars(
     pad = max(2.0, 0.05 * hi)
     ax.set_ylim(lo, hi + pad)
 
-    if lo > 0:
-        _draw_axis_break(ax)
-
     if show_legend:
         ax.legend(
-            loc="lower center",
-            bbox_to_anchor=(0.5, -0.25),
+            loc="upper center",
             ncol=min(n_series, 4),
+            fontsize=9,
+            framealpha=0.9,
+            edgecolor=COLORS["rule"],
         )
     ax.spines["bottom"].set_color(COLORS["navy"])
 

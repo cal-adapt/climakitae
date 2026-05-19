@@ -74,14 +74,18 @@ def build_report_figure(
         raise ValueError("summary_df must be non-empty")
 
     n_rows = summary_df.shape[0]
+    # Compute title-strip height from subtitle line count so the rule never
+    # collides with the subtitle text regardless of wrapping.
+    subtitle_lines = subtitle.count("\n") + 1 if subtitle else 0
+    title_h = 0.55 + 0.28 * subtitle_lines
 
     with cae_report_style():
         fig = plt.figure(figsize=figsize)
         outer = GridSpec(
             nrows=4,
             ncols=1,
-            height_ratios=[0.8, 2.4, 0.55 * n_rows + 0.8, 4.2],
-            hspace=0.28,
+            height_ratios=[title_h, 1.8, 0.55 * n_rows + 0.8, 4.2],
+            hspace=0.12,
             left=0.06,
             right=0.96,
             top=0.96,
@@ -93,12 +97,18 @@ def build_report_figure(
         ax_title.set_axis_off()
         ax_title.set_xlim(0, 1)
         ax_title.set_ylim(0, 1)
+        # Anchor title at the top; subtitle flows downward from a fixed y so it
+        # never overlaps the rule regardless of how many lines it wraps to.
         ax_title.text(
-            0.0, 0.78, title, color=COLORS["navy"], fontsize=22, fontweight="bold"
+            0.0, 0.96, title,
+            color=COLORS["navy"], fontsize=22, fontweight="bold", va="top",
         )
         if subtitle:
-            ax_title.text(0.0, 0.42, subtitle, color=COLORS["muted"], fontsize=12)
-        ax_title.plot([0.0, 1.0], [0.18, 0.18], color=COLORS["orange"], linewidth=2)
+            ax_title.text(
+                0.0, 0.52, subtitle,
+                color=COLORS["muted"], fontsize=12, va="top",
+            )
+        ax_title.plot([0.0, 1.0], [0.05, 0.05], color=COLORS["orange"], linewidth=2)
 
         cards_gs = GridSpecFromSubplotSpec(
             1, n_cards, subplot_spec=outer[1, 0], wspace=0.18
