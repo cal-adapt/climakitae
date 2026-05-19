@@ -15,7 +15,6 @@ from matplotlib.figure import Figure
 
 from .style import COLORS, cae_report_style
 
-
 # Colour ramp for up to 4 warming-level periods (Historic → Near → Mid → Late-century)
 _PERIOD_COLORS: list[str] = [
     COLORS["period_0"],  # Historic baseline — gold
@@ -91,12 +90,19 @@ def _draw_threshold_bars(
     offsets = (np.arange(n_series) - (n_series - 1) / 2.0) * (width + 0.04)
     label_fontsize = max(7, 11 - n_series)
 
+    all_vals = df.to_numpy(dtype=float).ravel()
+    # Auto-scale: floor just below the data minimum so differences are visible
+    # without starting at zero.  Callers can override with explicit ymin/ymax.
+    lo = float(np.floor(np.nanmin(all_vals))) - 1.0 if ymin is None else ymin
+    hi = float(np.nanmax(all_vals)) if ymax is None else ymax
+
     for k, col in enumerate(cols):
         vals = df[col].to_numpy(dtype=float)
         bars = ax.bar(
             x + offsets[k],
-            vals,
+            vals - lo,
             width,
+            bottom=lo,
             color=colors[k],
             label=col,
             edgecolor="white",
@@ -105,7 +111,7 @@ def _draw_threshold_bars(
         for bar, v in zip(bars, vals):
             ax.text(
                 bar.get_x() + bar.get_width() / 2,
-                bar.get_height(),
+                bar.get_y() + bar.get_height(),
                 value_fmt.format(v),
                 ha="center",
                 va="bottom",
@@ -119,10 +125,6 @@ def _draw_threshold_bars(
     ax.set_ylabel(ylabel)
     if title:
         ax.set_title(title, loc="left", pad=10)
-
-    all_vals = df.to_numpy(dtype=float).ravel()
-    lo = 0.0 if ymin is None else ymin
-    hi = float(np.nanmax(all_vals)) if ymax is None else ymax
     pad = max(2.0, 0.05 * hi)
     ax.set_ylim(lo, hi + pad)
 

@@ -100,13 +100,22 @@ def build_report_figure(
         # Anchor title at the top; subtitle flows downward from a fixed y so it
         # never overlaps the rule regardless of how many lines it wraps to.
         ax_title.text(
-            0.0, 0.96, title,
-            color=COLORS["navy"], fontsize=22, fontweight="bold", va="top",
+            0.0,
+            0.96,
+            title,
+            color=COLORS["navy"],
+            fontsize=22,
+            fontweight="bold",
+            va="top",
         )
         if subtitle:
             ax_title.text(
-                0.0, 0.52, subtitle,
-                color=COLORS["muted"], fontsize=12, va="top",
+                0.0,
+                0.52,
+                subtitle,
+                color=COLORS["muted"],
+                fontsize=12,
+                va="top",
             )
         ax_title.plot([0.0, 1.0], [0.05, 0.05], color=COLORS["orange"], linewidth=2)
 
