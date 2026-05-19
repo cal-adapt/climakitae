@@ -90,7 +90,7 @@ print(data)
 | Resource | Description |
 |----------|-------------|
 | [**AE Navigation Guide**](https://github.com/cal-adapt/cae-notebooks/blob/main/AE_navigation_guide.ipynb) | Interactive notebook tutorial |
-| [**API Reference**](https://climakitae.readthedocs.io/en/latest/) | Complete API documentation |
+| [**API Reference**](https://cal-adapt.github.io/climakitae/dev/) | Complete API documentation |
 | [**AE Notebooks**](https://github.com/cal-adapt/cae-notebooks) | Sample notebooks and scripts |
 | [**Contributing**](https://climakitae.readthedocs.io/en/latest/contribute.html) | Development guidelines |
 
