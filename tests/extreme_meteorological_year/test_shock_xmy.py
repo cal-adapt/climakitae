@@ -15,7 +15,7 @@ import xarray as xr
 from scipy.optimize import OptimizeWarning
 
 from climakitae.core.constants import UNSET
-from climakitae.explore.shock_extreme_meteorological_year import (
+from climakitae.climakitae.explore.extreme_meteorological_year import (
     shock_XMY,
     generate_candidate_months,
     find_hot_cold_extreme_from_median,

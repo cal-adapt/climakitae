@@ -1,7 +1,5 @@
 """
-Functions for Shock Extreme Meteorological Year creation.
-
-This code has been ported from the cae-notebooks shock_extreme_meteorological_year notebook.
+Functions for Shock and Persistence Extreme Meteorological Year creation.
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -49,28 +47,22 @@ def find_hot_cold_extreme_from_median(
     temperature value across years.
 
     Parameters
-    ----------
-    sub_month : xr.DataArray
-        dims: (year, data, bin_number)
-
-
-    sub_clim : xr.DataArray
-        climatology with same structure
-
-    target : float
-        CDF level (default 0.5)
-
-    extreme : str
-        "cold" -> pick minimum deviation
-        "hot"  -> pick maximum deviation
-
-    Returns
-    -------
-    results : list
-        median values per year
-
-    worst_year : scalar
-        identified extreme year
+    ----------  
+    sub_month : xr.DataArray  
+        dims: (year, data, bin_number)  
+    sub_clim : xr.DataArray  
+        climatology with same structure  
+    target : float  
+        CDF level (default 0.5)  
+    extreme : str  
+        "cold" -> pick minimum deviation  
+        "hot"  -> pick maximum deviation  
+    Returns  
+    -------  
+    results : list  
+        median values per year  
+    worst_year : scalar  
+        identified extreme year  
     """
 
     # -----------------------------
@@ -82,7 +74,6 @@ def find_hot_cold_extreme_from_median(
     clim_idx = np.abs(clim_prob - target).argmin(dim="bin_number")
     clim_05 = clim_bins.isel(bin_number=clim_idx).values
 
-    # -----------------------------
     # Step 2: per-year median extraction
     # -----------------------------
     yr_prob = sub_month.sel(data="probability")
@@ -137,15 +128,12 @@ def generate_candidate_months(
     ----------
     cdf_monthly : xr.DataArray
         Monthly CDF to compare against climatological CDF
-
     cdf_climatology : xr.DataArray
         CDF representing climatology
-
     extreme : str
         The type of shock XMY.
         "cold" -> pick minimum deviation
         "hot"  -> pick maximum deviation
-
     skip_last: bool
         True to exclude the final month, e.g. if data missing after time conversion
 
@@ -700,7 +688,7 @@ class shock_XMY:
         return xmy_df_all
 
     def load_all_variables(self):
-        """Load hourly shock XMY variables and derive daily statistics for CDF/F-S.
+        """Load hourly shock XMY variables and derive daily statistics.
 
         Fetches hourly raw variables via ClimateData for the 8760 profile
         assembly, then derives ALL daily statistics from the hourly data
@@ -765,7 +753,7 @@ class shock_XMY:
             first_var = None
             remaining_hourly = hourly_var_ids
 
-        # --- Daily variables (needed for CDF/F-S analysis) ---
+        # --- Daily variables resampling ---
         # Derive daily stats from hourly data in local time.
         # This matches the original code's behavior (hourly → local time →
         # daily resample) and avoids using catalog daily variables which are
@@ -849,7 +837,8 @@ class shock_XMY:
         hourly_ds = xr.merge(derived_list + kept_from_raw)
         self._hourly_data = hourly_ds
 
-        # --- Build daily dataset for CDF/F-S analysis ---
+        # --- Build daily dataset ---
+
         # Compute hourly data eagerly so all daily resampling uses
         # deterministic numpy math (not affected by dask scheduler ordering).
         # For a single grid cell this is small (~30yr × 8760hr × 4sims).
@@ -961,7 +950,6 @@ class shock_XMY:
 
     def set_top_months(self):
         """Calculate top months dataframe."""
-        # Pass the weighted F-S sum data for simplicity
 
         if self.cdf_climatology is UNSET:
             self.set_cdf_climatology()
@@ -1013,7 +1001,7 @@ class shock_XMY:
         -----------
         top_df: pd.DataFrame
             Table with column values month, simulation, and year
-            Each month-sim-yr combo represents the top candidate that has the lowest weighted sum from the FS statistic
+            Each month-sim-yr combo represents the top candidate that is determined based on extreme type
 
         Notes
         -----
@@ -1071,7 +1059,7 @@ class shock_XMY:
         Parameters
         ----------
         extension: str
-            Desired file extension ('xmy','epw', or 'csv')
+            Desired file extension ('tmy','epw', or 'csv')
 
         """
         print("Exporting shock XMY to file.")
