@@ -1295,16 +1295,6 @@ def read_catalog_from_select(selections: "DataParameters") -> xr.DataArray:
         data_attrs = data_attrs | {"institution": "Multiple"}
         da.attrs = data_attrs
 
-    # Rotate wind vectors
-    elif (
-        any(x in selections.variable_id for x in ["u10", "v10"])
-        and selections.downscaling_method == "Dynamical"
-    ):
-        if "u10" in selections.variable_id:
-            da = _get_Uearth(selections)
-        elif "v10" in selections.variable_id:
-            da = _get_Vearth(selections)
-
     # Any other variable... i.e. not an index, derived var, or a WRF wind vector
     else:
         da = _get_data_one_var(selections)
