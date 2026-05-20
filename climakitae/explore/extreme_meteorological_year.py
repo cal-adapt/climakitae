@@ -8,7 +8,6 @@ from datetime import datetime
 from dask.diagnostics import ProgressBar
 import numpy as np
 import pandas as pd
-import pkg_resources
 import pytz
 import xarray as xr
 from scipy import optimize
@@ -41,7 +40,7 @@ def find_hot_cold_extreme_from_median(
     sub_clim: xr.DataArray,
     target: float = 0.5,
     extreme: str = "cold",  # "cold" or "hot"
-):
+) -> tuple[np.ndarray, np.ndarray, np.integer]:
     """
     Identifies hottest or coldest year based on deviation from the median (CDF=0.5)
     temperature value across years.
@@ -57,6 +56,7 @@ def find_hot_cold_extreme_from_median(
     extreme : str
         "cold" -> pick minimum deviation
         "hot"  -> pick maximum deviation
+    
     Returns
     -------
     results : list
@@ -118,7 +118,7 @@ def generate_candidate_months(
     cdf_climatology: xr.DataArray,
     extreme: str = "cold",
     skip_last: bool = False,  # "cold" or "hot"
-):
+)-> pd.DataFrame:
     """
     Run find_hot_cold_extreme_from_median() over entire input dataset.
     Generate a dataframe of selected years per month and simulation
@@ -652,7 +652,7 @@ class shock_XMY:
 
         Returns
         -------
-        pd.DataFrame
+        dict
         """
         xmy_df_all = {}
         for sim in all_vars_ds.simulation.values:
@@ -996,13 +996,7 @@ class shock_XMY:
 
         Output will be a list of dataframes per simulation.
         Print statements throughout the function indicate progress.
-
-        Parameters
-        -----------
-        top_df: pd.DataFrame
-            Table with column values month, simulation, and year
-            Each month-sim-yr combo represents the top candidate that is determined based on extreme type
-
+        
         Notes
         -----
         Results are saved to the class variable `xmy_data_to_export`.
