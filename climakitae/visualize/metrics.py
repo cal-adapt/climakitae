@@ -43,9 +43,18 @@ def _spatial_mean(da: xr.DataArray) -> xr.DataArray:
 
 
 def _sim_median(da: xr.DataArray) -> xr.DataArray:
-    """Median over simulation dims if present; otherwise identity."""
+    """Median over simulation dims if present; otherwise identity.
+
+    Notes
+    -----
+    xarray's ``median`` is not implemented for dask-backed arrays.  By the
+    time this helper is called the array has already been reduced to at most
+    one remaining (simulation) dimension, so ``load()`` is cheap.
+    """
     present = [d for d in _SIM_DIMS if d in da.dims]
-    return da.median(dim=present) if present else da
+    if not present:
+        return da
+    return da.load().median(dim=present)
 
 
 def _summer(da: xr.DataArray) -> xr.DataArray:
