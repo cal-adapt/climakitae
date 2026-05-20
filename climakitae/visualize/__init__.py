@@ -12,9 +12,14 @@ Public entry points
   and matplotlib rcParams helpers
 """
 
-from .metrics import (PeriodInputs, average_summer, compute_report_metrics,
-                      extreme_threshold, heat_waves_per_year,
-                      hot_days_per_year)
+from .metrics import (
+    PeriodInputs,
+    avg_heat_wave_length,
+    average_summer,
+    compute_report_metrics,
+    extreme_threshold,
+    hot_days_per_year,
+)
 from .report import build_report_figure
 from .stat_cards import render_stat_cards
 from .style import COLORS, apply_style, cae_report_style
@@ -29,8 +34,8 @@ __all__ = [
     "build_report_figure",
     "cae_report_style",
     "compute_report_metrics",
+    "avg_heat_wave_length",
     "extreme_threshold",
-    "heat_waves_per_year",
     "hot_days_per_year",
     "render_stat_cards",
     "render_summary_table",

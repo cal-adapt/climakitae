@@ -37,11 +37,12 @@ def build_report_figure(
     bars_ymax: float | None = None,
     figsize: tuple[float, float] = (11.0, 13.0),
     footnote: str | None = None,
+    tagline: str | None = None,
 ) -> Figure:
     """Build a single-page report-style figure.
 
-    Layout (top → bottom): title strip, stat cards row, summary table,
-    grouped historical-vs-projection bar chart.
+    Layout (top → bottom): title strip, optional tagline sentence, stat cards
+    row, summary table, grouped historical-vs-projection bar chart.
 
     Parameters
     ----------
@@ -62,6 +63,9 @@ def build_report_figure(
         double-slash break mark is drawn at the base of the y-axis.
     figsize : tuple, default (11, 13)
         Full figure size in inches.
+    tagline : str, optional
+        One-sentence interpretive summary rendered in italic below the title
+        strip and above the stat cards.  When omitted the row is not drawn.
 
     Returns
     -------
@@ -79,12 +83,25 @@ def build_report_figure(
     subtitle_lines = subtitle.count("\n") + 1 if subtitle else 0
     title_h = 0.55 + 0.28 * subtitle_lines
 
+    # When a tagline is present, insert an extra thin row between the title
+    # strip and the stat cards; track row indices symbolically so the rest of
+    # the layout code stays readable.
+    _TAGLINE_H = 0.5
+    if tagline:
+        _nrows = 6
+        _ratios = [title_h, _TAGLINE_H, 1.6, 0.52 * n_rows + 0.9, 0.25, 4.5]
+        _card_row, _table_row, _bars_row = 2, 3, 5
+    else:
+        _nrows = 5
+        _ratios = [title_h, 1.6, 0.52 * n_rows + 0.9, 0.25, 4.5]
+        _card_row, _table_row, _bars_row = 1, 2, 4
+
     with cae_report_style():
         fig = plt.figure(figsize=figsize)
         outer = GridSpec(
-            nrows=5,
+            nrows=_nrows,
             ncols=1,
-            height_ratios=[title_h, 1.6, 0.52 * n_rows + 0.9, 0.25, 4.5],
+            height_ratios=_ratios,
             hspace=0.18,
             left=0.07,
             right=0.95,
@@ -119,8 +136,24 @@ def build_report_figure(
             )
         ax_title.plot([0.0, 1.0], [0.05, 0.05], color=COLORS["orange"], linewidth=2)
 
+        if tagline:
+            ax_tagline = fig.add_subplot(outer[1, 0])
+            ax_tagline.set_axis_off()
+            ax_tagline.set_xlim(0, 1)
+            ax_tagline.set_ylim(0, 1)
+            ax_tagline.text(
+                0.0,
+                0.5,
+                tagline,
+                color=COLORS["navy"],
+                fontsize=11,
+                style="italic",
+                va="center",
+                wrap=True,
+            )
+
         cards_gs = GridSpecFromSubplotSpec(
-            1, n_cards, subplot_spec=outer[1, 0], wspace=0.14
+            1, n_cards, subplot_spec=outer[_card_row, 0], wspace=0.14
         )
         for i, (value, caption) in enumerate(stat_items):
             ax_c = fig.add_subplot(cards_gs[0, i])
@@ -132,10 +165,10 @@ def build_report_figure(
                 card_color=COLORS["cream"],
             )
 
-        ax_table = fig.add_subplot(outer[2, 0])
+        ax_table = fig.add_subplot(outer[_table_row, 0])
         _draw_summary_table(ax_table, summary_df)
 
-        ax_bars = fig.add_subplot(outer[4, 0])
+        ax_bars = fig.add_subplot(outer[_bars_row, 0])
         _draw_threshold_bars(
             ax_bars,
             bars_df,

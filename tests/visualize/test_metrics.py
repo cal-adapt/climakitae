@@ -11,11 +11,14 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from climakitae.visualize.metrics import (PeriodInputs, average_summer,
-                                          compute_report_metrics,
-                                          extreme_threshold,
-                                          heat_waves_per_year,
-                                          hot_days_per_year)
+from climakitae.visualize.metrics import (
+    PeriodInputs,
+    avg_heat_wave_length,
+    average_summer,
+    compute_report_metrics,
+    extreme_threshold,
+    hot_days_per_year,
+)
 
 
 @pytest.fixture
@@ -54,18 +57,35 @@ def test_hot_days_per_year_below_threshold_is_zero(known_tmax_F: xr.DataArray) -
     assert hot_days_per_year(known_tmax_F, threshold_F=200.0) == 0.0
 
 
-def test_heat_waves_per_year_one_long_event(known_tmax_F: xr.DataArray) -> None:
-    assert (
-        heat_waves_per_year(known_tmax_F, threshold_F=90.0, min_consecutive_days=4)
-        == 1.0
-    )
+def test_avg_heat_wave_length_single_event(known_tmax_F: xr.DataArray) -> None:
+    # known_tmax_F has one 10-day run of 100 °F per year; mean length = 10.
+    assert avg_heat_wave_length(
+        known_tmax_F, threshold_F=90.0, min_consecutive_days=4
+    ) == pytest.approx(10.0)
 
 
-def test_heat_waves_per_year_requires_min_length(known_tmax_F: xr.DataArray) -> None:
+def test_avg_heat_wave_length_no_qualifying_events(known_tmax_F: xr.DataArray) -> None:
+    # min_consecutive_days=20 means the 10-day run never qualifies → 0.
     assert (
-        heat_waves_per_year(known_tmax_F, threshold_F=90.0, min_consecutive_days=20)
+        avg_heat_wave_length(known_tmax_F, threshold_F=90.0, min_consecutive_days=20)
         == 0.0
     )
+
+
+def test_avg_heat_wave_length_sim_median(known_tmax_F: xr.DataArray) -> None:
+    # Two simulations: one with 6-day events, one with 10-day events → median = 8.
+    sim_a = known_tmax_F  # 10-day events
+    # Build a variant with only 6 consecutive hot days each year
+    time = pd.date_range("2000-01-01", "2002-12-31", freq="D")
+    vals_b = np.full(len(time), 70.0)
+    for year in (2000, 2001, 2002):
+        mask = (time.year == year) & (time.dayofyear <= 6)
+        vals_b[mask] = 100.0
+    sim_b = xr.DataArray(vals_b, dims="time", coords={"time": time})
+    stacked = xr.concat([sim_a, sim_b], dim="sim")
+    assert avg_heat_wave_length(
+        stacked, threshold_F=90.0, min_consecutive_days=4
+    ) == pytest.approx(8.0)
 
 
 def test_extreme_threshold_returns_finite_value(daily_tmax_F: xr.DataArray) -> None:
