@@ -56,7 +56,7 @@ def find_hot_cold_extreme_from_median(
     extreme : str
         "cold" -> pick minimum deviation
         "hot"  -> pick maximum deviation
-    
+
     Returns
     -------
     results : list
@@ -118,7 +118,7 @@ def generate_candidate_months(
     cdf_climatology: xr.DataArray,
     extreme: str = "cold",
     skip_last: bool = False,  # "cold" or "hot"
-)-> pd.DataFrame:
+) -> pd.DataFrame:
     """
     Run find_hot_cold_extreme_from_median() over entire input dataset.
     Generate a dataframe of selected years per month and simulation
@@ -996,7 +996,7 @@ class shock_XMY:
 
         Output will be a list of dataframes per simulation.
         Print statements throughout the function indicate progress.
-        
+
         Notes
         -----
         Results are saved to the class variable `xmy_data_to_export`.
