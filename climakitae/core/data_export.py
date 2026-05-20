@@ -1592,6 +1592,7 @@ def write_tmy_file(
 
     # typical meteorological year format
     match file_ext:
+        # .csv export files or identical to .tmy export files in all ways by the export extension
         case "tmy" | "csv":
             if file_ext == "tmy":
                 path_to_file = filename_to_export + ".tmy"
