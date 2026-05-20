@@ -142,12 +142,13 @@ def build_report_figure(
             ax_tagline.set_xlim(0, 1)
             ax_tagline.set_ylim(0, 1)
             ax_tagline.text(
-                0.0,
+                0.5,
                 0.5,
                 tagline,
                 color=COLORS["navy"],
-                fontsize=11,
+                fontsize=13,
                 style="italic",
+                ha="center",
                 va="center",
                 wrap=True,
             )

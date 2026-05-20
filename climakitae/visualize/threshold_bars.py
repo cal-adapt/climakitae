@@ -88,7 +88,7 @@ def _draw_threshold_bars(
     x = np.arange(n_locs)
     width = min(0.36, 0.72 / n_series)
     offsets = (np.arange(n_series) - (n_series - 1) / 2.0) * (width + 0.04)
-    label_fontsize = max(7, 11 - n_series)
+    label_fontsize = max(9, 13 - n_series)
 
     all_vals = df.to_numpy(dtype=float).ravel()
     # Auto-scale: floor just below the data minimum so differences are visible
