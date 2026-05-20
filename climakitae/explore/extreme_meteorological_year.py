@@ -47,22 +47,22 @@ def find_hot_cold_extreme_from_median(
     temperature value across years.
 
     Parameters
-    ----------  
-    sub_month : xr.DataArray  
-        dims: (year, data, bin_number)  
-    sub_clim : xr.DataArray  
-        climatology with same structure  
-    target : float  
-        CDF level (default 0.5)  
-    extreme : str  
-        "cold" -> pick minimum deviation  
-        "hot"  -> pick maximum deviation  
-    Returns  
-    -------  
-    results : list  
-        median values per year  
-    worst_year : scalar  
-        identified extreme year  
+    ----------
+    sub_month : xr.DataArray
+        dims: (year, data, bin_number)
+    sub_clim : xr.DataArray
+        climatology with same structure
+    target : float
+        CDF level (default 0.5)
+    extreme : str
+        "cold" -> pick minimum deviation
+        "hot"  -> pick maximum deviation
+    Returns
+    -------
+    results : list
+        median values per year
+    worst_year : scalar
+        identified extreme year
     """
 
     # -----------------------------
@@ -692,8 +692,8 @@ class shock_XMY:
 
         Fetches hourly raw variables via ClimateData for the 8760 profile
         assembly, then derives ALL daily statistics from the hourly data
-        in local time.  This matches the original shock XMY code's approach and
-        avoids two problems with fetching daily catalog variables directly:
+        in local time.  This approach avoids two problems with fetching
+        daily catalog variables directly:
 
         1. **UTC vs local time**: Catalog daily variables are pre-aggregated
            over UTC day boundaries, which differ from local-time days by the
