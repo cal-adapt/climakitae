@@ -94,7 +94,7 @@ def _draw_threshold_bars(
     # Auto-scale: floor just below the data minimum so differences are visible
     # without starting at zero.  Callers can override with explicit ymin/ymax.
     lo = float(np.floor(np.nanmin(all_vals))) - 1.0 if ymin is None else ymin
-    hi = float(np.nanmax(all_vals)) if ymax is None else ymax
+    hi = float(np.ceil(np.nanmax(all_vals))) if ymax is None else ymax
 
     for k, col in enumerate(cols):
         vals = df[col].to_numpy(dtype=float)
@@ -125,7 +125,7 @@ def _draw_threshold_bars(
     ax.set_ylabel(ylabel)
     if title:
         ax.set_title(title, loc="left", pad=10)
-    pad = max(2.0, 0.05 * hi)
+    pad = 1.0
     ax.set_ylim(lo, hi + pad)
 
     # Clean up spines — keep only bottom
