@@ -401,7 +401,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                     gwl = global_warming_levels
                 # Otherwise, use the default
                 else:
-                    gwl = "1.2"
+                    gwl = 1.2
 
             filename = _get_clean_standardyr_filename(
                 var_id,
@@ -766,9 +766,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
         if "latitude" in kwargs or "longitude" in kwargs:
             kwargs.pop("latitude", None)
             kwargs.pop("longitude", None)
-            print(
-                "   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude"
-            )
+            print("   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude")
         if "stations" in kwargs:
             kwargs.pop("stations", None)
             print("   ⚠️  Note: Using cached_area, ignoring provided stations")
