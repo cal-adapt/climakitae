@@ -238,7 +238,7 @@ class TestDataLoadDerived:
         assert result.name == "Fosberg Fire Weather Index"
 
     @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_data())
-    def test__get_wind_speed_derived(self, selections):
+    def test__get_wind_speed_derived(self, mock_get_data_one_var, selections):
         # Check that wind speed variable is returned with data.
         result = _get_wind_speed_derived(selections)
         assert isinstance(result, xr.core.dataarray.DataArray)
@@ -246,7 +246,7 @@ class TestDataLoadDerived:
         assert result.attrs["units"] == "m s-1"
 
     @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_data())
-    def test__get_wind_dir_derived(self, selections):
+    def test__get_wind_dir_derived(self, mock_get_data_one_var, selections):
         # Check that wind direction variable is returned with data.
         result = _get_wind_dir_derived(selections)
         assert isinstance(result, xr.core.dataarray.DataArray)
