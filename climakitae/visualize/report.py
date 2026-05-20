@@ -87,7 +87,7 @@ def build_report_figure(
     # When a tagline is present, insert an extra thin row between the title
     # strip and the stat cards; track row indices symbolically so the rest of
     # the layout code stays readable.
-    _TAGLINE_H = 0.5
+    _TAGLINE_H = 0.65
     if tagline:
         _nrows = 6
         _ratios = [title_h, _TAGLINE_H, 1.6, 0.52 * n_rows + 0.9, 0.25, 4.5]
@@ -151,7 +151,7 @@ def build_report_figure(
                 0.5,
                 textwrap.fill(tagline, width=_chars_per_line),
                 color=COLORS["navy"],
-                fontsize=13,
+                fontsize=16,
                 style="italic",
                 ha="center",
                 va="center",
