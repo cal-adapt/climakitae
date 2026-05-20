@@ -10,6 +10,7 @@ cleanly at any figsize.
 
 from __future__ import annotations
 
+import textwrap
 from typing import Sequence
 
 import matplotlib.pyplot as plt
@@ -141,16 +142,19 @@ def build_report_figure(
             ax_tagline.set_axis_off()
             ax_tagline.set_xlim(0, 1)
             ax_tagline.set_ylim(0, 1)
+            # Pre-wrap at a character width proportional to usable figure width.
+            # wrap=True is unreliable with ha="center"; textwrap.fill is not.
+            _usable_in = figsize[0] * (0.95 - 0.07)  # matches GridSpec margins
+            _chars_per_line = max(40, int(_usable_in * 8.5))  # ~8.5 chars/inch at 13pt
             ax_tagline.text(
                 0.5,
                 0.5,
-                tagline,
+                textwrap.fill(tagline, width=_chars_per_line),
                 color=COLORS["navy"],
                 fontsize=13,
                 style="italic",
                 ha="center",
                 va="center",
-                wrap=True,
             )
 
         cards_gs = GridSpecFromSubplotSpec(

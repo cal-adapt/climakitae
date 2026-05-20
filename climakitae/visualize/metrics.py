@@ -224,9 +224,9 @@ def compute_report_metrics(
         rows[f"Hot Days >{int(hot_day_threshold_F)}°F / yr"][label] = hot_days_per_year(
             p.tmax, hot_day_threshold_F
         )
-        rows[f"Avg Heat Wave Duration (days)"][
-            label
-        ] = avg_heat_wave_length(p.tmax, hot_day_threshold_F, heatwave_min_days)
+        rows[f"Avg Heat Wave Duration (days)"][label] = avg_heat_wave_length(
+            p.tmax, hot_day_threshold_F, heatwave_min_days
+        )
         rows[f"1-in-{return_period_years}-yr Daily Max (°F)"][label] = (
             extreme_threshold(p.tmax, return_period_years)
         )
