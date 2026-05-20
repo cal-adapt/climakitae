@@ -1,8 +1,8 @@
 """
-Test suite for climakitae/explore/shock_extreme_meteorological_year.py
+Test suite for the shock XMY portion of climakitae/explore/extreme_meteorological_year.py
 
 Includes tests for the more general functions along with the shock_XMY class.
-Exclude tests for functions from typical_meteorological_year.py that are used in shock_extreme_meteorological_year.py
+Exclude tests for functions from typical_meteorological_year.py that are used in extreme_meteorological_year.py
 """
 
 import warnings
@@ -588,7 +588,7 @@ class TestXMYClass:
         with (
             patch.object(xmy, "load_all_variables") as mock_load,
             patch(
-                "climakitae.explore.shock_extreme_meteorological_year.get_cdf",
+                "climakitae.explore.extreme_meteorological_year.get_cdf",
                 return_value=xr.Dataset(),
             ) as mock_get_cdf,
         ):
@@ -600,8 +600,8 @@ class TestXMYClass:
             # Check air_temp_vars passed as input to get_cdf_monthly
             mock_get_cdf.assert_called_once_with(xmy.air_temp_vars)
 
-    @patch("climakitae.explore.shock_extreme_meteorological_year.remove_pinatubo_years")
-    @patch("climakitae.explore.shock_extreme_meteorological_year.get_cdf_monthly")
+    @patch("climakitae.explore.extreme_meteorological_year.remove_pinatubo_years")
+    @patch("climakitae.explore.extreme_meteorological_year.get_cdf_monthly")
     def test_cdf_monthly(self, mock_get_cdf_monthly, mock_remove_pinatubo):
         """Check that data load and get_cdf_monthly get called."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
@@ -760,9 +760,7 @@ class TestXMYClass:
                 result[varname][720], 1e-6
             )
 
-    @patch(
-        "climakitae.explore.shock_extreme_meteorological_year.generate_candidate_months"
-    )
+    @patch("climakitae.explore.extreme_meteorological_year.generate_candidate_months")
     def test_set_top_months(self, mock_generate):
         """Check that set_top_months calls correct functions."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
@@ -878,7 +876,7 @@ class TestXMYClass:
         xmy._sim_centered_years = {sim: 2040}
 
         with patch(
-            "climakitae.explore.shock_extreme_meteorological_year.write_tmy_file"
+            "climakitae.explore.extreme_meteorological_year.write_tmy_file"
         ) as mock_write:
             xmy.export_xmy_data()
             mock_write.assert_called_once()
