@@ -492,7 +492,7 @@ class BiasAdjustModelToStation(DataProcessor):
         try:
             time_index = da_adj.indexes["time"]
             if hasattr(time_index, "to_datetimeindex"):
-                da_adj["time"] = time_index.to_datetimeindex()
+                da_adj["time"] = time_index.to_datetimeindex(time_unit="ns")
             else:
                 # Fallback if to_datetimeindex not available
                 da_adj = da_adj.convert_calendar("standard", use_cftime=False)
@@ -645,14 +645,6 @@ class BiasAdjustModelToStation(DataProcessor):
                     f"Could not find closest gridcell at ({station_lat}, {station_lon})"
                 )
 
-            # Drop extra coords
-            gridded_da_closest = gridded_da_closest.drop_vars(
-                [
-                    c
-                    for c in gridded_da_closest.coords
-                    if c not in gridded_da_closest.dims
-                ]
-            )
             gridded_list.append(gridded_da_closest)
 
             # Extract historical data if present
@@ -664,13 +656,6 @@ class BiasAdjustModelToStation(DataProcessor):
                     raise ValueError(
                         f"Could not find historical gridcell at ({station_lat}, {station_lon})"
                     )
-                historical_da_closest = historical_da_closest.drop_vars(
-                    [
-                        c
-                        for c in historical_da_closest.coords
-                        if c not in historical_da_closest.dims
-                    ]
-                )
                 historical_list.append(historical_da_closest)
 
         # Stack data along 'station' dimension
@@ -876,7 +861,7 @@ class BiasAdjustModelToStation(DataProcessor):
                 f"got {type(result)}"
             )
 
-    def update_context(self, context: Dict[str, Any]):
+    def update_context(self, context: Dict[str, Any]) -> None:
         """Update the context with information about the bias correction operation.
 
         This method adds metadata about the bias correction to the processing context,
@@ -905,7 +890,7 @@ class BiasAdjustModelToStation(DataProcessor):
             f"Observational data from HadISD weather stations."
         )
 
-    def set_data_accessor(self, catalog: DataCatalog):
+    def set_data_accessor(self, catalog: DataCatalog) -> None:
         """Set the data catalog accessor for the processor.
 
         The processor requires access to station metadata through the DataCatalog.

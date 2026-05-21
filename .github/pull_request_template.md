@@ -19,7 +19,15 @@
 
 ## Documentation
 - [ ] Complex code includes comments explaining logic
-- [ ] Function documentation created (docstrings)
+- [ ] NumPy-style docstrings added/updated for all new or modified public functions, classes, and modules
+
+**Which of the following need updating? Check all that apply and complete them:**
+- [ ] **API reference** (`docs-mkdocs/api/`) — add or update the `.md` file for the affected module (e.g. `processors.md`, `tools.md`, `util.md`)
+- [ ] **Concept / architecture docs** (`docs-mkdocs/climate-data-interface/`) — update if you changed how a processor, validator, or data access component works
+- [ ] **How-to guides** (`docs-mkdocs/climate-data-interface/howto/`) — add a new guide if you introduced a non-obvious workflow
+- [ ] **Getting started / migration guides** (`docs-mkdocs/getting-started.md`, `docs-mkdocs/migration/`) — update if you changed the public API or added a new entry point
+- [ ] **Notebook gallery** (`docs-mkdocs/notebook-gallery.md`) — add a link if this PR introduces a new example notebook
+- [ ] **`MAINTAINERS.md`** — update release notes, secrets inventory, or CI table if you changed workflows or infrastructure
 
 ## Code Quality
 - [ ] Follows PEP8 naming and style conventions

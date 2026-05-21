@@ -41,6 +41,11 @@ def validate_warming_level_param(
             List of months to include (1-12). Default: all months
         - warming_level_window : int, optional
             Number of years before and after the central year. Default: 15
+        - add_dummy_time: bool, optional
+            Default: False
+            If True, replace the [hours/days/months]_from_center or time_delta dimension
+                in a DataArray returned from WarmingLevels with a dummy time index for
+                calculations with tools that require a time dimension.
 
     Returns
     -------
@@ -133,6 +138,7 @@ def _check_input_types(
         - The "warming_level_months" key, if present, must be a list of integers
           representing months (1-12).
         - The "warming_level_window" key, if present, must be a non-negative integer.
+        - The "add_dummy_time" key, if present, must be a boolean
 
     Warnings:
         - Issues a warning if the input dictionary or any of its keys do not meet
@@ -168,6 +174,13 @@ def _check_input_types(
     if wl_window is not UNSET:
         if not isinstance(wl_window, int) or wl_window < 0:
             msg = "Invalid 'warming_level_window' parameter. Expected a non-negative integer (default: 15)."
+            logger.warning(msg)
+            return False
+
+    add_dummy_time = value.get("add_dummy_time", UNSET)
+    if add_dummy_time is not UNSET:
+        if not isinstance(add_dummy_time, bool):
+            msg = "Invalid 'add_dummy_time' parameter. Expected a boolean (default: False)."
             logger.warning(msg)
             return False
 

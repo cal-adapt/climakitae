@@ -585,7 +585,7 @@ class TestValidateDownscalingMethodRequirement:
 class TestValidateResolutionRequirement:
     """Test class for _validate_resolution_requirement function."""
 
-    @pytest.mark.parametrize("grid_label", ["d01", "d02"], ids=["45km", "9km"])
+    @pytest.mark.parametrize("grid_label", ["d02", "d03"], ids=["9km", "3km"])
     def test_valid_grid_labels(self, grid_label):
         """Test validation with valid grid labels."""
         query = {"grid_label": grid_label}
@@ -605,10 +605,10 @@ class TestValidateResolutionRequirement:
         result = _validate_resolution_requirement(query)
         assert result is True
 
-    def test_invalid_3km_grid_label(self):
-        """Test validation with 3km grid label."""
-        query = {"grid_label": "d03"}
-        with pytest.warns(UserWarning, match="does not support 3km resolution"):
+    def test_invalid_45km_grid_label(self):
+        """Test validation with 45km grid label."""
+        query = {"grid_label": "d01"}
+        with pytest.warns(UserWarning, match="does not support 45km resolution"):
             result = _validate_resolution_requirement(query)
         assert result is False
 

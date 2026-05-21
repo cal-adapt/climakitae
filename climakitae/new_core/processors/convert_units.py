@@ -189,7 +189,7 @@ class ConvertUnits(DataProcessor):
             self.update_context(context)
         return ret
 
-    def update_context(self, context: Dict[str, Any]):
+    def update_context(self, context: Dict[str, Any]) -> None:
         """
         Update the context with information about the unit conversion operation, to be
         stored in the "new_attrs" attribute.
@@ -211,7 +211,7 @@ class ConvertUnits(DataProcessor):
             self.name
         ] = f"""Process '{self.name}' applied to the data. Units were converted to the following: {self.value}."""
 
-    def set_data_accessor(self, catalog: DataCatalog):
+    def set_data_accessor(self, catalog: DataCatalog) -> None:
         # Placeholder for setting data accessor
         pass
 

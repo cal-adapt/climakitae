@@ -1,6 +1,5 @@
 """Helper functions for performing analyses related to thresholds"""
 
-import warnings
 from itertools import product
 
 import numpy as np
@@ -13,7 +12,8 @@ from climakitae.core.constants import UNSET
 
 
 def calculate_ess(data: xr.DataArray, nlags: int = UNSET) -> xr.DataArray:
-    """Function for calculating the effective sample size (ESS) of the provided data.
+    """Function for calculating the effective sample size (ESS) of the provided data
+    using the autocorrelation of the data.
 
     Parameters
     ----------
@@ -28,6 +28,10 @@ def calculate_ess(data: xr.DataArray, nlags: int = UNSET) -> xr.DataArray:
     xr.DataArray
         Effective sample size.
         Returned as a DataArray object so it can be utilized by xr.groupby and xr.resample.
+
+    References
+    ----------
+    Zwiers, F. W., and H. von Storch, 1995: Taking Serial Correlation into Account in Tests of the Mean. J. Climate, 8, 336–351, https://doi.org/10.1175/1520-0442(1995)008<0336:TSCIAI>2.0.CO;2.
 
     """
     n = len(data)
@@ -49,40 +53,88 @@ def get_block_maxima(
     grouped_duration: tuple[int, str] = UNSET,
     check_ess: bool = True,
     block_size: int = 1,
+    rolling_agg: str = "sustained",
 ) -> xr.DataArray:
-    """Function that converts data into block maximums, defaulting to annual maximums (default block size = 1 year).
+    """Convert a timeseries into block extrema (maxima or minima), defaulting to annual block size.
 
-    Takes input array and resamples by taking the maximum value over the specified block size.
-
-    Optional arguments `duration`, `groupby`, and `grouped_duration` define the type
-    of event to find the annual maximums of. These correspond to the event
-    types defined in the `get_exceedance_count` function.
+    Resamples the input array by taking the most extreme value in each block.
+    Optional arguments ``duration``, ``groupby``, and ``grouped_duration`` define the
+    type of compound event to extract extrema from, corresponding to the event types
+    used in ``get_exceedance_count``.
 
     Parameters
     ----------
-    da_series : xarray.DataArray
-        DataArray from retrieve
-    extremes_type : str
-        option for max or min
-        Defaults to max
-    duration : tuple
-        length of extreme event, specified as (4, 'hour')
-    groupby : tuple
-        group over which to look for max occurance, specified as (1, 'day')
-    grouped_duration : tuple
-        length of event after grouping, specified as (5, 'day')
-    check_ess : boolean
-        optional flag specifying whether to check the effective sample size (ESS)
-        within the blocks of data, and throw a warning if the average ESS is too small.
-        can be silenced with check_ess=False.
-    block_size : int
-        block size in years. default is 1 year.
+    da_series : xr.DataArray
+        Input timeseries from which block extrema are extracted.
+    extremes_type : {"max", "min"}, optional
+        Whether to extract block maxima or minima. Default is ``"max"``.
+    duration : tuple[int, str], optional
+        Length of the extreme event, specified as ``(n, unit)`` where unit is
+        ``"hour"``. For example, ``(4, "hour")`` finds events lasting at least
+        4 hours. Only supported for hourly data.
+    groupby : tuple[int, str], optional
+        Temporal grouping applied before computing block extrema, specified as
+        ``(n, unit)`` where unit is ``"day"``. For example, ``(1, "day")``
+        aggregates to daily values. Most meaningful when combined with
+        ``grouped_duration``.
+    grouped_duration : tuple[int, str], optional
+        Rolling window applied after ``groupby``, specified as ``(n, unit)``
+        where unit is ``"day"``. For example, ``(5, "day")`` finds events
+        spanning at least 5 consecutive grouped periods. Requires ``groupby``.
+    check_ess : bool, optional
+        If ``True``, computes the effective sample size (ESS) within each block
+        and emits a warning if the average ESS is below 25. Set to ``False`` to
+        suppress this check. Default is ``True``.
+    block_size : int, optional
+        Block size in years over which to take the extremum. Default is ``1``.
+    rolling_agg : {"sustained", "cumulative", "average"}, optional
+        Aggregation method applied during rolling windows (``duration``,
+        ``grouped_duration``) and groupby resamples (``groupby``):
+            - ``"sustained"``: the extreme value that is maintained throughout the
+              entire window (rolling min for max events, rolling max for min events).
+              Use this when the event intensity must hold for the full duration.
+              *Example*: the minimum temperature floor of a 21-day heatwave.
+            - ``"cumulative"``: the total accumulated value over the window (rolling
+              sum). Use this for events defined by an accumulated total.
+              *Example*: total precipitation of a 3-day heavy rainfall event.
+            - ``"average"``: the mean value over the window (rolling mean). Use this
+              for events characterized by average intensity.
+              *Example*: average precipitation rate of a short high-intensity burst.
+        Default is ``"sustained"``.
 
     Returns
     -------
-    xarray.DataArray
+    xr.DataArray
+        Block extrema series with the same non-time dimensions as ``da_series``.
+        The time coordinate reflects the end of each block (annual or
+        ``block_size``-year periods). Metadata describing the event configuration
+        is stored in ``.attrs``.
 
+    Raises
+    ------
+    ValueError
+        If ``rolling_agg`` is not one of ``"sustained"``, ``"cumulative"``, or
+        ``"average"``.
+    ValueError
+        If ``extremes_type`` is not ``"max"`` or ``"min"``.
+    ValueError
+        If ``duration`` is provided but the data frequency is not hourly or the
+        unit is not ``"hour"``.
+    ValueError
+        If ``groupby`` is provided but the unit is not ``"day"``.
+    ValueError
+        If ``grouped_duration`` is provided without ``groupby``, or the unit is
+        not ``"day"``.
+    ValueError
+        If all block values are NaN (i.e. the input contains no valid
+        observations for this variable).
     """
+    valid_rolling_aggs = ["sustained", "cumulative", "average"]
+    if rolling_agg not in valid_rolling_aggs:
+        raise ValueError(
+            f"invalid rolling_agg. expected one of the following: {valid_rolling_aggs}"
+        )
+
     extremes_types = ["max", "min"]  # valid user options
     if extremes_type not in extremes_types:
         raise ValueError(
@@ -99,15 +151,24 @@ def get_block_maxima(
             )
 
         # First identify the min (max) value for each window of length `duration`
-        match extremes_type:
-            case "max":
-                # In the case of "max" events, need to first identify the minimum value
-                # in each window of the specified duration
-                da_series = da_series.rolling(time=dur_len, center=False).min("time")
-            case "min":
-                da_series = da_series.rolling(time=dur_len, center=False).max("time")
-            case _:
-                raise ValueError('extremes_type needs to be either "max" or "min"')
+        if rolling_agg == "sustained":
+            match extremes_type:
+                case "max":
+                    # In the case of "max" events, need to first identify the minimum value
+                    # in each window of the specified duration
+                    da_series = da_series.rolling(time=dur_len, center=False).min(
+                        "time"
+                    )
+                case "min":
+                    da_series = da_series.rolling(time=dur_len, center=False).max(
+                        "time"
+                    )
+                case _:
+                    raise ValueError('extremes_type needs to be either "max" or "min"')
+        elif rolling_agg == "cumulative":
+            da_series = da_series.rolling(time=dur_len, center=False).sum("time")
+        elif rolling_agg == "average":
+            da_series = da_series.rolling(time=dur_len, center=False).mean("time")
 
     if groupby is not UNSET:
         # In this case, select the max (min) in each group. (This option is
@@ -119,13 +180,22 @@ def get_block_maxima(
             )
 
         # select the max (min) in each group
-        match extremes_type:
-            case "max":
-                da_series = da_series.resample(time=f"{group_len}D", label="left").max()
-            case "min":
-                da_series = da_series.resample(time=f"{group_len}D", label="left").min()
-            case _:
-                raise ValueError('extremes_type needs to be either "max" or "min"')
+        if rolling_agg == "sustained":
+            match extremes_type:
+                case "max":
+                    da_series = da_series.resample(
+                        time=f"{group_len}D", label="left"
+                    ).max()
+                case "min":
+                    da_series = da_series.resample(
+                        time=f"{group_len}D", label="left"
+                    ).min()
+                case _:
+                    raise ValueError('extremes_type needs to be either "max" or "min"')
+        elif rolling_agg == "cumulative":
+            da_series = da_series.resample(time=f"{group_len}D", label="left").sum()
+        elif rolling_agg == "average":
+            da_series = da_series.resample(time=f"{group_len}D", label="left").mean()
 
     if grouped_duration is not UNSET:
         if groupby is UNSET:
@@ -147,13 +217,22 @@ def get_block_maxima(
             da_series = da_series.chunk(time=-1)
 
         # Now select the min (max) from the duration period
-        match extremes_type:
-            case "max":
-                da_series = da_series.rolling(time=dur2_len, center=False).min("time")
-            case "min":
-                da_series = da_series.rolling(time=dur2_len, center=False).max("time")
-            case _:
-                raise ValueError('extremes_type needs to be either "max" or "min"')
+        if rolling_agg == "sustained":
+            match extremes_type:
+                case "max":
+                    da_series = da_series.rolling(time=dur2_len, center=False).min(
+                        "time"
+                    )
+                case "min":
+                    da_series = da_series.rolling(time=dur2_len, center=False).max(
+                        "time"
+                    )
+                case _:
+                    raise ValueError('extremes_type needs to be either "max" or "min"')
+        elif rolling_agg == "cumulative":
+            da_series = da_series.rolling(time=dur2_len, center=False).sum("time")
+        elif rolling_agg == "average":
+            da_series = da_series.rolling(time=dur2_len, center=False).mean("time")
 
     # Now select the most extreme value for each block in the series
     match extremes_type:
@@ -194,6 +273,7 @@ def get_block_maxima(
             "duration": duration,
             "groupby": groupby,
             "grouped_duration": grouped_duration,
+            "rolling_agg": rolling_agg,
             "extreme_value_extraction_method": "block maxima",
             "block_size": f"{block_size} year",
             "timeseries_type": f"block {extremes_type} series",
@@ -211,34 +291,25 @@ def get_block_maxima(
         # This checks if ALL of the values from `bms` are null, or if there are 0 events that occur (i.e. no precipitation counts within the DataArray).
         if bms.isnull().sum().item() == bms.size:
             raise ValueError(
-                "ERROR: The given `da_series` does not include any recorded values for this variable, and we cannot create block maximums off of an empty DataArray."
+                "ERROR: The given `da_series` does not include any recorded values for this variable, and we cannot create block maximums off of an empty DataArray. Please check your input data and filters to ensure that there are observed values for this variable in the given DataArray."
             )
         else:
-            # Handle NaN dropping differently for gridded data vs timeseries data
-            if "x" in bms.dims and "y" in bms.dims:
-                # For gridded data, only drop time steps where ALL spatial points are NaN
-                # This prevents dropping time steps that have valid data at some spatial locations
-                all_nan_times = bms.isnull().all(dim=["x", "y"])
-                if all_nan_times.any():
-                    dropped_bms = bms.where(~all_nan_times, drop=True)
-                    print(
-                        f"Dropping {all_nan_times.sum().item()} time steps where all spatial points are NaN across entire{f' {bms.name}' if bms.name else ''} DataArray."
-                    )
-                    bms = dropped_bms
-            elif bms.dims == ("time",):
-                # For timeseries data, drop NaN time steps as before
-                dropped_bms = bms.dropna(dim="time")
-                print(
-                    f"Dropping {bms.size - dropped_bms.size} block maxima NaNs across entire{f' {bms.name}' if bms.name else ''} DataArray. Please guidance for more information. "
-                )
-                bms = dropped_bms
+            # Determine which non-time dims exist for detecting all-NaN time steps
+            non_time_dims = [d for d in bms.dims if d != "time"]
+
+            if non_time_dims:
+                # Drop time steps where ALL values across non-time dims are NaN
+                all_nan_times = bms.isnull().all(dim=non_time_dims)
             else:
-                # For other dimension combinations, be conservative and don't drop
-                warnings.warn(
-                    f"\n\nWARNING: Found NaN values in block maxima but unable to determine appropriate dropping strategy for dimensions {bms.dims}"
-                    "\nNo NaN values will be dropped from the block maxima DataArray."
-                    "\nPlease inspect the data and handle NaN values appropriately before proceeding.",
-                    stacklevel=999,
+                # Timeseries data (only time dim)
+                all_nan_times = bms.isnull()
+
+            n_dropped = int(all_nan_times.sum().item())
+            if n_dropped > 0:
+                bms = bms.where(~all_nan_times, drop=True)
+                print(
+                    f"Dropping {n_dropped} block maxima NaN time steps from"
+                    f"{f' {bms.name}' if bms.name else ''} DataArray."
                 )
 
     return bms
@@ -273,7 +344,7 @@ def _calc_average_ess_gridded_data(data: xr.DataArray, block_size: int) -> float
         da_stacked = da_time_block.stack(spatial_dims=["x", "y"])
 
         # Compute ESS for the time block
-        ess_by_time_block = da_stacked.groupby("spatial_dims").apply(calculate_ess)
+        ess_by_time_block = da_stacked.groupby("spatial_dims").map(calculate_ess)
 
         # Compute mean ESS for time block and append to list
         ess_mean_by_time_block = ess_by_time_block.mean(skipna=True).item()
@@ -303,7 +374,7 @@ def _calc_average_ess_timeseries_data(data: xr.DataArray, block_size: int) -> fl
     """
     # Resample the data depending on the block size
     # Calculate ESS for each block
-    ess_by_time_block = data.resample(time=f"{block_size}YS").apply(calculate_ess)
+    ess_by_time_block = data.resample(time=f"{block_size}YS").map(calculate_ess)
 
     # Compute mean of all ESS values
     mean_ess = ess_by_time_block.mean(skipna=True).item()
@@ -544,6 +615,11 @@ def _calculate_return(
     np.ndarray
         Computed extreme value metric.
 
+    Notes
+    -----
+    The block size is used to get the annual probability of the desired event when
+    the block size is > 1 year.
+
     """
     try:
         if data_variable == "return_value":
@@ -558,6 +634,9 @@ def _calculate_return(
             return_value = fitted_distr.ppf(return_event)
             result = np.round(return_value, 5)
         else:
+            # Use cumulative probability to get 1 year probability
+            # cumulative probability = 1 - (1 - 1/X)**M
+            # For example see https://journals.ametsoc.org/view/journals/atot/37/11/JTECH-D-20-0070.1.xml
             cdf_val = fitted_distr.cdf(arg_value) ** (1 / block_size)
             match extremes_type:
                 case "max":
@@ -612,6 +691,8 @@ def _bootstrap(
         value to do the calculation to
     block_size : int
         block size, in years, of the provided block maximum series
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
 
     Returns
     -------
@@ -679,6 +760,8 @@ def _conf_int(
         Confidence interval upper bound
     block_size : int
         block size, in years, of the provided block maximum series
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
 
     Returns
     -------
@@ -721,6 +804,7 @@ def _get_return_variable(
     multiple_points: bool = True,
     extremes_type: str = "max",
     dropna_time: bool = False,
+    dim_to_fit: str = "time",
 ) -> xr.Dataset:
     """Generic function used by `get_return_value`, `get_return_period`, and
     `get_return_prob`.
@@ -750,8 +834,12 @@ def _get_return_variable(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
     dropna_time: boolean
         Whether to drop NaNs along the time axis
+    dim_to_fit : str
+        Name of the dimension that the distribution is going to be fit on.
 
     Returns
     -------
@@ -794,8 +882,8 @@ def _get_return_variable(
                 "Dropping NaNs along time dimension for the following dimensions combinations:\n"
             )
             all_dims_to_drop = vals_to_drop.unstack().isel(
-                time=0
-            )  # Selecting time=0 because we DON'T want the time dimension being printed out as well
+                {dim_to_fit: 0}
+            )  # Selecting index 0 because we DON'T want the sample dimension being printed out as well
             dim_vals = [
                 all_dims_to_drop[dim].values.tolist() for dim in all_dims_to_drop.dims
             ]
@@ -806,12 +894,14 @@ def _get_return_variable(
             print("\n")
 
     # get block_size from the block maxima series attributes, if available. otherwise assume block size=1 year
-    if hasattr(bms, "block size"):
+    if hasattr(bms, "block_size"):
         block_size = int(
-            bms.attrs["block size"][0:-5]
+            bms.attrs["block_size"][0:-5]
         )  # expected string format from get_block_maxima: '2 year'; extract the integer value here
+        print(f"Found block_size of {block_size} in BMS attributes")
     else:
         block_size = 1
+        print("Using default block size of 1")
 
     def _return_variable(bms):
 
@@ -868,8 +958,8 @@ def _get_return_variable(
     return_variable, conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
         _return_variable,
         bms,
-        input_core_dims=[["time"]],
-        exclude_dims=set(("time",)),
+        input_core_dims=[[dim_to_fit]],
+        exclude_dims=set((dim_to_fit,)),
         vectorize=True,
         output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"]],
     )
@@ -937,6 +1027,7 @@ def get_return_value(
     multiple_points: bool = True,
     extremes_type: str = "max",
     dropna_time: bool = False,
+    dim_to_fit: str = "time",
 ) -> xr.Dataset:
     """Creates xarray Dataset with return values and confidence intervals from maximum series.
 
@@ -956,14 +1047,24 @@ def get_return_value(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
     dropna_time: boolean
         Whether to drop NaNs along the time axis
+    dim_to_fit : str
+        Name of the dimension that the distribution is going to be fit on.
 
     Returns
     -------
     xarray.Dataset
         Dataset with return values and confidence intervals
 
+    Notes
+    -----
+    This function calls _get_return_variable, which will attempt to use the block_size
+    attribute from the BMS to get the block size. If the block_size attribute is not found,
+    an default of 1 will be used. The block size is used to get the annual probability of
+    the desired event when the block size is > 1 year.
     """
     return _get_return_variable(
         bms,
@@ -976,6 +1077,7 @@ def get_return_value(
         multiple_points,
         extremes_type,
         dropna_time,
+        dim_to_fit,
     )
 
 
@@ -989,6 +1091,7 @@ def get_return_prob(
     multiple_points: bool = True,
     extremes_type: str = "max",
     dropna_time: bool = False,
+    dim_to_fit: str = "time",
 ) -> xr.Dataset:
     """Creates xarray Dataset with return probabilities and confidence intervals from maximum series.
 
@@ -1008,13 +1111,24 @@ def get_return_prob(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
     dropna_time: boolean
         Whether to drop NaNs along the time axis
+    dim_to_fit : str
+        Name of the dimension that the distribution is going to be fit on.
 
     Returns
     -------
     xarray.Dataset
         Dataset with return probabilities and confidence intervals
+
+    Notes
+    -----
+    This function calls _get_return_variable, which will attempt to use the block_size
+    attribute from the BMS to get the block size. If the block_size attribute is not found,
+    an default of 1 will be used. The block size is used to get the annual probability of
+    the desired event when the block size is > 1 year.
 
     """
     return _get_return_variable(
@@ -1028,6 +1142,7 @@ def get_return_prob(
         multiple_points,
         extremes_type,
         dropna_time=dropna_time,
+        dim_to_fit=dim_to_fit,
     )
 
 
@@ -1039,7 +1154,9 @@ def get_return_period(
     conf_int_lower_bound: float = 2.5,
     conf_int_upper_bound: float = 97.5,
     multiple_points: bool = True,
+    extremes_type: str = "max",
     dropna_time: bool = False,
+    dim_to_fit: str = "time",
 ) -> xr.Dataset:
     """Creates xarray Dataset with return periods and confidence intervals from maximum series.
 
@@ -1059,13 +1176,24 @@ def get_return_period(
         Confidence interval upper bound
     multiple_points : boolean
         Whether or not the data contains multiple points (has x, y dimensions)
+    extremes_type : str, optional
+        Whether to compute max ('max') or min ('min') extremes, by default 'max'.
     dropna_time: boolean
         Whether to drop NaNs along the time axis
+    dim_to_fit : str
+        Name of the dimension that the distribution is going to be fit on.
 
     Returns
     -------
     xarray.Dataset
         Dataset with return periods and confidence intervals
+
+    Notes
+    -----
+    This function calls _get_return_variable, which will attempt to use the block_size
+    attribute from the BMS to get the block size. If the block_size attribute is not found,
+    an default of 1 will be used. The block size is used to get the annual probability of
+    the desired event when the block size is > 1 year.
 
     """
     return _get_return_variable(
@@ -1077,7 +1205,9 @@ def get_return_period(
         conf_int_lower_bound,
         conf_int_upper_bound,
         multiple_points,
+        extremes_type,
         dropna_time=dropna_time,
+        dim_to_fit=dim_to_fit,
     )
 
 

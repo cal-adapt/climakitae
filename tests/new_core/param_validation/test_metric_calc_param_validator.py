@@ -13,7 +13,9 @@ import pytest
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.metric_calc_param_validator import (
     _validate_basic_metric_parameters,
+    _validate_threshold_parameters,
     validate_metric_calc_param,
+    _validate_one_in_x_parameters,
 )
 
 
@@ -263,3 +265,372 @@ class TestValidateMetricCalcParam:
             result = validate_metric_calc_param(param_dict)
         assert result is False
         assert "Invalid metric" in caplog.text
+
+
+class TestValidateThresholdParameters:
+    """Unit tests for the _validate_threshold_parameters function."""
+
+    def test_valid_minimal_config(self):
+        """Valid config with threshold_value and threshold_direction passes."""
+        result = _validate_threshold_parameters(
+            {"threshold_value": 110.0, "threshold_direction": "above"}
+        )
+        assert result is True
+
+    def test_valid_full_config(self):
+        """Valid config with all optional fields passes."""
+        result = _validate_threshold_parameters(
+            {
+                "threshold_value": 32,
+                "threshold_direction": "below",
+                "period": (1, "year"),
+                "duration": (3, "day"),
+            }
+        )
+        assert result is True
+
+    def test_not_a_dict(self, caplog):
+        """Non-dict config returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_threshold_parameters("not_a_dict")
+        assert result is False
+        assert "thresholds configuration must be a dictionary" in caplog.text
+
+    def test_missing_threshold_value(self, caplog):
+        """Missing threshold_value returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_threshold_parameters({"threshold_direction": "above"})
+        assert result is False
+        assert "threshold_value is required" in caplog.text
+
+    def test_invalid_threshold_value_type(self, caplog):
+        """Non-numeric threshold_value returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_threshold_parameters({"threshold_value": "hot"})
+        assert result is False
+        assert "threshold_value must be a number" in caplog.text
+
+    def test_nan_threshold_value(self, caplog):
+        """float('nan') threshold_value returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_threshold_parameters({"threshold_value": float("nan")})
+        assert result is False
+        assert "threshold_value must not be NaN" in caplog.text
+
+    def test_missing_threshold_direction(self, caplog):
+        """Missing threshold_direction returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_threshold_parameters({"threshold_value": 110.0})
+        assert result is False
+        assert "Invalid threshold_direction" in caplog.text
+
+    def test_invalid_threshold_direction(self, caplog):
+        """Invalid threshold_direction returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_threshold_parameters(
+                {
+                    "threshold_value": 100,
+                    "threshold_direction": "sideways",
+                }
+            )
+        assert result is False
+        assert "Invalid threshold_direction" in caplog.text
+
+    @pytest.mark.parametrize(
+        "period",
+        [
+            (1, "week"),  # bad unit
+            (1, "day"),  # day no longer supported
+            (1, "hour"),  # hour no longer supported
+            (0, "month"),  # non-positive int
+            (1.5, "year"),  # float instead of int
+            (1,),  # wrong length
+            "1year",  # not a tuple
+        ],
+    )
+    def test_invalid_period(self, period, caplog):
+        """Invalid period tuple returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_threshold_parameters(
+                {
+                    "threshold_value": 100,
+                    "period": period,
+                }
+            )
+        assert result is False
+
+    @pytest.mark.parametrize(
+        "duration",
+        [
+            (3, "week"),  # bad unit
+            (0, "hour"),  # non-positive int
+            (2.0, "day"),  # float instead of int
+            (1,),  # wrong length
+            "3days",  # not a tuple
+        ],
+    )
+    def test_invalid_duration(self, duration, caplog):
+        """Invalid duration tuple returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_threshold_parameters(
+                {
+                    "threshold_value": 100,
+                    "duration": duration,
+                }
+            )
+        assert result is False
+
+    def test_via_dispatcher_valid(self):
+        """Valid thresholds config passes through validate_metric_calc_param."""
+        result = validate_metric_calc_param(
+            {"thresholds": {"threshold_value": 95.0, "threshold_direction": "above"}}
+        )
+        assert result is True
+
+    def test_via_dispatcher_invalid(self, caplog):
+        """Invalid thresholds config is caught by validate_metric_calc_param."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {
+                    "thresholds": {
+                        "threshold_direction": "above"
+                    }  # missing threshold_value
+                }
+            )
+        assert result is False
+        assert "threshold_value is required" in caplog.text
+
+    def test_mutual_exclusivity_with_one_in_x(self, caplog):
+        """Setting both thresholds and one_in_x returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {
+                    "thresholds": {"threshold_value": 100},
+                    "one_in_x": {"return_periods": [10, 25]},
+                }
+            )
+        assert result is False
+        assert "Cannot set both 'thresholds' and 'one_in_x'" in caplog.text
+
+    def test_mutual_exclusivity_with_metric(self, caplog):
+        """Setting both thresholds and metric returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {
+                    "thresholds": {
+                        "threshold_value": 100,
+                        "threshold_direction": "above",
+                    },
+                    "metric": "mean",
+                }
+            )
+        assert result is False
+        assert "Cannot set both 'thresholds' and 'metric'" in caplog.text
+
+    def test_mutual_exclusivity_with_percentiles(self, caplog):
+        """Setting both thresholds and percentiles returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {
+                    "thresholds": {
+                        "threshold_value": 100,
+                        "threshold_direction": "above",
+                    },
+                    "percentiles": [10, 50, 90],
+                }
+            )
+        assert result is False
+        assert "Cannot set both 'thresholds' and 'percentiles'" in caplog.text
+
+
+class TestValidateOneInXParameters:
+    """Unit tests for the _validate_one_in_x_parameters function."""
+
+    def test_valid_minimal_config(self):
+        """Valid config with threshold_value and threshold_direction passes."""
+        result = _validate_one_in_x_parameters({"return_periods": 10})
+        assert result is True
+
+    def test_valid_full_config(self):
+        """Valid config with all optional fields passes."""
+        result = _validate_one_in_x_parameters(
+            {
+                "return_periods": [10, 20],
+                "distribution": "gev",
+                "extremes_type": "max",
+                "duration": (3, "day"),
+                "variable_preprocessing": {
+                    "precipitation": {"daily_aggregation": True}
+                },
+            }
+        )
+        assert result is True
+
+    def test_not_a_dict(self, caplog):
+        """Non-dict config returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters("not_a_dict")
+        assert result is False
+        assert "one_in_x configuration must be a dictionary" in caplog.text
+
+    def test_missing_return_parameter(self, caplog):
+        """Missing return_periods or return_values returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters({"distribution": "gev"})
+        assert result is False
+        assert (
+            "Either return_periods or return_values is required for 1-in-X calculations."
+            in caplog.text
+        )
+
+    def test_invalid_distribution(self, caplog):
+        """Unsupported distribution returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters(
+                {"return_periods": 10, "distribution": "gnpareto"}
+            )
+        assert result is False
+        assert "Invalid distribution 'gnpareto'. " in caplog.text
+
+    def test_invalid_extremes_type(self, caplog):
+        """Unsupported distribution returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters(
+                {"return_periods": 10, "extremes_type": "maximum"}
+            )
+        assert result is False
+        assert "Invalid extremes_type 'maximum'." in caplog.text
+
+    def test_invalid_event_duration(self, caplog):
+        """Non-tuple event duration returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters(
+                {"return_periods": 10, "event_duration": 1}
+            )
+        assert result is False
+        assert "event_duration must be a tuple of (int, str)." in caplog.text
+
+    def test_invalid_block_size(self, caplog):
+        """float(block_size) returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters(
+                {"return_periods": 10, "block_size": 1.5}
+            )
+        assert result is False
+        assert "block_size must be a positive integer." in caplog.text
+
+    def test_invalid_bootstrap_runs_size(self, caplog):
+        """float(bootstrap_runs) returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters(
+                {"return_periods": 10, "bootstrap_runs": 1.5}
+            )
+        assert result is False
+        assert "bootstrap_runs must be a positive integer." in caplog.text
+
+    def test_invalid_alpha_size(self, caplog):
+        """float(alpha) returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters({"return_periods": 10, "alpha": -1})
+        assert result is False
+        assert "alpha must be a positive float less than 1." in caplog.text
+
+    def test_invalid_goodness_of_fit(self, caplog):
+        """Non-boolean goodness_of_fit returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters(
+                {"return_periods": 10, "goodness_of_fit_test": "True"}
+            )
+        assert result is False
+        assert (
+            "Parameter 'goodness_of_fit_test' must be a boolean, got <class 'str'>."
+            in caplog.text
+        )
+
+    def test_invalid_check_ess(self, caplog):
+        """Non-boolean check_ess returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters(
+                {"return_periods": 10, "check_ess": "True"}
+            )
+        assert result is False
+        assert (
+            "Parameter 'check_ess' must be a boolean, got <class 'str'>." in caplog.text
+        )
+
+    @pytest.mark.parametrize(
+        "period",
+        [
+            (1, "week"),  # bad unit
+            (1, "day"),  # day no longer supported
+            (1, "hour"),  # hour no longer supported
+            (0, "month"),  # non-positive int
+            (1.5, "year"),  # float instead of int
+            (1,),  # wrong length
+            "1year",  # not a tuple
+        ],
+    )
+    def test_invalid_period(self, period, caplog):
+        """Invalid period tuple returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters(
+                {
+                    "return_value": 100,
+                    "period": period,
+                }
+            )
+        assert result is False
+
+    @pytest.mark.parametrize(
+        "duration",
+        [
+            (3, "week"),  # bad unit
+            (0, "hour"),  # non-positive int
+            (2.0, "day"),  # float instead of int
+            (1,),  # wrong length
+            "3days",  # not a tuple
+        ],
+    )
+    def test_invalid_duration(self, duration, caplog):
+        """Invalid duration tuple returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters(
+                {
+                    "return_values": 100,
+                    "event_duration": duration,
+                }
+            )
+        assert result is False
+
+    def test_via_dispatcher_valid(self):
+        """Valid thresholds config passes through validate_metric_calc_param."""
+        result = validate_metric_calc_param({"one_in_x": {"return_values": 95.0}})
+        assert result is True
+
+    def test_via_dispatcher_invalid(self, caplog):
+        """Invalid thresholds config is caught by validate_metric_calc_param."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {
+                    "one_in_x": {
+                        "distribution": "gev"
+                    }  # missing return_values or return_periods
+                }
+            )
+        assert result is False
+        assert (
+            "Either return_periods or return_values is required for 1-in-X calculations."
+            in caplog.text
+        )
+
+    def test_mutual_exclusivity_with_thresholds(self, caplog):
+        """Setting both thresholds and one_in_x returns False."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {
+                    "one_in_x": {"return_periods": [10, 25]},
+                    "thresholds": {"threshold_value": 100},
+                }
+            )
+        assert result is False
+        assert "Cannot set both 'thresholds' and 'one_in_x'" in caplog.text

@@ -386,10 +386,21 @@ class TestProcessorIntegration:
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
+    def setup_method(self):
+        """Snapshot and clear the registry before each test."""
+        global _PROCESSOR_REGISTRY
+        self._original_registry = _PROCESSOR_REGISTRY.copy()
+        _PROCESSOR_REGISTRY.clear()
+
+    def teardown_method(self):
+        """Restore the original registry after each test."""
+        global _PROCESSOR_REGISTRY
+        _PROCESSOR_REGISTRY.clear()
+        _PROCESSOR_REGISTRY.update(self._original_registry)
+
     def test_register_processor_with_empty_string_key(self):
         """Test registering with empty string key."""
         global _PROCESSOR_REGISTRY
-        _PROCESSOR_REGISTRY.clear()
 
         @register_processor(key="", priority=1)
         class EmptyKeyProcessor(DataProcessor):
@@ -407,7 +418,6 @@ class TestEdgeCases:
     def test_register_processor_with_none_priority(self):
         """Test registering with None priority."""
         global _PROCESSOR_REGISTRY
-        _PROCESSOR_REGISTRY.clear()
 
         @register_processor(key="none_priority", priority=None)
         class NonePriorityProcessor(DataProcessor):

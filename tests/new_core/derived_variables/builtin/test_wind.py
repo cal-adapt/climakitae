@@ -8,6 +8,7 @@ This module tests the wind calculation functions, validating both:
    including wind speed magnitude and meteorological wind direction conventions
 
 The tests validate two core wind derivations:
+
 - **Wind speed**: Calculated as vector magnitude from u and v components
 - **Wind direction**: Derived using meteorological convention (direction FROM which wind blows)
 """

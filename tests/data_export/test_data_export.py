@@ -14,15 +14,6 @@ import pytest
 import xarray as xr
 
 import climakitae.core.data_export as export
-from climakitae.core.paths import STATIONS_CSV_PATH
-
-
-def input() -> str:
-    # When mocking open() we still want to be able to read the stations
-    # from the stations_csv_path, so getting that input here.
-    with open(os.path.join("climakitae", STATIONS_CSV_PATH), "r") as f:
-        input = f.read()
-    return input
 
 
 class TestExportErrors:
@@ -313,8 +304,12 @@ class TestHiddenFunctions:
         with pytest.raises(Exception):
             export._export_to_netcdf(test_array, save_name)
 
-    @patch("builtins.open", new_callable=mock_open, read_data=input())
-    def test__export_csv_dataarray(self, mock_open, test_array):
+    @patch(
+        "climakitae.core.data_export.pd.read_csv",
+        return_value=pd.DataFrame({"station": []}),
+    )
+    @patch("builtins.open", new_callable=mock_open)
+    def test__export_csv_dataarray(self, mock_open, mock_pd_read_csv, test_array):
         test_array.attrs = {"variable_id": "t2"}
         test_array["time"].attrs = {"key": "value"}
         save_name = "test"
@@ -374,7 +369,7 @@ class TestTMYHiddenFunctions:
             freq="h",
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_TaiESM1_r1i1p1f1"
+        df["sim"] = "wrf_ucla_taiesm1_ssp370_r1i1p1f1"
         df_fixed = export._leap_day_fix(df)
 
         # Feb 29 renamed to Feb 28
@@ -397,7 +392,7 @@ class TestTMYHiddenFunctions:
             freq="h",
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_ec-earth3_ssp370_r1i1p1f1"
         df_fixed = export._leap_day_fix(df)
 
         # Feb 29 renamed to Feb 28
@@ -437,7 +432,7 @@ class TestTMYHiddenFunctions:
             + datelist[7500:8761].to_list()
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
         result = export._tmy_8760_size_check(df)
 
         assert len(result) == 8760
@@ -449,7 +444,7 @@ class TestTMYHiddenFunctions:
             freq="h",
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
         result = export._tmy_8760_size_check(df)
 
         assert result.equals(df)
@@ -461,7 +456,7 @@ class TestTMYHiddenFunctions:
             freq="h",
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
         result = export._tmy_8760_size_check(df.drop(index=100))
 
         # Assert dropped index exists
@@ -477,7 +472,7 @@ class TestTMYHiddenFunctions:
         datelist = datelist.drop(pd.Timestamp("2023-03-02 00:00:00"))
         datelist = datelist.drop(pd.Timestamp("2023-04-02 00:00:00"))
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
         result = export._tmy_8760_size_check(df)
 
         # Assert dropped index exists
@@ -492,7 +487,7 @@ class TestTMYHiddenFunctions:
             freq="h",
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
 
         result = export._tmy_8760_size_check(df)
         assert len(result) == 8760
@@ -508,7 +503,7 @@ class TestTMYHiddenFunctions:
         )
         datelist = datelist.drop(pd.Timestamp("2024-04-02 00:00:00"))
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
 
         result = export._tmy_8760_size_check(df)
         assert len(result) == 8760
@@ -522,7 +517,7 @@ class TestTMYHiddenFunctions:
         datelist = datelist.drop(pd.Timestamp("2024-03-02 00:00:00"))
         datelist = datelist.drop(pd.Timestamp("2024-04-02 00:00:00"))
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
 
         result = export._tmy_8760_size_check(df)
         assert len(result) == 8760
@@ -534,7 +529,7 @@ class TestTMYHiddenFunctions:
             freq="h",
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["simulation"] = "WRF_ACCESS-CM2_r1i1p1f1"
+        df["sim"] = "wrf_ucla_miroc6_ssp370_r1i1p1f1"
         result = export._tmy_8760_size_check(df)
         assert result is None
 

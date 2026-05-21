@@ -151,7 +151,7 @@ class DropLeapDays(DataProcessor):
                 logger.warning(msg)
                 return result
 
-    def update_context(self, context: Dict[str, Any]):
+    def update_context(self, context: Dict[str, Any]) -> None:
         """
         Update the context with information about the leap day dropping operation.
 
@@ -171,7 +171,7 @@ class DropLeapDays(DataProcessor):
             self.name
         ] = "Leap days (February 29) have been removed from the data."
 
-    def set_data_accessor(self, catalog: DataCatalog):
+    def set_data_accessor(self, catalog: DataCatalog) -> None:
         """Set the data accessor for the processor (not used)."""
         pass
 

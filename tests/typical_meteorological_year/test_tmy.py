@@ -469,6 +469,37 @@ def mock_t_ds() -> xr.Dataset:
     return da.to_dataset()
 
 
+def mock_complete_hourly_ds() -> xr.Dataset:
+    """Fake hourly dataset with all TMY variables for run_tmy_analysis tests."""
+    n_hours = 365 * 3 * 24
+    time = pd.date_range(start="2001-01-01-00", end="2003-12-31-23", freq="1h")
+    sims = ["WRF_EC-Earth3_r1i1p1f1"]
+    coords = {
+        "time": time,
+        "simulation": sims,
+    }
+    dims = ["time", "simulation"]
+    ds = xr.Dataset(coords=coords)
+
+    # All variables expected by _smooth_month_transition_hours + RH + mixing ratio
+    variables = {
+        "Air Temperature at 2m": 20.0,
+        "Dew point temperature": 10.0,
+        "Relative humidity": 50.0,
+        "Wind speed at 10m": 5.0,
+        "Wind direction at 10m": 180.0,
+        "Surface Pressure": 101325.0,
+        "Water Vapor Mixing Ratio at 2m": 5.0,
+        "Instantaneous downwelling shortwave flux at bottom": 200.0,
+        "Shortwave surface downward direct normal irradiance": 150.0,
+        "Shortwave surface downward diffuse irradiance": 50.0,
+        "Instantaneous downwelling longwave flux at bottom": 300.0,
+    }
+    for varname, val in variables.items():
+        ds[varname] = (dims, np.full((n_hours, len(sims)), val))
+    return ds
+
+
 @pytest.mark.advanced
 class TestTMYClass:
     """Test the TMY class with fake data."""
@@ -581,77 +612,42 @@ class TestTMYClass:
             )
 
     @pytest.mark.integration
-    def test__load_single_variable_time(self):
-        """Load data for a single variable."""
+    def test__fetch_raw_variable_time(self):
+        """Fetch a single variable via _fetch_raw_variable (time mode)."""
         lat = 33.56
         lon = -117.81
         start_year = 1990
         end_year = 2020
-        # Initialize TMY object
         tmy = TMY(start_year=start_year, end_year=end_year, latitude=lat, longitude=lon)
-        # Actually going to load data for a single point and check results
-        result = tmy._load_single_variable("Air Temperature at 2m", "degC")
+        result = tmy._fetch_raw_variable("t2", table_id="1hr")
         assert isinstance(result, xr.DataArray)
-        assert result.name == "Air Temperature at 2m"
-        assert result.attrs["units"] == "degC"
-        assert result.lat.shape == ()
-        assert result.lon.shape == ()
-        assert result.lat.data == 33.55938
-        assert result.lon.data == -117.80269
+        assert "time" in result.dims
+        assert "simulation" in result.dims
         assert (result.simulation.values == tmy.simulations).all()
 
-    def test__load_single_variable_warming_level(self):
-        """Load data for a single variable."""
+    def test__fetch_raw_variable_warming_level(self):
+        """Fetch a single variable via _fetch_raw_variable (warming level mode)."""
         lat = 33.56
         lon = -117.81
         warming_level = 2.0
-        # Initialize TMY object
         tmy = TMY(warming_level=warming_level, latitude=lat, longitude=lon)
-        # Actually going to load data for a single point and check results
-        result = tmy._load_single_variable("Air Temperature at 2m", "degC")
+        result = tmy._fetch_raw_variable("t2", table_id="1hr")
         assert isinstance(result, xr.DataArray)
-        assert result.name == "Air Temperature at 2m"
-        assert result.attrs["units"] == "degC"
-        assert result.lat.shape == ()
-        assert result.lon.shape == ()
-        assert result.lat.data == 33.55938
-        assert result.lon.data == -117.80269
-        assert (result.warming_level.values == [2.0]).all()
-        simulations = [s + "_historical+ssp370" for s in tmy.simulations]
-        assert (result.simulation.values == simulations).all()
+        assert "time" in result.dims
+        assert "simulation" in result.dims
+        # Warming level mode still has centered_year before cleaning
+        if "centered_year" in result.coords:
+            assert result.centered_year.shape[0] == len(result.simulation)
 
-    def test__get_tmy_variable(self, mock_t_hourly):
-        """Check that daily stat gets returned and values match expected."""
-        lat = 33.56
-        lon = -117.81
-        start_year = 1990
-        end_year = 2020
-        # Initialize TMY object
-        tmy = TMY(start_year=start_year, end_year=end_year, latitude=lat, longitude=lon)
-        # Actually going to load data for a single point and check results
-        with patch.object(tmy, "_load_single_variable", return_value=mock_t_hourly):
-            result = tmy._get_tmy_variable(
-                "Air Temperature at 2m", "degC", ["max", "min", "mean", "sum"]
-            )
-            assert isinstance(result, list)
-            # Check attributes of first result
-            assert result[0].name == "Air Temperature at 2m"
-            assert result[0].attrs["units"] == "degC"
-            assert (result[0].simulation.values == mock_t_hourly.simulation).all()
-            assert result[0].attrs["frequency"] == "daily"
-            # Check all stats match
-            assert result[0].equals(mock_t_hourly.resample(time="1D").max())
-            assert result[1].equals(mock_t_hourly.resample(time="1D").min())
-            assert result[2].equals(mock_t_hourly.resample(time="1D").mean())
-            assert result[3].equals(mock_t_hourly.resample(time="1D").sum())
-
-    def test_load_all_variables(self, mock_t_hourly):
-        """Check that data load gets called and results merged."""
+    def test_load_all_variables(self):
+        """Check that load_all_variables creates expected datasets."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        # Initialize TMY object
-        varlist = [
+        tmy = TMY(start_year, end_year, station_name=stn_name)
+
+        # Expected daily variable names in all_vars
+        daily_varlist = [
             "Daily max air temperature",
             "Daily min air temperature",
             "Daily mean air temperature",
@@ -663,12 +659,126 @@ class TestTMYClass:
             "Global horizontal irradiance",
             "Direct normal irradiance",
         ]
-        tmy = TMY(start_year, end_year, station_name=stn_name)
-        with patch.object(tmy, "_load_single_variable", return_value=mock_t_hourly):
+
+        # Create mock DataArrays for _fetch_raw_variable
+        time_hourly = pd.date_range("2001-01-01", "2003-12-31 23:00", freq="1h")
+        time_daily = pd.date_range("2001-01-01", "2003-12-31", freq="1D")
+        sims = tmy.simulations
+
+        # Reasonable mock values per variable to avoid numerical issues
+        hourly_values = {
+            "t2": 290.0,  # K
+            "q2": 0.005,  # kg/kg
+            "psfc": 101325.0,  # Pa
+            "u10": 3.0,  # m/s
+            "v10": 4.0,  # m/s
+            "swdnb": 200.0,  # W/m2
+            "swddni": 150.0,  # W/m2
+            "swddif": 50.0,  # W/m2
+            "lwdnb": 300.0,  # W/m2
+        }
+        daily_values = {
+            "t2max": 295.0,
+            "t2min": 285.0,
+            "t2": 290.0,
+            "wspd10max": 8.0,
+            "wspd10mean": 4.0,
+            "rh": 60.0,
+            "sw_dwn": 200.0,
+        }
+
+        def mock_fetch(variable_id, table_id="1hr"):
+            if table_id == "1hr":
+                time = time_hourly
+                val = hourly_values.get(variable_id, 1.0)
+            else:
+                time = time_daily
+                val = daily_values.get(variable_id, 1.0)
+            data = np.full((len(time), len(sims)), val)
+            da = xr.DataArray(
+                data=data,
+                dims=["time", "simulation"],
+                coords={"time": time, "simulation": sims},
+            )
+            da.name = variable_id
+            return da
+
+        with patch.object(tmy, "_fetch_raw_variable", side_effect=mock_fetch):
             tmy.load_all_variables()
+            # Daily CDF dataset
             assert isinstance(tmy.all_vars, xr.Dataset)
-            for varname in varlist:
+            for varname in daily_varlist:
                 assert varname in tmy.all_vars
+            # Hourly 8760 dataset
+            assert hasattr(tmy, "_hourly_data")
+            assert isinstance(tmy._hourly_data, xr.Dataset)
+
+    def test_load_all_variables_warming_level_captures_centered_year(self):
+        """Check that _sim_centered_years is populated in warming level mode."""
+        lat = 33.56
+        lon = -117.81
+        warming_level = 2.0
+        tmy = TMY(warming_level=warming_level, latitude=lat, longitude=lon)
+
+        time_hourly = pd.date_range("2001-01-01", "2003-12-31 23:00", freq="1h")
+        time_daily = pd.date_range("2001-01-01", "2003-12-31", freq="1D")
+        sims = tmy.simulations
+
+        hourly_values = {
+            "t2": 290.0,
+            "q2": 0.005,
+            "psfc": 101325.0,
+            "u10": 3.0,
+            "v10": 4.0,
+            "swdnb": 200.0,
+            "swddni": 150.0,
+            "swddif": 50.0,
+            "lwdnb": 300.0,
+        }
+        daily_values = {
+            "t2max": 295.0,
+            "t2min": 285.0,
+            "t2": 290.0,
+            "wspd10max": 8.0,
+            "wspd10mean": 4.0,
+            "rh": 60.0,
+            "sw_dwn": 200.0,
+        }
+
+        # Track which call is first (for centered_year injection)
+        call_count = {"n": 0}
+
+        def mock_fetch(variable_id, table_id="1hr"):
+            call_count["n"] += 1
+            if table_id == "1hr":
+                time = time_hourly
+                val = hourly_values.get(variable_id, 1.0)
+            else:
+                time = time_daily
+                val = daily_values.get(variable_id, 1.0)
+            data = np.full((len(time), len(sims)), val)
+            da = xr.DataArray(
+                data=data,
+                dims=["time", "simulation"],
+                coords={"time": time, "simulation": sims},
+            )
+            # First hourly fetch returns raw data with centered_year
+            if call_count["n"] == 1:
+                centered_years = [2040, 2045, 2038, 2042]
+                da = da.assign_coords(
+                    centered_year=("simulation", centered_years[: len(sims)])
+                )
+            da.name = variable_id
+            return da
+
+        with patch.object(tmy, "_fetch_raw_variable", side_effect=mock_fetch):
+            tmy.load_all_variables()
+            # _sim_centered_years should be populated
+            assert hasattr(tmy, "_sim_centered_years")
+            assert isinstance(tmy._sim_centered_years, dict)
+            assert len(tmy._sim_centered_years) == len(sims)
+            for sim in sims:
+                assert sim in tmy._sim_centered_years
 
     def test_set_cdf_climatology(self):
         """Check that data load and get_cdf get called."""
@@ -838,3 +948,95 @@ class TestTMYClass:
             # Check correct methods called
             mock_fs.assert_called_once()
             mock_top_months.assert_called_once()
+
+    def test_run_tmy_analysis_adds_scenario_column(self):
+        """Check that run_tmy_analysis adds 'scenario' column in time mode."""
+        stn_name = "Santa Ana John Wayne Airport (KSNA)"
+        start_year = 2001
+        end_year = 2003
+        tmy = TMY(start_year=start_year, end_year=end_year, station_name=stn_name)
+
+        # Build a mock _hourly_data and top_months
+        sim = "WRF_EC-Earth3_r1i1p1f1"
+        hourly_ds = mock_complete_hourly_ds()
+        tmy._hourly_data = hourly_ds
+        tmy.top_months = pd.DataFrame(
+            {
+                "month": list(range(1, 13)),
+                "simulation": [sim] * 12,
+                "year": [2001] * 12,
+            }
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter(action="ignore", category=OptimizeWarning)
+            tmy.run_tmy_analysis()
+
+        # Time mode → scenario column, not warming_level
+        assert "scenario" in tmy.tmy_data_to_export[sim].columns
+        assert "warming_level" not in tmy.tmy_data_to_export[sim].columns
+        assert (tmy.tmy_data_to_export[sim]["scenario"] == "historical+ssp370").all()
+
+    def test_run_tmy_analysis_adds_warming_level_column(self):
+        """Check that run_tmy_analysis adds 'warming_level' column in GWL mode."""
+        lat = 33.56
+        lon = -117.81
+        warming_level = 2.0
+        tmy = TMY(warming_level=warming_level, latitude=lat, longitude=lon)
+        # In warming level mode, start_year/end_year are set during load
+        tmy.start_year = 2001
+        tmy.end_year = 2003
+
+        sim = "WRF_EC-Earth3_r1i1p1f1"
+        hourly_ds = mock_complete_hourly_ds()
+        tmy._hourly_data = hourly_ds
+        tmy.top_months = pd.DataFrame(
+            {
+                "month": list(range(1, 13)),
+                "simulation": [sim] * 12,
+                "year": [2001] * 12,
+            }
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter(action="ignore", category=OptimizeWarning)
+            tmy.run_tmy_analysis()
+
+        # GWL mode → warming_level column, not scenario
+        assert "warming_level" in tmy.tmy_data_to_export[sim].columns
+        assert "scenario" not in tmy.tmy_data_to_export[sim].columns
+        assert (tmy.tmy_data_to_export[sim]["warming_level"] == 2.0).all()
+
+    def test_export_tmy_data_uses_sim_centered_years(self):
+        """Check that export_tmy_data reads centered_year from _sim_centered_years dict."""
+        lat = 33.56
+        lon = -117.81
+        warming_level = 2.0
+        tmy = TMY(warming_level=warming_level, latitude=lat, longitude=lon)
+        tmy.start_year = 2001
+        tmy.end_year = 2003
+
+        sim = "WRF_EC-Earth3_r1i1p1f1"
+        tmy.tmy_data_to_export = {
+            sim: pd.DataFrame(
+                {
+                    "time": pd.date_range("2000-01-01", periods=8760, freq="1h"),
+                    "warming_level": [warming_level] * 8760,
+                    "simulation": [sim] * 8760,
+                    "Air Temperature at 2m": np.ones(8760),
+                }
+            )
+        }
+        tmy._sim_centered_years = {sim: 2040}
+
+        with patch(
+            "climakitae.explore.typical_meteorological_year.write_tmy_file"
+        ) as mock_write:
+            tmy.export_tmy_data()
+            mock_write.assert_called_once()
+            # write_tmy_file(filename, df, years, stn_name, ...)
+            call_args = mock_write.call_args
+            # Year range derived from centered_year 2040: (2025, 2054)
+            assert call_args[0][2] == (2025, 2054)
+            # Filename should contain warming level label appended to sim name
+            assert "mid-century" in call_args[0][0]

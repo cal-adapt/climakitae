@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
     units="m/s",
     source="builtin",
 )
-def calc_wind_speed_10m(ds):
+def calc_wind_speed_10m(ds) -> "xr.Dataset":
     """Calculate wind speed at 10m from U and V components.
 
     Parameters
@@ -65,7 +65,7 @@ def calc_wind_speed_10m(ds):
     units="degrees",
     source="builtin",
 )
-def calc_wind_direction_10m(ds):
+def calc_wind_direction_10m(ds) -> "xr.Dataset":
     """Calculate wind direction at 10m from U and V components.
 
     Parameters

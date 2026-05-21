@@ -1,6 +1,30 @@
-"""
-Helper functions for performing analyses related to global warming levels, along with
-backend code for building the warming levels GUI
+"""Global warming level (GWL) analysis utilities.
+
+Provides functions and classes for slicing climate data around global warming
+level thresholds, computing anomalies, and supporting the warming levels GUI
+workflow.
+
+Classes
+-------
+WarmingLevels
+    High-level container that drives the end-to-end warming levels workflow.
+WarmingLevelChoose
+    Param-based parameter selection panel for the warming levels GUI.
+
+Functions
+---------
+relabel_axis
+    Flatten stacked ``(simulation, scenario)`` coordinate tuples to strings.
+process_item
+    Extract standardised ``(sim, ensemble, scenario)`` metadata from a
+    single simulation DataArray.
+clean_list
+    Remove simulations that have no entry in the GWL lookup table.
+clean_warm_data
+    Drop simulations where the warming level was never reached.
+get_sliced_data
+    Slice a single simulation to a symmetric window around its GWL crossing
+    date, with optional anomaly computation.
 """
 
 import calendar
@@ -38,13 +62,40 @@ param.parameterized.docstring_signature = False
 
 
 class WarmingLevels:
-    """
-    A container for all of the warming levels-related functionality:
-    - A pared-down Select panel, under "choose_data"
-    - a "calculate" step where most of the waiting occurs
-    - an optional "visualize" panel, as an instance of WarmingLevelVisualize
-    - postage stamps from visualize "main" tab are accessible via "gwl_snapshots"
-    - data sliced around gwl window retrieved from "sliced_data"
+    """High-level container for the warming levels analysis workflow.
+
+    Orchestrates data retrieval, GWL-window slicing, optional anomaly
+    computation, and optional in-memory loading for all available warming
+    levels.
+
+    Attributes
+    ----------
+    wl_params : WarmingLevelChoose
+        Parameter panel that controls variable, resolution, window size, and
+        other query options.
+    warming_levels : list of float
+        Warming level thresholds derived from the GWL lookup table.
+    gwl_times : pandas.DataFrame or None
+        Lookup table mapping each simulation/scenario combination to the
+        calendar year it crosses each warming level.  Populated by
+        :py:meth:`calculate`.
+    catalog_data : xarray.DataArray or None
+        Raw stacked data retrieved from the catalog.  Populated by
+        :py:meth:`calculate`.
+    sliced_data : dict of {str: xarray.DataArray}
+        Mapping from warming level string (e.g. ``"1.5"``) to the
+        corresponding time-windowed DataArray.  Populated by
+        :py:meth:`calculate`.
+    gwl_snapshots : xarray.DataArray
+        Time-mean snapshots for every warming level, concatenated along a
+        ``warming_level`` dimension.  Populated by :py:meth:`calculate`.
+
+    Examples
+    --------
+    >>> wl = WarmingLevels()
+    >>> wl.wl_params.variable = "Maximum air temperature at 2m"
+    >>> wl.calculate()  # blocks until all levels are computed
+    >>> snapshot_2deg = wl.gwl_snapshots.sel(warming_level="2.0")
     """
 
     catalog_data = xr.DataArray()
@@ -59,20 +110,26 @@ class WarmingLevels:
         self.catalog_data = None  # Placeholder for the catalog data
 
     def find_warming_slice(self, level: str, gwl_times: pd.DataFrame) -> xr.DataArray:
-        """
-        Find the warming slice data for the current level from the catalog data.
+        """Slice catalog data to the window around a single warming level.
+
+        Groups ``catalog_data`` by ``all_sims``, calls :py:func:`get_sliced_data`
+        for every simulation, then cleans and relabels the result.
 
         Parameters
         ----------
-        level: str
-            The warming level to find the slice for.
-        gwl_times: pd.DataFrame
-            The DataFrame containing the warming level times.
+        level : str
+            Warming level threshold to slice around, e.g. ``"1.5"``.
+        gwl_times : pandas.DataFrame
+            GWL lookup table produced by :py:meth:`calculate`.  Rows are
+            indexed by ``(sim_str, ensemble, scenario)`` tuples; columns are
+            warming level strings.
 
         Returns
         -------
-        xr.DataArray
-            The warming slice data for the specified level.
+        xarray.DataArray
+            DataArray with an expanded ``warming_level`` dimension set to
+            ``[level]``.  The ``all_sims`` coordinate is relabelled from
+            tuples to ``"simulation_scenario"`` strings.
         """
         warming_data = self.catalog_data.groupby("all_sims").map(
             get_sliced_data,
@@ -96,12 +153,23 @@ class WarmingLevels:
         return new_warm_data
 
     def calculate(self):
-        """
-        Calculate the warming levels for the selected parameters.
+        """Run the full warming levels pipeline and populate instance attributes.
 
-        This function retrieves the data from the catalog, slices it according to the
-        warming levels, and stores the results in the `sliced_data` and `gwl_snapshots`
-        attributes.
+        Retrieves catalog data using ``wl_params``, stacks simulations and
+        scenarios, removes invalid combinations, then iterates over every
+        warming level to produce time-windowed slices and time-mean snapshots.
+
+        Results are stored in-place:
+
+        - ``catalog_data`` — raw stacked DataArray
+        - ``sliced_data``  — dict mapping level → windowed DataArray
+        - ``gwl_snapshots`` — concatenated time-mean DataArray
+
+        Notes
+        -----
+        Progress is reported via a :py:class:`tqdm` progress bar, one tick per
+        warming level.  If ``wl_params.load_data`` is ``True``, each slice is
+        loaded into memory before moving to the next level.
         """
         # manually reset to all SSPs, in case it was inadvertently changed by
         # temporarily have ['Dynamical','Statistical'] for downscaling_method
@@ -144,57 +212,34 @@ class WarmingLevels:
 
 
 def relabel_axis(all_sims_dim: Iterable) -> List[str]:
-    """
-    Converts an iterable of tuples into a list of strings by concatenating the first two elements
-    of each tuple with an underscore (`_`).
+    """Convert stacked simulation/scenario coordinate tuples to flat strings.
 
-    This function is designed to simplify dimension names, particularly for compatibility with
-    plotting libraries like `hvplot`, which may not handle tuple-based dimension names well.
+    Joins the first two elements of each coordinate tuple with an underscore,
+    producing labels of the form ``"<simulation>_<scenario>"``.
+
+    This is required before handing data to plotting libraries such as
+    ``hvplot`` that do not support tuple-valued coordinates.
 
     Parameters
     ----------
     all_sims_dim : Iterable
-        An iterable containing elements that can be converted into tuples. Each element is expected
-        to have a `.values.item()` method to extract the tuple.
+        Iterable of 0-D ``xarray.DataArray`` objects, typically obtained via
+        ``ds.stack(all_sims=("simulation", "scenario"))["all_sims"]``.  Each
+        element must expose a ``.values.item()`` method that returns a tuple.
 
     Returns
     -------
-    List[str]
-        A list of strings where each string is formed by concatenating the first two elements of
-        the tuples in `all_sims_dim` with an underscore (`_`).
-
-    Raises
-    ------
-    AttributeError
-        If an element in `all_sims_dim` does not have a `.values.item()` method.
-    IndexError
-        If a tuple in `all_sims_dim` does not have at least two elements.
+    list of str
+        One string per element, formed by joining the first two tuple elements
+        with ``"_"``.
 
     Examples
     --------
     >>> import xarray as xr
-    >>> # The input `all_sims_dim` is typically an xarray.DataArray
-    >>> # representing a coordinate, often created by stacking dimensions.
-    >>> # For example, if `ds` is a Dataset with 'simulation' and 'scenario'
-    >>> # coordinates, then `ds.stack(all_sims=('simulation', 'scenario'))['all_sims']`
-    >>> # would be such an input.
-    >>>
-    >>> # Create an example of such an xarray.DataArray:
-    >>> simulation_scenario_pairs = [
-    ...     ('ModelA_run1', 'SSP1-2.6'),
-    ...     ('ModelB_run2', 'SSP5-8.5')
-    ... ]
-    >>> # This DataArray holds the coordinate values (the tuples).
-    >>> all_sims_coordinate = xr.DataArray(
-    ...     data=simulation_scenario_pairs,
-    ...     dims=['all_sims'],
-    ...     name='all_sims_stacked_coordinate'
-    ... )
-    >>> # The function iterates over `all_sims_coordinate`. Each element `one`
-    >>> # (as in the function's loop) is a 0-D xarray.DataArray containing one tuple.
-    >>> # For the first pair, `one.values.item()` would yield ('ModelA_run1', 'SSP1-2.6').
-    >>> relabel_axis(all_sims_coordinate)
-    ['ModelA_run1_SSP1-2.6', 'ModelB_run2_SSP5-8.5']
+    >>> pairs = [('ModelA_r1i1p1f1', 'ssp245'), ('ModelB_r1i1p1f1', 'ssp585')]
+    >>> coord = xr.DataArray(pairs, dims=['all_sims'])
+    >>> relabel_axis(coord)
+    ['ModelA_r1i1p1f1_ssp245', 'ModelB_r1i1p1f1_ssp585']
     """
     new_arr = []
     for one in all_sims_dim:
@@ -205,42 +250,47 @@ def relabel_axis(all_sims_dim: Iterable) -> List[str]:
 
 
 def process_item(y: xr.DataArray) -> tuple[str, str, str]:
-    """
-    Extracts and processes simulation metadata from an xarray DataArray.
+    """Extract standardised simulation metadata from a single-simulation DataArray.
 
-    This function retrieves identifiers for a simulation, including the simulation string,
-    ensemble, and scenario, and returns them as a tuple. The scenario string is processed
-    using the `scenario_to_experiment_id` function to standardize its format.
+    Parses the ``simulation`` coordinate (``"<activity>_<source>_<member>"``)
+    and the ``scenario`` coordinate (``"Historical + <ssp>"``), returning the
+    three fields used as the row key in the GWL lookup table.
 
     Parameters
     ----------
-    y : xr.DataArray
-        An xarray DataArray containing metadata about a simulation. It is expected to have
-        `simulation` and `scenario` attributes that can be accessed using `.item()`.
+    y : xarray.DataArray
+        A DataArray representing one simulation.  Must have ``simulation`` and
+        ``scenario`` scalar coordinates accessible via ``.item()``.
 
     Returns
     -------
-    tuple[str, str, str]
-        A tuple containing:
-        - `sim_str` (str): The second part of the `simulation` string.
-        - `ensemble` (str): The third part of the `simulation` string.
-        - `scenario` (str): The processed scenario identifier.
+    sim_str : str
+        Source model identifier (second ``"_"``-delimited field of
+        ``simulation``).
+    ensemble : str
+        Ensemble member identifier (third field of ``simulation``).
+    scenario : str
+        CMIP6 experiment ID derived from the scenario string, e.g.
+        ``"ssp245"``.
 
     Raises
     ------
     AttributeError
-        If `y` does not have `simulation` or `scenario` attributes.
+        If ``y`` does not expose ``simulation`` or ``scenario`` coordinates.
     ValueError
-        If the `simulation` string cannot be split into three parts.
+        If the ``simulation`` string does not contain exactly three
+        ``"_"``-delimited fields.
 
     Examples
     --------
-    >>> y = xr.DataArray(attrs={
-    ...     "simulation": "Dynamical_sim1_ensemble1",
-    ...     "scenario": "Historical + ssp585"
-    ... })
+    >>> import xarray as xr
+    >>> y = xr.DataArray(
+    ...     0,
+    ...     coords={"simulation": "WRF_ACCESS-CM2_r1i1p1f1",
+    ...             "scenario": "Historical + SSP 2-4.5"}
+    ... )
     >>> process_item(y)
-    ('sim1', 'ensemble1', 'ssp585')
+    ('ACCESS-CM2', 'r1i1p1f1', 'ssp245')
     """
     simulation = y.simulation.item()
     scenario = scenario_to_experiment_id(y.scenario.item().split("+")[1].strip())
@@ -249,32 +299,26 @@ def process_item(y: xr.DataArray) -> tuple[str, str, str]:
 
 
 def clean_list(data: xr.Dataset, gwl_times: pd.DataFrame) -> xr.Dataset:
-    """
-    Filters an xarray dataset to retain only simulations with valid warming level data.
+    """Remove simulations absent from the GWL lookup table.
 
-    This function removes simulations from the dataset that do not have corresponding entries
-    in the provided lookup table (`gwl_times`). It ensures that only valid simulations are
-    included for further analysis.
+    Iterates over every element of the ``all_sims`` dimension and discards
+    any simulation whose ``(sim_str, ensemble, scenario)`` key does not
+    appear in ``gwl_times.index``.
 
     Parameters
     ----------
-    data : xr.Dataset
-        An xarray dataset containing a dimension `all_sims`, which represents simulation metadata.
-    gwl_times : pd.DataFrame
-        A pandas DataFrame acting as a lookup table. Its index should contain valid simulation
-        metadata (e.g., simulation string, ensemble, and scenario).
+    data : xarray.Dataset
+        Dataset with an ``all_sims`` stacked dimension produced by
+        ``ds.stack(all_sims=("simulation", "scenario"))``.
+    gwl_times : pandas.DataFrame
+        GWL lookup table whose index is a MultiIndex of
+        ``(sim_str, ensemble, scenario)`` tuples.
 
     Returns
     -------
-    xr.Dataset
-        A filtered xarray dataset containing only simulations with valid warming level data.
-
-    Raises
-    ------
-    AttributeError
-        If `data` does not have a dimension named `all_sims`.
-    KeyError
-        If `process_item` fails to find a simulation in the `gwl_times` index.
+    xarray.Dataset
+        Dataset containing only the subset of simulations present in
+        ``gwl_times``.
     """
     # Create a list of all simulation identifiers
     keep_list = list(data.all_sims.values)
@@ -287,29 +331,24 @@ def clean_list(data: xr.Dataset, gwl_times: pd.DataFrame) -> xr.Dataset:
 
 
 def clean_warm_data(warm_data: xr.DataArray) -> xr.DataArray:
-    """
-    Cleans warming level data by removing invalid simulations and timestamps.
+    """Drop simulations that never reach the target warming level.
 
-    This function performs the following cleaning steps:
-    1. Removes simulations where the warming level is not crossed (i.e., `centered_year` is null).
-    2. (Optional) Removes timestamps at the end to account for leap years.
-    3. (Optional) Removes simulations that exceed the year 2100.
+    Removes entries from the ``all_sims`` dimension whose ``centered_year``
+    coordinate is ``NaN``, indicating that the simulation did not cross the
+    requested warming level threshold within the available data.
 
     Parameters
     ----------
-    warm_data : xr.DataArray
-        An xarray DataArray containing warming level data. It is expected to have a `centered_year`
-        attribute and dimensions like `all_sims` and `time`.
+    warm_data : xarray.DataArray
+        Output of :py:func:`get_sliced_data` mapped over ``all_sims``.  Must
+        have a ``centered_year`` coordinate along the ``all_sims`` dimension.
 
     Returns
     -------
-    xr.DataArray
-        The cleaned xarray DataArray with invalid simulations and timestamps removed.
-
-    Raises
-    ------
-    AttributeError
-        If `warm_data` does not have the required attributes or dimensions.
+    xarray.DataArray
+        DataArray with non-crossing simulations removed.  Returned unchanged
+        if *all* simulations have a null ``centered_year`` (i.e. no simulation
+        reached the level).
     """
     # Check that there exist simulations that reached this warming level before cleaning. Otherwise, don't modify anything.
     if not (warm_data.centered_year.isnull()).all():
@@ -338,27 +377,49 @@ def get_sliced_data(
     window: int = 15,
     anom: str = "No",
 ) -> xr.DataArray:
-    """Calculating warming level anomalies.
+    """Slice a single simulation to a symmetric window around its GWL crossing year.
+
+    Intended to be called via ``xr.DataArray.groupby("all_sims").map(...)``
+    so that each simulation is processed independently.
+
+    Leap days are dropped before slicing to ensure a consistent number of
+    time steps across all simulations.  The ``time`` dimension is re-indexed
+    to integer offsets centred on zero so that slices from different
+    simulations can be compared directly.
+
+    If the simulation does not cross ``level`` (i.e. the crossing year is
+    ``NaN``), a same-shaped DataArray of ``NaN`` values is returned with
+    ``centered_year`` set to ``NaN``; these are removed by
+    :py:func:`clean_warm_data`.
 
     Parameters
     ----------
-    y : xr.DataArray
-        Data to compute warming level anomolies, one simulation at a time via groupby
+    y : xarray.DataArray
+        Single-simulation DataArray with a ``time`` dimension and a
+        ``frequency`` attribute (``"monthly"``, ``"daily"``, or
+        ``"hourly"``).
     level : str
-        Warming level amount
-    years : pd.DataFrame
-        Lookup table for the date a given simulation reaches each warming level.
-    months : np.ndarray
-        Months to include in a warming level slice.
+        Warming level threshold to slice around, e.g. ``"2.0"``.
+    years : pandas.DataFrame
+        GWL lookup table indexed by ``(sim_str, ensemble, scenario)``
+        tuples; columns are warming level strings.
+    months : array-like of int, optional
+        Calendar months to retain in the slice.  Defaults to all twelve
+        months (``np.arange(1, 13)``).
     window : int, optional
-        Number of years to generate time window for. Default to 15 years.
-        For example, a 15 year window would generate a window of 15 years in the past from the central warming level date, and 15 years into the future. I.e. if a warming level is reached in 2030, the window would be (2015,2045).
-    anom : str
-        Find the anomaly
+        Half-width of the time window in years.  The returned slice spans
+        ``[crossing_year - window, crossing_year + window - 1]``.  Defaults
+        to ``15`` (a 30-year window).
+    anom : {"Yes", "No"}, optional
+        If ``"Yes"``, subtract the 1981-2010 mean before returning.  Defaults
+        to ``"No"``.
 
     Returns
     -------
-    xr.DataArray
+    xarray.DataArray
+        Time-sliced DataArray with integer ``time`` offsets.  Carries a
+        ``centered_year`` scalar coordinate.  Filtered to the requested
+        ``months``.
     """
     gwl_times_subset = years.loc[process_item(y)]
 
@@ -451,34 +512,32 @@ def get_sliced_data(
 
 
 class WarmingLevelChoose(DataParameters):
-    """Class for selecting data at specific warming levels in climate datasets.
-    This class extends DataParameters to provide functionality for choosing and analyzing
-    data around specific global warming levels (GWLs). It allows users to specify a time window
-    around the warming level and whether to return anomalies relative to a historical reference period.
+    """Param-based parameter panel for warming level data selection.
+
+    Extends :py:class:`~climakitae.core.data_interface.DataParameters` with
+    GWL-specific controls: the window half-width, anomaly toggle, target
+    warming levels, months filter, and a flag controlling whether data is
+    eagerly loaded.
 
     Attributes
     ----------
-
     window : param.Integer
-        Size of the time window (in years) around the global warming level.
-        The default is 15 years (i.e., a 30-year window centered on the GWL).
+        Half-width of the time window in years (default ``15``).  The full
+        window spans ``2 * window`` years centred on the GWL crossing date.
     anom : param.Selector
-        Whether to return data as anomalies (difference from historical
-        reference period). Options are "Yes" or "No".
-    warming_levels : list
-        Available warming levels for selection.
+        Whether to express results as anomalies relative to the 1981-2010
+        baseline.  Accepts ``"Yes"`` or ``"No"`` (default ``"Yes"``).
+    warming_levels : list of str
+        Warming level thresholds to compute, e.g. ``["1.5", "2.0", "3.0"]``.
+        Defaults to all levels present in the GWL lookup file.
     months : numpy.ndarray
-        Available months (1-12) for selection.
+        Calendar months (1-12) to include in each warming level slice.
+        Defaults to all twelve months.
     load_data : bool
-        Whether to load data as it's being computed. Setting to False allows
-        for batch processing or working with smaller chunks of data.
-
-    Methods
-    -------
-        _anom_allowed()
-            Controls whether the anomaly option is required based on the
-            downscaling method.
-
+        If ``True`` (default), each warming level slice is loaded into memory
+        immediately after it is computed.  Set to ``False`` to defer loading,
+        which is useful when building a collection of lazy DataArrays for
+        batch processing.
     """
 
     window = param.Integer(
@@ -521,7 +580,12 @@ class WarmingLevelChoose(DataParameters):
 
     @param.depends("downscaling_method", watch=True)
     def _anom_allowed(self):
-        """Require 'anomaly' for non-bias-corrected data."""
+        """Enforce anomaly setting when the downscaling method changes.
+
+        Called automatically by ``param`` whenever ``downscaling_method`` is
+        updated.  Currently resets ``anom`` to ``"Yes"`` for all methods;
+        the branch structure is retained to support future per-method logic.
+        """
         if self.downscaling_method == "Dynamical":
             self.param["anom"].objects = ["Yes", "No"]
             self.anom = "Yes"
@@ -531,30 +595,25 @@ class WarmingLevelChoose(DataParameters):
 
 
 def _drop_invalid_sims(ds: xr.Dataset, selections: DataParameters) -> xr.Dataset:
-    """As part of the warming levels calculation, the data is stacked by simulation and
-    scenario, creating some empty values for that coordinate.
-    Here, we remove those empty coordinate values.
+    """Remove empty ``all_sims`` coordinates introduced by stacking.
+
+    When simulation and scenario dimensions are stacked, the Cartesian product
+    includes combinations that do not exist in the catalog (e.g. a model that
+    only ran ``ssp245`` will have empty entries for ``ssp585``).  This function
+    filters ``ds`` to the set of ``(simulation, scenario)`` pairs that are
+    actually present in the catalog subset for ``selections``.
 
     Parameters
     ----------
-    ds : xr.Dataset
-        The dataset must have a
-        dimension `all_sims` that results from stacking `simulation` and
-        `scenario`.
+    ds : xarray.Dataset
+        Dataset with an ``all_sims`` stacked dimension.
     selections : DataParameters
-        The selections made in the GUI, which are used to filter the
-        dataset.
+        Current GUI selections used to query the catalog subset.
 
     Returns
     -------
-    xr.Dataset
-        The dataset with only valid simulations retained.
-
-    Raises
-    ------
-    AttributeError
-        If the dataset does not have an `all_sims` dimension.
-
+    xarray.Dataset
+        Dataset containing only valid ``(simulation, scenario)`` combinations.
     """
     df = _get_cat_subset(selections).df
 
@@ -578,6 +637,18 @@ def _drop_invalid_sims(ds: xr.Dataset, selections: DataParameters) -> xr.Dataset
 
 
 def _check_available_warming_levels() -> List[float]:
+    """Read the warming level thresholds available in the GWL lookup file.
+
+    Parses the column headers of the 1850-1900 reference GWL CSV file to
+    derive the list of supported thresholds, excluding the ``GCM``, ``run``,
+    and ``scenario`` metadata columns.
+
+    Returns
+    -------
+    list of float
+        Warming level thresholds as floats, e.g. ``[0.8, 1.0, 1.2, 1.5,
+        2.0, 2.5, 3.0, 4.0]``.
+    """
     gwl_times = read_csv_file(GWL_1850_1900_FILE)
     available_warming_levels = list(
         gwl_times.columns.drop(["GCM", "run", "scenario"]).values

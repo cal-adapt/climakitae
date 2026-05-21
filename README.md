@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![DOI:10.5281/zenodo.18111936](https://zenodo.org/badge/DOI/10.5281/zenodo.18111936.svg)](https://doi.org/10.5281/zenodo.18111936)
+[![DOI:10.5281/zenodo.18111935](https://zenodo.org/badge/DOI/10.5281/zenodo.18111935.svg)](https://doi.org/10.5281/zenodo.18111935)
 
 
 **A powerful Python toolkit for climate data analysis and retrieval from the Cal-Adapt Analytics Engine (AE).**
@@ -90,7 +90,7 @@ print(data)
 | Resource | Description |
 |----------|-------------|
 | [**AE Navigation Guide**](https://github.com/cal-adapt/cae-notebooks/blob/main/AE_navigation_guide.ipynb) | Interactive notebook tutorial |
-| [**API Reference**](https://climakitae.readthedocs.io/en/latest/) | Complete API documentation |
+| [**API Reference**](https://cal-adapt.github.io/climakitae/dev/) | Complete API documentation |
 | [**AE Notebooks**](https://github.com/cal-adapt/cae-notebooks) | Sample notebooks and scripts |
 | [**Contributing**](https://climakitae.readthedocs.io/en/latest/contribute.html) | Development guidelines |
 
@@ -124,6 +124,21 @@ pip install pytest-cov
 pytest --cov=climakitae --cov-report=html
 ```
 
+### Code Formatting (pre-commit hook)
+
+This repo uses [Black](https://github.com/psf/black) for code formatting. To ensure your commits are formatted consistently with CI, install the pre-commit hook:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+Black will now run automatically on every commit. To run it manually:
+
+```bash
+pre-commit run black --all-files
+```
+
 ## Contributing
 
 We welcome contributions! Please see our [contributing guidelines](https://climakitae.readthedocs.io/en/latest/contribute.html) for details on:
@@ -147,8 +162,7 @@ git checkout -b feature/your-feature-name
 
 # Run tests and linting
 pytest
-black climakitae/
-isort climakitae/
+pre-commit run black --all-files
 
 # Submit a pull request
 ```

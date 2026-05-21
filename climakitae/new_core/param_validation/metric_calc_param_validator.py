@@ -65,6 +65,31 @@ def validate_metric_calc_param(
     ):
         return False
 
+    one_in_x_config = value.get("one_in_x", UNSET)
+    thresholds_config = value.get("thresholds", UNSET)
+
+    if one_in_x_config is not UNSET and thresholds_config is not UNSET:
+        logger.warning("\n\nCannot set both 'thresholds' and 'one_in_x'. Choose one.")
+        return False
+
+    if thresholds_config is not UNSET and "metric" in value:
+        logger.warning("\n\nCannot set both 'thresholds' and 'metric'. Choose one.")
+        return False
+
+    if thresholds_config is not UNSET and percentiles is not UNSET:
+        logger.warning(
+            "\n\nCannot set both 'thresholds' and 'percentiles'. Choose one."
+        )
+        return False
+
+    if one_in_x_config is not UNSET:
+        if not _validate_one_in_x_parameters(one_in_x_config):
+            return False
+
+    if thresholds_config is not UNSET:
+        if not _validate_threshold_parameters(thresholds_config):
+            return False
+
     return True  # All parameters are valid
 
 
@@ -158,46 +183,68 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
 
     # Extract parameters with defaults
     return_periods = one_in_x_config.get("return_periods")
+    return_values = one_in_x_config.get("return_values")
     distribution = one_in_x_config.get("distribution", "gev")
     extremes_type = one_in_x_config.get("extremes_type", "max")
     event_duration = one_in_x_config.get("event_duration", (1, "day"))
+    grouped_duration = one_in_x_config.get("grouped_duration", UNSET)
     block_size = one_in_x_config.get("block_size", 1)
     goodness_of_fit_test = one_in_x_config.get("goodness_of_fit_test", True)
+    alpha = one_in_x_config.get("alpha", UNSET)
+    bootstrap_runs = one_in_x_config.get("bootstrap_runs", 100)
     print_goodness_of_fit = one_in_x_config.get("print_goodness_of_fit", True)
     variable_preprocessing = one_in_x_config.get("variable_preprocessing", {})
+    check_ess = one_in_x_config.get("check_ess", True)
 
     # Validate return_periods (required parameter)
-    if return_periods is None:
+    if return_periods is None and return_values is None:
         logger.warning(
-            "\n\nreturn_periods is required for 1-in-X calculations. "
-            "\nPlease provide a list of return periods (e.g., [10, 25, 50, 100])."
+            "\n\nEither return_periods or return_values is required for 1-in-X calculations."
+            "\nPlease provide a list of return periods (e.g., [10, 25, 50, 100])"
+            "\nor a list of return values (e.g. [90, 95, 100])."
         )
         return False
 
-    # Convert to numpy array for validation
-    if not isinstance(return_periods, (list, np.ndarray)):
-        return_periods_array = np.array([return_periods])
-    elif isinstance(return_periods, list):
-        return_periods_array = np.array(return_periods)
-    else:
-        return_periods_array = return_periods
-
-    if not isinstance(return_periods_array, np.ndarray):
+    if return_periods is not None and return_values is not None:
         logger.warning(
-            "\n\nreturn_periods must be convertible to numpy array. "
+            "\n\nCannot set both 'return_periods' and 'return_values'. Choose one."
+        )
+        return False
+
+    if return_periods is not None:
+        return_param = return_periods
+    elif return_values is not None:
+        return_param = return_values
+
+    # Check that parameter data type is one that can be converted to np.array
+    match return_param:
+        case np.ndarray():
+            return_param = return_param
+        case float() | int():
+            return_param = np.array([return_param])
+        case list() | tuple():
+            return_param = np.array(return_param)
+
+    if not isinstance(return_param, np.ndarray):
+        logger.warning(
+            "\n\nreturn_periods or return_values must be convertible to numpy array. "
             "\nPlease check the configuration."
         )
         return False
 
-    for rp in return_periods_array:
-        if not isinstance(rp, (int, float, np.integer, np.floating)) or rp < 1:
-            logger.warning(
-                "\n\nAll return periods must be numbers >= 1, got %s (type: %s). "
-                "\nPlease check the configuration.",
-                rp,
-                type(rp),
-            )
-            return False
+    # Check for valid return period entries (must be positive integer for # of years)
+    # Skip this check if the return_param array contains return values, as return values
+    # are allowed to be floats and/or negative values (for example, a negative temperature)
+    if return_periods is not None:
+        for rp in return_param:
+            if not isinstance(rp, (int, float, np.integer, np.floating)) or rp < 1:
+                logger.warning(
+                    "\n\nAll return periods must be numbers >= 1, got %s (type: %s). "
+                    "\nPlease check the configuration.",
+                    rp,
+                    type(rp),
+                )
+                return False
 
     # Validate distribution
     valid_distributions = ["gev", "genpareto", "gamma"]
@@ -242,6 +289,39 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
         )
         return False
 
+    # Validate grouped_duration
+    if grouped_duration is not UNSET:
+        if not isinstance(grouped_duration, tuple) or len(grouped_duration) != 2:
+            logger.warning(
+                "\n\ngrouped_duration must be a tuple of (int, str). "
+                "\nExample: (1, 'day')"
+            )
+            return False
+
+        duration_num, duration_unit = grouped_duration
+        if not isinstance(duration_num, int) or duration_num <= 0:
+            logger.warning(
+                "\n\ngrouped_duration number must be a positive integer. "
+                "\nPlease check the configuration."
+            )
+            return False
+
+        # Only implemented to group days
+        if duration_unit not in ["day"]:
+            logger.warning(
+                "\n\ngrouped_duration unit must be 'day'. "
+                "\nPlease check the configuration."
+            )
+            return False
+
+        # Must be used with event_duration = (1,'day')
+        if event_duration != (1, "day"):
+            logger.warning(
+                "\n\ngrouped_duration requires event_duration=(1,'day'). "
+                "\nPlease check the configuration."
+            )
+            return False
+
     # Validate block_size
     if not isinstance(block_size, int) or block_size <= 0:
         logger.warning(
@@ -250,10 +330,27 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
         )
         return False
 
+    # Validate confidence interval parameters alpha and bootstrap_runs
+    if alpha is not UNSET:
+        if not isinstance(alpha, float) or alpha <= 0 or alpha >= 1:
+            logger.warning(
+                "\n\nalpha must be a positive float less than 1. "
+                "\nPlease check the configuration."
+            )
+            return False
+
+    if not isinstance(bootstrap_runs, int) or bootstrap_runs <= 0:
+        logger.warning(
+            "\n\nbootstrap_runs must be a positive integer. "
+            "\nPlease check the configuration."
+        )
+        return False
+
     # Validate boolean parameters
     for param_name, param_value in [
         ("goodness_of_fit_test", goodness_of_fit_test),
         ("print_goodness_of_fit", print_goodness_of_fit),
+        ("check_ess", check_ess),
     ]:
         if not isinstance(param_value, bool):
             logger.warning(
@@ -271,5 +368,101 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
             "\nPlease check the configuration."
         )
         return False
+
+    return True
+
+
+def _validate_threshold_parameters(thresholds_config: dict) -> bool:
+    """Validate parameters for threshold exceedance calculations."""
+    if not isinstance(thresholds_config, dict):
+        logger.warning(
+            "\n\nthresholds configuration must be a dictionary. "
+            "\nPlease check the configuration."
+        )
+        return False
+
+    valid_period_units = ("year", "month")
+    valid_duration_units = ("year", "month", "day", "hour")
+
+    # Validate threshold_value (required)
+    threshold_value = thresholds_config.get("threshold_value")
+    if threshold_value is None:
+        logger.warning(
+            "\n\nthreshold_value is required for threshold calculations. "
+            "\nPlease provide a numeric threshold value."
+        )
+        return False
+    if not isinstance(threshold_value, (int, float)):
+        logger.warning(
+            "\n\nthreshold_value must be a number (int or float), got %s. "
+            "\nPlease check the configuration.",
+            type(threshold_value),
+        )
+        return False
+    if np.isnan(threshold_value):
+        logger.warning(
+            "\n\nthreshold_value must not be NaN. "
+            "\nPlease provide a finite numeric value."
+        )
+        return False
+
+    # Validate threshold_direction (required)
+    threshold_direction = thresholds_config.get("threshold_direction")
+    if threshold_direction not in ("above", "below"):
+        logger.warning(
+            "\n\nInvalid threshold_direction %r. " "\nMust be 'above' or 'below'.",
+            threshold_direction,
+        )
+        return False
+
+    # Validate period (optional): tuple(int, str)
+    period = thresholds_config.get("period")
+    if period is not None:
+        if not isinstance(period, tuple) or len(period) != 2:
+            logger.warning(
+                "\n\nperiod must be a tuple of (int, str), e.g. (1, 'year'). "
+                "\nPlease check the configuration."
+            )
+            return False
+        period_num, period_unit = period
+        if not isinstance(period_num, int) or period_num <= 0:
+            logger.warning(
+                "\n\nperiod number must be a positive integer. "
+                "\nPlease check the configuration."
+            )
+            return False
+        if period_unit not in valid_period_units:
+            logger.warning(
+                "\n\nperiod unit must be one of %s, got '%s'. "
+                "\nPlease check the configuration.",
+                valid_period_units,
+                period_unit,
+            )
+            return False
+
+    # Validate duration (optional): tuple(int, str)
+    duration = thresholds_config.get("duration")
+    if duration is not None:
+        if not isinstance(duration, tuple) or len(duration) != 2:
+            logger.warning(
+                "\n\nduration must be a tuple of (int, str), e.g. (3, 'day'). "
+                "\nPlease check the configuration."
+            )
+            return False
+        duration_num, duration_unit = duration
+        if not isinstance(duration_num, int) or duration_num <= 0:
+            logger.warning(
+                "\n\nduration number must be a positive integer. "
+                "\nPlease check the configuration."
+            )
+            return False
+        if duration_unit not in valid_duration_units:
+            logger.warning(
+                "\n\nduration unit must be one of %s, got '%s'. "
+                "\nPlease check the configuration.",
+                valid_duration_units,
+                duration_unit,
+            )
+            return False
 
     return True

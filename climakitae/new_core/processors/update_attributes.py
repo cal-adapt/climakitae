@@ -120,7 +120,7 @@ class UpdateAttributes(DataProcessor):
         )
         return result
 
-    def update_context(self, context: Dict[str, Any]):
+    def update_context(self, context: Dict[str, Any]) -> None:
         """Update the context with information about the clipping operation, to be stored
                 in the "new_attrs" attribute.
 
@@ -143,6 +143,6 @@ class UpdateAttributes(DataProcessor):
         ] = f"""Process '{self.name}' applied to the data."""
         logger.debug("UpdateAttributes.update_context added entry for %s", self.name)
 
-    def set_data_accessor(self, catalog: DataCatalog):
+    def set_data_accessor(self, catalog: DataCatalog) -> None:
         # Placeholder for setting data accessor
         pass

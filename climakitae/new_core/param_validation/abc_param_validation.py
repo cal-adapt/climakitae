@@ -44,7 +44,7 @@ Examples
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 from climakitae.core.constants import PROC_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
@@ -60,7 +60,9 @@ _PROCESSOR_VALIDATOR_REGISTRY = {}
 logger = logging.getLogger(__name__)
 
 
-def register_catalog_validator(name: str):
+def register_catalog_validator(
+    name: str,
+) -> Callable[["Type[ParameterValidator]"], "Type[ParameterValidator]"]:
     """Decorator to register a catalog validator class in the global registry.
 
     This decorator allows validator classes to be registered for use with
@@ -96,14 +98,16 @@ def register_catalog_validator(name: str):
 
     """
 
-    def decorator(cls):
+    def decorator(cls: Type[ParameterValidator]) -> Type[ParameterValidator]:
         _CATALOG_VALIDATOR_REGISTRY[name] = cls
         return cls
 
     return decorator
 
 
-def register_processor_validator(name: str):
+def register_processor_validator(
+    name: str,
+) -> Callable[["Type[ParameterValidator]"], "Type[ParameterValidator]"]:
     """Decorator to register a processor validator function in the global registry.
 
     This decorator allows processor validation functions to be registered for
@@ -141,7 +145,7 @@ def register_processor_validator(name: str):
 
     """
 
-    def decorator(cls):
+    def decorator(cls: Type[ParameterValidator]) -> Type[ParameterValidator]:
         _PROCESSOR_VALIDATOR_REGISTRY[name] = cls
         return cls
 
@@ -373,6 +377,39 @@ class ParameterValidator(ABC):
                     source_vars,
                 )
                 derived_var_name = derived_name
+                # Validate that all source variables exist in the catalog
+                # with the user's table_id/activity_id constraints before proceeding.
+                # This catches cases like querying a derived variable at a temporal
+                # resolution where only some source vars exist (e.g., u10/v10 not
+                # available at monthly resolution).
+                try:
+                    from climakitae.new_core.param_validation.derived_variable_param_validator import (
+                        check_derived_variable_dependencies,
+                    )
+
+                    catalog_df = getattr(self.catalog, "df", None)
+                    activity_id = self.all_catalog_keys.get("activity_id", UNSET)
+                    table_id = self.all_catalog_keys.get("table_id", UNSET)
+                    deps_ok = check_derived_variable_dependencies(
+                        source_vars,
+                        catalog_df,
+                        activity_id=activity_id,
+                        table_id=table_id,
+                    )
+                    if not deps_ok:
+                        logger.warning(
+                            "Cannot compute derived variable '%s': not all source "
+                            "variables %s are available with the requested constraints "
+                            "(activity_id=%s, table_id=%s). Check your query parameters.",
+                            derived_name,
+                            source_vars,
+                            activity_id,
+                            table_id,
+                        )
+                        return None
+                except ImportError as e:
+                    logger.debug("Could not check derived variable dependencies: %s", e)
+
                 # Keep derived variable name as variable_id for catalog search
                 # intake-esm registry will automatically expand to search for
                 # all source variables via its query parameter
@@ -591,7 +628,7 @@ class ParameterValidator(ABC):
             k: v for k, v in self.all_catalog_keys.items() if v is not UNSET
         }
 
-    def load_catalog_df(self):
+    def load_catalog_df(self) -> None:
         """Load the data catalog DataFrame and assign to instance attribute.
 
         Creates a DataCatalog instance and extracts its catalog DataFrame

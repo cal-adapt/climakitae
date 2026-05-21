@@ -9,6 +9,8 @@ import os
 import pprint
 from typing import Any, List, Tuple, Union
 
+import geopandas as gpd
+
 from climakitae.core.constants import UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
@@ -79,10 +81,12 @@ def validate_clip_param(
             return _validate_tuple_param(value)
         case dict():
             return _validate_dict_param(value)
+        case gpd.GeoDataFrame():
+            return True
         case _:
             logger.warning(
                 f"\n\nInvalid parameter type for Clip processor. "
-                f"\nExpected str, list, tuple, or dict, but got {type(value).__name__}. "
+                f"\nExpected str, list, tuple, dict, or GeoDataFrame, but got {type(value).__name__}. "
                 f"\nValid examples: 'CA', ['CA', 'OR'], ((32.0, 42.0), (-125.0, -114.0)), "
                 f"or {{'boundaries': ['CA', 'OR'], 'separated': True}}"
             )

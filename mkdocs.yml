@@ -1,0 +1,146 @@
+site_name: climakitae
+site_description: Modern documentation for climakitae, centered on new_core workflows.
+site_url: https://cal-adapt.github.io/climakitae/
+repo_url: https://github.com/cal-adapt/climakitae
+repo_name: cal-adapt/climakitae
+edit_uri: edit/main/docs-mkdocs/
+
+docs_dir: docs-mkdocs
+site_dir: site
+
+# TEMPLATE.md is an authoring scaffold (not user docs); exclude from the build
+# so its placeholder cross-refs do not trigger autorefs warnings.
+exclude_docs: |
+  climate-data-interface/processors/TEMPLATE.md
+
+# Pages that build (so autorefs and direct URLs keep working) but are kept
+# out of the sidebar to reduce visual noise. The ``*-detailed`` pages exist
+# only to host the autodoc directive after the matching landing page was
+# converted into a pointer; users should land on the parent page.
+not_in_nav: |
+  api/param-validation-detailed.md
+  api/core-data-interface.md
+  api/core-boundaries.md
+  api/processors.md
+
+copyright: Copyright 2026, Cal-Adapt Analytics Engine
+
+theme:
+  name: material
+  logo: _static/cae-map.png
+  favicon: _static/cae-map.png
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+    - content.tabs.link
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          inventories:
+            - url: https://docs.python-requests.org/en/latest/objects.inv
+            - url: https://xarray.pydata.org/en/stable/objects.inv
+            - url: https://dask.readthedocs.io/en/latest/objects.inv
+            - url: https://geopandas.org/objects.inv
+          options:
+            show_source: true
+            show_docstring_description: true
+            show_docstring_examples: true
+            show_docstring_other_parameters: true
+            docstring_style: numpy
+            members_order: source
+            merge_init_into_class: true
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+extra_javascript:
+  - https://unpkg.com/mermaid@11/dist/mermaid.min.js
+
+nav:
+  - Home: index.md
+  - Get Started: getting-started.md
+  - Notebook Gallery: notebook-gallery.md
+  - ClimateData:
+      - Overview: climate-data-interface/index.md
+      - Core Concepts: climate-data-interface/concepts.md
+      - How-To Guides:
+          - Overview: climate-data-interface/howto.md
+          - Clip Data: climate-data-interface/howto/clip.md
+          - Export Data: climate-data-interface/howto/export.md
+          - Warming Level Analysis: climate-data-interface/howto/warming-levels.md
+          - Bias Correction: climate-data-interface/howto/bias-correction.md
+          - Batch Processing: climate-data-interface/howto/batch-processing.md
+          - Combining Techniques: climate-data-interface/howto/combining-techniques.md
+          - Derived Variables: climate-data-interface/howto/derived-variables.md
+          - Time-Based Queries: climate-data-interface/howto/time-based-queries.md
+      - Architecture & Internals: climate-data-interface/architecture.md
+      - Processor Reference:
+          - Overview: climate-data-interface/processors/index.md
+          - TimeSlice: climate-data-interface/processors/time_slice.md
+          - WarmingLevel: climate-data-interface/processors/warming_level.md
+          - Clip: climate-data-interface/processors/clip.md
+          - Export: climate-data-interface/processors/export.md
+          - Concatenate: climate-data-interface/processors/concatenate.md
+          - ConvertUnits: climate-data-interface/processors/convert_units.md
+          - BiasAdjustToStation: climate-data-interface/processors/bias_adjust_model_to_station.md
+          - MetricCalc: climate-data-interface/processors/metric_calc.md
+          - FilterUnadjustedModels: climate-data-interface/processors/filter_unadjusted_models.md
+          - DropLeapDays: climate-data-interface/processors/drop_leap_days.md
+          - ConvertToLocalTime: climate-data-interface/processors/convert_to_local_time.md
+          - UpdateAttributes: climate-data-interface/processors/update_attributes.md
+      - API Reference:
+          - User Interface:
+              - ClimateData class: api/climate-data.md
+              - Dataset Factory: api/dataset-factory.md
+              - Dataset Pipeline: api/dataset.md
+          - Internals:
+              - Parameter Validation: api/param-validation.md
+              - Data Access: api/data-access.md
+              - Processor Utilities: api/processor-utilities.md
+          - User-Facing Modules:
+              - Explore: api/explore.md
+              - Tools: api/tools.md
+              - Util: api/util.md
+              - Derived Variables: api/derived-variables.md
+  - Migration:
+      - Legacy to ClimateData: migration/legacy-to-climate-data.md
+  - Legacy API:
+      - Status and Roadmap: legacy/status.md
+      - Reference: api/core.md
+  - Contributing: contributing.md

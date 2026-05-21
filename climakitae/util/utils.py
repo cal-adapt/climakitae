@@ -24,7 +24,7 @@ from climakitae.core.constants import (
 )
 
 # from climakitae.core.data_interface import DataParameters
-from climakitae.core.paths import DATA_CATALOG_URL, STATIONS_CSV_PATH
+from climakitae.core.paths import DATA_CATALOG_URL, HADISD_STATIONS_URL
 
 
 def downscaling_method_as_list(downscaling_method: str) -> list[str]:
@@ -995,7 +995,8 @@ def readable_bytes(b: int) -> str:
 
     Parameters
     ----------
-    B : byte
+    b : int
+        Size in bytes.
 
     Returns
     -------
@@ -1206,6 +1207,8 @@ def compute_annual_aggreggate(
 def compute_multimodel_stats(data: xr.DataArray) -> xr.DataArray:
     """Calculates model mean, min, max, median across simulations
 
+    Used in heat_index.ipynb and degree_days.ipynb
+
     Parameters
     ----------
     data : xr.DataArray
@@ -1215,53 +1218,61 @@ def compute_multimodel_stats(data: xr.DataArray) -> xr.DataArray:
     stats_concat : xr.DataArray
 
     """
+    # Can hard-code as "sim" once DFU/degree_days.ipynb updated for new core.
+    # But keeping "simulation" as an option until then.
+    if "simulation" in data.dims:
+        sim_dim = "simulation"
+    else:
+        sim_dim = "sim"
+
     # Compute mean across simulation dimensions and add is as a coordinate
     sim_mean = (
-        data.mean(dim="simulation")
-        .assign_coords({"simulation": "simulation mean"})
-        .expand_dims("simulation")
+        data.mean(dim=sim_dim)
+        .assign_coords({sim_dim: "simulation mean"})
+        .expand_dims(sim_dim)
     )
 
     # Compute multimodel min
     sim_min = (
-        data.min(dim="simulation")
-        .assign_coords({"simulation": "simulation min"})
-        .expand_dims("simulation")
+        data.min(dim=sim_dim)
+        .assign_coords({sim_dim: "simulation min"})
+        .expand_dims(sim_dim)
     )
 
     # Compute multimodel max
     sim_max = (
-        data.max(dim="simulation")
-        .assign_coords({"simulation": "simulation max"})
-        .expand_dims("simulation")
+        data.max(dim=sim_dim)
+        .assign_coords({sim_dim: "simulation max"})
+        .expand_dims(sim_dim)
     )
 
     # Compute multimodel median
     sim_median = (
-        data.median(dim="simulation")
-        .assign_coords({"simulation": "simulation median"})
-        .expand_dims("simulation")
+        data.median(dim=sim_dim)
+        .assign_coords({sim_dim: "simulation median"})
+        .expand_dims(sim_dim)
     )
 
     # Add to main dataset
     stats_concat = xr.concat(
-        [data, sim_mean, sim_min, sim_max, sim_median], dim="simulation"
+        [data, sim_mean, sim_min, sim_max, sim_median], dim=sim_dim
     )
+    stats_concat.attrs["name"] = data.name
     return stats_concat
 
 
-def trendline(data: xr.Dataset, kind: str = "mean") -> xr.Dataset:
+def trendline(data: xr.DataArray, kind: str = "mean") -> xr.DataArray:
     """Calculates treadline of the multi-model mean or median.
 
     Parameters
     ----------
-    data : xr.Dataset
+    data : xr.Dataarray
     kind : str , optional
         Options are 'mean' and 'median'
 
     Returns
     -------
-    trendline : xr.Dataset
+    trendline : xr.DataArray
 
     Note
     ----
@@ -1269,25 +1280,32 @@ def trendline(data: xr.Dataset, kind: str = "mean") -> xr.Dataset:
     compute_multimodel_stats must be modified to update optionality.
 
     """
+    # Can hard-code as "sim" once DFU/degree_days.ipynb updated for new core.
+    # But keeping "simulation" as an option until then.
+    if "simulation" in data.dims:
+        sim_dim = "simulation"
+    else:
+        sim_dim = "sim"
+
     ret_trendline = xr.Dataset()
     match kind:
         case "mean":
-            if "simulation mean" not in data.simulation:
+            if "simulation mean" not in data[sim_dim]:
                 raise ValueError(
                     "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
                 )
 
-            data_sim_mean = data.sel(simulation="simulation mean")
+            data_sim_mean = data.sel({sim_dim: "simulation mean"})
             m, b = data_sim_mean.polyfit(dim="year", deg=1).polyfit_coefficients.values
             ret_trendline = m * data_sim_mean.year + b  # y = mx + b
 
         case "median":
-            if "simulation median" not in data.simulation:
+            if "simulation median" not in data[sim_dim]:
                 raise ValueError(
                     "Invalid data provided, please pass the multimodel stats from compute_multimodel_stats"
                 )
 
-            data_sim_med = data.sel(simulation="simulation median")
+            data_sim_med = data.sel({sim_dim: "simulation median"})
             m, b = data_sim_med.polyfit(dim="year", deg=1).polyfit_coefficients.values
             ret_trendline = m * data_sim_med.year + b  # y = mx + b
         case _:
@@ -1346,17 +1364,17 @@ def summary_table(data: xr.Dataset) -> pd.DataFrame:
     if "time" in data.dims:
         df = data.drop_vars(
             ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
-        ).to_dataframe(dim_order=["time", "scenario", "simulation"])
+        ).to_dataframe(dim_order=["time", "sim"])
 
-        df = df.unstack().unstack()
+        df = df.unstack()
         df = df.sort_values(by=["time"])
 
     elif "year" in data.dims:
         df = data.drop_vars(
             ["lakemask", "landmask", "lat", "lon", "Lambert_Conformal", "x", "y"]
-        ).to_dataframe(dim_order=["year", "scenario", "simulation"])
+        ).to_dataframe(dim_order=["year", "sim"])
 
-        df = df.unstack().unstack()
+        df = df.unstack()
         df = df.sort_values(by=["year"])
 
     return df
@@ -1371,17 +1389,17 @@ def convert_to_local_time(
 
     Parameters
     ----------
-        data : xr.DataArray | xr.Dataset
-            Input data.
-        grid_lon : float
-            Mean longitude of dataset if no lat/lon coordinates
-        grid_lat : float
-            Mean latitude of dataset if no lat/lon coordinates
+    data : xr.DataArray or xr.Dataset
+        Input data.
+    lon : float
+        Mean longitude of dataset if no lat/lon coordinates
+    lat : float
+        Mean latitude of dataset if no lat/lon coordinates
 
     Returns
     -------
-        xr.DataArray | xr.Dataset
-            Data with converted time coordinate.
+    xr.DataArray or xr.Dataset
+        Data with converted time coordinate.
 
     """
 
@@ -1428,7 +1446,7 @@ def convert_to_local_time(
     match data_type:
         case "Stations":
             # Read stations database
-            stations_df = read_csv_file(STATIONS_CSV_PATH)
+            stations_df = pd.read_csv(HADISD_STATIONS_URL)
             stations_df = stations_df.drop(columns=["Unnamed: 0"])
 
             # Filter by selected station(s) - assume first station if multiple
@@ -1456,9 +1474,11 @@ def convert_to_local_time(
             # if both lat and lon are set, can move on to timezone finding.
             if (lat is UNSET) or (lon is UNSET):
                 try:
-                    # Finding avg. lat/lon coordinates from all grid-cells
-                    lat = data.lat.mean().item()
-                    lon = data.lon.mean().item()
+                    # Finding central lat/lon coordinates
+                    lat_idx = len(data.lat) // 2
+                    lon_idx = len(data.lon) // 2
+                    lat = data.lat.isel(lat=lat_idx).item()
+                    lon = data.lon.isel(lon=lon_idx).item()
                 except AttributeError:
                     print(
                         "lat/lon coordinates not found in data. Please pass in data with 'lon' and 'lat' coordinates or set both 'lon' and 'lat' arguments."
@@ -1946,7 +1966,7 @@ def clip_gpd_to_shapefile(
         shapefile = shapefile.to_crs(sub_gdf.crs)
 
     # Subset for stations within area boundaries
-    clipped = sub_gdf[sub_gdf.geometry.intersects(shapefile.unary_union)]
+    clipped = sub_gdf[sub_gdf.geometry.intersects(shapefile.union_all())]
 
     if clipped.empty:
         raise RuntimeError(

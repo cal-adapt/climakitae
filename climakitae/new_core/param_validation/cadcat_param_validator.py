@@ -25,9 +25,6 @@ class DataValidator(ParameterValidator):
     catalog : DataCatalog
         the DataCatalog object to validate against
 
-    Attributes
-    ----------
-
     """
 
     def __init__(self, catalog: DataCatalog):

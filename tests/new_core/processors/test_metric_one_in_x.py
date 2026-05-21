@@ -5,6 +5,7 @@ This module contains comprehensive unit tests for the 1-in-X return value calcul
 including initialization, distribution fitting, batch processing, and helper methods.
 
 The tests validate:
+
 - Proper initialization of 1-in-X configuration parameters
 - Statistical distribution fitting (GEV, Gumbel, Weibull, etc.)
 - Vectorized and batch processing of simulations
@@ -24,6 +25,7 @@ from scipy import stats
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.processors.metric_calc import MetricCalc
+from climakitae.util.utils import add_dummy_time_to_wl
 
 # =============================================================================
 # Fixtures
@@ -139,8 +141,36 @@ class TestMetricCalcOneInXInit:
 
     def test_one_in_x_init_missing_return_periods_raises(self):
         """Test that missing return_periods raises ValueError."""
-        with pytest.raises(ValueError, match="return_periods is required"):
+        with pytest.raises(
+            ValueError,
+            match="return_periods or return_values is required for 1-in-X calculations",
+        ):
             MetricCalc({"one_in_x": {}})
+
+    def test_one_in_x_init_return_values_and_return_periods_raises(self):
+        """Test that missing return_periods raises ValueError."""
+        with pytest.raises(
+            ValueError,
+            match="Only set one of return_periods or return_values for 1-in-X calculations",
+        ):
+            MetricCalc({"one_in_x": {"return_periods": [1], "return_values": [1]}})
+
+    def test_one_in_x_init_with_return_values_list(self):
+        """Test initialization with return_values as a list."""
+        processor = MetricCalc({"one_in_x": {"return_values": [20, 25, 30]}})
+        assert processor.one_in_x_config is not UNSET
+        np.testing.assert_array_equal(processor.return_values, np.array([20, 25, 30]))
+
+    def test_one_in_x_init_with_return_values_scalar(self):
+        """Test initialization with return_values as a scalar value."""
+        processor = MetricCalc({"one_in_x": {"return_values": 30}})
+        np.testing.assert_array_equal(processor.return_values, np.array([30]))
+
+    def test_one_in_x_init_with_return_values_ndarray(self):
+        """Test initialization with return_values as numpy array."""
+        values = np.array([25, 30])
+        processor = MetricCalc({"one_in_x": {"return_values": values}})
+        np.testing.assert_array_equal(processor.return_values, values)
 
     @pytest.mark.parametrize(
         "param,value,expected_attr",
@@ -149,7 +179,6 @@ class TestMetricCalcOneInXInit:
             ("distribution", "weibull", "distribution"),
             ("extremes_type", "min", "extremes_type"),
             ("event_duration", (3, "hour"), "event_duration"),
-            ("block_size", 2, "block_size"),
             ("goodness_of_fit_test", False, "goodness_of_fit_test"),
             ("print_goodness_of_fit", False, "print_goodness_of_fit"),
         ],
@@ -168,6 +197,9 @@ class TestMetricCalcOneInXInit:
         assert processor.extremes_type == "max"
         assert processor.event_duration == (1, "day")
         assert processor.block_size == 1
+        assert processor.bootstrap_runs == 100
+        assert processor.conf_int_upper_bound is UNSET
+        assert processor.conf_int_lower_bound is UNSET
         assert processor.goodness_of_fit_test is True
         assert processor.print_goodness_of_fit is True
         assert processor.variable_preprocessing == {}
@@ -179,7 +211,8 @@ class TestMetricCalcOneInXInit:
             "distribution": "gamma",
             "extremes_type": "min",
             "event_duration": (6, "hour"),
-            "block_size": 2,
+            "bootstrap_runs": 50,
+            "alpha": 0.1,
             "goodness_of_fit_test": False,
             "print_goodness_of_fit": False,
             "variable_preprocessing": {"precipitation": {"remove_trace": True}},
@@ -192,7 +225,10 @@ class TestMetricCalcOneInXInit:
         assert processor.distribution == "gamma"
         assert processor.extremes_type == "min"
         assert processor.event_duration == (6, "hour")
-        assert processor.block_size == 2
+        assert processor.block_size == 1
+        assert processor.bootstrap_runs == 50
+        assert processor.conf_int_upper_bound == 95
+        assert processor.conf_int_lower_bound == 5
         assert processor.goodness_of_fit_test is False
         assert processor.print_goodness_of_fit is False
         assert processor.variable_preprocessing == {
@@ -201,7 +237,7 @@ class TestMetricCalcOneInXInit:
 
 
 class TestMetricCalcFitReturnValues1d:
-    """Test class for the _fit_return_values_1d distribution fitting method."""
+    """Test class for the _fit_return_variable_1d distribution fitting method with return period input."""
 
     def setup_method(self):
         """Set up test fixtures for distribution fitting tests."""
@@ -239,7 +275,7 @@ class TestMetricCalcFitReturnValues1d:
             }
         )
 
-        return_values, p_value = processor._fit_return_values_1d(
+        return_values, p_value = processor._fit_return_variable_1d(
             self.valid_block_maxima,
             np.array([10, 50]),
             distr=distribution,
@@ -258,7 +294,7 @@ class TestMetricCalcFitReturnValues1d:
         Note: Due to numpy dtype handling, this may return either NaN (for float arrays)
         or invalid integer values. The key is that the function doesn't crash.
         """
-        return_values, p_value = self.processor._fit_return_values_1d(
+        return_values, p_value = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
             self.return_periods,
             distr="invalid_dist",
@@ -275,7 +311,7 @@ class TestMetricCalcFitReturnValues1d:
         """Test that insufficient data returns NaN values."""
         insufficient_data = np.array([1.0, 2.0])  # Only 2 points, need at least 3
 
-        return_values, p_value = self.processor._fit_return_values_1d(
+        return_values, p_value = self.processor._fit_return_variable_1d(
             insufficient_data,
             self.return_periods,
             distr="gev",
@@ -291,7 +327,7 @@ class TestMetricCalcFitReturnValues1d:
         data_with_nans[0] = np.nan
         data_with_nans[5] = np.nan
 
-        return_values, p_value = self.processor._fit_return_values_1d(
+        return_values, p_value = self.processor._fit_return_variable_1d(
             data_with_nans,
             self.return_periods,
             distr="gev",
@@ -303,7 +339,7 @@ class TestMetricCalcFitReturnValues1d:
 
     def test_fit_with_p_value(self):
         """Test that p-value is calculated when requested."""
-        return_values, p_value = self.processor._fit_return_values_1d(
+        return_values, p_value = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
             self.return_periods,
             distr="gev",
@@ -315,7 +351,7 @@ class TestMetricCalcFitReturnValues1d:
 
     def test_fit_without_p_value(self):
         """Test that p-value is NaN when not requested."""
-        return_values, p_value = self.processor._fit_return_values_1d(
+        return_values, p_value = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
             self.return_periods,
             distr="gev",
@@ -327,7 +363,7 @@ class TestMetricCalcFitReturnValues1d:
     def test_fit_extremes_type_min(self):
         """Test fitting with extremes_type='min' for minima."""
         # For minima, return values should be lower for longer return periods
-        return_values_min, _ = self.processor._fit_return_values_1d(
+        return_values_min, _ = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
             self.return_periods,
             distr="gev",
@@ -335,7 +371,7 @@ class TestMetricCalcFitReturnValues1d:
             get_p_value=False,
         )
 
-        return_values_max, _ = self.processor._fit_return_values_1d(
+        return_values_max, _ = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
             self.return_periods,
             distr="gev",
@@ -348,7 +384,7 @@ class TestMetricCalcFitReturnValues1d:
 
     def test_fit_return_values_increase_with_return_period(self):
         """Test that return values increase with return period for maxima."""
-        return_values, _ = self.processor._fit_return_values_1d(
+        return_values, _ = self.processor._fit_return_variable_1d(
             self.valid_block_maxima,
             self.return_periods,
             distr="gev",
@@ -363,7 +399,7 @@ class TestMetricCalcFitReturnValues1d:
         """Test fitting with all NaN data returns NaN."""
         all_nan_data = np.full(30, np.nan)
 
-        return_values, p_value = self.processor._fit_return_values_1d(
+        return_values, p_value = self.processor._fit_return_variable_1d(
             all_nan_data,
             self.return_periods,
             distr="gev",
@@ -371,6 +407,191 @@ class TestMetricCalcFitReturnValues1d:
         )
 
         assert np.all(np.isnan(return_values))
+        assert np.isnan(p_value)
+
+
+class TestMetricCalcFitReturnPeriods1d:
+    """Test class for the _fit_return_variable_1d distribution fitting method with return value input."""
+
+    def setup_method(self):
+        """Set up test fixtures for distribution fitting tests."""
+        # Create a processor with basic 1-in-X config
+        self.processor = MetricCalc(
+            {
+                "one_in_x": {
+                    "return_values": [100, 1000, 10000],
+                    "distribution": "gev",
+                    "goodness_of_fit_test": True,
+                }
+            }
+        )
+        # Generate realistic block maxima data using GEV distribution
+        np.random.seed(42)
+        shape, loc, scale = 0.1, 30, 5
+        self.valid_block_maxima = stats.genextreme.rvs(
+            c=-shape, loc=loc, scale=scale, size=30, random_state=42
+        )
+        self.return_values = np.array([100, 1000, 10000])
+        self.unset_return_periods = UNSET
+
+    @pytest.mark.parametrize(
+        "distribution",
+        ["gev", "gumbel", "weibull", "pearson3", "genpareto", "gamma"],
+    )
+    def test_fit_distribution_types(self, distribution):
+        """Test fitting with all supported distribution types."""
+        processor = MetricCalc(
+            {
+                "one_in_x": {
+                    "return_values": [100, 1000, 10000],
+                    "distribution": distribution,
+                    "goodness_of_fit_test": False,
+                }
+            }
+        )
+
+        return_periods, p_value = processor._fit_return_variable_1d(
+            self.valid_block_maxima,
+            self.unset_return_periods,
+            np.array([100, 1000, 10000]),
+            distr=distribution,
+            get_p_value=False,
+        )
+
+        # Should return valid values (not NaN)
+        assert return_periods.shape == (3,)
+        assert not np.all(np.isnan(return_periods))
+        # p_value should be NaN when not requested
+        assert np.isnan(p_value)
+
+    def test_fit_invalid_distribution_returns_invalid(self):
+        """Test that invalid distribution type returns invalid values (caught by exception handler).
+
+        Note: Due to numpy dtype handling, this may return either NaN (for float arrays)
+        or invalid integer values. The key is that the function doesn't crash.
+        """
+        return_periods, p_value = self.processor._fit_return_variable_1d(
+            self.valid_block_maxima,
+            self.unset_return_periods,
+            self.return_values,
+            distr="invalid_dist",
+            get_p_value=False,
+        )
+
+        # Invalid distribution should be handled gracefully
+        # Check that p_value is NaN (always float)
+        assert np.isnan(p_value)
+        # Return periods array should have the right shape
+        assert return_periods.shape == self.return_values.shape
+
+    def test_fit_insufficient_data_returns_nan(self):
+        """Test that insufficient data returns NaN values."""
+        insufficient_data = np.array([1.0, 2.0])  # Only 2 points, need at least 3
+
+        return_periods, p_value = self.processor._fit_return_variable_1d(
+            insufficient_data,
+            self.unset_return_periods,
+            self.return_values,
+            distr="gev",
+            get_p_value=True,
+        )
+
+        assert np.all(np.isnan(return_periods))
+        assert np.isnan(p_value)
+
+    def test_fit_with_nan_values(self):
+        """Test fitting with NaN values in the data (should be filtered out)."""
+        data_with_nans = self.valid_block_maxima.copy()
+        data_with_nans[0] = np.nan
+        data_with_nans[5] = np.nan
+
+        return_periods, p_value = self.processor._fit_return_variable_1d(
+            data_with_nans,
+            self.unset_return_periods,
+            self.return_values,
+            distr="gev",
+            get_p_value=False,
+        )
+
+        # Should still return valid values after filtering NaNs
+        assert not np.all(np.isnan(return_periods))
+
+    def test_fit_with_p_value(self):
+        """Test that p-value is calculated when requested."""
+        return_periods, p_value = self.processor._fit_return_variable_1d(
+            self.valid_block_maxima,
+            self.unset_return_periods,
+            self.return_values,
+            distr="gev",
+            get_p_value=True,
+        )
+
+        assert not np.isnan(p_value)
+        assert 0 <= p_value <= 1
+
+    def test_fit_without_p_value(self):
+        """Test that p-value is NaN when not requested."""
+        return_periods, p_value = self.processor._fit_return_variable_1d(
+            self.valid_block_maxima,
+            self.unset_return_periods,
+            self.return_values,
+            distr="gev",
+            get_p_value=False,
+        )
+
+        assert np.isnan(p_value)
+
+    def test_fit_extremes_type_min(self):
+        """Test fitting with extremes_type='min' for minima."""
+        # For minima, return values should be lower for longer return periods
+        return_periods_min, _ = self.processor._fit_return_variable_1d(
+            self.valid_block_maxima,
+            self.unset_return_periods,
+            self.return_values,
+            distr="gev",
+            extremes_type="min",
+            get_p_value=False,
+        )
+
+        return_periods_max, _ = self.processor._fit_return_variable_1d(
+            self.valid_block_maxima,
+            self.unset_return_periods,
+            self.return_values,
+            distr="gev",
+            extremes_type="max",
+            get_p_value=False,
+        )
+
+        # Min and max should give different results
+        assert not np.allclose(return_periods_min, return_periods_max)
+
+    def test_fit_return_periods_increase_with_return_value(self):
+        """Test that return periods increase with return value for maxima."""
+        return_periods, _ = self.processor._fit_return_variable_1d(
+            self.valid_block_maxima,
+            self.unset_return_periods,
+            self.return_values,
+            distr="gev",
+            extremes_type="max",
+            get_p_value=False,
+        )
+
+        # For maxima, longer return periods should give higher values
+        assert return_periods[0] < return_periods[1] < return_periods[2]
+
+    def test_fit_all_nan_data(self):
+        """Test fitting with all NaN data returns NaN."""
+        all_nan_data = np.full(30, np.nan)
+
+        return_periods, p_value = self.processor._fit_return_variable_1d(
+            all_nan_data,
+            self.unset_return_periods,
+            self.return_values,
+            distr="gev",
+            get_p_value=True,
+        )
+
+        assert np.all(np.isnan(return_periods))
         assert np.isnan(p_value)
 
 
@@ -443,6 +664,8 @@ class TestMetricCalcHelperMethods:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "event_duration": (1, "day"),
+                    "alpha": 0.05,
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -450,6 +673,16 @@ class TestMetricCalcHelperMethods:
         # Create mock return values and p-values
         ret_vals = xr.DataArray(
             np.array([[30.0, 35.0], [31.0, 36.0]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0", "sim_1"], "one_in_x": [10, 50]},
+        )
+        ci_lower = xr.DataArray(
+            np.array([[29.0, 34.0], [30.0, 35.0]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0", "sim_1"], "one_in_x": [10, 50]},
+        )
+        ci_upper = xr.DataArray(
+            np.array([[31.0, 36.0], [32.0, 36.0]]),
             dims=["sim", "one_in_x"],
             coords={"sim": ["sim_0", "sim_1"], "one_in_x": [10, 50]},
         )
@@ -467,10 +700,14 @@ class TestMetricCalcHelperMethods:
             },
         )
 
-        result = processor._create_one_in_x_result_dataset(ret_vals, p_vals, data_array)
+        result = processor._create_one_in_x_result_dataset(
+            ret_vals, ci_lower, ci_upper, p_vals, data_array
+        )
 
         assert isinstance(result, xr.Dataset)
         assert "return_values" in result.data_vars
+        assert "conf_int_lower_limit" in result.data_vars
+        assert "conf_int_upper_limit" in result.data_vars
         assert "p_values" in result.data_vars
         assert "groupby" in result.attrs
         assert "fitted_distr" in result.attrs
@@ -485,12 +722,24 @@ class TestMetricCalcHelperMethods:
                     "distribution": "gumbel",
                     "event_duration": (1, "day"),
                     "goodness_of_fit_test": False,
+                    "alpha": 0.05,
+                    "bootstrap_runs": 1,
                 }
             }
         )
 
         ret_vals = xr.DataArray(
             np.array([[30.0, 35.0]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
+        )
+        ci_lower = xr.DataArray(
+            np.array([[29.0, 30.0]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
+        )
+        ci_upper = xr.DataArray(
+            np.array([[31.0, 36.0]]),
             dims=["sim", "one_in_x"],
             coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
         )
@@ -503,19 +752,72 @@ class TestMetricCalcHelperMethods:
             },
         )
 
-        result = processor._create_one_in_x_result_dataset(ret_vals, None, data_array)
+        result = processor._create_one_in_x_result_dataset(
+            ret_vals, ci_lower, ci_upper, None, data_array
+        )
 
         assert isinstance(result, xr.Dataset)
         assert "return_values" in result.data_vars
+        assert "conf_int_lower_limit" in result.data_vars
+        assert "conf_int_upper_limit" in result.data_vars
+        assert "confidence_interval_lower_bound" in result["conf_int_lower_limit"].attrs
+        assert "confidence_interval_upper_bound" in result["conf_int_upper_limit"].attrs
         assert "p_values" not in result.data_vars
         assert result.attrs["fitted_distr"] == "gumbel"
 
-    def test_add_dummy_time_with_time_delta(self):
-        """Test _add_dummy_time_if_needed with time_delta dimension."""
+    def test_create_result_dataset_with_zero_values(self):
+        """Test _create_one_in_x_result_dataset without p-values."""
         processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10], "distribution": "gev"}}
+            {
+                "one_in_x": {
+                    "return_values": [10, 50],
+                    "distribution": "gumbel",
+                    "event_duration": (1, "day"),
+                    "goodness_of_fit_test": False,
+                    "alpha": 0.05,
+                    "bootstrap_runs": 1,
+                }
+            }
         )
 
+        ret_vals = xr.DataArray(
+            np.array([[1, 0]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
+        )
+        ci_lower = xr.DataArray(
+            np.array([[0, np.nan]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
+        )
+        ci_upper = xr.DataArray(
+            np.array([[2, np.nan]]),
+            dims=["sim", "one_in_x"],
+            coords={"sim": ["sim_0"], "one_in_x": [10, 50]},
+        )
+        data_array = xr.DataArray(
+            np.random.rand(100, 1),
+            dims=["time", "sim"],
+            coords={
+                "time": pd.date_range("2000-01-01", periods=100),
+                "sim": ["sim_0"],
+            },
+        )
+
+        result = processor._create_one_in_x_result_dataset(
+            ret_vals, ci_lower, ci_upper, None, data_array
+        )
+
+        assert isinstance(result, xr.Dataset)
+        assert "return_periods" in result.data_vars
+        assert "conf_int_period_lower_limit" in result.data_vars
+        assert "conf_int_period_upper_limit" in result.data_vars
+        assert np.isinf(result.return_probabilities.sel(one_in_x=50))
+        assert np.isinf(result.conf_int_prob_upper_limit.sel(one_in_x=10))
+        assert np.isnan(result.conf_int_prob_lower_limit.sel(one_in_x=50))
+
+    def test_add_dummy_time_with_time_delta(self):
+        """Test add_dummy_time_to_wl with time_delta dimension."""
         # Create data with time_delta dimension (warming level data)
         data = xr.DataArray(
             np.random.rand(365, 2),
@@ -527,18 +829,14 @@ class TestMetricCalcHelperMethods:
             attrs={"frequency": "day"},
         )
 
-        result = processor._add_dummy_time_if_needed(data, "day")
+        result = add_dummy_time_to_wl(data)
 
         assert "time" in result.dims
         assert "time_delta" not in result.dims
         assert len(result.time) == 365
 
     def test_add_dummy_time_with_from_center(self):
-        """Test _add_dummy_time_if_needed with *_from_center dimension."""
-        processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10], "distribution": "gev"}}
-        )
-
+        """Test add_dummy_time_to_wl with *_from_center dimension."""
         # Create data with hours_from_center dimension
         data = xr.DataArray(
             np.random.rand(24, 2),
@@ -549,17 +847,13 @@ class TestMetricCalcHelperMethods:
             },
         )
 
-        result = processor._add_dummy_time_if_needed(data, "1hr")
+        result = add_dummy_time_to_wl(data)
 
         assert "time" in result.dims
         assert "hours_from_center" not in result.dims
 
     def test_add_dummy_time_missing_dim_raises(self):
-        """Test _add_dummy_time_if_needed raises error when no valid time dim."""
-        processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10], "distribution": "gev"}}
-        )
-
+        """Test add_dummy_time_to_wl raises error when no valid time dim."""
         # Create data without any time-like dimension
         data = xr.DataArray(
             np.random.rand(10, 2),
@@ -567,8 +861,10 @@ class TestMetricCalcHelperMethods:
             coords={"lat": range(10), "sim": ["sim_0", "sim_1"]},
         )
 
-        with pytest.raises(ValueError, match="must have a 'time'"):
-            processor._add_dummy_time_if_needed(data, "day")
+        with pytest.raises(
+            ValueError, match="does not contain necessary warming level"
+        ):
+            add_dummy_time_to_wl(data)
 
 
 class TestMetricCalcPreprocessVariable:
@@ -637,7 +933,12 @@ class TestMetricCalcCalculateOneInXSingle:
     def test_one_in_x_missing_sim_dimension_raises(self):
         """Test that missing 'sim' dimension raises ValueError."""
         processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10, 50], "distribution": "gev"}}
+            {
+                "one_in_x": {
+                    "return_periods": [10, 50],
+                    "distribution": "gev",
+                }
+            }
         )
 
         # Create data without sim dimension
@@ -698,7 +999,12 @@ class TestMetricCalcAdaptiveBatchSize:
     def test_adaptive_batch_size_returns_valid_int(self, one_in_x_da_with_sim):
         """Test that adaptive batch size returns a valid integer."""
         processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10], "distribution": "gev"}}
+            {
+                "one_in_x": {
+                    "return_periods": [10],
+                    "distribution": "gev",
+                }
+            }
         )
 
         batch_size = processor._calculate_adaptive_batch_size(one_in_x_da_with_sim)
@@ -712,7 +1018,12 @@ class TestMetricCalcAdaptiveBatchSize:
         import sys
 
         processor = MetricCalc(
-            {"one_in_x": {"return_periods": [10], "distribution": "gev"}}
+            {
+                "one_in_x": {
+                    "return_periods": [10],
+                    "distribution": "gev",
+                }
+            }
         )
 
         # Temporarily remove psutil from sys.modules to simulate ImportError
@@ -747,15 +1058,19 @@ class TestMetricCalcFitDistributionsVectorized:
                     "return_periods": [10, 50],
                     "distribution": "gev",
                     "goodness_of_fit_test": True,
+                    "alpha": 0.05,
+                    "bootstrap_runs": 1,
                 }
             }
         )
 
-        return_values, p_values = processor._fit_distributions_vectorized(
-            block_maxima_data, "time"
+        return_values, ci_lower, ci_upper, p_values = (
+            processor._fit_distributions_vectorized(block_maxima_data, "time")
         )
 
         assert return_values is not None
+        assert ci_lower is not None
+        assert ci_upper is not None
         assert p_values is not None
         # Should have one_in_x dimension in return values
         assert "one_in_x" in return_values.dims
@@ -777,11 +1092,15 @@ class TestMetricCalcFitDistributionsVectorized:
         # Convert to dask
         dask_data = block_maxima_data.chunk({"time": 10, "sim": 1})
 
-        return_values, p_values = processor._fit_distributions_vectorized(
-            dask_data, "time"
+        return_values, ci_lower, ci_upper, p_values = (
+            processor._fit_distributions_vectorized(dask_data, "time")
         )
 
         assert return_values is not None
+        assert ci_lower is not None
+        assert ci_upper is not None
+        assert ci_lower.isnull().all()
+        assert ci_upper.isnull().all()
         assert "one_in_x" in return_values.dims
 
 
@@ -928,7 +1247,6 @@ class TestMetricCalcSpatialBatching:
         block_maxima_kwargs = {
             "extremes_type": "max",
             "check_ess": False,
-            "block_size": 1,
             "groupby": (1, "day"),
         }
 
@@ -954,6 +1272,8 @@ class TestMetricCalcSpatialBatching:
                     "distribution": "gev",
                     "goodness_of_fit_test": False,
                     "event_duration": (1, "day"),
+                    "alpha": 0.05,
+                    "bootstrap_runs": 1,
                 }
             }
         )
@@ -961,7 +1281,6 @@ class TestMetricCalcSpatialBatching:
         block_maxima_kwargs = {
             "extremes_type": "max",
             "check_ess": False,
-            "block_size": 1,
             "groupby": (1, "day"),
         }
 

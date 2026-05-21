@@ -285,12 +285,12 @@ class TestCoerceToDates:
             # Integer inputs (year integers)
             (
                 [2020, 2021],
-                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")),
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31 23:59:59")),
             ),
             # Float inputs (year floats)
             (
                 [2020.0, 2021.0],
-                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")),
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31 23:59:59")),
             ),
             # datetime.date inputs
             (
@@ -332,7 +332,16 @@ class TestCoerceToDates:
             ),
             (
                 ["2020-01-01", 2021],
-                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31")),
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31 23:59:59")),
+            ),
+            # Bare 4-digit year strings — must snap to Jan 1 / Dec 31 23:59:59
+            (
+                ["2020", "2021"],
+                (pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31 23:59:59")),
+            ),
+            (
+                ["2030", "2050"],
+                (pd.Timestamp("2030-01-01"), pd.Timestamp("2050-12-31 23:59:59")),
             ),
         ],
         ids=[
@@ -349,6 +358,8 @@ class TestCoerceToDates:
             "mixed_date_string",
             "mixed_timestamp_datetime",
             "mixed_string_year",
+            "bare_year_strings",
+            "bare_year_strings_2030_2050",
         ],
     )
     def test_coerce_to_dates_valid_inputs(self, input_data, expected):
