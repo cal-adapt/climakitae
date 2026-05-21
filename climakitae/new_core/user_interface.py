@@ -320,6 +320,12 @@ class ClimateData:
         # when verbosity is set to DEBUG.
         pkg_logger = logging.getLogger("climakitae")
         pkg_logger.setLevel(log_level)
+        # Always allow records to propagate to the root logger so that
+        # pytest's ``caplog`` fixture and other root-level consumers can
+        # capture climakitae logs. Duplicate-output prevention is handled
+        # below by skipping our stdout handler when the root logger already
+        # has handlers of its own.
+        pkg_logger.propagate = True
 
         # Remove existing handlers on the package logger to avoid dupes
         for h in list(pkg_logger.handlers):
@@ -332,25 +338,38 @@ class ClimateData:
 
         # Add handler only when logging is not intentionally silenced
         if log_level != logging.CRITICAL + 1:
-            # Create handler (file or stdout)
+            # If the user is writing to a file, always attach our own handler.
+            # Otherwise, only attach a stdout handler when the root logger has
+            # no handlers of its own — this avoids duplicate output in
+            # environments like Jupyter/IPython or user code that has called
+            # ``logging.basicConfig()``, while still showing logs in plain
+            # Python scripts where root has no handlers by default.
+            #
+            # Critically, we leave ``pkg_logger.propagate`` at its default
+            # ``True`` so that records still flow up to the root logger. This
+            # is required for pytest's ``caplog`` fixture (and any downstream
+            # consumer that listens at the root) to capture climakitae logs.
+            root_has_handlers = bool(logging.getLogger().handlers)
             if self._log_file:
                 handler = logging.FileHandler(self._log_file, mode="a")
-            else:
+            elif not root_has_handlers:
                 handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = None
 
-            # Set formatter
-            formatter = logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-            )
-            handler.setFormatter(formatter)
-            handler.setLevel(log_level)
+            if handler is not None:
+                # Set formatter
+                formatter = logging.Formatter(
+                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                    datefmt="%Y-%m-%d %H:%M:%S",
+                )
+                handler.setFormatter(formatter)
+                handler.setLevel(log_level)
 
-            # Add handler to package logger so all climakitae.* loggers
-            # will propagate to it and be printed according to the
-            # configured verbosity.
-            pkg_logger.addHandler(handler)
-            pkg_logger.propagate = False  # Don't propagate to root logger
+                # Add handler to package logger so all climakitae.* loggers
+                # will propagate to it and be printed according to the
+                # configured verbosity.
+                pkg_logger.addHandler(handler)
 
             # Ensure this module-level logger at least has the same level
             # so its own messages are emitted consistently.
@@ -720,10 +739,10 @@ class ClimateData:
         climakitae.new_core.derived_variables : Module documentation
 
         """
-        from climakitae.new_core.derived_variables import register_user_function
-        from climakitae.new_core.param_validation.derived_variable_param_validator import (
-            validate_derived_variable_params,
-        )
+        from climakitae.new_core.derived_variables import \
+            register_user_function
+        from climakitae.new_core.param_validation.derived_variable_param_validator import \
+            validate_derived_variable_params
 
         logger.debug(
             "Registering derived variable '%s' depending on %s", name, depends_on
@@ -1171,7 +1190,8 @@ class ClimateData:
         ...
 
         """
-        from climakitae.new_core.derived_variables import list_derived_variables
+        from climakitae.new_core.derived_variables import \
+            list_derived_variables
 
         msg = "Derived Variables (computed from source variables during loading):"
         logger.info(msg)
