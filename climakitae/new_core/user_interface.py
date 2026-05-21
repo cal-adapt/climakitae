@@ -739,10 +739,10 @@ class ClimateData:
         climakitae.new_core.derived_variables : Module documentation
 
         """
-        from climakitae.new_core.derived_variables import \
-            register_user_function
-        from climakitae.new_core.param_validation.derived_variable_param_validator import \
-            validate_derived_variable_params
+        from climakitae.new_core.derived_variables import register_user_function
+        from climakitae.new_core.param_validation.derived_variable_param_validator import (
+            validate_derived_variable_params,
+        )
 
         logger.debug(
             "Registering derived variable '%s' depending on %s", name, depends_on
@@ -1190,8 +1190,7 @@ class ClimateData:
         ...
 
         """
-        from climakitae.new_core.derived_variables import \
-            list_derived_variables
+        from climakitae.new_core.derived_variables import list_derived_variables
 
         msg = "Derived Variables (computed from source variables during loading):"
         logger.info(msg)
