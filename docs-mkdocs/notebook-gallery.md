@@ -23,36 +23,44 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
 
 **Links**: 
 
-- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/data-access/basic_data_access.ipynb)
-- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=data-access/basic_data_access.ipynb) Launch on Binder
+- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/basic_data_access.ipynb)
+- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=basic_data_access.ipynb) Launch on Binder
 
 ---
 
-### Interactive Data Access & Visualization
+### Renewables Data Access
 
-**Retrieve, subset, and visualize Cal-Adapt catalog data via a graphical user interface.**
+**Retrieve capacity factor and generation data for solar PV and wind power installations across California.**
 
 - **Level**: Beginner – Intermediate
-- **Key Topics**: Interactive widgets • GUI-driven querying • climakitaegui visualization
-- **Use Case**: Featured on the [Cal-Adapt Analytics Engine — Example Applications](https://analytics.cal-adapt.org/analytics/applications/example) page as the entry point for non-coding workflows.
+- **Key Topics**: Renewable energy data • Solar PV • Wind power • Capacity factors
+- **What You'll Learn**:
+  - How to access renewable energy generation data via the climakitae API
+  - Querying solar and wind capacity factor datasets
+  - Analyzing generation potential across California regions
 
-**Links**:  
-- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/data-access/basic_data_access.ipynb)
-- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=data-access/basic_data_access.ipynb) Launch on Binder
+**Links**:
+
+- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/renewables_data_access.ipynb)
+- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=renewables_data_access.ipynb) Launch on Binder
 
 ---
 
-### Localization Methodology (Bias Correction at a Station)
+### Weather Station Data Access
 
-**Walk through the quantile delta mapping (QDM) process used to localize gridded WRF data to a weather station.**
+**Access quality-controlled historical weather observations from the Historical Observations Data Platform.**
 
-- **Level**: Advanced
-- **Key Topics**: Bias correction • QDM • station observations • `bias_adjust_model_to_station` processor
-- **Background**: See the Cal-Adapt [Methods page](https://analytics.cal-adapt.org/analytics/methods) for the algorithmic context.
+- **Level**: Intermediate
+- **Key Topics**: Historical observations • HadISD • Weather stations • `intake` catalog
+- **What You'll Learn**:
+  - How to open and query the historical weather station catalog
+  - Filtering stations by location and variable
+  - Working with observational data alongside gridded climate projections
 
-**Links**:  
-- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/collaborative/DFU/localization_methodology.ipynb)
-- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=collaborative/DFU/localization_methodology.ipynb) Launch on Binder
+**Links**:
+
+- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/weather_station_data_access.ipynb)
+- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=weather_station_data_access.ipynb) Launch on Binder
 
 ---
 
@@ -72,8 +80,8 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
   - Handling models that don't reach specific warming levels
 
 **Links**:  
-- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/analysis/warming_level_methods.ipynb)
-- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=analysis/warming_level_methods.ipynb) Launch on Binder
+- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/warming_level_methods.ipynb)
+- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=warming_level_methods.ipynb) Launch on Binder
 
 ---
 
@@ -91,46 +99,46 @@ Each notebook is interactive and can be run live on Binder or downloaded to your
   - Visualizing compound conditions (e.g., heat + humidity)
 
 **Links**:  
-- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/analysis/threshold_tools.ipynb)
-- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=analysis/threshold_tools.ipynb) Launch on Binder
+- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/threshold_tools.ipynb)
+- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=threshold_tools.ipynb) Launch on Binder
 
 ---
 
-### Model Uncertainty: Understanding Multi-Model Ensembles
+### Custom Derived Variables
 
-**Explore sources of uncertainty in climate projections from multiple climate models.**
+**Define and use custom derived metrics within climakitae using the `register_user_function` tool.**
 
-- **Level**: Intermediate
-- **Duration**: 20-25 minutes
-- **Key Topics**: Ensemble uncertainty • Model spread • Climate variability • Ensemble statistics
+- **Level**: Intermediate – Advanced
+- **Key Topics**: Derived variables • `register_user_function` • Custom metrics • Multi-variable computation
 - **What You'll Learn**:
-  - Why different climate models produce different results
-  - How to compute ensemble mean and spread
-  - Visualizing model uncertainty with ensemble statistics
-  - When to use ensemble mean vs. individual models
+  - How to register a custom metric function from existing catalog variables
+  - Using the `ClimateData` interface to compute derived quantities
+  - Comparing the streamlined workflow to manual multi-variable loading
 
-**Links**:  
-- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/analysis/model_uncertainty.ipynb)
-- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=analysis/model_uncertainty.ipynb) Launch on Binder
+**Links**:
+
+- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/derived_variables_demo.ipynb)
+- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=derived_variables_demo.ipynb) Launch on Binder
 
 ---
 
-### Time Series Transformations & Analysis
+## Climate Profiles
 
-**Transform and analyze climate time series data with different temporal aggregations and statistics.**
+### Custom Climate Profiles
+
+**Generate annualized hourly climate profiles for energy system modeling and planning.**
 
 - **Level**: Intermediate
-- **Duration**: 20-25 minutes
-- **Key Topics**: Temporal aggregation • Percentile computation • Moving averages • Anomaly calculation
+- **Key Topics**: Climate profiles • Annualized Hourly Climate Profile • Standard year • Typical Meteorological Year • Energy planning
 - **What You'll Learn**:
-  - Resampling data to different time resolutions
-  - Computing percentiles and anomalies
-  - Calculating rolling statistics for extreme event detection
-  - Comparing different time-based analyses
+  - How to generate a custom Standard Year climate profile for a location
+  - Customizing profiles by variable, scenario, and warming level
+  - Exporting profiles to CSV for use in energy system models
 
-**Links**:  
-- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/analysis/timeseries_transformations.ipynb)
-- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=analysis/timeseries_transformations.ipynb) Launch on Binder
+**Links**:
+
+- [View on GitHub](https://github.com/cal-adapt/cae-notebooks/blob/main/custom_climate_profiles.ipynb)
+- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cal-adapt/cae-notebooks/main?filepath=custom_climate_profiles.ipynb) Launch on Binder
 
 ---
 
@@ -205,10 +213,10 @@ Access pre-installed notebooks on the [Cal-Adapt Analytics Engine JupyterHub](ht
 
 **Suggested learning path**:  
 
-1. **Start**: Basic Climate Data Access (understand data model)  
+1. **Start**: Basic Climate Data Access (understand the data model)  
 2. **Next**: Global Warming Levels (key climakitae feature)  
-3. **Then**: Threshold Exceedance or Model Uncertainty (real-world applications)  
-4. **Advanced**: Time Series Transformations (custom analyses)
+3. **Then**: Threshold Exceedance or Renewables Data Access (real-world applications)  
+4. **Advanced**: Custom Derived Variables or Custom Climate Profiles (extend the framework)
 
 ---
 
