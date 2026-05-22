@@ -778,5 +778,223 @@ class TestBoundariesEdgeCases:
         assert "Random Utility B" in result
 
 
+class TestBoundariesAccessorFunctions:
+    """Test public accessor functions for boundary data."""
+
+    @pytest.fixture
+    def boundaries_with_data(self):
+        """Create a Boundaries instance with mock data set on the private attributes."""
+        boundaries = Boundaries.__new__(Boundaries)
+        boundaries._lookup_cache = {}
+
+        states_df = pd.DataFrame(
+            {"abbrevs": ["CA", "OR", "NV"], "geometry": ["POLY_0", "POLY_1", "POLY_2"]},
+            index=[10, 11, 12],
+        )
+        counties_df = pd.DataFrame(
+            {"NAME": ["Alameda", "Los Angeles"], "geometry": ["POLY_0", "POLY_1"]},
+            index=[20, 21],
+        )
+        watersheds_df = pd.DataFrame(
+            {"Name": ["Central Valley", "Bay Area"], "geometry": ["POLY_0", "POLY_1"]},
+            index=[30, 31],
+        )
+        utilities_df = pd.DataFrame(
+            {"Utility": ["Pacific Gas & Electric Company", "Other Utility"],
+             "geometry": ["POLY_0", "POLY_1"]},
+            index=[40, 41],
+        )
+        forecast_zones_df = pd.DataFrame(
+            {"FZ_Name": ["North Bay", "South Bay"], "geometry": ["POLY_0", "POLY_1"]},
+            index=[50, 51],
+        )
+        eba_df = pd.DataFrame(
+            {"NAME": ["CALISO", "LADWP"], "geometry": ["POLY_0", "POLY_1"]},
+            index=[60, 61],
+        )
+        census_df = pd.DataFrame(
+            {"GEOID": ["06001400100", "06001400200"], "geometry": ["POLY_0", "POLY_1"]},
+            index=[70, 71],
+        )
+
+        setattr(boundaries, "_Boundaries__us_states", states_df)
+        setattr(boundaries, "_Boundaries__ca_counties", counties_df)
+        setattr(boundaries, "_Boundaries__ca_watersheds", watersheds_df)
+        setattr(boundaries, "_Boundaries__ca_utilities", utilities_df)
+        setattr(boundaries, "_Boundaries__ca_forecast_zones", forecast_zones_df)
+        setattr(boundaries, "_Boundaries__ca_electric_balancing_areas", eba_df)
+        setattr(boundaries, "_Boundaries__ca_census_tracts", census_df)
+
+        return boundaries
+
+    def test_get_states_no_name_returns_full_df(self, boundaries_with_data):
+        result = boundaries_with_data.get_states()
+        assert len(result) == 3
+        assert list(result["abbrevs"]) == ["CA", "OR", "NV"]
+
+    def test_get_states_with_name_returns_single_row(self, boundaries_with_data):
+        with patch(
+            "climakitae.core.constants.WESTERN_STATES_LIST",
+            ["CA", "OR", "NV"],
+            create=True,
+        ):
+            with patch.object(
+                boundaries_with_data,
+                "_get_us_states",
+                return_value={"CA": 10, "OR": 11, "NV": 12},
+            ):
+                result = boundaries_with_data.get_states("CA")
+        assert len(result) == 1
+        assert result.index[0] == 10
+
+    def test_get_states_invalid_name_raises(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_us_states",
+            return_value={"CA": 10, "OR": 11},
+        ):
+            with pytest.raises(ValueError, match="State 'TX' not found"):
+                boundaries_with_data.get_states("TX")
+
+    def test_get_counties_no_name_returns_full_df(self, boundaries_with_data):
+        result = boundaries_with_data.get_counties()
+        assert len(result) == 2
+        assert "Alameda" in result["NAME"].values
+
+    def test_get_counties_with_name_returns_single_row(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_ca_counties",
+            return_value={"Alameda": 20, "Los Angeles": 21},
+        ):
+            result = boundaries_with_data.get_counties("Alameda")
+        assert len(result) == 1
+        assert result.index[0] == 20
+
+    def test_get_counties_invalid_name_raises(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_ca_counties",
+            return_value={"Alameda": 20},
+        ):
+            with pytest.raises(ValueError, match="County 'Sacramento' not found"):
+                boundaries_with_data.get_counties("Sacramento")
+
+    def test_get_watersheds_no_name_returns_full_df(self, boundaries_with_data):
+        result = boundaries_with_data.get_watersheds()
+        assert len(result) == 2
+
+    def test_get_watersheds_with_name_returns_single_row(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_ca_watersheds",
+            return_value={"Central Valley": 30, "Bay Area": 31},
+        ):
+            result = boundaries_with_data.get_watersheds("Bay Area")
+        assert len(result) == 1
+        assert result.index[0] == 31
+
+    def test_get_watersheds_invalid_name_raises(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_ca_watersheds",
+            return_value={"Central Valley": 30},
+        ):
+            with pytest.raises(ValueError, match="Watershed 'Unknown' not found"):
+                boundaries_with_data.get_watersheds("Unknown")
+
+    def test_get_utilities_no_name_returns_full_df(self, boundaries_with_data):
+        result = boundaries_with_data.get_utilities()
+        assert len(result) == 2
+
+    def test_get_utilities_with_name_returns_single_row(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_ious_pous",
+            return_value={"Pacific Gas & Electric Company": 40, "Other Utility": 41},
+        ):
+            result = boundaries_with_data.get_utilities("Other Utility")
+        assert len(result) == 1
+        assert result.index[0] == 41
+
+    def test_get_utilities_invalid_name_raises(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_ious_pous",
+            return_value={"Pacific Gas & Electric Company": 40},
+        ):
+            with pytest.raises(ValueError, match="Utility 'Unknown Utility' not found"):
+                boundaries_with_data.get_utilities("Unknown Utility")
+
+    def test_get_forecast_zones_no_name_returns_full_df(self, boundaries_with_data):
+        result = boundaries_with_data.get_forecast_zones()
+        assert len(result) == 2
+
+    def test_get_forecast_zones_with_name_returns_single_row(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_forecast_zones",
+            return_value={"North Bay": 50, "South Bay": 51},
+        ):
+            result = boundaries_with_data.get_forecast_zones("North Bay")
+        assert len(result) == 1
+        assert result.index[0] == 50
+
+    def test_get_forecast_zones_invalid_name_raises(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_forecast_zones",
+            return_value={"North Bay": 50},
+        ):
+            with pytest.raises(ValueError, match="Forecast zone 'Unknown' not found"):
+                boundaries_with_data.get_forecast_zones("Unknown")
+
+    def test_get_electric_balancing_areas_no_name_returns_full_df(self, boundaries_with_data):
+        result = boundaries_with_data.get_electric_balancing_areas()
+        assert len(result) == 2
+
+    def test_get_electric_balancing_areas_with_name_returns_single_row(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_electric_balancing_areas",
+            return_value={"CALISO": 60, "LADWP": 61},
+        ):
+            result = boundaries_with_data.get_electric_balancing_areas("CALISO")
+        assert len(result) == 1
+        assert result.index[0] == 60
+
+    def test_get_electric_balancing_areas_invalid_name_raises(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_electric_balancing_areas",
+            return_value={"CALISO": 60},
+        ):
+            with pytest.raises(ValueError, match="Balancing area 'Unknown' not found"):
+                boundaries_with_data.get_electric_balancing_areas("Unknown")
+
+    def test_get_census_tracts_no_geoid_returns_full_df(self, boundaries_with_data):
+        result = boundaries_with_data.get_census_tracts()
+        assert len(result) == 2
+
+    def test_get_census_tracts_with_geoid_returns_single_row(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_ca_census_tracts",
+            return_value={"06001400100": 70, "06001400200": 71},
+        ):
+            result = boundaries_with_data.get_census_tracts("06001400100")
+        assert len(result) == 1
+        assert result.index[0] == 70
+
+    def test_get_census_tracts_invalid_geoid_raises(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_ca_census_tracts",
+            return_value={"06001400100": 70},
+        ):
+            with pytest.raises(ValueError, match="Census tract GEOID '00000000000' not found"):
+                boundaries_with_data.get_census_tracts("00000000000")
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

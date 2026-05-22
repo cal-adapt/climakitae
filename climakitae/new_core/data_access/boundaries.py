@@ -656,6 +656,209 @@ class Boundaries:
             "CA Census Tracts": self._get_ca_census_tracts(),
         }
 
+    def get_states(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return US western states boundary data.
+
+        Parameters
+        ----------
+        name : str, optional
+            State abbreviation (e.g. "CA", "OR"). If None, returns all western states.
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            Single-row GeoDataFrame for the named state, or the full states GeoDataFrame.
+
+        Raises
+        ------
+        ValueError
+            If ``name`` is provided but not found. The message lists valid options.
+
+        """
+        df = self._us_states
+        if name is None:
+            return df
+        lookup = self._get_us_states()
+        if name not in lookup:
+            raise ValueError(
+                f"State '{name}' not found. Available: {sorted(lookup.keys())}"
+            )
+        return df.loc[[lookup[name]]]
+
+    def get_counties(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return California county boundary data.
+
+        Parameters
+        ----------
+        name : str, optional
+            County name (e.g. "Los Angeles"). If None, returns all counties.
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            Single-row GeoDataFrame for the named county, or the full counties GeoDataFrame.
+
+        Raises
+        ------
+        ValueError
+            If ``name`` is provided but not found.
+
+        """
+        df = self._ca_counties
+        if name is None:
+            return df
+        lookup = self._get_ca_counties()
+        if name not in lookup:
+            raise ValueError(
+                f"County '{name}' not found. Available: {sorted(lookup.keys())}"
+            )
+        return df.loc[[lookup[name]]]
+
+    def get_watersheds(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return California HUC8 watershed boundary data.
+
+        Parameters
+        ----------
+        name : str, optional
+            Watershed name. If None, returns all watersheds.
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            Single-row GeoDataFrame for the named watershed, or the full watersheds GeoDataFrame.
+
+        Raises
+        ------
+        ValueError
+            If ``name`` is provided but not found.
+
+        """
+        df = self._ca_watersheds
+        if name is None:
+            return df
+        lookup = self._get_ca_watersheds()
+        if name not in lookup:
+            raise ValueError(
+                f"Watershed '{name}' not found. Available: {sorted(lookup.keys())}"
+            )
+        return df.loc[[lookup[name]]]
+
+    def get_utilities(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return California electric utility (IOU & POU) boundary data.
+
+        Parameters
+        ----------
+        name : str, optional
+            Utility name (e.g. "Pacific Gas & Electric Company"). If None, returns all utilities.
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            Single-row GeoDataFrame for the named utility, or the full utilities GeoDataFrame.
+
+        Raises
+        ------
+        ValueError
+            If ``name`` is provided but not found.
+
+        """
+        df = self._ca_utilities
+        if name is None:
+            return df
+        lookup = self._get_ious_pous()
+        if name not in lookup:
+            raise ValueError(
+                f"Utility '{name}' not found. Available: {sorted(lookup.keys())}"
+            )
+        return df.loc[[lookup[name]]]
+
+    def get_forecast_zones(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return California electricity demand forecast zone boundary data.
+
+        Parameters
+        ----------
+        name : str, optional
+            Forecast zone name. If None, returns all forecast zones.
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            Single-row GeoDataFrame for the named zone, or the full forecast zones GeoDataFrame.
+
+        Raises
+        ------
+        ValueError
+            If ``name`` is provided but not found.
+
+        """
+        df = self._ca_forecast_zones
+        if name is None:
+            return df
+        lookup = self._get_forecast_zones()
+        if name not in lookup:
+            raise ValueError(
+                f"Forecast zone '{name}' not found. Available: {sorted(lookup.keys())}"
+            )
+        return df.loc[[lookup[name]]]
+
+    def get_electric_balancing_areas(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return California electric balancing authority area boundary data.
+
+        Parameters
+        ----------
+        name : str, optional
+            Balancing area name (e.g. "CALISO"). If None, returns all balancing areas.
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            Single-row GeoDataFrame for the named area, or the full balancing areas GeoDataFrame.
+
+        Raises
+        ------
+        ValueError
+            If ``name`` is provided but not found.
+
+        """
+        df = self._ca_electric_balancing_areas
+        if name is None:
+            return df
+        lookup = self._get_electric_balancing_areas()
+        if name not in lookup:
+            raise ValueError(
+                f"Balancing area '{name}' not found. Available: {sorted(lookup.keys())}"
+            )
+        return df.loc[[lookup[name]]]
+
+    def get_census_tracts(self, geoid: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return California census tract boundary data.
+
+        Parameters
+        ----------
+        geoid : str, optional
+            Census tract GEOID (e.g. "06001400100"). If None, returns all census tracts.
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            Single-row GeoDataFrame for the named tract, or the full census tracts GeoDataFrame.
+
+        Raises
+        ------
+        ValueError
+            If ``geoid`` is provided but not found.
+
+        """
+        df = self._ca_census_tracts
+        if geoid is None:
+            return df
+        lookup = self._get_ca_census_tracts()
+        if geoid not in lookup:
+            raise ValueError(
+                f"Census tract GEOID '{geoid}' not found."
+            )
+        return df.loc[[lookup[geoid]]]
+
     def load(self) -> None:
         """Preload all boundary data (deprecated - data loads automatically when accessed).
 
