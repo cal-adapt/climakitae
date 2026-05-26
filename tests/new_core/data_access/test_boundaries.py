@@ -865,19 +865,20 @@ class TestBoundariesAccessorFunctions:
         with patch.object(
             boundaries_with_data,
             "_get_ca_counties",
-            return_value={"Alameda": 20, "Los Angeles": 21},
+            return_value={"Alameda County": 20, "Los Angeles County": 21},
         ):
-            result = boundaries_with_data.get_counties("Alameda")
+            result = boundaries_with_data.get_counties("Alameda County")
         assert len(result) == 1
         assert result.index[0] == 20
 
-    def test_get_counties_with_county_suffix_returns_single_row(self, boundaries_with_data):
+    def test_get_counties_without_suffix_returns_single_row(self, boundaries_with_data):
+        # "Alameda" should resolve to "Alameda County" in the lookup
         with patch.object(
             boundaries_with_data,
             "_get_ca_counties",
-            return_value={"Alameda": 20, "Los Angeles": 21},
+            return_value={"Alameda County": 20, "Los Angeles County": 21},
         ):
-            result = boundaries_with_data.get_counties("Alameda County")
+            result = boundaries_with_data.get_counties("Alameda")
         assert len(result) == 1
         assert result.index[0] == 20
 
@@ -885,7 +886,7 @@ class TestBoundariesAccessorFunctions:
         with patch.object(
             boundaries_with_data,
             "_get_ca_counties",
-            return_value={"Alameda": 20},
+            return_value={"Alameda County": 20},
         ):
             with pytest.raises(ValueError, match="County 'Sacramento' not found"):
                 boundaries_with_data.get_counties("Sacramento")

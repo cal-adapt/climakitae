@@ -710,8 +710,8 @@ class Boundaries:
         if name is None:
             return df
         lookup = self._get_ca_counties()
-        # Accept "Alameda County" as well as "Alameda"
-        key = name.removesuffix(" County") if name not in lookup else name
+        # Accept "Alameda" as well as "Alameda County"
+        key = name if name in lookup else f"{name} County"
         if key not in lookup:
             raise ValueError(
                 f"County '{name}' not found. Available: {sorted(lookup.keys())}"
