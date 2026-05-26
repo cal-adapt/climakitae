@@ -34,11 +34,6 @@ cd.show_boundary_options()  # All boundary types
 cd.show_boundary_options("ca_counties")  # All California counties
 ```
 
-!!! note "County name format for `clip`"
-    The `clip` processor requires the full county name including the "County" suffix
-    (e.g. `"Alameda County"`). When accessing county geometries directly via
-    [`Boundaries.get_counties()`][climakitae.new_core.data_access.boundaries.Boundaries.get_counties],
-    both forms are accepted — `"Alameda"` and `"Alameda County"` return the same row.
 
 **Available boundary types:**
 
