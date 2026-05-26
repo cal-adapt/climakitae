@@ -691,7 +691,9 @@ class Boundaries:
         Parameters
         ----------
         name : str, optional
-            County name (e.g. "Los Angeles"). If None, returns all counties.
+            County name with or without the "County" suffix
+            (e.g. "Alameda" and "Alameda County" are both valid).
+            If None, returns all counties.
 
         Returns
         -------
@@ -708,11 +710,13 @@ class Boundaries:
         if name is None:
             return df
         lookup = self._get_ca_counties()
-        if name not in lookup:
+        # Accept "Alameda County" as well as "Alameda"
+        key = name.removesuffix(" County") if name not in lookup else name
+        if key not in lookup:
             raise ValueError(
                 f"County '{name}' not found. Available: {sorted(lookup.keys())}"
             )
-        return df.loc[[lookup[name]]]
+        return df.loc[[lookup[key]]]
 
     def get_watersheds(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
         """Return California HUC8 watershed boundary data.

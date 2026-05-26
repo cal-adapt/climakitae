@@ -871,6 +871,16 @@ class TestBoundariesAccessorFunctions:
         assert len(result) == 1
         assert result.index[0] == 20
 
+    def test_get_counties_with_county_suffix_returns_single_row(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_ca_counties",
+            return_value={"Alameda": 20, "Los Angeles": 21},
+        ):
+            result = boundaries_with_data.get_counties("Alameda County")
+        assert len(result) == 1
+        assert result.index[0] == 20
+
     def test_get_counties_invalid_name_raises(self, boundaries_with_data):
         with patch.object(
             boundaries_with_data,
