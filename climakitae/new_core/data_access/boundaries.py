@@ -691,19 +691,34 @@ class Boundaries:
         Parameters
         ----------
         name : str, optional
-            County name with or without the "County" suffix
-            (e.g. "Alameda" and "Alameda County" are both valid).
-            If None, returns all counties.
+            County name with or without the "County" suffix — both forms are
+            accepted (e.g. ``"Alameda"`` and ``"Alameda County"`` return the
+            same row). If None, returns all 58 counties.
 
         Returns
         -------
         gpd.GeoDataFrame
-            Single-row GeoDataFrame for the named county, or the full counties GeoDataFrame.
+            Single-row GeoDataFrame for the named county, or the full counties
+            GeoDataFrame sorted alphabetically by name.
 
         Raises
         ------
         ValueError
-            If ``name`` is provided but not found.
+            If ``name`` is provided but not found in the counties data.
+            The error message lists all valid county names.
+
+        Examples
+        --------
+        >>> boundaries = Boundaries(catalog)
+
+        Return all counties:
+
+        >>> all_counties = boundaries.get_counties()
+
+        Both of these return the same Alameda County row:
+
+        >>> boundaries.get_counties("Alameda County")
+        >>> boundaries.get_counties("Alameda")
 
         """
         df = self._ca_counties
