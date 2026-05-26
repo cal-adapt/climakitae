@@ -805,7 +805,9 @@ class Boundaries:
             )
         return df.loc[[lookup[name]]]
 
-    def get_electric_balancing_areas(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+    def get_electric_balancing_areas(
+        self, name: Optional[str] = None
+    ) -> gpd.GeoDataFrame:
         """Return California electric balancing authority area boundary data.
 
         Parameters
@@ -858,9 +860,7 @@ class Boundaries:
             return df
         lookup = self._get_ca_census_tracts()
         if geoid not in lookup:
-            raise ValueError(
-                f"Census tract GEOID '{geoid}' not found."
-            )
+            raise ValueError(f"Census tract GEOID '{geoid}' not found.")
         return df.loc[[lookup[geoid]]]
 
     def load(self) -> None:

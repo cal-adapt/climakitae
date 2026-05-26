@@ -800,8 +800,10 @@ class TestBoundariesAccessorFunctions:
             index=[30, 31],
         )
         utilities_df = pd.DataFrame(
-            {"Utility": ["Pacific Gas & Electric Company", "Other Utility"],
-             "geometry": ["POLY_0", "POLY_1"]},
+            {
+                "Utility": ["Pacific Gas & Electric Company", "Other Utility"],
+                "geometry": ["POLY_0", "POLY_1"],
+            },
             index=[40, 41],
         )
         forecast_zones_df = pd.DataFrame(
@@ -941,7 +943,9 @@ class TestBoundariesAccessorFunctions:
         result = boundaries_with_data.get_forecast_zones()
         assert len(result) == 2
 
-    def test_get_forecast_zones_with_name_returns_single_row(self, boundaries_with_data):
+    def test_get_forecast_zones_with_name_returns_single_row(
+        self, boundaries_with_data
+    ):
         with patch.object(
             boundaries_with_data,
             "_get_forecast_zones",
@@ -960,11 +964,15 @@ class TestBoundariesAccessorFunctions:
             with pytest.raises(ValueError, match="Forecast zone 'Unknown' not found"):
                 boundaries_with_data.get_forecast_zones("Unknown")
 
-    def test_get_electric_balancing_areas_no_name_returns_full_df(self, boundaries_with_data):
+    def test_get_electric_balancing_areas_no_name_returns_full_df(
+        self, boundaries_with_data
+    ):
         result = boundaries_with_data.get_electric_balancing_areas()
         assert len(result) == 2
 
-    def test_get_electric_balancing_areas_with_name_returns_single_row(self, boundaries_with_data):
+    def test_get_electric_balancing_areas_with_name_returns_single_row(
+        self, boundaries_with_data
+    ):
         with patch.object(
             boundaries_with_data,
             "_get_electric_balancing_areas",
@@ -974,7 +982,9 @@ class TestBoundariesAccessorFunctions:
         assert len(result) == 1
         assert result.index[0] == 60
 
-    def test_get_electric_balancing_areas_invalid_name_raises(self, boundaries_with_data):
+    def test_get_electric_balancing_areas_invalid_name_raises(
+        self, boundaries_with_data
+    ):
         with patch.object(
             boundaries_with_data,
             "_get_electric_balancing_areas",
@@ -987,7 +997,9 @@ class TestBoundariesAccessorFunctions:
         result = boundaries_with_data.get_census_tracts()
         assert len(result) == 2
 
-    def test_get_census_tracts_with_geoid_returns_single_row(self, boundaries_with_data):
+    def test_get_census_tracts_with_geoid_returns_single_row(
+        self, boundaries_with_data
+    ):
         with patch.object(
             boundaries_with_data,
             "_get_ca_census_tracts",
@@ -1003,7 +1015,9 @@ class TestBoundariesAccessorFunctions:
             "_get_ca_census_tracts",
             return_value={"06001400100": 70},
         ):
-            with pytest.raises(ValueError, match="Census tract GEOID '00000000000' not found"):
+            with pytest.raises(
+                ValueError, match="Census tract GEOID '00000000000' not found"
+            ):
                 boundaries_with_data.get_census_tracts("00000000000")
 
 
