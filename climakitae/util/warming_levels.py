@@ -128,25 +128,43 @@ def _get_sliced_data(
     # Dropping leap days before slicing time dimension because the window size can affect number of leap days per slice
     y = y.loc[~((y.time.dt.month == 2) & (y.time.dt.day == 29))]
 
-    # Number of days per month for a non-leap year (used to build the canonical axis)
+    # Number of days per month for a non-leap year
     days_per_month = {i: calendar.monthrange(2001, i)[1] for i in range(1, 13)}
 
-    # --- Build the canonical post-filter time axis ONCE, shared by both branches ---
-    # Number of selected-month timesteps per year on a clean (leap-free) calendar
+    # --- Build the canonical time axis ONCE, shared by both branches ---
+    # Steps per year on the full (unfiltered), leap-free calendar
+    full_per_year = {"monthly": 12, "daily": 365, "hourly": 8760}[y.frequency]
+
+    # Month label for each step in ONE clean year
     match y.frequency:
         case "monthly":
-            per_year = len(months)
+            month_of_step = np.arange(1, 13)
         case "daily":
-            per_year = sum(days_per_month[m] for m in months)
+            month_of_step = np.repeat(
+                np.arange(1, 13), [days_per_month[m] for m in range(1, 13)]
+            )
         case "hourly":
-            per_year = sum(days_per_month[m] for m in months) * 24
+            month_of_step = np.repeat(
+                np.arange(1, 13), [days_per_month[m] * 24 for m in range(1, 13)]
+            )
         case _:
             raise ValueError(
                 'frequency needs to be either "hourly", "daily", or "monthly"'
             )
 
-    n_expected = per_year * window * 2
-    canonical_time = np.arange(-n_expected // 2, n_expected // 2)
+    # Full ±window axis (e.g. daily 30yr -> -5475 ... 5474)
+    n_full = full_per_year * window * 2
+    full_axis = np.arange(-n_full // 2, n_full // 2)
+
+    # Tag every step in the window with its month, then keep only requested months.
+    # Works for ANY month subset (contiguous, wrap-around, or full year).
+    month_full = np.tile(month_of_step, window * 2)
+    selected_mask = np.isin(month_full, months)
+
+    # Canonical time: selected-month deltas that RETAIN their full-window position
+    # (so e.g. summer ranges -5475...5475 WITH gaps, not a dense -1380...1380 block)
+    canonical_time = full_axis[selected_mask]
+    n_expected = len(canonical_time)
 
     # Getting start and end years for slicing if `center_time` is not NaN
     if not pd.isna(center_time):
