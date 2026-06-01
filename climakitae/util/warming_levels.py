@@ -200,7 +200,7 @@ def _get_sliced_data(
         # This clause creates an empty DataArray with the SAME shape/axis as a real WL
         # slice, so the groupby recombination aligns cleanly. It gets dropped afterward.
         y = y.isel(time=slice(0, n_expected))
-        y["time"] = canonical_time
+        y["time"] = canonical_time[: len(y.time)]
         y["centered_year"] = np.nan
 
         # Returning DataArray of NaNs to be dropped later.
