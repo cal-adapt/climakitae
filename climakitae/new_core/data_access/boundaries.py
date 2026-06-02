@@ -49,7 +49,7 @@ import intake
 import pandas as pd
 
 from climakitae.core.constants import (
-    CALISO_AREA_THRESHOLD,
+    CALISO_AREA_THREdLD,
     PRIORITY_UTILITIES,
     WESTERN_STATES_LIST,
 )
@@ -656,227 +656,91 @@ class Boundaries:
             "CA Census Tracts": self._get_ca_census_tracts(),
         }
 
-    def get_states(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
-        """Return US western states boundary data.
+    def _lookup_boundary(
+        self, df: gpd.GeoDataFrame, lookup_fn, name: Optional[str], label: str
+    ) -> gpd.GeoDataFrame:
+        """Helper function to lookup boundary data.
 
         Parameters
         ----------
+        df : gpd.GeoDataFrame
+            The GeoDataFrame containing boundary data.
+        lookup_fn : callable
+            Function to retrieve the lookup dictionary.
         name : str, optional
-            State abbreviation (e.g. "CA", "OR"). If None, returns all western states.
+            Name of the boundary to lookup. If None, returns the full GeoDataFrame.
+        label : str
+            Label for the boundary type (used in error messages).
 
         Returns
         -------
         gpd.GeoDataFrame
-            Single-row GeoDataFrame for the named state, or the full states GeoDataFrame.
+            Single-row GeoDataFrame for the named boundary, or the full GeoDataFrame.
 
         Raises
         ------
         ValueError
-            If ``name`` is provided but not found. The message lists valid options.
+            If ``name`` is provided but not found in the lookup dictionary.
 
         """
-        df = self._us_states
         if name is None:
             return df
-        lookup = self._get_us_states()
-        if name not in lookup:
+        lookup = lookup_fn()
+        if name.title() not in lookup:
             raise ValueError(
-                f"State '{name}' not found. Available: {sorted(lookup.keys())}"
+                f"{label} '{name}' not found. Available: {sorted(lookup.keys())}"
             )
         return df.loc[[lookup[name]]]
+
+    def get_states(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return US western states boundary data."""
+        return self._lookup_boundary(
+            self._us_states, self._get_us_states, name, "State"
+        )
 
     def get_counties(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
-        """Return California county boundary data.
-
-        Parameters
-        ----------
-        name : str, optional
-            County name with or without the "County" suffix — both forms are
-            accepted (e.g. ``"Alameda"`` and ``"Alameda County"`` return the
-            same row). If None, returns all 58 counties.
-
-        Returns
-        -------
-        gpd.GeoDataFrame
-            Single-row GeoDataFrame for the named county, or the full counties
-            GeoDataFrame sorted alphabetically by name.
-
-        Raises
-        ------
-        ValueError
-            If ``name`` is provided but not found in the counties data.
-            The error message lists all valid county names.
-
-        Examples
-        --------
-        >>> boundaries = Boundaries(catalog)
-
-        Return all counties:
-
-        >>> all_counties = boundaries.get_counties()
-
-        Both of these return the same Alameda County row:
-
-        >>> boundaries.get_counties("Alameda County")
-        >>> boundaries.get_counties("Alameda")
-
-        """
-        df = self._ca_counties
-        if name is None:
-            return df
-        lookup = self._get_ca_counties()
-        # Accept "Alameda" as well as "Alameda County"
-        key = name if name in lookup else f"{name} County"
-        if key not in lookup:
-            raise ValueError(
-                f"County '{name}' not found. Available: {sorted(lookup.keys())}"
-            )
-        return df.loc[[lookup[key]]]
+        """Return California county boundary data."""
+        return self._lookup_boundary(
+            self._ca_counties, self._get_ca_counties, name, "County"
+        )
 
     def get_watersheds(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
-        """Return California HUC8 watershed boundary data.
-
-        Parameters
-        ----------
-        name : str, optional
-            Watershed name. If None, returns all watersheds.
-
-        Returns
-        -------
-        gpd.GeoDataFrame
-            Single-row GeoDataFrame for the named watershed, or the full watersheds GeoDataFrame.
-
-        Raises
-        ------
-        ValueError
-            If ``name`` is provided but not found.
-
-        """
-        df = self._ca_watersheds
-        if name is None:
-            return df
-        lookup = self._get_ca_watersheds()
-        if name not in lookup:
-            raise ValueError(
-                f"Watershed '{name}' not found. Available: {sorted(lookup.keys())}"
-            )
-        return df.loc[[lookup[name]]]
+        """Return California HUC8 watershed boundary data."""
+        return self._lookup_boundary(
+            self._ca_watersheds, self._get_ca_watersheds, name, "Watershed"
+        )
 
     def get_utilities(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
-        """Return California electric utility (IOU & POU) boundary data.
-
-        Parameters
-        ----------
-        name : str, optional
-            Utility name (e.g. "Pacific Gas & Electric Company"). If None, returns all utilities.
-
-        Returns
-        -------
-        gpd.GeoDataFrame
-            Single-row GeoDataFrame for the named utility, or the full utilities GeoDataFrame.
-
-        Raises
-        ------
-        ValueError
-            If ``name`` is provided but not found.
-
-        """
-        df = self._ca_utilities
-        if name is None:
-            return df
-        lookup = self._get_ious_pous()
-        if name not in lookup:
-            raise ValueError(
-                f"Utility '{name}' not found. Available: {sorted(lookup.keys())}"
-            )
-        return df.loc[[lookup[name]]]
+        """Return California electric utility (IOU & POU) boundary data."""
+        return self._lookup_boundary(
+            self._ca_utilities, self._get_ious_pous, name, "Utility"
+        )
 
     def get_forecast_zones(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
-        """Return California electricity demand forecast zone boundary data.
-
-        Parameters
-        ----------
-        name : str, optional
-            Forecast zone name. If None, returns all forecast zones.
-
-        Returns
-        -------
-        gpd.GeoDataFrame
-            Single-row GeoDataFrame for the named zone, or the full forecast zones GeoDataFrame.
-
-        Raises
-        ------
-        ValueError
-            If ``name`` is provided but not found.
-
-        """
-        df = self._ca_forecast_zones
-        if name is None:
-            return df
-        lookup = self._get_forecast_zones()
-        if name not in lookup:
-            raise ValueError(
-                f"Forecast zone '{name}' not found. Available: {sorted(lookup.keys())}"
-            )
-        return df.loc[[lookup[name]]]
+        """Return California electricity demand forecast zone boundary data."""
+        return self._lookup_boundary(
+            self._ca_forecast_zones, self._get_forecast_zones, name, "Forecast zone"
+        )
 
     def get_electric_balancing_areas(
         self, name: Optional[str] = None
     ) -> gpd.GeoDataFrame:
-        """Return California electric balancing authority area boundary data.
-
-        Parameters
-        ----------
-        name : str, optional
-            Balancing area name (e.g. "CALISO"). If None, returns all balancing areas.
-
-        Returns
-        -------
-        gpd.GeoDataFrame
-            Single-row GeoDataFrame for the named area, or the full balancing areas GeoDataFrame.
-
-        Raises
-        ------
-        ValueError
-            If ``name`` is provided but not found.
-
-        """
-        df = self._ca_electric_balancing_areas
-        if name is None:
-            return df
-        lookup = self._get_electric_balancing_areas()
-        if name not in lookup:
-            raise ValueError(
-                f"Balancing area '{name}' not found. Available: {sorted(lookup.keys())}"
-            )
-        return df.loc[[lookup[name]]]
+        """Return California electric balancing authority area boundary data."""
+        return self._lookup_boundary(
+            self._ca_electric_balancing_areas,
+            self._get_electric_balancing_areas,
+            name,
+            "Balancing area",
+        )
 
     def get_census_tracts(self, geoid: Optional[str] = None) -> gpd.GeoDataFrame:
-        """Return California census tract boundary data.
-
-        Parameters
-        ----------
-        geoid : str, optional
-            Census tract GEOID (e.g. "06001400100"). If None, returns all census tracts.
-
-        Returns
-        -------
-        gpd.GeoDataFrame
-            Single-row GeoDataFrame for the named tract, or the full census tracts GeoDataFrame.
-
-        Raises
-        ------
-        ValueError
-            If ``geoid`` is provided but not found.
-
-        """
-        df = self._ca_census_tracts
-        if geoid is None:
-            return df
-        lookup = self._get_ca_census_tracts()
-        if geoid not in lookup:
-            raise ValueError(f"Census tract GEOID '{geoid}' not found.")
-        return df.loc[[lookup[geoid]]]
+        """Return California census tract boundary data."""
+        return self._lookup_boundary(
+            self._ca_census_tracts,
+            self._get_ca_census_tracts,
+            geoid,
+            "Census tract GEOID",
+        )
 
     def load(self) -> None:
         """Preload all boundary data (deprecated - data loads automatically when accessed).

@@ -39,7 +39,7 @@ alameda     = boundaries.get_counties("Alameda")
 alameda     = boundaries.get_counties("Alameda County")  # same result
 
 # Watersheds
-feather     = boundaries.get_watersheds("Feather")
+applegate     = boundaries.get_watersheds("Applegate")
 
 # Western US states (use abbreviation)
 california  = boundaries.get_states("CA")
@@ -48,7 +48,7 @@ california  = boundaries.get_states("CA")
 pge         = boundaries.get_utilities("Pacific Gas & Electric Company")
 
 # Electricity demand forecast zones
-scge_fz     = boundaries.get_forecast_zones("SCE")
+sce_fz     = boundaries.get_forecast_zones("SCE")
 
 # Electric balancing authority areas
 caliso      = boundaries.get_electric_balancing_areas("CALISO")
