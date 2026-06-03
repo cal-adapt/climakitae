@@ -686,11 +686,12 @@ class Boundaries:
         if name is None:
             return df
         lookup = lookup_fn()
-        if name.title() not in lookup:
+        matching_keys = [k for k in lookup if name.lower() in k.lower()]
+        if not matching_keys:
             raise ValueError(
                 f"{label} '{name}' not found. Available: {sorted(lookup.keys())}"
             )
-        return df.loc[[lookup[name]]]
+        return df.loc[[lookup[matching_keys[0]]]]
 
     def get_states(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
         """Return US western states boundary data."""
