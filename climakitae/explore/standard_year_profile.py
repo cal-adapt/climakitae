@@ -401,7 +401,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                     gwl = global_warming_levels
                 # Otherwise, use the default
                 else:
-                    gwl = "1.2"
+                    gwl = 1.2
 
             filename = _get_clean_standardyr_filename(
                 var_id,
