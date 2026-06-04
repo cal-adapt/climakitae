@@ -1183,7 +1183,7 @@ def persistence_get_top_hours(data: xr.DataArray, q: float) -> pd.DataFrame:
         print(f"sim_idx, sim: {sim_idx},{sim}")
         # Select data for this warming level and simulation combination
         if has_simulation:
-            subset_data = data.isel(simulation=sim)
+            subset_data = data.isel(simulation=sim_idx)
         else:
             subset_data = data
 
