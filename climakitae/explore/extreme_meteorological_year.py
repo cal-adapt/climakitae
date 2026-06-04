@@ -1114,6 +1114,7 @@ class shock_XMY:
 
 ###### Peristence XMY ######
 
+
 def persistence_get_top_hours(data: xr.DataArray, q: float) -> pd.DataFrame:
     """
     Selects a representative year for each hour using the Cal-Adapt Standard Year
@@ -1147,6 +1148,7 @@ def persistence_get_top_hours(data: xr.DataArray, q: float) -> pd.DataFrame:
     # data = data["t2"]
     #!
     print("removed the selection of t2 var, does it work now?")
+    print(f"input data: {data}")
 
     # Check for simulation dimension
     has_simulation = "sim" in data.dims
@@ -1165,12 +1167,16 @@ def persistence_get_top_hours(data: xr.DataArray, q: float) -> pd.DataFrame:
 
     # Create hour-of-year coordinate for all data (cycling through 1-8760)
     hour_of_year_all = np.tile(np.arange(1, hours_per_year + 1), n_years)[:total_hours]
+    print(f"hour_of_year_all: {hour_of_year_all}")
     data = data.assign_coords(hour_of_year=("time", hour_of_year_all))
+    print(f"data: {data}")
 
     # Initialize storage for profiles
     df_list = []
-    for sim_idx, sim in enumerate(simulations):
+    print(f"df_list initiated: {df_list}")
 
+    for sim_idx, sim in enumerate(simulations):
+        print(f"sim_idx, sim: {sim_idx},{sim}")
         # Select data for this warming level and simulation combination
         if has_simulation:
             subset_data = data.isel(sim=sim_idx)
@@ -1180,28 +1186,39 @@ def persistence_get_top_hours(data: xr.DataArray, q: float) -> pd.DataFrame:
         # Vectorized quantile computation using numpy
         # Reshape raw values into (n_years, hours_per_year) then compute
         # the quantile across years for each hour-of-year position
+        print("how to set up vectorization")
         values = subset_data.values
+        print(f"values: {values}")
         n_total = len(values)
+        print(f"n_total: {n_total}")
         usable = (n_total // hours_per_year) * hours_per_year
+        print(f"usable: {usable}")
         year_hour_matrix = values[:usable].reshape(-1, hours_per_year)
+        print(f"year_hour_matrix: {year_hour_matrix}")
 
         # Compute quantile targets for each of the 8760 hour positions
         quantile_targets = np.nanquantile(year_hour_matrix, q, axis=0)  # shape: (8760,)
+        print(f"quantile_targets: {quantile_targets}")
 
         # For each hour position, find the actual year whose value is
         # closest to the quantile (avoids interpolation)
         diffs = np.abs(
             year_hour_matrix - quantile_targets[np.newaxis, :]
         )  # (n_years, 8760)
+        print(f"diffs: {diffs}")
 
         closest_year_idx = np.nanargmin(diffs, axis=0)  # (8760,)
+        print(f"closest_year_idx: {closest_year_idx}")
 
         # Calendar year for each hour-of-year position
         usable_times = subset_data.time.values[:usable]
+        print(f"usable_times: {usable_times}")
         row_years = pd.DatetimeIndex(usable_times).year.values.reshape(
             -1, hours_per_year
         )[:, 0]
+        print(f"row_years: {row_years}")
         sel_year = row_years[closest_year_idx]  # (8760,) — calendar year, not row index
+        print(f"sel_year: {sel_year}")
 
         # Store the selected years in a pandas dataframe
         df_i = pd.DataFrame(
@@ -1215,6 +1232,7 @@ def persistence_get_top_hours(data: xr.DataArray, q: float) -> pd.DataFrame:
 
     # Concatenate list together for all simulations
     top_df = pd.concat(df_list).reset_index(drop=True)
+    print(f"top_df: {top_df}")
 
     return top_df
 
@@ -1352,7 +1370,7 @@ class persistence_XMY:
         # extreme type
         if 0 <= q <= 1:
             self.q = q
-            p = q*100
+            p = q * 100
             p = int(p)
             print(f"Generating p{p} persistence XMY.")
         else:
@@ -1407,7 +1425,7 @@ class persistence_XMY:
         # These will get set later in analysis
         self.top_hours = UNSET
         self.all_vars = UNSET
-        self.air_temp_var= UNSET
+        self.air_temp_var = UNSET
         self.xmy_data_to_export = UNSET
 
     def _set_loc_from_stn_name(self, station_name: str):
@@ -1859,9 +1877,7 @@ class persistence_XMY:
         t2_out.attrs["units"] = "degC"
 
         self.air_temp_var = t2_out
-        self._vprint(
-            "   Air temperature stored for use in finding candidate hours."
-        )
+        self._vprint("   Air temperature stored for use in finding candidate hours.")
 
         q2_out = q2_gkg.copy()
         q2_out.name = "Water Vapor Mixing Ratio at 2m"
@@ -1967,21 +1983,13 @@ class persistence_XMY:
     def set_top_hours(self):
         """Calculate top months dataframe."""
 
-        self._vprint(
-            "Finding top hours."
-        )
-        self.top_hours = persistence_get_top_hours(
-            self.air_temp_var, self.q
-        )
+        self._vprint("Finding top hours.")
+        self.top_hours = persistence_get_top_hours(self.air_temp_var, self.q)
 
         #!
 
-        self._vprint(
-            "Top hours found!."
-        )
-        self._vprint(
-            self.top_hours
-        )
+        self._vprint("Top hours found!.")
+        self._vprint(self.top_hours)
 
     def show_xmy_data_to_export(self, simulation: str):
         """Show line plots of shock XMY data for single model.
