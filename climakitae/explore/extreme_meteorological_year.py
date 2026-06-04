@@ -1142,8 +1142,11 @@ def persistence_get_top_hours(data: xr.DataArray, q: float) -> pd.DataFrame:
         Multi-index columns include Hour, Warming_Level, and Simulation dimensions.
 
     """
-    # Select air temperature
-    data = data["t2"]
+    # # Select air temperature
+    # print(f"data: {data}")
+    # data = data["t2"]
+    #!
+    print("removed the selection of t2 var, does it work now?")
 
     # Check for simulation dimension
     has_simulation = "sim" in data.dims
@@ -1347,7 +1350,7 @@ class persistence_XMY:
                 if isinstance(self.warming_level, int):
                     self.warming_level = float(self.warming_level)
         # extreme type
-        if 1 <= q <= 100:
+        if 0 <= q <= 1:
             self.q = q
             p = q*100
             p = int(p)
@@ -1857,7 +1860,7 @@ class persistence_XMY:
 
         self.air_temp_var = t2_out
         self._vprint(
-            "   Air temperature stored for use in finding candidate months."
+            "   Air temperature stored for use in finding candidate hours."
         )
 
         q2_out = q2_gkg.copy()
@@ -1967,9 +1970,17 @@ class persistence_XMY:
         self._vprint(
             "Finding top hours."
         )
-        #! what other input is needed?
         self.top_hours = persistence_get_top_hours(
             self.air_temp_var, self.q
+        )
+
+        #!
+
+        self._vprint(
+            "Top hours found!."
+        )
+        self._vprint(
+            self.top_hours
         )
 
     def show_xmy_data_to_export(self, simulation: str):
@@ -2099,22 +2110,22 @@ class persistence_XMY:
                 file_ext=extension,
             )
 
-    def get_candidate_months(self):
-        """Run CDF functions to get top candidates.
+    def get_candidate_hours(self):
+        """Get top candidate hours.
 
-        This function can be used to view the candidate months
+        This function can be used to view the candidate hours
         without running the entire shock XMY workflow.
         """
-        self._vprint(f"Getting top months for {self.extreme} shock XMY.")
-        self.set_cdf_climatology()
-        self.set_cdf_monthly()
-        self.set_top_months()
+        p = self.q * 100
+        p = int(p)
+        self._vprint(f"Getting top hours for p{p} persistence XMY.")
+        self.set_top_hours()
 
     def generate_xmy(self):
         """Run the whole XMY workflow."""
         # This runs the whole workflow at once
         print("Running shock XMY workflow.")
         self.load_all_variables()
-        self.get_candidate_months()
+        self.get_candidate_hours()
         self.run_xmy_analysis()
         self.export_xmy_data()
