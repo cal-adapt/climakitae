@@ -1271,9 +1271,9 @@ class persistence_XMY:
     station_name: str (optional)
         Long name of desired station
     latitude : float | int (optional)
-        Latitude for shock XMY data if station_name not set
+        Latitude for persistence XMY data if station_name not set
     longitude : float | int (optional)
-        Longitude for shock XMY data if station_name not set
+        Longitude for persistence XMY data if station_name not set
     verbose: bool
         True to increase verbosity
 
@@ -1282,9 +1282,9 @@ class persistence_XMY:
     q: float
         extreme quatnile, ranging from 0 to 1
     start_year: str
-        Initial year of shock XMY period
+        Initial year of persistence XMY period
     end_year: str
-        Final year of shock XMY period
+        Final year of persistence XMY period
     warming_level: float | int
         Warming level value
     lat_range: tuple
@@ -1302,11 +1302,11 @@ class persistence_XMY:
     top_hours: pd.DataFrame
         Table of top months by model
     all_vars: xr.Dataset
-        All loaded variables for shock XMY
+        All loaded variables for persistence XMY
     air_temp: xr.Dataset
         Air temperature, for use in finding candidate hours
     xmy_data_to_export: dict[pd.Dataframe]
-        Dictionary of shock XMY results by simulation
+        Dictionary of persistence XMY results by simulation
     _skip_last: bool
         Internal flag to track last year for warming level approach
     """
@@ -1323,7 +1323,7 @@ class persistence_XMY:
         verbose: bool = True,
     ):
 
-        # Here we go through a few different ways to get the shock XMY location
+        # Here we go through a few different ways to get the persistence XMY location
         match latitude, longitude, station_name:
             # UNSET will match to object type
             # Case 1: All variables set
@@ -1334,19 +1334,19 @@ class persistence_XMY:
                     )
                 else:
                     print(
-                        f"Initializing shock XMY object for custom location: {latitude} N, {longitude} W with name '{station_name}'."
+                        f"Initializing persistence XMY object for custom location: {latitude} N, {longitude} W with name '{station_name}'."
                     )
                     self._set_loc_from_lat_lon(latitude, longitude)
                     self.stn_name = station_name
             # Case 2: lat/lon provided, no station_name string
             case float() | int(), float() | int(), object():
                 print(
-                    f"Initializing shock XMY object for custom location: {latitude} N, {longitude} W."
+                    f"Initializing persistence XMY object for custom location: {latitude} N, {longitude} W."
                 )
                 self._set_loc_from_lat_lon(latitude, longitude)
             # Case 3: station name provided, lat/lon not numeric
             case object(), object(), str():
-                print(f"Initializing shock XMY object for {station_name}.")
+                print(f"Initializing persistence XMY object for {station_name}.")
                 self._set_loc_from_stn_name(station_name)
             # Last case: something else provided
             case _:
@@ -1406,8 +1406,8 @@ class persistence_XMY:
             "swddif": "Shortwave surface downward diffuse irradiance",
             "lwdnb": "Instantaneous downwelling longwave flux at bottom",
         }
-        # Full set of shock XMY variables (including derived) with desired units.
-        # Used for display name references throughout the rest of the shock XMY code.
+        # Full set of persistence XMY variables (including derived) with desired units.
+        # Used for display name references throughout the rest of the persistence XMY code.
         self.vars_and_units = {
             "Air Temperature at 2m": "degC",
             "Dew point temperature": "degC",
@@ -1561,11 +1561,11 @@ class persistence_XMY:
         if isinstance(data, xr.Dataset):
             data = data[variable_id]
 
-        # ClimateData uses "sim" dimension; rename to "simulation" for shock XMY pipeline
+        # ClimateData uses "sim" dimension; rename to "simulation" for persistence XMY pipeline
         if "sim" in data.dims:
             data = data.rename({"sim": "simulation"})
 
-        # Drop warming_level dimension (always length 1 for shock XMY)
+        # Drop warming_level dimension (always length 1 for persistence XMY)
         if "warming_level" in data.dims:
             data = data.squeeze("warming_level", drop=True)
 
@@ -1574,7 +1574,7 @@ class persistence_XMY:
             self.start_year = data.time[0].dt.year.item()
             self.end_year = data.time[-1].dt.year.item()
 
-        # Filter to the 4 shock XMY simulations by matching source_id+member_id
+        # Filter to the 4 persistence XMY simulations by matching source_id+member_id
         # ClimateData sim values: "wrf_ucla_ec-earth3_historical+ssp370_r1i1p1f1"
         # self.simulations values: "WRF_EC-Earth3_r1i1p1f1"
         all_sims = list(data.simulation.values)
@@ -1700,7 +1700,7 @@ class persistence_XMY:
         Parameters
         ----------
         all_vars_ds: xr.Dataset
-           Timeseries of all loaded variables needed for shock XMY.
+           Timeseries of all loaded variables needed for persistence XMY.
         top_hours: pd.DataFrame
            Dataframe of top months by model.
 
@@ -1711,7 +1711,7 @@ class persistence_XMY:
         xmy_df_all = {}
         for sim in all_vars_ds.simulation.values:
             df_list = []
-            print(f"Calculating shock XMY for simulation: {sim}")
+            print(f"Calculating persistence XMY for simulation: {sim}")
             for hour in tqdm(np.arange(1, 8760, 1)):
                 # Get year corresponding to month and simulation combo
                 year = int(
@@ -1992,7 +1992,7 @@ class persistence_XMY:
         self._vprint(self.top_hours)
 
     def show_xmy_data_to_export(self, simulation: str):
-        """Show line plots of shock XMY data for single model.
+        """Show line plots of persistence XMY data for single model.
 
         Parameters
         ----------
@@ -2019,7 +2019,7 @@ class persistence_XMY:
         )
 
     def run_xmy_analysis(self):
-        """Generate shock extreme meteorological year data.
+        """Generate persistence extreme meteorological year data.
 
         Output will be a list of dataframes per simulation.
         Print statements throughout the function indicate progress.
@@ -2046,7 +2046,7 @@ class persistence_XMY:
 
         xmy_data_to_export = self._make_8760_tables(
             all_vars_ds, self.top_months
-        )  # Return dict of shock XMY by simulation
+        )  # Return dict of persistence XMY by simulation
 
         self._vprint("  Smoothing data at transitions between months.")
         self._vprint("  Dropping water vapor mixing ratio.")
@@ -2072,7 +2072,7 @@ class persistence_XMY:
                 xmy_data_to_export[sim]["scenario"] = "historical+ssp370"
 
         self.xmy_data_to_export = xmy_data_to_export
-        self._vprint("shock XMY analysis complete.")
+        self._vprint("persistence XMY analysis complete.")
 
     def export_xmy_data(self, extension: str = "epw"):
         """Write XMY data to EPW file.
@@ -2083,7 +2083,7 @@ class persistence_XMY:
             Desired file extension ('tmy','epw', or 'csv')
 
         """
-        print("Exporting shock XMY to file.")
+        print("Exporting persistence XMY to file.")
         for sim, _ in self.xmy_data_to_export.items():
             # Get right year range
             if self.warming_level is UNSET:
@@ -2105,7 +2105,7 @@ class persistence_XMY:
             clean_stn_name = (
                 self.stn_name.replace(" ", "_").replace("(", "").replace(")", "")
             )
-            filename = f"{self.extreme}_shock_xmy_{clean_stn_name}_{clean_sim}".lower()
+            filename = f"{self.extreme}_persistence_xmy_{clean_stn_name}_{clean_sim}".lower()
             write_tmy_file(
                 filename,
                 self.xmy_data_to_export[sim],
@@ -2122,7 +2122,7 @@ class persistence_XMY:
         """Get top candidate hours.
 
         This function can be used to view the candidate hours
-        without running the entire shock XMY workflow.
+        without running the entire persistence XMY workflow.
         """
         p = self.q * 100
         p = int(p)
@@ -2132,7 +2132,7 @@ class persistence_XMY:
     def generate_xmy(self):
         """Run the whole XMY workflow."""
         # This runs the whole workflow at once
-        print("Running shock XMY workflow.")
+        print("Running persistence XMY workflow.")
         self.load_all_variables()
         self.get_candidate_hours()
         self.run_xmy_analysis()
