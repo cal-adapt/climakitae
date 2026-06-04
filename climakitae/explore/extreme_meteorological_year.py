@@ -179,107 +179,6 @@ def generate_candidate_months(
     return top_df
 
 
-def get_top_hours(data: xr.DataArray, q: float) -> pd.DataFrame:
-    """
-    Selects a representative year for each hour using the Cal-Adapt Standard Year
-    methodology, using hourly air temperature.
-
-    Computes the specified quantile for each hour of the year across all years,
-    then selects the actual data value closest to that quantile (not interpolated),
-    and returns the year that value was taken from for each of the 8760 hours (one year),
-    for each simulation.
-
-    Constructs a table of years or per hour per simulation for use in persistence XMY generation.
-
-    Parameters
-    ----------
-    data : xr.DataArray
-        Hourly air temperature with time and simulation dimensions.
-
-    q : float, optional
-        Quantile value for selecting representative values (0.0 to 1.0).
-
-    Returns
-    -------
-    pd.DataFrame
-        Standard year table for each warming level and simulation,
-        with days of year as the index and hour of day as the columns.
-        Multi-index columns include Hour, Warming_Level, and Simulation dimensions.
-
-    """
-    # Select air temperature
-    data = data["t2"]
-
-    # Check for simulation dimension
-    has_simulation = "sim" in data.dims
-    if has_simulation:
-        simulations = data.sim.values
-    else:
-        simulations = [None]
-
-    # Get all available time data
-    hours_per_year = 8760
-    total_hours = len(data.time)
-    n_years = total_hours // hours_per_year
-
-    print(f"      📊 Processing {total_hours:,} hours ({n_years} years) of data")
-    print(f"      🎯 Computing {q*100:.0f}th percentile for each hour of year")
-
-    # Create hour-of-year coordinate for all data (cycling through 1-8760)
-    hour_of_year_all = np.tile(np.arange(1, hours_per_year + 1), n_years)[:total_hours]
-    data = data.assign_coords(hour_of_year=("time", hour_of_year_all))
-
-    # Initialize storage for profiles
-    df_list = []
-    for sim_idx, sim in enumerate(simulations):
-
-        # Select data for this warming level and simulation combination
-        if has_simulation:
-            subset_data = data.isel(sim=sim_idx)
-        else:
-            subset_data = data
-
-        # Vectorized quantile computation using numpy
-        # Reshape raw values into (n_years, hours_per_year) then compute
-        # the quantile across years for each hour-of-year position
-        values = subset_data.values
-        n_total = len(values)
-        usable = (n_total // hours_per_year) * hours_per_year
-        year_hour_matrix = values[:usable].reshape(-1, hours_per_year)
-
-        # Compute quantile targets for each of the 8760 hour positions
-        quantile_targets = np.nanquantile(year_hour_matrix, q, axis=0)  # shape: (8760,)
-
-        # For each hour position, find the actual year whose value is
-        # closest to the quantile (avoids interpolation)
-        diffs = np.abs(
-            year_hour_matrix - quantile_targets[np.newaxis, :]
-        )  # (n_years, 8760)
-
-        closest_year_idx = np.nanargmin(diffs, axis=0)  # (8760,)
-
-        # Calendar year for each hour-of-year position
-        usable_times = subset_data.time.values[:usable]
-        row_years = pd.DatetimeIndex(usable_times).year.values.reshape(
-            -1, hours_per_year
-        )[:, 0]
-        sel_year = row_years[closest_year_idx]  # (8760,) — calendar year, not row index
-
-        # Store the selected years in a pandas dataframe
-        df_i = pd.DataFrame(
-            {
-                "hour": np.arange(1, hours_per_year + 1),
-                "sim": sim,
-                "year": sel_year.astype(int),
-            }
-        )
-        df_list.append(df_i)
-
-    # Concatenate list together for all simulations
-    top_df = pd.concat(df_list).reset_index(drop=True)
-
-    return top_df
-
 class shock_XMY:
     """Encapsulate the code needed to generate Typical Meteorological Year (shock XMY) files.
 
@@ -1213,10 +1112,114 @@ class shock_XMY:
         self.export_xmy_data()
 
 
-class peristence_XMY:
+###### Peristence XMY ######
+
+def persistence_get_top_hours(data: xr.DataArray, q: float) -> pd.DataFrame:
+    """
+    Selects a representative year for each hour using the Cal-Adapt Standard Year
+    methodology, using hourly air temperature.
+
+    Computes the specified quantile for each hour of the year across all years,
+    then selects the actual data value closest to that quantile (not interpolated),
+    and returns the year that value was taken from for each of the 8760 hours (one year),
+    for each simulation.
+
+    Constructs a table of years or per hour per simulation for use in persistence XMY generation.
+
+    Parameters
+    ----------
+    data : xr.DataArray
+        Hourly air temperature with time and simulation dimensions.
+
+    q : float, optional
+        Quantile value for selecting representative values (0.0 to 1.0).
+
+    Returns
+    -------
+    pd.DataFrame
+        Standard year table for each warming level and simulation,
+        with days of year as the index and hour of day as the columns.
+        Multi-index columns include Hour, Warming_Level, and Simulation dimensions.
+
+    """
+    # Select air temperature
+    data = data["t2"]
+
+    # Check for simulation dimension
+    has_simulation = "sim" in data.dims
+    if has_simulation:
+        simulations = data.sim.values
+    else:
+        simulations = [None]
+
+    # Get all available time data
+    hours_per_year = 8760
+    total_hours = len(data.time)
+    n_years = total_hours // hours_per_year
+
+    print(f"      📊 Processing {total_hours:,} hours ({n_years} years) of data")
+    print(f"      🎯 Computing {q*100:.0f}th percentile for each hour of year")
+
+    # Create hour-of-year coordinate for all data (cycling through 1-8760)
+    hour_of_year_all = np.tile(np.arange(1, hours_per_year + 1), n_years)[:total_hours]
+    data = data.assign_coords(hour_of_year=("time", hour_of_year_all))
+
+    # Initialize storage for profiles
+    df_list = []
+    for sim_idx, sim in enumerate(simulations):
+
+        # Select data for this warming level and simulation combination
+        if has_simulation:
+            subset_data = data.isel(sim=sim_idx)
+        else:
+            subset_data = data
+
+        # Vectorized quantile computation using numpy
+        # Reshape raw values into (n_years, hours_per_year) then compute
+        # the quantile across years for each hour-of-year position
+        values = subset_data.values
+        n_total = len(values)
+        usable = (n_total // hours_per_year) * hours_per_year
+        year_hour_matrix = values[:usable].reshape(-1, hours_per_year)
+
+        # Compute quantile targets for each of the 8760 hour positions
+        quantile_targets = np.nanquantile(year_hour_matrix, q, axis=0)  # shape: (8760,)
+
+        # For each hour position, find the actual year whose value is
+        # closest to the quantile (avoids interpolation)
+        diffs = np.abs(
+            year_hour_matrix - quantile_targets[np.newaxis, :]
+        )  # (n_years, 8760)
+
+        closest_year_idx = np.nanargmin(diffs, axis=0)  # (8760,)
+
+        # Calendar year for each hour-of-year position
+        usable_times = subset_data.time.values[:usable]
+        row_years = pd.DatetimeIndex(usable_times).year.values.reshape(
+            -1, hours_per_year
+        )[:, 0]
+        sel_year = row_years[closest_year_idx]  # (8760,) — calendar year, not row index
+
+        # Store the selected years in a pandas dataframe
+        df_i = pd.DataFrame(
+            {
+                "hour": np.arange(1, hours_per_year + 1),
+                "sim": sim,
+                "year": sel_year.astype(int),
+            }
+        )
+        df_list.append(df_i)
+
+    # Concatenate list together for all simulations
+    top_df = pd.concat(df_list).reset_index(drop=True)
+
+    return top_df
+
+
+class persistence_XMY:
     """Encapsulate the code needed to generate Persistence Extreme Meteorological Year (persistence XMY) files.
 
-    Uses WRF hourly data to produce XMYs. User provides the start and end years along
+    Uses WRF hourly data to produce persistence XMYs. User provides the start and end years along
     with location to generate file.
 
     How to set location: The location can either be provided as latitude and
@@ -1230,11 +1233,14 @@ class peristence_XMY:
     If the warming level approach is used, a 30-year period is obtained centered around
     the given warming level and the start and end years are taken for that warming level.
 
+    How to set extreme: The extreme is defined by the quantile value, q, and can be a value
+    betwee 0 and 1. For example, q=0.10 will produce a cold extreme, while a q=0.90 will
+    produce a hot extreme.
 
     Parameters
     ----------
-    perc: float, 0-100
-        Percentile
+    q: float between 0 and 1
+        Extreme quantile
     start_year : str
         Initial year of XMY period (time approach)
     end_year : str
@@ -1244,20 +1250,20 @@ class peristence_XMY:
     station_name: str (optional)
         Long name of desired station
     latitude : float | int (optional)
-        Latitude for XMY data if station_name not set
+        Latitude for shock XMY data if station_name not set
     longitude : float | int (optional)
-        Longitude for XMY data if station_name not set
+        Longitude for shock XMY data if station_name not set
     verbose: bool
         True to increase verbosity
 
     Attributes
     ----------
-    percentile: float, 0-100
-        Percentile
+    q: float
+        extreme quatnile, ranging from 0 to 1
     start_year: str
-        Initial year of XMY period
+        Initial year of shock XMY period
     end_year: str
-        Final year of XMY period
+        Final year of shock XMY period
     warming_level: float | int
         Warming level value
     lat_range: tuple
@@ -1272,26 +1278,21 @@ class peristence_XMY:
         Dictionary of all required variables and units
     verbose: bool
         True to increase verbosity
-    cdf_climatology: xr.Dataset
-        CDF climatology data
-    cdf_monthly: xr.Dataset
-        CDF monthly data by model
-    weighted_fs_sum: xr.Dataset
-        Weighted F-S statistic results
-    top_months: pd.DataFrame
+    top_hours: pd.DataFrame
         Table of top months by model
     all_vars: xr.Dataset
-        All loaded variables for XMY
-    air_temp_vars: xr.Dataset
-        Air temperature variables, for use in finding candidate months
-    tmy_data_to_export: dict[pd.Dataframe]
-        Dictionary of XMY results by simulation
+        All loaded variables for shock XMY
+    air_temp: xr.Dataset
+        Air temperature, for use in finding candidate hours
+    xmy_data_to_export: dict[pd.Dataframe]
+        Dictionary of shock XMY results by simulation
     _skip_last: bool
         Internal flag to track last year for warming level approach
     """
 
     def __init__(
         self,
+        q: float = UNSET,
         start_year: int = UNSET,
         end_year: int = UNSET,
         warming_level: float | int = UNSET,
@@ -1301,7 +1302,7 @@ class peristence_XMY:
         verbose: bool = True,
     ):
 
-        # Here we go through a few different ways to get the XMY location
+        # Here we go through a few different ways to get the shock XMY location
         match latitude, longitude, station_name:
             # UNSET will match to object type
             # Case 1: All variables set
@@ -1312,19 +1313,19 @@ class peristence_XMY:
                     )
                 else:
                     print(
-                        f"Initializing XMY object for custom location: {latitude} N, {longitude} W with name '{station_name}'."
+                        f"Initializing shock XMY object for custom location: {latitude} N, {longitude} W with name '{station_name}'."
                     )
                     self._set_loc_from_lat_lon(latitude, longitude)
                     self.stn_name = station_name
             # Case 2: lat/lon provided, no station_name string
             case float() | int(), float() | int(), object():
                 print(
-                    f"Initializing XMY object for custom location: {latitude} N, {longitude} W."
+                    f"Initializing shock XMY object for custom location: {latitude} N, {longitude} W."
                 )
                 self._set_loc_from_lat_lon(latitude, longitude)
             # Case 3: station name provided, lat/lon not numeric
             case object(), object(), str():
-                print(f"Initializing XMY object for {station_name}.")
+                print(f"Initializing shock XMY object for {station_name}.")
                 self._set_loc_from_stn_name(station_name)
             # Last case: something else provided
             case _:
@@ -1345,6 +1346,14 @@ class peristence_XMY:
                 self.warming_level = warming_level
                 if isinstance(self.warming_level, int):
                     self.warming_level = float(self.warming_level)
+        # extreme type
+        if 1 <= q <= 100:
+            self.q = q
+            p = q*100
+            p = int(p)
+            print(f"Generating p{p} persistence XMY.")
+        else:
+            raise TypeError("Variable `q` must be a float between 0 and 1 (e.g. 0.5).")
         # Whether to drop the last month as a possible match
         self._skip_last = False
         if self.warming_level:
@@ -1360,6 +1369,7 @@ class peristence_XMY:
             "WRF_TaiESM1_r1i1p1f1",
             "WRF_MIROC6_r1i1p1f1",
         ]
+
         # Data only available for these scenarios
         self.scenario = ["Historical Climate", "SSP 3-7.0"]
         # Raw catalog variables to fetch (variable_id → display name)
@@ -1375,8 +1385,8 @@ class peristence_XMY:
             "swddif": "Shortwave surface downward diffuse irradiance",
             "lwdnb": "Instantaneous downwelling longwave flux at bottom",
         }
-        # Full set of XMY variables (including derived) with desired units.
-        # Used for display name references throughout the rest of the XMY code.
+        # Full set of shock XMY variables (including derived) with desired units.
+        # Used for display name references throughout the rest of the shock XMY code.
         self.vars_and_units = {
             "Air Temperature at 2m": "degC",
             "Dew point temperature": "degC",
@@ -1392,12 +1402,10 @@ class peristence_XMY:
         }
         self.verbose = verbose
         # These will get set later in analysis
-        self.cdf_climatology = UNSET
-        self.cdf_monthly = UNSET
-        self.weighted_fs_sum = UNSET
-        self.top_months = UNSET
+        self.top_hours = UNSET
         self.all_vars = UNSET
-        self.tmy_data_to_export = UNSET
+        self.air_temp_var= UNSET
+        self.xmy_data_to_export = UNSET
 
     def _set_loc_from_stn_name(self, station_name: str):
         """Get coordinates and other station metadata from station
@@ -1532,11 +1540,11 @@ class peristence_XMY:
         if isinstance(data, xr.Dataset):
             data = data[variable_id]
 
-        # ClimateData uses "sim" dimension; rename to "simulation" for XMY pipeline
+        # ClimateData uses "sim" dimension; rename to "simulation" for shock XMY pipeline
         if "sim" in data.dims:
             data = data.rename({"sim": "simulation"})
 
-        # Drop warming_level dimension (always length 1 for XMY)
+        # Drop warming_level dimension (always length 1 for shock XMY)
         if "warming_level" in data.dims:
             data = data.squeeze("warming_level", drop=True)
 
@@ -1545,7 +1553,7 @@ class peristence_XMY:
             self.start_year = data.time[0].dt.year.item()
             self.end_year = data.time[-1].dt.year.item()
 
-        # Filter to the 4 XMY simulations by matching source_id+member_id
+        # Filter to the 4 shock XMY simulations by matching source_id+member_id
         # ClimateData sim values: "wrf_ucla_ec-earth3_historical+ssp370_r1i1p1f1"
         # self.simulations values: "WRF_EC-Earth3_r1i1p1f1"
         all_sims = list(data.simulation.values)
@@ -1565,6 +1573,7 @@ class peristence_XMY:
 
         # Select and rename to legacy simulation names
         matched_cd_sims = list(sim_mapping.keys())
+
         data = data.sel(simulation=matched_cd_sims)
         data["simulation"] = [sim_mapping[s] for s in matched_cd_sims]
 
@@ -1577,6 +1586,7 @@ class peristence_XMY:
         data = data.sel(
             {"time": slice(f"{self.start_year}-01-01-00", f"{self.end_year}-12-31-23")}
         )
+
         return data
 
     @staticmethod
@@ -1661,62 +1671,62 @@ class peristence_XMY:
         return df
 
     @staticmethod
-    def _make_8760_tables(all_vars_ds: xr.Dataset, top_months: pd.DataFrame) -> dict:
-        """Extract top months from loaded data and arrange in table.
+    def _make_8760_tables(all_vars_ds: xr.Dataset, top_hours: pd.DataFrame) -> dict:
+        """Extract top hours from loaded data and arrange in table.
 
-        Pulled out of the run_tmy_analysis() code for easier testing.
+        Pulled out of the run_xmy_analysis() code for easier testing.
 
         Parameters
         ----------
         all_vars_ds: xr.Dataset
-           Timeseries of all loaded variables needed for XMY.
-        top_months: pd.DataFrame
+           Timeseries of all loaded variables needed for shock XMY.
+        top_hours: pd.DataFrame
            Dataframe of top months by model.
 
         Returns
         -------
-        pd.DataFrame
+        dict
         """
-        tmy_df_all = {}
+        xmy_df_all = {}
         for sim in all_vars_ds.simulation.values:
             df_list = []
-            print(f"Calculating XMY for simulation: {sim}")
-            for mon in tqdm(np.arange(1, 13, 1)):
+            print(f"Calculating shock XMY for simulation: {sim}")
+            for hour in tqdm(np.arange(1, 8760, 1)):
                 # Get year corresponding to month and simulation combo
                 year = int(
-                    top_months.loc[
-                        (top_months["month"] == mon) & (top_months["simulation"] == sim)
+                    top_hours.loc[
+                        (top_hours["hour"] == hour) & (top_hours["simulation"] == sim)
                     ].year.item()
                 )
 
                 # Select data for unique month, year, and simulation
-                data_at_stn_mon_sim_yr = all_vars_ds.sel(
-                    simulation=sim, time=f"{mon}-{year}"
+                data_at_stn_hr_sim_yr = all_vars_ds.sel(
+                    simulation=sim, time=f"{hour}-{year}"
                 ).expand_dims("simulation")
 
                 # Reformat as dataframe
-                df_by_mon_sim_yr = data_at_stn_mon_sim_yr.to_dataframe()
-                df_by_mon_sim_yr = df_by_mon_sim_yr.reset_index()
+                df_by_hr_sim_yr = data_at_stn_hr_sim_yr.to_dataframe()
+                df_by_hr_sim_yr = df_by_hr_sim_yr.reset_index()
 
                 # Reformat time index to remove seconds
-                df_by_mon_sim_yr["time"] = pd.to_datetime(
-                    df_by_mon_sim_yr["time"].values
+                df_by_hr_sim_yr["time"] = pd.to_datetime(
+                    df_by_hr_sim_yr["time"].values
                 ).strftime("%Y-%m-%d %H:%M")
-                df_list.append(df_by_mon_sim_yr)
+                df_list.append(df_by_hr_sim_yr)
 
             # Concatenate all DataFrames together
-            tmy_df_by_sim = pd.concat(df_list)
+            xmy_df_by_sim = pd.concat(df_list)
 
-            tmy_df_all[sim] = tmy_df_by_sim
-        return tmy_df_all
+            xmy_df_all[sim] = xmy_df_by_sim
+        return xmy_df_all
 
     def load_all_variables(self):
-        """Load hourly XMY variables and derive daily statistics for CDF/F-S.
+        """Load hourly persistence XMY variables and derive daily statistics.
 
         Fetches hourly raw variables via ClimateData for the 8760 profile
         assembly, then derives ALL daily statistics from the hourly data
-        in local time.  This matches the original XMY code's approach and
-        avoids two problems with fetching daily catalog variables directly:
+        in local time.  This approach avoids two problems with fetching
+        daily catalog variables directly:
 
         1. **UTC vs local time**: Catalog daily variables are pre-aggregated
            over UTC day boundaries, which differ from local-time days by the
@@ -1776,7 +1786,7 @@ class peristence_XMY:
             first_var = None
             remaining_hourly = hourly_var_ids
 
-        # --- Daily variables (needed for CDF/F-S analysis) ---
+        # --- Daily variables resampling ---
         # Derive daily stats from hourly data in local time.
         # This matches the original code's behavior (hourly → local time →
         # daily resample) and avoids using catalog daily variables which are
@@ -1845,6 +1855,11 @@ class peristence_XMY:
         t2_out.name = "Air Temperature at 2m"
         t2_out.attrs["units"] = "degC"
 
+        self.air_temp_var = t2_out
+        self._vprint(
+            "   Air temperature stored for use in finding candidate months."
+        )
+
         q2_out = q2_gkg.copy()
         q2_out.name = "Water Vapor Mixing Ratio at 2m"
 
@@ -1860,7 +1875,8 @@ class peristence_XMY:
         hourly_ds = xr.merge(derived_list + kept_from_raw)
         self._hourly_data = hourly_ds
 
-        # --- Build daily dataset for CDF/F-S analysis ---
+        # --- Build daily dataset ---
+
         # Compute hourly data eagerly so all daily resampling uses
         # deterministic numpy math (not affected by dask scheduler ordering).
         # For a single grid cell this is small (~30yr × 8760hr × 4sims).
@@ -1945,47 +1961,19 @@ class peristence_XMY:
         self.all_vars = xr.merge(daily_arrays)
         self._vprint("  Daily statistics ready.")
 
-    def set_cdf_climatology(self):
-        """Calculate the long-term climatology for each index for each month so
-        we can establish the baseline pattern.
-        """
-        if self.all_vars is UNSET:
-            self.load_all_variables()
-        self._vprint("Calculating CDF climatology.")
-        self.cdf_climatology = get_cdf(self.all_vars)
-
-    def set_cdf_monthly(self):
-        """Get CDF for each month and variable."""
-        if self.all_vars is UNSET:
-            self.load_all_variables()
-        self._vprint("Calculating monthly CDF.")
-        self.cdf_monthly = get_cdf_monthly(self.all_vars)
-        # Remove the years for the Pinatubo eruption
-        self.cdf_monthly = remove_pinatubo_years(self.cdf_monthly)
-
-    def set_weighted_statistic(self):
-        """Calculate the weighted F-S statistic."""
-        if self.cdf_climatology is UNSET:
-            self.set_cdf_climatology()
-        if self.cdf_monthly is UNSET:
-            self.set_cdf_monthly()
-        self._vprint("Calculating weighted F-S statistic.")
-        self.weighted_fs_sum = compute_weighted_fs_sum(
-            self.cdf_climatology, self.cdf_monthly
-        )
-
-    def set_top_months(self):
+    def set_top_hours(self):
         """Calculate top months dataframe."""
-        # Pass the weighted F-S sum data for simplicity
-        if self.weighted_fs_sum is UNSET:
-            self.set_weighted_statistic()
-        self._vprint("Finding top months (lowest F-S statistic)")
-        self.top_months = get_top_months(
-            self.weighted_fs_sum, skip_last=self._skip_last
+
+        self._vprint(
+            "Finding top hours."
+        )
+        #! what other input is needed?
+        self.top_hours = persistence_get_top_hours(
+            self.air_temp_var, self.q
         )
 
-    def show_tmy_data_to_export(self, simulation: str):
-        """Show line plots of XMY data for single model.
+    def show_xmy_data_to_export(self, simulation: str):
+        """Show line plots of shock XMY data for single model.
 
         Parameters
         ----------
@@ -1993,33 +1981,33 @@ class peristence_XMY:
             Simulation to display.
 
         """
-        if self.tmy_data_to_export is UNSET:
+        if self.xmy_data_to_export is UNSET:
             print("No XMY data generated.")
-            print("Please run XMY.generate_tmy() to create XMY data for viewing.")
+            print("Please run xmy.generate_xmy() to create XMY data for viewing.")
             return
 
         # WVMR not in final XMY dataframe
         fig_y = list(self.vars_and_units.keys())
         fig_y.remove("Water Vapor Mixing Ratio at 2m")
 
-        self.tmy_data_to_export[simulation].plot(
+        self.xmy_data_to_export[simulation].plot(
             x="time",
             y=fig_y,
-            title=f"Typical Meteorological Year ({simulation})",
+            title=f"Shock Extreme Meteorological Year ({simulation})",
             subplots=True,
             figsize=(10, 8),
             legend=True,
         )
 
-    def run_tmy_analysis(self):
-        """Generate typical meteorological year data.
+    def run_xmy_analysis(self):
+        """Generate shock extreme meteorological year data.
 
         Output will be a list of dataframes per simulation.
         Print statements throughout the function indicate progress.
 
         Notes
         -----
-        Results are saved to the class variable `tmy_data_to_export`.
+        Results are saved to the class variable `xmy_data_to_export`.
         """
         print("Assembling XMY data to export.")
 
@@ -2027,32 +2015,32 @@ class peristence_XMY:
 
         # Use cached hourly data instead of re-downloading
         if not hasattr(self, "_hourly_data") or self._hourly_data is None:
-            # Fallback: load from catalog if run_tmy_analysis called standalone
+            # Fallback: load from catalog if run_xmy_analysis called standalone
             self.load_all_variables()
         with ProgressBar():
             all_vars_ds = self._hourly_data.compute()
 
         # Construct XMY
         self._vprint(
-            "\n  STEP 2: Calculating Typical Meteorological Year per model simulation\n  Progress bar shows code looping through each month in the year.\n"
+            f"\n  STEP 2: Calculating {self.extreme} Shock Extreme Meteorological Year per model simulation\n  Progress bar shows code looping through each month in the year.\n"
         )
 
-        tmy_data_to_export = self._make_8760_tables(
+        xmy_data_to_export = self._make_8760_tables(
             all_vars_ds, self.top_months
-        )  # Return dict of XMY by simulation
+        )  # Return dict of shock XMY by simulation
 
         self._vprint("  Smoothing data at transitions between months.")
         self._vprint("  Dropping water vapor mixing ratio.")
         # Smooth transition hours
-        for sim in tmy_data_to_export:
-            tmy_data_to_export[sim] = tmy_data_to_export[sim].reset_index()
-            tmy_data_to_export[sim] = self._smooth_month_transition_hours(
-                tmy_data_to_export[sim]
+        for sim in xmy_data_to_export:
+            xmy_data_to_export[sim] = xmy_data_to_export[sim].reset_index()
+            xmy_data_to_export[sim] = self._smooth_month_transition_hours(
+                xmy_data_to_export[sim]
             )
 
             # Mixing ratio was only needed for smoothing relative humidity,
             # so it can be dropped now.
-            tmy_data_to_export[sim] = tmy_data_to_export[sim].drop(
+            xmy_data_to_export[sim] = xmy_data_to_export[sim].drop(
                 columns="Water Vapor Mixing Ratio at 2m"
             )
 
@@ -2060,14 +2048,14 @@ class peristence_XMY:
             # The new-core pipeline squeezes these dimensions, so they must be
             # re-attached before export.
             if self.warming_level is not UNSET:
-                tmy_data_to_export[sim]["warming_level"] = self.warming_level
+                xmy_data_to_export[sim]["warming_level"] = self.warming_level
             else:
-                tmy_data_to_export[sim]["scenario"] = "historical+ssp370"
+                xmy_data_to_export[sim]["scenario"] = "historical+ssp370"
 
-        self.tmy_data_to_export = tmy_data_to_export
-        self._vprint("XMY analysis complete.")
+        self.xmy_data_to_export = xmy_data_to_export
+        self._vprint("shock XMY analysis complete.")
 
-    def export_tmy_data(self, extension: str = "epw"):
+    def export_xmy_data(self, extension: str = "epw"):
         """Write XMY data to EPW file.
 
         Parameters
@@ -2076,8 +2064,8 @@ class peristence_XMY:
             Desired file extension ('tmy','epw', or 'csv')
 
         """
-        print("Exporting XMY to file.")
-        for sim, _ in self.tmy_data_to_export.items():
+        print("Exporting shock XMY to file.")
+        for sim, _ in self.xmy_data_to_export.items():
             # Get right year range
             if self.warming_level is UNSET:
                 years = (self.start_year, self.end_year)
@@ -2094,14 +2082,14 @@ class peristence_XMY:
                 clean_sim = f"{sim}_{wl_label}"
             # Attach centered_year so CSV export can include it
             if self.warming_level is not UNSET:
-                self.tmy_data_to_export[sim]["centered_year"] = centered_year
+                self.xmy_data_to_export[sim]["centered_year"] = centered_year
             clean_stn_name = (
                 self.stn_name.replace(" ", "_").replace("(", "").replace(")", "")
             )
-            filename = f"XMY_{clean_stn_name}_{clean_sim}".lower()
+            filename = f"{self.extreme}_shock_xmy_{clean_stn_name}_{clean_sim}".lower()
             write_tmy_file(
                 filename,
-                self.tmy_data_to_export[sim],
+                self.xmy_data_to_export[sim],
                 years,
                 self.stn_name,
                 self.stn_code,
@@ -2115,19 +2103,18 @@ class peristence_XMY:
         """Run CDF functions to get top candidates.
 
         This function can be used to view the candidate months
-        without running the entire XMY workflow.
+        without running the entire shock XMY workflow.
         """
-        self._vprint("Getting top months for XMY.")
+        self._vprint(f"Getting top months for {self.extreme} shock XMY.")
         self.set_cdf_climatology()
         self.set_cdf_monthly()
-        self.set_weighted_statistic()
         self.set_top_months()
 
-    def generate_tmy(self):
+    def generate_xmy(self):
         """Run the whole XMY workflow."""
         # This runs the whole workflow at once
-        print("Running XMY workflow.")
+        print("Running shock XMY workflow.")
         self.load_all_variables()
         self.get_candidate_months()
-        self.run_tmy_analysis()
-        self.export_tmy_data()
+        self.run_xmy_analysis()
+        self.export_xmy_data()
