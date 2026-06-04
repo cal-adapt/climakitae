@@ -1147,20 +1147,24 @@ def persistence_get_top_hours(data: xr.DataArray, q: float) -> pd.DataFrame:
     # print(f"data: {data}")
     # data = data["t2"]
     #!
-    print("removed the selection of t2 var, does it work now?")
     print(f"input data: {data}")
-
+    print(f"data.dims: {data.dims}")
     # Check for simulation dimension
-    has_simulation = "sim" in data.dims
+    has_simulation = "simulation" in data.dims
     if has_simulation:
-        simulations = data.sim.values
+        simulations = data.simulation.values
     else:
         simulations = [None]
+    print(f"has_simulation: {has_simulation}")
 
     # Get all available time data
     hours_per_year = 8760
+    print(f"hours_per_year: {hours_per_year}")
     total_hours = len(data.time)
+    print(f"data.time: {data.time}")
+    print(f"total_hours: {total_hours}")
     n_years = total_hours // hours_per_year
+    print(f"n_years: {n_years}")
 
     print(f"      📊 Processing {total_hours:,} hours ({n_years} years) of data")
     print(f"      🎯 Computing {q*100:.0f}th percentile for each hour of year")
@@ -1179,14 +1183,14 @@ def persistence_get_top_hours(data: xr.DataArray, q: float) -> pd.DataFrame:
         print(f"sim_idx, sim: {sim_idx},{sim}")
         # Select data for this warming level and simulation combination
         if has_simulation:
-            subset_data = data.isel(sim=sim_idx)
+            subset_data = data.isel(simulation=sim)
         else:
             subset_data = data
 
         # Vectorized quantile computation using numpy
         # Reshape raw values into (n_years, hours_per_year) then compute
         # the quantile across years for each hour-of-year position
-        print("how to set up vectorization")
+        print("now to set up vectorization")
         values = subset_data.values
         print(f"values: {values}")
         n_total = len(values)
@@ -2105,7 +2109,9 @@ class persistence_XMY:
             clean_stn_name = (
                 self.stn_name.replace(" ", "_").replace("(", "").replace(")", "")
             )
-            filename = f"{self.extreme}_persistence_xmy_{clean_stn_name}_{clean_sim}".lower()
+            filename = (
+                f"{self.extreme}_persistence_xmy_{clean_stn_name}_{clean_sim}".lower()
+            )
             write_tmy_file(
                 filename,
                 self.xmy_data_to_export[sim],
