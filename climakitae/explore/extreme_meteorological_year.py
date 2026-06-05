@@ -1686,39 +1686,6 @@ class persistence_XMY:
         -------
         dict
         """
-        # xmy_df_all = {}
-        # for sim in all_vars_ds.simulation.values:
-        #     df_list = []
-        #     print(f"Calculating persistence XMY for simulation: {sim}")
-        #     for hour in tqdm(np.arange(1, 8760, 1)):
-        #         # Get year corresponding to month and simulation combo
-        #         year = int(
-        #             top_hours.loc[
-        #                 (top_hours["hour"] == hour) & (top_hours["sim"] == sim)
-        #             ].year.item()
-        #         )
-
-        #         # Select data for unique hour, month, year, and simulation
-        #         data_at_stn_hr_sim_yr = all_vars_ds.sel(
-        #             simulation=sim, time=f"{month}-{year}"
-        #         ).expand_dims("simulation")
-
-        #         # Reformat as dataframe
-        #         df_by_hr_sim_yr = data_at_stn_hr_sim_yr.to_dataframe()
-        #         df_by_hr_sim_yr = df_by_hr_sim_yr.reset_index()
-
-        #         # Reformat time index to remove seconds
-        #         df_by_hr_sim_yr["time"] = pd.to_datetime(
-        #             df_by_hr_sim_yr["time"].values
-        #         ).strftime("%Y-%m-%d %H:%M")
-        #         df_list.append(df_by_hr_sim_yr)
-
-        #     # Concatenate all DataFrames together
-        #     xmy_df_by_sim = pd.concat(df_list)
-
-        #     xmy_df_all[sim] = xmy_df_by_sim
-
-        #! use vector method instead
         HOURS_PER_YEAR = 8760
 
         # Trim to whole years and stamp hour-of-year / year coords ONCE
@@ -1735,7 +1702,7 @@ class persistence_XMY:
         print(f"ds, after coordinates added: {ds}")
 
         # Reshape time -> (year, hour_of_year). One xarray op for ALL variables.
-        ds_2d = ds.set_index(time=["year", "hour_of_year", "time"])  # .unstack("time")
+        ds_2d = ds.set_index(time=["year", "hour_of_year"]).unstack("time")
         print(f"ds_2d: {ds_2d}")
         year_values = ds_2d.year.values  # ascending years available in the data
 
@@ -1763,9 +1730,10 @@ class persistence_XMY:
             picked = picked.assign_coords(selected_year=("hour_of_year", sel_years))
             print(f"picked, after coords assigned: {picked}")
 
-            # def reformatted_time_coordinate():
-
-            #     return result.strftime("%Y-%m-%d %H:%M")
+            def reformatted_time_coordinate():
+                step = pd.Timedelta(hours=1)
+                result = pd.to_datetime([f"{y}-01-01" for y in picked.selected_year.values]) + (picked.hour_of_year.values - 1) * step
+                return result.strftime("%Y-%m-%d %H:%M")
 
             df = picked.to_dataframe().reset_index()
             print(f"df, where is time?: {df}")
