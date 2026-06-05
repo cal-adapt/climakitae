@@ -5207,10 +5207,7 @@ MetPy, 2026: geostrophic_wind. Accessed 10 Feb 2026, https://unidata.github.io/M
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/tools/derived_variables.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-658">658</a></span>
-<span class="normal"><a href="#__codelineno-0-659">659</a></span>
-<span class="normal"><a href="#__codelineno-0-660">660</a></span>
-<span class="normal"><a href="#__codelineno-0-661">661</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-661">661</a></span>
 <span class="normal"><a href="#__codelineno-0-662">662</a></span>
 <span class="normal"><a href="#__codelineno-0-663">663</a></span>
 <span class="normal"><a href="#__codelineno-0-664">664</a></span>
@@ -5250,50 +5247,53 @@ MetPy, 2026: geostrophic_wind. Accessed 10 Feb 2026, https://unidata.github.io/M
 <span class="normal"><a href="#__codelineno-0-698">698</a></span>
 <span class="normal"><a href="#__codelineno-0-699">699</a></span>
 <span class="normal"><a href="#__codelineno-0-700">700</a></span>
-<span class="normal"><a href="#__codelineno-0-701">701</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-658" name="__codelineno-0-658"></a><span class="k">def</span><span class="w"> </span><span class="nf">compute_geostrophic_wind</span><span class="p">(</span>
-<a id="__codelineno-0-659" name="__codelineno-0-659"></a>    <span class="n">geopotential_height</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">gridlabel</span><span class="o">=</span><span class="s2">&quot;d01&quot;</span>
-<a id="__codelineno-0-660" name="__codelineno-0-660"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">]:</span>
-<a id="__codelineno-0-661" name="__codelineno-0-661"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate the geostrophic wind at a single point on a constant pressure surface.</span>
-<a id="__codelineno-0-662" name="__codelineno-0-662"></a>
-<a id="__codelineno-0-663" name="__codelineno-0-663"></a><span class="sd">    Currently only implemented for data on the WRF grid. This code follows the</span>
-<a id="__codelineno-0-664" name="__codelineno-0-664"></a><span class="sd">    MetPy code for calculating the geostrophic wind on an unevenly spaced grid.</span>
+<span class="normal"><a href="#__codelineno-0-701">701</a></span>
+<span class="normal"><a href="#__codelineno-0-702">702</a></span>
+<span class="normal"><a href="#__codelineno-0-703">703</a></span>
+<span class="normal"><a href="#__codelineno-0-704">704</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-661" name="__codelineno-0-661"></a><span class="k">def</span><span class="w"> </span><span class="nf">compute_geostrophic_wind</span><span class="p">(</span>
+<a id="__codelineno-0-662" name="__codelineno-0-662"></a>    <span class="n">geopotential_height</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">gridlabel</span><span class="o">=</span><span class="s2">&quot;d01&quot;</span>
+<a id="__codelineno-0-663" name="__codelineno-0-663"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">]:</span>
+<a id="__codelineno-0-664" name="__codelineno-0-664"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate the geostrophic wind at a single point on a constant pressure surface.</span>
 <a id="__codelineno-0-665" name="__codelineno-0-665"></a>
-<a id="__codelineno-0-666" name="__codelineno-0-666"></a><span class="sd">    Parameters</span>
-<a id="__codelineno-0-667" name="__codelineno-0-667"></a><span class="sd">    ----------</span>
-<a id="__codelineno-0-668" name="__codelineno-0-668"></a><span class="sd">    geopotential_height : xr.DataArray</span>
-<a id="__codelineno-0-669" name="__codelineno-0-669"></a><span class="sd">        Geopotential height in meters on WRF grid. May include multiple pressure levels</span>
-<a id="__codelineno-0-670" name="__codelineno-0-670"></a>
-<a id="__codelineno-0-671" name="__codelineno-0-671"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-672" name="__codelineno-0-672"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-673" name="__codelineno-0-673"></a><span class="sd">    tuple[xr.DataArray]</span>
-<a id="__codelineno-0-674" name="__codelineno-0-674"></a><span class="sd">        Earth-relative U and V components of the geostrophic wind.</span>
-<a id="__codelineno-0-675" name="__codelineno-0-675"></a>
-<a id="__codelineno-0-676" name="__codelineno-0-676"></a><span class="sd">    References</span>
-<a id="__codelineno-0-677" name="__codelineno-0-677"></a><span class="sd">    ----------</span>
-<a id="__codelineno-0-678" name="__codelineno-0-678"></a><span class="sd">    Hess, S. L., 1979: Introduction to Theoretical Meteorology. Robert E. Krieger Publishing Company, 362 pp.</span>
-<a id="__codelineno-0-679" name="__codelineno-0-679"></a><span class="sd">    MetPy, 2026: geostrophic_wind. Accessed 10 Feb 2026, https://unidata.github.io/MetPy/latest/api/generated/metpy.calc.geostrophic_wind.html#geostrophic-wind.</span>
-<a id="__codelineno-0-680" name="__codelineno-0-680"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-681" name="__codelineno-0-681"></a>    <span class="n">lat_to_radian</span> <span class="o">=</span> <span class="n">geopotential_height</span><span class="o">.</span><span class="n">lat</span><span class="o">.</span><span class="n">data</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span>
-<a id="__codelineno-0-682" name="__codelineno-0-682"></a>    <span class="n">omega</span> <span class="o">=</span> <span class="mf">7292115e-11</span>  <span class="c1"># rad/s</span>
-<a id="__codelineno-0-683" name="__codelineno-0-683"></a>    <span class="n">g</span> <span class="o">=</span> <span class="mf">9.81</span>  <span class="c1"># m/s2</span>
-<a id="__codelineno-0-684" name="__codelineno-0-684"></a>    <span class="n">f</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">omega</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">lat_to_radian</span><span class="p">)</span>
-<a id="__codelineno-0-685" name="__codelineno-0-685"></a>    <span class="n">norm_factor</span> <span class="o">=</span> <span class="n">g</span> <span class="o">/</span> <span class="n">f</span>
-<a id="__codelineno-0-686" name="__codelineno-0-686"></a>
-<a id="__codelineno-0-687" name="__codelineno-0-687"></a>    <span class="n">dhdx</span><span class="p">,</span> <span class="n">dhdy</span> <span class="o">=</span> <span class="n">_get_spatial_derivatives</span><span class="p">(</span><span class="n">geopotential_height</span><span class="p">)</span>
-<a id="__codelineno-0-688" name="__codelineno-0-688"></a>
-<a id="__codelineno-0-689" name="__codelineno-0-689"></a>    <span class="c1"># These components are u and v on the WRF grid</span>
-<a id="__codelineno-0-690" name="__codelineno-0-690"></a>    <span class="n">geo_u</span><span class="p">,</span> <span class="n">geo_v</span> <span class="o">=</span> <span class="o">-</span><span class="n">norm_factor</span> <span class="o">*</span> <span class="n">dhdy</span><span class="p">,</span> <span class="n">norm_factor</span> <span class="o">*</span> <span class="n">dhdx</span>
+<a id="__codelineno-0-666" name="__codelineno-0-666"></a><span class="sd">    Currently only implemented for data on the WRF grid. This code follows the</span>
+<a id="__codelineno-0-667" name="__codelineno-0-667"></a><span class="sd">    MetPy code for calculating the geostrophic wind on an unevenly spaced grid.</span>
+<a id="__codelineno-0-668" name="__codelineno-0-668"></a>
+<a id="__codelineno-0-669" name="__codelineno-0-669"></a><span class="sd">    Parameters</span>
+<a id="__codelineno-0-670" name="__codelineno-0-670"></a><span class="sd">    ----------</span>
+<a id="__codelineno-0-671" name="__codelineno-0-671"></a><span class="sd">    geopotential_height : xr.DataArray</span>
+<a id="__codelineno-0-672" name="__codelineno-0-672"></a><span class="sd">        Geopotential height in meters on WRF grid. May include multiple pressure levels</span>
+<a id="__codelineno-0-673" name="__codelineno-0-673"></a>
+<a id="__codelineno-0-674" name="__codelineno-0-674"></a><span class="sd">    Returns</span>
+<a id="__codelineno-0-675" name="__codelineno-0-675"></a><span class="sd">    -------</span>
+<a id="__codelineno-0-676" name="__codelineno-0-676"></a><span class="sd">    tuple[xr.DataArray]</span>
+<a id="__codelineno-0-677" name="__codelineno-0-677"></a><span class="sd">        Earth-relative U and V components of the geostrophic wind.</span>
+<a id="__codelineno-0-678" name="__codelineno-0-678"></a>
+<a id="__codelineno-0-679" name="__codelineno-0-679"></a><span class="sd">    References</span>
+<a id="__codelineno-0-680" name="__codelineno-0-680"></a><span class="sd">    ----------</span>
+<a id="__codelineno-0-681" name="__codelineno-0-681"></a><span class="sd">    Hess, S. L., 1979: Introduction to Theoretical Meteorology. Robert E. Krieger Publishing Company, 362 pp.</span>
+<a id="__codelineno-0-682" name="__codelineno-0-682"></a><span class="sd">    MetPy, 2026: geostrophic_wind. Accessed 10 Feb 2026, https://unidata.github.io/MetPy/latest/api/generated/metpy.calc.geostrophic_wind.html#geostrophic-wind.</span>
+<a id="__codelineno-0-683" name="__codelineno-0-683"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-684" name="__codelineno-0-684"></a>    <span class="n">lat_to_radian</span> <span class="o">=</span> <span class="n">geopotential_height</span><span class="o">.</span><span class="n">lat</span><span class="o">.</span><span class="n">data</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span>
+<a id="__codelineno-0-685" name="__codelineno-0-685"></a>    <span class="n">omega</span> <span class="o">=</span> <span class="mf">7292115e-11</span>  <span class="c1"># rad/s</span>
+<a id="__codelineno-0-686" name="__codelineno-0-686"></a>    <span class="n">g</span> <span class="o">=</span> <span class="mf">9.81</span>  <span class="c1"># m/s2</span>
+<a id="__codelineno-0-687" name="__codelineno-0-687"></a>    <span class="n">f</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">omega</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">lat_to_radian</span><span class="p">)</span>
+<a id="__codelineno-0-688" name="__codelineno-0-688"></a>    <span class="n">norm_factor</span> <span class="o">=</span> <span class="n">g</span> <span class="o">/</span> <span class="n">f</span>
+<a id="__codelineno-0-689" name="__codelineno-0-689"></a>
+<a id="__codelineno-0-690" name="__codelineno-0-690"></a>    <span class="n">dhdx</span><span class="p">,</span> <span class="n">dhdy</span> <span class="o">=</span> <span class="n">_get_spatial_derivatives</span><span class="p">(</span><span class="n">geopotential_height</span><span class="p">)</span>
 <a id="__codelineno-0-691" name="__codelineno-0-691"></a>
-<a id="__codelineno-0-692" name="__codelineno-0-692"></a>    <span class="c1"># Rotate these components to an earth-relative E/W orientation</span>
-<a id="__codelineno-0-693" name="__codelineno-0-693"></a>    <span class="n">geo_u_earth</span><span class="p">,</span> <span class="n">geo_v_earth</span> <span class="o">=</span> <span class="n">_get_rotated_geostrophic_wind</span><span class="p">(</span><span class="n">geo_u</span><span class="p">,</span> <span class="n">geo_v</span><span class="p">,</span> <span class="n">gridlabel</span><span class="p">)</span>
+<a id="__codelineno-0-692" name="__codelineno-0-692"></a>    <span class="c1"># These components are u and v on the WRF grid</span>
+<a id="__codelineno-0-693" name="__codelineno-0-693"></a>    <span class="n">geo_u</span><span class="p">,</span> <span class="n">geo_v</span> <span class="o">=</span> <span class="o">-</span><span class="n">norm_factor</span> <span class="o">*</span> <span class="n">dhdy</span><span class="p">,</span> <span class="n">norm_factor</span> <span class="o">*</span> <span class="n">dhdx</span>
 <a id="__codelineno-0-694" name="__codelineno-0-694"></a>
-<a id="__codelineno-0-695" name="__codelineno-0-695"></a>    <span class="c1"># Update attributes for results</span>
-<a id="__codelineno-0-696" name="__codelineno-0-696"></a>    <span class="n">geo_u_earth</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;u&quot;</span>
-<a id="__codelineno-0-697" name="__codelineno-0-697"></a>    <span class="n">geo_u_earth</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;long_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Geostrophic Wind U Component&quot;</span>
-<a id="__codelineno-0-698" name="__codelineno-0-698"></a>    <span class="n">geo_v_earth</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;v&quot;</span>
-<a id="__codelineno-0-699" name="__codelineno-0-699"></a>    <span class="n">geo_v_earth</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;long_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Geostrophic Wind V Component&quot;</span>
-<a id="__codelineno-0-700" name="__codelineno-0-700"></a>
-<a id="__codelineno-0-701" name="__codelineno-0-701"></a>    <span class="k">return</span> <span class="n">geo_u_earth</span><span class="p">,</span> <span class="n">geo_v_earth</span>
+<a id="__codelineno-0-695" name="__codelineno-0-695"></a>    <span class="c1"># Rotate these components to an earth-relative E/W orientation</span>
+<a id="__codelineno-0-696" name="__codelineno-0-696"></a>    <span class="n">geo_u_earth</span><span class="p">,</span> <span class="n">geo_v_earth</span> <span class="o">=</span> <span class="n">_get_rotated_geostrophic_wind</span><span class="p">(</span><span class="n">geo_u</span><span class="p">,</span> <span class="n">geo_v</span><span class="p">,</span> <span class="n">gridlabel</span><span class="p">)</span>
+<a id="__codelineno-0-697" name="__codelineno-0-697"></a>
+<a id="__codelineno-0-698" name="__codelineno-0-698"></a>    <span class="c1"># Update attributes for results</span>
+<a id="__codelineno-0-699" name="__codelineno-0-699"></a>    <span class="n">geo_u_earth</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;u&quot;</span>
+<a id="__codelineno-0-700" name="__codelineno-0-700"></a>    <span class="n">geo_u_earth</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;long_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Geostrophic Wind U Component&quot;</span>
+<a id="__codelineno-0-701" name="__codelineno-0-701"></a>    <span class="n">geo_v_earth</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;v&quot;</span>
+<a id="__codelineno-0-702" name="__codelineno-0-702"></a>    <span class="n">geo_v_earth</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;long_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Geostrophic Wind V Component&quot;</span>
+<a id="__codelineno-0-703" name="__codelineno-0-703"></a>
+<a id="__codelineno-0-704" name="__codelineno-0-704"></a>    <span class="k">return</span> <span class="n">geo_u_earth</span><span class="p">,</span> <span class="n">geo_v_earth</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
