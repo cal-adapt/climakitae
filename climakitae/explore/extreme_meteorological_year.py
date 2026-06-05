@@ -1720,7 +1720,7 @@ class persistence_XMY:
                 # Get year corresponding to month and simulation combo
                 year = int(
                     top_hours.loc[
-                        (top_hours["hour"] == hour) & (top_hours["simulation"] == sim)
+                        (top_hours["hour"] == hour) & (top_hours["sim"] == sim)
                     ].year.item()
                 )
 
