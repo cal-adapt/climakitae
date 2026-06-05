@@ -1686,37 +1686,93 @@ class persistence_XMY:
         -------
         dict
         """
+        # xmy_df_all = {}
+        # for sim in all_vars_ds.simulation.values:
+        #     df_list = []
+        #     print(f"Calculating persistence XMY for simulation: {sim}")
+        #     for hour in tqdm(np.arange(1, 8760, 1)):
+        #         # Get year corresponding to month and simulation combo
+        #         year = int(
+        #             top_hours.loc[
+        #                 (top_hours["hour"] == hour) & (top_hours["sim"] == sim)
+        #             ].year.item()
+        #         )
+        #         #! I see, issue is how data is selected
+
+        #         # Select data for unique hour, month, year, and simulation
+        #         data_at_stn_hr_sim_yr = all_vars_ds.sel(
+        #             simulation=sim, time=f"{month}-{year}"
+        #         ).expand_dims("simulation")
+
+        #         # Reformat as dataframe
+        #         df_by_hr_sim_yr = data_at_stn_hr_sim_yr.to_dataframe()
+        #         df_by_hr_sim_yr = df_by_hr_sim_yr.reset_index()
+
+        #         # Reformat time index to remove seconds
+        #         df_by_hr_sim_yr["time"] = pd.to_datetime(
+        #             df_by_hr_sim_yr["time"].values
+        #         ).strftime("%Y-%m-%d %H:%M")
+        #         df_list.append(df_by_hr_sim_yr)
+
+        #     # Concatenate all DataFrames together
+        #     xmy_df_by_sim = pd.concat(df_list)
+
+        #     xmy_df_all[sim] = xmy_df_by_sim
+
+        #! use vector method instead
+        HOURS_PER_YEAR = 8760
+    
+        # Trim to whole years and stamp hour-of-year / year coords ONCE
+        n_total = all_vars_ds.sizes["time"]
+        n_years = n_total // HOURS_PER_YEAR
+        usable = n_years * HOURS_PER_YEAR
+        ds = all_vars_ds.isel(time=slice(0, usable))
+        
+        hoy = np.tile(np.arange(1, HOURS_PER_YEAR + 1), n_years)
+        yrs = pd.DatetimeIndex(ds.time.values).year.values
+        
+        # Store original time values as a coordinate before reshaping
+        ds = ds.assign_coords(
+            hour_of_year=("time", hoy),
+            year=("time", yrs),
+            original_time=("time", ds.time.values),
+        )
+        
+        # Reshape time -> (year, hour_of_year). One xarray op for ALL variables.
+        ds_2d = ds.set_index(time=["year", "hour_of_year"]).unstack("time")
+        year_values = ds_2d.year.values  # ascending years available in the data
+
         xmy_df_all = {}
-        for sim in all_vars_ds.simulation.values:
-            df_list = []
+        for sim in ds_2d.sim.values:
             print(f"Calculating persistence XMY for simulation: {sim}")
-            for hour in tqdm(np.arange(1, 8760, 1)):
-                # Get year corresponding to month and simulation combo
-                year = int(
-                    top_hours.loc[
-                        (top_hours["hour"] == hour) & (top_hours["sim"] == sim)
-                    ].year.item()
-                )
 
-                # Select data for unique month, year, and simulation
-                data_at_stn_hr_sim_yr = all_vars_ds.sel(
-                    simulation=sim, time=f"{hour}-{year}"
-                ).expand_dims("simulation")
+            # Vectorized lookup of selected year per hour-of-year
+            sel_years = (
+                top_hours[top_hours["sim"] == sim].sort_values("hour")["year"].to_numpy()
+            )  # shape (8760,)
+            year_idx = np.searchsorted(year_values, sel_years)
 
-                # Reformat as dataframe
-                df_by_hr_sim_yr = data_at_stn_hr_sim_yr.to_dataframe()
-                df_by_hr_sim_yr = df_by_hr_sim_yr.reset_index()
+            # Single fancy-index gather
+            hour_da = xr.DataArray(np.arange(HOURS_PER_YEAR), dims="hour_of_year")
+            yidx_da = xr.DataArray(year_idx, dims="hour_of_year")
 
-                # Reformat time index to remove seconds
-                df_by_hr_sim_yr["time"] = pd.to_datetime(
-                    df_by_hr_sim_yr["time"].values
-                ).strftime("%Y-%m-%d %H:%M")
-                df_list.append(df_by_hr_sim_yr)
+            picked = ds_2d.sel(sim=sim).isel(year=yidx_da, hour_of_year=hour_da)
 
-            # Concatenate all DataFrames together
-            xmy_df_by_sim = pd.concat(df_list)
+            # Grab original timestamps using the same fancy indexing
+            original_times = ds_2d.sel(sim=sim)["original_time"].isel(
+                year=yidx_da, hour_of_year=hour_da
+            )
+            picked = picked.assign_coords(
+                time=("hour_of_year", original_times.values),
+                selected_year=("hour_of_year", sel_years),
+            )
 
-            xmy_df_all[sim] = xmy_df_by_sim
+            df = picked.to_dataframe().reset_index()
+            df["time"] = pd.to_datetime(df["time"]).dt.strftime("%Y-%m-%d %H:%M")
+            xmy_df_all[sim] = df
+            
+        print(f"xmy_df_all:{xmy_df_all}")
+
         return xmy_df_all
 
     def load_all_variables(self):
