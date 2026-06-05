@@ -1714,7 +1714,7 @@ class persistence_XMY:
             hoy = picked.coords["hour_of_year"].values
             result = pd.to_datetime([f"{y}-01-01" for y in years]) + (hoy - 1) * step
             return result.strftime("%Y-%m-%d %H:%M")
-        
+
         for sim in ds_2d.simulation.values:
             print(f"Calculating persistence XMY for simulation: {sim}")
 
@@ -1740,7 +1740,7 @@ class persistence_XMY:
 
             df = picked.to_dataframe().reset_index()
             print(f"df, where is time?: {df}")
-            #df["time"] = pd.to_datetime(df["time"]).dt.strftime("%Y-%m-%d %H:%M")
+            # df["time"] = pd.to_datetime(df["time"]).dt.strftime("%Y-%m-%d %H:%M")
             df["time"] = reformatted_time_coordinate(picked)
             print(f"df, after time change: {df}")
             xmy_df_all[sim] = df
