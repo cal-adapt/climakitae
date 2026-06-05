@@ -1761,6 +1761,10 @@ class persistence_XMY:
             picked = picked.assign_coords(selected_year=("hour_of_year", sel_years))
             print(f"picked, after coords assigned: {picked}")
 
+            def reformatted_time_coordinate():  
+                
+                return result.strftime("%Y-%m-%d %H:%M")
+
             df = picked.to_dataframe().reset_index()
             print(f"df, where is time?: {df}")
             df["time"] = pd.to_datetime(df["time"]).dt.strftime("%Y-%m-%d %H:%M")
