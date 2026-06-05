@@ -2004,6 +2004,7 @@ class persistence_XMY:
         ----------
         simulation: str
             Simulation to display.
+            Use simulation names as defined in self.simuations
 
         """
         if self.xmy_data_to_export is UNSET:
