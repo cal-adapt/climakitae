@@ -1697,7 +1697,6 @@ class persistence_XMY:
         #                 (top_hours["hour"] == hour) & (top_hours["sim"] == sim)
         #             ].year.item()
         #         )
-        #         #! I see, issue is how data is selected
 
         #         # Select data for unique hour, month, year, and simulation
         #         data_at_stn_hr_sim_yr = all_vars_ds.sel(
@@ -1721,57 +1720,52 @@ class persistence_XMY:
 
         #! use vector method instead
         HOURS_PER_YEAR = 8760
-    
+
         # Trim to whole years and stamp hour-of-year / year coords ONCE
         n_total = all_vars_ds.sizes["time"]
         n_years = n_total // HOURS_PER_YEAR
         usable = n_years * HOURS_PER_YEAR
         ds = all_vars_ds.isel(time=slice(0, usable))
-        
+
         hoy = np.tile(np.arange(1, HOURS_PER_YEAR + 1), n_years)
         yrs = pd.DatetimeIndex(ds.time.values).year.values
-        
-        # Store original time values as a coordinate before reshaping
-        ds = ds.assign_coords(
-            hour_of_year=("time", hoy),
-            year=("time", yrs),
-            original_time=("time", ds.time.values),
-        )
-        
+        ds = ds.assign_coords(hour_of_year=("time", hoy), year=("time", yrs))
+
+        print(f"ds: {ds}")
         # Reshape time -> (year, hour_of_year). One xarray op for ALL variables.
         ds_2d = ds.set_index(time=["year", "hour_of_year"]).unstack("time")
+        print(f"ds_2d: {ds_2d}")
         year_values = ds_2d.year.values  # ascending years available in the data
 
         xmy_df_all = {}
-        for sim in ds_2d.sim.values:
+        for sim in ds_2d.simulation.values:
             print(f"Calculating persistence XMY for simulation: {sim}")
 
-            # Vectorized lookup of selected year per hour-of-year
+            # Vectorized lookup of selected year per hour-of-year (replaces L137–139)
             sel_years = (
-                top_hours[top_hours["sim"] == sim].sort_values("hour")["year"].to_numpy()
+                top_hours[top_hours["sim"] == sim]
+                .sort_values("hour")["year"]
+                .to_numpy()
             )  # shape (8760,)
+            print(f"sel_years: {sel_years}")
             year_idx = np.searchsorted(year_values, sel_years)
+            print(f"year_idx: {year_idx}")
 
-            # Single fancy-index gather
+            # Single fancy-index gather (replaces the 8760-iteration loop body)
             hour_da = xr.DataArray(np.arange(HOURS_PER_YEAR), dims="hour_of_year")
+            print(f"hour_da: {hour_da}")
             yidx_da = xr.DataArray(year_idx, dims="hour_of_year")
-
+            print(f"yidx_da: {yidx_da}")
             picked = ds_2d.sel(sim=sim).isel(year=yidx_da, hour_of_year=hour_da)
-
-            # Grab original timestamps using the same fancy indexing
-            original_times = ds_2d.sel(sim=sim)["original_time"].isel(
-                year=yidx_da, hour_of_year=hour_da
-            )
-            picked = picked.assign_coords(
-                time=("hour_of_year", original_times.values),
-                selected_year=("hour_of_year", sel_years),
-            )
+            print(f"picked: {picked}")
+            picked = picked.assign_coords(selected_year=("hour_of_year", sel_years))
+            print(f"picked, after coords assigned: {picked}")
 
             df = picked.to_dataframe().reset_index()
+            print(f"df, where is time?: {df}")
             df["time"] = pd.to_datetime(df["time"]).dt.strftime("%Y-%m-%d %H:%M")
+            print(f"df, after time change: {df}")
             xmy_df_all[sim] = df
-            
-        print(f"xmy_df_all:{xmy_df_all}")
 
         return xmy_df_all
 
