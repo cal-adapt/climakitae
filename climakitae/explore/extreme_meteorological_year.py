@@ -2044,7 +2044,7 @@ class persistence_XMY:
             all_vars_ds = self._hourly_data.compute()
 
         # Construct XMY
-        p = self.q*100
+        p = self.q * 100
         p = int(p)
         self._vprint(
             f"\n  STEP 2: Calculating p{p} Persistence Extreme Meteorological Year per model simulation\n  Progress bar shows code looping through each month in the year.\n"
@@ -2111,11 +2111,9 @@ class persistence_XMY:
             clean_stn_name = (
                 self.stn_name.replace(" ", "_").replace("(", "").replace(")", "")
             )
-            p = self.q*100
+            p = self.q * 100
             p = int(p)
-            filename = (
-                f"p{p}_persistence_xmy_{clean_stn_name}_{clean_sim}".lower()
-            )
+            filename = f"p{p}_persistence_xmy_{clean_stn_name}_{clean_sim}".lower()
             write_tmy_file(
                 filename,
                 self.xmy_data_to_export[sim],
