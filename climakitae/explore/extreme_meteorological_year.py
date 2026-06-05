@@ -1725,15 +1725,17 @@ class persistence_XMY:
         n_total = all_vars_ds.sizes["time"]
         n_years = n_total // HOURS_PER_YEAR
         usable = n_years * HOURS_PER_YEAR
+        print(f"all_vars_ds: {all_vars_ds}")
         ds = all_vars_ds.isel(time=slice(0, usable))
+        print(f"ds, initial: {ds}")
 
         hoy = np.tile(np.arange(1, HOURS_PER_YEAR + 1), n_years)
         yrs = pd.DatetimeIndex(ds.time.values).year.values
         ds = ds.assign_coords(hour_of_year=("time", hoy), year=("time", yrs))
+        print(f"ds, after coordinates added: {ds}")
 
-        print(f"ds: {ds}")
         # Reshape time -> (year, hour_of_year). One xarray op for ALL variables.
-        ds_2d = ds.set_index(time=["year", "hour_of_year"]).unstack("time")
+        ds_2d = ds.set_index(time=["year", "hour_of_year", "time"]).unstack("time")
         print(f"ds_2d: {ds_2d}")
         year_values = ds_2d.year.values  # ascending years available in the data
 
