@@ -1756,13 +1756,13 @@ class persistence_XMY:
             print(f"hour_da: {hour_da}")
             yidx_da = xr.DataArray(year_idx, dims="hour_of_year")
             print(f"yidx_da: {yidx_da}")
-            picked = ds_2d.sel(sim=sim).isel(year=yidx_da, hour_of_year=hour_da)
+            picked = ds_2d.sel(simulation=sim).isel(year=yidx_da, hour_of_year=hour_da)
             print(f"picked: {picked}")
             picked = picked.assign_coords(selected_year=("hour_of_year", sel_years))
             print(f"picked, after coords assigned: {picked}")
 
-            # def reformatted_time_coordinate():  
-                
+            # def reformatted_time_coordinate():
+
             #     return result.strftime("%Y-%m-%d %H:%M")
 
             df = picked.to_dataframe().reset_index()
