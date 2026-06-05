@@ -615,6 +615,9 @@ def _get_rotated_geostrophic_wind(
 ) -> tuple[xr.DataArray]:
     """Convert WRF-relative winds to Earth-relative winds.
 
+    This is the code from data_load._get_Uearth and
+    data_load._get_Vearth but adapted to take u and v as parameters.
+
     Parameters
     ----------
     u : xr.DataArray
