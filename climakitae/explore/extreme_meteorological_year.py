@@ -1735,7 +1735,7 @@ class persistence_XMY:
         print(f"ds, after coordinates added: {ds}")
 
         # Reshape time -> (year, hour_of_year). One xarray op for ALL variables.
-        ds_2d = ds.set_index(time=["year", "hour_of_year", "time"]).unstack("time")
+        ds_2d = ds.set_index(time=["year", "hour_of_year", "time"])  # .unstack("time")
         print(f"ds_2d: {ds_2d}")
         year_values = ds_2d.year.values  # ascending years available in the data
 
