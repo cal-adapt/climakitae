@@ -1592,8 +1592,12 @@ def write_tmy_file(
 
     # typical meteorological year format
     match file_ext:
-        case "tmy":
-            path_to_file = filename_to_export + ".tmy"
+        # .csv export files or identical to .tmy export files in all ways by the export extension
+        case "tmy" | "csv":
+            if file_ext == "tmy":
+                path_to_file = filename_to_export + ".tmy"
+            else:
+                path_to_file = filename_to_export + ".csv"
 
             with open(path_to_file, "w") as f:
                 f.writelines(
@@ -1615,19 +1619,37 @@ def write_tmy_file(
                     "Air Temperature at 2m",
                     "Dew point temperature",
                     "Relative humidity",
+                    "Wind speed at 10m",
+                    "Wind direction at 10m",
                     "Instantaneous downwelling shortwave flux at bottom",
                     "Shortwave surface downward direct normal irradiance",
                     "Shortwave surface downward diffuse irradiance",
                     "Instantaneous downwelling longwave flux at bottom",
-                    "Wind speed at 10m",
-                    "Wind direction at 10m",
                     "Surface Pressure",
                 ]
-                df = df[tmy_data_cols]
+                tmy_data_cols_with_units = [
+                    "time",
+                    "Air temperature at 2m (degC)",
+                    "Dew point temperature at 2m (degC)",
+                    "Relative humidity (0-100)",
+                    "Instantaneous downwelling shortwave flux at bottom (W/m2)",
+                    "Shortwave surface downward direct normal irradiance (W/m2)",
+                    "Shortwave surface downward diffuse irradiance (W/m2)",
+                    "Instantaneous downwelling longwave flux at bottom (W/m2)",
+                    "Wind speed at 10m (m/s)",
+                    "Wind direction at 10m (degrees)",
+                    "Surface pressure (Pa)",
+                ]
+                cols = (
+                    tmy_data_cols
+                    if tmy_data_cols[1] in df.columns
+                    else tmy_data_cols_with_units
+                )
+                df = df[cols]
                 dfAsString = df.to_csv(sep=",", header=False, index=False)
                 f.write(dfAsString)  # writes data in TMY format
             print(
-                f"TMY data exported to .tmy format with filename {path_to_file}, with size {len(df)}"
+                f"TMY data exported to .{file_ext} format with filename {path_to_file}, with size {len(df)}"
             )
         # energy plus weather format
         case "epw":
@@ -1653,42 +1675,6 @@ def write_tmy_file(
                 f.write(df_string)  # writes data in EPW format
             print(
                 f"TMY data exported to .epw format with filename {filename_to_export}, with size {len(df)}"
-            )
-        case "csv":
-            columns = [
-                "index",
-                "simulation",
-                "time",
-                "lat",
-                "lon",
-                "Air Temperature at 2m",
-                "Dew point temperature",
-                "Relative humidity",
-                "Instantaneous downwelling shortwave flux at bottom",
-                "Shortwave surface downward direct normal irradiance",
-                "Shortwave surface downward diffuse irradiance",
-                "Instantaneous downwelling longwave flux at bottom",
-                "Wind speed at 10m",
-                "Wind direction at 10m",
-                "Surface Pressure",
-            ]
-
-            if "warming_level" in df.columns:
-                df["centered_year"] = pd.to_numeric(
-                    df["centered_year"], downcast="integer"
-                )
-                # set position of GWL specific columns
-                columns.insert(3, "warming_level")
-                columns.insert(6, "centered_year")
-            else:
-                # set order of scenario column
-                columns.insert(5, "scenario")
-            df = df.rename(columns={"sim": "simulation"})
-            df = df[columns]
-            path_to_file = filename_to_export + ".csv"
-            df.to_csv(path_to_file, index=False)
-            print(
-                f"TMY data exported to .csv format with filename {filename_to_export}, with size {len(df)}"
             )
         case _:
             print(
