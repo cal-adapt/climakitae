@@ -1284,7 +1284,7 @@ class persistence_XMY:
     Attributes
     ----------
     q: float
-        extreme quatnile, ranging from 0 to 1
+        extreme quantile, ranging from 0 to 1
     start_year: str
         Initial year of persistence XMY period
     end_year: str
@@ -1371,7 +1371,7 @@ class persistence_XMY:
                 self.warming_level = warming_level
                 if isinstance(self.warming_level, int):
                     self.warming_level = float(self.warming_level)
-        # extreme type
+        # percentile value
         if 0 <= q <= 1:
             self.q = q
             p = q * 100
@@ -2044,8 +2044,10 @@ class persistence_XMY:
             all_vars_ds = self._hourly_data.compute()
 
         # Construct XMY
+        p = self.q*100
+        p = int(p)
         self._vprint(
-            f"\n  STEP 2: Calculating {self.extreme} Shock Extreme Meteorological Year per model simulation\n  Progress bar shows code looping through each month in the year.\n"
+            f"\n  STEP 2: Calculating p{p} Persistence Extreme Meteorological Year per model simulation\n  Progress bar shows code looping through each month in the year.\n"
         )
 
         xmy_data_to_export = self._make_8760_tables(
@@ -2109,8 +2111,10 @@ class persistence_XMY:
             clean_stn_name = (
                 self.stn_name.replace(" ", "_").replace("(", "").replace(")", "")
             )
+            p = self.q*100
+            p = int(p)
             filename = (
-                f"{self.extreme}_persistence_xmy_{clean_stn_name}_{clean_sim}".lower()
+                f"p{p}_persistence_xmy_{clean_stn_name}_{clean_sim}".lower()
             )
             write_tmy_file(
                 filename,
