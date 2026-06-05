@@ -2051,7 +2051,7 @@ class persistence_XMY:
         )
 
         xmy_data_to_export = self._make_8760_tables(
-            all_vars_ds, self.top_months
+            all_vars_ds, self.top_hours
         )  # Return dict of persistence XMY by simulation
 
         self._vprint("  Smoothing data at transitions between months.")
