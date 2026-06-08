@@ -1483,7 +1483,7 @@ def write_tmy_file(
         """
         # line 1 - site information
         # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m)
-        line_1 = "{0},'{1}',{2},{3},{4},{5},{6},Simulation: {7},TMY data produced using {8}-{9} climatological period, \n".format(
+        line_1 = "{0},'{1}',{2},{3},{4},{5},{6},Generated on Cal-Adapt Analytics Engine, Simulation: {7},TMY data produced using {8}-{9} climatological period, ,\n".format(
             station_code,
             location_name,
             state,
@@ -1491,7 +1491,6 @@ def write_tmy_file(
             stn_lat,
             stn_lon,
             elevation,
-            "Generated on: Cal-Adapt: Analytics Engine",
             df["sim"].values[0],
             years[0],
             years[1],
