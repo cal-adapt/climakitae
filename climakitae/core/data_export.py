@@ -1344,9 +1344,9 @@ def write_tmy_file(
     stn_lon: float,
     stn_state: str,
     stn_elev: float = 0.0,
-    file_ext: str = "tmy",
+    file_ext: str = "epw",
 ):
-    """Exports TMY data either as .epw or .tmy file
+    """Exports TMY data either as .epw, .csv, or .tmy file
 
     Parameters
     ----------
@@ -1369,7 +1369,7 @@ def write_tmy_file(
     stn_elev : float, optional
         Elevation of station, default is 0.0
     file_ext : str, optional
-        File extension for export, default is .tmy, options are "tmy" and "epw"
+        File extension for export, default is .epw, options are "epw", "csv", and "tmy"
 
     Returns
     -------
@@ -1496,6 +1496,7 @@ def write_tmy_file(
         line_2 = (
             ",".join(
                 [
+                    "time",
                     "Air temperature at 2m (degC)",
                     "Dew point temperature at 2m (degC)",
                     "Relative humidity (0-100)",
