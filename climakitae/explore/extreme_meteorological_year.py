@@ -1710,7 +1710,7 @@ class persistence_XMY:
 
         def reformatted_time_coordinate(picked):
             step = pd.Timedelta(hours=1)
-            years = picked.coords["selected_year"].values
+            years = picked.coords["year"].values
             hoy = picked.coords["hour_of_year"].values
             result = pd.to_datetime([f"{y}-01-01" for y in years]) + (hoy - 1) * step
             return result.strftime("%Y-%m-%d %H:%M")
@@ -1735,14 +1735,12 @@ class persistence_XMY:
             print(f"yidx_da: {yidx_da}")
             picked = ds_2d.sel(simulation=sim).isel(year=yidx_da, hour_of_year=hour_da)
             print(f"picked: {picked}")
-            picked = picked.assign_coords(selected_year=("hour_of_year", sel_years))
-            print(f"picked, after coords assigned: {picked}")
 
             df = picked.to_dataframe().reset_index()
             print(f"df, where is time?: {df}")
-            # df["time"] = pd.to_datetime(df["time"]).dt.strftime("%Y-%m-%d %H:%M")
             df["time"] = reformatted_time_coordinate(picked)
             print(f"df, after time change: {df}")
+            df = df.drop(columns=["hour_of_year", "year"])
             xmy_df_all[sim] = df
 
         return xmy_df_all
