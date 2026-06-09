@@ -1643,7 +1643,7 @@ def write_tmy_file(
 
         return headers
 
-    # Get data type to print in write confirmations
+    # Get data type to display in file write confirmations
     if xmy_header is UNSET:
         data_type = "TMY"
     else:
