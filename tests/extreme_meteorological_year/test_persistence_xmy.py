@@ -1,7 +1,7 @@
 """
-Test suite for the shock XMY portion of climakitae/explore/extreme_meteorological_year.py
+Test suite for the persistence XMY portion of climakitae/explore/extreme_meteorological_year.py
 
-Includes tests for the more general functions along with the shock_XMY class.
+Includes tests for the more general functions along with the persistence_XMY class.
 Exclude tests for functions from typical_meteorological_year.py that are used in extreme_meteorological_year.py
 """
 
@@ -16,9 +16,8 @@ from scipy.optimize import OptimizeWarning
 
 from climakitae.core.constants import UNSET
 from climakitae.explore.extreme_meteorological_year import (
-    shock_XMY,
-    generate_candidate_months,
-    find_hot_cold_extreme_from_median,
+    persistence_XMY,
+    persistence_get_top_hours
 )
 from climakitae.explore.typical_meteorological_year import (
     get_cdf,
@@ -27,60 +26,10 @@ from climakitae.explore.typical_meteorological_year import (
 
 
 class TestFunctionsForXMY:
-    """Test the general functions that are not part of the shock_XMY class."""
+    """Test the general functions that are not part of the persistence_XMY class."""
 
-    def test_find_hot_cold_extreme_from_median(self):
-        """Check  that the worst year is selected for the cold extreme and hot extreme, respectively."""
-
-        time_index = pd.date_range(start="2001-01-01", end="2003-12-31")
-
-        test_data = np.arange(0, 365 * 3, 1)
-        test_data = test_data * np.ones((2, len(test_data)))
-        test_ds = xr.DataArray(
-            name="temperature",
-            data=test_data,
-            coords={
-                "simulation": ["sim1", "sim2"],
-                "time": time_index,
-            },
-        ).to_dataset()
-
-        min_temp = test_data.copy()
-        min_temp[:, time_index.year == 2002] -= 1000
-        test_ds["Daily min air temperature"] = (["simulation", "time"], min_temp)
-
-        # now add in max air temp data, in which the final two years have the highest temperatures
-        max_temp = test_data.copy()
-        max_temp[:, time_index.year == 2003] += 1000
-        test_ds["Daily max air temperature"] = (["simulation", "time"], max_temp)
-
-        cdf_clim = get_cdf(test_ds)
-        cdf_month = get_cdf_monthly(test_ds)
-        target = 0.5
-        extreme = "cold"
-        sub_clim = cdf_clim["Daily min air temperature"].sel(simulation="sim1", month=1)
-        sub_month = cdf_month["Daily min air temperature"].sel(
-            simulation="sim1", month=1
-        )
-
-        results, anomaly, worst_year = find_hot_cold_extreme_from_median(
-            sub_month, sub_clim, target, extreme
-        )
-        assert worst_year == 2002
-
-        extreme = "hot"
-        sub_clim = cdf_clim["Daily max air temperature"].sel(simulation="sim1", month=1)
-        sub_month = cdf_month["Daily max air temperature"].sel(
-            simulation="sim1", month=1
-        )
-
-        results, anomaly, worst_year = find_hot_cold_extreme_from_median(
-            sub_month, sub_clim, target, extreme
-        )
-        assert worst_year == 2003
-
-    def test_generate_candidate_months(self):
-        """Check top months dataframe format."""
+    def persistence_get_top_hours(self):
+        """Check top hours dataframe format."""
 
         test_data = np.arange(0, 365 * 3, 1)
         test_data = test_data * np.ones((2, len(test_data)))
@@ -93,15 +42,11 @@ class TestFunctionsForXMY:
             },
         ).to_dataset()
 
-        test_ds["Daily min air temperature"] = (["simulation", "time"], test_data)
-        test_ds["Daily max air temperature"] = (["simulation", "time"], test_data + 10)
+        test_ds["Air temperature at 2m (degC)"] = (["simulation", "time"], test_data)
 
-        cdf_clim = get_cdf(test_ds)
-        cdf_month = get_cdf_monthly(test_ds)
-
-        extreme = "cold"
-        result = generate_candidate_months(
-            cdf_month, cdf_clim, extreme, skip_last=False
+        q = 0.9
+        result = persistence_get_top_hours(
+            test_ds, q #, skip_last=False
         )
         # Correctly formatted dataframe
         for col in ["month", "simulation", "year"]:
