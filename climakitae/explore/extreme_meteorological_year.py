@@ -1115,7 +1115,7 @@ class shock_XMY:
 ###### Peristence XMY ######
 
 
-def persistence_get_top_hours(data: xr.DataArray, q: float) -> pd.DataFrame:
+def persistence_get_top_hours(data: xr.DataArray, q: float, skip_last: bool = False) -> pd.DataFrame:
     """
     Selects a representative year for each hour using the Cal-Adapt Standard Year
     methodology, using hourly air temperature.
@@ -1135,6 +1135,9 @@ def persistence_get_top_hours(data: xr.DataArray, q: float) -> pd.DataFrame:
     q : float, optional
         Quantile value for selecting representative values (0.0 to 1.0).
 
+    skip_last: bool
+        True to exclude the final month, e.g. if data missing after time conversion
+
     Returns
     -------
     pd.DataFrame
@@ -1143,6 +1146,7 @@ def persistence_get_top_hours(data: xr.DataArray, q: float) -> pd.DataFrame:
         Multi-index columns include Hour, Warming_Level, and Simulation dimensions.
 
     """
+
     # Check for simulation dimension
     has_simulation = "simulation" in data.dims
     if has_simulation:
