@@ -1508,7 +1508,7 @@ def write_tmy_file(
 
         # line 1 - site information
         # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m)
-        line_1 = "{0},'{1}',{2},{3},{4},{5},{6},Generated on Cal-Adapt Analytics Engine, Simulation: {7},TMY data produced using {8}-{9} climatological period,Approach:{10},\n".format(
+        line_1 = "{0},'{1}',{2},{3},{4},{5},{6},Generated on Cal-Adapt Analytics Engine, Simulation: {7},TMY data produced using {8}-{9} climatological period,Approach: {10},\n".format(
             station_code,
             location_name,
             state,
