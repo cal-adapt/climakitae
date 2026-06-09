@@ -1633,7 +1633,7 @@ def write_tmy_file(
             with open(path_to_file, "w") as f:
                 f.writelines(
                     _tmy_header(
-                        filename,
+                        filename_to_export,
                         location_name,
                         station_code,
                         stn_lat,
