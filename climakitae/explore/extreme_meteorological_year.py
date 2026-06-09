@@ -1692,18 +1692,14 @@ class persistence_XMY:
         n_total = all_vars_ds.sizes["time"]
         n_years = n_total // HOURS_PER_YEAR
         usable = n_years * HOURS_PER_YEAR
-        print(f"all_vars_ds: {all_vars_ds}")
         ds = all_vars_ds.isel(time=slice(0, usable))
-        print(f"ds, initial: {ds}")
 
         hoy = np.tile(np.arange(1, HOURS_PER_YEAR + 1), n_years)
         yrs = pd.DatetimeIndex(ds.time.values).year.values
         ds = ds.assign_coords(hour_of_year=("time", hoy), year=("time", yrs))
-        print(f"ds, after coordinates added: {ds}")
 
         # Reshape time -> (year, hour_of_year). One xarray op for ALL variables.
         ds_2d = ds.set_index(time=["year", "hour_of_year"]).unstack("time")
-        print(f"ds_2d: {ds_2d}")
         year_values = ds_2d.year.values  # ascending years available in the data
 
         xmy_df_all = {}
@@ -1724,22 +1720,15 @@ class persistence_XMY:
                 .sort_values("hour")["year"]
                 .to_numpy()
             )  # shape (8760,)
-            print(f"sel_years: {sel_years}")
             year_idx = np.searchsorted(year_values, sel_years)
-            print(f"year_idx: {year_idx}")
 
             # Single fancy-index gather (replaces the 8760-iteration loop body)
             hour_da = xr.DataArray(np.arange(HOURS_PER_YEAR), dims="hour_of_year")
-            print(f"hour_da: {hour_da}")
             yidx_da = xr.DataArray(year_idx, dims="hour_of_year")
-            print(f"yidx_da: {yidx_da}")
             picked = ds_2d.sel(simulation=sim).isel(year=yidx_da, hour_of_year=hour_da)
-            print(f"picked: {picked}")
 
             df = picked.to_dataframe().reset_index()
-            print(f"df, where is time?: {df}")
             df["time"] = reformatted_time_coordinate(picked)
-            print(f"df, after time change: {df}")
             df = df.drop(columns=["hour_of_year", "year"])
             xmy_df_all[sim] = df
 
