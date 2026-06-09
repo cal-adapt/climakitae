@@ -17,6 +17,7 @@ import xarray as xr
 from timezonefinder import TimezoneFinder
 from dask.diagnostics import ProgressBar
 
+from climakitae.core.constants import UNSET
 from climakitae.core.paths import (
     EXPORT_S3_BUCKET,
     HADISD_STATIONS_URL,
@@ -1345,6 +1346,7 @@ def write_tmy_file(
     stn_state: str,
     stn_elev: float = 0.0,
     file_ext: str = "tmy",
+    xmy_header: dict = UNSET,
 ):
     """Exports TMY data either as .epw or .tmy file
 
@@ -1370,6 +1372,9 @@ def write_tmy_file(
         Elevation of station, default is 0.0
     file_ext : str, optional
         File extension for export, default is .tmy, options are "tmy" and "epw"
+    xmy_header : dict, optional
+        XMY header information. Contains "extremes_type" ("hot","cold", or int(percentile))
+        and "xmy_type" ("shock" or "persistence"). Default UNSET for TMY case
 
     Returns
     -------
@@ -1525,6 +1530,7 @@ def write_tmy_file(
         elevation: float,
         years: Tuple[int, int],
         df: pd.DataFrame,
+        xmy_header: dict = UNSET,
     ) -> list[str]:
         """Constructs the header for the TMY output file in .epw format
 
@@ -1538,6 +1544,7 @@ def write_tmy_file(
         timezone : str
         elevation : float
         df : pd.DataFrame
+        xmy_header : dict
 
         Returns
         -------
@@ -1562,26 +1569,41 @@ def write_tmy_file(
         # line 5 - holidays/daylight savings, leap year (yes/no), daylight savings start, daylight savings end, num of holidays
         line_5 = "HOLIDAYS/DAYLIGHT SAVINGS,No,0,0,0\n"
 
+        # Format the TMY/XMY comments details, especially for XMY types
+        if xmy_header is UNSET:
+            profile_type = "TMY"
+            data_type = "data"
+        else:
+            profile_type = "XMY"
+            xmy_type = xmy_header["xmy_type"].upper()
+            extreme_type = xmy_header["extreme_type"]
+            if xmy_type == "PERSISTENCE":
+                extreme_type = f"p{extreme_type}"
+            else:
+                extreme_type = extreme_type.upper()
+            data_type = f"{extreme_type} {xmy_type} data"
+
+        # Write the comments, line 6 & 7
         if "warming_level" in df.columns:
             warming_level = df["warming_level"].values[0]
             simulation = df["sim"].values[0]
             # line 6 - comments 1, going to include simulation + warming level information here
-            line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Warming Level: {warming_level}{degree_sign}C, Simulation: {simulation}\n"
+            line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt: Analytics Engine, Warming Level: {warming_level}{degree_sign}C, Simulation: {simulation}\n"
             # line 7 - comments 2, including date range here from which TMY calculated
-            line_7 = f"COMMENTS 2,TMY data produced using {warming_level}{degree_sign}C warming level. Year corresponds to index (1-30) in 30-year window centered on warming level. Model years for {warming_level}{degree_sign}C warming level in simulation {simulation} are {years[0]}-{years[1]}\n"
+            line_7 = f"COMMENTS 2,{profile_type} {data_type} produced using {warming_level}{degree_sign}C warming level. Year corresponds to index (1-30) in 30-year window centered on warming level. Model years for {warming_level}{degree_sign}C warming level in simulation {simulation} are {years[0]}-{years[1]}\n"
         else:
             # line 6 - comments 1, going to include simulation + scenario information here
             if "scenario" in df.columns:
                 # get_data approach has a separate scenario column
                 # the scenario is not included in the simulation name
                 scenario = df["scenario"].values[0]
-                line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Simulation: {df['sim'].values[0]}, Scenario: {scenario}\n"
+                line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt: Analytics Engine, Simulation: {df['sim'].values[0]}, Scenario: {scenario}\n"
             else:
                 # new core approach does not have a separate scenario column, scenario is included in simulation name
                 # scenario information is included in the simulation name
-                line_6 = f"COMMENTS 1,TMY data produced on the Cal-Adapt: Analytics Engine, Simulation: {df['sim'].values[0]}\n"
+                line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt: Analytics Engine, Simulation: {df['sim'].values[0]}\n"
             # line 7 - comments 2, including date range here from which TMY calculated
-            line_7 = f"COMMENTS 2,TMY data produced using {years[0]}-{years[1]} climatological period\n"
+            line_7 = f"COMMENTS 2,{profile_type} {data_type} produced using {years[0]}-{years[1]} climatological period\n"
 
         # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
         line_8 = "DATA PERIODS,1,1,Data,,1/ 1,12/31\n"
@@ -1589,6 +1611,12 @@ def write_tmy_file(
         headers = [line_1, line_2, line_3, line_4, line_5, line_6, line_7, line_8]
 
         return headers
+
+    # Get data type to print in write confirmations
+    if xmy_header is UNSET:
+        data_type = "TMY"
+    else:
+        data_type = "XMY"
 
     # typical meteorological year format
     match file_ext:
@@ -1649,7 +1677,7 @@ def write_tmy_file(
                 dfAsString = df.to_csv(sep=",", header=False, index=False)
                 f.write(dfAsString)  # writes data in TMY format
             print(
-                f"TMY data exported to .{file_ext} format with filename {path_to_file}, with size {len(df)}"
+                f"{data_type} data exported to .{file_ext} format with filename {path_to_file}, with size {len(df)}"
             )
         # energy plus weather format
         case "epw":
@@ -1666,6 +1694,7 @@ def write_tmy_file(
                         elevation,
                         years,
                         df,
+                        xmy_header,
                     )
                 )  # writes required header lines
                 # WL time change happens in _epw_format_data if needed
@@ -1674,7 +1703,7 @@ def write_tmy_file(
                 )
                 f.write(df_string)  # writes data in EPW format
             print(
-                f"TMY data exported to .epw format with filename {filename_to_export}, with size {len(df)}"
+                f"{data_type} data exported to .epw format with filename {filename_to_export}, with size {len(df)}"
             )
         case _:
             print(
