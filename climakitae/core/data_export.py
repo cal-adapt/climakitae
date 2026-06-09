@@ -1449,7 +1449,28 @@ def write_tmy_file(
         case _:
             raise ValueError("station_code needs to be either str or int")
 
+    def _gwl_or_time_str(filename: str) -> str:
+        """Based on filename construction pass the appropriate approach to _tmy_header
+
+        Parameters
+        ----------
+        filename : str
+            name of TMY file to be exported
+
+        Returns
+        -------
+        str
+        """
+
+        # string matching for GWL or Time-based approach
+        gwl_str = {"warming", "present", "future", "century"}
+
+        if any(word in filename for word in gwl_str):
+            return "GWL"
+        return "Time-based"
+
     def _tmy_header(
+        filename: str,
         location_name: str,
         station_code: int,
         stn_lat: float,
@@ -1464,6 +1485,7 @@ def write_tmy_file(
 
         Parameters
         ----------
+        filename : str
         location_name : str
         station_code : int
         stn_lat : float
@@ -1481,9 +1503,12 @@ def write_tmy_file(
         Source: https://www.docs.nlr.gov/docs/fy08osti/43156.pdf (pg. 3)
 
         """
+        # custom filename approach handling
+        gwl_or_time = _gwl_or_time_str(filename)
+
         # line 1 - site information
         # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m)
-        line_1 = "{0},'{1}',{2},{3},{4},{5},{6},Generated on Cal-Adapt Analytics Engine, Simulation: {7},TMY data produced using {8}-{9} climatological period, ,\n".format(
+        line_1 = "{0},'{1}',{2},{3},{4},{5},{6},Generated on Cal-Adapt Analytics Engine, Simulation: {7},TMY data produced using {8}-{9} climatological period,Approach:{10},\n".format(
             station_code,
             location_name,
             state,
@@ -1494,6 +1519,7 @@ def write_tmy_file(
             df["sim"].values[0],
             years[0],
             years[1],
+            gwl_or_time,
         )
 
         # line 2 - data field name and units, manually setting to ensure matches TMY3 labeling
