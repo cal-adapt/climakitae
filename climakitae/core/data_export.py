@@ -1344,9 +1344,9 @@ def write_tmy_file(
     stn_lon: float,
     stn_state: str,
     stn_elev: float = 0.0,
-    file_ext: str = "tmy",
+    file_ext: str = "epw",
 ):
-    """Exports TMY data either as .epw or .tmy file
+    """Exports TMY data either as .epw, .csv, or .tmy file
 
     Parameters
     ----------
@@ -1369,7 +1369,7 @@ def write_tmy_file(
     stn_elev : float, optional
         Elevation of station, default is 0.0
     file_ext : str, optional
-        File extension for export, default is .tmy, options are "tmy" and "epw"
+        File extension for export, default is .epw, options are "epw", "csv", and "tmy"
 
     Returns
     -------
@@ -1449,7 +1449,28 @@ def write_tmy_file(
         case _:
             raise ValueError("station_code needs to be either str or int")
 
+    def _gwl_or_time_str(filename: str) -> str:
+        """Based on filename construction pass the appropriate approach to _tmy_header
+
+        Parameters
+        ----------
+        filename : str
+            name of TMY file to be exported
+
+        Returns
+        -------
+        str
+        """
+
+        # string matching for GWL or Time-based approach
+        gwl_str = {"warming", "present", "future", "century"}
+
+        if any(word in filename for word in gwl_str):
+            return "GWL"
+        return "Time-based"
+
     def _tmy_header(
+        filename: str,
         location_name: str,
         station_code: int,
         stn_lat: float,
@@ -1457,12 +1478,14 @@ def write_tmy_file(
         state: str,
         timezone: str,
         elevation: float,
+        years: Tuple[int, int],
         df: pd.DataFrame,
     ) -> list[str]:
         """Constructs the header for the TMY output file in .tmy format
 
         Parameters
         ----------
+        filename : str
         location_name : str
         station_code : int
         stn_lat : float
@@ -1470,18 +1493,22 @@ def write_tmy_file(
         state : str
         timezone : str
         elevation : float
+        years : Tuple[int, int]
         df : pd.DataFrame
 
         Returns
         -------
         headers : list[str]
 
-        Source: https://www.nrel.gov/docs/fy08osti/43156.pdf (pg. 3)
+        Source: https://www.docs.nlr.gov/docs/fy08osti/43156.pdf (pg. 3)
 
         """
+        # custom filename approach handling
+        gwl_or_time = _gwl_or_time_str(filename)
+
         # line 1 - site information
         # line 1: USAF, station name quote delimited, state, time zone, lat, lon, elev (m)
-        line_1 = "{0},'{1}',{2},{3},{4},{5},{6},{7}\n".format(
+        line_1 = "{0},'{1}',{2},{3},{4},{5},{6},Generated on Cal-Adapt Analytics Engine, Simulation: {7},TMY data produced using {8}-{9} climatological period,Approach: {10},\n".format(
             station_code,
             location_name,
             state,
@@ -1490,12 +1517,16 @@ def write_tmy_file(
             stn_lon,
             elevation,
             df["sim"].values[0],
+            years[0],
+            years[1],
+            gwl_or_time,
         )
 
         # line 2 - data field name and units, manually setting to ensure matches TMY3 labeling
         line_2 = (
             ",".join(
                 [
+                    "time",
                     "Air temperature at 2m (degC)",
                     "Dew point temperature at 2m (degC)",
                     "Relative humidity (0-100)",
@@ -1602,6 +1633,7 @@ def write_tmy_file(
             with open(path_to_file, "w") as f:
                 f.writelines(
                     _tmy_header(
+                        filename_to_export,
                         location_name,
                         station_code,
                         stn_lat,
@@ -1609,6 +1641,7 @@ def write_tmy_file(
                         state,
                         timezone,
                         elevation,
+                        years,
                         df,
                     )
                 )  # writes required header lines
