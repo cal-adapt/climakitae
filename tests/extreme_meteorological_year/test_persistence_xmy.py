@@ -26,7 +26,7 @@ from climakitae.explore.typical_meteorological_year import (
 
 
 class TestFunctionsForXMY:
-    """Test the general functions that are not part of the persistence_XMY class."""
+    """Test the general functions that are not part of the shock_XMY class."""
 
     def test_persistence_get_top_hours_format(self):
         """Check top hours dataframe format."""
@@ -79,17 +79,17 @@ class TestFunctionsForXMY:
 
         cdf_clim = get_cdf(test_ds)
         cdf_month = get_cdf_monthly(test_ds)
-        extreme = "hot"
+        q = 0.9
 
         # 2003 selected for all months when skip_last is False
         result = generate_candidate_months(
-            cdf_month, cdf_clim, extreme="hot", skip_last=False
+            cdf_month, cdf_clim, q=0.9, skip_last=False
         )
         assert (result.loc[result["month"] == 12]["year"] == [2003, 2003]).all()
 
         # 2002 selected for all months when skip_last is True
         result_skip = generate_candidate_months(
-            cdf_month, cdf_clim, extreme="hot", skip_last=True
+            cdf_month, cdf_clim, q=0.9, skip_last=True
         )
         assert (
             result_skip.loc[result_skip["month"] == 12]["year"] == [2002, 2002]
@@ -213,10 +213,10 @@ class TestXMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 1990
         end_year = 2020
-        extreme = "hot"
-        # Initialize shock_XMY object
+        q = 0.9
+        # Initialize persistence_XMY object
         xmy = persistence_XMY(
-            extreme=extreme,
+            q=q,
             start_year=start_year,
             end_year=end_year,
             station_name=stn_name,
@@ -229,14 +229,14 @@ class TestXMYClass:
         assert xmy.lon_range == pytest.approx((-117.967459, -117.76746), abs=1e-6)
         assert xmy.stn_state == "CA"
         assert xmy.stn_code == 72297793184
-        assert xmy.extreme == extreme
+        assert xmy.q == q
         assert xmy.verbose
 
         # Use invalid station name
         stn_name = "KSNA"
         with pytest.raises(ValueError):
-            xmy = shock_XMY(
-                extreme=extreme,
+            xmy = persistence_XMY(
+                q=q,
                 start_year=start_year,
                 end_year=end_year,
                 station_name=stn_name,
@@ -247,7 +247,7 @@ class TestXMYClass:
             ValueError,
             match="No valid station name or latitude and longitude provided.",
         ):
-            xmy = shock_XMY(extreme, start_year, end_year)
+            xmy = persistence_XMY(q, start_year, end_year)
 
     @pytest.mark.integration
     def test_init_with_coords(self):
@@ -257,10 +257,10 @@ class TestXMYClass:
         lon = -117.81
         start_year = 1990
         end_year = 2020
-        extreme = "hot"
-        # Initialize shock_XMY object
-        xmy = shock_XMY(
-            extreme=extreme,
+        q = 0.9
+        # Initialize persistence_XMY object
+        xmy = persistence_XMY(
+            q=q,
             start_year=start_year,
             end_year=end_year,
             latitude=lat,
@@ -279,10 +279,10 @@ class TestXMYClass:
         start_year = 1990
         end_year = 2020
         station_name = "custom_station"
-        extreme = "hot"
-        # Initialize shock_XMY object
-        xmy = shock_XMY(
-            extreme=extreme,
+        q = 0.9
+        # Initialize persistence_XMY object
+        xmy = persistence_XMY(
+            q=q,
             start_year=start_year,
             end_year=end_year,
             latitude=lat,
@@ -300,8 +300,8 @@ class TestXMYClass:
             match="Do not set `latitude` and `longitude` when using a HadISD station for `station_name`. Change `station_name` value if using custom location.",
         ):
             station_name = "Santa Ana John Wayne Airport (KSNA)"
-            xmy = shock_XMY(
-                extreme=extreme,
+            xmy = persistence_XMY(
+                q=q,
                 start_year=start_year,
                 end_year=end_year,
                 latitude=lat,
@@ -316,10 +316,10 @@ class TestXMYClass:
         lat = 33.56
         lon = -117.81
         warming_level = 2.0
-        extreme = "hot"
-        # Initialize shock_XMY object
-        xmy = shock_XMY(
-            extreme=extreme, warming_level=warming_level, latitude=lat, longitude=lon
+        q = 0.9
+        # Initialize persistence_XMY object
+        xmy = persistence_XMY(
+            q=q, warming_level=warming_level, latitude=lat, longitude=lon
         )
         assert xmy.warming_level == warming_level
         assert xmy.start_year is UNSET
@@ -330,8 +330,8 @@ class TestXMYClass:
             ValueError,
             match="Variables `start_year` and `end_year` cannot be paired with `warming_level`. Set either `start_year` and `end_year` OR `warming_level.",
         ):
-            xmy = shock_XMY(
-                extreme="hot",
+            xmy = persistence_XMY(
+                q=0.9,
                 start_year=2000,
                 end_year=2020,
                 warming_level=warming_level,
@@ -346,9 +346,9 @@ class TestXMYClass:
         lon = -117.81
         start_year = 1990
         end_year = 2020
-        extreme = "hot"
-        xmy = shock_XMY(
-            extreme=extreme,
+        q = 0.9
+        xmy = persistence_XMY(
+            q=q,
             start_year=start_year,
             end_year=end_year,
             latitude=lat,
@@ -365,9 +365,9 @@ class TestXMYClass:
         lat = 33.56
         lon = -117.81
         warming_level = 2.0
-        extreme = "hot"
-        xmy = shock_XMY(
-            extreme=extreme, warming_level=warming_level, latitude=lat, longitude=lon
+        q = 0.9
+        xmy = persistence_XMY(
+            q=q, warming_level=warming_level, latitude=lat, longitude=lon
         )
         result = xmy._fetch_raw_variable("t2", table_id="1hr")
         assert isinstance(result, xr.DataArray)
@@ -382,8 +382,8 @@ class TestXMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        extreme = "hot"
-        xmy = shock_XMY(extreme, start_year, end_year, station_name=stn_name)
+        q = 0.9
+        xmy = persistence_XMY(q, start_year, end_year, station_name=stn_name)
 
         # Expected daily variable names in all_vars
         daily_varlist = [
@@ -457,9 +457,9 @@ class TestXMYClass:
         lat = 33.56
         lon = -117.81
         warming_level = 2.0
-        extreme = "hot"
-        xmy = shock_XMY(
-            extreme=extreme, warming_level=warming_level, latitude=lat, longitude=lon
+        q = 0.9
+        xmy = persistence_XMY(
+            q=q, warming_level=warming_level, latitude=lat, longitude=lon
         )
 
         time_hourly = pd.date_range("2001-01-01", "2003-12-31 23:00", freq="1h")
@@ -527,9 +527,9 @@ class TestXMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        extreme = "hot"
-        # Initialize shock_XMY object
-        xmy = shock_XMY(extreme, start_year, end_year, station_name=stn_name)
+        q = 0.9
+        # Initialize persistence_XMY object
+        xmy = persistence_XMY(q, start_year, end_year, station_name=stn_name)
         with (
             patch.object(xmy, "load_all_variables") as mock_load,
             patch(
@@ -552,9 +552,9 @@ class TestXMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        extreme = "hot"
-        xmy = shock_XMY(
-            extreme=extreme,
+        q = 0.9
+        xmy = persistence_XMY(
+            q=q,
             start_year=start_year,
             end_year=end_year,
             station_name=stn_name,
@@ -574,9 +574,9 @@ class TestXMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        extreme = "hot"
-        xmy = shock_XMY(
-            extreme=extreme,
+        q = 0.9
+        xmy = persistence_XMY(
+            q=q,
             start_year=start_year,
             end_year=end_year,
             station_name=stn_name,
@@ -595,14 +595,14 @@ class TestXMYClass:
             mock_export.assert_called_once()
 
     def test_get_candidate_months(self):
-        """Test the shock_XMY workflow calls up to set_top_months."""
+        """Test the persistence_XMY workflow calls up to set_top_months."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        extreme = "hot"
-        # Initialize shock_XMY object
-        xmy = shock_XMY(
-            extreme=extreme,
+        q = 0.9
+        # Initialize persistence_XMY object
+        xmy = persistence_XMY(
+            q=q,
             start_year=start_year,
             end_year=end_year,
             station_name=stn_name,
@@ -631,9 +631,9 @@ class TestXMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        extreme = "hot"
-        xmy = shock_XMY(
-            extreme=extreme,
+        q = 0.9
+        xmy = persistence_XMY(
+            q=q,
             start_year=start_year,
             end_year=end_year,
             station_name=stn_name,
@@ -682,8 +682,8 @@ class TestXMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        extreme = "hot"
-        xmy = shock_XMY(extreme, start_year, end_year, station_name=stn_name)
+        q = 0.9
+        xmy = persistence_XMY(q, start_year, end_year, station_name=stn_name)
         with warnings.catch_warnings():
             warnings.simplefilter(action="ignore", category=OptimizeWarning)
             result = xmy._smooth_month_transition_hours(df.copy())
@@ -711,10 +711,10 @@ class TestXMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        extreme = "hot"
-        # Initialize shock_XMY object
-        xmy = shock_XMY(
-            extreme=extreme,
+        q = 0.9
+        # Initialize persistence_XMY object
+        xmy = persistence_XMY(
+            q=q,
             start_year=start_year,
             end_year=end_year,
             station_name=stn_name,
@@ -733,9 +733,9 @@ class TestXMYClass:
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
         end_year = 2003
-        extreme = "hot"
-        xmy = shock_XMY(
-            extreme=extreme,
+        q = 0.9
+        xmy = persistence_XMY(
+            q=q,
             start_year=start_year,
             end_year=end_year,
             station_name=stn_name,
@@ -767,9 +767,9 @@ class TestXMYClass:
         lat = 33.56
         lon = -117.81
         warming_level = 2.0
-        extreme = "hot"
-        xmy = shock_XMY(
-            extreme=extreme, warming_level=warming_level, latitude=lat, longitude=lon
+        q = 0.9
+        xmy = persistence_XMY(
+            q=q, warming_level=warming_level, latitude=lat, longitude=lon
         )
         # In warming level mode, start_year/end_year are set during load
         xmy.start_year = 2001
@@ -800,9 +800,9 @@ class TestXMYClass:
         lat = 33.56
         lon = -117.81
         warming_level = 2.0
-        extreme = "hot"
-        xmy = shock_XMY(
-            extreme=extreme, warming_level=warming_level, latitude=lat, longitude=lon
+        q = 0.9
+        xmy = persistence_XMY(
+            q=q, warming_level=warming_level, latitude=lat, longitude=lon
         )
         xmy.start_year = 2001
         xmy.end_year = 2003
