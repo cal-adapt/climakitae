@@ -28,7 +28,7 @@ from climakitae.explore.typical_meteorological_year import (
 class TestFunctionsForXMY:
     """Test the general functions that are not part of the persistence_XMY class."""
 
-    def persistence_get_top_hours(self):
+    def test_persistence_get_top_hours_format(self):
         """Check top hours dataframe format."""
 
         test_data = np.arange(0, 365 * 3, 1)
@@ -49,11 +49,11 @@ class TestFunctionsForXMY:
             test_ds, q #, skip_last=False
         )
         # Correctly formatted dataframe
-        for col in ["month", "simulation", "year"]:
+        for col in ["hour","sim","year"]:
             assert col in result.columns
-        assert (np.unique(result["simulation"]) == np.array(["sim1", "sim2"])).all()
+        assert (np.unique(result["simu"]) == np.array(["sim1", "sim2"])).all()
 
-    def test_generate_candidate_months_skip_last(self):
+    def test_persistence_get_top_hours_skip_last(self):
         """Check top months dataframe format."""
 
         time_index = pd.date_range(start="2001-01-01", end="2003-12-31")
@@ -204,7 +204,7 @@ def mock_complete_hourly_ds() -> xr.Dataset:
 
 @pytest.mark.advanced
 class TestXMYClass:
-    """Test the shock_XMY class with fake data."""
+    """Test the persistence_XMY class with fake data."""
 
     @pytest.mark.integration
     def test_init_with_station(self):
@@ -215,7 +215,7 @@ class TestXMYClass:
         end_year = 2020
         extreme = "hot"
         # Initialize shock_XMY object
-        xmy = shock_XMY(
+        xmy = persistence_XMY(
             extreme=extreme,
             start_year=start_year,
             end_year=end_year,
