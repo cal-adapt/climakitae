@@ -17,7 +17,7 @@ from scipy.optimize import OptimizeWarning
 from climakitae.core.constants import UNSET
 from climakitae.explore.extreme_meteorological_year import (
     persistence_XMY,
-    persistence_get_top_hours
+    persistence_get_top_hours,
 )
 from climakitae.explore.typical_meteorological_year import (
     get_cdf,
@@ -45,13 +45,11 @@ class TestFunctionsForXMY:
         test_ds["Air temperature at 2m (degC)"] = (["simulation", "time"], test_data)
 
         q = 0.9
-        result = persistence_get_top_hours(
-            test_ds, q #, skip_last=False
-        )
+        result = persistence_get_top_hours(test_ds, q)  # , skip_last=False
         # Correctly formatted dataframe
-        for col in ["hour","sim","year"]:
+        for col in ["hour", "sim", "year"]:
             assert col in result.columns
-        assert (np.unique(result["simu"]) == np.array(["sim1", "sim2"])).all()
+        assert (np.unique(result["sim"]) == np.array(["sim1", "sim2"])).all()
 
     def test_persistence_get_top_hours_skip_last(self):
         """Check top months dataframe format."""
@@ -69,7 +67,7 @@ class TestFunctionsForXMY:
             },
         ).to_dataset()
 
-        test_ds["Daily min air temperature"] = (["simulation", "time"], test_data)
+        test_ds["Daily min air temperature"] = (["sim", "time"], test_data)
 
         # now add in max air temp data, in which the final two years have the highest temperatures
         max_temp = test_data.copy()
@@ -82,9 +80,7 @@ class TestFunctionsForXMY:
         q = 0.9
 
         # 2003 selected for all months when skip_last is False
-        result = generate_candidate_months(
-            cdf_month, cdf_clim, q=0.9, skip_last=False
-        )
+        result = generate_candidate_months(cdf_month, cdf_clim, q=0.9, skip_last=False)
         assert (result.loc[result["month"] == 12]["year"] == [2003, 2003]).all()
 
         # 2002 selected for all months when skip_last is True
