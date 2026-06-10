@@ -24,7 +24,6 @@ Climakitae provides intuitive tools for accessing, analyzing, and visualizing do
 - 🗺️ **Spatial Analysis Tools**: Built-in support for geographic subsetting and spatial aggregation
 - 📈 **Climate Indices**: Calculate heat indices, warming levels, and extreme event metrics
 - 🔧 **Flexible Data Export**: Export to NetCDF, CSV, and Zarr
-- 📱 **GUI Integration**: Works seamlessly with [climakitaegui](https://github.com/cal-adapt/climakitaegui) for interactive analysis
 
 ## About Cal-Adapt
 
