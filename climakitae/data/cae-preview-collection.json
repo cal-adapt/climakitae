@@ -1,0 +1,39 @@
+{
+  "esmcat_version": "0.1.0",
+  "id": "cae-preview",
+  "description": "Cal-Adapt Analytics Engine preview collection. Pre-release / internal datasets (e.g. sup3rcc) that have not yet landed in the public cae-collection. Access may require AWS credentials in Phase 2.",
+  "catalog_file": "cae-preview-zarr.csv",
+  "attributes": [
+    {"column_name": "activity_id", "vocabulary": ""},
+    {"column_name": "institution_id", "vocabulary": ""},
+    {"column_name": "source_id", "vocabulary": ""},
+    {"column_name": "experiment_id", "vocabulary": ""},
+    {"column_name": "member_id", "vocabulary": ""},
+    {"column_name": "table_id", "vocabulary": ""},
+    {"column_name": "variable_id", "vocabulary": ""},
+    {"column_name": "grid_label", "vocabulary": ""}
+  ],
+  "assets": {
+    "column_name": "path",
+    "format": "zarr"
+  },
+  "aggregation_control": {
+    "variable_column_name": "variable_id",
+    "groupby_attrs": [
+      "activity_id",
+      "institution_id",
+      "source_id",
+      "experiment_id",
+      "table_id",
+      "grid_label"
+    ],
+    "aggregations": [
+      {"type": "union", "attribute_name": "variable_id"},
+      {
+        "type": "join_new",
+        "attribute_name": "member_id",
+        "options": {"coords": "minimal", "compat": "override"}
+      }
+    ]
+  }
+}
