@@ -1157,7 +1157,7 @@ def persistence_get_top_hours(
         mask = ~(
             (data["time"].dt.year == last_year) & (data["time"].dt.month == last_month)
         )
-        data = data.isel(time=mask)
+        data = data.isel(time=mask).assign_coords(time=np.arange(mask.sum()))
 
     # Check for simulation dimension
     has_simulation = "simulation" in data.dims
