@@ -19,7 +19,7 @@ Climakitae provides intuitive tools for accessing, analyzing, and visualizing do
 
 ## Key Features
 
-- 🌡️ **Comprehensive Climate Data Access**: Retrieve climate variables from hosted climate models
+- 🌡️ **Comprehensive Climate Data Access**: Retrieve climate variables from hosted climate model, weather station, and renewable energy datasets 
 - 📊 **Downscaled Climate Models**: Access dynamical (WRF) and statistical (LOCA2) downscaling methods  
 - 🗺️ **Spatial Analysis Tools**: Built-in support for geographic subsetting and spatial aggregation
 - 📈 **Climate Indices**: Calculate heat indices, warming levels, and extreme event metrics
