@@ -1162,7 +1162,9 @@ def persistence_get_top_hours(
         all_years = data["time"].dt.year.values
         last_year = int(all_years[-1])
 
-        is_last_month = (data["time"].dt.year == last_year) & (data["time"].dt.month == last_month)
+        is_last_month = (data["time"].dt.year == last_year) & (
+            data["time"].dt.month == last_month
+        )
         data = data.where(~is_last_month)
 
     print(f"data:{data}")
