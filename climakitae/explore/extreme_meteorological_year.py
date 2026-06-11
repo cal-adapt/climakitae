@@ -1171,7 +1171,7 @@ def persistence_get_top_hours(
     print(f"data.coords:{data.coords}")
 
     # Get all available time data
-    hours_per_year = len(data["time"].dt.year == last_year)
+    hours_per_year = 8760
     total_hours = len(data.time)
     n_years = total_hours // hours_per_year
 
