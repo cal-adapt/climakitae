@@ -2128,7 +2128,11 @@ class persistence_XMY:
             )
             p = self.q * 100
             p = int(p)
-            filename = f"p{p}_persistence_xmy_{clean_stn_name}_{clean_sim}".lower()
+            filename = "persistence_XMY_p{0}_{1}_{2}".format(
+                p,
+                clean_stn_name,
+                clean_sim,
+            ).lower()
             write_tmy_file(
                 filename,
                 self.xmy_data_to_export[sim],
@@ -2138,7 +2142,8 @@ class persistence_XMY:
                 self.stn_lat,
                 self.stn_lon,
                 self.stn_state,
-                file_ext=extension,
+                file_ext="epw",
+                xmy_header={"extreme_type": p, "xmy_type": "PERSISTENCE"},
             )
 
     def get_candidate_hours(self):
