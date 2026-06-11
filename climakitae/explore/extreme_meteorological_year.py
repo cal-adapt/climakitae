@@ -1165,8 +1165,8 @@ def persistence_get_top_hours(
             (data["time"].dt.year == last_year) & (data["time"].dt.month == last_month)
         )
         data = data.isel(time=mask)
-        hours_in_last_year = len(data.sel(data["time"].dt.year == last_year))
-        print(f"hours_in_last_year:{hours_in_last_year}")
+        # hours_in_last_year = len(data.sel(data["time"].dt.year == last_year))
+        # print(f"hours_in_last_year:{hours_in_last_year}")
 
     print(f"data:{data}")
     print(f"data.coords:{data.coords}")
