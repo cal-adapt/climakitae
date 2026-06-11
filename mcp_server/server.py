@@ -26,7 +26,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "climakitae" / "data"
-DOCS_DIR = ROOT / ".github" / "instructions"
+DOCS_DIR = ROOT / "docs-mkdocs"
+INSTRUCTIONS_DIR = ROOT / ".github" / "instructions"
 SITE_PAGES = ROOT.parent / "cae-website" / "src" / "pages"
 SITE_DATA = ROOT.parent / "cae-website" / "src" / "data"
 
@@ -49,6 +50,7 @@ mcp = FastMCP(
         "- WRF variables: t2max, t2min, t2, prec, dew_point (dynamical)\n"
         "- LOCA2 variables: tasmax, tasmin, pr (statistical, CMIP6 naming)\n"
         "- Minimum required: catalog, variable, table_id, grid_label\n"
+        '- WRF queries MUST include .institution_id("UCLA") — this is required for all WRF data retrieval\n'
         "- Never use the legacy core.data_interface\n"
         "- Include imports, comments, and explain what the code does"
     ),
@@ -353,9 +355,7 @@ def _build_guidance_index() -> None:
     # Index text: title doubled (for term weight) + full text.
     # For accordion items the title IS a question, so repeating it biases
     # retrieval toward question-shaped user queries.
-    index_texts = [
-        f"{c['title']} {c['title']} {c['text']}" for c in chunks
-    ]
+    index_texts = [f"{c['title']} {c['title']} {c['text']}" for c in chunks]
 
     vec = TfidfVectorizer(
         stop_words="english",
@@ -424,7 +424,11 @@ def _extract_notebook_chunks(path: Path) -> list[dict]:
 
     cells = nb.get("cells", [])
     notebook_name = path.stem
-    source_url = f"scratch/new_core_demos/{path.name}" if "neil" in str(path) else f"cae-notebooks/{path.relative_to(ROOT.parent / 'cae-notebooks')}"
+    source_url = (
+        f"scratch/new_core_demos/{path.name}"
+        if "neil" in str(path)
+        else f"cae-notebooks/{path.relative_to(ROOT.parent / 'cae-notebooks')}"
+    )
 
     chunks = []
     current_heading = notebook_name.replace("_", " ")
@@ -517,7 +521,9 @@ def _extract_py_chunks(path: Path) -> list[dict]:
         m = re.match(r"((?:^#[^\n]*\n)+)", src, re.MULTILINE)
     description = m.group(1).strip() if m else path.stem.replace("_", " ")
 
-    source_url = f"scratch/new_core_demos/{path.name}" if "neil" in str(path) else str(path.name)
+    source_url = (
+        f"scratch/new_core_demos/{path.name}" if "neil" in str(path) else str(path.name)
+    )
     return [
         {
             "notebook": path.stem,
@@ -549,8 +555,7 @@ def _build_example_index() -> None:
 
     # Index on: section heading (doubled) + first 500 chars of description
     index_texts = [
-        f"{c['section']} {c['section']} {c['description'][:500]}"
-        for c in chunks
+        f"{c['section']} {c['section']} {c['description'][:500]}" for c in chunks
     ]
 
     vec = TfidfVectorizer(
@@ -573,8 +578,8 @@ _build_example_index()
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _read_doc(name: str) -> str:
-    path = DOCS_DIR / name
+def _read_doc(name: str, base: Path = DOCS_DIR) -> str:
+    path = base / name
     if path.exists():
         return path.read_text()
     return f"(doc not found: {name})"
@@ -583,37 +588,37 @@ def _read_doc(name: str) -> str:
 @mcp.resource("climakitae://docs/notebook-guide")
 def notebook_guide() -> str:
     """Complete reference for ClimateData queries, processors, and examples."""
-    return _read_doc("notebook-analysis.instructions.md")
+    return _read_doc("notebook-analysis.instructions.md", INSTRUCTIONS_DIR)
 
 
 @mcp.resource("climakitae://docs/domain-knowledge")
 def domain_knowledge() -> str:
     """Climate data hierarchy, catalogs, WRF vs LOCA2, grid labels, architecture."""
-    return _read_doc("climakitae.instructions.md")
+    return _read_doc("climate-data-interface/concepts.md")
 
 
 @mcp.resource("climakitae://docs/processors")
 def processor_docs() -> str:
     """Processor reference: clip, time_slice, warming_level, export, bias correction."""
-    return _read_doc("processors.instructions.md")
+    return _read_doc("climate-data-interface/processors/index.md")
 
 
 @mcp.resource("climakitae://docs/data-access")
 def data_access_docs() -> str:
     """Data access patterns and boundaries."""
-    return _read_doc("data-access.instructions.md")
+    return _read_doc("data-access.instructions.md", INSTRUCTIONS_DIR)
 
 
 @mcp.resource("climakitae://docs/param-validation")
 def param_validation_docs() -> str:
     """Parameter validation patterns."""
-    return _read_doc("param-validation.instructions.md")
+    return _read_doc("param-validation.instructions.md", INSTRUCTIONS_DIR)
 
 
 @mcp.resource("climakitae://docs/new-core")
 def new_core_docs() -> str:
     """New core architecture patterns and examples."""
-    return _read_doc("new-core.instructions.md")
+    return _read_doc("climate-data-interface/architecture.md")
 
 
 @mcp.resource("climakitae://data/stations")
@@ -887,7 +892,7 @@ def search_guidance(query: str, top_k: int = 4) -> str:
     top_k = min(max(top_k, 1), 8)
     q_vec = _GUIDANCE_VECTORIZER.transform([query])
     scores = cosine_similarity(q_vec, _GUIDANCE_MATRIX).flatten()
-    top_idx = np.argsort(scores)[::-1][:top_k * 2]  # over-fetch to deduplicate
+    top_idx = np.argsort(scores)[::-1][: top_k * 2]  # over-fetch to deduplicate
 
     results = []
     seen_titles: set[str] = set()
@@ -1046,6 +1051,12 @@ def validate_query(
         if value and value not in summary.get(key, []):
             issues.append(f"Unknown {label} '{value}'. Valid: {summary.get(key, [])}")
 
+    if activity_id == "WRF" and (not institution_id or institution_id != "UCLA"):
+        issues.append(
+            "WRF queries require institution_id='UCLA'. "
+            'Add .institution_id("UCLA") to your query.'
+        )
+
     if activity_id and variable:
         available = CATALOG.get("variables_by_activity", {}).get(activity_id, [])
         if variable not in available:
@@ -1072,9 +1083,13 @@ def validate_query(
             if activity_id and activity_id != "WRF":
                 issues.append("bias_adjust_model_to_station is only supported for WRF")
             if table_id and table_id != "1hr":
-                warnings.append("bias_adjust_model_to_station typically uses table_id='1hr'")
+                warnings.append(
+                    "bias_adjust_model_to_station typically uses table_id='1hr'"
+                )
             if variable and variable != "t2":
-                warnings.append("bias_adjust_model_to_station currently supports variable='t2'")
+                warnings.append(
+                    "bias_adjust_model_to_station currently supports variable='t2'"
+                )
 
     payload = {"valid": len(issues) == 0}
     if issues:
@@ -1254,7 +1269,11 @@ def generate_code(
     lines = [
         "from climakitae.new_core.user_interface import ClimateData",
         "",
-        f"cd = ClimateData(verbosity={verbosity})" if verbosity != 0 else "cd = ClimateData()",
+        (
+            f"cd = ClimateData(verbosity={verbosity})"
+            if verbosity != 0
+            else "cd = ClimateData()"
+        ),
         "",
         "data = (cd",
         f'    .catalog("{catalog}")',
@@ -1262,6 +1281,9 @@ def generate_code(
 
     if activity_id:
         lines.append(f'    .activity_id("{activity_id}")')
+    # WRF data requires institution_id="UCLA"
+    if activity_id == "WRF" and not institution_id:
+        institution_id = "UCLA"
     if institution_id:
         lines.append(f'    .institution_id("{institution_id}")')
     if source_id:
