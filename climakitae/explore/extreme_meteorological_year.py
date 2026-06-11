@@ -1157,6 +1157,7 @@ def persistence_get_top_hours(
         simulations = [None]
 
     if skip_last:  # Remove data from last month and year
+        print("skip_last activated!")
         all_months = data["time"].dt.month.values
         last_month = int(all_months[-1])
         all_years = data["time"].dt.year.values
@@ -1167,8 +1168,7 @@ def persistence_get_top_hours(
         )
         data = data.where(~is_last_month)
 
-    print(f"data:{data}")
-    print(f"data.coords:{data.coords}")
+    print(f"len(data.time): {len(data.time)}")
 
     # Get all available time data
     hours_per_year = 8760
@@ -1180,9 +1180,8 @@ def persistence_get_top_hours(
 
     # Create hour-of-year coordinate for all data (cycling through 1-8760)
     hour_of_year_all = np.tile(np.arange(1, hours_per_year + 1), n_years)[:total_hours]
-
+    print(f"len(hour_of_year_all): {len(hour_of_year_all)}")
     data = data.assign_coords(hour_of_year=("time", hour_of_year_all))
-    print(f"len(data.time): {len(data.time)}")
 
     # Initialize storage for profiles
     df_list = []
