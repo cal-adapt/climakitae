@@ -1156,11 +1156,11 @@ def persistence_get_top_hours(
     else:
         simulations = [None]
 
+    all_years = data["time"].dt.year.values
     last_year = int(all_years[-1])
     if skip_last:  # Remove data from last month and year
         all_months = data["time"].dt.month.values
         last_month = int(all_months[-1])
-        all_years = data["time"].dt.year.values
         mask = ~(
             (data["time"].dt.year == last_year) & (data["time"].dt.month == last_month)
         )
