@@ -1149,126 +1149,93 @@ def persistence_get_top_hours(
 
     """
 
-    # if skip_last:  # Remove data from last month and year
-    #     all_months = data["time"].dt.month.values
-    #     last_month = int(all_months[-1])
-    #     all_years = data["time"].dt.year.values
-    #     last_year = int(all_years[-1])
-    #     mask = ~(
-    #         (data["time"].dt.year == last_year) & (data["time"].dt.month == last_month)
-    #     )
-    #     data = data.isel(time=mask)
-
-    # # Check for simulation dimension
-    # has_simulation = "simulation" in data.dims
-    # if has_simulation:
-    #     simulations = data.simulation.values
-    # else:
-    #     simulations = [None]
-
-    # # Get all available time data
-    # hours_per_year = 8760
-    # total_hours = len(data.time)
-    # n_years = total_hours // hours_per_year
-
-    # print(f"      📊 Processing {total_hours:,} hours ({n_years} years) of data")
-    # print(f"      🎯 Computing {q*100:.0f}th percentile for each hour of year")
-
-    # # Create hour-of-year coordinate for all data (cycling through 1-8760)
-    # hour_of_year_all = np.tile(np.arange(1, hours_per_year + 1), n_years)[:total_hours]
-    # data = data.assign_coords(hour_of_year=("time", hour_of_year_all))
-
-    # # Initialize storage for profiles
-    # df_list = []
-
-    # for sim_idx, sim in enumerate(simulations):
-    #     # Select data for this warming level and simulation combination
-    #     if has_simulation:
-    #         subset_data = data.isel(simulation=sim_idx)
-    #     else:
-    #         subset_data = data
-
-    #     # Vectorized quantile computation using numpy
-    #     # Reshape raw values into (n_years, hours_per_year) then compute
-    #     # the quantile across years for each hour-of-year position
-    #     values = subset_data.values
-    #     n_total = len(values)
-    #     usable = (n_total // hours_per_year) * hours_per_year
-    #     year_hour_matrix = values[:usable].reshape(-1, hours_per_year)
-
-    #     # Compute quantile targets for each of the 8760 hour positions
-    #     quantile_targets = np.nanquantile(year_hour_matrix, q, axis=0)  # shape: (8760,)
-
-    #     # For each hour position, find the actual year whose value is
-    #     # closest to the quantile (avoids interpolation)
-    #     diffs = np.abs(
-    #         year_hour_matrix - quantile_targets[np.newaxis, :]
-    #     )  # (n_years, 8760)
-
-    #     closest_year_idx = np.nanargmin(diffs, axis=0)  # (8760,)
-
-    #     # Calendar year for each hour-of-year position
-    #     usable_times = subset_data.time.values[:usable]
-    #     row_years = pd.DatetimeIndex(usable_times).year.values.reshape(
-    #         -1, hours_per_year
-    #     )[:, 0]
-    #     sel_year = row_years[closest_year_idx]  # (8760,) — calendar year, not row index
-
-    #     # Store the selected years in a pandas dataframe
-    #     df_i = pd.DataFrame(
-    #         {
-    #             "hour": np.arange(1, hours_per_year + 1),
-    #             "sim": sim,
-    #             "year": sel_year.astype(int),
-    #         }
-    #     )
-    #     df_list.append(df_i)
-
-    # # Concatenate list together for all simulations
-    # top_df = pd.concat(df_list).reset_index(drop=True)
-    # print(f"top_df: {top_df}")
-
-    if skip_last:
-        all_months = data["time"].dt.month.values
-        all_years = data["time"].dt.year.values
-        mask = ~((all_years == all_years[-1]) & (all_months == all_months[-1]))
-        data = data.isel(time=mask)
-
+    # Check for simulation dimension
     has_simulation = "simulation" in data.dims
-    simulations = data.simulation.values if has_simulation else [None]
+    if has_simulation:
+        simulations = data.simulation.values
+    else:
+        simulations = [None]
 
+    if skip_last:  # Remove data from last month and year
+        all_months = data["time"].dt.month.values
+        last_month = int(all_months[-1])
+        all_years = data["time"].dt.year.values
+        last_year = int(all_years[-1])
+        mask = ~(
+            (data["time"].dt.year == last_year) & (data["time"].dt.month == last_month)
+        )
+        data = data.isel(time=mask)
+        hours_in_last_year = len(data.sel(data["time"].dt.year == last_year))
+        print(f"hours_in_last_year:{hours_in_last_year}")
+
+    print(f"data:{data}")
+    print(f"data.coords:{data.coords}")
+
+    # Get all available time data
     hours_per_year = 8760
     total_hours = len(data.time)
     n_years = total_hours // hours_per_year
-    usable = n_years * hours_per_year
-
-    # Extract datetime years once, before any looping
-    all_times = pd.DatetimeIndex(data.time.values[:usable])
-    row_years = all_times.year.values.reshape(n_years, hours_per_year)[:, 0]
 
     print(f"      📊 Processing {total_hours:,} hours ({n_years} years) of data")
     print(f"      🎯 Computing {q*100:.0f}th percentile for each hour of year")
 
+    # Create hour-of-year coordinate for all data (cycling through 1-8760)
+    hour_of_year_all = np.tile(np.arange(1, hours_per_year + 1), n_years)[:total_hours]
+
+    data = data.assign_coords(hour_of_year=("time", hour_of_year_all))
+    print(f"len(data.time): {len(data.time)}")
+
+    # Initialize storage for profiles
     df_list = []
+
     for sim_idx, sim in enumerate(simulations):
-        values = data.isel(simulation=sim_idx).values if has_simulation else data.values
-        matrix = values[:usable].reshape(n_years, hours_per_year)  # (n_years, 8760)
+        # Select data for this warming level and simulation combination
+        if has_simulation:
+            subset_data = data.isel(simulation=sim_idx)
+        else:
+            subset_data = data
 
-        quantile_targets = np.nanquantile(matrix, q, axis=0)  # (8760,)
-        closest_year_idx = np.nanargmin(
-            np.abs(matrix - quantile_targets[np.newaxis, :]), axis=0
-        )  # (8760,)
+        # Vectorized quantile computation using numpy
+        # Reshape raw values into (n_years, hours_per_year) then compute
+        # the quantile across years for each hour-of-year position
+        values = subset_data.values
+        print(f"len(subset_data.time): {len(subset_data.time)}")
+        n_total = len(values)
+        print(f"n_total: {n_total}")
+        usable = (n_total // hours_per_year) * hours_per_year
+        print(f"usable: {usable}")
+        year_hour_matrix = values[:usable].reshape(-1, hours_per_year)
 
-        df_list.append(
-            pd.DataFrame(
-                {
-                    "hour": np.arange(1, hours_per_year + 1),
-                    "sim": sim,
-                    "year": row_years[closest_year_idx].astype(int),
-                }
-            )
+        # Compute quantile targets for each of the 8760 hour positions
+        quantile_targets = np.nanquantile(year_hour_matrix, q, axis=0)  # shape: (8760,)
+        print(f"quantile_targets: {quantile_targets}")
+
+        # For each hour position, find the actual year whose value is
+        # closest to the quantile (avoids interpolation)
+        diffs = np.abs(
+            year_hour_matrix - quantile_targets[np.newaxis, :]
+        )  # (n_years, 8760)
+
+        closest_year_idx = np.nanargmin(diffs, axis=0)  # (8760,)
+
+        # Calendar year for each hour-of-year position
+        usable_times = subset_data.time.values[:usable]
+        row_years = pd.DatetimeIndex(usable_times).year.values.reshape(
+            -1, hours_per_year
+        )[:, 0]
+        sel_year = row_years[closest_year_idx]  # (8760,) — calendar year, not row index
+
+        # Store the selected years in a pandas dataframe
+        df_i = pd.DataFrame(
+            {
+                "hour": np.arange(1, hours_per_year + 1),
+                "sim": sim,
+                "year": sel_year.astype(int),
+            }
         )
+        df_list.append(df_i)
 
+    # Concatenate list together for all simulations
     top_df = pd.concat(df_list).reset_index(drop=True)
     print(f"top_df: {top_df}")
 
