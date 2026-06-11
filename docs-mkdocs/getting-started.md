@@ -135,4 +135,4 @@ For more details, see the [API reference](api/climate-data.md), browse [how-to g
 
 - [Cal-Adapt Analytics Engine — About the data](https://analytics.cal-adapt.org/data/about)  
 - [Cal-Adapt Analytics Engine — Glossary](https://analytics.cal-adapt.org/guidance/glossary) (bias correction, GWLs, downscaling terminology)  
-- [Cal-Adapt Analytics Engine — Example applications](https://analytics.cal-adapt.org/analytics/applications/example) (featured notebooks)
+- [Cal-Adapt Analytics Engine — Example applications](https://cal-adapt.github.io/climakitae/dev/notebook-gallery/) (notebook gallery)
