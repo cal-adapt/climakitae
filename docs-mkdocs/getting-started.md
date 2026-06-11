@@ -13,7 +13,7 @@ Windows or anywhere native geospatial dependencies cause trouble.
 # with uv (recommended on Linux/macOS)
 uv pip install climakitae
 
-# with conda (recommended on Windows)
+# with conda (recommended on Windows/macOS)
 conda create -n climakitae python=3.13 -y
 conda activate climakitae
 pip install climakitae
