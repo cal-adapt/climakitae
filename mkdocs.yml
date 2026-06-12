@@ -102,6 +102,7 @@ nav:
       - How-To Guides:
           - Overview: climate-data-interface/howto.md
           - Clip Data: climate-data-interface/howto/clip.md
+          - Access Boundary Geometries: climate-data-interface/howto/boundary-accessors.md
           - Export Data: climate-data-interface/howto/export.md
           - Warming Level Analysis: climate-data-interface/howto/warming-levels.md
           - Bias Correction: climate-data-interface/howto/bias-correction.md
