@@ -1160,13 +1160,38 @@ def persistence_get_top_hours(
     print(
         f"length of year of data: {len(data.sel(time=(data['time'].dt.year == 2020))['time'])}"
     )
+    print(f"skip_last:{skip_last}")
 
     if skip_last:
-        last_year = int(data.year.values[-1])
-        last_month = int(data.month.values[-1])
-        # Mask the last year of the last month so it won't be selected
+        # WL+local-time leaves the trailing year |offset_hours| short of 8760
+        # (e.g. KLAX/PST: last year ends Dec 31 15:00). Pad the tail back to a
+        # clean N*8760 cycle, then NaN-mask the trailing month so it can't be
+        # selected. NaN (not inf) — nanquantile/nanargmin both skip NaN.
+        times = pd.DatetimeIndex(data.time.values)
+        n_full_years = -(-len(times) // 8760)  # ceiling division
+        missing = n_full_years * 8760 - len(times)
+
         da_work = data.copy(deep=True)
-        da_work.loc[dict(year=last_year, month=last_month)] = np.inf
+        if missing > 0:
+            pad_start = times[-1] + pd.Timedelta(hours=1)
+            pad_times = pd.date_range(start=pad_start, periods=missing, freq="h")
+            pad_shape = list(data.shape)
+            time_axis = data.dims.index("time")
+            pad_shape[time_axis] = len(pad_times)
+            pad_coords = {d: data.coords[d] for d in data.dims if d != "time"}
+            pad_coords["time"] = pad_times
+            pad = xr.DataArray(
+                np.full(pad_shape, np.nan), dims=data.dims, coords=pad_coords
+            )
+            da_work = xr.concat([da_work, pad], dim="time")
+
+        # NaN-mask the entire trailing local-time month
+        last_t = pd.DatetimeIndex(da_work.time.values)[-1]
+        last_year, last_month = int(last_t.year), int(last_t.month)
+        mask = (da_work.time.dt.year == last_year) & (
+            da_work.time.dt.month == last_month
+        )
+        da_work = da_work.where(~mask)
     else:
         da_work = data
 
@@ -1183,19 +1208,9 @@ def persistence_get_top_hours(
     print(f"      📊 Processing {total_hours:,} hours ({n_years} years) of data")
     print(f"      🎯 Computing {q*100:.0f}th percentile for each hour of year")
 
-    # # Create hour-of-year coordinate for all data (cycling through 1-8760)
-    # hour_of_year_all = np.tile(np.arange(1, hours_per_year + 1), n_years)[:total_hours]
-    # print(f"len(hour_of_year_all): {len(hour_of_year_all)}")
-    # da_work = da_work.assign_coords(hour_of_year=("time", hour_of_year_all))
-
-    # why does error not happen with time-based
-    # dummy time is the source of the issue, something could be improved with code for add_dummy_time
-    #
-
-    #! possible fix
-    doy = da_work.time.dt.dayofyear  # 1..365 (noleap)
-    hr = da_work.time.dt.hour  # 0..23
-    hour_of_year_all = ((doy - 1) * 24 + hr + 1).values  # 1..8760
+    # Create hour-of-year coordinate for all data (cycling through 1-8760)
+    hour_of_year_all = np.tile(np.arange(1, hours_per_year + 1), n_years)[:total_hours]
+    print(f"len(hour_of_year_all): {len(hour_of_year_all)}")
     da_work = da_work.assign_coords(hour_of_year=("time", hour_of_year_all))
 
     # Initialize storage for profiles
@@ -2017,7 +2032,9 @@ class persistence_XMY:
         """Calculate top months dataframe."""
 
         self._vprint("Finding top hours.")
-        self.top_hours = persistence_get_top_hours(self.air_temp_var, self.q)
+        self.top_hours = persistence_get_top_hours(
+            self.air_temp_var, self.q, self._skip_last
+        )
 
         #!
 
