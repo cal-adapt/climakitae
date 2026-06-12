@@ -1089,6 +1089,7 @@ class shock_XMY:
                 self.stn_lon,
                 self.stn_state,
                 file_ext=extension,
+                xmy_header={"extreme_type": self.extreme, "xmy_type": "SHOCK"},
             )
 
     def get_candidate_months(self):
