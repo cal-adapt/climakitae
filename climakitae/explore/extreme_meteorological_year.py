@@ -1156,12 +1156,6 @@ def persistence_get_top_hours(
     else:
         simulations = [None]
 
-    print(f"len(data.time) before skip_last: {len(data.time)}")
-    print(
-        f"length of year of data: {len(data.sel(time=(data['time'].dt.year == 2020))['time'])}"
-    )
-    print(f"skip_last:{skip_last}")
-
     if skip_last:
         # WL+local-time leaves the trailing year |offset_hours| short of 8760
         # (e.g. KLAX/PST: last year ends Dec 31 15:00). Pad the tail back to a
@@ -1195,11 +1189,6 @@ def persistence_get_top_hours(
     else:
         da_work = data
 
-    print(
-        f"length of year of data after masking: {len(da_work.sel(time=(da_work['time'].dt.year == 2020))['time'])}"
-    )
-    print(f"len(da_work.time): {len(da_work.time)}")
-
     # Get all available time data
     hours_per_year = 8760
     total_hours = len(da_work.time)
@@ -1210,7 +1199,6 @@ def persistence_get_top_hours(
 
     # Create hour-of-year coordinate for all data (cycling through 1-8760)
     hour_of_year_all = np.tile(np.arange(1, hours_per_year + 1), n_years)[:total_hours]
-    print(f"len(hour_of_year_all): {len(hour_of_year_all)}")
     da_work = da_work.assign_coords(hour_of_year=("time", hour_of_year_all))
 
     # Initialize storage for profiles
@@ -1227,16 +1215,13 @@ def persistence_get_top_hours(
         # Reshape raw values into (n_years, hours_per_year) then compute
         # the quantile across years for each hour-of-year position
         values = subset_data.values
-        print(f"len(subset_data.time): {len(subset_data.time)}")
         n_total = len(values)
-        print(f"n_total: {n_total}")
+
         usable = (n_total // hours_per_year) * hours_per_year
-        print(f"usable: {usable}")
         year_hour_matrix = values[:usable].reshape(-1, hours_per_year)
 
         # Compute quantile targets for each of the 8760 hour positions
         quantile_targets = np.nanquantile(year_hour_matrix, q, axis=0)  # shape: (8760,)
-        print(f"quantile_targets: {quantile_targets}")
 
         # For each hour position, find the actual year whose value is
         # closest to the quantile (avoids interpolation)
@@ -1265,7 +1250,6 @@ def persistence_get_top_hours(
 
     # Concatenate list together for all simulations
     top_df = pd.concat(df_list).reset_index(drop=True)
-    print(f"top_df: {top_df}")
 
     return top_df
 
@@ -2036,11 +2020,6 @@ class persistence_XMY:
             self.air_temp_var, self.q, self._skip_last
         )
 
-        #!
-
-        self._vprint("Top hours found!.")
-        self._vprint(self.top_hours)
-
     def show_xmy_data_to_export(self, simulation: str):
         """Show line plots of persistence XMY data for single model.
 
@@ -2175,7 +2154,7 @@ class persistence_XMY:
                 self.stn_lon,
                 self.stn_state,
                 file_ext="epw",
-                # xmy_header={"extreme_type": p, "xmy_type": "PERSISTENCE"},
+                xmy_header={"extreme_type": p, "xmy_type": "PERSISTENCE"},
             )
 
     def get_candidate_hours(self):
