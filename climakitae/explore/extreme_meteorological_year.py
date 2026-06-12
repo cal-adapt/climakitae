@@ -1157,7 +1157,9 @@ def persistence_get_top_hours(
         simulations = [None]
 
     print(f"len(data.time) before skip_last: {len(data.time)}")
-    print(f"length of year of data: {len(data.sel(time=(data['time'].dt.year == 2020))['time'])}")
+    print(
+        f"length of year of data: {len(data.sel(time=(data['time'].dt.year == 2020))['time'])}"
+    )
 
     if skip_last:
         last_year = int(data.year.values[-1])
@@ -1165,18 +1167,18 @@ def persistence_get_top_hours(
         # Mask the last year of the last month so it won't be selected
         da_work = data.copy(deep=True)
         da_work.loc[dict(year=last_year, month=last_month)] = np.inf
-        total_hours = len(da_work.time)
-        n_years = (total_hours // hours_per_year) - 1
     else:
         da_work = data
-        total_hours = len(da_work.time)
-        n_years = total_hours // hours_per_year
 
-    print(f"length of year of data after masking: {len(da_work.sel(time=(da_work['time'].dt.year == 2020))['time'])}")
+    print(
+        f"length of year of data after masking: {len(da_work.sel(time=(da_work['time'].dt.year == 2020))['time'])}"
+    )
     print(f"len(da_work.time): {len(da_work.time)}")
 
     # Get all available time data
     hours_per_year = 8760
+    total_hours = len(da_work.time)
+    n_years = total_hours // hours_per_year
 
     print(f"      📊 Processing {total_hours:,} hours ({n_years} years) of data")
     print(f"      🎯 Computing {q*100:.0f}th percentile for each hour of year")
@@ -1188,7 +1190,7 @@ def persistence_get_top_hours(
 
     # Initialize storage for profiles
     df_list = []
-    
+
     for sim_idx, sim in enumerate(simulations):
         # Select data for this warming level and simulation combination
         if has_simulation:
@@ -2145,8 +2147,8 @@ class persistence_XMY:
                 self.stn_lat,
                 self.stn_lon,
                 self.stn_state,
-                file_ext="epw"
-                #xmy_header={"extreme_type": p, "xmy_type": "PERSISTENCE"},
+                file_ext="epw",
+                # xmy_header={"extreme_type": p, "xmy_type": "PERSISTENCE"},
             )
 
     def get_candidate_hours(self):
