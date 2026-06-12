@@ -1156,23 +1156,22 @@ def persistence_get_top_hours(
     else:
         simulations = [None]
 
-    if skip_last:  # Remove data from last month and year
-        print("skip_last activated!")
-        all_months = data["time"].dt.month.values
-        last_month = int(all_months[-1])
-        all_years = data["time"].dt.year.values
-        last_year = int(all_years[-1])
+    print(f"len(data.time) before skip_last: {len(data.time)}")
 
-        is_last_month = (data["time"].dt.year == last_year) & (
-            data["time"].dt.month == last_month
-        )
-        data = data.where(~is_last_month)
+    if skip_last:
+        last_year = int(data.year.values[-1])
+        last_month = int(data.month.values[-1])
+        # Mask the last year of the last month so it won't be selected
+        da_work = data.copy(deep=True)
+        da_work.loc[dict(year=last_year, month=last_month)] = np.inf
+    else:
+        da_work = data
 
-    print(f"len(data.time): {len(data.time)}")
+    print(f"len(da_work.time): {len(da_work.time)}")
 
     # Get all available time data
     hours_per_year = 8760
-    total_hours = len(data.time)
+    total_hours = len(da_work.time)
     n_years = total_hours // hours_per_year
 
     print(f"      📊 Processing {total_hours:,} hours ({n_years} years) of data")
@@ -1181,7 +1180,7 @@ def persistence_get_top_hours(
     # Create hour-of-year coordinate for all data (cycling through 1-8760)
     hour_of_year_all = np.tile(np.arange(1, hours_per_year + 1), n_years)[:total_hours]
     print(f"len(hour_of_year_all): {len(hour_of_year_all)}")
-    data = data.assign_coords(hour_of_year=("time", hour_of_year_all))
+    da_work = da_work.assign_coords(hour_of_year=("time", hour_of_year_all))
 
     # Initialize storage for profiles
     df_list = []
@@ -1189,9 +1188,9 @@ def persistence_get_top_hours(
     for sim_idx, sim in enumerate(simulations):
         # Select data for this warming level and simulation combination
         if has_simulation:
-            subset_data = data.isel(simulation=sim_idx)
+            subset_data = da_work.isel(simulation=sim_idx)
         else:
-            subset_data = data
+            subset_data = da_work
 
         # Vectorized quantile computation using numpy
         # Reshape raw values into (n_years, hours_per_year) then compute
