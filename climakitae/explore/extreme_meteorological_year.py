@@ -1183,9 +1183,19 @@ def persistence_get_top_hours(
     print(f"      📊 Processing {total_hours:,} hours ({n_years} years) of data")
     print(f"      🎯 Computing {q*100:.0f}th percentile for each hour of year")
 
-    # Create hour-of-year coordinate for all data (cycling through 1-8760)
-    hour_of_year_all = np.tile(np.arange(1, hours_per_year + 1), n_years)[:total_hours]
-    print(f"len(hour_of_year_all): {len(hour_of_year_all)}")
+    # # Create hour-of-year coordinate for all data (cycling through 1-8760)
+    # hour_of_year_all = np.tile(np.arange(1, hours_per_year + 1), n_years)[:total_hours]
+    # print(f"len(hour_of_year_all): {len(hour_of_year_all)}")
+    # da_work = da_work.assign_coords(hour_of_year=("time", hour_of_year_all))
+
+    # why does error not happen with time-based
+    # dummy time is the source of the issue, something could be improved with code for add_dummy_time
+    #
+
+    #! possible fix
+    doy = da_work.time.dt.dayofyear  # 1..365 (noleap)
+    hr = da_work.time.dt.hour  # 0..23
+    hour_of_year_all = ((doy - 1) * 24 + hr + 1).values  # 1..8760
     da_work = da_work.assign_coords(hour_of_year=("time", hour_of_year_all))
 
     # Initialize storage for profiles
