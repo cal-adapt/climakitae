@@ -93,13 +93,13 @@ Valid season codes (climatological):
 
 ## Code References
 
-| Method | Lines | Purpose |
-|--------|-------|---------|
-| `__init__` | [52–73](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L52) | Parse and normalize `value`/`dates`/`seasons` |
-| `execute` | [76–129](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L76) | Route by input type and apply slicing |
-| `update_context` | [131–151](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L131) | Record operation metadata |
-| `set_data_accessor` | [153–155](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L153) | No-op placeholder (interface compliance) |
-| `_subset_time_and_season` | [157–165](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/time_slice.py#L157) | Core xarray `.sel` + season `.where` logic |
+| Method | Link to Code | Purpose |
+|--------|-------|----------|
+| `__init__` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Atime_slice.py&type=code) | Parse and normalize `value`/`dates`/`seasons` |
+| `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Atime_slice.py&type=code) | Route by input type and apply slicing |
+| `update_context` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Atime_slice.py&type=code) | Record operation metadata |
+| `set_data_accessor` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aset_data_accessor+path%3Atime_slice.py&type=code) | No-op placeholder (interface compliance) |
+| `_subset_time_and_season` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_subset_time_and_season+path%3Atime_slice.py&type=code) | Core xarray `.sel` + season `.where` logic |
 
 ## Examples
 
