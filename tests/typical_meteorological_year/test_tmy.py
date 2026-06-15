@@ -550,6 +550,22 @@ class TestTMYClass:
         assert tmy.stn_code == "None"
 
     @pytest.mark.integration
+    def test_init_with_reanalysis(self):
+        """Check class initialization with reanalysis flag."""
+        # Use valid station name
+        lat = 33.56
+        lon = -117.81
+        start_year = 1990
+        end_year = 2020
+        # Initialize TMY object
+        tmy = TMY(start_year=start_year, end_year=end_year, latitude=lat, longitude=lon, reanalysis=True)
+        assert tmy.use_era5 == True
+
+        # Initialize TMY object
+        tmy = TMY(start_year=start_year, end_year=end_year, latitude=lat, longitude=lon)
+        assert tmy.use_era5 == False
+
+    @pytest.mark.integration
     def test_init_with_custom_name(self):
         """Check class initialization with coordinates."""
         # Use valid station name
