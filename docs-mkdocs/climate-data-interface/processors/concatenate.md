@@ -32,15 +32,15 @@ flowchart TD
 
 ## Code References
 
-| Method | Lines | Purpose |
+| Method | Link to Code | Purpose |
 |--------|-------|---------|
-| `__init__` | [49\u201363](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L49) | Store `value` (defaults to `"sim"` if non-string) |
-| `execute` | [65\u2013103](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L65) | Single-input passthrough; route by `context["catalog"]` |
-| `_execute_hdp_concat` | [105\u2013172](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L105) | HDP-station concat path |
-| `_execute_gridded_concat` | [174\u2013460](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L174) | Gridded concat with `match result` (line 228) over dict / iterable |
-| `_align_time_dim` | [462\u2013485](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L462) | Align time coordinates before concat |
-| `update_context` | [487\u2013513](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L487) | Record concat dim and source_id list in context |
-| `set_data_accessor` | [515\u2013517](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/concatenate.py#L515) | Receive `DataCatalog` reference |
+| `__init__` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Aconcatenate.py&type=code) | Store `value` (defaults to `"sim"` if non-string) |
+| `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Aconcatenate.py&type=code) | Single-input passthrough; route by `context["catalog"]` |
+| `_execute_hdp_concat` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_execute_hdp_concat+path%3Aconcatenate.py&type=code) | HDP-station concat path |
+| `_execute_gridded_concat` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_execute_gridded_concat+path%3Aconcatenate.py&type=code) | Gridded concat with `match result` (line 228) over dict / iterable |
+| `_align_time_dim` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_align_time_dim+path%3Aconcatenate.py&type=code) | Align time coordinates before concat |
+| `update_context` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Aconcatenate.py&type=code) | Record concat dim and source_id list in context |
+| `set_data_accessor` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aset_data_accessor+path%3Aconcatenate.py&type=code) | Receive `DataCatalog` reference |
 
 ## Parameter shape
 
