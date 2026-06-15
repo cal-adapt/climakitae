@@ -270,7 +270,7 @@ class shock_XMY:
         station_name: str = UNSET,
         latitude: float | int = UNSET,
         longitude: float | int = UNSET,
-        reanalysis: bool = True,
+        reanalysis: bool = False,
         verbose: bool = True,
     ):
 
@@ -341,7 +341,7 @@ class shock_XMY:
                 )
             if (self.start_year < 1981) or (self.end_year > 2019):
                 raise ValueError(
-                    f"Valid start and end years for ERA5 must be between 1981 and 2019.\nUser provided start year {self.start_year} and end year {self.end_year}"
+                    f"Valid start and end years for ERA5 reanalysis must be between 1981 and 2019. User provided start year {self.start_year} and end year {self.end_year}"
                 )
             self.use_era5 = True
             self.simulations = ["WRF_ERA5_reanalysis"]
