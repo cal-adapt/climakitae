@@ -567,11 +567,11 @@ class shock_XMY:
                         sim_mapping[cd_sim] = legacy_sim
                         break
 
-        # Select and rename to legacy simulation names
-        matched_cd_sims = list(sim_mapping.keys())
+            # Select and rename to legacy simulation names
+            matched_cd_sims = list(sim_mapping.keys())
 
-        data = data.sel(simulation=matched_cd_sims)
-        data["simulation"] = [sim_mapping[s] for s in matched_cd_sims]
+            data = data.sel(simulation=matched_cd_sims)
+            data["simulation"] = [sim_mapping[s] for s in matched_cd_sims]
 
         # Work in local time (cached offset avoids repeated CSV reads)
         offset_hours = self._get_utc_offset_hours()
