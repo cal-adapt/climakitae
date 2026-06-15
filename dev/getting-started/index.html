@@ -2211,14 +2211,20 @@
 <h1 id="get-started-in-5-minutes">Get Started in 5 Minutes</h1>
 <p>Query climate data for California in a few lines of code using the <code>ClimateData</code> fluent API.</p>
 <h2 id="installation">Installation</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Using uv (recommended for development)</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>uv<span class="w"> </span>venv
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>climakitae
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Or with pip</span>
+<p>ClimakitAE requires <strong>Python 3.12 or 3.13</strong>. We recommend
+<a href="https://docs.astral.sh/uv/"><code>uv</code></a> on Linux/macOS, and
+<a href="https://www.anaconda.com/docs/getting-started/miniconda/install"><code>conda</code></a> on
+Windows or anywhere native geospatial dependencies cause trouble.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># with uv (recommended on Linux/macOS)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>climakitae
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># with conda (recommended on Windows/macOS)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>climakitae<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.13<span class="w"> </span>-y
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>conda<span class="w"> </span>activate<span class="w"> </span>climakitae
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>pip<span class="w"> </span>install<span class="w"> </span>climakitae
 </code></pre></div>
+<p>For editable installs, developer dependencies, and platform-specific tips, see
+the <a href="https://github.com/cal-adapt/climakitae/wiki">Installation Guide on the wiki</a>.</p>
 <h2 id="your-first-query">Your First Query</h2>
 <p>Import and create a <code>ClimateData</code> instance:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
@@ -2318,7 +2324,7 @@ A: Yes! Add <code>"export": {"filename": "my_data", "file_format": "NetCDF"}</co
 <ul>
 <li><a href="https://analytics.cal-adapt.org/data/about">Cal-Adapt Analytics Engine — About the data</a>  </li>
 <li><a href="https://analytics.cal-adapt.org/guidance/glossary">Cal-Adapt Analytics Engine — Glossary</a> (bias correction, GWLs, downscaling terminology)  </li>
-<li><a href="https://analytics.cal-adapt.org/analytics/applications/example">Cal-Adapt Analytics Engine — Example applications</a> (featured notebooks)</li>
+<li><a href="https://cal-adapt.github.io/climakitae/dev/notebook-gallery/">Cal-Adapt Analytics Engine — Example applications</a> (notebook gallery)</li>
 </ul>
 
 

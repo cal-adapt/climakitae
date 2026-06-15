@@ -3009,84 +3009,84 @@
 <thead>
 <tr>
 <th>Method</th>
-<th>Lines</th>
+<th>Link to Code</th>
 <th>Purpose</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>__init__</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L186">186–291</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>Parse <code>value</code>, set mode flags (<code>is_single_point</code>, <code>is_multi_point</code>, <code>separated</code>, <code>extract_points</code>, <code>persist</code>)</td>
 </tr>
 <tr>
 <td><code>execute</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L294">294–477</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>Two-phase: parse value → geom (line 303), then dispatch over result type (line 386); optional <code>.compute()</code> if <code>persist</code></td>
 </tr>
 <tr>
 <td><code>update_context</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L479">479–535</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>Record clipped-region metadata under <code>new_attrs["clip"]</code></td>
 </tr>
 <tr>
 <td><code>set_data_accessor</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L537">537–539</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aset_data_accessor+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>Receive <code>DataCatalog</code> reference for boundary/station lookups</td>
 </tr>
 <tr>
 <td><code>_get_station_coordinates</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L541">541–568</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_get_station_coordinates+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>HadISD station code → (lat, lon, metadata)</td>
 </tr>
 <tr>
 <td><code>_convert_stations_to_points</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L570">570–593</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_convert_stations_to_points+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>Multi-station list → point_list + metadata list</td>
 </tr>
 <tr>
 <td><code>_clip_data_with_geom</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L595">595–663</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_clip_data_with_geom+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>CRS detection + <code>rio.clip(all_touched=True, drop=True)</code></td>
 </tr>
 <tr>
 <td><code>_clip_data_to_point</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L665">665–878</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_clip_data_to_point+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>Closest cell, fallback to 3×3 index-space neighborhood mean</td>
 </tr>
 <tr>
 <td><code>_clip_data_to_multiple_points</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L880">880–961</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_clip_data_to_multiple_points+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>Vectorized multi-point selection</td>
 </tr>
 <tr>
 <td><code>_clip_data_to_multiple_points_fallback</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L963">963–1059</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_clip_data_to_multiple_points_fallback+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>Fallback path used when vectorized lookup fails</td>
 </tr>
 <tr>
 <td><code>_clip_data_to_points_as_mask</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1061">1061–1346</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_clip_data_to_points_as_mask+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>Mask-based multi-point clip; supports <code>extract_points</code> along new <code>points</code> dim</td>
 </tr>
 <tr>
 <td><code>_clip_data_separated</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1348">1348–1441</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_clip_data_separated+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>Per-boundary clipping returning dict/list keyed by boundary</td>
 </tr>
 <tr>
 <td><code>_get_boundary_geometry</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1443">1443–1503</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_get_boundary_geometry+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>Single boundary key → GeoDataFrame</td>
 </tr>
 <tr>
 <td><code>_get_multi_boundary_geometry</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1683">1683–1749</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_get_multi_boundary_geometry+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>Multi-boundary union via <code>_combine_geometries</code></td>
 </tr>
 <tr>
 <td><code>_combine_geometries</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1751">1751–</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_combine_geometries+path%3Aclip.py&amp;type=code">View on Github</a></td>
 <td>Geometry union helper</td>
 </tr>
 </tbody>

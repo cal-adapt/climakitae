@@ -2532,104 +2532,104 @@
 <thead>
 <tr>
 <th>Method</th>
-<th>Lines</th>
+<th>Link to Code</th>
 <th>Purpose</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>__init__</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L197">197–237</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Parse <code>value</code> dict, set defaults</td>
 </tr>
 <tr>
 <td><code>_validate_parameters</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L238">238–325</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_validate_parameters+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Validate format / mode / export_method / types</td>
 </tr>
 <tr>
 <td><code>execute</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L326">326–393</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Route by <code>export_method</code>; returns input unchanged</td>
 </tr>
 <tr>
 <td><code>_export_data</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L394">394–455</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_export_data+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td><code>match result</code> dispatcher (Dataset/DataArray, dict, list/tuple)</td>
 </tr>
 <tr>
 <td><code>_export_collection</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L457">457–511</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_export_collection+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>List/tuple handler honoring <code>separated</code> and <code>location_based_naming</code></td>
 </tr>
 <tr>
 <td><code>_export_single_from_collection</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L513">513–571</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_export_single_from_collection+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Per-item write inside <code>_export_collection</code></td>
 </tr>
 <tr>
 <td><code>_handle_dict_result</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L573">573–588</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_handle_dict_result+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td><code>raw_data</code> / <code>calc_data</code> dict (e.g., <code>cava_data</code>)</td>
 </tr>
 <tr>
 <td><code>_handle_selective_export</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L590">590–618</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_handle_selective_export+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Selective raw/calculate/both for non-dict inputs</td>
 </tr>
 <tr>
 <td><code>_determine_data_type</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L620">620–646</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_determine_data_type+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Classify input as raw vs calculated</td>
 </tr>
 <tr>
 <td><code>_export_with_suffix</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L648">648–674</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_export_with_suffix+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Append suffix (<code>_raw</code>, <code>_calc</code>) and write</td>
 </tr>
 <tr>
 <td><code>update_context</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L676">676–696</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Record export metadata in context</td>
 </tr>
 <tr>
 <td><code>_clean_attrs_for_netcdf</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L702">702–761</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_clean_attrs_for_netcdf+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Sanitize attrs for NetCDF/Zarr serialization</td>
 </tr>
 <tr>
 <td><code>_is_single_point_data</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L763">763–785</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_is_single_point_data+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Detect scalar lat/lon</td>
 </tr>
 <tr>
 <td><code>_has_closest_cell_dimension</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L787">787–818</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_has_closest_cell_dimension+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Multi-point clip detection</td>
 </tr>
 <tr>
 <td><code>_split_and_export_closest_cells</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L820">820–902</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_split_and_export_closest_cells+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Split along <code>closest_cell</code> and write each slice</td>
 </tr>
 <tr>
 <td><code>_extract_point_coordinates</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L904">904–964</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_extract_point_coordinates+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Pull (lat, lon) for filename suffix</td>
 </tr>
 <tr>
 <td><code>_generate_filename</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L966">966–1030</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_generate_filename+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Build base filename (location_based or template)</td>
 </tr>
 <tr>
 <td><code>_get_unique_filename</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L1032">1032–1062</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_get_unique_filename+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td>Add <code>_1</code>, <code>_2</code>, ... when target exists</td>
 </tr>
 <tr>
 <td><code>export_single</code></td>
-<td><a href="https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L1064">1064–1127</a></td>
+<td><a href="https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexport_single+path%3Aexport.py&amp;type=code">View on Github</a></td>
 <td><code>match req_format</code> and call format writer</td>
 </tr>
 <tr>
