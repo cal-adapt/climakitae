@@ -466,6 +466,8 @@ class TMY:
         Latitude for TMY data if station_name not set
     longitude : float | int (optional)
         Longitude for TMY data if station_name not set
+    reanalysis: bool
+        True to use ERA5 reanalysis instead of models
     verbose: bool
         True to increase verbosity
 
@@ -580,7 +582,7 @@ class TMY:
                 )
             if (self.start_year < 1981) or (self.end_year > 2019):
                 raise ValueError(
-                    f"Valid year range for ERA5 reanalysis is [1981, 2019].\nUser provided start year {self.start_year} and end year {self.end_year}"
+                    f"Valid start and end years for ERA5 must be between 1981 and 2019.\nUser provided start year {self.start_year} and end year {self.end_year}"
                 )
             self.use_era5 = True
             self.simulations = ["WRF_ERA5_reanalysis"]
@@ -1189,10 +1191,6 @@ class TMY:
         ]
 
         self.all_vars = xr.merge(daily_arrays)
-        # In ERA5 reanalysis case with 1 sim, the "simulation" dim
-        # got dropped when datasets were squeezed. Adding it back here.
-        # if "simulation" not in self.all_vars.dims:
-        #    self.all_vars = self.all_vars.expand_dims("simulation")
         self._vprint("  Daily statistics ready.")
 
     def set_cdf_climatology(self):
