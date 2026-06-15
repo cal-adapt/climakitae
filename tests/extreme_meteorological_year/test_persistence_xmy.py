@@ -43,7 +43,7 @@ class TestFunctionsForXMY:
         ).to_dataset()
 
         test_ds["Air temperature at 2m (degC)"] = (["simulation", "time"], test_data)
-
+        
         q = 0.9
         result = persistence_get_top_hours(test_ds, q)  # , skip_last=False
         # Correctly formatted dataframe
