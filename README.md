@@ -59,6 +59,7 @@ data = (
     ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
+    .institution_id("UCLA")
     .table_id("mon")
     .grid_label("d03")
     .variable("t2max")
