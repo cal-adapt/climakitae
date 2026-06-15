@@ -4,15 +4,23 @@ Query climate data for California in a few lines of code using the `ClimateData`
 
 ## Installation
 
+ClimakitAE requires **Python 3.12 or 3.13**. We recommend
+[`uv`](https://docs.astral.sh/uv/) on Linux/macOS, and
+[`conda`](https://www.anaconda.com/docs/getting-started/miniconda/install) on
+Windows or anywhere native geospatial dependencies cause trouble.
+
 ```bash
-# Using uv (recommended for development)
-uv venv
-source .venv/bin/activate
+# with uv (recommended on Linux/macOS)
 uv pip install climakitae
 
-# Or with pip
+# with conda (recommended on Windows/macOS)
+conda create -n climakitae python=3.13 -y
+conda activate climakitae
 pip install climakitae
 ```
+
+For editable installs, developer dependencies, and platform-specific tips, see
+the [Installation Guide on the wiki](https://github.com/cal-adapt/climakitae/wiki).
 
 ## Your First Query
 
@@ -127,4 +135,4 @@ For more details, see the [API reference](api/climate-data.md), browse [how-to g
 
 - [Cal-Adapt Analytics Engine — About the data](https://analytics.cal-adapt.org/data/about)  
 - [Cal-Adapt Analytics Engine — Glossary](https://analytics.cal-adapt.org/guidance/glossary) (bias correction, GWLs, downscaling terminology)  
-- [Cal-Adapt Analytics Engine — Example applications](https://analytics.cal-adapt.org/analytics/applications/example) (featured notebooks)
+- [Cal-Adapt Analytics Engine — Example applications](https://cal-adapt.github.io/climakitae/dev/notebook-gallery/) (notebook gallery)
