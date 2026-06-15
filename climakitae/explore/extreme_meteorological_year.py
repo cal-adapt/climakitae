@@ -2070,6 +2070,24 @@ class persistence_XMY:
         with ProgressBar():
             all_vars_ds = self._hourly_data.compute()
 
+        # When skip_last=True (WL approach), persistence_get_top_hours padded
+        # air_temp_var to N_ceil*8760 stamps so the partial trailing year's
+        # Jan–Nov hours are still selectable. top_hours["year"] can therefore
+        # contain the partial year's dummy label. Pad all_vars_ds to the same
+        # N_ceil*8760 length (NaN-fill) so _make_8760_tables sees the same
+        # year set and year_idx never goes out of bounds.
+        if self._skip_last:
+            _hours_per_year = 8760
+            _n_total = all_vars_ds.sizes["time"]
+            _n_full_years = -(-_n_total // _hours_per_year)  # ceiling
+            _missing = _n_full_years * _hours_per_year - _n_total
+            if _missing > 0:
+                _times = pd.DatetimeIndex(all_vars_ds.time.values)
+                _pad_start = _times[-1] + pd.Timedelta(hours=1)
+                _pad_times = pd.date_range(start=_pad_start, periods=_missing, freq="h")
+                _full_times = _times.append(_pad_times)
+                all_vars_ds = all_vars_ds.reindex(time=_full_times)
+
         # Construct XMY
         p = self.q * 100
         p = int(p)
