@@ -31,64 +31,95 @@ class TestFunctionsForXMY:
     def test_persistence_get_top_hours_format(self):
         """Check top hours dataframe format."""
 
-        test_data = np.arange(0, 365 * 3, 1)
-        test_data = test_data * np.ones((2, len(test_data)))
-        test_ds = xr.DataArray(
-            name="temperature",
+        test_data = np.arange(0, 365 * 3 * 24, 1)
+        test_data = np.expand_dims(test_data, [1, 2])
+        coords = {
+            "x": 7.819e05,
+            "y": -4.116e06,
+            "lakemask": 0,
+            "landmask": 0,
+            "Lambert_Conformal": 0,
+            "time": pd.date_range(
+                start="2001-01-01-00", end="2003-12-31-23", freq="1h"
+            ),
+            "scenario": ["Historical + SSP 3-7.0"],
+            "simulation": ["sim1"],
+        }
+        test_da = xr.DataArray(
+            name="Air Temperature at 2m",
+            dims=["time", "scenario", "simulation"],
             data=test_data,
-            coords={
-                "simulation": ["sim1", "sim2"],
-                "time": pd.date_range(start="2001-01-01", end="2003-12-31"),
-            },
-        ).to_dataset()
+            coords=coords,
+        )
+        test_da.attrs = {
+            "variable_id": "t2",
+            "extended_description": "Temperature of the air 2m above Earth's surface.",
+            "units": "degC",
+            "data_type": "Gridded",
+            "resolution": "9 km",
+            "frequency": "hourly",
+            "location_subset": ["coordinate selection"],
+            "approach": "Time",
+            "downscaling_method": "Dynamical",
+            "institution": "UCLA",
+            "grid_mapping": "Lambert_Conformal",
+            "timezone": "America/Los_Angeles",
+        }
 
-        test_ds["Air temperature at 2m (degC)"] = (["simulation", "time"], test_data)
-        
         q = 0.9
-        result = persistence_get_top_hours(test_ds, q)  # , skip_last=False
+        result = persistence_get_top_hours(test_da, q, skip_last=False)
         # Correctly formatted dataframe
         for col in ["hour", "sim", "year"]:
             assert col in result.columns
-        assert (np.unique(result["sim"]) == np.array(["sim1", "sim2"])).all()
+        assert (np.unique(result["sim"]) == np.array(["sim1"])).all()
 
     def test_persistence_get_top_hours_skip_last(self):
         """Check top months dataframe format."""
 
-        time_index = pd.date_range(start="2001-01-01", end="2003-12-31")
-
-        test_data = np.arange(0, 365 * 3, 1)
-        test_data = test_data * np.ones((2, len(test_data)))
-        test_ds = xr.DataArray(
-            name="temperature",
+        test_data = np.arange(0, 365 * 3 * 24, 1)
+        test_data = np.expand_dims(test_data, [1, 2])
+        coords = {
+            "x": 7.819e05,
+            "y": -4.116e06,
+            "lakemask": 0,
+            "landmask": 0,
+            "Lambert_Conformal": 0,
+            "time": pd.date_range(
+                start="2001-01-01-00", end="2003-12-31-23", freq="1h"
+            ),
+            "scenario": ["Historical + SSP 3-7.0"],
+            "simulation": ["sim1"],
+        }
+        test_da = xr.DataArray(
+            name="Air Temperature at 2m",
+            dims=["time", "scenario", "simulation"],
             data=test_data,
-            coords={
-                "simulation": ["sim1", "sim2"],
-                "time": time_index,
-            },
-        ).to_dataset()
-
-        test_ds["Daily min air temperature"] = (["sim", "time"], test_data)
-
-        # now add in max air temp data, in which the final two years have the highest temperatures
-        max_temp = test_data.copy()
-        max_temp[:, time_index.year == 2003] += 1000
-        max_temp[:, time_index.year == 2002] += 500
-        test_ds["Daily max air temperature"] = (["simulation", "time"], max_temp)
-
-        cdf_clim = get_cdf(test_ds)
-        cdf_month = get_cdf_monthly(test_ds)
-        q = 0.9
-
-        # 2003 selected for all months when skip_last is False
-        result = generate_candidate_months(cdf_month, cdf_clim, q=0.9, skip_last=False)
-        assert (result.loc[result["month"] == 12]["year"] == [2003, 2003]).all()
-
-        # 2002 selected for all months when skip_last is True
-        result_skip = generate_candidate_months(
-            cdf_month, cdf_clim, q=0.9, skip_last=True
+            coords=coords,
         )
+        test_da.attrs = {
+            "variable_id": "t2",
+            "extended_description": "Temperature of the air 2m above Earth's surface.",
+            "units": "degC",
+            "data_type": "Gridded",
+            "resolution": "9 km",
+            "frequency": "hourly",
+            "location_subset": ["coordinate selection"],
+            "approach": "Time",
+            "downscaling_method": "Dynamical",
+            "institution": "UCLA",
+            "grid_mapping": "Lambert_Conformal",
+            "timezone": "America/Los_Angeles",
+        }
+
+        q = 0.9
+        # 2003 selected for all hours when skip_last is False
+        result = persistence_get_top_hours(test_da, q, skip_last=False)
+        assert (result.loc[result["hour"].between(8017, 8761)]["year"] == 2003).all()
+
+        # 2002 selected for all hours in the final month when skip_last is True
+        result_skip = persistence_get_top_hours(test_da, q, skip_last=True)
         assert (
-            result_skip.loc[result_skip["month"] == 12]["year"] == [2002, 2002]
+            result_skip.loc[result["hour"].between(8017, 8761)]["year"] == 2002
         ).all()
 
 
