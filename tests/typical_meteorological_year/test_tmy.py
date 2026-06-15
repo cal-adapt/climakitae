@@ -555,15 +555,42 @@ class TestTMYClass:
         # Use valid station name
         lat = 33.56
         lon = -117.81
-        start_year = 1990
-        end_year = 2020
-        # Initialize TMY object
-        tmy = TMY(start_year=start_year, end_year=end_year, latitude=lat, longitude=lon, reanalysis=True)
+        start_year = 1981
+        end_year = 2009
+        # Initialize TMY object with reanalysis = True
+        tmy = TMY(
+            start_year=start_year,
+            end_year=end_year,
+            latitude=lat,
+            longitude=lon,
+            reanalysis=True,
+        )
         assert tmy.use_era5 == True
 
-        # Initialize TMY object
+        # Initialize TMY object with reanalysis = False (default)
         tmy = TMY(start_year=start_year, end_year=end_year, latitude=lat, longitude=lon)
         assert tmy.use_era5 == False
+
+    @pytest.mark.integration
+    def test_init_with_reanalysis_value_error(self):
+        """Check that invalid year values are caught."""
+        # Use valid station name
+        lat = 33.56
+        lon = -117.81
+        start_year = 1980
+        end_year = 2020
+
+        with pytest.raises(
+            ValueError,
+            match="Valid start and end years for ERA5 reanalysis must be between 1981 and 2019. User provided start year 1980 and end year 2020",
+        ):
+            tmy = TMY(
+                start_year=start_year,
+                end_year=end_year,
+                latitude=lat,
+                longitude=lon,
+                reanalysis=True,
+            )
 
     @pytest.mark.integration
     def test_init_with_custom_name(self):
