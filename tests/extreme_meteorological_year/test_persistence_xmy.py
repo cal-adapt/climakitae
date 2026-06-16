@@ -592,7 +592,7 @@ class TestXMYClass:
     def test__make_8760_tables(self):
         """Check that dataframe of 8760 values returned."""
         data = {
-            "hours": list(range(1, 8761)),
+            "hour": list(range(1, 8761)),
             "simulation": ["WRF_EC-Earth3_r1i1p1f1" for x in range(0, 8760)],
             "year": [2001 for x in range(0, 8760)],
         }
@@ -709,7 +709,7 @@ class TestXMYClass:
         xmy._hourly_data = hourly_ds
         xmy.top_hours = pd.DataFrame(
             {
-                "hours": list(range(1, 8761)),
+                "hour": list(range(1, 8761)),
                 "simulation": [sim] * 8760,
                 "year": [2001] * 8760,
             }
@@ -742,7 +742,7 @@ class TestXMYClass:
         xmy._hourly_data = hourly_ds
         xmy.top_hours = pd.DataFrame(
             {
-                "hours": list(range(1, 8761)),
+                "hour": list(range(1, 8761)),
                 "simulation": [sim] * 8760,
                 "year": [2001] * 8760,
             }
