@@ -39,7 +39,7 @@ jobs:
               with:
                   # Check all markdown in docs-mkdocs/
                   args: >-
-                      --verbose --no-progress --exclude-path
+                      --verbose --accept 429 --no-progress --exclude-path
                       docs-mkdocs/climate-data-interface/processors/TEMPLATE.md
                       --exclude "https://mybinder.org" --exclude
                       "https://cal-adapt.github.io/climakitae" --exclude
@@ -47,4 +47,4 @@ jobs:
                       "docs-mkdocs/**/*.md"
                   fail: true
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.GH_LINK_CHECKER_PAT }}
