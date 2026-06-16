@@ -1754,7 +1754,7 @@ class persistence_XMY:
             # Vectorized lookup of selected year per hour-of-year (replaces L137–139)
             sel_years = (
                 top_hours[top_hours["simulation"] == sim]
-                .sort_values("hours")["year"]
+                .sort_values("hour")["year"]
                 .to_numpy()
             )  # shape (8760,)
             year_idx = np.searchsorted(year_values, sel_years)
