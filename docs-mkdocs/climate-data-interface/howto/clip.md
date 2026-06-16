@@ -34,6 +34,7 @@ cd.show_boundary_options()  # All boundary types
 cd.show_boundary_options("ca_counties")  # All California counties
 ```
 
+
 **Available boundary types:**
 
 | Boundary Type | Description |
