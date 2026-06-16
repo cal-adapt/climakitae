@@ -30,16 +30,16 @@ class TestFunctionsForXMY:
         test_data = np.arange(0, 365 * 3 * 24, 1)
         test_data = np.expand_dims(test_data, [1, 2])
         coords = {
-            "x": 7.819e05,
-            "y": -4.116e06,
-            "lakemask": 0,
-            "landmask": 0,
-            "Lambert_Conformal": 0,
             "time": pd.date_range(
                 start="2001-01-01-00", end="2003-12-31-23", freq="1h"
             ),
             "scenario": ["Historical + SSP 3-7.0"],
             "simulation": ["sim1"],
+            "x": 7.819e05,
+            "y": -4.116e06,
+            "lakemask": 0,
+            "landmask": 0,
+            "Lambert_Conformal": 0,
         }
         test_da = xr.DataArray(
             name="Air Temperature at 2m",
@@ -65,9 +65,9 @@ class TestFunctionsForXMY:
         q = 0.9
         result = persistence_get_top_hours(test_da, q, skip_last=False)
         # Correctly formatted dataframe
-        for col in ["hour", "sim", "year"]:
+        for col in ["hour", "simulation", "year"]:
             assert col in result.columns
-        assert (np.unique(result["sim"]) == np.array(["sim1"])).all()
+        assert (np.unique(result["simulation"]) == np.array(["sim1"])).all()
 
     def test_persistence_get_top_hours_skip_last(self):
         """Check top months dataframe format."""
@@ -75,16 +75,16 @@ class TestFunctionsForXMY:
         test_data = np.arange(0, 365 * 3 * 24, 1)
         test_data = np.expand_dims(test_data, [1, 2])
         coords = {
-            "x": 7.819e05,
-            "y": -4.116e06,
-            "lakemask": 0,
-            "landmask": 0,
-            "Lambert_Conformal": 0,
             "time": pd.date_range(
                 start="2001-01-01-00", end="2003-12-31-23", freq="1h"
             ),
             "scenario": ["Historical + SSP 3-7.0"],
             "simulation": ["sim1"],
+            "x": 7.819e05,
+            "y": -4.116e06,
+            "lakemask": 0,
+            "landmask": 0,
+            "Lambert_Conformal": 0,
         }
         test_da = xr.DataArray(
             name="Air Temperature at 2m",
@@ -125,14 +125,14 @@ def mock_t_hourly() -> xr.DataArray:
     test_data = np.arange(0, 365 * 3 * 24, 1)
     test_data = np.expand_dims(test_data, [1, 2])
     coords = {
+        "time": pd.date_range(start="2001-01-01-00", end="2003-12-31-23", freq="1h"),
+        "scenario": ["Historical + SSP 3-7.0"],
+        "simulation": ["WRF_EC-Earth3_r1i1p1f1"],
         "x": 7.819e05,
         "y": -4.116e06,
         "lakemask": 0,
         "landmask": 0,
         "Lambert_Conformal": 0,
-        "time": pd.date_range(start="2001-01-01-00", end="2003-12-31-23", freq="1h"),
-        "scenario": ["Historical + SSP 3-7.0"],
-        "simulation": ["WRF_EC-Earth3_r1i1p1f1"],
     }
     da = xr.DataArray(
         name="Air Temperature at 2m",
@@ -162,14 +162,14 @@ def mock_t_ds() -> xr.Dataset:
     test_data = np.arange(0, 365 * 3 * 24, 1)
     test_data = np.expand_dims(test_data, [1, 2])
     coords = {
+        "time": pd.date_range(start="2001-01-01-00", end="2003-12-31-23", freq="1h"),
+        "scenario": ["Historical + SSP 3-7.0"],
+        "simulation": ["WRF_EC-Earth3_r1i1p1f1"],
         "x": 7.819e05,
         "y": -4.116e06,
         "lakemask": 0,
         "landmask": 0,
         "Lambert_Conformal": 0,
-        "time": pd.date_range(start="2001-01-01-00", end="2003-12-31-23", freq="1h"),
-        "scenario": ["Historical + SSP 3-7.0"],
-        "simulation": ["WRF_EC-Earth3_r1i1p1f1"],
     }
     da = xr.DataArray(
         name="Air Temperature at 2m",
@@ -545,7 +545,7 @@ class TestXMYClass:
             for sim in sims:
                 assert sim in xmy._sim_centered_years
 
-    #@patch("climakitae.explore.extreme_meteorological_year.remove_pinatubo_years")
+    # @patch("climakitae.explore.extreme_meteorological_year.remove_pinatubo_years")
     def test_generate_xmy(self):
         """Test that all steps called in full workflow."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
@@ -592,9 +592,9 @@ class TestXMYClass:
     def test__make_8760_tables(self):
         """Check that dataframe of 8760 values returned."""
         data = {
-            "month": list(range(1, 13)),
-            "simulation": ["WRF_EC-Earth3_r1i1p1f1" for x in range(0, 12)],
-            "year": [2001 for x in range(0, 12)],
+            "hours": list(range(1, 8761)),
+            "simulation": ["WRF_EC-Earth3_r1i1p1f1" for x in range(0, 8760)],
+            "year": [2001 for x in range(0, 8760)],
         }
         df = pd.DataFrame.from_dict(data)
         all_vars_ds = mock_t_ds()
@@ -612,20 +612,17 @@ class TestXMYClass:
         result = xmy._make_8760_tables(all_vars_ds, df)
         # Check result dict of dataframes (only 1 for 1 simulation in test)
         assert list(result.keys()) == list(all_vars_ds.simulation.values)
-        assert (
-            result["WRF_EC-Earth3_r1i1p1f1"].columns
-            == [
-                "time",
-                "scenario",
-                "simulation",
-                "x",
-                "y",
-                "lakemask",
-                "landmask",
-                "Lambert_Conformal",
-                "Air Temperature at 2m",
-            ]
-        ).all()
+        assert list(result["WRF_EC-Earth3_r1i1p1f1"].columns) == [
+            "time",
+            "scenario",
+            "simulation",
+            "x",
+            "y",
+            "lakemask",
+            "landmask",
+            "Lambert_Conformal",
+            "Air Temperature at 2m",
+        ]
         assert len(result["WRF_EC-Earth3_r1i1p1f1"].index) == 8760
 
     def test__smooth_month_transition_hours(self):
@@ -690,10 +687,8 @@ class TestXMYClass:
             end_year=end_year,
             station_name=stn_name,
         )
-        with (patch.object(xmy, "persistence_get_top_hours") as mock_hours,):
-            xmy.set_top_months()
-            mock_hours.assert_called_once()
-            mock_generate.assert_called_once()
+        xmy.set_top_hours()
+        mock_generate.assert_called_once()
 
     def test_run_xmy_analysis_adds_scenario_column(self):
         """Check that run_xmy_analysis adds 'scenario' column in time mode."""
@@ -712,11 +707,11 @@ class TestXMYClass:
         sim = "WRF_EC-Earth3_r1i1p1f1"
         hourly_ds = mock_complete_hourly_ds()
         xmy._hourly_data = hourly_ds
-        xmy.top_months = pd.DataFrame(
+        xmy.top_hours = pd.DataFrame(
             {
-                "month": list(range(1, 13)),
-                "simulation": [sim] * 12,
-                "year": [2001] * 12,
+                "hours": list(range(1, 8761)),
+                "simulation": [sim] * 8760,
+                "year": [2001] * 8760,
             }
         )
 
@@ -745,11 +740,11 @@ class TestXMYClass:
         sim = "WRF_EC-Earth3_r1i1p1f1"
         hourly_ds = mock_complete_hourly_ds()
         xmy._hourly_data = hourly_ds
-        xmy.top_months = pd.DataFrame(
+        xmy.top_hours = pd.DataFrame(
             {
-                "month": list(range(1, 13)),
-                "simulation": [sim] * 12,
-                "year": [2001] * 12,
+                "hours": list(range(1, 8761)),
+                "simulation": [sim] * 8760,
+                "year": [2001] * 8760,
             }
         )
 

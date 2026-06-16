@@ -1240,7 +1240,7 @@ def persistence_get_top_hours(
         df_i = pd.DataFrame(
             {
                 "hour": np.arange(1, hours_per_year + 1),
-                "sim": sim,
+                "simulation": sim,
                 "year": sel_year.astype(int),
             }
         )
@@ -1753,8 +1753,8 @@ class persistence_XMY:
 
             # Vectorized lookup of selected year per hour-of-year (replaces L137–139)
             sel_years = (
-                top_hours[top_hours["sim"] == sim]
-                .sort_values("hour")["year"]
+                top_hours[top_hours["simulation"] == sim]
+                .sort_values("hours")["year"]
                 .to_numpy()
             )  # shape (8760,)
             year_idx = np.searchsorted(year_values, sel_years)
@@ -1766,6 +1766,8 @@ class persistence_XMY:
 
             df = picked.to_dataframe().reset_index()
             df["time"] = reformatted_time_coordinate(picked)
+            # Move time coordinate back to front
+            df.insert(0, "time", df.pop("time"))
             df = df.drop(columns=["hour_of_year", "year"])
             xmy_df_all[sim] = df
 
