@@ -1113,9 +1113,6 @@ class shock_XMY:
         self.export_xmy_data()
 
 
-###### Peristence XMY ######
-
-
 def persistence_get_top_hours(
     data: xr.DataArray, q: float, skip_last: bool = False
 ) -> pd.DataFrame:

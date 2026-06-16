@@ -19,10 +19,6 @@ from climakitae.explore.extreme_meteorological_year import (
     persistence_XMY,
     persistence_get_top_hours,
 )
-from climakitae.explore.typical_meteorological_year import (
-    get_cdf,
-    get_cdf_monthly,
-)
 
 
 class TestFunctionsForXMY:
@@ -549,53 +545,7 @@ class TestXMYClass:
             for sim in sims:
                 assert sim in xmy._sim_centered_years
 
-    def test_set_cdf_climatology(self):
-        """Check that data load and get_cdf get called."""
-        stn_name = "Santa Ana John Wayne Airport (KSNA)"
-        start_year = 2001
-        end_year = 2003
-        q = 0.9
-        # Initialize persistence_XMY object
-        xmy = persistence_XMY(q, start_year, end_year, station_name=stn_name)
-        with (
-            patch.object(xmy, "load_all_variables") as mock_load,
-            patch(
-                "climakitae.explore.extreme_meteorological_year.get_cdf",
-                return_value=xr.Dataset(),
-            ) as mock_get_cdf,
-        ):
-            xmy.set_cdf_climatology()
-            # Check correct methods called
-            mock_load.assert_called_once()
-            mock_get_cdf.assert_called_once()
-            assert xmy.cdf_climatology is not UNSET
-            # Check air_temp_vars passed as input to get_cdf_monthly
-            mock_get_cdf.assert_called_once_with(xmy.air_temp_vars)
-
-    @patch("climakitae.explore.extreme_meteorological_year.remove_pinatubo_years")
-    @patch("climakitae.explore.extreme_meteorological_year.get_cdf_monthly")
-    def test_cdf_monthly(self, mock_get_cdf_monthly, mock_remove_pinatubo):
-        """Check that data load and get_cdf_monthly get called."""
-        stn_name = "Santa Ana John Wayne Airport (KSNA)"
-        start_year = 2001
-        end_year = 2003
-        q = 0.9
-        xmy = persistence_XMY(
-            q=q,
-            start_year=start_year,
-            end_year=end_year,
-            station_name=stn_name,
-        )
-        with patch.object(xmy, "load_all_variables") as mock_load:
-            xmy.set_cdf_monthly()
-            # Check correct methods called
-            mock_load.assert_called_once()
-            mock_get_cdf_monthly.assert_called_once()
-            mock_remove_pinatubo.assert_called_once()
-            assert xmy.cdf_monthly is not UNSET
-            # Check air_temp_vars passed as input to get_cdf_monthly
-            mock_get_cdf_monthly.assert_called_once_with(xmy.air_temp_vars)
-
+    #@patch("climakitae.explore.extreme_meteorological_year.remove_pinatubo_years")
     def test_generate_xmy(self):
         """Test that all steps called in full workflow."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
@@ -610,18 +560,18 @@ class TestXMYClass:
         )
         with (
             patch.object(xmy, "load_all_variables") as mock_load,
-            patch.object(xmy, "get_candidate_months") as mock_get_months,
+            patch.object(xmy, "get_candidate_hours") as mock_get_hours,
             patch.object(xmy, "run_xmy_analysis") as mock_run_xmy,
             patch.object(xmy, "export_xmy_data") as mock_export,
         ):
             xmy.generate_xmy()
             # Check correct methods called
             mock_load.assert_called_once()
-            mock_get_months.assert_called_once()
+            mock_get_hours.assert_called_once()
             mock_run_xmy.assert_called_once()
             mock_export.assert_called_once()
 
-    def test_get_candidate_months(self):
+    def test_get_candidate_hours(self):
         """Test the persistence_XMY workflow calls up to set_top_months."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
@@ -634,16 +584,10 @@ class TestXMYClass:
             end_year=end_year,
             station_name=stn_name,
         )
-        with (
-            patch.object(xmy, "set_cdf_monthly") as mock_month,
-            patch.object(xmy, "set_cdf_climatology") as mock_clim,
-            patch.object(xmy, "set_top_months") as mock_top_months,
-        ):
-            xmy.get_candidate_months()
+        with (patch.object(xmy, "set_top_hours") as mock_top_hours,):
+            xmy.get_candidate_hours()
             # Check correct methods called
-            mock_clim.assert_called_once()
-            mock_month.assert_called_once()
-            mock_top_months.assert_called_once()
+            mock_top_hours.assert_called_once()
 
     def test__make_8760_tables(self):
         """Check that dataframe of 8760 values returned."""
@@ -732,8 +676,8 @@ class TestXMYClass:
                 result[varname][720], 1e-6
             )
 
-    @patch("climakitae.explore.extreme_meteorological_year.generate_candidate_months")
-    def test_set_top_months(self, mock_generate):
+    @patch("climakitae.explore.extreme_meteorological_year.persistence_get_top_hours")
+    def test_set_top_hours(self, mock_generate):
         """Check that set_top_months calls correct functions."""
         stn_name = "Santa Ana John Wayne Airport (KSNA)"
         start_year = 2001
@@ -746,13 +690,9 @@ class TestXMYClass:
             end_year=end_year,
             station_name=stn_name,
         )
-        with (
-            patch.object(xmy, "set_cdf_climatology") as mock_clim,
-            patch.object(xmy, "set_cdf_monthly") as mock_monthly,
-        ):
+        with (patch.object(xmy, "persistence_get_top_hours") as mock_hours,):
             xmy.set_top_months()
-            mock_clim.assert_called_once()
-            mock_monthly.assert_called_once()
+            mock_hours.assert_called_once()
             mock_generate.assert_called_once()
 
     def test_run_xmy_analysis_adds_scenario_column(self):
