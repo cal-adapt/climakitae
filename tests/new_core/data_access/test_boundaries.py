@@ -819,7 +819,7 @@ class TestBoundariesAccessorFunctions:
             index=[70, 71],
         )
 
-        setattr(boundaries, "_Boundaries__us_states", states_df)
+        setattr(boundaries, "_Boundaries__states", states_df)
         setattr(boundaries, "_Boundaries__ca_counties", counties_df)
         setattr(boundaries, "_Boundaries__ca_watersheds", watersheds_df)
         setattr(boundaries, "_Boundaries__ca_utilities", utilities_df)
@@ -842,7 +842,7 @@ class TestBoundariesAccessorFunctions:
         ):
             with patch.object(
                 boundaries_with_data,
-                "_get_us_states",
+                "_get_states",
                 return_value={"CA": 10, "OR": 11, "NV": 12},
             ):
                 result = boundaries_with_data.get_states("CA")
@@ -852,7 +852,7 @@ class TestBoundariesAccessorFunctions:
     def test_get_states_invalid_name_raises(self, boundaries_with_data):
         with patch.object(
             boundaries_with_data,
-            "_get_us_states",
+            "_get_states",
             return_value={"CA": 10, "OR": 11},
         ):
             with pytest.raises(ValueError, match="State 'TX' not found"):

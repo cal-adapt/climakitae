@@ -695,9 +695,7 @@ class Boundaries:
 
     def get_states(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
         """Return US western states boundary data."""
-        return self._lookup_boundary(
-            self._us_states, self._get_us_states, name, "State"
-        )
+        return self._lookup_boundary(self._states, self._get_states, name, "State")
 
     def get_counties(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
         """Return California county boundary data."""
