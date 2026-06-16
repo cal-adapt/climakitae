@@ -1075,7 +1075,10 @@ class shock_XMY:
             if self.warming_level is not UNSET:
                 xmy_data_to_export[sim]["warming_level"] = self.warming_level
             else:
-                xmy_data_to_export[sim]["scenario"] = "historical+ssp370"
+                if self.use_era5:
+                    xmy_data_to_export[sim]["scenario"] = "historical_reanalysis"
+                else:
+                    xmy_data_to_export[sim]["scenario"] = "historical+ssp370"
 
         self.xmy_data_to_export = xmy_data_to_export
         self._vprint("shock XMY analysis complete.")

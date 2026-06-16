@@ -483,14 +483,14 @@ class TMY:
         Pair of latitudes that bracket `latitude`
     lon_range: tuple
         Pair of longitudes that bracket `longitude`
+    reanalysis: bool
+        True to use ERA5 reanalysis instead of models
     simulations: list[str]
         List of included simulations
     scenario: list[str]
         List of scenarios
     vars_and_units: dict[str,str]
         Dictionary of all required variables and units
-    reanalysis: bool
-        True to use ERA5 reanalysis instead of models
     verbose: bool
         True to increase verbosity
     cdf_climatology: xr.Dataset
@@ -1310,7 +1310,10 @@ class TMY:
             if self.warming_level is not UNSET:
                 tmy_data_to_export[sim]["warming_level"] = self.warming_level
             else:
-                tmy_data_to_export[sim]["scenario"] = "historical+ssp370"
+                if self.use_era5:
+                    tmy_data_to_export[sim]["scenario"] = "historical_reanalysis"
+                else:
+                    tmy_data_to_export[sim]["scenario"] = "historical+ssp370"
 
         self.tmy_data_to_export = tmy_data_to_export
         self._vprint("TMY analysis complete.")
