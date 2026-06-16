@@ -656,6 +656,93 @@ class Boundaries:
             "CA Census Tracts": self._get_ca_census_tracts(),
         }
 
+    def _lookup_boundary(
+        self, df: gpd.GeoDataFrame, lookup_fn, name: Optional[str], label: str
+    ) -> gpd.GeoDataFrame:
+        """Helper function to lookup boundary data.
+
+        Parameters
+        ----------
+        df : gpd.GeoDataFrame
+            The GeoDataFrame containing boundary data.
+        lookup_fn : callable
+            Function to retrieve the lookup dictionary.
+        name : str, optional
+            Name of the boundary to lookup. If None, returns the full GeoDataFrame.
+        label : str
+            Label for the boundary type (used in error messages).
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            Single-row GeoDataFrame for the named boundary, or the full GeoDataFrame.
+
+        Raises
+        ------
+        ValueError
+            If ``name`` is provided but not found in the lookup dictionary.
+
+        """
+        if name is None:
+            return df
+        lookup = lookup_fn()
+        matching_keys = [k for k in lookup if name.lower() in k.lower()]
+        if not matching_keys:
+            raise ValueError(
+                f"{label} '{name}' not found. Available: {sorted(lookup.keys())}"
+            )
+        return df.loc[[lookup[matching_keys[0]]]]
+
+    def get_states(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return US western states boundary data."""
+        return self._lookup_boundary(
+            self._us_states, self._get_us_states, name, "State"
+        )
+
+    def get_counties(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return California county boundary data."""
+        return self._lookup_boundary(
+            self._ca_counties, self._get_ca_counties, name, "County"
+        )
+
+    def get_watersheds(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return California HUC8 watershed boundary data."""
+        return self._lookup_boundary(
+            self._ca_watersheds, self._get_ca_watersheds, name, "Watershed"
+        )
+
+    def get_utilities(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return California electric utility (IOU & POU) boundary data."""
+        return self._lookup_boundary(
+            self._ca_utilities, self._get_ious_pous, name, "Utility"
+        )
+
+    def get_forecast_zones(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return California electricity demand forecast zone boundary data."""
+        return self._lookup_boundary(
+            self._ca_forecast_zones, self._get_forecast_zones, name, "Forecast zone"
+        )
+
+    def get_electric_balancing_areas(
+        self, name: Optional[str] = None
+    ) -> gpd.GeoDataFrame:
+        """Return California electric balancing authority area boundary data."""
+        return self._lookup_boundary(
+            self._ca_electric_balancing_areas,
+            self._get_electric_balancing_areas,
+            name,
+            "Balancing area",
+        )
+
+    def get_census_tracts(self, geoid: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return California census tract boundary data."""
+        return self._lookup_boundary(
+            self._ca_census_tracts,
+            self._get_ca_census_tracts,
+            geoid,
+            "Census tract GEOID",
+        )
+
     def load(self) -> None:
         """Preload all boundary data (deprecated - data loads automatically when accessed).
 
