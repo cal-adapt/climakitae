@@ -267,9 +267,7 @@ def _check_stations(location_str: str, **kwargs: Any) -> str:
                     location_str = stations[0].lower()
                 # if not a HadISD station
                 else:
-                    raise ValueError(
-                        "If a custom station name is given, and no cached area is given, its latitude and longitude must also be provided."
-                    )
+                    raise ValueError("Station must be a HadISD station.")
             # if there are multiple station names
             else:
                 # if all are HadISD stations
@@ -277,24 +275,7 @@ def _check_stations(location_str: str, **kwargs: Any) -> str:
                     location_str = "_".join(s.lower() for s in stations)
                 # if at least one is not a HadISD station
                 else:
-                    raise ValueError(
-                        f"If multiple stations are given, and no other location parameters, all must be HadISD stations."
-                    )
-        # station(s) and other location parameters provided
-        case (list(), length) if length > 0:
-            # if location_str does NOT contain numbers (ie, cached area was provided)
-            if not any(char.isdigit() for char in location_str):
-                return location_str
-
-            # if only one station provided, it's custom, and location_str contains numbers (ie, lat/lon were provided)
-            if (
-                len(stations) == 1
-                and not is_HadISD(stations[0])
-                and any(char.isdigit() for char in location_str)
-            ):
-                location_str = f"{stations[0].lower()}_{location_str}"
-            else:
-                return location_str
+                    raise ValueError(f"All stations must be HadISD stations.")
         # no station(s), other location parameters provided
         case (object(), length) if length > 0:
             return location_str
