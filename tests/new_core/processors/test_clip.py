@@ -1954,8 +1954,8 @@ class TestGetBoundaryGeometry:
             mock_df, geometry=[box(-124, 32, -114, 42)], crs="EPSG:4326"
         )
 
-        # Mock the boundaries._us_states attribute
-        self.mock_boundaries._us_states = mock_gdf
+        # Mock the boundaries._states attribute
+        self.mock_boundaries._states = mock_gdf
 
         # Call _extract_geometry_from_category
         result = self.clip._extract_geometry_from_category("states", 5)
@@ -1980,8 +1980,8 @@ class TestGetBoundaryGeometry:
             mock_df, geometry=[box(-124, 32, -114, 42)], crs="EPSG:4326"
         )
 
-        # Mock the boundaries._us_states attribute
-        self.mock_boundaries._us_states = mock_gdf
+        # Mock the boundaries._states attribute
+        self.mock_boundaries._states = mock_gdf
 
         # Try to extract with invalid index
         with pytest.raises(ValueError, match="Index 999 not found in states data"):

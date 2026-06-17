@@ -83,7 +83,7 @@ class Boundaries:
 
     Properties
     ----------
-    _us_states : pd.DataFrame
+    _states : pd.DataFrame
         US western states with names, abbreviations, and geometries (lazy-loaded)
     _ca_counties : pd.DataFrame
         California counties with names and geometries, sorted alphabetically (lazy-loaded)
@@ -186,7 +186,7 @@ class Boundaries:
         self._cat = boundary_catalog
 
         # Private storage for lazy-loaded DataFrames
-        self.__us_states: Optional[pd.DataFrame] = None
+        self.__states: Optional[pd.DataFrame] = None
         self.__ca_counties: Optional[pd.DataFrame] = None
         self.__ca_watersheds: Optional[pd.DataFrame] = None
         self.__ca_utilities: Optional[pd.DataFrame] = None
@@ -229,18 +229,18 @@ class Boundaries:
             raise ValueError(f"Missing required catalog entries: {missing}")
 
     @property
-    def _us_states(self) -> pd.DataFrame:
+    def _states(self) -> pd.DataFrame:
         """Lazy-loaded US states data."""
-        if self.__us_states is None:
+        if self.__states is None:
             try:
-                self.__us_states = self._process_us_states(self._cat.states.read())
+                self.__states = self._process_states(self._cat.states.read())
             except Exception as e:
                 raise RuntimeError(f"Failed to load US states data: {e}") from e
-        return self.__us_states
+        return self.__states
 
-    @_us_states.setter
-    def _us_states(self, value: pd.DataFrame) -> None:
-        self.__us_states = value
+    @_states.setter
+    def _states(self, value: pd.DataFrame) -> None:
+        self.__states = value
 
     @property
     def _ca_counties(self) -> pd.DataFrame:
@@ -339,7 +339,7 @@ class Boundaries:
     def _ca_census_tracts(self, value: gpd.GeoDataFrame) -> None:
         self.__ca_census_tracts = value
 
-    def _process_us_states(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _process_states(self, df: pd.DataFrame) -> pd.DataFrame:
         """Process raw US states data.
 
         Parameters
@@ -443,7 +443,7 @@ class Boundaries:
         ].index
         return df.drop(tiny_caliso)
 
-    def _get_us_states(self) -> Dict[str, int]:
+    def _get_states(self) -> Dict[str, int]:
         """Get cached lookup dictionary for western US states.
 
         Returns
@@ -452,11 +452,11 @@ class Boundaries:
             Dictionary mapping state abbreviations to DataFrame indices
 
         """
-        if "us_states" not in self._lookup_cache:
-            self._lookup_cache["us_states"] = self._build_us_states_lookup()
-        return self._lookup_cache["us_states"]
+        if "states" not in self._lookup_cache:
+            self._lookup_cache["states"] = self._build_states_lookup()
+        return self._lookup_cache["states"]
 
-    def _build_us_states_lookup(self) -> Dict[str, int]:
+    def _build_states_lookup(self) -> Dict[str, int]:
         """Build lookup dictionary for western US states with custom ordering.
 
         Returns
@@ -465,14 +465,14 @@ class Boundaries:
             Dictionary mapping state abbreviations to DataFrame indices
 
         """
-        us_states_subset = self._us_states.query("abbrevs in @WESTERN_STATES_LIST")[
+        states_subset = self._states.query("abbrevs in @WESTERN_STATES_LIST")[
             ["abbrevs"]
         ]
-        us_states_subset["abbrevs"] = pd.Categorical(
-            us_states_subset["abbrevs"], categories=WESTERN_STATES_LIST
+        states_subset["abbrevs"] = pd.Categorical(
+            states_subset["abbrevs"], categories=WESTERN_STATES_LIST
         )
-        us_states_subset.sort_values(by="abbrevs", inplace=True)
-        return dict(zip(us_states_subset.abbrevs, us_states_subset.index))
+        states_subset.sort_values(by="abbrevs", inplace=True)
+        return dict(zip(states_subset.abbrevs, states_subset.index))
 
     def _get_ca_counties(self) -> Dict[str, int]:
         """Get cached lookup dictionary for California counties.
@@ -647,7 +647,7 @@ class Boundaries:
         return {
             "none": {"entire domain": 0},
             "lat/lon": {"coordinate selection": 0},
-            "states": self._get_us_states(),
+            "states": self._get_states(),
             "CA counties": self._get_ca_counties(),
             "CA watersheds": self._get_ca_watersheds(),
             "CA Electric Load Serving Entities (IOU & POU)": self._get_ious_pous(),
@@ -695,9 +695,7 @@ class Boundaries:
 
     def get_states(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
         """Return US western states boundary data."""
-        return self._lookup_boundary(
-            self._us_states, self._get_us_states, name, "State"
-        )
+        return self._lookup_boundary(self._states, self._get_states, name, "State")
 
     def get_counties(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
         """Return California county boundary data."""
@@ -802,7 +800,7 @@ class Boundaries:
         """
         # Force loading of all properties
         _ = (
-            self._us_states,
+            self._states,
             self._ca_counties,
             self._ca_watersheds,
             self._ca_utilities,
@@ -813,7 +811,7 @@ class Boundaries:
 
         # Build all lookup caches
         _ = (
-            self._get_us_states(),
+            self._get_states(),
             self._get_ca_counties(),
             self._get_ca_watersheds(),
             self._get_forecast_zones(),
@@ -857,7 +855,7 @@ class Boundaries:
 
         """
         # Clear raw DataFrames
-        self.__us_states = None
+        self.__states = None
         self.__ca_counties = None
         self.__ca_watersheds = None
         self.__ca_utilities = None
@@ -881,7 +879,7 @@ class Boundaries:
             Comprehensive memory usage information:
 
             Per-dataset usage (bytes):
-            - 'us_states': Memory used by US states DataFrame (0 if not loaded)
+            - 'states': Memory used by US states DataFrame (0 if not loaded)
             - 'ca_counties': Memory used by CA counties DataFrame (0 if not loaded)
             - 'ca_watersheds': Memory used by CA watersheds DataFrame (0 if not loaded)
             - 'ca_utilities': Memory used by CA utilities DataFrame (0 if not loaded)
@@ -902,7 +900,7 @@ class Boundaries:
         >>>
         >>> print(f"Total memory: {usage['total_human']}")
         >>> print(f"Loaded datasets: {usage['loaded_datasets']}/6")
-        >>> print(f"Largest dataset: {max(usage['us_states'], usage['ca_counties'])}")
+        >>> print(f"Largest dataset: {max(usage['states'], usage['ca_counties'])}")
         >>>
         >>> # Check if specific dataset is loaded
         >>> if usage['ca_counties'] > 0:
@@ -927,7 +925,7 @@ class Boundaries:
         total_bytes = 0
 
         datasets = {
-            "us_states": self.__us_states,
+            "states": self.__states,
             "ca_counties": self.__ca_counties,
             "ca_watersheds": self.__ca_watersheds,
             "ca_utilities": self.__ca_utilities,
