@@ -384,6 +384,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
     ]["variable_id"].item()
 
     # Get location string based on combination of location variables
+    kwargs = _handle_location_params(**kwargs)
     func_list = [_check_cached_area, _check_lat_lon, _check_stations]
     location_str = ""
     for func in func_list:
@@ -435,6 +436,77 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
             raise ValueError(
                 f"Profile MultiIndex should have two or three levels. Found {profile.keys().nlevels} levels."
             )
+
+
+def _handle_location_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Parse the `location` parameter to determine what kind of location is being selected.
+
+    Parameters
+    ----------
+    **kwargs : dict
+        Keyword arguments for data selection. Allowed keys:
+        - variable (Optional) : str, default "Air Temperature at 2m"
+        - resolution (Optional) : str, default "3 km"
+        - approach (Optional) : str, "Warming Level" or "Time"
+        - centered_year (Optional) : int in range [1980,2099]
+        - time_profile_scenario (Optional): str, default "SSP 3-7.0"
+        - warming_levels (Optional) : List[float], default [1.2]
+        - warming_level_window (Optional): int in range [5,25]
+        - location (Optional) : str, List[str|float|int], or Tuple[str|float|int]
+        - units (Optional) : str, default "degF"
+        - no_delta (optional) : bool, default False, if True, do not retrieve historical data, return raw future profile
+        - bias_adjusted_models (optional) : bool, default False, if True only return bias-adjusted WRF models
+
+    Returns
+    -------
+    **kwargs : dict
+        Arguments with updated "cached_area", "stations", or "latitude"/"longitude" parameters
+    """
+    # location is not required, could be unset
+    location = kwargs.pop("location", None)
+    match location:
+        case str():  # Can be single HadISD station or cached area
+            if is_HadISD(location):
+                kwargs["stations"] = [location]
+            else:
+                kwargs["cached_area"] = location
+        case (
+            list() | tuple()
+        ):  # Can be list/tuple of HadISD stations, cached area, or lat/lon
+            if all(is_HadISD(loc) for loc in location):  # stations
+                kwargs["stations"] = location
+            elif all(isinstance(loc, str) for loc in location):  # cached area
+                kwargs["cached_area"] = location
+            elif all(isinstance(loc, (float, int)) for loc in location):  # coordinates
+                if len(location) == 2:
+                    if all(loc <= 0 for loc in location) or all(
+                        loc >= 0 for loc in location
+                    ):
+                        raise ValueError(
+                            "Expected a positive-valued latitude coordinate and negative-valued longitude coordinate."
+                        )
+                    else:
+                        # In western US on our grids, latitude will always be positive
+                        # and longitude always negative
+                        latitude = [loc for loc in location if loc > 0][0]
+                        longitude = [loc for loc in location if loc < 0][0]
+                        # Add buffer around lat/lon point to help get nearest cell
+                        kwargs["latitude"] = (latitude - 0.02, latitude + 0.02)
+                        kwargs["longitude"] = (longitude - 0.02, longitude + 0.02)
+                else:
+                    raise ValueError(
+                        "Length of `location` parameter must be two if providing a coordinate pair."
+                    )
+            else:
+                raise ValueError(f"Unable to parse location parameter {location}.")
+        case None:
+            # Do nothing here. Users will see a warning about the lack of location in retrieve_profile_data.
+            pass
+        case _:
+            raise TypeError(
+                f"The `location` parameter type should str, List, or Tuple if set. Got type {type(location)}."
+            )
+    return kwargs
 
 
 def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
@@ -766,9 +838,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
         if "latitude" in kwargs or "longitude" in kwargs:
             kwargs.pop("latitude", None)
             kwargs.pop("longitude", None)
-            print(
-                "   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude"
-            )
+            print("   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude")
         if "stations" in kwargs:
             kwargs.pop("stations", None)
             print("   ⚠️  Note: Using cached_area, ignoring provided stations")
@@ -883,11 +953,8 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         - time_profile_scenario (Optional) : str, default "SSP 3-7.0"
         - warming_level (Required) : List[float], default [1.2]
         - warming_level_window (Optional): int in range [5,25], default 15
-        - cached_area (Optional) : str or List[str]
+        - location (Optional) : str, List[str|float|int], or Tuple[str|float|int]
         - units (Optional) : str, default "degF"
-        - latitude (Optional) : float or tuple
-        - longitude (Optional) : float or tuple
-        - stations (Optional) : list[str], default None
         - days_in_year (Optional) : int, default 365
         - q (Optional) : float | list[float], default 0.5, quantile for profile calculation
         - no_delta (optional) : bool, default False, if True, do not apply baseline subtraction, return raw future profile
@@ -915,6 +982,9 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
     days_in_year = kwargs.pop("days_in_year", 365)
     q = kwargs.pop("q", 0.5)
     no_delta = kwargs.get("no_delta", False)
+
+    # Parse the location parameter
+    kwargs = _handle_location_params(**kwargs)
 
     # Retrieve the climate data
     print("📊 Retrieving climate data...")
