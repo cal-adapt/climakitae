@@ -1134,6 +1134,7 @@ def persistence_get_top_hours(
 
     q : float, optional
         Quantile value for selecting representative values (0.0 to 1.0).
+        Default is 0.5 (median).
 
     skip_last: bool
         True to exclude the final month, e.g. if data missing after time conversion
