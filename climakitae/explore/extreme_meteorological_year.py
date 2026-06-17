@@ -2171,7 +2171,7 @@ class persistence_XMY:
                 self.stn_lat,
                 self.stn_lon,
                 self.stn_state,
-                file_ext="epw",
+                file_ext=extension,
                 xmy_header={"extreme_type": p, "xmy_type": "PERSISTENCE"},
             )
 
