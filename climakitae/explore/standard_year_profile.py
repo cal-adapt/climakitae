@@ -848,7 +848,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     else:
         # No location parameters provided - warn about entire CA dataset
         print(
-            "   ⚠️  WARNING: No location parameters provided (cached_area, latitude/longitude, or stations)"
+            "   ⚠️  WARNING: No location parameter provided (cached_area, latitude/longitude, or stations)"
         )
         print(
             "      The entire California dataset will be retrieved, which may be very large and slow."
