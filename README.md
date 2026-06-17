@@ -2,7 +2,7 @@
 
 [![codecov](https://codecov.io/gh/cal-adapt/climakitae/branch/main/graph/badge.svg)](https://codecov.io/gh/cal-adapt/climakitae)
 [![CI](https://github.com/cal-adapt/climakitae/workflows/ci-main/badge.svg)](https://github.com/cal-adapt/climakitae/actions/workflows/ci-main.yml)
-[![Documentation Status](https://readthedocs.org/projects/climakitae/badge/?version=latest)](https://climakitae.readthedocs.io/en/latest/?badge=latest)
+[![docs](https://github.com/cal-adapt/climakitae/workflows/docs-mkdocs/badge.svg)](https://github.com/cal-adapt/climakitae/actions/workflows/docs-mkdocs.yml)
 [![PyPI version](https://badge.fury.io/py/climakitae.svg)](https://badge.fury.io/py/climakitae)
 [![Python](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
