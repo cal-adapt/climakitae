@@ -1114,7 +1114,7 @@ class shock_XMY:
 
 
 def persistence_get_top_hours(
-    data: xr.DataArray, q: float, skip_last: bool = False
+    data: xr.DataArray, q: float = 0.5, skip_last: bool = False
 ) -> pd.DataFrame:
     """
     Selects a representative year for each hour using the Cal-Adapt Standard Year
@@ -1717,7 +1717,7 @@ class persistence_XMY:
         all_vars_ds: xr.Dataset
            Timeseries of all loaded variables needed for persistence XMY.
         top_hours: pd.DataFrame
-           Dataframe of top months by model.
+           Dataframe of top hours by model.
 
         Returns
         -------
