@@ -1466,10 +1466,6 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
         time_delta, and simulation dimensions. Expected to contain ~30 years
         (262,800 hours) of data for each warming level and simulation.
 
-    days_in_year : int, optional
-        Either 366 or 365, depending on whether or not the year is a leap year.
-        Default to 365 days
-
     q : float, optional
         Quantile value for selecting representative values (0.0 to 1.0).
         Default is 0.5 (median).
@@ -1482,6 +1478,8 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
         Multi-index columns include Hour, Warming_Level, and Simulation dimensions.
 
     """
+    #!
+    print(f"data:{data}")
     # Check for simulation dimension
     has_simulation = "simulation" in data.dims
     if has_simulation:
@@ -1492,7 +1490,6 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
         simulations = [None]
 
     # Get all available time_delta data (all 30 years)
-    hours_per_day = 24
     hours_per_year = 8760
     total_hours = len(data.time_delta)
     n_years = total_hours // hours_per_year
@@ -1502,7 +1499,11 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
 
     # Create hour-of-year coordinate for all data (cycling through 1-8760)
     hour_of_year_all = np.tile(np.arange(1, hours_per_year + 1), n_years)[:total_hours]
+    #!
+    print(f"hour_of_year_all:{hour_of_year_all}")
     data = data.assign_coords(hour_of_year=("time_delta", hour_of_year_all))
+    #!
+    print(f"data after coords assigned:{data}")
 
     warming_levels = data.warming_level.values
 
@@ -1583,17 +1584,29 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
                 n_total = len(values)
                 usable = (n_total // hours_per_year) * hours_per_year
                 year_hour_matrix = values[:usable].reshape(-1, hours_per_year)
+                #!
+                print(f"values:{values}")
+                #!
+                print(f"n_total:{n_total}")
+                #!
+                print(f"usable:{usable}")
 
                 # Compute quantile targets for each of the 8760 hour positions
                 quantile_targets = np.nanquantile(
                     year_hour_matrix, q, axis=0
                 )  # shape: (8760,)
+                #!
+                print(f"quantile_targets:{quantile_targets}")
+                #!
+                print(f"year_hour_matrix:{year_hour_matrix}")
 
                 # For each hour position, find the actual year whose value is
                 # closest to the quantile (avoids interpolation)
                 diffs = np.abs(
                     year_hour_matrix - quantile_targets[np.newaxis, :]
                 )  # (n_years, 8760)
+                #!
+                print(f"diffs:{diffs}")
                 closest_year_idx = np.nanargmin(diffs, axis=0)  # (8760,)
                 profile_1d = year_hour_matrix[
                     closest_year_idx, np.arange(hours_per_year)
