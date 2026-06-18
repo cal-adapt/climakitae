@@ -1450,7 +1450,7 @@ def _find_matching_historic_value(
     return historic_profile.iloc[:, 0]
 
 
-def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.DataFrame:
+def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
     """
     Calculates the standard year climate profile for warming level data using 8760
     analysis.
@@ -1602,29 +1602,24 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
                     closest_year_idx, np.arange(hours_per_year)
                 ]
 
-                # Reshape to (days_in_year, 24) for the final DataFrame
-                profile_reshaped = profile_1d[: days_in_year * hours_per_day].reshape(
-                    days_in_year, hours_per_day
-                )
-
                 # Store the profile
                 key = (f"WL_{wl}", sim_label)
-                profile_data[key] = profile_reshaped
+                profile_data[key] = profile_1d
 
                 pbar.update(1)
 
-    # Create the multi-index DataFrame structure
     df_profile = _construct_profile_dataframe(
         profile_data=profile_data,
         warming_levels=warming_levels,
         simulations=simulations,
         sim_label_func=_get_simulation_label,
-        days_in_year=days_in_year,
         hours_per_day=hours_per_day,
+        hours_per_year=hours_per_year,
     )
 
-    # Determine which formatting function to use based on the structure
-    _format_based_on_structure(df_profile)
+    #! remove if no longer needed
+    # # Determine which formatting function to use based on the structure
+    # _format_based_on_structure(df_profile)
 
     # Prepare metadata dictionary
     metadata = {
@@ -1690,8 +1685,7 @@ def _construct_profile_dataframe(
     warming_levels: np.ndarray,
     simulations: list,
     sim_label_func: callable,
-    days_in_year: int,
-    hours_per_day: int,
+    hours_per_year: int,
 ) -> pd.DataFrame:
     """
     Construct a DataFrame from profile data based on warming level and simulation dimensions.
@@ -1706,17 +1700,15 @@ def _construct_profile_dataframe(
         List of simulation identifiers
     sim_label_func : callable
         Function to extract simulation labels
-    days_in_year : int
-        Number of days in the year (365 or 366)
-    hours_per_day : int
-        Number of hours per day (24)
+    hours_per_year : int
+        Hours per year (8760)
 
     Returns
     -------
     pd.DataFrame
         Structured DataFrame with appropriate column structure based on dimensions
     """
-    hours = np.arange(1, 25, 1)
+
     n_warming_levels = len(warming_levels)
     n_simulations = len(simulations)
 
@@ -1726,39 +1718,21 @@ def _construct_profile_dataframe(
             warming_levels[0],
             simulations[0],
             sim_label_func,
-            days_in_year,
-            hours,
-            hours_per_day,
+            hours_per_year,
         )
     elif n_warming_levels == 1 and n_simulations > 1:
+
         return _create_single_wl_multi_sim_dataframe(
-            profile_data,
-            warming_levels[0],
-            simulations,
-            sim_label_func,
-            days_in_year,
-            hours,
-            hours_per_day,
+            profile_data, warming_levels[0], simulations, sim_label_func, hours_per_year
         )
+
     elif n_warming_levels > 1 and n_simulations == 1:
         return _create_multi_wl_single_sim_dataframe(
-            profile_data,
-            warming_levels,
-            simulations[0],
-            sim_label_func,
-            days_in_year,
-            hours,
-            hours_per_day,
+            profile_data, warming_levels, simulations[0], sim_label_func, hours_per_year
         )
     else:
         return _create_multi_wl_multi_sim_dataframe(
-            profile_data,
-            warming_levels,
-            simulations,
-            sim_label_func,
-            days_in_year,
-            hours,
-            hours_per_day,
+            profile_data, warming_levels, simulations, sim_label_func, hours_per_year
         )
 
 
@@ -1767,9 +1741,7 @@ def _create_simple_dataframe(
     warming_level: float,
     simulation: any,
     sim_label_func: callable,
-    days_in_year: int,
-    hours: np.ndarray,
-    hours_per_day: int,
+    hours_per_year: int,
 ) -> pd.DataFrame:
     """
     Create a simple DataFrame for single warming level and single simulation.
@@ -1784,39 +1756,27 @@ def _create_simple_dataframe(
         Single simulation identifier
     sim_label_func : callable
         Function to get simulation label
-    days_in_year : int
-        Number of days in year
-    hours : np.ndarray
-        Array of hour values
-    hours_per_day : int
-        Hours per day (24)
+    hours_per_year : int
+        Hours per year (8760)
 
     Returns
     -------
     pd.DataFrame
-        Simple DataFrame with hour columns
+        Simple DataFrame with a single simulation column
     """
 
     wl_key = warming_level
     sim_key = sim_label_func(simulation, 0)
 
-    # Create MultiIndex columns
-    col_tuples = [(hour, sim_key) for hour in hours]
-    multi_cols = pd.MultiIndex.from_tuples(col_tuples, names=["Hour", "Simulation"])
-
     # Stack data
     all_data = _stack_profile_data(
-        profile_data=profile_data,
-        hours_per_day=hours_per_day,
-        wl_names=[f"WL_{wl_key}"],
-        sim_names=[sim_key],
-        hour_first=True,
+        profile_data=profile_data, wl_names=[f"WL_{wl_key}"], sim_names=[sim_key]
     )
 
     return pd.DataFrame(
         all_data,
-        columns=multi_cols,
-        index=np.arange(1, days_in_year + 1, 1),
+        columns=[sim_key],
+        index=np.arange(1, hours_per_year + 1, 1),
     )
 
 
@@ -1825,9 +1785,7 @@ def _create_single_wl_multi_sim_dataframe(
     warming_level: float,
     simulations: list,
     sim_label_func: callable,
-    days_in_year: int,
-    hours: np.ndarray,
-    hours_per_day: int,
+    hours_per_year: int,
 ) -> pd.DataFrame:
     """
     Create DataFrame for single warming level with multiple simulations.
@@ -1842,17 +1800,13 @@ def _create_single_wl_multi_sim_dataframe(
         List of simulation identifiers
     sim_label_func : callable
         Function to get simulation labels
-    days_in_year : int
-        Number of days in year
-    hours : np.ndarray
-        Array of hour values
-    hours_per_day : int
-        Hours per day (24)
+    hours_per_year : int
+        Hours per year (8760)
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with (Hour, Simulation) MultiIndex columns
+        DataFrame with Simulation columns
     """
     wl = warming_level
     sim_names = [sim_label_func(sim, i) for i, sim in enumerate(simulations)]
@@ -1873,14 +1827,9 @@ def _create_single_wl_multi_sim_dataframe(
                 unique_sim_names.append(f"{name}_v{name_counts[name]}")
         sim_names = unique_sim_names
 
-    # Create MultiIndex columns
-    col_tuples = [(hour, sim_name) for hour in hours for sim_name in sim_names]
-    multi_cols = pd.MultiIndex.from_tuples(col_tuples, names=["Hour", "Simulation"])
-
     # Stack data
     all_data = _stack_profile_data(
         profile_data=profile_data,
-        hours_per_day=hours_per_day,
         wl_names=[f"WL_{wl}"],
         sim_names=sim_names,
         hour_first=True,
@@ -1888,8 +1837,8 @@ def _create_single_wl_multi_sim_dataframe(
 
     return pd.DataFrame(
         all_data,
-        columns=multi_cols,
-        index=np.arange(1, days_in_year + 1, 1),
+        columns=simulations,
+        index=np.arange(1, hours_per_year + 1, 1),
     )
 
 
@@ -1898,9 +1847,7 @@ def _create_multi_wl_single_sim_dataframe(
     warming_levels: np.ndarray,
     simulation: any,
     sim_label_func: callable,
-    days_in_year: int,
-    hours: np.ndarray,
-    hours_per_day: int,
+    hours_per_year: int,
 ) -> pd.DataFrame:
     """
     Create DataFrame for multiple warming levels with single simulation.
@@ -1915,29 +1862,27 @@ def _create_multi_wl_single_sim_dataframe(
         Single simulation identifier
     sim_label_func : callable
         Function to get simulation label
-    days_in_year : int
-        Number of days in year
-    hours : np.ndarray
-        Array of hour values
-    hours_per_day : int
-        Hours per day (24)
+    hours_per_year : int
+        Hours per year (8760)
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with (Hour, Warming_Level) MultiIndex columns
+        DataFrame with Warming_Level columns
     """
+
     sim_name = sim_label_func(simulation, 0)
     wl_names = [f"WL_{wl}" for wl in warming_levels]
 
     # Create MultiIndex columns
-    col_tuples = [(hour, wl_name) for hour in hours for wl_name in wl_names]
-    multi_cols = pd.MultiIndex.from_tuples(col_tuples, names=["Hour", "Warming_Level"])
+    col_tuples = [(wl_name, sim) for wl_name in wl_names for sim in simulations]
+    multi_cols = pd.MultiIndex.from_tuples(
+        col_tuples, names=["Warming_Level", "Simulation"]
+    )
 
     # Stack data
     all_data = _stack_profile_data(
         profile_data=profile_data,
-        hours_per_day=hours_per_day,
         wl_names=wl_names,
         sim_names=[sim_name],
         hour_first=True,
@@ -1946,7 +1891,7 @@ def _create_multi_wl_single_sim_dataframe(
     return pd.DataFrame(
         all_data,
         columns=multi_cols,
-        index=np.arange(1, days_in_year + 1, 1),
+        index=np.arange(1, hours_per_year + 1, 1),
     )
 
 
@@ -1955,9 +1900,7 @@ def _create_multi_wl_multi_sim_dataframe(
     warming_levels: np.ndarray,
     simulations: list,
     sim_label_func: callable,
-    days_in_year: int,
-    hours: np.ndarray,
-    hours_per_day: int,
+    hours_per_year: int,
 ) -> pd.DataFrame:
     """
     Create DataFrame for multiple warming levels and multiple simulations.
@@ -1972,18 +1915,15 @@ def _create_multi_wl_multi_sim_dataframe(
         List of simulation identifiers
     sim_label_func : callable
         Function to get simulation labels
-    days_in_year : int
-        Number of days in year
-    hours : np.ndarray
-        Array of hour values
-    hours_per_day : int
-        Hours per day (24)
+    hours_per_year : int
+        Hours per year (8760)
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with (Hour, Warming_Level, Simulation) MultiIndex columns
+        DataFrame with (Warming_Level, Simulation) MultiIndex columns
     """
+
     wl_names = [f"WL_{wl}" for wl in warming_levels]
     sim_names = [sim_label_func(sim, i) for i, sim in enumerate(simulations)]
 
@@ -2004,20 +1944,14 @@ def _create_multi_wl_multi_sim_dataframe(
         sim_names = unique_sim_names
 
     # Create MultiIndex columns
-    col_tuples = [
-        (hour, wl_name, sim_name)
-        for hour in hours
-        for wl_name in wl_names
-        for sim_name in sim_names
-    ]
+    col_tuples = [(wl_name, sim_name) for wl_name in wl_names for sim_name in sim_names]
     multi_cols = pd.MultiIndex.from_tuples(
-        col_tuples, names=["Hour", "Warming_Level", "Simulation"]
+        col_tuples, names=["Warming_Level", "Simulation"]
     )
 
-    # Stack data with all three dimensions
+    # Stack data
     all_data = _stack_profile_data(
         profile_data=profile_data,
-        hours_per_day=hours_per_day,
         wl_names=wl_names,
         sim_names=sim_names,
         hour_first=True,
@@ -2027,17 +1961,14 @@ def _create_multi_wl_multi_sim_dataframe(
     return pd.DataFrame(
         all_data,
         columns=multi_cols,
-        index=np.arange(1, days_in_year + 1, 1),
+        index=np.arange(1, hours_per_year + 1, 1),
     )
 
 
 def _stack_profile_data(
     profile_data: dict,
-    hours_per_day: int,
     wl_names: list,
     sim_names: list,
-    hour_first: bool = True,
-    three_level: bool = False,
 ) -> np.ndarray:
     """
     Stack profile data into a single array for DataFrame construction.
@@ -2046,16 +1977,10 @@ def _stack_profile_data(
     ----------
     profile_data : dict
         Dictionary with (wl_name, sim_name) keys and profile arrays as values
-    hours_per_day : int
-        Number of hours per day (24)
     wl_names : list
         List of warming level names
     sim_names : list
         List of simulation names
-    hour_first : bool, optional
-        Whether hour should be the first level in iteration order
-    three_level : bool, optional
-        Whether this is a three-level MultiIndex (Hour, WL, Sim)
 
     Returns
     -------
@@ -2064,27 +1989,10 @@ def _stack_profile_data(
     """
     all_data = []
 
-    if three_level:
-        # For three-level index: iterate hour -> wl -> sim
-        for hour in range(hours_per_day):
-            for wl_name in wl_names:
-                for sim_name in sim_names:
-                    key = (wl_name, sim_name)
-                    all_data.append(profile_data[key][:, hour])
-    elif hour_first:
-        # For two-level with hour first
-        for hour in range(hours_per_day):
-            for wl_name in wl_names:
-                for sim_name in sim_names:
-                    key = (wl_name, sim_name)
-                    all_data.append(profile_data[key][:, hour])
-    else:
-        # For other two-level cases
-        for wl_name in wl_names:
-            for sim_name in sim_names:
-                for hour in range(hours_per_day):
-                    key = (wl_name, sim_name)
-                    all_data.append(profile_data[key][:, hour])
+    for wl_name in wl_names:
+        for sim_name in sim_names:
+            key = (wl_name, sim_name)
+            all_data.append(profile_data[key])
 
     return np.column_stack(all_data)
 
