@@ -454,6 +454,14 @@ def _handle_location_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
         case (
             list() | tuple()
         ):  # Can be list/tuple of HadISD stations, cached area, or lat/lon
+            # Catch cases where someone provides invalid data - a list of coordinate tuples, for example
+            if not isinstance(location[0], (str, float, int)):
+                formatted_param_type = type(location).__name__
+                formatted_bad_type = type(location[0]).__name__
+                raise TypeError(
+                    f"The location {formatted_param_type} may only contain string or numeric values, not {formatted_bad_type}."
+                )
+            # Now work through the valid options
             if all(is_HadISD(loc) for loc in location):  # stations
                 kwargs["stations"] = location
             elif all(isinstance(loc, str) for loc in location):  # cached area
@@ -472,9 +480,17 @@ def _handle_location_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
                         latitude = [loc for loc in location if loc > 0][0]
                         longitude = [loc for loc in location if loc < 0][0]
                         # Add buffer around lat/lon point to help get nearest cell
-                        kwargs["latitude"] = (latitude - 0.02, latitude + 0.02)
-                        kwargs["longitude"] = (longitude - 0.02, longitude + 0.02)
-                else:
+                        match kwargs.get("resolution", "3 km"):
+                            case "9 km":
+                                buffer = 0.08
+                            case "45 km":
+                                buffer = 0.35
+                            case _:
+                                # Use 3km value as default
+                                buffer = 0.02
+                        kwargs["latitude"] = (latitude - buffer, latitude + buffer)
+                        kwargs["longitude"] = (longitude - buffer, longitude + buffer)
+                else:  # Location len != 2
                     raise ValueError(
                         "Length of `location` parameter must be two if providing a coordinate pair."
                     )
@@ -484,8 +500,9 @@ def _handle_location_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
             # Do nothing here. Users will see a warning about the lack of location in retrieve_profile_data.
             pass
         case _:
+            formatted_param_type = type(location).__name__
             raise TypeError(
-                f"The `location` parameter type should str, List, or Tuple if set. Got type {type(location)}."
+                f"The `location` parameter type should str, List, or Tuple if set. Got type {formatted_param_type}."
             )
     return kwargs
 
