@@ -1015,7 +1015,7 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
                 print(f"Using default '{key}': {default_val}")
                 kwargs[key] = default_val
         else:
-            if key == "q" and q is not 0.5:
+            if key == "q" and q != 0.5:
                 continue
             else:
                 print(f"Using default '{key}': {default_val}")
