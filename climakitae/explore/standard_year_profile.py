@@ -1830,8 +1830,7 @@ def _create_single_wl_multi_sim_dataframe(
     all_data = _stack_profile_data(
         profile_data=profile_data,
         wl_names=[f"WL_{wl}"],
-        sim_names=sim_names,
-        hour_first=True,
+        sim_names=sim_names
     )
 
     return pd.DataFrame(
@@ -1883,8 +1882,7 @@ def _create_multi_wl_single_sim_dataframe(
     all_data = _stack_profile_data(
         profile_data=profile_data,
         wl_names=wl_names,
-        sim_names=[sim_name],
-        hour_first=True,
+        sim_names=[sim_name]
     )
 
     return pd.DataFrame(
@@ -1952,9 +1950,7 @@ def _create_multi_wl_multi_sim_dataframe(
     all_data = _stack_profile_data(
         profile_data=profile_data,
         wl_names=wl_names,
-        sim_names=sim_names,
-        hour_first=True,
-        three_level=True,
+        sim_names=sim_names
     )
 
     return pd.DataFrame(
