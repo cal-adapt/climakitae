@@ -391,7 +391,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
 
     # Check profile MultiIndex to pull out data by Global Warming Level
     match profile.keys().nlevels:
-        case 2:  # Single WL
+        case 1:  # Single WL
             # If 'warming_level' provided, fetch the value within the input list
             if global_warming_levels:
                 gwl = global_warming_levels[0]
@@ -401,7 +401,8 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                     gwl = global_warming_levels
                 # Otherwise, use the default
                 else:
-                    gwl = "1.2"
+                    #! changing this to a number
+                    gwl = 1.2
 
             filename = _get_clean_standardyr_filename(
                 var_id,
@@ -416,7 +417,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 ba_models,
             )
             profile.to_csv(filename)
-        case 3:  # Multiple WL (WL included in MultiIndex)
+        case 2:  # Multiple WL (WL included in MultiIndex)
             for gwl in global_warming_levels:  # Single file per WL
                 filename = _get_clean_standardyr_filename(
                     var_id,
@@ -986,15 +987,11 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
     # Compute profiles for both datasets
     print("⚙️  Computing climate profiles...")
 
-    future_profile = compute_profile(
-        future_profile_data, q=q
-    )
+    future_profile = compute_profile(future_profile_data, q=q)
     if no_delta:
         historic_profile = None
     else:
-        historic_profile = compute_profile(
-            historic_profile_data, q=q
-        )
+        historic_profile = compute_profile(historic_profile_data, q=q)
 
     if no_delta:
         print("   ✓ No baseline subtraction requested, returning raw future profile")
@@ -1828,9 +1825,7 @@ def _create_single_wl_multi_sim_dataframe(
 
     # Stack data
     all_data = _stack_profile_data(
-        profile_data=profile_data,
-        wl_names=[f"WL_{wl}"],
-        sim_names=sim_names
+        profile_data=profile_data, wl_names=[f"WL_{wl}"], sim_names=sim_names
     )
 
     return pd.DataFrame(
@@ -1880,9 +1875,7 @@ def _create_multi_wl_single_sim_dataframe(
 
     # Stack data
     all_data = _stack_profile_data(
-        profile_data=profile_data,
-        wl_names=wl_names,
-        sim_names=[sim_name]
+        profile_data=profile_data, wl_names=wl_names, sim_names=[sim_name]
     )
 
     return pd.DataFrame(
@@ -1948,9 +1941,7 @@ def _create_multi_wl_multi_sim_dataframe(
 
     # Stack data
     all_data = _stack_profile_data(
-        profile_data=profile_data,
-        wl_names=wl_names,
-        sim_names=sim_names
+        profile_data=profile_data, wl_names=wl_names, sim_names=sim_names
     )
 
     return pd.DataFrame(
