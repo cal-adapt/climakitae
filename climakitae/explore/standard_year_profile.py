@@ -987,13 +987,13 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
     print("⚙️  Computing climate profiles...")
 
     future_profile = compute_profile(
-        future_profile_data, days_in_year=days_in_year, q=q
+        future_profile_data, q=q
     )
     if no_delta:
         historic_profile = None
     else:
         historic_profile = compute_profile(
-            historic_profile_data, days_in_year=days_in_year, q=q
+            historic_profile_data, q=q
         )
 
     if no_delta:
