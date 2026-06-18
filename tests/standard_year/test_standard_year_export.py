@@ -982,7 +982,7 @@ class TestCheckStations:
                         -121.516 + 0.02,
                     ),
                 },
-                "custom station name_34-4041N_121-516W",
+                "34-4041N_121-516W",
             ),
             (
                 "",
