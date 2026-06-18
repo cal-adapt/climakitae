@@ -1573,15 +1573,19 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
             #!
             print(f"wl:{wl}")
             for sim_idx, sim in enumerate(simulations):
+                #!
+                print(f"sim:{sim}")
                 # Get simulation label
                 sim_label = _get_simulation_label(sim, sim_idx)
-
+                #!
+                print(f"sim_label:{sim_label}")
                 # Select data for this warming level and simulation combination
                 if has_simulation:
                     subset_data = data.isel(warming_level=wl_idx, simulation=sim_idx)
                 else:
                     subset_data = data.isel(warming_level=wl_idx)
-
+                #!
+                print(f"subset_data:{subset_data}")
                 # Vectorized quantile computation using numpy
                 # Reshape raw values into (n_years, hours_per_year) then compute
                 # the quantile across years for each hour-of-year position
