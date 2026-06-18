@@ -1030,6 +1030,10 @@ def _compute_difference_profile(
     """
     future_has_multiindex = isinstance(future_profile.columns, pd.MultiIndex)
     historic_has_multiindex = isinstance(historic_profile.columns, pd.MultiIndex)
+    #!
+    print(f"future_has_multiindex: {future_has_multiindex}")
+    #!
+    print(f"historic_has_multiindex: {historic_has_multiindex}")
 
     if future_has_multiindex and historic_has_multiindex:
         return _compute_multiindex_difference(future_profile, historic_profile)
@@ -1304,15 +1308,32 @@ def _compute_simple_difference(
     pd.DataFrame
         Difference profile
     """
+    #!
+    print(f"list(future_profile.columns): {list(future_profile.columns)}")
+    #!
+    print(f"list(historic_profile.columns): {list(historic_profile.columns)}")
+
     if list(future_profile.columns) == list(historic_profile.columns):
         print("   ✓ Columns match - computing element-wise difference")
+        #!
+        print(
+            f"future_profile - historic_profile): {future_profile - historic_profile}"
+        )
         return future_profile - historic_profile
+
     else:
         print("   ⚠️  Warning: Column mismatch between future and historic profiles")
         print(f"      Future columns: {list(future_profile.columns)[:5]}...")
         print(f"      Historic columns: {list(historic_profile.columns)[:5]}...")
         # Try to align by position
+        #!
+        print(f"len(future_profile.columns): {len(future_profile.columns)}")
+        #!
+        print(f"len(historic_profile.columns): {len(historic_profile.columns)}")
+
         min_cols = min(len(future_profile.columns), len(historic_profile.columns))
+        #!
+        print(f"min_cols: {min_cols}")
         return future_profile.iloc[:, :min_cols] - historic_profile.iloc[:, :min_cols]
 
 
