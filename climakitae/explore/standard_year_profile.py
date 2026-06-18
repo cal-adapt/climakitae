@@ -1613,7 +1613,6 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
         warming_levels=warming_levels,
         simulations=simulations,
         sim_label_func=_get_simulation_label,
-        hours_per_day=hours_per_day,
         hours_per_year=hours_per_year,
     )
 
