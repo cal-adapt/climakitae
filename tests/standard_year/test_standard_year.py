@@ -6,6 +6,7 @@ profile computation functions that provide climate profile analysis.
 
 """
 
+from typing import Tuple
 from unittest.mock import MagicMock, call, patch
 
 import numpy as np
@@ -33,6 +34,7 @@ from climakitae.explore.standard_year_profile import (
     _get_clean_standardyr_filename,
     _get_historic_hour_mean,
     _get_station_coordinates,
+    _handle_location_params,
     _stack_profile_data,
     compute_profile,
     export_profile_to_csv,
@@ -4576,3 +4578,81 @@ class TestConvertStationsToLatLon:
             assert (
                 abs(lon_bounds[1] - expected_lon_max) < 1e-6
             ), "Should use maximum longitude from all stations"
+
+
+class TestHandleLocationParams:
+    """Test class for the _handle_location_params function."""
+
+    def test__handle_location_params_station(self):
+        """Test a valid station configuration for the location parameter."""
+        settings = {
+            "location": "Ontario International Airport (KONT)",
+        }
+        new_settings = _handle_location_params(**settings)
+        assert "stations" in new_settings
+        assert isinstance(new_settings["stations"], list)
+        assert new_settings["stations"] == ["Ontario International Airport (KONT)"]
+
+    def test__handle_location_params_cached_area(self):
+        """Test a valid cached_area configuration for the location parameter."""
+        settings = {
+            "location": "Alpine County",
+        }
+        new_settings = _handle_location_params(**settings)
+        assert "cached_area" in new_settings
+        assert isinstance(new_settings["cached_area"], str)
+        assert new_settings["cached_area"] == "Alpine County"
+
+    def test__handle_location_params_lat_lon(self):
+        """Test a valid lat/lon configuration for the location parameter."""
+        settings = {
+            "location": (-120.9, 35.8),
+            "resolution": "9 km",
+        }
+        new_settings = _handle_location_params(**settings)
+        for coord in ["latitude", "longitude"]:
+            assert coord in new_settings
+            assert isinstance(new_settings[coord], Tuple)
+        assert new_settings["longitude"] == (-120.9 - 0.08, -120.9 + 0.08)
+        assert new_settings["latitude"] == (35.8 - 0.08, 35.8 + 0.08)
+
+    def test__handle_location_params_invalid_lat_lon(self):
+        """Check three invalid location parameter settings with lat/lon."""
+        # Longtiude not a negative value
+        settings = {
+            "location": (220, 35.8),
+            "resolution": "9 km",
+        }
+        with pytest.raises(
+            ValueError,
+            match="Expected a positive-valued latitude coordinate and negative-valued longitude coordinate.",
+        ):
+            _ = _handle_location_params(**settings)
+
+        # Bad coordinate list
+        settings["location"] = [(-120, 35), (-121, 35)]
+        with pytest.raises(
+            TypeError,
+            match="The location list may only contain string or numeric values, not tuple.",
+        ):
+            _ = _handle_location_params(**settings)
+
+        # Too many coordinates
+        settings["location"] = [-120, -120, 35]
+        with pytest.raises(
+            ValueError,
+            match="Length of `location` parameter must be two if providing a coordinate pair.",
+        ):
+            _ = _handle_location_params(**settings)
+
+    def test__handle_location_params_invalid_type(self):
+        """Test setting location parameter with invalid dictionary type."""
+        settings = {
+            "location": {"sacramento": (38.59373314007944, -121.49188107549107)},
+            "resolution": "3 km",
+        }
+        with pytest.raises(
+            TypeError,
+            match="The `location` parameter type should str, List, or Tuple if set. Got type dict.",
+        ):
+            _ = _handle_location_params(**settings)
