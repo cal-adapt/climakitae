@@ -1558,118 +1558,119 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
     profile_data = {}
     #!
     print(f"warming_levels:{warming_levels}")
-    # Progress tracking
-    total_combinations = len(warming_levels) * n_simulations
-    with tqdm(
-        total=total_combinations,
-        desc="      Computing profiles",
-        unit="combo",
-        leave=False,
-    ) as pbar:
+    return data
+    # # Progress tracking
+    # total_combinations = len(warming_levels) * n_simulations
+    # with tqdm(
+    #     total=total_combinations,
+    #     desc="      Computing profiles",
+    #     unit="combo",
+    #     leave=False,
+    # ) as pbar:
 
-        for wl_idx, wl in enumerate(warming_levels):
-            #!
-            print(f"wl:{wl}")
-            #!
-            print(f"wl_idx:{wl_idx}")
-            for sim_idx, sim in enumerate(simulations):
-                #!
-                print(f"sim:{sim}")
-                #!
-                print(f"sim_idx:{sim_idx}")
-                # Get simulation label
-                sim_label = _get_simulation_label(sim, sim_idx)
-                #!
-                print(f"sim_label:{sim_label}")
-                # Select data for this warming level and simulation combination
-                if has_simulation:
-                    subset_data = data.isel(warming_level=wl_idx, simulation=sim_idx)
-                else:
-                    subset_data = data.isel(warming_level=wl_idx)
-                #!
-                print(f"subset_data:{subset_data}")
-                # Vectorized quantile computation using numpy
-                # Reshape raw values into (n_years, hours_per_year) then compute
-                # the quantile across years for each hour-of-year position
-                values = subset_data.values
-                n_total = len(values)
-                usable = (n_total // hours_per_year) * hours_per_year
-                year_hour_matrix = values[:usable].reshape(-1, hours_per_year)
-                #!
-                print(f"values:{values}")
-                #!
-                print(f"n_total:{n_total}")
-                #!
-                print(f"usable:{usable}")
+    #     for wl_idx, wl in enumerate(warming_levels):
+    #         #!
+    #         print(f"wl:{wl}")
+    #         #!
+    #         print(f"wl_idx:{wl_idx}")
+    #         for sim_idx, sim in enumerate(simulations):
+    #             #!
+    #             print(f"sim:{sim}")
+    #             #!
+    #             print(f"sim_idx:{sim_idx}")
+    #             # Get simulation label
+    #             sim_label = _get_simulation_label(sim, sim_idx)
+    #             #!
+    #             print(f"sim_label:{sim_label}")
+    #             # Select data for this warming level and simulation combination
+    #             if has_simulation:
+    #                 subset_data = data.isel(warming_level=wl_idx, simulation=sim_idx)
+    #             else:
+    #                 subset_data = data.isel(warming_level=wl_idx)
+    #             #!
+    #             print(f"subset_data:{subset_data}")
+    #             # Vectorized quantile computation using numpy
+    #             # Reshape raw values into (n_years, hours_per_year) then compute
+    #             # the quantile across years for each hour-of-year position
+    #             values = subset_data.values
+    #             n_total = len(values)
+    #             usable = (n_total // hours_per_year) * hours_per_year
+    #             year_hour_matrix = values[:usable].reshape(-1, hours_per_year)
+    #             #!
+    #             print(f"values:{values}")
+    #             #!
+    #             print(f"n_total:{n_total}")
+    #             #!
+    #             print(f"usable:{usable}")
 
-                # Compute quantile targets for each of the 8760 hour positions
-                quantile_targets = np.nanquantile(
-                    year_hour_matrix, q, axis=0
-                )  # shape: (8760,)
-                #!
-                print(f"quantile_targets:{quantile_targets}")
-                #!
-                print(f"year_hour_matrix:{year_hour_matrix}")
+    #             # Compute quantile targets for each of the 8760 hour positions
+    #             quantile_targets = np.nanquantile(
+    #                 year_hour_matrix, q, axis=0
+    #             )  # shape: (8760,)
+    #             #!
+    #             print(f"quantile_targets:{quantile_targets}")
+    #             #!
+    #             print(f"year_hour_matrix:{year_hour_matrix}")
 
-                # For each hour position, find the actual year whose value is
-                # closest to the quantile (avoids interpolation)
-                diffs = np.abs(
-                    year_hour_matrix - quantile_targets[np.newaxis, :]
-                )  # (n_years, 8760)
-                #!
-                print(f"diffs:{diffs}")
-                closest_year_idx = np.nanargmin(diffs, axis=0)  # (8760,)
-                profile_1d = year_hour_matrix[
-                    closest_year_idx, np.arange(hours_per_year)
-                ]
+    #             # For each hour position, find the actual year whose value is
+    #             # closest to the quantile (avoids interpolation)
+    #             diffs = np.abs(
+    #                 year_hour_matrix - quantile_targets[np.newaxis, :]
+    #             )  # (n_years, 8760)
+    #             #!
+    #             print(f"diffs:{diffs}")
+    #             closest_year_idx = np.nanargmin(diffs, axis=0)  # (8760,)
+    #             profile_1d = year_hour_matrix[
+    #                 closest_year_idx, np.arange(hours_per_year)
+    #             ]
 
-                # Store the profile
-                key = (f"WL_{wl}", sim_label)
-                profile_data[key] = profile_1d
+    #             # Store the profile
+    #             key = (f"WL_{wl}", sim_label)
+    #             profile_data[key] = profile_1d
 
-                pbar.update(1)
+    #             pbar.update(1)
 
-    df_profile = _construct_profile_dataframe(
-        profile_data=profile_data,
-        warming_levels=warming_levels,
-        simulations=simulations,
-        sim_label_func=_get_simulation_label,
-        hours_per_year=hours_per_year,
-    )
+    # df_profile = _construct_profile_dataframe(
+    #     profile_data=profile_data,
+    #     warming_levels=warming_levels,
+    #     simulations=simulations,
+    #     sim_label_func=_get_simulation_label,
+    #     hours_per_year=hours_per_year,
+    # )
 
-    #! remove if no longer needed
-    # # Determine which formatting function to use based on the structure
-    # _format_based_on_structure(df_profile)
+    # #! remove if no longer needed
+    # # # Determine which formatting function to use based on the structure
+    # # _format_based_on_structure(df_profile)
 
-    # Prepare metadata dictionary
-    metadata = {
-        "quantile": q,
-        "method": "8760 analysis - actual data closest to quantile across 30 years",
-        "description": f"Climate profile computed using actual data values closest to the {q*100:.0f}th percentile of hourly data",
-    }
+    # # Prepare metadata dictionary
+    # metadata = {
+    #     "quantile": q,
+    #     "method": "8760 analysis - actual data closest to quantile across 30 years",
+    #     "description": f"Climate profile computed using actual data values closest to the {q*100:.0f}th percentile of hourly data",
+    # }
 
-    # Add original data attributes if available
-    if hasattr(data, "attrs"):
-        if "units" in data.attrs:
-            metadata["units"] = data.attrs["units"]
-        if "extended_description" in data.attrs:
-            metadata["extended_description"] = data.attrs["extended_description"]
-        if "variable_id" in data.attrs:
-            metadata["variable_name"] = data.attrs["variable_id"]
-        elif hasattr(data, "name") and data.name:
-            metadata["variable_name"] = data.name
+    # # Add original data attributes if available
+    # if hasattr(data, "attrs"):
+    #     if "units" in data.attrs:
+    #         metadata["units"] = data.attrs["units"]
+    #     if "extended_description" in data.attrs:
+    #         metadata["extended_description"] = data.attrs["extended_description"]
+    #     if "variable_id" in data.attrs:
+    #         metadata["variable_name"] = data.attrs["variable_id"]
+    #     elif hasattr(data, "name") and data.name:
+    #         metadata["variable_name"] = data.name
 
-    # Set all metadata using the helper function
-    set_profile_metadata(df_profile, metadata)
+    # # Set all metadata using the helper function
+    # set_profile_metadata(df_profile, metadata)
 
-    print(f"      ✅ Profile computation complete! Final shape: {df_profile.shape}")
-    print(
-        f"         With index: {df_profile.index.name}, columns: {df_profile.columns.names}"
-    )
-    if hasattr(data, "attrs") and "units" in data.attrs:
-        print(f"         Units: {data.attrs['units']}")
+    # print(f"      ✅ Profile computation complete! Final shape: {df_profile.shape}")
+    # print(
+    #     f"         With index: {df_profile.index.name}, columns: {df_profile.columns.names}"
+    # )
+    # if hasattr(data, "attrs") and "units" in data.attrs:
+    #     print(f"         Units: {data.attrs['units']}")
 
-    return df_profile
+    # return df_profile
 
 
 def _format_based_on_structure(df: pd.DataFrame):
