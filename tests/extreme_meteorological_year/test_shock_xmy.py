@@ -403,7 +403,8 @@ class TestXMYClass:
         start_year = 1981
         end_year = 2009
         extreme = "hot"
-        # Initialize TMY object
+
+        # Initialize XMY object
         xmy = shock_XMY(
             extreme=extreme,
             start_year=start_year,
@@ -414,7 +415,7 @@ class TestXMYClass:
         )
         assert xmy.use_era5 == True
 
-        # Initialize TMY object
+        # Initialize XMY object
         xmy = shock_XMY(
             extreme=extreme,
             start_year=start_year,
