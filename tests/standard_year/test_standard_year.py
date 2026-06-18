@@ -4613,8 +4613,12 @@ class TestHandleLocationParams:
         for coord in ["latitude", "longitude"]:
             assert coord in new_settings
             assert isinstance(new_settings[coord], Tuple)
-        assert new_settings["longitude"] == (-120.9 - 0.08, -120.9 + 0.08)
-        assert new_settings["latitude"] == (35.8 - 0.08, 35.8 + 0.08)
+        assert new_settings["longitude"] == pytest.approx(
+            (-120.9 - 0.08, -120.9 + 0.08), 1e-6
+        )
+        assert new_settings["latitude"] == pytest.approx(
+            (35.8 - 0.08, 35.8 + 0.08), 1e-6
+        )
 
     def test__handle_location_params_invalid_lat_lon(self):
         """Check three invalid location parameter settings with lat/lon."""
