@@ -2087,6 +2087,9 @@ class persistence_XMY:
         self.top_hours = persistence_get_top_hours(
             self.air_temp_var, self.q, self._skip_last
         )
+        if self.use_era5:
+            # Simulation column gets set to None in this case - correct it
+            self.top_hours = self.top_hours.assign(simulation=self.simulations[0])
 
     def show_xmy_data_to_export(self, simulation: str):
         """Show line plots of persistence XMY data for single model.
