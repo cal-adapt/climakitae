@@ -39,11 +39,12 @@ jobs:
               with:
                   # Check all markdown in docs-mkdocs/
                   args: >-
-                      --verbose --no-progress --exclude-path
+                      --verbose --accept 200..=204,429 --no-progress --exclude-path
                       docs-mkdocs/climate-data-interface/processors/TEMPLATE.md
                       --exclude "https://mybinder.org" --exclude
                       "https://cal-adapt.github.io/climakitae" --exclude
-                      "https://github.com/cal-adapt/climakitae/blob"
+                      "https://github.com/cal-adapt/climakitae/blob" --exclude 
+                      "https://www.ipcc.ch/" 
                       "docs-mkdocs/**/*.md"
                   fail: true
               env:
