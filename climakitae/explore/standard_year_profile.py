@@ -1556,7 +1556,10 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
 
     # Initialize storage for profiles
     profile_data = {}
-
+    #!
+    print(f"warming_levels:{warming_levels}")
+    #!
+    print(f"enumerate(warming_levels):{enumerate(warming_levels)}")
     # Progress tracking
     total_combinations = len(warming_levels) * n_simulations
     with tqdm(
@@ -1567,6 +1570,8 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
     ) as pbar:
 
         for wl_idx, wl in enumerate(warming_levels):
+            #!
+            print(f"wl:{wl}")
             for sim_idx, sim in enumerate(simulations):
                 # Get simulation label
                 sim_label = _get_simulation_label(sim, sim_idx)
