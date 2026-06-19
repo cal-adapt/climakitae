@@ -494,7 +494,7 @@ def _handle_location_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
                     raise ValueError(
                         "Length of `location` parameter must be two if providing a coordinate pair."
                     )
-            else: # Location parameter didn't match any expected format
+            else:  # Location parameter didn't match any expected format
                 raise ValueError(f"Unable to parse location parameter.")
         case None:
             # Do nothing here. Users will see a warning about the lack of location in retrieve_profile_data.
