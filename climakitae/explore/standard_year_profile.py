@@ -874,11 +874,14 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     elif "stations" in provided_location_params:
         # Stations provided - convert to lat/lon with buffer
         stations = kwargs.pop("stations")
+        buffer = _get_buffer_from_resolution(kwargs.get("resolution", "3 km"))
         print(
-            f"   📍 Converting {len(stations)} station(s) to lat/lon coordinates with ±0.02° buffer"
+            f"   📍 Converting {len(stations)} station(s) to lat/lon coordinates with ±{buffer:.2f}° buffer"
         )
         try:
-            lat_bounds, lon_bounds = _convert_stations_to_lat_lon(stations, buffer=0.02)
+            lat_bounds, lon_bounds = _convert_stations_to_lat_lon(
+                stations, buffer=buffer
+            )
             kwargs["latitude"] = lat_bounds
             kwargs["longitude"] = lon_bounds
             print(f"      Latitude range: {lat_bounds[0]:.4f} to {lat_bounds[1]:.4f}")
