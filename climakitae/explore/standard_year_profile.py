@@ -419,6 +419,32 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
             )
 
 
+def _get_buffer_from_resolution(resolution: str) -> float:
+    """Return a buffer in degrees, used to select closest gridcell.
+
+    Parameters
+    ----------
+    resolution: str
+        The grid resolution, in km
+
+    Returns
+    -------
+    buffer: float
+        The buffer, in degrees, to select around a lat/lon point
+    """
+    match resolution:
+        case "3 km":
+            buffer = 0.02
+        case "9 km":
+            buffer = 0.08
+        case "45 km":
+            buffer = 0.35
+        case _:
+            # Use 3 km value as buffer
+            buffer = 0.02
+    return buffer
+
+
 def _handle_location_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """Parse the `location` parameter to determine what kind of location is being selected.
 
@@ -480,14 +506,9 @@ def _handle_location_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
                         latitude = [loc for loc in location if loc > 0][0]
                         longitude = [loc for loc in location if loc < 0][0]
                         # Add buffer around lat/lon point to help get nearest cell
-                        match kwargs.get("resolution", "3 km"):
-                            case "9 km":
-                                buffer = 0.08
-                            case "45 km":
-                                buffer = 0.35
-                            case _:
-                                # Use 3km value as default
-                                buffer = 0.02
+                        buffer = _get_buffer_from_resolution(
+                            kwargs.get("resolution", None)
+                        )
                         kwargs["latitude"] = (latitude - buffer, latitude + buffer)
                         kwargs["longitude"] = (longitude - buffer, longitude + buffer)
                 else:  # Location len != 2
@@ -857,7 +878,10 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
             f"   📍 Converting {len(stations)} station(s) to lat/lon coordinates with ±0.02° buffer"
         )
         try:
-            lat_bounds, lon_bounds = _convert_stations_to_lat_lon(stations, buffer=0.02)
+            buffer = _get_buffer_from_resolution(kwargs.get("resolution", "3 km"))
+            lat_bounds, lon_bounds = _convert_stations_to_lat_lon(
+                stations, buffer=buffer
+            )
             kwargs["latitude"] = lat_bounds
             kwargs["longitude"] = lon_bounds
             print(f"      Latitude range: {lat_bounds[0]:.4f} to {lat_bounds[1]:.4f}")

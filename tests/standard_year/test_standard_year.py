@@ -31,6 +31,7 @@ from climakitae.explore.standard_year_profile import (
     _find_matching_historic_value,
     _format_based_on_structure,
     _format_meteo_yr_df,
+    _get_buffer_from_resolution,
     _get_clean_standardyr_filename,
     _get_historic_hour_mean,
     _get_station_coordinates,
@@ -4580,8 +4581,8 @@ class TestConvertStationsToLatLon:
             ), "Should use maximum longitude from all stations"
 
 
-class TestHandleLocationParams:
-    """Test class for the _handle_location_params function."""
+class TestHelperFunctions:
+    """Test class for any helper functions not explictly tested in other classes."""
 
     def test__handle_location_params_station(self):
         """Test a valid station configuration for the location parameter."""
@@ -4660,3 +4661,17 @@ class TestHandleLocationParams:
             match="The `location` parameter type should str, List, or Tuple if set. Got type dict.",
         ):
             _ = _handle_location_params(**settings)
+
+    @pytest.mark.parametrize(
+        "resolution,expected_buffer",
+        [
+            pytest.param("3 km", 0.02),
+            pytest.param("9 km", 0.08),
+            pytest.param("45 km", 0.35),
+            pytest.param(None, 0.02),
+        ],
+    )
+    def test__get_buffer_from_resolution(self, resolution, expected_buffer):
+        """Test that correct buffer size is returned for each resolution."""
+        test_buffer = _get_buffer_from_resolution(resolution)
+        assert test_buffer == expected_buffer
