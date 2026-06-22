@@ -851,7 +851,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     future_data = get_data(**get_data_params)
     #!
     print(f"future_data:{future_data}")
-    print(f"future data models: {future_data.simulations}")
+    print(f"future data models: {future_data.simulation}")
 
     # Filter for only bias-adjusted WRF models, if user indicates this
     ba_models = kwargs.get("bias_adjusted_models", False)
