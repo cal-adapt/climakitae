@@ -308,12 +308,8 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 List of global warming levels in profile
             warming_level_winow: int in range (5,25), optional
                 Years around Global Warming Level (+/-) (e.g. 15 means a 30yr window)
-            latitude : tuple(float | int), optional
-                Latitude coordinate range from profile location
-            longitude : tuple(float | int), optional
-                Longitude coordinate range from profile location
-            station_name : list[str], optional
-                Name of HadISD station(s) or custom location used in profile
+            location : str, tuple(float | int), list[str | float | int]
+                Station name, cached_area, or coordinates
             cached_area : str, optional
                 Name of cached area used in profile
             no_delta : bool, default False, optional
@@ -327,21 +323,6 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
             time_profile_scenario (Optional) : str, default "SSP 3-7.0"
                 SSP scenario from ["SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
             bias_adjusted_models (optional) : bool, default False, if True only return bias-adjusted WRF models
-
-    Notes
-    -----
-
-    The function prioritizes location parameters in the following order:
-    1. cached_area
-    2. latitude/longitude
-    3. stations
-    Each parameter will override the lower-priority ones if provided. So if cached_area
-    is given, lat/lon and stations are ignored. If lat/lon are given, stations are
-    ignored. If stations are given, they are used only if neither cached_area nor lat/lon
-    are provided. With the exception of the case in which a single custom station name is
-    given. That name will be included in the filename only if lat/lon are given, and no
-    cached area.
-
     """
 
     # Get required parameter values
@@ -857,9 +838,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
         if "latitude" in kwargs or "longitude" in kwargs:
             kwargs.pop("latitude", None)
             kwargs.pop("longitude", None)
-            print(
-                "   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude"
-            )
+            print("   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude")
         if "stations" in kwargs:
             kwargs.pop("stations", None)
             print("   ⚠️  Note: Using cached_area, ignoring provided stations")
