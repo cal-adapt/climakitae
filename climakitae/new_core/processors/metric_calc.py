@@ -838,8 +838,10 @@ class MetricCalc(DataProcessor):
 
         Returns
         -------
-        float, float
-
+        tuple[float, float]
+            Tuple containing:
+            - conf_int_lower_limit: Lower limit of confidence interval
+            - conf_int_upper_limit: Upper limit of confidence interval
         """
         bootstrap_values = []
 
@@ -1371,8 +1373,42 @@ class MetricCalc(DataProcessor):
     ) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]:
         """
         Combine the return variable and confidence interval calculations into
-        one function that can be called with xr.apply_ufunc.
+        one function that can be called with xr.apply_ufunc to get all results.
 
+        Parameters
+        ----------
+        block_maxima_1d : np.ndarray
+            1D array of block maxima values (e.g., annual maxima).
+        return_periods : np.ndarray
+            Array of return periods in years (e.g., [10, 25, 50, 100]).
+        return_values : np.ndarray
+            Array of return values in data units.
+        block_size : int
+            block size, in years, of the provided block maximum series
+        bootstrap_runs : int
+            Number of bootstrap samples
+        conf_int_lower_bound : float
+            Confidence interval lower bound
+        conf_int_upper_bound : float
+            Confidence interval upper bound
+        distr : str, optional
+            Distribution type for fitting. Options: "gev", "gumbel", "weibull",
+            "pearson3", "genpareto", "gamma". Default: "gev".
+        extremes_type : str, optional
+            Type of extremes: "max" for maxima, "min" for minima. Default: "max".
+        get_p_value : bool, optional
+            Whether to calculate and return p-value from KS test. Default: False.
+        compute_conf_int: bool, optional
+            True to generate confidence intervals
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray, np.ndarray, float]
+            Tuple containing:
+            - return_values or return_periods: Array of return values or periods for each return period
+            - conf_int_lower_limit: Lower limit of confidence interval
+            - conf_int_upper_limit: Upper limit of confidence interval
+            - p_value: P-value from Kolmogorov-Smirnov test (np.nan if not calculated)
         """
         return_data, p_value = self._fit_return_variable_1d(
             block_maxima_1d,
