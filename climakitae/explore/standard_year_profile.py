@@ -844,7 +844,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
         # Retrieve historical data at 1.2°C warming level
         historic_data = get_data(**get_data_params)
         #!
-        print(f"historic data models: {historic_data.simulations}")
+        print(f"historic data models: {historic_data.simulation}")
 
     # Update with any user-provided parameters for future data retrieval
     get_data_params.update(kwargs)
