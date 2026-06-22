@@ -1355,6 +1355,53 @@ class MetricCalc(DataProcessor):
 
         return result_ds
 
+    def _fit_and_conf_int_1d(
+        self,
+        block_maxima_1d,
+        return_periods=UNSET,
+        return_values=UNSET,
+        block_size=1,
+        bootstrap_runs=100,
+        conf_int_lower_bound=2.5,
+        conf_int_upper_bound=97.5,
+        distr="gev",
+        extremes_type="max",
+        get_p_value=False,
+        compute_conf_int=False,
+    ) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]:
+        """
+        Combine the return variable and confidence interval calculations into
+        one function that can be called with xr.apply_ufunc.
+
+        """
+        return_data, p_value = self._fit_return_variable_1d(
+            block_maxima_1d,
+            return_periods=return_periods,
+            return_values=return_values,
+            distr=distr,
+            block_size=block_size,
+            extremes_type=extremes_type,
+            get_p_value=get_p_value,
+        )
+        if not compute_conf_int:
+            nan_like = np.full_like(return_data, np.nan, dtype=float)
+            logger.info(nan_like)
+            return return_data, nan_like, nan_like, p_value
+
+        ci_lower, ci_upper = self._conf_int(
+            block_maxima_1d,
+            return_periods=return_periods,
+            return_values=return_values,
+            distr=distr,
+            bootstrap_runs=bootstrap_runs,
+            conf_int_lower_bound=conf_int_lower_bound,
+            conf_int_upper_bound=conf_int_upper_bound,
+            block_size=block_size,
+            extremes_type=extremes_type,
+        )
+
+        return return_data, ci_lower, ci_upper, p_value
+
     def _fit_distributions_vectorized(
         self, block_maxima: xr.DataArray, time_dim: str
     ) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]:
@@ -1384,48 +1431,34 @@ class MetricCalc(DataProcessor):
         else:
             output_length = len(self.return_values)
 
-        # Apply the return value fitting function
-        return_data, p_values = xr.apply_ufunc(
-            self._fit_return_variable_1d,
-            block_maxima_computed,
-            kwargs={
-                "return_periods": self.return_periods,
-                "return_values": self.return_values,
-                "distr": self.distribution,
-                "block_size": self.block_size,
-                "extremes_type": self.extremes_type,
-                "get_p_value": self.goodness_of_fit_test,
-            },
-            input_core_dims=[[time_dim]],
-            output_core_dims=[["one_in_x"], []],
-            output_sizes={"one_in_x": output_length},
-            output_dtypes=("float", "float"),
-            vectorize=True,
-        )
+        compute_conf_int = True
+        if self.conf_int_lower_bound is UNSET:
+            compute_conf_int = False
 
-        if self.conf_int_lower_bound is not UNSET:
-            conf_int_lower_limit, conf_int_upper_limit = xr.apply_ufunc(
-                self._conf_int,
+        # Apply the return value fitting function
+        return_data, conf_int_lower_limit, conf_int_upper_limit, p_values = (
+            xr.apply_ufunc(
+                self._fit_and_conf_int_1d,
                 block_maxima_computed,
                 kwargs={
                     "return_periods": self.return_periods,
                     "return_values": self.return_values,
-                    "distr": self.distribution,
+                    "block_size": self.block_size,
                     "bootstrap_runs": self.bootstrap_runs,
                     "conf_int_lower_bound": self.conf_int_lower_bound,
                     "conf_int_upper_bound": self.conf_int_upper_bound,
-                    "block_size": self.block_size,
+                    "distr": self.distribution,
                     "extremes_type": self.extremes_type,
+                    "get_p_value": self.goodness_of_fit_test,
+                    "compute_conf_int": compute_conf_int,
                 },
                 input_core_dims=[[time_dim]],
-                output_core_dims=[["one_in_x"], ["one_in_x"]],
+                output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"], []],
                 output_sizes={"one_in_x": output_length},
-                output_dtypes=("float", "float"),
+                output_dtypes=("float", "float", "float", "float"),
                 vectorize=True,
             )
-        else:
-            conf_int_lower_limit = xr.zeros_like(return_data) * np.nan
-            conf_int_upper_limit = xr.zeros_like(return_data) * np.nan
+        )
 
         return return_data, conf_int_lower_limit, conf_int_upper_limit, p_values
 
@@ -1510,56 +1543,42 @@ class MetricCalc(DataProcessor):
             time_dim = "time" if "time" in chunk_block_maxima.dims else "time_delta"
 
             # Step 3: Fit distributions for this spatial chunk
+            compute_conf_int = True
+            if self.conf_int_lower_bound is UNSET:
+                compute_conf_int = False
+
+            # Apply the return value fitting function
             (
                 chunk_return_data,
+                chunk_conf_int_lower_limit,
+                chunk_conf_int_upper_limit,
                 chunk_p_values,
             ) = xr.apply_ufunc(
-                self._fit_return_variable_1d,
-                chunk_block_maxima,
+                self._fit_and_conf_int_1d,
+                block_maxima_computed,
                 kwargs={
                     "return_periods": self.return_periods,
                     "return_values": self.return_values,
-                    "distr": self.distribution,
                     "block_size": self.block_size,
+                    "bootstrap_runs": self.bootstrap_runs,
+                    "conf_int_lower_bound": self.conf_int_lower_bound,
+                    "conf_int_upper_bound": self.conf_int_upper_bound,
+                    "distr": self.distribution,
                     "extremes_type": self.extremes_type,
                     "get_p_value": self.goodness_of_fit_test,
+                    "compute_conf_int": compute_conf_int,
                 },
                 input_core_dims=[[time_dim]],
-                output_core_dims=[["one_in_x"], []],
+                output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"], []],
                 output_sizes={"one_in_x": output_length},
                 output_dtypes=("float", "float"),
                 vectorize=True,
             )
 
             return_data_list.append(chunk_return_data)
-            p_values_list.append(chunk_p_values)
-
-            if self.conf_int_lower_bound is not UNSET:
-                chunk_conf_int_lower_limit, chunk_conf_int_upper_limit = xr.apply_ufunc(
-                    self._conf_int,
-                    chunk_block_maxima,
-                    kwargs={
-                        "return_periods": self.return_periods,
-                        "return_values": self.return_values,
-                        "distr": self.distribution,
-                        "bootstrap_runs": self.bootstrap_runs,
-                        "conf_int_lower_bound": self.conf_int_lower_bound,
-                        "conf_int_upper_bound": self.conf_int_upper_bound,
-                        "block_size": self.block_size,
-                        "extremes_type": self.extremes_type,
-                    },
-                    input_core_dims=[[time_dim]],
-                    output_core_dims=[["one_in_x"], ["one_in_x"]],
-                    output_sizes={"one_in_x": output_length},
-                    output_dtypes=("float", "float"),
-                    vectorize=True,
-                )
-            else:
-                chunk_conf_int_lower_limit = xr.zeros_like(chunk_return_data) * np.nan
-                chunk_conf_int_upper_limit = xr.zeros_like(chunk_return_data) * np.nan
-
             conf_int_lower_limit_list.append(chunk_conf_int_lower_limit)
             conf_int_upper_limit_list.append(chunk_conf_int_upper_limit)
+            p_values_list.append(chunk_p_values)
 
             # Clean up chunk data
             del chunk_data, chunk_block_maxima
