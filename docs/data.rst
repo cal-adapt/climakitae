@@ -16,7 +16,7 @@ Use the ckg.Select() panel GUI
 *********************************
 If you are working in a Jupyter notebook environment, you can view and set your
 data and location options in a graphical user interface (GUI) using 
-`Climakitaegui <https://climakitaegui.readthedocs.io/>`_. This GUI also 
+`Climakitaegui <https://github.com/cal-adapt/climakitaegui>`_. This GUI also 
 provides a visual overview of the various datasets available in the 
 `AE data catalog <https://analytics.cal-adapt.org/data/>`_. Using this GUI, you
 can chose what dataset you'd like to retrieve-- choosing a variable, timeslice,
