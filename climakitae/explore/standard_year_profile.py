@@ -1040,13 +1040,19 @@ def _compute_difference_profile(
     #!
     print(f"historic_has_multiindex: {historic_has_multiindex}")
 
-
     if future_has_multiindex == historic_has_multiindex: # either both contain a MultiIndex, or both do not
         return _compute_paired_difference(future_profile, historic_profile)
-    elif future_has_multiindex and not historic_has_multiindex: # multiple warming levels in future profile, not so in historic profile
-        return _compute_mixed_index_difference(future_profile, historic_profile)
-    else:  # multiple warming levels in future profile, not so in  profile
-        return _compute_simple_difference(future_profile, historic_profile)
+    else: # multiple warming levels in future profile, while historic profile always contains one warming level - 1.2
+        # add MultiIndex to historic profile, then perform paired difference, as done above
+        historic_profile_reformatted = historic_profile.copy
+        historic_profile_reformatted.columns = pd.MultiIndex.from_arrays(
+            [
+                ["1.2"] * len(historic_profile_reformatted.columns),
+                historic_profile_reformatted.columns,
+            ],
+            names=["Warming_Level", "Simulation"],
+        )
+        return _compute_paired_difference(future_profile, historic_profile_reformatted)
 
 
 def _compute_paired_difference(
@@ -1122,107 +1128,6 @@ def _compute_paired_difference(
                 pbar.update(1)
 
     return difference_profile
-
-
-def _compute_mixed_index_difference(
-    future_profile: pd.DataFrame, historic_profile: pd.DataFrame
-) -> pd.DataFrame:
-    """
-    Compute difference when future has MultiIndex and historic has simple index.
-
-    Parameters
-    ----------
-    future_profile : pd.DataFrame
-        Future profile with MultiIndex columns
-    historic_profile : pd.DataFrame
-        Historic profile with simple columns
-
-    Returns
-    -------
-    pd.DataFrame
-        Difference profile
-    """
-    # Check for duplicate columns and handle them
-    if not future_profile.columns.is_unique:
-        print(
-            "   ⚠️  Warning: Found duplicate columns in future profile. Removing duplicates."
-        )
-        future_profile = future_profile.loc[:, ~future_profile.columns.duplicated()]
-
-    if not historic_profile.columns.is_unique:
-        print(
-            "   ⚠️  Warning: Found duplicate columns in historic profile. Removing duplicates."
-        )
-        historic_profile = historic_profile.loc[
-            :, ~historic_profile.columns.duplicated()
-        ]
-
-    difference_profile = future_profile.copy()
-
-    n_cols = len(future_profile.columns)
-    with tqdm(total=n_cols, desc="   Computing differences", unit="column") as pbar:
-        for col in future_profile.columns:
-            historic_value = _find_matching_historic_value(
-                col, future_profile, historic_profile
-            )
-            difference_profile.loc[:, col] = future_profile[col] - historic_value
-            pbar.update(1)
-
-    return difference_profile
-
-
-def _find_matching_historic_value(
-    future_col: tuple, future_profile: pd.DataFrame, historic_profile: pd.DataFrame
-) -> pd.Series:
-    """
-    Find matching historic value for a future column with mixed index types.
-
-    Parameters
-    ----------
-    future_col : tuple
-        Future column identifier
-    future_profile : pd.DataFrame
-        Future profile DataFrame
-    historic_profile : pd.DataFrame
-        Historic profile DataFrame
-
-    Returns
-    -------
-    pd.Series
-        Matching historic values
-    """
-    if "Hour" in future_profile.columns.names:
-        hour_idx = future_profile.columns.names.index("Hour")
-        hour = future_col[hour_idx]
-
-        # Try direct match
-        if hour in historic_profile.columns:
-            return historic_profile[hour]
-
-        # Try numeric hour matching
-        hour_num = (
-            int(hour.replace("am", "").replace("pm", ""))
-            if isinstance(hour, str)
-            else hour
-        )
-        if hour_num in historic_profile.columns:
-            return historic_profile[hour_num]
-
-        # Fall back to positional matching
-        col_position = future_profile.columns.get_loc(future_col)
-        if isinstance(col_position, int):
-            historic_col_idx = col_position % len(historic_profile.columns)
-            return historic_profile.iloc[:, historic_col_idx]
-
-    # No hour level, use positional matching
-    col_position = future_profile.columns.get_loc(future_col)
-    if isinstance(col_position, int):
-        historic_col_idx = col_position % len(historic_profile.columns)
-        return historic_profile.iloc[:, historic_col_idx]
-
-    # Default fallback
-    return historic_profile.iloc[:, 0]
-
 
 def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
     """
@@ -1448,35 +1353,6 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
         print(f"         Units: {data.attrs['units']}")
 
     return df_profile
-
-
-def _format_based_on_structure(df: pd.DataFrame):
-    """
-    Format the DataFrame based on whether it has single-level or multi-level columns.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The DataFrame to format.
-
-    Returns
-    -------
-    pd.DataFrame
-        The formatted DataFrame.
-    """
-    if not isinstance(df.columns, pd.MultiIndex):
-        # Simple single-level columns
-        df = _format_meteo_yr_df(df)
-    else:
-        # Multi-level columns - need special formatting
-        # For now, just format the index (Day of Year)
-        year = 2024 if len(df) == 366 else 2023
-        new_index = [
-            julianDay_to_date(julday, year=year, str_format="%b-%d")
-            for julday in df.index
-        ]
-        df.index = pd.Index(new_index, name="Day of Year")
-
 
 def _construct_profile_dataframe(
     profile_data: dict,
@@ -1783,61 +1659,6 @@ def _stack_profile_data(
             all_data.append(profile_data[key])
 
     return np.column_stack(all_data)
-
-
-def _format_meteo_yr_df(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Format meteorological yearly dataframe for display with readable time labels.
-
-    This function reformats a dataframe output from compute_profile
-    by reordering columns to PST time format, converting numeric hour columns to
-    12-hour AM/PM format, and converting Julian day indices to Month-Day format.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Input dataframe with meteorological data. Expected to have 24 columns
-        representing hours (0-23) and Julian day indices (1-365 or 1-366).
-
-    Returns
-    -------
-    pd.DataFrame
-        Formatted dataframe with:
-        - Columns reordered and labeled in 12-hour AM/PM format (12am, 1am, ..., 11pm)
-        - Column name set to "Hour"
-        - Index converted from Julian days to "Month-Day" format (e.g., "Jan-01")
-        - Index name set to "Day of Year"
-        - Uses leap year (2024) for 366-day datasets, otherwise uses 2023
-
-    Notes
-    -----
-    The function assumes the input dataframe has exactly 24 columns representing
-    hourly data, with the first 7 columns corresponding to hours 17-23 (5pm-11pm)
-    and the last 17 columns corresponding to hours 0-16 (12am-4pm).
-    """
-    ## Re-order columns for PST, with easy to read time labels
-    cols = df.columns.tolist()
-    cols = cols[7:] + cols[:7]
-    df = df[cols]
-
-    n_col_lst = []
-    for ampm in ["am", "pm"]:
-        hr_lst = []
-        for hr in range(1, 13, 1):
-            hr_lst.append(str(hr) + ampm)
-        hr_lst = hr_lst[-1:] + hr_lst[:-1]
-        n_col_lst = n_col_lst + hr_lst
-    df.columns = n_col_lst
-    df.columns.name = "Hour"
-
-    # Convert Julian date index to Month-Day format
-    # Use 2024 as year if we have 366 days (leap year), otherwise use 2023
-    year = 2024 if len(df) == 366 else 2023
-    new_index = [
-        julianDay_to_date(julday, year=year, str_format="%b-%d") for julday in df.index
-    ]
-    df.index = pd.Index(new_index, name="Day of Year")
-    return df
 
 
 def get_profile_units(profile_df: pd.DataFrame) -> str:
