@@ -1591,7 +1591,7 @@ class MetricCalc(DataProcessor):
                 chunk_p_values,
             ) = xr.apply_ufunc(
                 self._fit_and_conf_int_1d,
-                block_maxima_computed,
+                chunk_block_maxima,
                 kwargs={
                     "return_periods": self.return_periods,
                     "return_values": self.return_values,
@@ -1607,7 +1607,7 @@ class MetricCalc(DataProcessor):
                 input_core_dims=[[time_dim]],
                 output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"], []],
                 output_sizes={"one_in_x": output_length},
-                output_dtypes=("float", "float"),
+                output_dtypes=("float", "float", "float", "float"),
                 vectorize=True,
             )
 
