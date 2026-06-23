@@ -216,6 +216,8 @@ class shock_XMY:
         Latitude for shock XMY data if station_name not set
     longitude : float | int (optional)
         Longitude for shock XMY data if station_name not set
+    reanalysis: bool
+        True to use ERA5 reanalysis instead of models
     verbose: bool
         True to increase verbosity
 
@@ -233,6 +235,8 @@ class shock_XMY:
         Pair of latitudes that bracket `latitude`
     lon_range: tuple
         Pair of longitudes that bracket `longitude`
+    reanalysis: bool
+        True to use ERA5 reanalysis instead of models
     simulations: list[str]
         List of included simulations
     scenario: list[str]
@@ -266,6 +270,7 @@ class shock_XMY:
         station_name: str = UNSET,
         latitude: float | int = UNSET,
         longitude: float | int = UNSET,
+        reanalysis: bool = False,
         verbose: bool = True,
     ):
 
@@ -321,19 +326,34 @@ class shock_XMY:
             raise TypeError("Variable `extreme` must be either 'hot' or 'cold'.")
         # Whether to drop the last month as a possible match
         self._skip_last = False
-        if self.warming_level:
+        if self.warming_level is not UNSET:
             # True for warming levels because final hours get lost to UTC conversion
             self._skip_last = True
         # Ranges used in get_data to pull smaller dataset without warnings
         self.lat_range = (self.stn_lat - 0.1, self.stn_lat + 0.1)
         self.lon_range = (self.stn_lon - 0.1, self.stn_lon + 0.1)
-        # These 4 simulations have the solar variables needed
-        self.simulations = [
-            "WRF_EC-Earth3_r1i1p1f1",
-            "WRF_MPI-ESM1-2-HR_r3i1p1f1",
-            "WRF_TaiESM1_r1i1p1f1",
-            "WRF_MIROC6_r1i1p1f1",
-        ]
+        # Determine if using models or ERA5 reanalysis
+        if reanalysis:
+            # Check that valid time period is requested
+            if self.warming_level is not UNSET:
+                raise ValueError(
+                    "Cannot use warming levels with ERA5 reanalysis. Please set start_year and end_year parameters."
+                )
+            if (self.start_year < 1981) or (self.end_year > 2019):
+                raise ValueError(
+                    f"Valid start and end years for ERA5 reanalysis must be between 1981 and 2019. User provided start year {self.start_year} and end year {self.end_year}"
+                )
+            self.use_era5 = True
+            self.simulations = ["WRF_ERA5_reanalysis"]
+        else:  # use models
+            self.use_era5 = False
+            # These 4 simulations have the solar variables needed
+            self.simulations = [
+                "WRF_EC-Earth3_r1i1p1f1",
+                "WRF_MPI-ESM1-2-HR_r3i1p1f1",
+                "WRF_TaiESM1_r1i1p1f1",
+                "WRF_MIROC6_r1i1p1f1",
+            ]
 
         # Data only available for these scenarios
         self.scenario = ["Historical Climate", "SSP 3-7.0"]
@@ -493,7 +513,10 @@ class shock_XMY:
                 new_end_year = self.end_year
             else:
                 new_end_year = self.end_year + 1
-            query = query.experiment_id(["historical", "ssp370"])
+            if self.use_era5:
+                query = query.experiment_id("reanalysis")
+            else:
+                query = query.experiment_id(["historical", "ssp370"])
             processes["time_slice"] = (self.start_year, new_end_year)
 
         data = query.processes(processes).get()
@@ -520,29 +543,35 @@ class shock_XMY:
             self.start_year = data.time[0].dt.year.item()
             self.end_year = data.time[-1].dt.year.item()
 
-        # Filter to the 4 shock XMY simulations by matching source_id+member_id
-        # ClimateData sim values: "wrf_ucla_ec-earth3_historical+ssp370_r1i1p1f1"
-        # self.simulations values: "WRF_EC-Earth3_r1i1p1f1"
-        all_sims = list(data.simulation.values)
-        sim_mapping = {}  # maps ClimateData sim name → legacy sim name
-        for legacy_sim in self.simulations:
-            # Extract source_id and member_id from legacy name (e.g. "EC-Earth3", "r1i1p1f1")
-            parts = legacy_sim.split("_")
-            source_id = parts[1].lower()
-            member_id = parts[2].lower()
-            for cd_sim in all_sims:
-                cd_lower = (
-                    cd_sim.lower() if isinstance(cd_sim, str) else str(cd_sim).lower()
-                )
-                if source_id in cd_lower and member_id in cd_lower:
-                    sim_mapping[cd_sim] = legacy_sim
-                    break
+        # Filter and update simulation names
+        if self.use_era5:
+            data["simulation"] = ["WRF_ERA5_reanalysis"]
+        else:
+            # Filter to the 4 shock XMY simulations by matching source_id+member_id
+            # ClimateData sim values: "wrf_ucla_ec-earth3_historical+ssp370_r1i1p1f1"
+            # self.simulations values: "WRF_EC-Earth3_r1i1p1f1"
+            all_sims = list(data.simulation.values)
+            sim_mapping = {}  # maps ClimateData sim name → legacy sim name
+            for legacy_sim in self.simulations:
+                # Extract source_id and member_id from legacy name (e.g. "EC-Earth3", "r1i1p1f1")
+                parts = legacy_sim.split("_")
+                source_id = parts[1].lower()
+                member_id = parts[2].lower()
+                for cd_sim in all_sims:
+                    cd_lower = (
+                        cd_sim.lower()
+                        if isinstance(cd_sim, str)
+                        else str(cd_sim).lower()
+                    )
+                    if source_id in cd_lower and member_id in cd_lower:
+                        sim_mapping[cd_sim] = legacy_sim
+                        break
 
-        # Select and rename to legacy simulation names
-        matched_cd_sims = list(sim_mapping.keys())
+            # Select and rename to legacy simulation names
+            matched_cd_sims = list(sim_mapping.keys())
 
-        data = data.sel(simulation=matched_cd_sims)
-        data["simulation"] = [sim_mapping[s] for s in matched_cd_sims]
+            data = data.sel(simulation=matched_cd_sims)
+            data["simulation"] = [sim_mapping[s] for s in matched_cd_sims]
 
         # Work in local time (cached offset avoids repeated CSV reads)
         offset_hours = self._get_utc_offset_hours()
@@ -835,6 +864,10 @@ class shock_XMY:
         ]
         kept_from_raw = [raw_ds[v] for v in keep_vars]
         hourly_ds = xr.merge(derived_list + kept_from_raw)
+        # In ERA5 reanalysis case with 1 sim, the "simulation" dim
+        # got dropped when datasets were squeezed. Adding it back here.
+        if "simulation" not in hourly_ds.dims:
+            hourly_ds = hourly_ds.expand_dims("simulation")
         self._hourly_data = hourly_ds
 
         # --- Build daily dataset ---
@@ -1042,7 +1075,10 @@ class shock_XMY:
             if self.warming_level is not UNSET:
                 xmy_data_to_export[sim]["warming_level"] = self.warming_level
             else:
-                xmy_data_to_export[sim]["scenario"] = "historical+ssp370"
+                if self.use_era5:
+                    xmy_data_to_export[sim]["scenario"] = "historical_reanalysis"
+                else:
+                    xmy_data_to_export[sim]["scenario"] = "historical+ssp370"
 
         self.xmy_data_to_export = xmy_data_to_export
         self._vprint("shock XMY analysis complete.")
@@ -1307,6 +1343,8 @@ class persistence_XMY:
         Pair of latitudes that bracket `latitude`
     lon_range: tuple
         Pair of longitudes that bracket `longitude`
+    reanalysis: bool
+        True to use ERA5 reanalysis
     simulations: list[str]
         List of included simulations
     scenario: list[str]
@@ -1336,6 +1374,7 @@ class persistence_XMY:
         station_name: str = UNSET,
         latitude: float | int = UNSET,
         longitude: float | int = UNSET,
+        reanalysis: bool = False,
         verbose: bool = True,
     ):
 
@@ -1393,19 +1432,34 @@ class persistence_XMY:
             raise TypeError("Variable `q` must be a float between 0 and 1 (e.g. 0.5).")
         # Whether to drop the last month as a possible match
         self._skip_last = False
-        if self.warming_level:
+        if self.warming_level is not UNSET:
             # True for warming levels because final hours get lost to UTC conversion
             self._skip_last = True
         # Ranges used in get_data to pull smaller dataset without warnings
         self.lat_range = (self.stn_lat - 0.1, self.stn_lat + 0.1)
         self.lon_range = (self.stn_lon - 0.1, self.stn_lon + 0.1)
-        # These 4 simulations have the solar variables needed
-        self.simulations = [
-            "WRF_EC-Earth3_r1i1p1f1",
-            "WRF_MPI-ESM1-2-HR_r3i1p1f1",
-            "WRF_TaiESM1_r1i1p1f1",
-            "WRF_MIROC6_r1i1p1f1",
-        ]
+        # Determine if using models or ERA5 reanalysis
+        if reanalysis:
+            # Check that valid time period is requested
+            if self.warming_level is not UNSET:
+                raise ValueError(
+                    "Cannot use warming levels with ERA5 reanalysis. Please set start_year and end_year parameters."
+                )
+            if (self.start_year < 1981) or (self.end_year > 2019):
+                raise ValueError(
+                    f"Valid start and end years for ERA5 reanalysis must be between 1981 and 2019. User provided start year {self.start_year} and end year {self.end_year}"
+                )
+            self.use_era5 = True
+            self.simulations = ["WRF_ERA5_reanalysis"]
+        else:  # use models
+            self.use_era5 = False
+            # These 4 simulations have the solar variables needed
+            self.simulations = [
+                "WRF_EC-Earth3_r1i1p1f1",
+                "WRF_MPI-ESM1-2-HR_r3i1p1f1",
+                "WRF_TaiESM1_r1i1p1f1",
+                "WRF_MIROC6_r1i1p1f1",
+            ]
 
         # Data only available for these scenarios
         self.scenario = ["Historical Climate", "SSP 3-7.0"]
@@ -1563,7 +1617,10 @@ class persistence_XMY:
                 new_end_year = self.end_year
             else:
                 new_end_year = self.end_year + 1
-            query = query.experiment_id(["historical", "ssp370"])
+            if self.use_era5:
+                query = query.experiment_id("reanalysis")
+            else:
+                query = query.experiment_id(["historical", "ssp370"])
             processes["time_slice"] = (self.start_year, new_end_year)
 
         data = query.processes(processes).get()
@@ -1590,29 +1647,35 @@ class persistence_XMY:
             self.start_year = data.time[0].dt.year.item()
             self.end_year = data.time[-1].dt.year.item()
 
-        # Filter to the 4 persistence XMY simulations by matching source_id+member_id
-        # ClimateData sim values: "wrf_ucla_ec-earth3_historical+ssp370_r1i1p1f1"
-        # self.simulations values: "WRF_EC-Earth3_r1i1p1f1"
-        all_sims = list(data.simulation.values)
-        sim_mapping = {}  # maps ClimateData sim name → legacy sim name
-        for legacy_sim in self.simulations:
-            # Extract source_id and member_id from legacy name (e.g. "EC-Earth3", "r1i1p1f1")
-            parts = legacy_sim.split("_")
-            source_id = parts[1].lower()
-            member_id = parts[2].lower()
-            for cd_sim in all_sims:
-                cd_lower = (
-                    cd_sim.lower() if isinstance(cd_sim, str) else str(cd_sim).lower()
-                )
-                if source_id in cd_lower and member_id in cd_lower:
-                    sim_mapping[cd_sim] = legacy_sim
-                    break
+        # Filter and update simulation names
+        if self.use_era5:
+            data["simulation"] = ["WRF_ERA5_reanalysis"]
+        else:
+            # Filter to the 4 persistence XMY simulations by matching source_id+member_id
+            # ClimateData sim values: "wrf_ucla_ec-earth3_historical+ssp370_r1i1p1f1"
+            # self.simulations values: "WRF_EC-Earth3_r1i1p1f1"
+            all_sims = list(data.simulation.values)
+            sim_mapping = {}  # maps ClimateData sim name → legacy sim name
+            for legacy_sim in self.simulations:
+                # Extract source_id and member_id from legacy name (e.g. "EC-Earth3", "r1i1p1f1")
+                parts = legacy_sim.split("_")
+                source_id = parts[1].lower()
+                member_id = parts[2].lower()
+                for cd_sim in all_sims:
+                    cd_lower = (
+                        cd_sim.lower()
+                        if isinstance(cd_sim, str)
+                        else str(cd_sim).lower()
+                    )
+                    if source_id in cd_lower and member_id in cd_lower:
+                        sim_mapping[cd_sim] = legacy_sim
+                        break
 
-        # Select and rename to legacy simulation names
-        matched_cd_sims = list(sim_mapping.keys())
+            # Select and rename to legacy simulation names
+            matched_cd_sims = list(sim_mapping.keys())
 
-        data = data.sel(simulation=matched_cd_sims)
-        data["simulation"] = [sim_mapping[s] for s in matched_cd_sims]
+            data = data.sel(simulation=matched_cd_sims)
+            data["simulation"] = [sim_mapping[s] for s in matched_cd_sims]
 
         # Work in local time (cached offset avoids repeated CSV reads)
         offset_hours = self._get_utc_offset_hours()
@@ -1925,6 +1988,10 @@ class persistence_XMY:
         ]
         kept_from_raw = [raw_ds[v] for v in keep_vars]
         hourly_ds = xr.merge(derived_list + kept_from_raw)
+        # In ERA5 reanalysis case with 1 sim, the "simulation" dim
+        # got dropped when datasets were squeezed. Adding it back here.
+        if "simulation" not in hourly_ds.dims:
+            hourly_ds = hourly_ds.expand_dims("simulation")
         self._hourly_data = hourly_ds
 
         # --- Build daily dataset ---
@@ -2020,6 +2087,9 @@ class persistence_XMY:
         self.top_hours = persistence_get_top_hours(
             self.air_temp_var, self.q, self._skip_last
         )
+        if self.use_era5:
+            # Simulation column gets set to None in this case - correct it
+            self.top_hours = self.top_hours.assign(simulation=self.simulations[0])
 
     def show_xmy_data_to_export(self, simulation: str):
         """Show line plots of persistence XMY data for single model.
@@ -2120,7 +2190,10 @@ class persistence_XMY:
             if self.warming_level is not UNSET:
                 xmy_data_to_export[sim]["warming_level"] = self.warming_level
             else:
-                xmy_data_to_export[sim]["scenario"] = "historical+ssp370"
+                if self.use_era5:
+                    xmy_data_to_export[sim]["scenario"] = "historical_reanalysis"
+                else:
+                    xmy_data_to_export[sim]["scenario"] = "historical+ssp370"
 
         self.xmy_data_to_export = xmy_data_to_export
         self._vprint("persistence XMY analysis complete.")
