@@ -1040,53 +1040,18 @@ def _compute_difference_profile(
     #!
     print(f"historic_has_multiindex: {historic_has_multiindex}")
 
-    if future_has_multiindex and historic_has_multiindex:
-        return _compute_multiindex_difference(future_profile, historic_profile)
-    elif future_has_multiindex and not historic_has_multiindex:
+
+    if future_has_multiindex == historic_has_multiindex: # either both contain a MultiIndex, or both do not
+        return _compute_paired_difference(future_profile, historic_profile)
+    elif future_has_multiindex and not historic_has_multiindex: # multiple warming levels in future profile, not so in historic profile
         return _compute_mixed_index_difference(future_profile, historic_profile)
-    else:
+    else:  # multiple warming levels in future profile, not so in  profile
         return _compute_simple_difference(future_profile, historic_profile)
 
 
-def _compute_multiindex_difference(
-    future_profile: pd.DataFrame, historic_profile: pd.DataFrame
-) -> pd.DataFrame:
-    """
-    Compute difference when both profiles have MultiIndex columns.
-
-    Parameters
-    ----------
-    future_profile : pd.DataFrame
-        Future profile with MultiIndex columns
-    historic_profile : pd.DataFrame
-        Historic profile with MultiIndex columns
-
-    Returns
-    -------
-    pd.DataFrame
-        Difference profile
-    """
-    future_levels = future_profile.columns.names
-    historic_levels = historic_profile.columns.names
-
-    if "Simulation" in future_levels and "Simulation" in historic_levels:
-        return _compute_simulation_paired_difference(
-            future_profile, historic_profile, future_levels, historic_levels
-        )
-    elif "Warming_Level" in future_levels and "Simulation" not in future_levels:
-        return _compute_warming_level_difference(
-            future_profile, historic_profile, future_levels, historic_levels
-        )
-    else:
-        # Default to simple difference if structure is unexpected
-        return _compute_simple_difference(future_profile, historic_profile)
-
-
-def _compute_simulation_paired_difference(
+def _compute_paired_difference(
     future_profile: pd.DataFrame,
     historic_profile: pd.DataFrame,
-    future_levels: list,
-    historic_levels: list,
 ) -> pd.DataFrame:
     """
     Compute difference for profiles with matching simulations.
@@ -1097,10 +1062,6 @@ def _compute_simulation_paired_difference(
         Future profile with Simulation level
     historic_profile : pd.DataFrame
         Historic profile with Simulation level
-    future_levels : list
-        Names of future profile column levels
-    historic_levels : list
-        Names of historic profile column levels
 
     Returns
     -------
@@ -1163,83 +1124,6 @@ def _compute_simulation_paired_difference(
     return difference_profile
 
 
-def _compute_warming_level_difference(
-    future_profile: pd.DataFrame,
-    historic_profile: pd.DataFrame,
-    future_levels: list,
-    historic_levels: list,
-) -> pd.DataFrame:
-    """
-    Compute difference for profiles with warming levels but no simulations.
-
-    Parameters
-    ----------
-    future_profile : pd.DataFrame
-        Future profile with Warming_Level
-    historic_profile : pd.DataFrame
-        Historic profile
-    future_levels : list
-        Names of future profile column levels
-    historic_levels : list
-        Names of historic profile column levels
-
-    Returns
-    -------
-    pd.DataFrame
-        Difference profile
-    """
-    # Check for duplicate columns and handle them
-    if not future_profile.columns.is_unique:
-        print(
-            "   ⚠️  Warning: Found duplicate columns in future profile. Removing duplicates."
-        )
-        future_profile = future_profile.loc[:, ~future_profile.columns.duplicated()]
-
-    if not historic_profile.columns.is_unique:
-        print(
-            "   ⚠️  Warning: Found duplicate columns in historic profile. Removing duplicates."
-        )
-        historic_profile = historic_profile.loc[
-            :, ~historic_profile.columns.duplicated()
-        ]
-
-    difference_profile = future_profile.copy()
-
-    n_cols = len(future_profile.columns)
-    with tqdm(total=n_cols, desc="   Computing differences", unit="column") as pbar:
-        for col in future_profile.columns:
-            # Use future_levels to determine which position contains the hour
-            if "Hour" in future_levels:
-                hour_idx = future_levels.index("Hour")
-                hour = col[hour_idx]
-            else:
-                # Fallback: assume first position is hour
-                hour = col[0]
-
-            if hour in historic_profile.columns:
-                difference_profile.loc[:, col] = (
-                    future_profile[col] - historic_profile[hour]
-                )
-            else:
-                # Try to find corresponding hour in historic MultiIndex
-                if historic_levels and "Hour" in historic_levels:
-                    try:
-                        historic_hour = historic_profile.xs(
-                            hour, level="Hour", axis=1
-                        ).iloc[:, 0]
-                    except (KeyError, IndexError):
-                        # If xs fails, fall back to first column
-                        historic_hour = historic_profile.iloc[:, 0]
-                else:
-                    historic_hour = historic_profile.iloc[
-                        :, 0
-                    ]  # Fall back to first column
-                difference_profile.loc[:, col] = future_profile[col] - historic_hour
-            pbar.update(1)
-
-    return difference_profile
-
-
 def _compute_mixed_index_difference(
     future_profile: pd.DataFrame, historic_profile: pd.DataFrame
 ) -> pd.DataFrame:
@@ -1285,53 +1169,6 @@ def _compute_mixed_index_difference(
             pbar.update(1)
 
     return difference_profile
-
-
-def _compute_simple_difference(
-    future_profile: pd.DataFrame, historic_profile: pd.DataFrame
-) -> pd.DataFrame:
-    """
-    Compute difference for profiles with simple (non-MultiIndex) columns.
-
-    Parameters
-    ----------
-    future_profile : pd.DataFrame
-        Future profile
-    historic_profile : pd.DataFrame
-        Historic profile
-
-    Returns
-    -------
-    pd.DataFrame
-        Difference profile
-    """
-    #!
-    print(f"list(future_profile.columns): {list(future_profile.columns)}")
-    #!
-    print(f"list(historic_profile.columns): {list(historic_profile.columns)}")
-
-    if list(future_profile.columns) == list(historic_profile.columns):
-        print("   ✓ Columns match - computing element-wise difference")
-        #!
-        print(
-            f"future_profile - historic_profile): {future_profile - historic_profile}"
-        )
-        return future_profile - historic_profile
-
-    else:
-        print("   ⚠️  Warning: Column mismatch between future and historic profiles")
-        print(f"      Future columns: {list(future_profile.columns)[:5]}...")
-        print(f"      Historic columns: {list(historic_profile.columns)[:5]}...")
-        # Try to align by position
-        #!
-        print(f"len(future_profile.columns): {len(future_profile.columns)}")
-        #!
-        print(f"len(historic_profile.columns): {len(historic_profile.columns)}")
-
-        min_cols = min(len(future_profile.columns), len(historic_profile.columns))
-        #!
-        print(f"min_cols: {min_cols}")
-        return future_profile.iloc[:, :min_cols] - historic_profile.iloc[:, :min_cols]
 
 
 def _find_matching_historic_value(
