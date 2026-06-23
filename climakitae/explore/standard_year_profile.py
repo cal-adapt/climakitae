@@ -222,6 +222,8 @@ def _check_cached_area(location_str: str, **kwargs: Any) -> str:
     match cached_area:
         case str():
             location_str = cached_area.lower()
+        case list():
+            location_str = "_".join(c.lower() for c in cached_area)
         case _:
             return location_str
     return location_str
