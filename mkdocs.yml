@@ -19,8 +19,6 @@ exclude_docs: |
 # converted into a pointer; users should land on the parent page.
 not_in_nav: |
   api/param-validation-detailed.md
-  api/core-data-interface.md
-  api/core-boundaries.md
   api/processors.md
 
 copyright: Copyright 2026, Cal-Adapt Analytics Engine
@@ -142,6 +140,13 @@ nav:
   - Migration:
       - Legacy to ClimateData: migration/legacy-to-climate-data.md
   - Legacy API:
-      - Status and Roadmap: legacy/status.md
-      - Reference: api/core.md
+      - Overview: legacy/index.md
+      - Core Concepts: legacy/concepts.md
+      - Reference:
+          - Data Interface: legacy/data-interface.md
+          - Boundaries: legacy/boundaries.md
+          - Data Loading: legacy/data-load.md
+          - Data Export: legacy/data-export.md
+          - Constants: legacy/constants.md
+          - Paths: legacy/paths.md
   - Contributing: contributing.md

@@ -67,6 +67,11 @@ dependencies = [
 
 [project.optional-dependencies]
 docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.6",
+    "pymdown-extensions>=10.15",
+    "mike>=2.0",
+    "mkdocstrings-python>=1.0",
     "Sphinx",
     "sphinx-book-theme",
     "sphinx-design",
