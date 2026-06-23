@@ -1125,8 +1125,8 @@ def _compute_simulation_paired_difference(
     difference_profile = future_profile.copy()
 
     # Get unique simulations from both profiles
-    future_sims = future_profile.columns.get_level_values("Simulation").unique()
-    historic_sims = historic_profile.columns.get_level_values("Simulation").unique()
+    future_sims = future_profile.columns.unique()
+    historic_sims = historic_profile.columns.unique()
 
     # Find common simulations
     common_sims = set(future_sims) & set(historic_sims)
