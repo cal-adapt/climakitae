@@ -1160,8 +1160,6 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
         Multi-index columns include Hour, Warming_Level, and Simulation dimensions.
 
     """
-    #!
-    print(f"data:{data}")
     # Check for simulation dimension
     has_simulation = "simulation" in data.dims
     if has_simulation:
@@ -1181,11 +1179,7 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
 
     # Create hour-of-year coordinate for all data (cycling through 1-8760)
     hour_of_year_all = np.tile(np.arange(1, hours_per_year + 1), n_years)[:total_hours]
-    #!
-    print(f"hour_of_year_all:{hour_of_year_all}")
     data = data.assign_coords(hour_of_year=("time_delta", hour_of_year_all))
-    #!
-    print(f"data after coords assigned:{data}")
 
     warming_levels = data.warming_level.values
 
@@ -1238,8 +1232,6 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
 
     # Initialize storage for profiles
     profile_data = {}
-    #!
-    print(f"warming_levels:{warming_levels}")
 
     # Progress tracking
     total_combinations = len(warming_levels) * n_simulations
@@ -1251,26 +1243,14 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
     ) as pbar:
 
         for wl_idx, wl in enumerate(warming_levels):
-            #!
-            print(f"wl:{wl}")
-            #!
-            print(f"wl_idx:{wl_idx}")
             for sim_idx, sim in enumerate(simulations):
-                #!
-                print(f"sim:{sim}")
-                #!
-                print(f"sim_idx:{sim_idx}")
                 # Get simulation label
                 sim_label = _get_simulation_label(sim, sim_idx)
-                #!
-                print(f"sim_label:{sim_label}")
                 # Select data for this warming level and simulation combination
                 if has_simulation:
                     subset_data = data.isel(warming_level=wl_idx, simulation=sim_idx)
                 else:
                     subset_data = data.isel(warming_level=wl_idx)
-                #!
-                print(f"subset_data:{subset_data}")
                 # Vectorized quantile computation using numpy
                 # Reshape raw values into (n_years, hours_per_year) then compute
                 # the quantile across years for each hour-of-year position
@@ -1278,29 +1258,17 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
                 n_total = len(values)
                 usable = (n_total // hours_per_year) * hours_per_year
                 year_hour_matrix = values[:usable].reshape(-1, hours_per_year)
-                #!
-                print(f"values:{values}")
-                #!
-                print(f"n_total:{n_total}")
-                #!
-                print(f"usable:{usable}")
 
                 # Compute quantile targets for each of the 8760 hour positions
                 quantile_targets = np.nanquantile(
                     year_hour_matrix, q, axis=0
                 )  # shape: (8760,)
-                #!
-                print(f"quantile_targets:{quantile_targets}")
-                #!
-                print(f"year_hour_matrix:{year_hour_matrix}")
 
                 # For each hour position, find the actual year whose value is
                 # closest to the quantile (avoids interpolation)
                 diffs = np.abs(
                     year_hour_matrix - quantile_targets[np.newaxis, :]
                 )  # (n_years, 8760)
-                #!
-                print(f"diffs:{diffs}")
                 closest_year_idx = np.nanargmin(diffs, axis=0)  # (8760,)
                 profile_1d = year_hour_matrix[
                     closest_year_idx, np.arange(hours_per_year)
@@ -1319,10 +1287,6 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
         sim_label_func=_get_simulation_label,
         hours_per_year=hours_per_year,
     )
-
-    #! remove if no longer needed
-    # # Determine which formatting function to use based on the structure
-    # _format_based_on_structure(df_profile)
 
     # Prepare metadata dictionary
     metadata = {
