@@ -1118,9 +1118,8 @@ def _compute_simulation_paired_difference(
         print(
             "   ⚠️  Warning: Found duplicate columns in historic profile. Removing duplicates."
         )
-        historic_profile = historic_profile.loc[
-            :, ~historic_profile.columns.duplicated()
-        ]
+        historic_profile = historic_profile.loc[:, ~historic_profile.columns.duplicated()]
+
 
     difference_profile = future_profile.copy()
 
@@ -1131,6 +1130,8 @@ def _compute_simulation_paired_difference(
     # Find common simulations
     common_sims = set(future_sims) & set(historic_sims)
 
+    historic_mean = historic_profile.T.mean()
+
     if not common_sims:
         print(
             "   ⚠️  Warning: No matching simulations found between future and historic profiles!"
@@ -1139,10 +1140,8 @@ def _compute_simulation_paired_difference(
         print(f"      Historic simulations: {list(historic_sims)}")
         # Fall back to using mean of historic
         # Note: axis parameter removed in pandas 2.2, use level-based groupby instead
-        historic_mean = historic_profile.T.groupby(level="Hour").mean().T
         for col in future_profile.columns:
-            hour = col[0] if "Hour" in future_levels else col[-1]
-            difference_profile.loc[:, col] = future_profile[col] - historic_mean[hour]
+            difference_profile.loc[:, col] = future_profile[col] - historic_mean
     else:
         # Compute differences for matching simulations
         n_cols = len(future_profile.columns)
@@ -1150,22 +1149,15 @@ def _compute_simulation_paired_difference(
             total=n_cols, desc="   Computing paired differences", unit="column"
         ) as pbar:
             for col in future_profile.columns:
-                historic_col = _find_matching_historic_column(
-                    col, future_levels, historic_profile, historic_levels
-                )
-                if historic_col and historic_col in historic_profile.columns:
+                # if the column in future_profile is also in historic_column
+                if col in historic_profile.columns:
+                    # find the difference between them
                     difference_profile.loc[:, col] = (
-                        future_profile[col] - historic_profile[historic_col]
+                        future_profile[col] - historic_profile[col]
                     )
                 else:
-                    # Use mean of historic for that hour
-                    hour = col[0]  # Assuming hour is first level
-                    historic_hour_mean = _get_historic_hour_mean(
-                        historic_profile, historic_levels, hour
-                    )
-                    difference_profile.loc[:, col] = (
-                        future_profile[col] - historic_hour_mean
-                    )
+                    # if not, subtract the per-hours historic means from the future_profile column
+                    difference_profile.loc[:, col] = future_profile[col] - historic_mean
                 pbar.update(1)
 
     return difference_profile
@@ -1340,84 +1332,6 @@ def _compute_simple_difference(
         #!
         print(f"min_cols: {min_cols}")
         return future_profile.iloc[:, :min_cols] - historic_profile.iloc[:, :min_cols]
-
-
-def _find_matching_historic_column(
-    future_col: tuple,
-    future_levels: list,
-    historic_profile: pd.DataFrame,
-    historic_levels: list,
-) -> tuple | None:
-    """
-    Find the matching historic column for a future column.
-
-    Parameters
-    ----------
-    future_col : tuple
-        Future column tuple
-    future_levels : list
-        Names of future column levels
-    historic_profile : pd.DataFrame
-        Historic profile DataFrame
-    historic_levels : list
-        Names of historic column levels
-
-    Returns
-    -------
-    tuple | None
-        Matching historic column or None
-    """
-    # Check that both have required levels for matching
-    if "Hour" in future_levels and "Simulation" in future_levels:
-        # Identify positions in future column
-        hour_idx = future_levels.index("Hour")
-        sim_idx = future_levels.index("Simulation")
-
-        hour = future_col[hour_idx]
-        sim = future_col[sim_idx]
-
-        # Check historic structure using historic_levels
-        if "Hour" in historic_levels and "Simulation" in historic_levels:
-            # Build historic column tuple based on historic_levels structure
-            hist_hour_idx = historic_levels.index("Hour")
-            hist_sim_idx = historic_levels.index("Simulation")
-
-            # Create tuple in the order of historic_levels
-            if hist_hour_idx < hist_sim_idx:
-                historic_col = (hour, sim)
-            else:
-                historic_col = (sim, hour)
-
-            if historic_col in historic_profile.columns:
-                return historic_col
-
-    return None
-
-
-def _get_historic_hour_mean(
-    historic_profile: pd.DataFrame, historic_levels: list, hour: any
-) -> pd.Series:
-    """
-    Get the mean of historic profile for a specific hour.
-
-    Parameters
-    ----------
-    historic_profile : pd.DataFrame
-        Historic profile DataFrame
-    historic_levels : list
-        Names of historic column levels
-    hour : any
-        Hour identifier
-
-    Returns
-    -------
-    pd.Series
-        Mean values for the specified hour
-    """
-    if "Simulation" in historic_levels:
-        return historic_profile.xs(hour, level="Hour", axis=1).mean()
-    else:
-        return historic_profile[hour] if hour in historic_profile.columns else 0
 
 
 def _find_matching_historic_value(
