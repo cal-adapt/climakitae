@@ -52,7 +52,7 @@ from climakitae.core.paths import (
     RENEWABLES_CATALOG_URL,
 )
 from climakitae.new_core.data_access.boundaries import Boundaries
-from climakitae.util.utils import read_csv_file
+from climakitae.util.utils import read_csv_file, add_crs_to_simulations
 
 
 class DataCatalog(dict):
@@ -727,6 +727,11 @@ class DataCatalog(dict):
                     "Derived-variable post-retrieval metadata fallback failed",
                     exc_info=True,
                 )
+
+        # Not all cadcat datasets have CRS in attributes. If CRS is not found, it will be added here.
+        if effective_key == CATALOG_CADCAT:
+            for key, ds in result.items():
+                result[key] = add_crs_to_simulations(ds)
 
         return result
 

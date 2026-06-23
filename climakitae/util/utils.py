@@ -2025,3 +2025,42 @@ def _determine_is_complete_wl(
         return False
 
     return True
+
+
+def add_crs_to_simulations(data: xr.DataArray | xr.Dataset):
+    # Ensure data has CRS set
+    if data.rio.crs is None:
+        # Check if this is WRF data with Lambert Conformal projection
+        if "Lambert_Conformal" in data.coords:
+            # WRF data: try spatial_ref attribute first, then build from CF attrs
+            spatial_ref = data["Lambert_Conformal"].attrs.get("spatial_ref")
+            if spatial_ref:
+                data = data.rio.write_crs(spatial_ref, inplace=True)
+            else:
+                # Build CRS from CF convention attributes
+                attrs = data["Lambert_Conformal"].attrs
+                try:
+                    crs = pyproj.CRS.from_cf(
+                        {
+                            "grid_mapping_name": attrs["grid_mapping_name"],
+                            "latitude_of_projection_origin": attrs[
+                                "latitude_of_projection_origin"
+                            ],
+                            "longitude_of_central_meridian": attrs[
+                                "longitude_of_central_meridian"
+                            ],
+                            "standard_parallel": attrs["standard_parallel"],
+                            "earth_radius": attrs["earth_radius"],
+                        }
+                    )
+                    data = data.rio.write_crs(crs, inplace=True)
+                except KeyError as e:
+                    raise ValueError(
+                        f"Lambert_Conformal coordinate found but missing required "
+                        f"CF convention attribute: {e}"
+                    )
+        else:
+            # LOCA2 or other lat/lon data: use WGS84/EPSG:4326
+            data = data.rio.write_crs("epsg:4326", inplace=True)
+
+    return data
