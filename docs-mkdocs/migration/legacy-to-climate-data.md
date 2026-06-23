@@ -6,7 +6,7 @@ This guide helps you migrate from the legacy `climakitae.core` API to the modern
 
 - **New work**: Always use `new_core` (fluent API)
 - **Existing code**: Legacy APIs remain available and functional during transition
-- **Timeline**: A multi-phase deprecation plan is published in [Legacy API status](../legacy/status.md). No breaking changes in the current minor-release series.
+- **Timeline**: A multi-phase deprecation plan is published in [Legacy API status](../legacy/index.md#status-and-roadmap). No breaking changes in the current minor-release series.
 - **Support**: Both interfaces are maintained, but `new_core` is where all new features land.
 
 !!! note "A note on field names"
@@ -287,4 +287,4 @@ data = (ClimateData()
 
 - Legacy interface remains fully supported in `climakitae.core`  
 - For new_core API details, see the [API Reference section](../api/climate-data.md)  
-- See [Legacy API status](../legacy/status.md) for deprecation timeline  
+- See [Legacy API status](../legacy/index.md#status-and-roadmap) for deprecation timeline
