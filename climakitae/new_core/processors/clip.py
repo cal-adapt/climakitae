@@ -629,7 +629,7 @@ class Clip(DataProcessor):
             The clipped data.
         """
         # Ensure data has CRS set
-        data = add_crs_to_simulations(data)
+        data = add_crs_to_downscaled_data(data)
 
         # Ensure GeoDataFrame has CRS set (boundaries are always in EPSG:4326)
         if gdf.crs is None:
