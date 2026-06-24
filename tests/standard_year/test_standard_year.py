@@ -189,12 +189,12 @@ class TestComputeProfile:
         ), "Should have proper index"
         assert hasattr(result, "attrs"), "Should preserve metadata in attrs"
 
-    def test_compute_profile_respects_days_in_year_parameter(self):
+    def test_compute_profile_respects_hours_in_year_parameter(self):
         """Test that compute_profile creates DataFrame with specified number of days."""
         # Execute function with regular year (365 days) - this should work with 8760 hours
         result_8760 = compute_profile(self.sample_data, q=0.5)
 
-        # Verify outcome: correct number of rows based on days_in_year
+        # Verify outcome: correct number of rows based on hours_per_year
         assert result_8760.shape[0] == 8760, "Should have 365 rows for regular year"
         assert result_8760.shape[1] == 1, "Should have 1 column for 1 simulation"
 
@@ -1377,7 +1377,7 @@ class TestCreateSimpleDataframe:
         np.testing.assert_array_equal(result_leap.index.values, expected_leap_index)
 
     def test_create_simple_dataframe_with_different_year_lengths(self):
-        """Test _create_simple_dataframe with different days_in_year parameter values."""
+        """Test _create_simple_dataframe with different hours_per_year parameter values."""
         # Test with various year lengths
         year_length_scenarios = [
             {"hours": 8760, "description": "regular year"},
@@ -1650,8 +1650,8 @@ class TestCreateSingleWlMultiSimDataframe:
             len(test_simulations),
         ), "Should have correct dimensions"
 
-        # Verify specific data values are preserved for each (hour, simulation) combination
-        for hour in test_hours:
+        # Verify specific data values are preserved
+        for hour in range(test_hours):
             for i, sim in enumerate(test_simulations):
                 sim_key = f"test_{sim}_{i}"
                 expected_matrix = expected_values[sim_key]
@@ -1807,6 +1807,7 @@ class TestCreateMultiWlSingleSimDataframe:
         # Create mock sim_label_func for predictable names
         test_sim_func = MagicMock()
         test_sim_func.return_value = "test_sim"
+        sim_key = "test_sim"
 
         # Create test profile data with known values
         test_profile_data = {}
@@ -1814,11 +1815,10 @@ class TestCreateMultiWlSingleSimDataframe:
 
         for wl in test_warming_levels:
             wl_key = f"WL_{wl}"
-            sim_key = "test_sim"
-            # Create known test data: day i, hour j has value (day+1)*10 + hour + wl
-            profile_matrix = np.zeros((test_hours, len(test_warming_levels)))
+            # Create known test data: hour hr has value (hr+1)*10 + wl
+            profile_matrix = np.zeros((test_hours, 1))
             for hr in range(test_hours):
-                profile_matrix[hr, wl_key, sim_key] = (hr + 1) * 10 + hr + wl
+                profile_matrix[hr, 0] = (hr + 1) + wl
 
             test_profile_data[(wl_key, sim_key)] = profile_matrix
             expected_values[wl_key] = profile_matrix
@@ -1829,7 +1829,7 @@ class TestCreateMultiWlSingleSimDataframe:
             warming_levels=test_warming_levels,
             simulation="test_simulation",
             sim_label_func=test_sim_func,
-            days_in_year=test_hours,
+            hours_per_year=test_hours,
         )
 
         # Verify outcome: data integrity is preserved
@@ -1840,14 +1840,14 @@ class TestCreateMultiWlSingleSimDataframe:
         ), "Should have correct dimensions"
 
         # Verify specific data values are preserved for each (hour, warming_level) combination
-        for hour in test_hours:
+        for hour in range(test_hours):
             for wl in test_warming_levels:
                 wl_key = f"WL_{wl}"
                 expected_matrix = expected_values[wl_key]
 
                 # Get column data for this (hour, warming_level) combination
-                column_data = result[(hour, wl_key)]
-                expected_column = expected_matrix[:, list(test_hours).index(hour)]
+                column_data = result[(wl_key, sim_key)]
+                expected_column = expected_matrix[:, 0]
 
                 # Verify data values match
                 np.testing.assert_array_equal(
@@ -1859,13 +1859,13 @@ class TestCreateMultiWlSingleSimDataframe:
         # Verify specific known values at expected positions
         # Day 1 (index 0), Hour 0, WL 1.0 should be 10 + 0 + 1.0 = 11.0
         assert (
-            result.loc[1, (0, "WL_1.0")] == 11.0
-        ), "Day 1, Hour 0, WL 1.0 should be 11.0"
+            result.loc[1, ("WL_1.0", "test_sim")] == 2.0
+        ), "Hour 0, WL 1.0 should be 2.0"
 
         # Day 2 (index 1), Hour 1, WL 2.0 should be 20 + 1 + 2.0 = 23.0
         assert (
-            result.loc[2, (1, "WL_2.0")] == 23.0
-        ), "Day 2, Hour 1, WL 2.0 should be 23.0"
+            result.loc[2, ("WL_2.0", "test_sim")] == 4.0
+        ), "Hour 2, WL 2.0 should be 4.0"  # day 2, hour 1
 
     def test_create_multi_wl_single_sim_dataframe_different_warming_level_configs(self):
         """Test function with different warming level configurations."""
@@ -2059,9 +2059,9 @@ class TestCreateMultiWlMultiSimDataframe:
                 sim_label = f"Simulation_{sim}"
                 # Create a matrix where values = day + hour + wl*10 + sim_index
                 sim_index = test_simulations.index(sim)
-                profile_matrix = np.zeros((8760, 4))
+                profile_matrix = np.zeros((8760, 1))
                 for hr in range(8760):
-                    profile_matrix[hr, 0] = hr + wl * 10 + sim_index
+                    profile_matrix[hr, 0] = (hr - 1) + wl * 10 + sim_idx
                 test_profile_data[(wl_key, sim_label)] = profile_matrix
 
         # Execute function
