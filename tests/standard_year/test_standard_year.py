@@ -86,8 +86,8 @@ class TestGetClimateProfile:
         )
 
         # Create mock profile DataFrames
-        mock_future_profile = pd.DataFrame(np.random.rand(365, 24))
-        mock_historic_profile = pd.DataFrame(np.random.rand(365, 24))
+        mock_future_profile = pd.DataFrame(np.random.rand(8760, 7))
+        mock_historic_profile = pd.DataFrame(np.random.rand(8760, 7))
         self.mock_compute_profile.side_effect = [
             mock_future_profile,
             mock_historic_profile,
@@ -111,7 +111,7 @@ class TestGetClimateProfile:
         self.mock_retrieve_profile_data.return_value = (None, mock_future_data)
 
         # Create mock future profile
-        mock_future_profile = pd.DataFrame(np.random.rand(365, 24))
+        mock_future_profile = pd.DataFrame(np.random.rand(8760, 7))
         self.mock_compute_profile.return_value = mock_future_profile
 
         # Execute function with no_delta=True
@@ -1258,9 +1258,7 @@ class TestCreateSimpleDataframe:
             return f"Sim{sim_idx + 1}"
 
         self.sim_label_func = sim_label_func
-        self.days_in_year = 365
-        self.hours = np.arange(1, 25, 1)  # Hours 1-24
-        self.hours_per_day = 24
+        self.days_per_year = 8760
 
     def test_create_simple_dataframe_returns_dataframe(self):
         """Test _create_simple_dataframe returns pd.DataFrame."""
@@ -1287,8 +1285,6 @@ class TestCreateSimpleDataframe:
             simulation=self.simulation,
             sim_label_func=self.sim_label_func,
             hours_per_year=8760,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
         )
 
         # Verify outcome: correct MultiIndex column structure
@@ -1328,8 +1324,6 @@ class TestCreateSimpleDataframe:
             simulation=different_sim,
             sim_label_func=self.sim_label_func,
             hours_per_year=8760,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
         )
 
         # Verify outcome: maintains same structure with different data
@@ -1350,8 +1344,6 @@ class TestCreateSimpleDataframe:
             simulation=different_sim,
             sim_label_func=self.sim_label_func,
             hours_per_year=8760,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
         )
 
         # Verify outcome: handles different simulation correctly
@@ -1510,7 +1502,6 @@ class TestCreateSingleWlMultiSimDataframe:
         # Test parameters
         self.warming_level = 2.0
         self.simulations = ["model_A", "model_B", "model_C"]
-        self.hours = np.arange(0, 24)
         self.hours_per_year = 8760
 
         # Create sample profile data dictionary
@@ -1679,8 +1670,7 @@ class TestCreateSingleWlMultiSimDataframe:
         """Test that profile data values are correctly preserved in MultiIndex structure."""
         # Create specific test data with known values for verification
         test_simulations = ["test_sim_A", "test_sim_B"]
-        test_hours = np.array([0, 1, 2])  # Use smaller subset for easier verification
-        test_days = 24  # Use smaller dataset for precise testing
+        test_hours = 24  # Use smaller dataset for precise testing
 
         # Create mock sim_label_func for predictable names
         test_sim_func = MagicMock()
@@ -1709,9 +1699,7 @@ class TestCreateSingleWlMultiSimDataframe:
             warming_level=self.warming_level,
             simulations=test_simulations,
             sim_label_func=test_sim_func,
-            days_in_year=test_days,
-            hours=test_hours,
-            hours_per_day=len(test_hours),
+            hours_per_year=test_hours,
         )
 
         # Verify outcome: data integrity is preserved
@@ -1925,8 +1913,7 @@ class TestCreateMultiWlSingleSimDataframe:
             warming_levels=test_warming_levels,
             simulation="test_simulation",
             sim_label_func=test_sim_func,
-            days_in_year=test_days,
-            hours_per_day=len(test_hours),
+            days_in_year=test_hours
         )
 
         # Verify outcome: data integrity is preserved
@@ -2067,12 +2054,8 @@ class TestCreateMultiWlMultiSimDataframe:
         List of simulation identifiers for testing.
     mock_sim_label_func : MagicMock
         Mock simulation label function.
-    days_in_year : int
-        Number of days in year (365).
-    hours : np.ndarray
-        Array of hour values (1-24).
-    hours_per_day : int
-        Hours per day (24).
+    hours_per_year : int
+        Hours per year (8760).
     profile_data : dict
         Sample profile data dictionary.
     """
