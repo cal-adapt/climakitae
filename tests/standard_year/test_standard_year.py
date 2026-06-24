@@ -1212,6 +1212,13 @@ class TestCreateSimpleDataframe:
         self.warming_level = 2.0
         self.simulation = "sim1"
 
+        # Simple function to get simulation labels
+        def sim_label_func(sim, sim_idx):
+            return f"Sim{sim_idx + 1}"
+
+        self.sim_label_func = sim_label_func
+        self.hours_per_year = 8760
+
         # Create sample profile data dictionary
         sim_label = self.sim_label_func(self.simulation, 0)
         wl_key = f"WL_{self.warming_level}"
@@ -1220,13 +1227,6 @@ class TestCreateSimpleDataframe:
         self.profile_data = {
             (wl_key, sim_label): np.random.rand(8760, 1) + 20.0  # Temperature-like data
         }
-
-        # Simple function to get simulation labels
-        def sim_label_func(sim, sim_idx):
-            return f"Sim{sim_idx + 1}"
-
-        self.sim_label_func = sim_label_func
-        self.hours_per_year = 8760
 
     def test_create_simple_dataframe_returns_dataframe(self):
         """Test _create_simple_dataframe returns pd.DataFrame."""
