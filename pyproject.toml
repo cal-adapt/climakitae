@@ -88,7 +88,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/cal-adapt/climakitae"
-Documentation = "https://climakitae.readthedocs.io"
+Documentation = "https://cal-adapt.github.io/climakitae/dev/"
 Repository = "https://github.com/cal-adapt/climakitae"
 Issues = "https://github.com/cal-adapt/climakitae/issues"
 "Cal-Adapt" = "https://analytics.cal-adapt.org"
