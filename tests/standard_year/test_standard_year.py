@@ -574,7 +574,7 @@ class TestComputeDifferenceProfile:
         self.simple_future_profile = pd.DataFrame(
             np.random.rand(8760, 1) + 20.0,  # Future is warmer
             index=range(1, 8761),
-            columns=range(1,2),
+            columns=range(1, 2),
         )
         self.simple_historic_profile = pd.DataFrame(
             np.random.rand(8760, 1) + 15.0,  # Future is cooler
@@ -638,7 +638,7 @@ class TestComputeDifferenceProfile:
 
         # Both profiles have (Hour, Simulation) structure
         multi_cols = pd.MultiIndex.from_product(
-            [wl_levels,simulations], names=["Warming_Level","Simulation"]
+            [wl_levels, simulations], names=["Warming_Level", "Simulation"]
         )
 
         future_multi = pd.DataFrame(
@@ -737,7 +737,7 @@ class TestComputePairedDifference:
 
     def setup_method(self):
         """Set up test fixtures."""
-        wl_levels = [1.5,2.0]
+        wl_levels = [1.5, 2.0]
         simulations = ["sim1", "sim2", "sim3"]
 
         # Create future profile with (Hour, Simulation)
@@ -760,9 +760,7 @@ class TestComputePairedDifference:
     def test_compute_paired_difference_matches_common_simulations(self):
         """Test _compute_paired_difference matches common simulations correctly."""
         # Execute function with matching simulation sets
-        result = _compute_paired_difference(
-            self.future_profile, self.historic_profile
-        )
+        result = _compute_paired_difference(self.future_profile, self.historic_profile)
 
         # Verify outcome: returns DataFrame with paired differences
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
@@ -786,7 +784,7 @@ class TestComputePairedDifference:
     def test_compute_paired_difference_with_no_common_simulations(self):
         """Test _compute_paired_difference when no simulations match."""
         # Create historic profile with different simulations
-        wl_levels = [1.5,2.0]
+        wl_levels = [1.5, 2.0]
         different_sims = ["sim4", "sim5", "sim6"]  # No overlap with future sims
 
         historic_cols = pd.MultiIndex.from_product(
@@ -799,9 +797,7 @@ class TestComputePairedDifference:
         )
 
         # Execute function with no matching simulations
-        result = _compute_paired_difference(
-            self.future_profile, historic_different
-        )
+        result = _compute_paired_difference(self.future_profile, historic_different)
 
         # Verify outcome: returns DataFrame when no matches (computes average difference)
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
@@ -836,9 +832,7 @@ class TestComputePairedDifference:
         )
 
         # Execute function
-        result = _compute_paired_difference(
-            future_dup, historic_dup
-        )
+        result = _compute_paired_difference(future_dup, historic_dup)
 
         # Verify outcome: handles duplicates gracefully
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
@@ -854,7 +848,7 @@ class TestComputePairedDifference:
         using the historic profile hourly means.
         """
         # Create future profile with some simulations
-        wl_levels = [1.5,2.0]
+        wl_levels = [1.5, 2.0]
         future_sims = ["sim1", "sim2", "sim3"]
 
         future_cols = pd.MultiIndex.from_product(
@@ -880,9 +874,7 @@ class TestComputePairedDifference:
         )
 
         # Execute function
-        result = _compute_paired_difference(
-            future_profile, historic_profile
-        )
+        result = _compute_paired_difference(future_profile, historic_profile)
 
         # Verify outcome: returns DataFrame with differences
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
@@ -930,6 +922,7 @@ class TestComputePairedDifference:
         assert (
             result.shape == future_profile.shape
         ), "Final result shape should match input"
+
 
 class TestConstructProfileDataframe:
     """Test class for _construct_profile_dataframe function.
@@ -1057,7 +1050,7 @@ class TestConstructProfileDataframe:
         ), "Should have MultiIndex column structure"
         assert result.columns.names == [
             "Warming_Level",
-            "Simulation"
+            "Simulation",
         ], "Should have Hour and Warming_Level levels"
 
     def test_construct_profile_dataframe_multi_wl_multi_sim(self):
@@ -1149,7 +1142,7 @@ class TestStackProfileData:
 
         # Verify outcome: returns 2D array with proper dimensions
         assert isinstance(result, np.ndarray), "Should return a numpy array"
-        assert result.shape == (365, 96), "Should have correct total column count"
+        assert result.shape == (365, 4), "Should have correct total column count"
         assert result.dtype.kind == "f", "Should contain floating point data"
 
     def test_stack_profile_data_handles_single_simulation(self):
@@ -1223,7 +1216,6 @@ class TestCreateSimpleDataframe:
         self.simulation = "Sim1"
 
         # Create sample profile data dictionary
-        wl_key = "WL_2.0"
         sim_key = "Sim1"
 
         # Create 365x24 profile matrix with realistic climate data
@@ -1324,7 +1316,7 @@ class TestCreateSimpleDataframe:
         assert isinstance(
             result_sim, pd.DataFrame
         ), "Should return DataFrame for different sim"
-        assert result_sim.shape == (8760,1), "Should maintain same shape"
+        assert result_sim.shape == (8760, 1), "Should maintain same shape"
 
         # Verify all results have different data but same structure
         assert not result_wl.equals(
@@ -1515,10 +1507,9 @@ class TestCreateSingleWlMultiSimDataframe:
         # Verify outcome: correct MultiIndex column structure
         assert isinstance(result.columns, pd.iIndex), "Columns should be a simple Index"
 
-
         # Verify expected dimensions: 365 rows, (24 hours × 3 simulations) columns
         expected_rows = 8760
-        expected_cols = len(self.simulations)  
+        expected_cols = len(self.simulations)
         assert result.shape == (
             expected_rows,
             expected_cols,
@@ -1634,11 +1625,11 @@ class TestCreateSingleWlMultiSimDataframe:
 
         for i, sim in enumerate(test_simulations):
             sim_key = f"test_{sim}_{i}"
-            wl_key = f"WL_{self.warming_level}"
             # Create known test data: hour i has value (i+1)*10 + hr
             profile_matrix = np.zeros((test_hours, 1))
-            for hr in range(test_hours):
-                profile_matrix[hr, i] = (hr + 1) * 10 + i
+            print(profile_matrix)
+            for hr in range(test_hours - 1):
+                profile_matrix[hr + 1, 0] = (hr + 1) * 10 + i
 
             test_profile_data[sim_key] = profile_matrix
             expected_values[sim_key] = profile_matrix
@@ -1679,15 +1670,11 @@ class TestCreateSingleWlMultiSimDataframe:
         # Verify specific known values at expected positions
         # Day 1 (index 0), Hour 0, Sim A should be 10 (day 1 * 10 + hour 0)
         sim_a_key = "test_test_sim_A_0"
-        assert (
-            result.loc[1, sim_a_key] == 10.0
-        ), "Day 1, Hour 0, Sim A should be 10"
+        assert result.loc[1, sim_a_key] == 10.0, "Hour 1, Sim A should be 10"
 
         # Day 2 (index 1), Hour 1, Sim B should be 21 (day 2 * 10 + hour 1)
         sim_b_key = "test_test_sim_B_1"
-        assert (
-            result.loc[2, sim_b_key] == 21.0
-        ), "Day 2, Hour 1, Sim B should be 21"
+        assert result.loc[2, sim_b_key] == 21.0, "Hour 1, Sim B should be 21"
 
 
 class TestCreateMultiWlSingleSimDataframe:
@@ -1763,14 +1750,12 @@ class TestCreateMultiWlSingleSimDataframe:
         assert isinstance(result.columns, pd.MultiIndex), "Columns should be MultiIndex"
         assert result.columns.names == [
             "Warming_Level",
-            "Simulation"
+            "Simulation",
         ], "Column levels should be named Warming_Level and Simulation"
 
         # Verify expected dimensions: 365 rows, (24 hours × 3 warming levels) columns
         expected_rows = 8760
-        expected_cols = len(
-            self.warming_levels
-        )
+        expected_cols = len(self.warming_levels)
         assert result.shape == (
             expected_rows,
             expected_cols,
@@ -1833,7 +1818,7 @@ class TestCreateMultiWlSingleSimDataframe:
             # Create known test data: day i, hour j has value (day+1)*10 + hour + wl
             profile_matrix = np.zeros((test_hours, len(test_warming_levels)))
             for hr in range(test_hours):
-                profile_matrix[hour, wl_key, sim_key] = (hr + 1) * 10 + hr + wl
+                profile_matrix[hr, wl_key, sim_key] = (hr + 1) * 10 + hr + wl
 
             test_profile_data[(wl_key, sim_key)] = profile_matrix
             expected_values[wl_key] = profile_matrix
@@ -1844,7 +1829,7 @@ class TestCreateMultiWlSingleSimDataframe:
             warming_levels=test_warming_levels,
             simulation="test_simulation",
             sim_label_func=test_sim_func,
-            days_in_year=test_hours
+            days_in_year=test_hours,
         )
 
         # Verify outcome: data integrity is preserved
@@ -1889,19 +1874,19 @@ class TestCreateMultiWlSingleSimDataframe:
             {
                 "name": "single_warming_level",
                 "warming_levels": np.array([2.0]),
-                "expected_cols": 24 * 1,  # 24 hours × 1 WL
+                "expected_cols": 1,  # 1 WL
                 "expected_wl_names": ["WL_2.0"],
             },
             {
                 "name": "two_warming_levels",
                 "warming_levels": np.array([1.5, 3.0]),
-                "expected_cols": 24 * 2,  # 24 hours × 2 WLs
+                "expected_cols": 2,  # 2 WLs
                 "expected_wl_names": ["WL_1.5", "WL_3.0"],
             },
             {
                 "name": "many_warming_levels",
                 "warming_levels": np.array([1.0, 1.5, 2.0, 2.5, 3.0, 4.0]),
-                "expected_cols": 24 * 6,  # 24 hours × 6 WLs
+                "expected_cols": 6,  # 6 WLs
                 "expected_wl_names": [
                     "WL_1.0",
                     "WL_1.5",
@@ -1949,7 +1934,7 @@ class TestCreateMultiWlSingleSimDataframe:
             ), f"Should have MultiIndex columns for {scenario['name']}"
             assert result.columns.names == [
                 "Warming_Level",
-                "Simulation"
+                "Simulation",
             ], f"Should have correct level names for {scenario['name']}"
 
             # Verify warming level names
@@ -1962,6 +1947,7 @@ class TestCreateMultiWlSingleSimDataframe:
                 assert (
                     expected_wl in unique_wls
                 ), f"Should contain {expected_wl} for {scenario['name']}"
+
 
 class TestCreateMultiWlMultiSimDataframe:
     """Test class for _create_multi_wl_multi_sim_dataframe function.
@@ -2041,7 +2027,6 @@ class TestCreateMultiWlMultiSimDataframe:
             "Simulation",
         ], "Should have three levels: Warming_Level, Simulation"
 
-
         # Verify all warming levels are present
         unique_wls = result.columns.get_level_values("Warming_Level").unique()
         expected_wl_names = [f"WL_{wl}" for wl in self.warming_levels]
@@ -2076,7 +2061,7 @@ class TestCreateMultiWlMultiSimDataframe:
                 sim_index = test_simulations.index(sim)
                 profile_matrix = np.zeros((365, 24))
                 for hr in range(8760):
-                    profile_matrix[hour] = hr + wl * 10 + sim_index
+                    profile_matrix[hr] = hr + wl * 10 + sim_index
                 test_profile_data[(wl_key, sim_label)] = profile_matrix
 
         # Execute function
@@ -2091,20 +2076,20 @@ class TestCreateMultiWlMultiSimDataframe:
         # Verify outcome: data values are preserved correctly
         # Check specific values for a sample of combinations
         for hr in [1, 4000, 8760]:  # Check first, middle, and last day
-                for wl in test_warming_levels:
-                    for sim_idx, sim in enumerate(test_simulations):
-                        wl_name = f"WL_{wl}"
-                        sim_name = f"Simulation_{sim}"
+            for wl in test_warming_levels:
+                for sim_idx, sim in enumerate(test_simulations):
+                    wl_name = f"WL_{wl}"
+                    sim_name = f"Simulation_{sim}"
 
-                        # Get value from result DataFrame
-                        result_value = result.loc[(hr, wl_name, sim_name)]
+                    # Get value from result DataFrame
+                    result_value = result.loc[(hr, wl_name, sim_name)]
 
-                        # Calculate expected value
-                        expected_value = (hr - 1)+ wl * 10 + sim_idx
+                    # Calculate expected value
+                    expected_value = (hr - 1) + wl * 10 + sim_idx
 
-                        assert (
-                            abs(result_value - expected_value) < 0.001
-                        ), f"Value mismatch at hour={hr}, wl={wl}, sim={sim}: expected {expected_value}, got {result_value}"
+                    assert (
+                        abs(result_value - expected_value) < 0.001
+                    ), f"Value mismatch at hour={hr}, wl={wl}, sim={sim}: expected {expected_value}, got {result_value}"
 
     def test_complex_combinations(self):
         """Test various complex combinations of warming levels and simulations."""
@@ -2114,19 +2099,19 @@ class TestCreateMultiWlMultiSimDataframe:
                 "name": "single_wl_single_sim",
                 "warming_levels": np.array([2.0]),
                 "simulations": ["sim1"],
-                "expected_cols": 24,  # 24 hours * 1 WL * 1 sim
+                "expected_cols": 1,  # 1 WL * 1 sim
             },
             {
                 "name": "many_wls_many_sims",
                 "warming_levels": np.array([1.0, 1.5, 2.0, 2.5, 3.0]),
                 "simulations": ["sim1", "sim2", "sim3", "sim4"],
-                "expected_cols": 480,  # 24 hours * 5 WLs * 4 sims
+                "expected_cols": 20,  # 5 WLs * 4 sims
             },
             {
                 "name": "two_wls_three_sims",
                 "warming_levels": np.array([1.5, 3.0]),
                 "simulations": ["sim1", "sim2", "sim3"],
-                "expected_cols": 144,  # 24 hours * 2 WLs * 3 sims
+                "expected_cols": 6,  # 2 WLs * 3 sims
             },
         ]
 
@@ -2203,7 +2188,7 @@ class TestCreateMultiWlMultiSimDataframe:
                 ["duplicate_name", "duplicate_name_v1", "duplicate_name_v2"]
             ):
                 profile_matrix = (
-                    np.random.rand(8769, 1) + 20.0 + wl + i
+                    np.random.rand(8760, 1) + 20.0 + wl + i
                 )  # Slightly different data
                 duplicate_profile_data[(wl_key, unique_suffix)] = profile_matrix
 
@@ -2265,6 +2250,7 @@ class TestCreateMultiWlMultiSimDataframe:
                     assert (
                         len(col_data) == 365
                     ), f"Should have 365 days for hour={hour}, wl={wl_name}, sim={unique_sim}"
+
 
 class TestGetStationCoordinates:
     """Test class for _get_station_coordinates function.
