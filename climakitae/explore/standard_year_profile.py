@@ -841,9 +841,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
         if "latitude" in kwargs or "longitude" in kwargs:
             kwargs.pop("latitude", None)
             kwargs.pop("longitude", None)
-            print(
-                "   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude"
-            )
+            print("   ⚠️  Note: Using cached_area, ignoring provided latitude/longitude")
         if "stations" in kwargs:
             kwargs.pop("stations", None)
             print("   ⚠️  Note: Using cached_area, ignoring provided stations")
@@ -1596,6 +1594,7 @@ def _create_multi_wl_single_sim_dataframe(
 
     # Create MultiIndex columns
     col_tuples = [(wl_name, sim) for wl_name in wl_names for sim in [sim_name]]
+
     multi_cols = pd.MultiIndex.from_tuples(
         col_tuples, names=["Warming_Level", "Simulation"]
     )
