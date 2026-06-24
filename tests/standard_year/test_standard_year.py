@@ -575,39 +575,39 @@ class TestComputeDifferenceProfile:
         """Set up test fixtures."""
         # Create simple profiles (single-level columns)
         self.simple_future_profile = pd.DataFrame(
-            np.random.rand(365, 24) + 20.0,  # Future is warmer
-            index=range(1, 366),
-            columns=range(1, 25),
+            np.random.rand(8760, 1) + 20.0,  # Future is warmer
+            index=range(1, 8761),
+            columns=range(1,2),
         )
         self.simple_historic_profile = pd.DataFrame(
-            np.random.rand(365, 24) + 15.0,  # Historic is cooler
-            index=range(1, 366),
-            columns=range(1, 25),
+            np.random.rand(8760, 1) + 15.0,  # Future is cooler
+            index=range(1, 8761),
+            columns=range(1, 2),
         )
 
         # Create MultiIndex profiles
-        hours = list(range(1, 25))
         wl_levels = [1.5, 2.0]
         simulations = ["sim1", "sim2"]
 
         # Future with MultiIndex (Hour, Warming_Level, Simulation)
         multi_cols_future = pd.MultiIndex.from_product(
-            [hours, wl_levels, simulations],
-            names=["Hour", "Warming_Level", "Simulation"],
+            [wl_levels, simulations],
+            names=["Warming_Level", "Simulation"],
         )
         self.multi_future_profile = pd.DataFrame(
-            np.random.rand(365, len(multi_cols_future)) + 20.0,
-            index=range(1, 366),
+            np.random.rand(8760, len(multi_cols_future)) + 20.0,
+            index=range(1, 8761),
             columns=multi_cols_future,
         )
 
         # Historic with MultiIndex (Hour, Simulation)
         multi_cols_historic = pd.MultiIndex.from_product(
-            [hours, simulations], names=["Hour", "Simulation"]
+            [wl_levels, simulations],
+            names=["Warming_Level", "Simulation"],
         )
         self.multi_historic_profile = pd.DataFrame(
-            np.random.rand(365, len(multi_cols_historic)) + 15.0,
-            index=range(1, 366),
+            np.random.rand(8760, len(multi_cols_historic)) + 15.0,
+            index=range(1, 8761),
             columns=multi_cols_historic,
         )
 
@@ -636,22 +636,22 @@ class TestComputeDifferenceProfile:
     def test_compute_difference_profile_with_multiindex_columns(self):
         """Test _compute_difference_profile with MultiIndex columns."""
         # Create matched MultiIndex profiles for testing
-        hours = list(range(1, 25))
+        wl_levels = [1.5, 2.0]
         simulations = ["sim1", "sim2"]
 
         # Both profiles have (Hour, Simulation) structure
         multi_cols = pd.MultiIndex.from_product(
-            [hours, simulations], names=["Hour", "Simulation"]
+            [wl_levels,simulations], names=["Warming_Level","Simulation"]
         )
 
         future_multi = pd.DataFrame(
-            np.random.rand(365, len(multi_cols)) + 20.0,
-            index=range(1, 366),
+            np.random.rand(8760, len(multi_cols)) + 20.0,
+            index=range(1, 8761),
             columns=multi_cols,
         )
         historic_multi = pd.DataFrame(
-            np.random.rand(365, len(multi_cols)) + 15.0,
-            index=range(1, 366),
+            np.random.rand(8760, len(multi_cols)) + 15.0,
+            index=range(1, 8761),
             columns=multi_cols,
         )
 
@@ -664,7 +664,7 @@ class TestComputeDifferenceProfile:
             result.columns, pd.MultiIndex
         ), "Should preserve MultiIndex structure"
         assert result.columns.names == [
-            "Hour",
+            "Warming_Level",
             "Simulation",
         ], "Should preserve column level names"
         assert result.shape == future_multi.shape, "Shape should match future profile"
