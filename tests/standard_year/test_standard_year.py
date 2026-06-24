@@ -961,8 +961,8 @@ class TestConstructProfileDataframe:
             for i, sim in enumerate(self.simulations):
                 wl_key = f"WL_{wl}"
                 sim_key = f"Sim{i+1}"  # Simple simulation labels
-                # Create 365x24 profile matrix
-                self.profile_data[(wl_key, sim_key)] = np.random.rand(365, 24) + 20.0
+                # Create 8760x2 profile matrix
+                self.profile_data[(wl_key, sim_key)] = np.random.rand(8760, 2) + 20.0
 
         # Simple function to get simulation labels
         def sim_label_func(sim, sim_idx):
@@ -977,7 +977,7 @@ class TestConstructProfileDataframe:
         single_sim = ["sim1"]
 
         # Create appropriate profile data
-        profile_data = {("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0}
+        profile_data = {("Sim1"): np.random.rand(8760, 1) + 20.0}
 
         # Execute function
         result = _construct_profile_dataframe(
@@ -990,16 +990,12 @@ class TestConstructProfileDataframe:
         # Verify outcome: MultiIndex structure with (Hour, Simulation)
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape == (
-            365,
-            24,
-        ), "Should have 365 rows and 24 columns (24*2 sims)"
+            8760,
+            1,
+        ), "Should have 8760 rows and 1 column (8760*1 sims)"
         assert isinstance(
-            result.columns, pd.MultiIndex
-        ), "Should have MultiIndex column structure"
-        assert result.columns.names == [
-            "Hour",
-            "Simulation",
-        ], "Should have Hour and Simulation levels"
+            result.columns, pd.Index
+        ), "Should have a simple Index column structure"
 
     def test_construct_profile_dataframe_single_wl_multi_sim(self):
         """Test _construct_profile_dataframe with single warming level and multiple simulations."""
@@ -1009,8 +1005,8 @@ class TestConstructProfileDataframe:
 
         # Create appropriate profile data
         profile_data = {
-            ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0,
-            ("WL_1.5", "Sim2"): np.random.rand(365, 24) + 20.0,
+            ("Sim1"): np.random.rand(8760, 1) + 20.0,
+            ("Sim2"): np.random.rand(8760, 1) + 20.0,
         }
 
         # Execute function
@@ -1025,16 +1021,12 @@ class TestConstructProfileDataframe:
         # Verify outcome: MultiIndex structure with (Hour, Simulation)
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape == (
-            365,
-            48,
-        ), "Should have 365 rows and 48 columns (24*2 sims)"
+            8760,
+            2,
+        ), "Should have 8760 rows and 2 columns"
         assert isinstance(
-            result.columns, pd.MultiIndex
-        ), "Should have MultiIndex column structure"
-        assert result.columns.names == [
-            "Hour",
-            "Simulation",
-        ], "Should have Hour and Simulation levels"
+            result.columns, pd.Index
+        ), "Should have a simple Index column structure"
 
     def test_construct_profile_dataframe_multi_wl_single_sim(self):
         """Test _construct_profile_dataframe with multiple warming levels and single simulation."""
@@ -1044,8 +1036,8 @@ class TestConstructProfileDataframe:
 
         # Create appropriate profile data
         profile_data = {
-            ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0,
-            ("WL_2.0", "Sim1"): np.random.rand(365, 24) + 22.0,
+            ("WL_1.5", "Sim1"): np.random.rand(8760, 1) + 20.0,
+            ("WL_2.0", "Sim1"): np.random.rand(8760, 1) + 22.0,
         }
 
         # Execute function
@@ -1060,15 +1052,15 @@ class TestConstructProfileDataframe:
         # Verify outcome: MultiIndex structure with (Hour, Warming_Level)
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape == (
-            365,
-            48,
-        ), "Should have 365 rows and 48 columns (24*2 WLs)"
+            8760,
+            2,
+        ), "Should have 8760 rows and 2 columns"
         assert isinstance(
             result.columns, pd.MultiIndex
         ), "Should have MultiIndex column structure"
         assert result.columns.names == [
-            "Hour",
             "Warming_Level",
+            "Simulation"
         ], "Should have Hour and Warming_Level levels"
 
     def test_construct_profile_dataframe_multi_wl_multi_sim(self):
@@ -1079,10 +1071,10 @@ class TestConstructProfileDataframe:
 
         # Create appropriate profile data for all combinations
         profile_data = {
-            ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0,
-            ("WL_1.5", "Sim2"): np.random.rand(365, 24) + 20.0,
-            ("WL_2.0", "Sim1"): np.random.rand(365, 24) + 22.0,
-            ("WL_2.0", "Sim2"): np.random.rand(365, 24) + 22.0,
+            ("WL_1.5", "Sim1"): np.random.rand(8760, 1) + 20.0,
+            ("WL_1.5", "Sim2"): np.random.rand(8760, 1) + 20.0,
+            ("WL_2.0", "Sim1"): np.random.rand(8760, 1) + 22.0,
+            ("WL_2.0", "Sim2"): np.random.rand(8760, 1) + 22.0,
         }
 
         # Execute function
@@ -1097,9 +1089,9 @@ class TestConstructProfileDataframe:
         # Verify outcome: MultiIndex structure with (Hour, Warming_Level, Simulation)
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape == (
-            365,
-            96,
-        ), "Should have 365 rows and 96 columns (24*2WL*2sim)"
+            8760,
+            4,
+        ), "Should have 8760 rows and 4 columns"
         assert isinstance(
             result.columns, pd.MultiIndex
         ), "Should have MultiIndex column structure"
@@ -1123,10 +1115,10 @@ class TestStackProfileData:
         """Set up test fixtures."""
         # Create sample profile data - 365 days x 24 hours
         self.profile_data = {
-            ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0,
-            ("WL_1.5", "Sim2"): np.random.rand(365, 24) + 20.0,
-            ("WL_2.0", "Sim1"): np.random.rand(365, 24) + 22.0,
-            ("WL_2.0", "Sim2"): np.random.rand(365, 24) + 22.0,
+            ("WL_1.5", "Sim1"): np.random.rand(8760, 1) + 20.0,
+            ("WL_1.5", "Sim2"): np.random.rand(8760, 1) + 20.0,
+            ("WL_2.0", "Sim1"): np.random.rand(8760, 1) + 22.0,
+            ("WL_2.0", "Sim2"): np.random.rand(8760, 1) + 22.0,
         }
 
     def test_stack_profile_data_hour_first_two_level(self):
@@ -1141,9 +1133,9 @@ class TestStackProfileData:
         # Verify outcome: returns 2D array with correct shape
         assert isinstance(result, np.ndarray), "Should return a numpy array"
         assert result.shape == (
-            365,
-            96,
-        ), "Should have 365 rows and 96 columns (24*2WL*2sim)"
+            8760,
+            4,
+        ), "Should have 8760 rows and 4 columns"
         assert not np.isnan(result).any(), "Should not contain NaN values"
 
         # Check that all values are positive (since input data is 20+ and 22+)
@@ -1167,8 +1159,8 @@ class TestStackProfileData:
         """Test _stack_profile_data with single simulation."""
         # Create single simulation profile data
         single_sim_data = {
-            ("WL_1.5", "Sim1"): np.random.rand(365, 24) + 20.0,
-            ("WL_2.0", "Sim1"): np.random.rand(365, 24) + 22.0,
+            ("WL_1.5", "Sim1"): np.random.rand(8760, 1) + 20.0,
+            ("WL_2.0", "Sim1"): np.random.rand(8760, 1) + 22.0,
         }
 
         # Execute function
@@ -1180,15 +1172,15 @@ class TestStackProfileData:
 
         # Verify outcome: correct dimensions for single simulation
         assert isinstance(result, np.ndarray), "Should return a numpy array"
-        assert result.shape == (365, 48), "Should have 48 columns (24*2WL*1sim)"
+        assert result.shape == (8760, 2), "Should have 48 columns (24*2WL*1sim)"
         assert np.all(result >= 20), "Values should be in expected range"
 
     def test_stack_profile_data_preserves_data_values(self):
         """Test _stack_profile_data preserves original data values correctly."""
         # Create simple test data to verify preservation
         simple_data = {
-            ("WL_1.5", "Sim1"): np.ones((365, 24)) * 25.0,  # All values = 25
-            ("WL_2.0", "Sim1"): np.ones((365, 24)) * 30.0,  # All values = 30
+            ("WL_1.5", "Sim1"): np.ones((8760, 1)) * 25.0,  # All values = 25
+            ("WL_2.0", "Sim1"): np.ones((8760, 1)) * 30.0,  # All values = 30
         }
 
         # Execute function
