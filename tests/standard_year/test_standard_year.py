@@ -1142,7 +1142,7 @@ class TestStackProfileData:
 
         # Verify outcome: returns 2D array with proper dimensions
         assert isinstance(result, np.ndarray), "Should return a numpy array"
-        assert result.shape == (365, 4), "Should have correct total column count"
+        assert result.shape == (8760, 4), "Should have correct total column count"
         assert result.dtype.kind == "f", "Should contain floating point data"
 
     def test_stack_profile_data_handles_single_simulation(self):
@@ -2059,9 +2059,9 @@ class TestCreateMultiWlMultiSimDataframe:
                 sim_label = f"Simulation_{sim}"
                 # Create a matrix where values = day + hour + wl*10 + sim_index
                 sim_index = test_simulations.index(sim)
-                profile_matrix = np.zeros((365, 24))
+                profile_matrix = np.zeros((8760, 4))
                 for hr in range(8760):
-                    profile_matrix[hr] = hr + wl * 10 + sim_index
+                    profile_matrix[hr, 0] = hr + wl * 10 + sim_index
                 test_profile_data[(wl_key, sim_label)] = profile_matrix
 
         # Execute function
