@@ -84,11 +84,11 @@ print(data)
 | [**AE Navigation Guide**](https://github.com/cal-adapt/cae-notebooks/blob/main/AE_navigation_guide.ipynb) | Interactive notebook tutorial |
 | [**API Reference**](https://cal-adapt.github.io/climakitae/dev/) | Complete API documentation |
 | [**AE Notebooks**](https://github.com/cal-adapt/cae-notebooks) | Sample notebooks and scripts |
-| [**Contributing**](https://climakitae.readthedocs.io/en/latest/contribute.html) | Development guidelines |
+| [**Contributing**](https://github.com/cal-adapt/climakitae/blob/main/docs-mkdocs/contributing.md) | Development guidelines |
 
 ## Contributing
 
-We welcome contributions! Please see our [contributing guidelines](https://climakitae.readthedocs.io/en/latest/contribute.html) for details on:
+We welcome contributions! Please see our [contributing guidelines](https://github.com/cal-adapt/climakitae/blob/main/docs-mkdocs/contributing.md) for details on:
 
 - 🐛 Reporting bugs
 - 💡 Requesting features

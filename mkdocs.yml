@@ -59,7 +59,7 @@ plugins:
           inventories:
             - url: https://docs.python-requests.org/en/latest/objects.inv
             - url: https://xarray.pydata.org/en/stable/objects.inv
-            - url: https://dask.readthedocs.io/en/latest/objects.inv
+            - url: https://docs.dask.org/en/latest/objects.inv
             - url: https://geopandas.org/objects.inv
           options:
             show_source: true
