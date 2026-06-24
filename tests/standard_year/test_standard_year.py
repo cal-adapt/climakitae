@@ -1278,8 +1278,9 @@ class TestCreateSimpleDataframe:
         """Test _create_simple_dataframe with different warming level and simulation scenarios."""
         # Test different warming level
         different_wl = 1.5
+        wl_key = f"WL_{different_wl}"
         different_sim = "Sim1"
-        different_wl_data = {"Sim1": np.random.rand(8760, 1) + 15.0}
+        different_wl_data = {(wl_key, different_sim): np.random.rand(8760, 1) + 15.0}
 
         # Execute function with different warming level
         result_wl = _create_simple_dataframe(
@@ -1298,8 +1299,9 @@ class TestCreateSimpleDataframe:
 
         # Test different simulation identifier
         different_sim = "sim2"
+        wl_key = f"WL_{self.warming_level}"
         # Note: sim_label_func always uses index 0, so key will be "Sim1" regardless of simulation value
-        different_sim_data = {"Sim1": np.random.rand(8760, 1) + 25.0}
+        different_sim_data = {(wl_key, "Sim1"): np.random.rand(8760, 1) + 25.0}
 
         # Execute function with different simulation
         result_sim = _create_simple_dataframe(
@@ -1328,7 +1330,8 @@ class TestCreateSimpleDataframe:
         """Test _create_simple_dataframe preserves data values correctly."""
         # Create profile data with known values for verification
         test_data = np.ones((8760, 1)) * 42.5  # All values set to 42.5
-        test_profile_data = {"Sim1": test_data}
+        wl_key = f"WL_{self.warming_level}"
+        test_profile_data = {(wl_key, "Sim1"): test_data}
 
         # Execute function
         result = _create_simple_dataframe(
@@ -1352,7 +1355,7 @@ class TestCreateSimpleDataframe:
 
         # Test with different profile matrix size (leap year)
         leap_year_data = np.ones((8768, 1)) * 33.7  # Leap year with different values
-        leap_year_profile_data = {"Sim1": leap_year_data}
+        leap_year_profile_data = {(wl_key, "Sim1"): leap_year_data}
 
         # Execute function with leap year data
         result_leap = _create_simple_dataframe(
@@ -1371,7 +1374,7 @@ class TestCreateSimpleDataframe:
         assert np.all(result_leap.values == 33.7), "All leap year values should be 33.7"
 
         # Verify proper index for leap year
-        expected_leap_index = np.arange(1, 367, 1)  # 1 to 366
+        expected_leap_index = np.arange(1, 8769, 1)  # 1 to 8768
         np.testing.assert_array_equal(result_leap.index.values, expected_leap_index)
 
     def test_create_simple_dataframe_with_different_year_lengths(self):
@@ -2055,11 +2058,11 @@ class TestCreateMultiWlMultiSimDataframe:
             wl_key = f"WL_{wl}"
             for sim in test_simulations:
                 sim_label = f"Simulation_{sim}"
-                # Create a matrix where values = day + hour + wl*10 + sim_index
+                # Create a matrix with predictable values
                 sim_index = test_simulations.index(sim)
                 profile_matrix = np.zeros((8760, 1))
                 for hr in range(8760):
-                    profile_matrix[hr, 0] = (hr - 1) + wl * 10 + sim_index
+                    profile_matrix[hr, 0] = hr + wl * 10 + sim_index + 1
                 test_profile_data[(wl_key, sim_label)] = profile_matrix
 
         # Execute function
@@ -2083,7 +2086,7 @@ class TestCreateMultiWlMultiSimDataframe:
                     result_value = result.loc[hr, (wl_name, sim_name)]
 
                     # Calculate expected value
-                    expected_value = (hr - 1) + wl * 10 + sim_idx
+                    expected_value = hr + wl * 10 + sim_idx
 
                     assert (
                         abs(result_value - expected_value) < 0.001
