@@ -740,34 +740,31 @@ class TestComputePairedDifference:
 
     def setup_method(self):
         """Set up test fixtures."""
-        hours = list(range(1, 25))
+        wl_levels = [1.5,2.0]
         simulations = ["sim1", "sim2", "sim3"]
 
         # Create future profile with (Hour, Simulation)
         future_cols = pd.MultiIndex.from_product(
-            [hours, simulations], names=["Hour", "Simulation"]
+            [wl_levels, simulations], names=["Warming_Level", "Simulation"]
         )
         self.future_profile = pd.DataFrame(
-            np.random.rand(365, len(future_cols)) + 20.0,
-            index=range(1, 366),
+            np.random.rand(8760, len(future_cols)) + 20.0,
+            index=range(1, 8761),
             columns=future_cols,
         )
 
         # Create historic profile with (Hour, Simulation) - same simulations
         self.historic_profile = pd.DataFrame(
-            np.random.rand(365, len(future_cols)) + 15.0,
-            index=range(1, 366),
+            np.random.rand(8760, len(future_cols)) + 15.0,
+            index=range(1, 8761),
             columns=future_cols,
         )
 
     def test_compute_paired_difference_matches_common_simulations(self):
         """Test _compute_paired_difference matches common simulations correctly."""
         # Execute function with matching simulation sets
-        future_levels = ["Hour", "Simulation"]
-        historic_levels = ["Hour", "Simulation"]
-
         result = _compute_paired_difference(
-            self.future_profile, self.historic_profile, future_levels, historic_levels
+            self.future_profile, self.historic_profile
         )
 
         # Verify outcome: returns DataFrame with paired differences
@@ -776,7 +773,7 @@ class TestComputePairedDifference:
             result.columns, pd.MultiIndex
         ), "Should maintain MultiIndex structure"
         assert result.columns.names == [
-            "Hour",
+            "Warming_Level",
             "Simulation",
         ], "Should preserve column level names"
         assert (
@@ -792,24 +789,21 @@ class TestComputePairedDifference:
     def test_compute_paired_difference_with_no_common_simulations(self):
         """Test _compute_paired_difference when no simulations match."""
         # Create historic profile with different simulations
-        hours = list(range(1, 25))
+        wl_levels = [1.5,2.0]
         different_sims = ["sim4", "sim5", "sim6"]  # No overlap with future sims
 
         historic_cols = pd.MultiIndex.from_product(
-            [hours, different_sims], names=["Hour", "Simulation"]
+            [wl_levels, different_sims], names=["Warming_Level", "Simulation"]
         )
         historic_different = pd.DataFrame(
-            np.random.rand(365, len(historic_cols)) + 15.0,
-            index=range(1, 366),
+            np.random.rand(8760, len(historic_cols)) + 15.0,
+            index=range(1, 8761),
             columns=historic_cols,
         )
 
         # Execute function with no matching simulations
-        future_levels = ["Hour", "Simulation"]
-        historic_levels = ["Hour", "Simulation"]
-
         result = _compute_paired_difference(
-            self.future_profile, historic_different, future_levels, historic_levels
+            self.future_profile, historic_different
         )
 
         # Verify outcome: returns DataFrame when no matches (computes average difference)
@@ -826,30 +820,27 @@ class TestComputePairedDifference:
     def test_compute_paired_difference_with_duplicate_columns(self):
         """Test _compute_paired_difference handles duplicate columns correctly."""
         # Create future profile with duplicate columns
-        hours = [1, 1, 2, 2]  # Duplicate hours
+        wl_levels = [1.5, 1.5, 2.0, 2.0]  # Duplicate hours
         sims = ["sim1", "sim1"]  # Duplicate simulations
 
         dup_cols = pd.MultiIndex.from_product(
-            [hours, sims], names=["Hour", "Simulation"]
+            [wl_levels, sims], names=["Warming_Level", "Simulation"]
         )
 
         future_dup = pd.DataFrame(
-            np.random.rand(10, len(dup_cols)) + 20.0,
-            index=range(1, 11),
+            np.random.rand(8760, len(dup_cols)) + 20.0,
+            index=range(1, 8761),
             columns=dup_cols,
         )
         historic_dup = pd.DataFrame(
-            np.random.rand(10, len(dup_cols)) + 15.0,
-            index=range(1, 11),
+            np.random.rand(8760, len(dup_cols)) + 15.0,
+            index=range(1, 8761),
             columns=dup_cols,
         )
 
         # Execute function
-        future_levels = ["Hour", "Simulation"]
-        historic_levels = ["Hour", "Simulation"]
-
         result = _compute_paired_difference(
-            future_dup, historic_dup, future_levels, historic_levels
+            future_dup, historic_dup
         )
 
         # Verify outcome: handles duplicates gracefully
@@ -866,15 +857,15 @@ class TestComputePairedDifference:
         fallback to _get_historic_hour_mean.
         """
         # Create future profile with some simulations
-        hours = list(range(1, 25))
+        wl_levels = [1.5,2.0]
         future_sims = ["sim1", "sim2", "sim3"]
 
         future_cols = pd.MultiIndex.from_product(
-            [hours, future_sims], names=["Hour", "Simulation"]
+            [wl_levels, future_sims], names=["Warming_Level", "Simulation"]
         )
         future_profile = pd.DataFrame(
-            np.random.rand(365, len(future_cols)) + 20.0,
-            index=range(1, 366),
+            np.random.rand(8760, len(future_cols)) + 20.0,
+            index=range(1, 8761),
             columns=future_cols,
         )
 
@@ -883,20 +874,17 @@ class TestComputePairedDifference:
         historic_sims = ["sim1", "sim4"]  # Only sim1 matches, sim2 and sim3 don't
 
         historic_cols = pd.MultiIndex.from_product(
-            [hours, historic_sims], names=["Hour", "Simulation"]
+            [wl_levels, historic_sims], names=["Warming_Level", "Simulation"]
         )
         historic_profile = pd.DataFrame(
-            np.random.rand(365, len(historic_cols)) + 15.0,
-            index=range(1, 366),
+            np.random.rand(8760, len(historic_cols)) + 15.0,
+            index=range(1, 8761),
             columns=historic_cols,
         )
 
         # Execute function
-        future_levels = ["Hour", "Simulation"]
-        historic_levels = ["Hour", "Simulation"]
-
         result = _compute_paired_difference(
-            future_profile, historic_profile, future_levels, historic_levels
+            future_profile, historic_profile
         )
 
         # Verify outcome: returns DataFrame with differences
@@ -908,7 +896,7 @@ class TestComputePairedDifference:
 
         # Check that sim1 columns exist and have valid values
         sim1_cols = [col for col in result.columns if col[1] == "sim1"]
-        assert len(sim1_cols) == 24, "Should have 24 hours for sim1"
+        assert len(sim1_cols) == 1, "Should have 1 columns for sim1"
         assert all(
             not pd.isna(result[col]).any() for col in sim1_cols
         ), "Sim1 columns should have no NaN values"
@@ -916,8 +904,8 @@ class TestComputePairedDifference:
         # Check that sim2 and sim3 use fallback (mean) - they should also have valid values
         sim2_cols = [col for col in result.columns if col[1] == "sim2"]
         sim3_cols = [col for col in result.columns if col[1] == "sim3"]
-        assert len(sim2_cols) == 24, "Should have 24 hours for sim2"
-        assert len(sim3_cols) == 24, "Should have 24 hours for sim3"
+        assert len(sim2_cols) == 1, "Should have 1 column for sim2"
+        assert len(sim3_cols) == 1, "Should have 1 column for sim3"
 
         # All values should be numeric (using mean fallback)
         # Note: The fallback uses _get_historic_hour_mean which returns mean across simulations
@@ -931,13 +919,13 @@ class TestComputePairedDifference:
         # The key test is that the else branch was executed, which we verify by checking
         # that sim2 and sim3 exist and have numerical values
         assert sim2_values.shape == (
-            365,
-            24,
-        ), "Sim2 should have correct shape (365 days x 24 hours)"
+            8760,
+            1,
+        ), "Sim2 should have correct shape (8760 hours)"
         assert sim3_values.shape == (
-            365,
-            24,
-        ), "Sim3 should have correct shape (365 days x 24 hours)"
+            8760,
+            1,
+        ), "Sim3 should have correct shape (8760 hours)"
 
         # Most importantly: verify the function completed successfully and returned
         # a DataFrame with the expected structure, which means the else branch
