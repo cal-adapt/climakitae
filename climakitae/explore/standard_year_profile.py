@@ -918,14 +918,10 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     if not no_delta:
         # Retrieve historical data at 1.2°C warming level
         historic_data = get_data(**get_data_params)
-        #!
-        print(f"historic data models: {historic_data.simulation}")
 
     # Update with any user-provided parameters for future data retrieval
     get_data_params.update(kwargs)
     future_data = get_data(**get_data_params)
-    #!
-    print(f"future data models: {future_data.simulation}")
 
     # Filter for only bias-adjusted WRF models, if user indicates this
     ba_models = kwargs.get("bias_adjusted_models", False)
@@ -1107,11 +1103,6 @@ def _compute_difference_profile(
     """
     future_has_multiindex = isinstance(future_profile.columns, pd.MultiIndex)
     historic_has_multiindex = isinstance(historic_profile.columns, pd.MultiIndex)
-    #!
-    print(f"future_has_multiindex: {future_has_multiindex}")
-    #!
-    print(f"historic_has_multiindex: {historic_has_multiindex}")
-
     if (
         future_has_multiindex == historic_has_multiindex
     ):  # either both contain a MultiIndex, or both do not
@@ -1119,10 +1110,6 @@ def _compute_difference_profile(
     else:  # multiple warming levels in future profile, while historic profile always contains one warming level - 1.2
         # add MultiIndex to historic profile, then perform paired difference, as done above
         historic_profile_reformatted = historic_profile.copy()
-        #!
-        print(
-            f"historic profile copy before reformatting: {historic_profile_reformatted}"
-        )
         historic_profile_reformatted.columns = pd.MultiIndex.from_arrays(
             [
                 ["1.2"] * len(historic_profile_reformatted.columns),
@@ -1130,8 +1117,6 @@ def _compute_difference_profile(
             ],
             names=["Warming_Level", "Simulation"],
         )
-        #!
-        print(f"historic_profile_reformatted: {historic_profile_reformatted}")
         return _compute_paired_difference(future_profile, historic_profile_reformatted)
 
 

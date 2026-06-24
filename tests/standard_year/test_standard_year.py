@@ -272,7 +272,6 @@ class TestGetSimulationLabel:
         sim_names = result.columns.unique()
         assert len(sim_names) == 2, "Should have two simulations"
 
-        #! sim names parsed incorrectly
         # Should extract: CESM2-r11i1p1f1-ssp245 and CESM2-r11i1p1f1-ssp370
         sim_labels = sorted(sim_names)
         assert (
@@ -1628,7 +1627,6 @@ class TestCreateSingleWlMultiSimDataframe:
             sim_key = f"test_{sim}_{i}"
             # Create known test data: hour i has value (i+1)*10 + hr
             profile_matrix = np.zeros((test_hours, 1))
-            print(profile_matrix)
             for hr in range(test_hours - 1):
                 profile_matrix[hr + 1, 0] = (hr + 1) * 10 + i
 
