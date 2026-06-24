@@ -1334,9 +1334,9 @@ class TestUtils:
                 "x": np.linspace(-124, -114, 5),
             },
         )
-        assert test_data.rio.crs is None
 
         data_with_crs = add_crs_to_downscaled_data(test_data)
+        assert test_data.rio.crs is None
         assert data_with_crs is not None
         assert data_with_crs.rio.crs == "EPSG:4326"
 

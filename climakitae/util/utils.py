@@ -2056,7 +2056,7 @@ def add_crs_to_downscaled_data(
             # WRF data: try spatial_ref attribute first, then build from CF attrs
             spatial_ref = data["Lambert_Conformal"].attrs.get("spatial_ref")
             if spatial_ref:
-                data = data.rio.write_crs(spatial_ref, inplace=True)
+                data = data.rio.write_crs(spatial_ref)
             else:
                 # Build CRS from CF convention attributes
                 attrs = data["Lambert_Conformal"].attrs
@@ -2074,7 +2074,7 @@ def add_crs_to_downscaled_data(
                             "earth_radius": attrs["earth_radius"],
                         }
                     )
-                    data = data.rio.write_crs(crs, inplace=True)
+                    data = data.rio.write_crs(crs)
                 except KeyError as e:
                     raise ValueError(
                         f"Lambert_Conformal coordinate found but missing required "
@@ -2082,6 +2082,6 @@ def add_crs_to_downscaled_data(
                     )
         else:
             # LOCA2 or other lat/lon data: use WGS84/EPSG:4326
-            data = data.rio.write_crs("epsg:4326", inplace=True)
+            data = data.rio.write_crs("epsg:4326")
 
     return data
