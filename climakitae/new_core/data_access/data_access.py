@@ -52,7 +52,7 @@ from climakitae.core.paths import (
     RENEWABLES_CATALOG_URL,
 )
 from climakitae.new_core.data_access.boundaries import Boundaries
-from climakitae.util.utils import read_csv_file, add_crs_to_simulations
+from climakitae.util.utils import read_csv_file, add_crs_to_downscaled_data
 
 
 class DataCatalog(dict):
@@ -732,7 +732,7 @@ class DataCatalog(dict):
         # This will also add a CRS to derived datasets that could not copy spatial metadata
         if effective_key == CATALOG_CADCAT:
             for key, ds in result.items():
-                result[key] = add_crs_to_simulations(ds)
+                result[key] = add_crs_to_downscaled_data(ds)
 
         return result
 

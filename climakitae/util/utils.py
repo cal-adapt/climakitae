@@ -2027,7 +2027,7 @@ def _determine_is_complete_wl(
     return True
 
 
-def add_crs_to_simulations(
+def add_crs_to_downscaled_data(
     data: xr.DataArray | xr.Dataset,
 ) -> Union[xr.DataArray, xr.Dataset]:
     """

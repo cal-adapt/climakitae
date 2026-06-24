@@ -139,7 +139,7 @@ from climakitae.new_core.processors.processor_utils import is_station_identifier
 from climakitae.util.utils import (
     get_closest_gridcell,
     get_closest_gridcells,
-    add_crs_to_simulations,
+    add_crs_to_downscaled_data,
 )
 
 # Module logger
