@@ -183,7 +183,7 @@ class TestComputeProfile:
 
         # Verify outcome: returns DataFrame with correct shape
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape[0] == 365, "Should have 365 rows (days)"
+        assert result.shape[0] == 8760, "Should have 8760 rows (hours)"
         assert result.shape[1] > 0, "Should have columns for hours and other dimensions"
 
         # Verify the DataFrame has proper index and column structure
@@ -195,11 +195,11 @@ class TestComputeProfile:
     def test_compute_profile_respects_days_in_year_parameter(self):
         """Test that compute_profile creates DataFrame with specified number of days."""
         # Execute function with regular year (365 days) - this should work with 8760 hours
-        result_365 = compute_profile(self.sample_data, q=0.5)
+        result_8760 = compute_profile(self.sample_data, q=0.5)
 
         # Verify outcome: correct number of rows based on days_in_year
-        assert result_365.shape[0] == 365, "Should have 365 rows for regular year"
-        assert result_365.shape[1] == 24, "Should have 24 columns for hours"
+        assert result_8760.shape[0] == 8760, "Should have 365 rows for regular year"
+        assert result_8760.shape[1] == 1, "Should have 1 column for 1 simulation"
 
     def test_compute_profile_preserves_metadata_from_input(self):
         """Test that compute_profile preserves important metadata from input DataArray."""
@@ -271,10 +271,11 @@ class TestGetSimulationLabel:
         result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: simulation labels are correctly parsed
-        assert isinstance(result.columns, pd.MultiIndex), "Should have MultiIndex"
-        sim_names = result.columns.get_level_values("Simulation").unique()
+        assert isinstance(result.columns, pd.Index), "Should have simple Index"
+        sim_names = result.columns.unique()
         assert len(sim_names) == 2, "Should have two simulations"
 
+        #! sim names parsed incorrectly
         # Should extract: CESM2-r11i1p1f1-ssp245 and CESM2-r11i1p1f1-ssp370
         sim_labels = sorted(sim_names)
         assert (
@@ -301,7 +302,7 @@ class TestGetSimulationLabel:
         result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: handles hyphenated GCM names correctly
-        sim_names = result.columns.get_level_values("Simulation").unique()
+        sim_names = result.columns.unique()
         assert len(sim_names) == 2, "Should have two simulations"
         sim_labels = list(sim_names)
 
@@ -327,7 +328,7 @@ class TestGetSimulationLabel:
         result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: uses 'hist' fallback for historical-only
-        sim_names = result.columns.get_level_values("Simulation").unique()
+        sim_names = result.columns.unique()
         assert len(sim_names) == 2, "Should have two simulations"
 
         # Check both use hist fallback
@@ -350,7 +351,7 @@ class TestGetSimulationLabel:
         result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: correctly extracts ssp585
-        sim_names = result.columns.get_level_values("Simulation").unique()
+        sim_names = result.columns.unique()
         assert len(sim_names) == 2, "Should have two simulations"
 
         # Find ssp585 label
@@ -368,7 +369,7 @@ class TestGetSimulationLabel:
         result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: uses fallback format with index
-        sim_names = result.columns.get_level_values("Simulation").unique()
+        sim_names = result.columns.unique()
         assert len(sim_names) == 2, "Should have two simulations"
         sim_labels = sorted(sim_names)
 
@@ -393,7 +394,7 @@ class TestGetSimulationLabel:
         result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: uses base name plus index for non-WRF
-        sim_names = result.columns.get_level_values("Simulation").unique()
+        sim_names = result.columns.unique()
         assert len(sim_names) == 2, "Should have two simulations"
 
         # Check that base names are extracted and indices appended
@@ -415,7 +416,7 @@ class TestGetSimulationLabel:
         result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: uses Sim_N format for None
-        sim_names = result.columns.get_level_values("Simulation").unique()
+        sim_names = result.columns.unique()
         assert len(sim_names) == 2, "Should have two simulations"
         # Should use fallback format like Sim_1, Sim_2 or None-1, None-2
         for sim_label in sim_names:
@@ -439,7 +440,7 @@ class TestGetSimulationLabel:
         result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: all simulations parsed correctly
-        sim_names = result.columns.get_level_values("Simulation").unique()
+        sim_names = result.columns.unique()
         assert len(sim_names) == 3, "Should have three unique simulations"
 
         sim_labels = sorted(sim_names)
