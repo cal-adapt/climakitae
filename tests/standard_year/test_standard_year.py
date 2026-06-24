@@ -1231,7 +1231,7 @@ class TestCreateSimpleDataframe:
 
         # Create 365x24 profile matrix with realistic climate data
         self.profile_data = {
-            (wl_key, sim_key): np.random.rand(365, 24) + 20.0  # Temperature-like data
+            (sim_key): np.random.rand(8760, 1) + 20.0  # Temperature-like data
         }
 
         # Simple function to get simulation labels
@@ -1239,7 +1239,7 @@ class TestCreateSimpleDataframe:
             return f"Sim{sim_idx + 1}"
 
         self.sim_label_func = sim_label_func
-        self.days_per_year = 8760
+        self.hours_per_year = 8760
 
     def test_create_simple_dataframe_returns_dataframe(self):
         """Test _create_simple_dataframe returns pd.DataFrame."""
@@ -1269,26 +1269,22 @@ class TestCreateSimpleDataframe:
         )
 
         # Verify outcome: correct MultiIndex column structure
-        assert isinstance(result.columns, pd.MultiIndex), "Columns should be MultiIndex"
-        assert result.columns.names == [
-            "Hour",
-            "Simulation",
-        ], "Column levels should be named Hour and Simulation"
+        assert isinstance(result.columns, pd.Index), "Columns should be a simple Index"
 
         # Verify expected dimensions: 365 rows, 24 columns
-        expected_rows = 365
-        expected_cols = 24
+        expected_rows = 8760
+        expected_cols = 1
         assert result.shape == (
             expected_rows,
             expected_cols,
         ), f"Should have {expected_rows} rows and {expected_cols} columns"
 
-        # Verify index structure (day numbers)
-        expected_index = np.arange(1, self.days_in_year + 1)
+        # Verify index structure (hour number)
+        expected_index = np.arange(1, self.hours_per_year + 1)
         np.testing.assert_array_equal(
             result.index.values,
             expected_index,
-            err_msg="Index should be day numbers from 1 to days_in_year",
+            err_msg="Index should be day numbers from 1 to hours_per_year",
         )
 
     def test_create_simple_dataframe_with_different_scenarios(self):
@@ -1296,7 +1292,7 @@ class TestCreateSimpleDataframe:
         # Test different warming level
         different_wl = 1.5
         different_sim = "Sim1"
-        different_wl_data = {("WL_1.5", "Sim1"): np.random.rand(365, 24) + 15.0}
+        different_wl_data = {"Sim1": np.random.rand(8760, 1) + 15.0}
 
         # Execute function with different warming level
         result_wl = _create_simple_dataframe(
@@ -1311,12 +1307,12 @@ class TestCreateSimpleDataframe:
         assert isinstance(
             result_wl, pd.DataFrame
         ), "Should return DataFrame for different WL"
-        assert result_wl.shape == (365, 24), "Should maintain same shape"
+        assert result_wl.shape == (8760, 1), "Should maintain same shape"
 
         # Test different simulation identifier
         different_sim = "sim2"
         # Note: sim_label_func always uses index 0, so key will be "Sim1" regardless of simulation value
-        different_sim_data = {("WL_2.0", "Sim1"): np.random.rand(365, 24) + 25.0}
+        different_sim_data = {"Sim1": np.random.rand(8760, 1) + 25.0}
 
         # Execute function with different simulation
         result_sim = _create_simple_dataframe(
@@ -1331,7 +1327,7 @@ class TestCreateSimpleDataframe:
         assert isinstance(
             result_sim, pd.DataFrame
         ), "Should return DataFrame for different sim"
-        assert result_sim.shape == (365, 24), "Should maintain same shape"
+        assert result_sim.shape == (8760,1), "Should maintain same shape"
 
         # Verify all results have different data but same structure
         assert not result_wl.equals(
@@ -1344,8 +1340,8 @@ class TestCreateSimpleDataframe:
     def test_create_simple_dataframe_preserves_data(self):
         """Test _create_simple_dataframe preserves data values correctly."""
         # Create profile data with known values for verification
-        test_data = np.ones((365, 24)) * 42.5  # All values set to 42.5
-        test_profile_data = {("WL_2.0", "Sim1"): test_data}
+        test_data = np.ones((8760, 1)) * 42.5  # All values set to 42.5
+        test_profile_data = {"Sim1": test_data}
 
         # Execute function
         result = _create_simple_dataframe(
@@ -1368,8 +1364,8 @@ class TestCreateSimpleDataframe:
         ), "Shape should match original profile matrix"
 
         # Test with different profile matrix size (leap year)
-        leap_year_data = np.ones((366, 24)) * 33.7  # Leap year with different values
-        leap_year_profile_data = {("WL_2.0", "Sim1"): leap_year_data}
+        leap_year_data = np.ones((8768, 1)) * 33.7  # Leap year with different values
+        leap_year_profile_data = {"Sim1": leap_year_data}
 
         # Execute function with leap year data
         result_leap = _create_simple_dataframe(
@@ -1382,9 +1378,9 @@ class TestCreateSimpleDataframe:
 
         # Verify outcome: handles different matrix sizes correctly
         assert result_leap.shape == (
-            366,
-            24,
-        ), "Should handle leap year shape (366 days)"
+            8768,
+            1,
+        ), "Should handle leap year shape (8768 hours)"
         assert np.all(result_leap.values == 33.7), "All leap year values should be 33.7"
 
         # Verify proper index for leap year
@@ -1406,7 +1402,7 @@ class TestCreateSimpleDataframe:
             description = scenario["description"]
 
             # Create profile data matching the year length
-            profile_matrix = np.random.rand(days, 24) + 18.0
+            profile_matrix = np.random.rand(hours, 1) + 18.0
             test_data = {("WL_2.0", "Sim1"): profile_matrix}
 
             # Execute function
@@ -1423,27 +1419,25 @@ class TestCreateSimpleDataframe:
                 result, pd.DataFrame
             ), f"Should return DataFrame for {description}"
             assert result.shape == (
-                days,
-                24,
-            ), f"Should have {days} rows for {description}"
-            assert result.shape[1] == 24, f"Should have 24 columns for {description}"
+                hours,
+                1,
+            ), f"Should have {hours} rows for {description}"
+            assert result.shape[1] == 1, f"Should have 1 column for {description}"
 
             # Verify proper index generation
-            expected_index = np.arange(1, days + 1, 1)
+            expected_index = np.arange(1, hours + 1, 1)
             np.testing.assert_array_equal(
                 result.index.values,
                 expected_index,
-                err_msg=f"Index should be 1 to {days} for {description}",
+                err_msg=f"Index should be 1 to {hours} for {description}",
             )
 
             # Verify columns remain consistent regardless of year length
-            expected_columns = pd.MultiIndex.from_tuples(
-                [(i, "Sim1") for i in range(1, 25)]
-            )
+
             np.testing.assert_array_equal(
                 result.columns.values,
-                expected_columns,
-                err_msg=f"Columns should always be 1-24 for {description}",
+                "Sim1",
+                err_msg=f"Columns should always be the simulation names for {description}",
             )
 
             # Verify data values are preserved
