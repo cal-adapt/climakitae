@@ -1213,11 +1213,12 @@ class TestCreateSimpleDataframe:
         self.simulation = "sim1"
 
         # Create sample profile data dictionary
-        sim_key = "Sim1"
+        sim_label = self.sim_label_func(self.simulation, 0)
+        wl_key = f"WL_{self.warming_level}"
 
         # Create 365x24 profile matrix with realistic climate data
         self.profile_data = {
-            (sim_key): np.random.rand(8760, 1) + 20.0  # Temperature-like data
+            (wl_key, sim_label): np.random.rand(8760, 1) + 20.0  # Temperature-like data
         }
 
         # Simple function to get simulation labels
