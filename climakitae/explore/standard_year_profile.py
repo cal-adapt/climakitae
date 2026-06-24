@@ -380,7 +380,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 scenario,
                 ba_models,
             )
-            profile.to_csv(filename)
+            profile.to_csv(filename, index=False)
         case 2:  # Multiple WL (WL included in MultiIndex)
             for gwl in global_warming_levels:  # Single file per WL
                 filename = _get_clean_standardyr_filename(
@@ -395,7 +395,9 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                     scenario,
                     ba_models,
                 )
-                profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(filename)
+                profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(
+                    filename, index=False
+                )
         case _:
             raise ValueError(
                 f"Profile MultiIndex should have two or three levels. Found {profile.keys().nlevels} levels."
