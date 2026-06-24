@@ -1209,11 +1209,8 @@ class TestCreateSimpleDataframe:
 
     def setup_method(self):
         """Set up test fixtures."""
-
-    def setup_method(self):
-        """Set up test fixtures."""
         self.warming_level = 2.0
-        self.simulation = "Sim1"
+        self.simulation = "sim1"
 
         # Create sample profile data dictionary
         sim_key = "Sim1"
@@ -2082,7 +2079,7 @@ class TestCreateMultiWlMultiSimDataframe:
                     sim_name = f"Simulation_{sim}"
 
                     # Get value from result DataFrame
-                    result_value = result.loc[(hr, wl_name, sim_name)]
+                    result_value = result.loc[hr, (wl_name, sim_name)]
 
                     # Calculate expected value
                     expected_value = (hr - 1) + wl * 10 + sim_idx
