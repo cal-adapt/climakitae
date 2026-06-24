@@ -1,6 +1,6 @@
 site_name: climakitae
-site_description: Modern documentation for climakitae, centered on modular workflows.
-site_url: https://cal-adapt.github.io/climakitae/dev/
+site_description: ClimakitAE is an open-source Python library for accessing and analyzing Cal-Adapt's Data Catalog - a multi-TB ARCO dataset for downscaled climate projections and historical data observations.
+site_url: https://cal-adapt.github.io/climakitae/
 repo_url: https://github.com/cal-adapt/climakitae
 repo_name: cal-adapt/climakitae
 edit_uri: edit/main/docs-mkdocs/
