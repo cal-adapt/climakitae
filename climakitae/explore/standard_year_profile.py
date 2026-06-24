@@ -1045,7 +1045,7 @@ def _compute_difference_profile(
         return _compute_paired_difference(future_profile, historic_profile)
     else:  # multiple warming levels in future profile, while historic profile always contains one warming level - 1.2
         # add MultiIndex to historic profile, then perform paired difference, as done above
-        historic_profile_reformatted = historic_profile.copy
+        historic_profile_reformatted = historic_profile.copy()
         #!
         print(
             f"historic profile copy before reformatting: {historic_profile_reformatted}"
