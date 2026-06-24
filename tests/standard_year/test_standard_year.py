@@ -2059,9 +2059,9 @@ class TestCreateMultiWlMultiSimDataframe:
                 sim_label = f"Simulation_{sim}"
                 # Create a matrix where values = day + hour + wl*10 + sim_index
                 sim_index = test_simulations.index(sim)
-                profile_matrix = np.zeros((8760, 4))
+                profile_matrix = np.zeros((8760, 1))
                 for hr in range(8760):
-                    profile_matrix[hr, 0] = hr + wl * 10 + sim_index
+                    profile_matrix[hr, 0] = (hr - 1) + wl * 10 + sim_idx
                 test_profile_data[(wl_key, sim_label)] = profile_matrix
 
         # Execute function
