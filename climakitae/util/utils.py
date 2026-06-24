@@ -2027,7 +2027,28 @@ def _determine_is_complete_wl(
     return True
 
 
-def add_crs_to_simulations(data: xr.DataArray | xr.Dataset):
+def add_crs_to_simulations(
+    data: xr.DataArray | xr.Dataset,
+) -> Union[xr.DataArray, xr.Dataset]:
+    """
+    Attach a coordinate references system (CRS) to WRF or LOCA2 data. Rioxarray is used for
+    CRS management.
+
+    If no CRS is found in the dataset, first check for the Lambert_Conformal coordinate
+    to indicate that the dataset is on the conic WRF projection. If that coordinate is missing,
+    fall back to a geographic coordinate system (WGS84). If a CRS is already attached to the
+    input data, the data is returned unaltered.
+
+    Parameters
+    ----------
+    data : xr.DataArray | xr.Dataset
+        A WRF or LOCA2 array, with or without a CRS
+
+    Returns
+    -------
+    xr.DataArray | xr.Dataset
+        The input dataset with a CRS attached
+    """
     # Ensure data has CRS set
     if data.rio.crs is None:
         # Check if this is WRF data with Lambert Conformal projection
