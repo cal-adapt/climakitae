@@ -16,24 +16,15 @@ import xarray as xr
 
 from climakitae.explore.standard_year_profile import (
     _compute_difference_profile,
-    _compute_mixed_index_difference,
-    _compute_multiindex_difference,
-    _compute_simple_difference,
-    _compute_simulation_paired_difference,
-    _compute_warming_level_difference,
+    _compute_paired_difference,
     _construct_profile_dataframe,
     _convert_stations_to_lat_lon,
     _create_multi_wl_multi_sim_dataframe,
     _create_multi_wl_single_sim_dataframe,
     _create_simple_dataframe,
     _create_single_wl_multi_sim_dataframe,
-    _find_matching_historic_column,
-    _find_matching_historic_value,
-    _format_based_on_structure,
-    _format_meteo_yr_df,
     _get_buffer_from_resolution,
     _get_clean_standardyr_filename,
-    _get_historic_hour_mean,
     _get_station_coordinates,
     _handle_location_params,
     _stack_profile_data,
@@ -188,7 +179,7 @@ class TestComputeProfile:
     def test_compute_profile_returns_dataframe_with_correct_shape(self):
         """Test that compute_profile returns DataFrame with expected dimensions."""
         # Execute function
-        result = compute_profile(self.sample_data, days_in_year=365, q=0.5)
+        result = compute_profile(self.sample_data, q=0.5)
 
         # Verify outcome: returns DataFrame with correct shape
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
@@ -204,7 +195,7 @@ class TestComputeProfile:
     def test_compute_profile_respects_days_in_year_parameter(self):
         """Test that compute_profile creates DataFrame with specified number of days."""
         # Execute function with regular year (365 days) - this should work with 8760 hours
-        result_365 = compute_profile(self.sample_data, days_in_year=365, q=0.5)
+        result_365 = compute_profile(self.sample_data, q=0.5)
 
         # Verify outcome: correct number of rows based on days_in_year
         assert result_365.shape[0] == 365, "Should have 365 rows for regular year"
@@ -213,7 +204,7 @@ class TestComputeProfile:
     def test_compute_profile_preserves_metadata_from_input(self):
         """Test that compute_profile preserves important metadata from input DataArray."""
         # Execute function
-        result = compute_profile(self.sample_data, days_in_year=365, q=0.75)
+        result = compute_profile(self.sample_data, q=0.75)
 
         # Verify outcome: metadata is preserved and enhanced
         assert "units" in result.attrs, "Should preserve units from input data"
@@ -277,7 +268,7 @@ class TestGetSimulationLabel:
         test_data = self._create_test_dataarray(simulations)
 
         # Execute function
-        result = compute_profile(test_data, days_in_year=365, q=0.5)
+        result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: simulation labels are correctly parsed
         assert isinstance(result.columns, pd.MultiIndex), "Should have MultiIndex"
@@ -307,7 +298,7 @@ class TestGetSimulationLabel:
         test_data = self._create_test_dataarray(simulations)
 
         # Execute function
-        result = compute_profile(test_data, days_in_year=365, q=0.5)
+        result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: handles hyphenated GCM names correctly
         sim_names = result.columns.get_level_values("Simulation").unique()
@@ -333,7 +324,7 @@ class TestGetSimulationLabel:
         test_data = self._create_test_dataarray(simulations)
 
         # Execute function
-        result = compute_profile(test_data, days_in_year=365, q=0.5)
+        result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: uses 'hist' fallback for historical-only
         sim_names = result.columns.get_level_values("Simulation").unique()
@@ -356,7 +347,7 @@ class TestGetSimulationLabel:
         test_data = self._create_test_dataarray(simulations)
 
         # Execute function
-        result = compute_profile(test_data, days_in_year=365, q=0.5)
+        result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: correctly extracts ssp585
         sim_names = result.columns.get_level_values("Simulation").unique()
@@ -374,7 +365,7 @@ class TestGetSimulationLabel:
         test_data = self._create_test_dataarray(simulations)
 
         # Execute function
-        result = compute_profile(test_data, days_in_year=365, q=0.5)
+        result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: uses fallback format with index
         sim_names = result.columns.get_level_values("Simulation").unique()
@@ -399,7 +390,7 @@ class TestGetSimulationLabel:
         test_data = self._create_test_dataarray(simulations)
 
         # Execute function
-        result = compute_profile(test_data, days_in_year=365, q=0.5)
+        result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: uses base name plus index for non-WRF
         sim_names = result.columns.get_level_values("Simulation").unique()
@@ -421,7 +412,7 @@ class TestGetSimulationLabel:
         test_data = self._create_test_dataarray(simulations)
 
         # Execute function
-        result = compute_profile(test_data, days_in_year=365, q=0.5)
+        result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: uses Sim_N format for None
         sim_names = result.columns.get_level_values("Simulation").unique()
@@ -445,7 +436,7 @@ class TestGetSimulationLabel:
         test_data = self._create_test_dataarray(simulations)
 
         # Execute function
-        result = compute_profile(test_data, days_in_year=365, q=0.5)
+        result = compute_profile(test_data, q=0.5)
 
         # Verify outcome: all simulations parsed correctly
         sim_names = result.columns.get_level_values("Simulation").unique()
@@ -731,145 +722,8 @@ class TestComputeDifferenceProfile:
         ), "Should preserve variable_id metadata"
 
 
-class TestComputeMultiindexDifference:
-    """Test class for _compute_multiindex_difference function.
-
-    Tests the function that computes differences when both future and historic
-    profiles have MultiIndex columns, handling various combinations of warming
-    levels and simulations.
-
-    Attributes
-    ----------
-    future_profile : pd.DataFrame
-        Future profile with MultiIndex columns.
-    historic_profile : pd.DataFrame
-        Historic profile with MultiIndex columns.
-    """
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        hours = list(range(1, 25))
-        simulations = ["sim1", "sim2"]
-        warming_levels = [1.5, 2.0]
-
-        # Create future profile with (Hour, Warming_Level, Simulation)
-        future_cols = pd.MultiIndex.from_product(
-            [hours, warming_levels, simulations],
-            names=["Hour", "Warming_Level", "Simulation"],
-        )
-        self.future_profile = pd.DataFrame(
-            np.random.rand(365, len(future_cols)) + 20.0,
-            index=range(1, 366),
-            columns=future_cols,
-        )
-
-        # Create historic profile with (Hour, Simulation)
-        historic_cols = pd.MultiIndex.from_product(
-            [hours, simulations], names=["Hour", "Simulation"]
-        )
-        self.historic_profile = pd.DataFrame(
-            np.random.rand(365, len(historic_cols)) + 15.0,
-            index=range(1, 366),
-            columns=historic_cols,
-        )
-
-    def test_compute_multiindex_difference_with_simulation_levels(self):
-        """Test _compute_multiindex_difference when both profiles have Simulation levels."""
-        # Create profiles where both have Simulation levels
-        hours = list(range(1, 25))
-        simulations = ["sim1", "sim2"]
-
-        # Both profiles have (Hour, Simulation) structure
-        cols = pd.MultiIndex.from_product(
-            [hours, simulations], names=["Hour", "Simulation"]
-        )
-
-        future_sim = pd.DataFrame(
-            np.random.rand(365, len(cols)) + 20.0, index=range(1, 366), columns=cols
-        )
-        historic_sim = pd.DataFrame(
-            np.random.rand(365, len(cols)) + 15.0, index=range(1, 366), columns=cols
-        )
-
-        # Execute function
-        result = _compute_multiindex_difference(future_sim, historic_sim)
-
-        # Verify outcome: returns DataFrame with proper structure
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert isinstance(
-            result.columns, pd.MultiIndex
-        ), "Should maintain MultiIndex structure"
-        assert result.columns.names == [
-            "Hour",
-            "Simulation",
-        ], "Should preserve column level names"
-        assert result.shape == future_sim.shape, "Shape should match future profile"
-
-    def test_compute_multiindex_difference_with_warming_level_only(self):
-        """Test _compute_multiindex_difference when future has Warming_Level but no Simulation."""
-        # Create future profile with (Hour, Warming_Level) but no Simulation
-        hours = list(range(1, 25))
-        warming_levels = [1.5, 2.0]
-
-        future_cols = pd.MultiIndex.from_product(
-            [hours, warming_levels], names=["Hour", "Warming_Level"]
-        )
-        future_wl = pd.DataFrame(
-            np.random.rand(365, len(future_cols)) + 20.0,
-            index=range(1, 366),
-            columns=future_cols,
-        )
-
-        # Create simple historic profile
-        historic_simple = pd.DataFrame(
-            np.random.rand(365, len(hours)) + 15.0, index=range(1, 366), columns=hours
-        )
-
-        # Execute function
-        result = _compute_multiindex_difference(future_wl, historic_simple)
-
-        # Verify outcome: returns DataFrame preserving future structure
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert isinstance(
-            result.columns, pd.MultiIndex
-        ), "Should maintain future MultiIndex structure"
-        assert result.columns.names == [
-            "Hour",
-            "Warming_Level",
-        ], "Should preserve future column level names"
-        assert result.shape == future_wl.shape, "Shape should match future profile"
-
-    def test_compute_multiindex_difference_handles_duplicate_columns(self):
-        """Test _compute_multiindex_difference handles DataFrames with duplicate columns."""
-        # Create DataFrame with duplicate columns to test deduplication
-        hours = [1, 1, 2, 2]  # Duplicate hours
-        simulations = ["sim1", "sim1"]  # Duplicate simulations
-
-        duplicate_cols = pd.MultiIndex.from_product(
-            [hours, simulations], names=["Hour", "Simulation"]
-        )
-
-        future_dup = pd.DataFrame(
-            np.random.rand(10, len(duplicate_cols)) + 20.0,
-            index=range(1, 11),
-            columns=duplicate_cols,
-        )
-        historic_dup = pd.DataFrame(
-            np.random.rand(10, len(duplicate_cols)) + 15.0,
-            index=range(1, 11),
-            columns=duplicate_cols,
-        )
-
-        # Execute function - should handle duplicates gracefully
-        result = _compute_multiindex_difference(future_dup, historic_dup)
-
-        # Verify outcome: returns valid DataFrame (internal handling of duplicates)
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape[0] == future_dup.shape[0], "Should preserve number of rows"
-
-
-class TestComputeSimulationPairedDifference:
-    """Test class for _compute_simulation_paired_difference function.
+class TestComputePairedDifference:
+    """Test class for _compute_paired_difference function.
 
     Tests the function that computes paired differences when both profiles
     have simulation dimensions, matching simulations between future and historic
@@ -905,13 +759,13 @@ class TestComputeSimulationPairedDifference:
             columns=future_cols,
         )
 
-    def test_compute_simulation_paired_difference_matches_common_simulations(self):
-        """Test _compute_simulation_paired_difference matches common simulations correctly."""
+    def test_compute_paired_difference_matches_common_simulations(self):
+        """Test _compute_paired_difference matches common simulations correctly."""
         # Execute function with matching simulation sets
         future_levels = ["Hour", "Simulation"]
         historic_levels = ["Hour", "Simulation"]
 
-        result = _compute_simulation_paired_difference(
+        result = _compute_paired_difference(
             self.future_profile, self.historic_profile, future_levels, historic_levels
         )
 
@@ -934,8 +788,8 @@ class TestComputeSimulationPairedDifference:
             result.mean().mean() > 0
         ), "Differences should be positive (future > historic)"
 
-    def test_compute_simulation_paired_difference_with_no_common_simulations(self):
-        """Test _compute_simulation_paired_difference when no simulations match."""
+    def test_compute_paired_difference_with_no_common_simulations(self):
+        """Test _compute_paired_difference when no simulations match."""
         # Create historic profile with different simulations
         hours = list(range(1, 25))
         different_sims = ["sim4", "sim5", "sim6"]  # No overlap with future sims
@@ -953,7 +807,7 @@ class TestComputeSimulationPairedDifference:
         future_levels = ["Hour", "Simulation"]
         historic_levels = ["Hour", "Simulation"]
 
-        result = _compute_simulation_paired_difference(
+        result = _compute_paired_difference(
             self.future_profile, historic_different, future_levels, historic_levels
         )
 
@@ -968,8 +822,8 @@ class TestComputeSimulationPairedDifference:
             result.mean().mean() > 0
         ), "Should compute positive differences even without matched sims"
 
-    def test_compute_simulation_paired_difference_with_duplicate_columns(self):
-        """Test _compute_simulation_paired_difference handles duplicate columns correctly."""
+    def test_compute_paired_difference_with_duplicate_columns(self):
+        """Test _compute_paired_difference handles duplicate columns correctly."""
         # Create future profile with duplicate columns
         hours = [1, 1, 2, 2]  # Duplicate hours
         sims = ["sim1", "sim1"]  # Duplicate simulations
@@ -993,7 +847,7 @@ class TestComputeSimulationPairedDifference:
         future_levels = ["Hour", "Simulation"]
         historic_levels = ["Hour", "Simulation"]
 
-        result = _compute_simulation_paired_difference(
+        result = _compute_paired_difference(
             future_dup, historic_dup, future_levels, historic_levels
         )
 
@@ -1001,12 +855,12 @@ class TestComputeSimulationPairedDifference:
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
         assert result.shape[0] == future_dup.shape[0], "Should preserve row count"
 
-    def test_compute_simulation_paired_difference_missing_historic_column_uses_mean(
+    def test_compute_paired_difference_missing_historic_column_uses_mean(
         self,
     ):
         """Test fallback to historic hour mean when matching column not found.
 
-        This tests the else branch in _compute_simulation_paired_difference where
+        This tests the else branch in _compute_paired_difference where
         historic_col is None or not in historic_profile.columns, triggering the
         fallback to _get_historic_hour_mean.
         """
@@ -1040,7 +894,7 @@ class TestComputeSimulationPairedDifference:
         future_levels = ["Hour", "Simulation"]
         historic_levels = ["Hour", "Simulation"]
 
-        result = _compute_simulation_paired_difference(
+        result = _compute_paired_difference(
             future_profile, historic_profile, future_levels, historic_levels
         )
 
@@ -1090,1469 +944,6 @@ class TestComputeSimulationPairedDifference:
         assert (
             result.shape == future_profile.shape
         ), "Final result shape should match input"
-
-
-class TestComputeWarmingLevelDifference:
-    """Test class for _compute_warming_level_difference function.
-
-    Tests the function that computes differences for profiles with warming
-    levels but no simulations, handling various column structures and
-    matching logic between future and historic profiles.
-
-    Attributes
-    ----------
-    future_profile : pd.DataFrame
-        Future profile with warming level columns.
-    historic_profile : pd.DataFrame
-        Historic profile for comparison.
-    """
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        hours = list(range(1, 25))
-        warming_levels = [1.5, 2.0, 3.0]
-
-        # Create future profile with (Hour, Warming_Level) MultiIndex
-        future_cols = pd.MultiIndex.from_product(
-            [hours, warming_levels], names=["Hour", "Warming_Level"]
-        )
-        self.future_profile = pd.DataFrame(
-            np.random.rand(365, len(future_cols)) + 20.0,
-            index=range(1, 366),
-            columns=future_cols,
-        )
-
-        # Create simple historic profile with hour columns
-        self.historic_profile = pd.DataFrame(
-            np.random.rand(365, 24) + 15.0,
-            index=range(1, 366),
-            columns=hours,
-        )
-
-    def test_compute_warming_level_difference_returns_difference_dataframe(self):
-        """Test _compute_warming_level_difference returns DataFrame with computed differences."""
-        # Execute function
-        future_levels = ["Hour", "Warming_Level"]
-        historic_levels = []
-
-        result = _compute_warming_level_difference(
-            self.future_profile, self.historic_profile, future_levels, historic_levels
-        )
-
-        # Verify outcome: returns DataFrame with differences computed
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert (
-            result.shape == self.future_profile.shape
-        ), "Result shape should match future profile"
-        assert isinstance(
-            result.columns, pd.MultiIndex
-        ), "Should preserve MultiIndex structure"
-        assert result.columns.names == [
-            "Hour",
-            "Warming_Level",
-        ], "Should preserve column level names"
-
-        # Verify differences are computed (future - historic should be positive on average)
-        assert (
-            result.mean().mean() > 0
-        ), "Future should be warmer than historic on average"
-
-    def test_compute_warming_level_difference_matches_corresponding_hours(self):
-        """Test _compute_warming_level_difference correctly matches hours between profiles."""
-        # Create specific test data to verify hour matching
-        hours = [1, 12, 24]  # Use subset of hours for clearer testing
-        warming_levels = [2.0]
-
-        # Future profile with known values
-        future_cols = pd.MultiIndex.from_product(
-            [hours, warming_levels], names=["Hour", "Warming_Level"]
-        )
-        future_data = pd.DataFrame(
-            [[25.0, 30.0, 20.0]],
-            index=[1],
-            columns=future_cols,  # One row for simplicity
-        )
-
-        # Historic profile with known values for matching
-        historic_data = pd.DataFrame(
-            [[15.0, 20.0, 10.0]], index=[1], columns=hours  # Matching hours
-        )
-
-        # Execute function
-        future_levels = ["Hour", "Warming_Level"]
-        historic_levels = []
-
-        result = _compute_warming_level_difference(
-            future_data, historic_data, future_levels, historic_levels
-        )
-
-        # Verify outcome: differences are computed correctly for each hour
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-
-        # Check specific hour matching: future[hour, wl] - historic[hour]
-        # Hour 1: 25.0 - 15.0 = 10.0
-        # Hour 12: 30.0 - 20.0 = 10.0
-        # Hour 24: 20.0 - 10.0 = 10.0
-        # Verify that differences are computed correctly by checking all values are 10.0
-        result_values = result.iloc[0].values  # Get first row values
-        expected_diff = 10.0
-        for i, val in enumerate(result_values):
-            assert (
-                abs(val - expected_diff) < 0.001
-            ), f"Column {i} difference should be {expected_diff}, got {val}"
-
-    def test_compute_warming_level_difference_handles_duplicate_columns(self):
-        """Test _compute_warming_level_difference handles duplicate columns properly."""
-        hours = [1, 1, 2, 2]  # Duplicate hours
-        warming_levels = [2.0]
-
-        # Create future profile with duplicate columns
-        future_cols = pd.MultiIndex.from_product(
-            [hours, warming_levels], names=["Hour", "Warming_Level"]
-        )
-        future_dup = pd.DataFrame(
-            np.random.rand(10, len(future_cols)) + 20.0,
-            index=range(1, 11),
-            columns=future_cols,
-        )
-
-        # Create historic profile with duplicate columns
-        historic_dup = pd.DataFrame(
-            np.random.rand(10, len(hours)) + 15.0,
-            index=range(1, 11),
-            columns=hours,
-        )
-
-        # Execute function
-        future_levels = ["Hour", "Warming_Level"]
-        historic_levels = []
-
-        with patch("builtins.print") as mock_print:
-            result = _compute_warming_level_difference(
-                future_dup, historic_dup, future_levels, historic_levels
-            )
-
-        # Verify outcome: handles duplicates and shows warnings
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape[0] == future_dup.shape[0], "Should preserve row count"
-
-        # Check that warnings about duplicates were printed
-        printed_calls = [str(call) for call in mock_print.call_args_list]
-        printed_output = " ".join(printed_calls)
-        assert (
-            "duplicate columns" in printed_output.lower()
-        ), "Should warn about duplicate columns"
-
-    def test_compute_warming_level_difference_with_multiindex_historic(self):
-        """Test _compute_warming_level_difference when historic profile has MultiIndex columns."""
-        hours = list(range(1, 25))
-        warming_levels = [2.0]
-        simulations = ["sim1"]
-
-        # Create future profile with (Hour, Warming_Level) MultiIndex
-        future_cols = pd.MultiIndex.from_product(
-            [hours, warming_levels], names=["Hour", "Warming_Level"]
-        )
-        future_multi = pd.DataFrame(
-            np.random.rand(365, len(future_cols)) + 20.0,
-            index=range(1, 366),
-            columns=future_cols,
-        )
-
-        # Create historic profile with (Hour, Simulation) MultiIndex
-        historic_cols = pd.MultiIndex.from_product(
-            [hours, simulations], names=["Hour", "Simulation"]
-        )
-        historic_multi = pd.DataFrame(
-            np.random.rand(365, len(historic_cols)) + 15.0,
-            index=range(1, 366),
-            columns=historic_cols,
-        )
-
-        # Execute function
-        future_levels = ["Hour", "Warming_Level"]
-        historic_levels = ["Hour", "Simulation"]
-
-        result = _compute_warming_level_difference(
-            future_multi, historic_multi, future_levels, historic_levels
-        )
-
-        # Verify outcome: handles MultiIndex historic profile without crashing
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert (
-            result.shape == future_multi.shape
-        ), "Result shape should match future profile"
-        assert isinstance(
-            result.columns, pd.MultiIndex
-        ), "Should preserve future MultiIndex structure"
-
-        # Verify function completes successfully (may produce NaN if no matching structure)
-        # This documents the current behavior when historic MultiIndex doesn't align with future
-        assert result is not None, "Function should complete and return result"
-
-    def test_compute_warming_level_difference_with_missing_hour_fallback(self):
-        """Test _compute_warming_level_difference falls back correctly when hours don't match."""
-        # Create future profile with specific hours
-        future_hours = [1, 2, 3]
-        warming_levels = [2.0]
-
-        future_cols = pd.MultiIndex.from_product(
-            [future_hours, warming_levels], names=["Hour", "Warming_Level"]
-        )
-        future_data = pd.DataFrame(
-            np.random.rand(10, len(future_cols)) + 20.0,
-            index=range(1, 11),
-            columns=future_cols,
-        )
-
-        # Create historic profile with different hours (no overlap)
-        historic_hours = [10, 11, 12]
-        historic_data = pd.DataFrame(
-            np.random.rand(10, len(historic_hours)) + 15.0,
-            index=range(1, 11),
-            columns=historic_hours,
-        )
-
-        # Execute function
-        future_levels = ["Hour", "Warming_Level"]
-        historic_levels = []
-
-        result = _compute_warming_level_difference(
-            future_data, historic_data, future_levels, historic_levels
-        )
-
-        # Verify outcome: handles missing hour matches with fallback
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert (
-            result.shape == future_data.shape
-        ), "Result shape should match future profile"
-
-        # Verify differences are computed using fallback logic
-        # Since no hours match, it should use first column of historic as fallback
-        assert result.notna().any().any(), "Should produce non-NaN values with fallback"
-        assert (
-            result.mean().mean() > 0
-        ), "Future should be warmer than historic on average with fallback"
-
-
-class TestComputeMixedIndexDifference:
-    """Test class for _compute_mixed_index_difference function.
-
-    Tests the function that computes differences when future profile has
-    MultiIndex columns and historic profile has simple columns, handling
-    various matching scenarios and fallback logic.
-
-    Attributes
-    ----------
-    future_profile : pd.DataFrame
-        Future profile with MultiIndex columns.
-    historic_profile : pd.DataFrame
-        Historic profile with simple columns.
-    """
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        hours = list(range(1, 25))
-        warming_levels = [1.5, 2.0]
-        simulations = ["sim1", "sim2"]
-
-        # Create future profile with (Hour, Warming_Level, Simulation) MultiIndex
-        future_cols = pd.MultiIndex.from_product(
-            [hours, warming_levels, simulations],
-            names=["Hour", "Warming_Level", "Simulation"],
-        )
-        self.future_profile = pd.DataFrame(
-            np.random.rand(365, len(future_cols)) + 20.0,
-            index=range(1, 366),
-            columns=future_cols,
-        )
-
-        # Create simple historic profile with hour columns
-        self.historic_profile = pd.DataFrame(
-            np.random.rand(365, 24) + 15.0,
-            index=range(1, 366),
-            columns=hours,
-        )
-
-    def test_compute_mixed_index_difference_returns_difference_dataframe(self):
-        """Test _compute_mixed_index_difference returns DataFrame with computed differences."""
-        # Execute function
-        result = _compute_mixed_index_difference(
-            self.future_profile, self.historic_profile
-        )
-
-        # Verify outcome: returns DataFrame with differences computed
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert (
-            result.shape == self.future_profile.shape
-        ), "Result shape should match future profile"
-        assert isinstance(
-            result.columns, pd.MultiIndex
-        ), "Should preserve future MultiIndex structure"
-        assert result.columns.names == [
-            "Hour",
-            "Warming_Level",
-            "Simulation",
-        ], "Should preserve column level names"
-
-        # Verify differences are computed (future - historic should be positive on average)
-        assert (
-            result.mean().mean() > 0
-        ), "Future should be warmer than historic on average"
-
-    def test_compute_mixed_index_difference_with_matching_hours(self):
-        """Test _compute_mixed_index_difference correctly handles matching hours."""
-        # Create test data with specific values to verify matching
-        hours = [1, 12, 24]  # Use subset for clearer verification
-        warming_levels = [2.0]
-        simulations = ["sim1"]
-
-        # Future profile with known values
-        future_cols = pd.MultiIndex.from_product(
-            [hours, warming_levels, simulations],
-            names=["Hour", "Warming_Level", "Simulation"],
-        )
-        future_data = pd.DataFrame(
-            [[25.0, 30.0, 20.0]],
-            index=[1],
-            columns=future_cols,  # One row for simplicity
-        )
-
-        # Historic profile with corresponding hours
-        historic_data = pd.DataFrame(
-            [[15.0, 20.0, 10.0]], index=[1], columns=hours  # Matching hour structure
-        )
-
-        # Execute function
-        result = _compute_mixed_index_difference(future_data, historic_data)
-
-        # Verify outcome: differences computed correctly for matching hours
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert (
-            result.shape == future_data.shape
-        ), "Result shape should match future profile"
-
-        # Verify specific hour matching produces expected differences
-        # The function should match hours in MultiIndex with simple historic columns
-        result_values = result.iloc[0].values
-        expected_diffs = [10.0, 10.0, 10.0]  # 25-15, 30-20, 20-10
-
-        for i, (actual, expected) in enumerate(zip(result_values, expected_diffs)):
-            assert (
-                abs(actual - expected) < 0.001
-            ), f"Column {i} difference should be {expected}, got {actual}"
-
-    def test_compute_mixed_index_difference_handles_duplicate_columns(self):
-        """Test _compute_mixed_index_difference handles duplicate columns properly."""
-        # Create profiles with duplicate columns
-        hours = [1, 1, 2, 2]  # Duplicate hours
-        warming_levels = [2.0]
-        simulations = ["sim1"]
-
-        # Future profile with duplicate MultiIndex columns
-        future_cols = pd.MultiIndex.from_product(
-            [hours, warming_levels, simulations],
-            names=["Hour", "Warming_Level", "Simulation"],
-        )
-        future_dup = pd.DataFrame(
-            np.random.rand(10, len(future_cols)) + 20.0,
-            index=range(1, 11),
-            columns=future_cols,
-        )
-
-        # Historic profile with duplicate simple columns
-        historic_dup = pd.DataFrame(
-            np.random.rand(10, len(hours)) + 15.0,
-            index=range(1, 11),
-            columns=hours,
-        )
-
-        # Execute function
-        with patch("builtins.print") as mock_print:
-            result = _compute_mixed_index_difference(future_dup, historic_dup)
-
-        # Verify outcome: handles duplicates and shows warnings
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape[0] == future_dup.shape[0], "Should preserve row count"
-
-        # Check that warnings about duplicates were printed
-        printed_calls = [str(call) for call in mock_print.call_args_list]
-        printed_output = " ".join(printed_calls)
-        assert (
-            "duplicate columns" in printed_output.lower()
-        ), "Should warn about duplicate columns"
-
-    def test_compute_mixed_index_difference_with_non_matching_hours(self):
-        """Test _compute_mixed_index_difference when future and historic hours don't align."""
-        # Create future profile with specific hours
-        future_hours = [1, 2, 3]
-        warming_levels = [2.0]
-        simulations = ["sim1"]
-
-        future_cols = pd.MultiIndex.from_product(
-            [future_hours, warming_levels, simulations],
-            names=["Hour", "Warming_Level", "Simulation"],
-        )
-        future_data = pd.DataFrame(
-            np.random.rand(10, len(future_cols)) + 20.0,
-            index=range(1, 11),
-            columns=future_cols,
-        )
-
-        # Create historic profile with different hours (no overlap)
-        historic_hours = [10, 11, 12]
-        historic_data = pd.DataFrame(
-            np.random.rand(10, len(historic_hours)) + 15.0,
-            index=range(1, 11),
-            columns=historic_hours,
-        )
-
-        # Execute function
-        result = _compute_mixed_index_difference(future_data, historic_data)
-
-        # Verify outcome: handles non-matching hours with fallback logic
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert (
-            result.shape == future_data.shape
-        ), "Result shape should match future profile"
-
-        # Verify differences are computed using fallback logic
-        # Function should use _find_matching_historic_value which provides fallback
-        assert result.notna().any().any(), "Should produce non-NaN values with fallback"
-        assert (
-            result.mean().mean() > 0
-        ), "Future should be warmer than historic on average with fallback"
-
-    def test_compute_mixed_index_difference_with_different_multiindex_structures(self):
-        """Test _compute_mixed_index_difference with various MultiIndex structures."""
-        # Create future profile with (Hour, Warming_Level) only (no Simulation)
-        hours = list(range(1, 25))
-        warming_levels = [1.5, 2.0]
-
-        future_cols = pd.MultiIndex.from_product(
-            [hours, warming_levels], names=["Hour", "Warming_Level"]
-        )
-        future_wl = pd.DataFrame(
-            np.random.rand(365, len(future_cols)) + 20.0,
-            index=range(1, 366),
-            columns=future_cols,
-        )
-
-        # Create simple historic profile
-        historic_simple = pd.DataFrame(
-            np.random.rand(365, 24) + 15.0,
-            index=range(1, 366),
-            columns=hours,
-        )
-
-        # Execute function
-        result = _compute_mixed_index_difference(future_wl, historic_simple)
-
-        # Verify outcome: handles different MultiIndex structures correctly
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert (
-            result.shape == future_wl.shape
-        ), "Result shape should match future profile"
-        assert isinstance(
-            result.columns, pd.MultiIndex
-        ), "Should preserve future MultiIndex structure"
-        assert result.columns.names == [
-            "Hour",
-            "Warming_Level",
-        ], "Should preserve future column level names"
-
-        # Verify differences are computed correctly
-        assert result.notna().any().any(), "Should produce non-NaN difference values"
-        assert (
-            result.mean().mean() > 0
-        ), "Future should be warmer than historic on average"
-
-
-class TestComputeSimpleDifference:
-    """Test class for _compute_simple_difference function.
-
-    Tests the function that computes differences for profiles with simple
-    (non-MultiIndex) columns, handling both matching and non-matching
-    column scenarios.
-
-    Attributes
-    ----------
-    future_profile : pd.DataFrame
-        Future profile with simple columns.
-    historic_profile : pd.DataFrame
-        Historic profile with simple columns.
-    """
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        hours = list(range(1, 25))
-
-        # Create future profile with simple columns
-        self.future_profile = pd.DataFrame(
-            np.random.rand(365, 24) + 20.0,
-            index=range(1, 366),
-            columns=hours,
-        )
-
-        # Create historic profile with simple columns (same structure)
-        self.historic_profile = pd.DataFrame(
-            np.random.rand(365, 24) + 15.0,
-            index=range(1, 366),
-            columns=hours,
-        )
-
-    def test_compute_simple_difference_returns_difference_dataframe(self):
-        """Test _compute_simple_difference returns DataFrame with computed differences."""
-        # Execute function
-        result = _compute_simple_difference(self.future_profile, self.historic_profile)
-
-        # Verify outcome: returns DataFrame with differences computed
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert (
-            result.shape == self.future_profile.shape
-        ), "Result shape should match future profile"
-        assert not isinstance(
-            result.columns, pd.MultiIndex
-        ), "Should maintain simple column structure"
-        assert list(result.columns) == list(
-            self.future_profile.columns
-        ), "Should preserve column names"
-
-        # Verify differences are computed (future - historic should be positive on average)
-        assert (
-            result.mean().mean() > 0
-        ), "Future should be warmer than historic on average"
-
-    def test_compute_simple_difference_with_matching_columns(self):
-        """Test _compute_simple_difference with matching columns and known values."""
-        # Create test data with specific values to verify computation
-        hours = [1, 12, 24]  # Use subset for clearer verification
-
-        # Future profile with known values
-        future_data = pd.DataFrame(
-            [[25.0, 30.0, 20.0]], index=[1], columns=hours  # One row for simplicity
-        )
-
-        # Historic profile with known values for matching columns
-        historic_data = pd.DataFrame(
-            [[15.0, 20.0, 10.0]], index=[1], columns=hours  # Matching columns
-        )
-
-        # Execute function
-        with patch("builtins.print") as mock_print:
-            result = _compute_simple_difference(future_data, historic_data)
-
-        # Verify outcome: element-wise difference computed correctly
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert (
-            result.shape == future_data.shape
-        ), "Result shape should match future profile"
-
-        # Verify specific element-wise differences
-        # Hour 1: 25.0 - 15.0 = 10.0
-        # Hour 12: 30.0 - 20.0 = 10.0
-        # Hour 24: 20.0 - 10.0 = 10.0
-        expected_diffs = [10.0, 10.0, 10.0]
-        result_values = result.iloc[0].values
-
-        for i, (actual, expected) in enumerate(zip(result_values, expected_diffs)):
-            assert (
-                abs(actual - expected) < 0.001
-            ), f"Column {i} difference should be {expected}, got {actual}"
-
-        # Check that success message was printed
-        printed_calls = [str(call) for call in mock_print.call_args_list]
-        printed_output = " ".join(printed_calls)
-        assert (
-            "columns match" in printed_output.lower()
-        ), "Should print success message for matching columns"
-
-    def test_compute_simple_difference_with_mismatched_columns(self):
-        """Test _compute_simple_difference with non-matching columns but similar data."""
-        # Create future profile with numeric columns
-        future_data = pd.DataFrame(
-            np.random.rand(10, 3) + 20.0,
-            index=range(1, 11),
-            columns=["temp1", "temp2", "temp3"],
-        )
-
-        # Create historic profile with same structure but different names
-        historic_data = pd.DataFrame(
-            np.random.rand(10, 3) + 15.0,
-            index=range(1, 11),
-            columns=["var1", "var2", "var3"],
-        )
-
-        # Execute function
-        with patch("builtins.print") as mock_print:
-            result = _compute_simple_difference(future_data, historic_data)
-
-        # Verify outcome: function returns DataFrame with warning messages
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape[0] == future_data.shape[0], "Should preserve row count"
-
-        # Check that warning messages were printed for column mismatch
-        printed_calls = [str(call) for call in mock_print.call_args_list]
-        printed_output = " ".join(printed_calls)
-        assert (
-            "column mismatch" in printed_output.lower()
-        ), "Should warn about column mismatch"
-        assert (
-            "future columns:" in printed_output.lower()
-        ), "Should show future columns info"
-        assert (
-            "historic columns:" in printed_output.lower()
-        ), "Should show historic columns info"
-
-        # Result might have NaN values due to pandas column alignment behavior
-        # The function attempts positional alignment but pandas aligns by name
-        # This is expected behavior when column names don't match
-        assert (
-            result.isna().all().all() or result.notna().any().any()
-        ), "Function should handle column mismatch gracefully"
-
-    def test_compute_simple_difference_with_empty_profiles(self):
-        """Test _compute_simple_difference with empty DataFrames."""
-        # Create empty DataFrames with matching structure
-        future_data = pd.DataFrame(columns=["temp", "precip"])
-        historic_data = pd.DataFrame(columns=["temp", "precip"])
-
-        # Execute function
-        with patch("builtins.print") as mock_print:
-            result = _compute_simple_difference(future_data, historic_data)
-
-        # Verify outcome: handles empty data gracefully
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.empty, "Result should be empty when input DataFrames are empty"
-        assert list(result.columns) == [
-            "temp",
-            "precip",
-        ], "Should preserve column structure even with empty data"
-        assert result.shape == (0, 2), "Should have correct empty shape"
-
-        # Check that success message was printed (columns match)
-        printed_calls = [str(call) for call in mock_print.call_args_list]
-        printed_output = " ".join(printed_calls)
-        assert (
-            "columns match" in printed_output.lower()
-        ), "Should confirm columns match even for empty DataFrames"
-
-    def test_compute_simple_difference_with_single_row(self):
-        """Test _compute_simple_difference with single-row DataFrames."""
-        # Create single-row DataFrames
-        future_data = pd.DataFrame(
-            [[25.5, 12.3, 8.7]],
-            index=[1],
-            columns=["temp", "precip", "humidity"],
-        )
-        historic_data = pd.DataFrame(
-            [[20.2, 10.1, 7.9]],
-            index=[1],
-            columns=["temp", "precip", "humidity"],
-        )
-
-        # Execute function
-        with patch("builtins.print") as mock_print:
-            result = _compute_simple_difference(future_data, historic_data)
-
-        # Verify outcome: processes single row correctly
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape == (1, 3), "Should have single row with three columns"
-        assert list(result.columns) == [
-            "temp",
-            "precip",
-            "humidity",
-        ], "Should preserve column names"
-
-        # Check that all differences are positive (future > historic)
-        assert (result > 0).all().all(), "All differences should be positive"
-
-        # Verify differences are not NaN and within reasonable ranges
-        assert (
-            result.notna().all().all()
-        ), "All difference values should be valid numbers"
-        assert (result < 100).all().all(), "All differences should be reasonable values"
-
-        # Check that success message was printed
-        printed_calls = [str(call) for call in mock_print.call_args_list]
-        printed_output = " ".join(printed_calls)
-        assert (
-            "columns match" in printed_output.lower()
-        ), "Should confirm columns match for single-row data"
-
-
-class TestFindMatchingHistoricColumn:
-    """Test class for _find_matching_historic_column function.
-
-    Tests the function that finds matching historic columns for future columns
-    when both profiles have MultiIndex structures with Hour and Simulation levels.
-    The function handles different level orders and missing level scenarios.
-
-    Attributes
-    ----------
-    sample_historic_profile : pd.DataFrame
-        Sample historic profile with MultiIndex columns for testing.
-    """
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        hours = [1, 12, 24]
-        simulations = ["sim1", "sim2"]
-
-        # Create historic profile with (Hour, Simulation) MultiIndex structure
-        historic_cols = pd.MultiIndex.from_product(
-            [hours, simulations], names=["Hour", "Simulation"]
-        )
-        self.sample_historic_profile = pd.DataFrame(
-            np.random.rand(10, len(historic_cols)) + 15.0,
-            index=range(1, 11),
-            columns=historic_cols,
-        )
-
-    def test_find_matching_historic_column_returns_tuple_or_none(self):
-        """Test _find_matching_historic_column returns tuple or None."""
-        # Test future column that exists in historic profile
-        future_col = (1, "sim1")  # (Hour, Simulation)
-        future_levels = ["Hour", "Simulation"]
-        historic_levels = ["Hour", "Simulation"]
-
-        # Execute function
-        result = _find_matching_historic_column(
-            future_col, future_levels, self.sample_historic_profile, historic_levels
-        )
-
-        # Verify outcome: returns tuple or None
-        assert (
-            isinstance(result, tuple) or result is None
-        ), "Should return a tuple or None"
-
-        # In this case, should return matching tuple
-        assert isinstance(result, tuple), "Should return tuple for valid match"
-        assert len(result) == 2, "Returned tuple should have 2 elements"
-        assert result == (1, "sim1"), "Should return exact matching tuple"
-
-    def test_find_matching_historic_column_with_matching_hour_simulation(self):
-        """Test _find_matching_historic_column with valid Hour and Simulation matching."""
-        # Test various combinations that exist in the historic profile
-        test_cases = [
-            ((1, "sim1"), (1, "sim1")),  # First hour, first simulation
-            ((12, "sim2"), (12, "sim2")),  # Middle hour, second simulation
-            ((24, "sim1"), (24, "sim1")),  # Last hour, first simulation
-        ]
-
-        future_levels = ["Hour", "Simulation"]
-        historic_levels = ["Hour", "Simulation"]
-
-        for future_col, expected_result in test_cases:
-            # Execute function
-            result = _find_matching_historic_column(
-                future_col, future_levels, self.sample_historic_profile, historic_levels
-            )
-
-            # Verify outcome: returns correct matching tuple
-            assert isinstance(result, tuple), f"Should return tuple for {future_col}"
-            assert (
-                result == expected_result
-            ), f"Should return {expected_result} for future column {future_col}"
-            assert (
-                result in self.sample_historic_profile.columns
-            ), f"Returned column {result} should exist in historic profile"
-
-    def test_find_matching_historic_column_with_different_level_order(self):
-        """Test _find_matching_historic_column when historic levels are in different order."""
-        # Create historic profile with (Simulation, Hour) order instead of (Hour, Simulation)
-        hours = [1, 12, 24]
-        simulations = ["sim1", "sim2"]
-
-        # Reversed order: Simulation first, then Hour
-        reversed_historic_cols = pd.MultiIndex.from_product(
-            [simulations, hours], names=["Simulation", "Hour"]
-        )
-        reversed_historic_profile = pd.DataFrame(
-            np.random.rand(10, len(reversed_historic_cols)) + 15.0,
-            index=range(1, 11),
-            columns=reversed_historic_cols,
-        )
-
-        # Future column in (Hour, Simulation) order
-        future_col = (1, "sim1")  # Hour first, Simulation second
-        future_levels = ["Hour", "Simulation"]
-        historic_levels = ["Simulation", "Hour"]  # Reversed order
-
-        # Execute function
-        result = _find_matching_historic_column(
-            future_col, future_levels, reversed_historic_profile, historic_levels
-        )
-
-        # Verify outcome: function handles level order correctly
-        assert isinstance(result, tuple), "Should return tuple for reversed level order"
-        # Function should create ('sim1', 1) to match historic (Simulation, Hour) order
-        expected_result = ("sim1", 1)  # Simulation first, Hour second
-        assert (
-            result == expected_result
-        ), f"Should return {expected_result} for reversed historic levels"
-        assert (
-            result in reversed_historic_profile.columns
-        ), "Returned column should exist in reversed historic profile"
-
-    def test_find_matching_historic_column_with_missing_levels(self):
-        """Test _find_matching_historic_column when required levels are missing."""
-        # Test various scenarios where required levels are missing
-        test_scenarios = [
-            # Future missing Hour level
-            {
-                "future_col": ("sim1",),  # Only simulation
-                "future_levels": ["Simulation"],  # Missing Hour
-                "historic_levels": ["Hour", "Simulation"],
-                "description": "future missing Hour level",
-            },
-            # Future missing Simulation level
-            {
-                "future_col": (1,),  # Only hour
-                "future_levels": ["Hour"],  # Missing Simulation
-                "historic_levels": ["Hour", "Simulation"],
-                "description": "future missing Simulation level",
-            },
-            # Historic missing Hour level
-            {
-                "future_col": (1, "sim1"),
-                "future_levels": ["Hour", "Simulation"],
-                "historic_levels": ["Simulation"],  # Missing Hour
-                "description": "historic missing Hour level",
-            },
-            # Historic missing Simulation level
-            {
-                "future_col": (1, "sim1"),
-                "future_levels": ["Hour", "Simulation"],
-                "historic_levels": ["Hour"],  # Missing Simulation
-                "description": "historic missing Simulation level",
-            },
-            # Both missing required levels
-            {
-                "future_col": ("other",),
-                "future_levels": ["Other"],  # No Hour or Simulation
-                "historic_levels": ["Different"],  # No Hour or Simulation
-                "description": "both missing Hour and Simulation levels",
-            },
-        ]
-
-        for scenario in test_scenarios:
-            # Execute function
-            result = _find_matching_historic_column(
-                scenario["future_col"],
-                scenario["future_levels"],
-                self.sample_historic_profile,
-                scenario["historic_levels"],
-            )
-
-            # Verify outcome: returns None when required levels are missing
-            assert result is None, f"Should return None when {scenario['description']}"
-
-    def test_find_matching_historic_column_with_no_matching_column(self):
-        """Test _find_matching_historic_column when constructed column doesn't exist in historic."""
-        # Test scenarios where future column exists but historic doesn't have the matching column
-        test_cases = [
-            # Hour exists but simulation doesn't
-            {
-                "future_col": (1, "nonexistent_sim"),
-                "description": "nonexistent simulation",
-            },
-            # Simulation exists but hour doesn't
-            {"future_col": (999, "sim1"), "description": "nonexistent hour"},
-            # Neither hour nor simulation exists
-            {
-                "future_col": (999, "nonexistent_sim"),
-                "description": "both nonexistent hour and simulation",
-            },
-        ]
-
-        future_levels = ["Hour", "Simulation"]
-        historic_levels = ["Hour", "Simulation"]
-
-        for case in test_cases:
-            # Execute function
-            result = _find_matching_historic_column(
-                case["future_col"],
-                future_levels,
-                self.sample_historic_profile,
-                historic_levels,
-            )
-
-            # Verify outcome: returns None when constructed column doesn't exist
-            assert result is None, f"Should return None for {case['description']}"
-
-            # Double-check that the constructed column indeed doesn't exist
-            assert (
-                case["future_col"] not in self.sample_historic_profile.columns
-            ), f"Test case {case['future_col']} should not exist in historic profile"
-
-
-class TestGetHistoricHourMean:
-    """Test class for _get_historic_hour_mean function.
-
-    Tests the function that computes the mean of historic profile values
-    for a specific hour, handling both MultiIndex columns with Simulation
-    levels and simple column structures.
-
-    Attributes
-    ----------
-    historic_with_sim : pd.DataFrame
-        Historic profile with (Hour, Simulation) MultiIndex columns.
-    historic_simple : pd.DataFrame
-        Historic profile with simple hour columns.
-    """
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        hours = [1, 12, 24]
-        simulations = ["sim1", "sim2", "sim3"]
-
-        # Create historic profile with (Hour, Simulation) MultiIndex structure
-        historic_cols = pd.MultiIndex.from_product(
-            [hours, simulations], names=["Hour", "Simulation"]
-        )
-        # Use predictable values for testing means
-        self.historic_with_sim = pd.DataFrame(
-            [
-                [10.0, 20.0, 30.0, 15.0, 25.0, 35.0, 5.0, 15.0, 25.0],  # Row 1
-                [12.0, 22.0, 32.0, 17.0, 27.0, 37.0, 7.0, 17.0, 27.0],
-            ],  # Row 2
-            index=[1, 2],
-            columns=historic_cols,
-        )
-
-        # Create simple historic profile with hour columns
-        self.historic_simple = pd.DataFrame(
-            [[100.0, 200.0, 300.0], [110.0, 210.0, 310.0]],  # Row 1  # Row 2
-            index=[1, 2],
-            columns=hours,
-        )
-
-    def test_get_historic_hour_mean_returns_series(self):
-        """Test _get_historic_hour_mean returns pd.Series."""
-        # Test with MultiIndex structure
-        historic_levels = ["Hour", "Simulation"]
-        hour = 1
-
-        # Execute function
-        result = _get_historic_hour_mean(self.historic_with_sim, historic_levels, hour)
-
-        # Verify outcome: returns pd.Series
-        assert isinstance(result, pd.Series), "Should return a pandas Series"
-        # xs extracts all columns for hour 1, then mean() computes mean across rows
-        # Result should have one value per simulation (3 simulations)
-        assert len(result) == 3, "Should have one value per simulation"
-        assert result.index.name == "Simulation", "Index should be Simulation level"
-
-        # Test with simple structure
-        historic_levels = ["Hour"]
-        result_simple = _get_historic_hour_mean(
-            self.historic_simple, historic_levels, hour
-        )
-
-        # Verify outcome: also returns pd.Series (converted from single column)
-        assert isinstance(
-            result_simple, pd.Series
-        ), "Should return a pandas Series for simple structure"
-        assert (
-            len(result_simple) == 2
-        ), "Should have same number of rows as input DataFrame"
-
-    def test_get_historic_hour_mean_with_simulation_levels(self):
-        """Test _get_historic_hour_mean with Simulation levels computes correct means."""
-        historic_levels = ["Hour", "Simulation"]
-
-        # Test specific hours to verify mean calculation
-        test_cases = [
-            # Hour 1: columns (1, sim1), (1, sim2), (1, sim3)
-            # Row 1 values: [10.0, 20.0, 30.0], Row 2 values: [12.0, 22.0, 32.0]
-            # Expected means: sim1=11.0, sim2=21.0, sim3=31.0
-            {"hour": 1, "expected_means": {"sim1": 11.0, "sim2": 21.0, "sim3": 31.0}},
-            # Hour 12: columns (12, sim1), (12, sim2), (12, sim3)
-            # Row 1 values: [15.0, 25.0, 35.0], Row 2 values: [17.0, 27.0, 37.0]
-            # Expected means: sim1=16.0, sim2=26.0, sim3=36.0
-            {"hour": 12, "expected_means": {"sim1": 16.0, "sim2": 26.0, "sim3": 36.0}},
-        ]
-
-        for case in test_cases:
-            # Execute function
-            result = _get_historic_hour_mean(
-                self.historic_with_sim, historic_levels, case["hour"]
-            )
-
-            # Verify outcome: correct mean calculation
-            assert isinstance(
-                result, pd.Series
-            ), f"Should return pd.Series for hour {case['hour']}"
-            assert (
-                result.index.name == "Simulation"
-            ), f"Index should be Simulation level for hour {case['hour']}"
-
-            # Check specific mean values
-            for sim, expected_mean in case["expected_means"].items():
-                actual_mean = result[sim]
-                assert (
-                    abs(actual_mean - expected_mean) < 0.001
-                ), f"Hour {case['hour']}, Simulation {sim}: expected {expected_mean}, got {actual_mean}"
-
-    def test_get_historic_hour_mean_without_simulation_levels(self):
-        """Test _get_historic_hour_mean without Simulation levels returns specific column."""
-        historic_levels = ["Hour"]  # No Simulation level
-
-        # Test specific hours from simple historic profile
-        test_cases = [
-            # Hour 1: column values [100.0, 110.0] (both rows)
-            {"hour": 1, "expected_values": [100.0, 110.0]},
-            # Hour 12: column values [200.0, 210.0] (both rows)
-            {"hour": 12, "expected_values": [200.0, 210.0]},
-            # Hour 24: column values [300.0, 310.0] (both rows)
-            {"hour": 24, "expected_values": [300.0, 310.0]},
-        ]
-
-        for case in test_cases:
-            # Execute function
-            result = _get_historic_hour_mean(
-                self.historic_simple, historic_levels, case["hour"]
-            )
-
-            # Verify outcome: returns specific column as Series
-            assert isinstance(
-                result, pd.Series
-            ), f"Should return pd.Series for hour {case['hour']}"
-            assert len(result) == 2, f"Should have 2 values for hour {case['hour']}"
-
-            # Check specific column values
-            for i, expected_value in enumerate(case["expected_values"]):
-                actual_value = result.iloc[i]
-                assert (
-                    abs(actual_value - expected_value) < 0.001
-                ), f"Hour {case['hour']}, Row {i}: expected {expected_value}, got {actual_value}"
-
-    def test_get_historic_hour_mean_with_missing_hour(self):
-        """Test _get_historic_hour_mean when requested hour doesn't exist returns 0."""
-        # Test with simple structure (no Simulation levels)
-        historic_levels = ["Hour"]
-        nonexistent_hours = [5, 999, "nonexistent_hour"]
-
-        for missing_hour in nonexistent_hours:
-            # Execute function
-            result = _get_historic_hour_mean(
-                self.historic_simple, historic_levels, missing_hour
-            )
-
-            # Verify outcome: returns 0 when hour doesn't exist
-            if isinstance(result, pd.Series):
-                assert (
-                    result == 0
-                ).all(), f"Should return 0 for missing hour {missing_hour}"
-            else:
-                assert result == 0, f"Should return 0 for missing hour {missing_hour}"
-
-        # Test with MultiIndex structure - should raise error when trying to use xs with missing level
-        historic_levels = ["Hour", "Simulation"]
-
-        for missing_hour in [5, 999]:  # Test numeric missing hours
-            try:
-                result = _get_historic_hour_mean(
-                    self.historic_with_sim, historic_levels, missing_hour
-                )
-                # If no exception, the function handled it gracefully (may return empty Series)
-                assert isinstance(
-                    result, (pd.Series, type(None), int)
-                ), f"Should handle missing hour {missing_hour} gracefully"
-            except KeyError:
-                # KeyError is expected when using xs with missing level
-                # This documents the current behavior
-                assert (
-                    True
-                ), f"KeyError expected for missing hour {missing_hour} in MultiIndex"
-
-    def test_get_historic_hour_mean_with_different_hour_types(self):
-        """Test _get_historic_hour_mean with various hour identifier types."""
-        # Create historic profile with different hour column types
-        mixed_hours = [1, "12", 24.0]  # int, string, float
-        mixed_hour_profile = pd.DataFrame(
-            [[100.0, 200.0, 300.0], [110.0, 210.0, 310.0]],  # Row 1  # Row 2
-            index=[1, 2],
-            columns=mixed_hours,
-        )
-
-        historic_levels = ["Hour"]
-
-        # Test cases with different hour identifier types
-        test_cases = [
-            # Integer hour
-            {
-                "hour": 1,
-                "expected_values": [100.0, 110.0],
-                "description": "integer hour",
-            },
-            # String hour
-            {
-                "hour": "12",
-                "expected_values": [200.0, 210.0],
-                "description": "string hour",
-            },
-            # Float hour
-            {
-                "hour": 24.0,
-                "expected_values": [300.0, 310.0],
-                "description": "float hour",
-            },
-        ]
-
-        for case in test_cases:
-            # Execute function
-            result = _get_historic_hour_mean(
-                mixed_hour_profile, historic_levels, case["hour"]
-            )
-
-            # Verify outcome: function handles different hour types correctly
-            assert isinstance(
-                result, pd.Series
-            ), f"Should return pd.Series for {case['description']}"
-            assert len(result) == 2, f"Should have 2 values for {case['description']}"
-
-            # Check specific column values
-            for i, expected_value in enumerate(case["expected_values"]):
-                actual_value = result.iloc[i]
-                assert (
-                    abs(actual_value - expected_value) < 0.001
-                ), f"{case['description']}, Row {i}: expected {expected_value}, got {actual_value}"
-
-        # Test type compatibility - string matching numeric should not work
-        # (This documents current behavior - pandas is strict about index matching)
-        try:
-            result = _get_historic_hour_mean(
-                mixed_hour_profile, historic_levels, "1"
-            )  # String '1' not int 1
-            # If no exception, should return 0 (missing hour behavior)
-            if isinstance(result, pd.Series):
-                assert (result == 0).all(), "String '1' should not match int 1 column"
-            else:
-                assert result == 0, "String '1' should not match int 1 column"
-        except (KeyError, TypeError):
-            # Exception is acceptable - documents type strictness
-            assert (
-                True
-            ), "Type mismatch between hour identifier and column type is handled"
-
-
-class TestFindMatchingHistoricValue:
-    """Test class for _find_matching_historic_value function.
-
-    Tests the function that finds matching historic values for future columns
-    when dealing with mixed index types, handling hour-based matching,
-    numeric conversions, and positional fallbacks.
-
-    Attributes
-    ----------
-    future_profile : pd.DataFrame
-        Future profile with MultiIndex columns for testing.
-    historic_profile : pd.DataFrame
-        Historic profile with simple columns for testing.
-    """
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        hours = list(range(1, 25))
-        warming_levels = [1.5, 2.0]
-        simulations = ["sim1", "sim2"]
-
-        # Create future profile with (Hour, Warming_Level, Simulation) MultiIndex
-        future_cols = pd.MultiIndex.from_product(
-            [hours, warming_levels, simulations],
-            names=["Hour", "Warming_Level", "Simulation"],
-        )
-        self.future_profile = pd.DataFrame(
-            np.random.rand(10, len(future_cols)) + 20.0,
-            index=range(1, 11),
-            columns=future_cols,
-        )
-
-        # Create historic profile with simple hour columns
-        self.historic_profile = pd.DataFrame(
-            np.random.rand(10, 24) + 15.0,
-            index=range(1, 11),
-            columns=hours,
-        )
-
-    def test_find_matching_historic_value_returns_series(self):
-        """Test _find_matching_historic_value returns pd.Series."""
-        # Test with a future column that has Hour level
-        future_col = (1, 1.5, "sim1")  # (Hour, Warming_Level, Simulation)
-
-        # Execute function
-        result = _find_matching_historic_value(
-            future_col, self.future_profile, self.historic_profile
-        )
-
-        # Verify outcome: returns a pandas Series
-        assert isinstance(result, pd.Series), "Should return a pandas Series"
-        assert (
-            len(result) == self.historic_profile.shape[0]
-        ), "Series length should match historic profile rows"
-
-        # Verify it contains the correct historic data for hour 1
-        expected_series = self.historic_profile[1]
-        pd.testing.assert_series_equal(result, expected_series, check_names=False)
-
-    def test_find_matching_historic_value_with_hour_level(self):
-        """Test _find_matching_historic_value with Hour level direct matching."""
-        # Test various hour matches
-        test_cases = [
-            (1, 1.5, "sim1"),  # First hour
-            (12, 2.0, "sim2"),  # Middle hour
-            (24, 1.5, "sim1"),  # Last hour
-        ]
-
-        for future_col in test_cases:
-            hour = future_col[0]  # Extract hour from future column
-
-            # Execute function
-            result = _find_matching_historic_value(
-                future_col, self.future_profile, self.historic_profile
-            )
-
-            # Verify outcome: returns correct historic data for the hour
-            assert isinstance(
-                result, pd.Series
-            ), f"Should return Series for {future_col}"
-            expected_series = self.historic_profile[hour]
-            pd.testing.assert_series_equal(result, expected_series, check_names=False)
-
-            # Verify the series contains the expected hour's data
-            assert (
-                hour in self.historic_profile.columns
-            ), f"Hour {hour} should exist in historic profile"
-
-    def test_find_matching_historic_value_with_numeric_hour_matching(self):
-        """Test _find_matching_historic_value with numeric hour conversion."""
-        # Create future profile with string hour identifiers
-        string_hours = ["1am", "12pm", "11pm"]
-        warming_levels = [2.0]
-        simulations = ["sim1"]
-
-        future_cols_str = pd.MultiIndex.from_product(
-            [string_hours, warming_levels, simulations],
-            names=["Hour", "Warming_Level", "Simulation"],
-        )
-        future_profile_str = pd.DataFrame(
-            np.random.rand(10, len(future_cols_str)) + 20.0,
-            index=range(1, 11),
-            columns=future_cols_str,
-        )
-
-        # Create historic profile with numeric hours
-        numeric_hours = [1, 12, 11]  # Corresponding to 1am, 12pm, 11pm
-        historic_profile_numeric = pd.DataFrame(
-            np.random.rand(10, len(numeric_hours)) + 15.0,
-            index=range(1, 11),
-            columns=numeric_hours,
-        )
-
-        # Test numeric conversion matching
-        test_cases = [
-            ("1am", 1),  # '1am' should match numeric 1
-            ("12pm", 12),  # '12pm' should match numeric 12
-            ("11pm", 11),  # '11pm' should match numeric 11
-        ]
-
-        for string_hour, numeric_hour in test_cases:
-            future_col = (string_hour, 2.0, "sim1")
-
-            # Execute function
-            result = _find_matching_historic_value(
-                future_col, future_profile_str, historic_profile_numeric
-            )
-
-            # Verify outcome: matches converted numeric hour
-            assert isinstance(
-                result, pd.Series
-            ), f"Should return Series for {future_col}"
-            expected_series = historic_profile_numeric[numeric_hour]
-            pd.testing.assert_series_equal(result, expected_series, check_names=False)
-
-    def test_find_matching_historic_value_with_positional_fallback(self):
-        """Test _find_matching_historic_value with positional fallback when no hour matches."""
-        # Create future profile with hours that don't exist in historic
-        nonexistent_hours = [99, 100, 101]
-        warming_levels = [2.0]
-        simulations = ["sim1"]
-
-        future_cols_no_match = pd.MultiIndex.from_product(
-            [nonexistent_hours, warming_levels, simulations],
-            names=["Hour", "Warming_Level", "Simulation"],
-        )
-        future_profile_no_match = pd.DataFrame(
-            np.random.rand(10, len(future_cols_no_match)) + 20.0,
-            index=range(1, 11),
-            columns=future_cols_no_match,
-        )
-
-        # Create historic profile with different hours
-        historic_hours = [1, 2, 3, 4, 5]
-        historic_profile_different = pd.DataFrame(
-            np.random.rand(10, len(historic_hours)) + 15.0,
-            index=range(1, 11),
-            columns=historic_hours,
-        )
-
-        # Test positional fallback for each future column
-        for i, future_col in enumerate(future_profile_no_match.columns):
-            # Execute function
-            result = _find_matching_historic_value(
-                future_col, future_profile_no_match, historic_profile_different
-            )
-
-            # Verify outcome: uses positional fallback
-            assert isinstance(
-                result, pd.Series
-            ), f"Should return Series for {future_col}"
-
-            # Calculate expected positional match
-            expected_col_idx = i % len(historic_profile_different.columns)
-            expected_series = historic_profile_different.iloc[:, expected_col_idx]
-
-            pd.testing.assert_series_equal(result, expected_series, check_names=False)
-
-    def test_find_matching_historic_value_without_hour_level(self):
-        """Test _find_matching_historic_value when future has no Hour level."""
-        # Create future profile without Hour level (only Warming_Level and Simulation)
-        warming_levels = [1.5, 2.0, 3.0]
-        simulations = ["sim1", "sim2"]
-
-        future_cols_no_hour = pd.MultiIndex.from_product(
-            [warming_levels, simulations],
-            names=["Warming_Level", "Simulation"],
-        )
-        future_profile_no_hour = pd.DataFrame(
-            np.random.rand(10, len(future_cols_no_hour)) + 20.0,
-            index=range(1, 11),
-            columns=future_cols_no_hour,
-        )
-
-        # Create historic profile with hours
-        historic_hours = [1, 2, 3, 4]
-        historic_profile_hours = pd.DataFrame(
-            np.random.rand(10, len(historic_hours)) + 15.0,
-            index=range(1, 11),
-            columns=historic_hours,
-        )
-
-        # Test that function uses positional matching when no Hour level exists
-        for i, future_col in enumerate(future_profile_no_hour.columns):
-            # Execute function
-            result = _find_matching_historic_value(
-                future_col, future_profile_no_hour, historic_profile_hours
-            )
-
-            # Verify outcome: uses positional matching since no Hour level
-            assert isinstance(
-                result, pd.Series
-            ), f"Should return Series for {future_col}"
-
-            # Calculate expected positional match
-            expected_col_idx = i % len(historic_profile_hours.columns)
-            expected_series = historic_profile_hours.iloc[:, expected_col_idx]
-
-            pd.testing.assert_series_equal(result, expected_series, check_names=False)
-
-        # Test fallback to first column when position calculation fails
-        # Use a mock case where get_loc might return a slice instead of int
-        first_col = future_profile_no_hour.columns[0]
-        result_fallback = _find_matching_historic_value(
-            first_col, future_profile_no_hour, historic_profile_hours
-        )
-
-        # Should still return a valid Series
-        assert isinstance(
-            result_fallback, pd.Series
-        ), "Should return Series for fallback case"
-
-
-class TestFormatBasedOnStructure:
-    """Test class for _format_based_on_structure function.
-
-    Tests the function that formats DataFrames based on whether they have
-    single-level or multi-level columns, ensuring proper formatting for
-    climate profile display and processing.
-
-    Attributes
-    ----------
-    simple_df : pd.DataFrame
-        DataFrame with simple single-level columns.
-    multi_df : pd.DataFrame
-        DataFrame with MultiIndex columns.
-    """
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        # Create DataFrame with simple columns
-        self.simple_df = pd.DataFrame(
-            np.random.rand(365, 24), index=range(1, 366), columns=range(1, 25)
-        )
-
-        # Create DataFrame with MultiIndex columns
-        hours = list(range(1, 25))
-        simulations = ["sim1", "sim2"]
-        multi_cols = pd.MultiIndex.from_product(
-            [hours, simulations], names=["Hour", "Simulation"]
-        )
-        self.multi_df = pd.DataFrame(
-            np.random.rand(365, len(multi_cols)),
-            index=range(1, 366),
-            columns=multi_cols,
-        )
-
-    def test_format_based_on_structure_with_simple_columns(self):
-        """Test _format_based_on_structure with single-level columns."""
-        # Store original state for comparison
-        original_columns = self.simple_df.columns.copy()
-
-        # Execute function
-        _format_based_on_structure(self.simple_df)
-
-        # Verify outcome: simple columns should be formatted appropriately
-        assert not isinstance(
-            self.simple_df.columns, pd.MultiIndex
-        ), "Should maintain simple column structure"
-        # The function modifies the DataFrame in-place, check it's still valid
-        assert isinstance(
-            self.simple_df, pd.DataFrame
-        ), "Should remain a valid DataFrame"
-        assert len(self.simple_df.columns) == len(
-            original_columns
-        ), "Should preserve column count"
-
-    def test_format_based_on_structure_with_multiindex_columns(self):
-        """Test _format_based_on_structure with MultiIndex columns."""
-        # Store original MultiIndex info
-        original_shape = self.multi_df.shape
-
-        # Execute function
-        _format_based_on_structure(self.multi_df)
-
-        # Verify outcome: MultiIndex should be handled appropriately
-        assert isinstance(
-            self.multi_df, pd.DataFrame
-        ), "Should remain a valid DataFrame"
-        assert self.multi_df.shape == original_shape, "Should preserve DataFrame shape"
-        # Function should preserve or appropriately modify MultiIndex structure
-        if isinstance(self.multi_df.columns, pd.MultiIndex):
-            assert (
-                self.multi_df.columns.names is not None
-            ), "Should have meaningful column level names"
-
-    def test_format_based_on_structure_handles_empty_dataframe(self):
-        """Test _format_based_on_structure with empty DataFrame."""
-        # Create empty DataFrame
-        empty_df = pd.DataFrame()
-
-        # Execute function - expect it to raise an error for empty DataFrame
-        with pytest.raises(ValueError, match="Length mismatch"):
-            _format_based_on_structure(empty_df)
-
 
 class TestConstructProfileDataframe:
     """Test class for _construct_profile_dataframe function.
@@ -2605,8 +996,7 @@ class TestConstructProfileDataframe:
             warming_levels=single_wl,
             simulations=single_sim,
             sim_label_func=self.sim_label_func,
-            days_in_year=365,
-            hours_per_day=24,
+            hours_per_year=8760,
         )
         # Verify outcome: MultiIndex structure with (Hour, Simulation)
         assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
@@ -2640,8 +1030,7 @@ class TestConstructProfileDataframe:
             warming_levels=single_wl,
             simulations=multi_sim,
             sim_label_func=self.sim_label_func,
-            days_in_year=365,
-            hours_per_day=24,
+            hours_per_year=8760,
         )
 
         # Verify outcome: MultiIndex structure with (Hour, Simulation)
@@ -2676,8 +1065,7 @@ class TestConstructProfileDataframe:
             warming_levels=multi_wl,
             simulations=single_sim,
             sim_label_func=self.sim_label_func,
-            days_in_year=365,
-            hours_per_day=24,
+            hours_per_year=8760,
         )
 
         # Verify outcome: MultiIndex structure with (Hour, Warming_Level)
@@ -2714,8 +1102,7 @@ class TestConstructProfileDataframe:
             warming_levels=multi_wl,
             simulations=multi_sim,
             sim_label_func=self.sim_label_func,
-            days_in_year=365,
-            hours_per_day=24,
+            hours_per_year=8760,
         )
 
         # Verify outcome: MultiIndex structure with (Hour, Warming_Level, Simulation)
@@ -2758,11 +1145,8 @@ class TestStackProfileData:
         # Execute function with hour-first ordering
         result = _stack_profile_data(
             profile_data=self.profile_data,
-            hours_per_day=24,
             wl_names=["WL_1.5", "WL_2.0"],
             sim_names=["Sim1", "Sim2"],
-            hour_first=True,
-            three_level=False,
         )
 
         # Verify outcome: returns 2D array with correct shape
@@ -2781,11 +1165,8 @@ class TestStackProfileData:
         # Execute function with three-level structure
         result = _stack_profile_data(
             profile_data=self.profile_data,
-            hours_per_day=24,
             wl_names=["WL_1.5", "WL_2.0"],
             sim_names=["Sim1", "Sim2"],
-            hour_first=True,
-            three_level=True,
         )
 
         # Verify outcome: returns 2D array with proper dimensions
@@ -2804,11 +1185,8 @@ class TestStackProfileData:
         # Execute function
         result = _stack_profile_data(
             profile_data=single_sim_data,
-            hours_per_day=24,
             wl_names=["WL_1.5", "WL_2.0"],
             sim_names=["Sim1"],
-            hour_first=True,
-            three_level=False,
         )
 
         # Verify outcome: correct dimensions for single simulation
@@ -2827,11 +1205,8 @@ class TestStackProfileData:
         # Execute function
         result = _stack_profile_data(
             profile_data=simple_data,
-            hours_per_day=24,
             wl_names=["WL_1.5", "WL_2.0"],
             sim_names=["Sim1"],
-            hour_first=True,
-            three_level=False,
         )
 
         # Verify outcome: preserves data values correctly
@@ -2895,9 +1270,7 @@ class TestCreateSimpleDataframe:
             warming_level=self.warming_level,
             simulation=self.simulation,
             sim_label_func=self.sim_label_func,
-            days_in_year=365,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
+            hours_per_year=8760,
         )
 
         # Verify outcome: returns a pandas DataFrame
@@ -2913,7 +1286,7 @@ class TestCreateSimpleDataframe:
             warming_level=self.warming_level,
             simulation=self.simulation,
             sim_label_func=self.sim_label_func,
-            days_in_year=365,
+            hours_per_year=8760,
             hours=self.hours,
             hours_per_day=self.hours_per_day,
         )
@@ -2954,7 +1327,7 @@ class TestCreateSimpleDataframe:
             warming_level=different_wl,
             simulation=different_sim,
             sim_label_func=self.sim_label_func,
-            days_in_year=365,
+            hours_per_year=8760,
             hours=self.hours,
             hours_per_day=self.hours_per_day,
         )
@@ -2976,7 +1349,7 @@ class TestCreateSimpleDataframe:
             warming_level=self.warming_level,
             simulation=different_sim,
             sim_label_func=self.sim_label_func,
-            days_in_year=365,
+            hours_per_year=8760,
             hours=self.hours,
             hours_per_day=self.hours_per_day,
         )
@@ -3007,9 +1380,7 @@ class TestCreateSimpleDataframe:
             warming_level=self.warming_level,
             simulation=self.simulation,
             sim_label_func=self.sim_label_func,
-            days_in_year=365,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
+            hours_per_year=8760,
         )
 
         # Verify outcome: data values are preserved correctly
@@ -3033,9 +1404,7 @@ class TestCreateSimpleDataframe:
             warming_level=self.warming_level,
             simulation=self.simulation,
             sim_label_func=self.sim_label_func,
-            days_in_year=366,  # Leap year
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
+            hours_per_year=8768,  # Leap year
         )
 
         # Verify outcome: handles different matrix sizes correctly
@@ -3053,14 +1422,14 @@ class TestCreateSimpleDataframe:
         """Test _create_simple_dataframe with different days_in_year parameter values."""
         # Test with various year lengths
         year_length_scenarios = [
-            {"days": 365, "description": "regular year"},
-            {"days": 366, "description": "leap year"},
-            {"days": 360, "description": "simplified calendar year"},
-            {"days": 300, "description": "partial year"},
+            {"hours": 8760, "description": "regular year"},
+            {"hours": 8768, "description": "leap year"},
+            {"hours": 8800, "description": "simplified calendar year"},
+            {"hours": 8800, "description": "partial year"},
         ]
 
         for scenario in year_length_scenarios:
-            days = scenario["days"]
+            hours = scenario["hours"]
             description = scenario["description"]
 
             # Create profile data matching the year length
@@ -3073,9 +1442,7 @@ class TestCreateSimpleDataframe:
                 warming_level=self.warming_level,
                 simulation=self.simulation,
                 sim_label_func=self.sim_label_func,
-                days_in_year=days,
-                hours=self.hours,
-                hours_per_day=self.hours_per_day,
+                hours_per_year=hours,
             )
 
             # Verify outcome: correct dimensions for each scenario
@@ -3144,8 +1511,7 @@ class TestCreateSingleWlMultiSimDataframe:
         self.warming_level = 2.0
         self.simulations = ["model_A", "model_B", "model_C"]
         self.hours = np.arange(0, 24)
-        self.days_in_year = 365
-        self.hours_per_day = 24
+        self.hours_per_year = 8760
 
         # Create sample profile data dictionary
         # The function expects data for each (WL_X, sim_label) combination
@@ -3165,9 +1531,7 @@ class TestCreateSingleWlMultiSimDataframe:
             warming_level=self.warming_level,
             simulations=self.simulations,
             sim_label_func=self.mock_sim_label_func,
-            days_in_year=self.days_in_year,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
+            hours_per_year=self.hours_per_year,
         )
 
         # Verify outcome: returns a pandas DataFrame
@@ -3183,9 +1547,7 @@ class TestCreateSingleWlMultiSimDataframe:
             warming_level=self.warming_level,
             simulations=self.simulations,
             sim_label_func=self.mock_sim_label_func,
-            days_in_year=self.days_in_year,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
+            hours_per_year=self.hours_per_year,
         )
 
         # Verify outcome: correct MultiIndex column structure
@@ -3219,9 +1581,7 @@ class TestCreateSingleWlMultiSimDataframe:
             warming_level=self.warming_level,
             simulations=self.simulations,
             sim_label_func=self.mock_sim_label_func,
-            days_in_year=self.days_in_year,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
+            hours_per_year=self.hours_per_year,
         )
 
         # Verify outcome: each simulation creates columns for all hours
@@ -3285,9 +1645,7 @@ class TestCreateSingleWlMultiSimDataframe:
                 warming_level=self.warming_level,
                 simulations=simulations_with_dups,
                 sim_label_func=mock_dup_sim_func,
-                days_in_year=self.days_in_year,
-                hours=self.hours,
-                hours_per_day=self.hours_per_day,
+                hours_per_year=self.hours_per_year,
             )
 
         # Verify outcome: warning message was printed about duplicates
@@ -3322,7 +1680,7 @@ class TestCreateSingleWlMultiSimDataframe:
         # Create specific test data with known values for verification
         test_simulations = ["test_sim_A", "test_sim_B"]
         test_hours = np.array([0, 1, 2])  # Use smaller subset for easier verification
-        test_days = 3  # Use smaller dataset for precise testing
+        test_days = 24  # Use smaller dataset for precise testing
 
         # Create mock sim_label_func for predictable names
         test_sim_func = MagicMock()
@@ -3345,6 +1703,7 @@ class TestCreateSingleWlMultiSimDataframe:
             expected_values[sim_key] = profile_matrix
 
         # Execute function
+        #! revisit
         result = _create_single_wl_multi_sim_dataframe(
             profile_data=test_profile_data,
             warming_level=self.warming_level,
@@ -3422,9 +1781,7 @@ class TestCreateMultiWlSingleSimDataframe:
         # Test parameters
         self.warming_levels = np.array([1.5, 2.0, 3.0])
         self.simulation = "model_X"
-        self.hours = np.arange(0, 24)
-        self.days_in_year = 365
-        self.hours_per_day = 24
+        self.hours_per_year = 8760
 
         # Create sample profile data dictionary
         # The function expects data for each (WL_X, sim_label) combination
@@ -3447,9 +1804,7 @@ class TestCreateMultiWlSingleSimDataframe:
             warming_levels=self.warming_levels,
             simulation=self.simulation,
             sim_label_func=self.mock_sim_label_func,
-            days_in_year=self.days_in_year,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
+            hours_per_year=self.hours_per_year,
         )
 
         # Verify outcome: returns a pandas DataFrame
@@ -3465,9 +1820,7 @@ class TestCreateMultiWlSingleSimDataframe:
             warming_levels=self.warming_levels,
             simulation=self.simulation,
             sim_label_func=self.mock_sim_label_func,
-            days_in_year=self.days_in_year,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
+            hours_per_year=self.hours_per_year,
         )
 
         # Verify outcome: correct MultiIndex column structure
@@ -3503,9 +1856,7 @@ class TestCreateMultiWlSingleSimDataframe:
             warming_levels=self.warming_levels,
             simulation=self.simulation,
             sim_label_func=self.mock_sim_label_func,
-            days_in_year=self.days_in_year,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
+            hours_per_year=self.hours_per_year,
         )
 
         # Verify outcome: each warming level creates columns for all hours
@@ -3546,6 +1897,7 @@ class TestCreateMultiWlSingleSimDataframe:
         test_warming_levels = np.array([1.0, 2.0])
         test_hours = np.array([0, 1, 2])  # Use smaller subset for easier verification
         test_days = 3  # Use smaller dataset for precise testing
+        #! revisit
 
         # Create mock sim_label_func for predictable names
         test_sim_func = MagicMock()
@@ -3574,7 +1926,6 @@ class TestCreateMultiWlSingleSimDataframe:
             simulation="test_simulation",
             sim_label_func=test_sim_func,
             days_in_year=test_days,
-            hours=test_hours,
             hours_per_day=len(test_hours),
         )
 
@@ -3660,9 +2011,7 @@ class TestCreateMultiWlSingleSimDataframe:
                 warming_levels=scenario["warming_levels"],
                 simulation=self.simulation,
                 sim_label_func=self.mock_sim_label_func,
-                days_in_year=self.days_in_year,
-                hours=self.hours,
-                hours_per_day=self.hours_per_day,
+                hours_per_year=self.hours_per_year,
             )
 
             # Verify outcome for this scenario
@@ -3733,9 +2082,7 @@ class TestCreateMultiWlMultiSimDataframe:
         self.warming_levels = np.array([1.5, 2.0, 3.0])
         self.simulations = ["sim1", "sim2"]
         self.mock_sim_label_func = MagicMock(side_effect=lambda x, i: f"Simulation_{x}")
-        self.days_in_year = 365
-        self.hours = np.arange(1, 25, 1)
-        self.hours_per_day = 24
+        self.hours_per_year = 8760
 
         # Create sample profile data with (warming_level, simulation_label) keys
         # The keys must use the labeled names that sim_label_func produces
@@ -3756,9 +2103,7 @@ class TestCreateMultiWlMultiSimDataframe:
             warming_levels=self.warming_levels,
             simulations=self.simulations,
             sim_label_func=self.mock_sim_label_func,
-            days_in_year=self.days_in_year,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
+            hours_per_year=self.hours_per_year,
         )
 
         # Verify outcome: returns DataFrame with correct shape
@@ -3777,9 +2122,7 @@ class TestCreateMultiWlMultiSimDataframe:
             warming_levels=self.warming_levels,
             simulations=self.simulations,
             sim_label_func=self.mock_sim_label_func,
-            days_in_year=self.days_in_year,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
+            hours_per_year=self.hours_per_year,
         )
 
         # Verify outcome: proper MultiIndex structure
@@ -3823,9 +2166,7 @@ class TestCreateMultiWlMultiSimDataframe:
             warming_levels=self.warming_levels,
             simulations=self.simulations,
             sim_label_func=self.mock_sim_label_func,
-            days_in_year=self.days_in_year,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
+            hours_per_year=self.hours_per_year,
         )
 
         # Verify outcome: each hour has all combinations of warming levels and simulations
@@ -3877,9 +2218,7 @@ class TestCreateMultiWlMultiSimDataframe:
             warming_levels=test_warming_levels,
             simulations=test_simulations,
             sim_label_func=self.mock_sim_label_func,
-            days_in_year=self.days_in_year,
-            hours=self.hours,
-            hours_per_day=self.hours_per_day,
+            hours_per_year=self.hours_per_year,
         )
 
         # Verify outcome: data values are preserved correctly
@@ -3942,9 +2281,7 @@ class TestCreateMultiWlMultiSimDataframe:
                 warming_levels=scenario["warming_levels"],
                 simulations=scenario["simulations"],
                 sim_label_func=self.mock_sim_label_func,
-                days_in_year=self.days_in_year,
-                hours=self.hours,
-                hours_per_day=self.hours_per_day,
+                hours_per_year=self.hours_per_year,
             )
 
             # Verify outcome for this scenario
@@ -4017,9 +2354,7 @@ class TestCreateMultiWlMultiSimDataframe:
                 warming_levels=test_warming_levels,
                 simulations=simulations_with_dups,
                 sim_label_func=mock_dup_sim_func,
-                days_in_year=self.days_in_year,
-                hours=self.hours,
-                hours_per_day=self.hours_per_day,
+                hours_per_year=self.hours_per_year,
             )
 
         # Verify outcome: warning message was printed about duplicates
@@ -4070,210 +2405,6 @@ class TestCreateMultiWlMultiSimDataframe:
                     assert (
                         len(col_data) == 365
                     ), f"Should have 365 days for hour={hour}, wl={wl_name}, sim={unique_sim}"
-
-
-class TestFormatMeteoYrDf:
-    """Test class for _format_meteo_yr_df function.
-
-    Tests the function that reformats meteorological yearly dataframes by
-    converting numeric hour columns to 12-hour AM/PM format and Julian day
-    indices to Month-Day format for improved readability.
-
-    Attributes
-    ----------
-    sample_df_365 : pd.DataFrame
-        Sample 365-day dataframe for testing regular years.
-    sample_df_366 : pd.DataFrame
-        Sample 366-day dataframe for testing leap years.
-    """
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        # Create sample 365-day dataframe (regular year)
-        # 24 columns representing hours 0-23
-        # Index represents Julian days 1-365
-        self.sample_df_365 = pd.DataFrame(
-            np.random.rand(365, 24) + 20.0, index=range(1, 366), columns=range(24)
-        )
-
-        # Create sample 366-day dataframe (leap year)
-        self.sample_df_366 = pd.DataFrame(
-            np.random.rand(366, 24) + 20.0, index=range(1, 367), columns=range(24)
-        )
-
-    def test_returns_formatted_dataframe(self):
-        """Test that _format_meteo_yr_df returns a properly formatted DataFrame."""
-        # Execute function with 365-day dataframe
-        result = _format_meteo_yr_df(self.sample_df_365.copy())
-
-        # Verify outcome: returns DataFrame with same shape
-        assert isinstance(result, pd.DataFrame), "Should return a pandas DataFrame"
-        assert result.shape[0] == 365, "Should have 365 rows"
-        assert result.shape[1] == 24, "Should have 24 columns (hours)"
-
-        # Verify column structure has AM/PM format
-        assert all(
-            "am" in str(col) or "pm" in str(col) for col in result.columns
-        ), "All columns should have AM/PM format"
-
-        # Verify index is formatted as Month-Day
-        assert all(
-            "-" in str(idx) for idx in result.index
-        ), "Index should be in Month-Day format"
-
-        # Verify metadata
-        assert result.columns.name == "Hour", "Column name should be 'Hour'"
-        assert result.index.name == "Day of Year", "Index name should be 'Day of Year'"
-
-    def test_formats_columns_with_ampm(self):
-        """Test proper column reordering and AM/PM formatting."""
-        # Execute function
-        result = _format_meteo_yr_df(self.sample_df_365.copy())
-
-        # Verify outcome: columns are in correct 12-hour AM/PM format
-        expected_columns = [
-            "12am",
-            "1am",
-            "2am",
-            "3am",
-            "4am",
-            "5am",
-            "6am",
-            "7am",
-            "8am",
-            "9am",
-            "10am",
-            "11am",
-            "12pm",
-            "1pm",
-            "2pm",
-            "3pm",
-            "4pm",
-            "5pm",
-            "6pm",
-            "7pm",
-            "8pm",
-            "9pm",
-            "10pm",
-            "11pm",
-        ]
-
-        assert (
-            list(result.columns) == expected_columns
-        ), "Columns should be in correct 12-hour AM/PM format"
-
-        # Verify column ordering starts at 12am (midnight)
-        assert result.columns[0] == "12am", "First column should be 12am"
-        assert result.columns[12] == "12pm", "13th column should be 12pm (noon)"
-        assert result.columns[-1] == "11pm", "Last column should be 11pm"
-
-        # Verify all AM hours come before PM hours
-        am_columns = [col for col in result.columns if "am" in col]
-        pm_columns = [col for col in result.columns if "pm" in col]
-        assert len(am_columns) == 12, "Should have 12 AM hours"
-        assert len(pm_columns) == 12, "Should have 12 PM hours"
-
-        # Verify the first 12 columns are AM and last 12 are PM
-        assert all(
-            "am" in col for col in result.columns[:12]
-        ), "First 12 columns should be AM"
-        assert all(
-            "pm" in col for col in result.columns[12:]
-        ), "Last 12 columns should be PM"
-
-    def test_converts_julian_days_to_month_day(self):
-        """Test conversion of Julian day indices to Month-Day format."""
-        # Execute function
-        result = _format_meteo_yr_df(self.sample_df_365.copy())
-
-        # Verify outcome: index is converted to Month-Day format
-        assert result.index.name == "Day of Year", "Index name should be 'Day of Year'"
-        assert len(result.index) == 365, "Should have 365 days"
-
-        # Verify specific date conversions (Julian day to Month-Day)
-        # Day 1 should be Jan-01
-        assert result.index[0] == "Jan-01", "First day should be Jan-01"
-
-        # Day 32 should be Feb-01
-        assert result.index[31] == "Feb-01", "Day 32 should be Feb-01"
-
-        # Last day (365) should be Dec-31
-        assert result.index[-1] == "Dec-31", "Last day should be Dec-31"
-
-        # Verify all indices have Month-Day format (e.g., "Jan-01", "Feb-15")
-        for idx in result.index:
-            assert isinstance(idx, str), "Index should be strings"
-            assert "-" in idx, "Index should contain hyphen"
-            parts = idx.split("-")
-            assert len(parts) == 2, "Index should be in Month-Day format"
-            # Verify month is a 3-letter abbreviation
-            assert len(parts[0]) == 3, "Month should be 3-letter abbreviation"
-
-    def test_handles_leap_year(self):
-        """Test leap year handling (366 days)."""
-        # Execute function with 366-day dataframe
-        result = _format_meteo_yr_df(self.sample_df_366.copy())
-
-        # Verify outcome: properly handles leap year with 366 days
-        assert result.shape[0] == 366, "Should have 366 rows for leap year"
-        assert result.shape[1] == 24, "Should have 24 columns"
-
-        # Verify first and last days
-        assert result.index[0] == "Jan-01", "First day should be Jan-01"
-        assert result.index[-1] == "Dec-31", "Last day should be Dec-31"
-
-        # Verify Feb-29 exists (leap day)
-        assert "Feb-29" in result.index, "Leap year should include Feb-29"
-
-        # Find Feb-29 in the index
-        feb_29_idx = list(result.index).index("Feb-29")
-        # Feb-29 should be the 60th day (0-indexed: 59)
-        assert feb_29_idx == 59, "Feb-29 should be at position 59 (60th day)"
-
-        # Verify Mar-01 comes after Feb-29
-        assert result.index[60] == "Mar-01", "Mar-01 should follow Feb-29"
-
-        # Verify all dates are formatted correctly
-        assert all(
-            "-" in str(idx) for idx in result.index
-        ), "All indices should be in Month-Day format"
-
-    def test_handles_regular_year(self):
-        """Test regular year handling (365 days)."""
-        # Execute function with 365-day dataframe
-        result = _format_meteo_yr_df(self.sample_df_365.copy())
-
-        # Verify outcome: properly handles regular year with 365 days
-        assert result.shape[0] == 365, "Should have 365 rows for regular year"
-        assert result.shape[1] == 24, "Should have 24 columns"
-
-        # Verify first and last days
-        assert result.index[0] == "Jan-01", "First day should be Jan-01"
-        assert result.index[-1] == "Dec-31", "Last day should be Dec-31"
-
-        # Verify Feb-29 does NOT exist (not a leap year)
-        assert "Feb-29" not in result.index, "Regular year should not include Feb-29"
-
-        # Verify Feb-28 exists and is followed by Mar-01
-        assert "Feb-28" in result.index, "Regular year should include Feb-28"
-        feb_28_idx = list(result.index).index("Feb-28")
-        # Feb-28 should be the 59th day (0-indexed: 58)
-        assert feb_28_idx == 58, "Feb-28 should be at position 58 (59th day)"
-
-        # Verify Mar-01 follows Feb-28 in regular year
-        assert (
-            result.index[59] == "Mar-01"
-        ), "Mar-01 should follow Feb-28 in regular year"
-
-        # Verify some other key dates to ensure correct calendar
-        assert "Jul-04" in result.index, "Should include Jul-04"
-        assert "Dec-25" in result.index, "Should include Dec-25"
-
-        # Verify all dates are formatted correctly
-        assert all(
-            "-" in str(idx) for idx in result.index
-        ), "All indices should be in Month-Day format"
-
 
 class TestGetStationCoordinates:
     """Test class for _get_station_coordinates function.

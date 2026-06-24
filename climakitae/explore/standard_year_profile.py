@@ -968,7 +968,6 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         - warming_level_window (Optional): int in range [5,25], default 15
         - location (Optional) : str, List[str|float|int], or Tuple[str|float|int]
         - units (Optional) : str, default "degF"
-        - days_in_year (Optional) : int, default 365
         - q (Optional) : float | list[float], default 0.5, quantile for profile calculation
         - no_delta (optional) : bool, default False, if True, do not apply baseline subtraction, return raw future profile
         - bias_adjusted_models (optional) : bool, default False, if True only return bias-adjusted WRF models
@@ -992,7 +991,6 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
     >>> profile = get_climate_profile(warming_level=[2.0])
     """
     # Extract parameters for compute_profile
-    days_in_year = kwargs.pop("days_in_year", 365)
     q = kwargs.pop("q", 0.5)
     no_delta = kwargs.get("no_delta", False)
 
