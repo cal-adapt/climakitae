@@ -39,14 +39,14 @@ Subset climate data by global warming level thresholds instead of calendar dates
 
 ## Code References
 
-| Method | Lines | Purpose |
+| Method | Link to Code | Purpose |
 |--------|-------|---------|
-| `__init__` | [73–111](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L73) | Validate config, store params, eagerly load GWL CSV lookup tables (L91, L94) |
-| `execute` | [113–273](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L113) | Reformat member ids, extend time, look up center years, slice + reshape per GWL, concatenate |
-| `update_context` | [308–329](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L308) | Write `new_attrs["warming_level_simple"]` description |
-| `set_data_accessor` | [331–341](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L331) | Store catalog reference (currently unused) |
-| `reformat_member_ids` | [343–374](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L343) | Split data with `member_id` dim into separate dict entries |
-| `get_center_years` | [376–521](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/warming_level.py#L376) | Per-(key, wl) center-year lookup against `warming_level_times` and `warming_level_times_idx` |
+| `__init__` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Awarming_level.py&type=code) | Validate config, store params, eagerly load GWL CSV lookup tables (L91, L94) |
+| `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Awarming_level.py&type=code) | Reformat member ids, extend time, look up center years, slice + reshape per GWL, concatenate |
+| `update_context` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Awarming_level.py&type=code) | Write `new_attrs["warming_level_simple"]` description |
+| `set_data_accessor` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aset_data_accessor+path%3Awarming_level.py&type=code) | Store catalog reference (currently unused) |
+| `reformat_member_ids` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Areformat_member_ids+path%3Awarming_level.py&type=code) | Split data with `member_id` dim into separate dict entries |
+| `get_center_years` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aget_center_years+path%3Awarming_level.py&type=code) | Per-(key, wl) center-year lookup against `warming_level_times` and `warming_level_times_idx` |
 
 ## Examples
 

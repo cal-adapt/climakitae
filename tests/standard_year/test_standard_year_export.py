@@ -496,7 +496,7 @@ class TestChainedExportHelpers:
                         -121.516 + 0.02,
                     ),
                 },
-                "custom station name_34-4041N_121-516W",
+                "34-4041N_121-516W",
             ),
             (
                 {
@@ -982,7 +982,7 @@ class TestCheckStations:
                         -121.516 + 0.02,
                     ),
                 },
-                "custom station name_34-4041N_121-516W",
+                "34-4041N_121-516W",
             ),
             (
                 "",
@@ -1070,7 +1070,7 @@ class TestCheckStations:
         }
         with pytest.raises(
             ValueError,
-            match="If multiple stations are given, and no other location parameters, all must be HadISD stations.",
+            match="All stations must be HadISD stations.",
         ):
             _check_stations("", **invalid_profile_selections)
 
@@ -1085,7 +1085,7 @@ class TestCheckStations:
         }
         with pytest.raises(
             ValueError,
-            match="If multiple stations are given, and no other location parameters, all must be HadISD stations.",
+            match="All stations must be HadISD stations.",
         ):
             _check_stations("", **invalid_profile_selections)
 
@@ -1099,6 +1099,6 @@ class TestCheckStations:
         }
         with pytest.raises(
             ValueError,
-            match="If a custom station name is given, and no cached area is given, its latitude and longitude must also be provided.",
+            match="Station must be a HadISD station.",
         ):
             _check_stations("", **invalid_profile_selections)

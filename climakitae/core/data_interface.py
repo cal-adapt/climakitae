@@ -657,7 +657,7 @@ class DataParameters(param.Parameterized):
     warming_level : array
         global warming level(s)
     warming_level_window : integer
-        years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
+        years around Global Warming Level (+/-) (e.g. 15 means a 30yr window)
     approach : str, "Warming Level" or "Time"
         how do you want the data to be retrieved?
     warming_level_months : array
@@ -733,7 +733,7 @@ class DataParameters(param.Parameterized):
     warming_level_window = param.Integer(
         default=15,
         bounds=(5, 25),
-        doc="Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)",
+        doc="Years around Global Warming Level (+/-) (e.g. 15 means a 30yr window)",
     )
     warming_level_months = param.ListSelector(
         default=list(np.arange(1, 13)),  # All 12 months of the year
@@ -2025,7 +2025,7 @@ def get_data(
         Must be one of the warming levels available in `clmakitae.core.constants`
         Only valid for approach = "Warming Level" and data_type = "Stations"
     warming_level_window : int in range (5,25), optional
-        Years around Global Warming Level (+/-) \n (e.g. 15 means a 30yr window)
+        Years around Global Warming Level (+/-) (e.g. 15 means a 30yr window)
     warming_level_months : list of int, optional
         Months of year for which to perform warming level computation
         Default to all months in a year: [1,2,3,4,5,6,7,8,9,10,11,12]

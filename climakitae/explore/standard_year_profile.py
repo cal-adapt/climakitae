@@ -222,6 +222,8 @@ def _check_cached_area(location_str: str, **kwargs: Any) -> str:
     match cached_area:
         case str():
             location_str = cached_area.lower()
+        case list():
+            location_str = "_".join(c.lower() for c in cached_area)
         case _:
             return location_str
     return location_str
@@ -267,9 +269,7 @@ def _check_stations(location_str: str, **kwargs: Any) -> str:
                     location_str = stations[0].lower()
                 # if not a HadISD station
                 else:
-                    raise ValueError(
-                        "If a custom station name is given, and no cached area is given, its latitude and longitude must also be provided."
-                    )
+                    raise ValueError("Station must be a HadISD station.")
             # if there are multiple station names
             else:
                 # if all are HadISD stations
@@ -277,24 +277,7 @@ def _check_stations(location_str: str, **kwargs: Any) -> str:
                     location_str = "_".join(s.lower() for s in stations)
                 # if at least one is not a HadISD station
                 else:
-                    raise ValueError(
-                        f"If multiple stations are given, and no other location parameters, all must be HadISD stations."
-                    )
-        # station(s) and other location parameters provided
-        case (list(), length) if length > 0:
-            # if location_str does NOT contain numbers (ie, cached area was provided)
-            if not any(char.isdigit() for char in location_str):
-                return location_str
-
-            # if only one station provided, it's custom, and location_str contains numbers (ie, lat/lon were provided)
-            if (
-                len(stations) == 1
-                and not is_HadISD(stations[0])
-                and any(char.isdigit() for char in location_str)
-            ):
-                location_str = f"{stations[0].lower()}_{location_str}"
-            else:
-                return location_str
+                    raise ValueError(f"All stations must be HadISD stations.")
         # no station(s), other location parameters provided
         case (object(), length) if length > 0:
             return location_str
@@ -327,12 +310,8 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 List of global warming levels in profile
             warming_level_winow: int in range (5,25), optional
                 Years around Global Warming Level (+/-) (e.g. 15 means a 30yr window)
-            latitude : tuple(float | int), optional
-                Latitude coordinate range from profile location
-            longitude : tuple(float | int), optional
-                Longitude coordinate range from profile location
-            station_name : list[str], optional
-                Name of HadISD station(s) or custom location used in profile
+            location : str, tuple(float | int), list[str | float | int]
+                Station name, cached_area, or coordinates
             cached_area : str, optional
                 Name of cached area used in profile
             no_delta : bool, default False, optional
@@ -346,21 +325,6 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
             time_profile_scenario (Optional) : str, default "SSP 3-7.0"
                 SSP scenario from ["SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
             bias_adjusted_models (optional) : bool, default False, if True only return bias-adjusted WRF models
-
-    Notes
-    -----
-
-    The function prioritizes location parameters in the following order:
-    1. cached_area
-    2. latitude/longitude
-    3. stations
-    Each parameter will override the lower-priority ones if provided. So if cached_area
-    is given, lat/lon and stations are ignored. If lat/lon are given, stations are
-    ignored. If stations are given, they are used only if neither cached_area nor lat/lon
-    are provided. With the exception of the case in which a single custom station name is
-    given. That name will be included in the filename only if lat/lon are given, and no
-    cached area.
-
     """
 
     # Get required parameter values
@@ -384,6 +348,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
     ]["variable_id"].item()
 
     # Get location string based on combination of location variables
+    kwargs = _handle_location_params(**kwargs)
     func_list = [_check_cached_area, _check_lat_lon, _check_stations]
     location_str = ""
     for func in func_list:
@@ -401,7 +366,6 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                     gwl = global_warming_levels
                 # Otherwise, use the default
                 else:
-                    #! changing this to a number
                     gwl = 1.2
 
             filename = _get_clean_standardyr_filename(
@@ -436,6 +400,115 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
             raise ValueError(
                 f"Profile MultiIndex should have two or three levels. Found {profile.keys().nlevels} levels."
             )
+
+
+def _get_buffer_from_resolution(resolution: str) -> float:
+    """Return a buffer in degrees, used to select closest gridcell.
+
+    Parameters
+    ----------
+    resolution: str
+        The grid resolution, in km
+
+    Returns
+    -------
+    buffer: float
+        The buffer, in degrees, to select around a lat/lon point
+    """
+    match resolution:
+        case "3 km":
+            buffer = 0.02
+        case "9 km":
+            buffer = 0.08
+        case "45 km":
+            buffer = 0.35
+        case _:
+            # Use 3 km value as buffer
+            buffer = 0.02
+    return buffer
+
+
+def _handle_location_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Parse the `location` parameter to determine what kind of location is being selected.
+
+    Parameters
+    ----------
+    **kwargs : dict
+        Keyword arguments for data selection. Allowed keys:
+        - variable (Optional) : str, default "Air Temperature at 2m"
+        - resolution (Optional) : str, default "3 km"
+        - approach (Optional) : str, "Warming Level" or "Time"
+        - centered_year (Optional) : int in range [1980,2099]
+        - time_profile_scenario (Optional): str, default "SSP 3-7.0"
+        - warming_levels (Optional) : List[float], default [1.2]
+        - warming_level_window (Optional): int in range [5,25]
+        - location (Optional) : str, List[str|float|int], or Tuple[str|float|int]
+        - units (Optional) : str, default "degF"
+        - no_delta (optional) : bool, default False, if True, do not retrieve historical data, return raw future profile
+        - bias_adjusted_models (optional) : bool, default False, if True only return bias-adjusted WRF models
+
+    Returns
+    -------
+    **kwargs : dict
+        Arguments with updated "cached_area", "stations", or "latitude"/"longitude" parameters
+    """
+    # location is not required, could be unset
+    location = kwargs.pop("location", None)
+    match location:
+        case str():  # Can be single HadISD station or cached area
+            if is_HadISD(location):
+                kwargs["stations"] = [location]
+            else:
+                kwargs["cached_area"] = location
+        case (
+            list() | tuple()
+        ):  # Can be list/tuple of HadISD stations, cached area, or lat/lon
+            # Catch cases where someone provides invalid data - a list of coordinate tuples, for example
+            if not isinstance(location[0], (str, float, int)):
+                formatted_param_type = type(location).__name__
+                formatted_bad_type = type(location[0]).__name__
+                raise TypeError(
+                    f"The location {formatted_param_type} may only contain string or numeric values, not {formatted_bad_type}."
+                )
+            # Now work through the valid options
+            if all(is_HadISD(loc) for loc in location):  # stations
+                kwargs["stations"] = location
+            elif all(isinstance(loc, str) for loc in location):  # cached area
+                kwargs["cached_area"] = location
+            elif all(isinstance(loc, (float, int)) for loc in location):  # coordinates
+                if len(location) == 2:
+                    if all(loc <= 0 for loc in location) or all(
+                        loc >= 0 for loc in location
+                    ):
+                        raise ValueError(
+                            "Expected a positive-valued latitude coordinate and negative-valued longitude coordinate."
+                        )
+                    else:
+                        # In western US on our grids, latitude will always be positive
+                        # and longitude always negative
+                        latitude = [loc for loc in location if loc > 0][0]
+                        longitude = [loc for loc in location if loc < 0][0]
+                        # Add buffer around lat/lon point to help get nearest cell
+                        buffer = _get_buffer_from_resolution(
+                            kwargs.get("resolution", None)
+                        )
+                        kwargs["latitude"] = (latitude - buffer, latitude + buffer)
+                        kwargs["longitude"] = (longitude - buffer, longitude + buffer)
+                else:  # Location len != 2
+                    raise ValueError(
+                        "Length of `location` parameter must be two if providing a coordinate pair."
+                    )
+            else:  # Location parameter didn't match any expected format
+                raise ValueError(f"Unable to parse location parameter.")
+        case None:
+            # Do nothing here. Users will see a warning about the lack of location in retrieve_profile_data.
+            pass
+        case _:
+            formatted_param_type = type(location).__name__
+            raise TypeError(
+                f"The `location` parameter type should str, List, or Tuple if set. Got type {formatted_param_type}."
+            )
+    return kwargs
 
 
 def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
@@ -784,11 +857,14 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     elif "stations" in provided_location_params:
         # Stations provided - convert to lat/lon with buffer
         stations = kwargs.pop("stations")
+        buffer = _get_buffer_from_resolution(kwargs.get("resolution", "3 km"))
         print(
-            f"   📍 Converting {len(stations)} station(s) to lat/lon coordinates with ±0.02° buffer"
+            f"   📍 Converting {len(stations)} station(s) to lat/lon coordinates with ±{buffer:.2f}° buffer"
         )
         try:
-            lat_bounds, lon_bounds = _convert_stations_to_lat_lon(stations, buffer=0.02)
+            lat_bounds, lon_bounds = _convert_stations_to_lat_lon(
+                stations, buffer=buffer
+            )
             kwargs["latitude"] = lat_bounds
             kwargs["longitude"] = lon_bounds
             print(f"      Latitude range: {lat_bounds[0]:.4f} to {lat_bounds[1]:.4f}")
@@ -798,7 +874,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     else:
         # No location parameters provided - warn about entire CA dataset
         print(
-            "   ⚠️  WARNING: No location parameters provided (cached_area, latitude/longitude, or stations)"
+            "   ⚠️  WARNING: No location parameter provided (cached_area, latitude/longitude, or stations)"
         )
         print(
             "      The entire California dataset will be retrieved, which may be very large and slow."
@@ -888,11 +964,8 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         - time_profile_scenario (Optional) : str, default "SSP 3-7.0"
         - warming_level (Required) : List[float], default [1.2]
         - warming_level_window (Optional): int in range [5,25], default 15
-        - cached_area (Optional) : str or List[str]
+        - location (Optional) : str, List[str|float|int], or Tuple[str|float|int]
         - units (Optional) : str, default "degF"
-        - latitude (Optional) : float or tuple
-        - longitude (Optional) : float or tuple
-        - stations (Optional) : list[str], default None
         - days_in_year (Optional) : int, default 365
         - q (Optional) : float | list[float], default 0.5, quantile for profile calculation
         - no_delta (optional) : bool, default False, if True, do not apply baseline subtraction, return raw future profile
@@ -920,6 +993,9 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
     days_in_year = kwargs.pop("days_in_year", 365)
     q = kwargs.pop("q", 0.5)
     no_delta = kwargs.get("no_delta", False)
+
+    # Parse the location parameter
+    kwargs = _handle_location_params(**kwargs)
 
     # Retrieve the climate data
     print("📊 Retrieving climate data...")
@@ -952,7 +1028,7 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
                 print(f"Using default '{key}': {default_val}")
                 kwargs[key] = default_val
         else:
-            if key == "q" and q is not 0.5:
+            if key == "q" and q != 0.5:
                 continue
             else:
                 print(f"Using default '{key}': {default_val}")

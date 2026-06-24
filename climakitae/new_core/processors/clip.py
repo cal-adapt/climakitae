@@ -1540,7 +1540,7 @@ class Clip(DataProcessor):
 
         # Map category names to the appropriate DataFrame properties
         category_map = {
-            "states": boundaries._us_states,
+            "states": boundaries._states,
             "CA counties": boundaries._ca_counties,
             "CA watersheds": boundaries._ca_watersheds,
             "CA Electric Load Serving Entities (IOU & POU)": boundaries._ca_utilities,

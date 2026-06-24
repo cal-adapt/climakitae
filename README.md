@@ -2,9 +2,9 @@
 
 [![codecov](https://codecov.io/gh/cal-adapt/climakitae/branch/main/graph/badge.svg)](https://codecov.io/gh/cal-adapt/climakitae)
 [![CI](https://github.com/cal-adapt/climakitae/workflows/ci-main/badge.svg)](https://github.com/cal-adapt/climakitae/actions/workflows/ci-main.yml)
-[![Documentation Status](https://readthedocs.org/projects/climakitae/badge/?version=latest)](https://climakitae.readthedocs.io/en/latest/?badge=latest)
+[![docs](https://github.com/cal-adapt/climakitae/workflows/docs-mkdocs/badge.svg)](https://github.com/cal-adapt/climakitae/actions/workflows/docs-mkdocs.yml)
 [![PyPI version](https://badge.fury.io/py/climakitae.svg)](https://badge.fury.io/py/climakitae)
-[![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![DOI:10.5281/zenodo.18111935](https://zenodo.org/badge/DOI/10.5281/zenodo.18111935.svg)](https://doi.org/10.5281/zenodo.18111935)
@@ -19,12 +19,11 @@ Climakitae provides intuitive tools for accessing, analyzing, and visualizing do
 
 ## Key Features
 
-- 🌡️ **Comprehensive Climate Data Access**: Retrieve climate variables from hosted climate models
+- 🌡️ **Comprehensive Climate Data Access**: Retrieve climate variables from hosted climate model, weather station, and renewable energy datasets 
 - 📊 **Downscaled Climate Models**: Access dynamical (WRF) and statistical (LOCA2) downscaling methods  
 - 🗺️ **Spatial Analysis Tools**: Built-in support for geographic subsetting and spatial aggregation
 - 📈 **Climate Indices**: Calculate heat indices, warming levels, and extreme event metrics
 - 🔧 **Flexible Data Export**: Export to NetCDF, CSV, and Zarr
-- 📱 **GUI Integration**: Works seamlessly with [climakitaegui](https://github.com/cal-adapt/climakitaegui) for interactive analysis
 
 ## About Cal-Adapt
 
@@ -32,142 +31,73 @@ Climakitae is developed as part of the [Cal-Adapt Analytics Engine](https://anal
 
 ## Getting Started
 
-### Installation via Conda
+### Installation
 
-#### Prerequisites
+Climakitae requires **Python 3.12 or 3.13**. We recommend [`uv`](https://docs.astral.sh/uv/) on Linux/macOS and [`conda`](https://www.anaconda.com/docs/getting-started/miniconda/install) on Windows or when native geospatial dependencies cause trouble.
 
-- Python 3.12 | 3.13
-- [conda / miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions)
-
-#### Install latest release with `conda` on Linux
-
-For additional details on the latest version and step-by-step installation instructions please visit [the wiki](https://github.com/cal-adapt/climakitae/wiki)
+Quick install of the latest release:
 
 ```bash
-# create a conda environment with 
+# with uv
+uv pip install climakitae
+
+# with conda
 conda create -n climakitae python=3.13 -y
 conda activate climakitae
 pip install climakitae
 ```
 
-### Installation via Pip
-
-#### Prerequisites
-
-- Python 3.12
-- pip
-
-#### Install latest release with `pip` on Linux
-
-For additional details on the latest version and step-by-step installation instructions please visit [the wiki](https://github.com/cal-adapt/climakitae/wiki)
-
-```bash
-pip install --upgrade pip
-pip install climakitae
-```
+For editable installs, developer dependencies, and platform-specific tips, see the **[Installation Guide on the wiki](https://github.com/cal-adapt/climakitae/wiki)**.
 
 ### Basic Usage
 
 ```python
-from climakitae.core.data_interface import get_data
+from climakitae.new_core.user_interface import ClimateData
 
-# Retrieve temperature data for California
-data = get_data(
-    variable="Air Temperature at 2m",
-    downscaling_method="Dynamical", 
-    resolution="9 km",
-    timescale="monthly",
-    scenario="SSP 3-7.0",
-    cached_area="CA"
+# Retrieve monthly max temperature for Los Angeles in 2015
+data = (
+    ClimateData()
+    .catalog("cadcat")
+    .activity_id("WRF")
+    .institution_id("UCLA")
+    .table_id("mon")
+    .grid_label("d03")
+    .variable("t2max")
+    .processes({
+        "time_slice": ("2015-01-01", "2015-12-31"),
+        "clip": "Los Angeles",
+    })
+    .get()
 )
 
-# Data is returned as an xarray Dataset
+# Data is returned as a lazy xarray Dataset
 print(data)
 ```
+
+> The legacy `climakitae.core.data_interface.get_data` API is still supported for backward compatibility, but new work should use `ClimateData` from `climakitae.new_core`.
 
 ## Documentation
 
 | Resource | Description |
 |----------|-------------|
+| [**Installation Guide**](https://github.com/cal-adapt/climakitae/wiki) | Casual, power-user, and developer installs |
 | [**AE Navigation Guide**](https://github.com/cal-adapt/cae-notebooks/blob/main/AE_navigation_guide.ipynb) | Interactive notebook tutorial |
 | [**API Reference**](https://cal-adapt.github.io/climakitae/dev/) | Complete API documentation |
 | [**AE Notebooks**](https://github.com/cal-adapt/cae-notebooks) | Sample notebooks and scripts |
-| [**Contributing**](https://climakitae.readthedocs.io/en/latest/contribute.html) | Development guidelines |
-
-## Development Setup
-
-### Prerequisites
-
-- Python 3.12
-- [conda / miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install#quickstart-install-instructions)
-
-### Dev Environment Setup (Linux)
-
-```bash
-git clone https://github.com/cal-adapt/climakitae.git
-cd climakitae
-conda create -n climakitae --file conda-linux-64.lock
-conda activate climakitae
-```
-
-### Running Tests
-
-```bash
-# Run basic tests
-pytest -m "not advanced"
-
-# Run all tests
-pytest
-
-# Run with coverage
-pip install pytest-cov
-pytest --cov=climakitae --cov-report=html
-```
-
-### Code Formatting (pre-commit hook)
-
-This repo uses [Black](https://github.com/psf/black) for code formatting. To ensure your commits are formatted consistently with CI, install the pre-commit hook:
-
-```bash
-pip install pre-commit
-pre-commit install
-```
-
-Black will now run automatically on every commit. To run it manually:
-
-```bash
-pre-commit run black --all-files
-```
+| [**Contributing**](https://github.com/cal-adapt/climakitae/blob/main/docs-mkdocs/contributing.md) | Development guidelines |
 
 ## Contributing
 
-We welcome contributions! Please see our [contributing guidelines](https://climakitae.readthedocs.io/en/latest/contribute.html) for details on:
+We welcome contributions! Please see our [contributing guidelines](https://github.com/cal-adapt/climakitae/blob/main/docs-mkdocs/contributing.md) for details on:
 
 - 🐛 Reporting bugs
-- 💡 Requesting features  
+- 💡 Requesting features
 - 🔧 Submitting code changes
 - 📖 Improving documentation
 
-### Quick Development Workflow
+For setting up a development environment (editable install, tests, formatters), see the [Installation Guide on the wiki](https://github.com/cal-adapt/climakitae/wiki).
 
-Open a ⚙️ [code improvement issue](https://github.com/cal-adapt/climakitae/issues/new/choose) describing the feature you'd like to develop.
-
-Then, checkout and setup your branch:
-```bash
-# Fork the repo and create a feature branch
-git checkout -b feature/your-feature-name
-
-# Make your changes and add tests
-# ...
-
-# Run tests and linting
-pytest
-pre-commit run black --all-files
-
-# Submit a pull request
-```
-
-When submitting a pull request, please tag at least two project maintainers/developers for review.
+When opening a pull request, please tag at least two project maintainers for review.
 
 ## License
 
