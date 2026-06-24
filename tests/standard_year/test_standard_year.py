@@ -1467,6 +1467,7 @@ class TestCreateSingleWlMultiSimDataframe:
         self.warming_level = 2.0
         self.simulations = ["model_A", "model_B", "model_C"]
         self.hours_per_year = 8760
+        wl_key = f"WL_{self.warming_level}"
 
         # Create sample profile data dictionary
         # The function expects data for each (WL_X, sim_label) combination
@@ -1475,7 +1476,7 @@ class TestCreateSingleWlMultiSimDataframe:
             sim_key = f"sim_{sim}_{i}"
             # Create random data for each simulation (365 days x 24 hours)
             profile_matrix = np.random.rand(8760, 1) + 20.0
-            self.sample_profile_data[sim_key] = profile_matrix
+            self.sample_profile_data[(wl_key, sim_key)] = profile_matrix
 
     def test_create_single_wl_multi_sim_dataframe_returns_dataframe(self):
         """Test that _create_single_wl_multi_sim_dataframe returns a pandas DataFrame."""
@@ -1505,7 +1506,7 @@ class TestCreateSingleWlMultiSimDataframe:
         )
 
         # Verify outcome: correct MultiIndex column structure
-        assert isinstance(result.columns, pd.iIndex), "Columns should be a simple Index"
+        assert isinstance(result.columns, pd.Index), "Columns should be a simple Index"
 
         # Verify expected dimensions: 365 rows, (24 hours × 3 simulations) columns
         expected_rows = 8760
@@ -1562,6 +1563,7 @@ class TestCreateSingleWlMultiSimDataframe:
         # second is "duplicate_name_v1", third is "duplicate_name_v2"
         duplicate_profile_data = {}
         simulations_with_dups = ["model_A", "model_B", "model_C"]
+        wl_key = f"WL_{self.warming_level}"
 
         # Add data for original and uniquified names
         for i, unique_suffix in enumerate(
@@ -1570,7 +1572,7 @@ class TestCreateSingleWlMultiSimDataframe:
             profile_matrix = (
                 np.random.rand(8760, 1) + 20.0 + i
             )  # Slightly different data
-            duplicate_profile_data[unique_suffix] = profile_matrix
+            duplicate_profile_data[(wl_key, unique_suffix)] = profile_matrix
 
         # Execute function and verify warning is printed
         with patch("builtins.print") as mock_print:
@@ -1618,6 +1620,7 @@ class TestCreateSingleWlMultiSimDataframe:
         test_sim_func = MagicMock()
         test_sim_func.side_effect = lambda sim, idx: f"test_{sim}_{idx}"
         test_hours = 8760
+        wl_key = f"WL_{self.warming_level}"
 
         # Create test profile data with known values
         test_profile_data = {}
@@ -1630,8 +1633,8 @@ class TestCreateSingleWlMultiSimDataframe:
             for hr in range(test_hours - 1):
                 profile_matrix[hr + 1, 0] = (hr + 1) * 10 + i
 
-            test_profile_data[sim_key] = profile_matrix
-            expected_values[sim_key] = profile_matrix
+            test_profile_data[(wl_key, sim_key)] = profile_matrix
+            expected_values[(wl_key, sim_key)] = profile_matrix
 
         # Execute function
         result = _create_single_wl_multi_sim_dataframe(
