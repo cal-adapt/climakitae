@@ -967,7 +967,7 @@ class TestConstructProfileDataframe:
         single_sim = ["sim1"]
 
         # Create appropriate profile data
-        profile_data = {("Sim1"): np.random.rand(8760, 1) + 20.0}
+        profile_data = {("WL_1.5", "Sim1"): np.random.rand(8760, 1) + 20.0}
 
         # Execute function
         result = _construct_profile_dataframe(
@@ -995,8 +995,8 @@ class TestConstructProfileDataframe:
 
         # Create appropriate profile data
         profile_data = {
-            ("Sim1"): np.random.rand(8760, 1) + 20.0,
-            ("Sim2"): np.random.rand(8760, 1) + 20.0,
+            ("WL_1.5", "Sim1"): np.random.rand(8760, 1) + 20.0,
+            ("WL_1.5", "Sim2"): np.random.rand(8760, 1) + 20.0,
         }
 
         # Execute function
