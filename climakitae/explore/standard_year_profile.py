@@ -9,7 +9,6 @@ be returned.
 from typing import Tuple
 from typing import Any, Dict
 
-from IPython.display import ProgressBar
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -1558,7 +1557,7 @@ def _create_single_wl_multi_sim_dataframe(
 
     return pd.DataFrame(
         all_data,
-        columns=simulations,
+        columns=sim_names,
         index=np.arange(1, hours_per_year + 1, 1),
     )
 
