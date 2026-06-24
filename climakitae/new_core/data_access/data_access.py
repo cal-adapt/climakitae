@@ -728,7 +728,8 @@ class DataCatalog(dict):
                     exc_info=True,
                 )
 
-        # Not all cadcat datasets have CRS in attributes. If CRS is not found, it will be added here.
+        # Not all cadcat datasets have CRS attached. If CRS is not found, it will be added here.
+        # This will also add a CRS to derived datasets that could not copy spatial metadata
         if effective_key == CATALOG_CADCAT:
             for key, ds in result.items():
                 result[key] = add_crs_to_simulations(ds)
