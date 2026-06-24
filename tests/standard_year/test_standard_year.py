@@ -1484,10 +1484,9 @@ class TestCreateSingleWlMultiSimDataframe:
         self.sample_profile_data = {}
         for i, sim in enumerate(self.simulations):
             sim_key = f"sim_{sim}_{i}"
-            wl_key = f"WL_{self.warming_level}"
             # Create random data for each simulation (365 days x 24 hours)
-            profile_matrix = np.random.rand(365, 24) + 20.0
-            self.sample_profile_data[(wl_key, sim_key)] = profile_matrix
+            profile_matrix = np.random.rand(8760, 1) + 20.0
+            self.sample_profile_data[sim_key] = profile_matrix
 
     def test_create_single_wl_multi_sim_dataframe_returns_dataframe(self):
         """Test that _create_single_wl_multi_sim_dataframe returns a pandas DataFrame."""
@@ -1517,26 +1516,23 @@ class TestCreateSingleWlMultiSimDataframe:
         )
 
         # Verify outcome: correct MultiIndex column structure
-        assert isinstance(result.columns, pd.MultiIndex), "Columns should be MultiIndex"
-        assert result.columns.names == [
-            "Hour",
-            "Simulation",
-        ], "Column levels should be named Hour and Simulation"
+        assert isinstance(result.columns, pd.iIndex), "Columns should be a simple Index"
+
 
         # Verify expected dimensions: 365 rows, (24 hours × 3 simulations) columns
-        expected_rows = 365
-        expected_cols = 24 * len(self.simulations)  # 24 hours × 3 simulations = 72
+        expected_rows = 8760
+        expected_cols = len(self.simulations)  
         assert result.shape == (
             expected_rows,
             expected_cols,
         ), f"Should have {expected_rows} rows and {expected_cols} columns"
 
         # Verify index structure (day numbers)
-        expected_index = np.arange(1, self.days_in_year + 1)
+        expected_index = np.arange(1, self.hours_per_year + 1)
         np.testing.assert_array_equal(
             result.index.values,
             expected_index,
-            err_msg="Index should be day numbers from 1 to days_in_year",
+            err_msg="Index should be day numbers from 1 to hours_per_year",
         )
 
     def test_create_single_wl_multi_sim_dataframe_handles_multiple_simulations(self):
@@ -1550,35 +1546,20 @@ class TestCreateSingleWlMultiSimDataframe:
             hours_per_year=self.hours_per_year,
         )
 
-        # Verify outcome: each simulation creates columns for all hours
-        # Expected structure: (hour, sim) for each hour and each simulation
-        unique_simulations = result.columns.get_level_values("Simulation").unique()
-        unique_hours = result.columns.get_level_values("Hour").unique()
+        # Verify outcome: a column for each simulation
+        unique_simulations = result.columns.unique()
 
         # Should have one column for each (hour, simulation) combination
         expected_sim_names = ["sim_model_A_0", "sim_model_B_1", "sim_model_C_2"]
         assert len(unique_simulations) == len(
             self.simulations
         ), f"Should have {len(self.simulations)} simulations"
-        assert len(unique_hours) == len(
-            self.hours
-        ), f"Should have {len(self.hours)} hours"
 
         # Verify simulation names match expected pattern from mock function
         for expected_sim in expected_sim_names:
             assert (
                 expected_sim in unique_simulations
             ), f"Should contain simulation {expected_sim}"
-
-        # Verify each hour appears for each simulation (24 hours × 3 sims = 72 columns)
-        for hour in self.hours:
-            for sim_name in expected_sim_names:
-                assert (
-                    hour,
-                    sim_name,
-                ) in result.columns, (
-                    f"Should have column for hour {hour}, simulation {sim_name}"
-                )
 
     def test_create_single_wl_multi_sim_dataframe_duplicate_simulation_names(self):
         """Test function handles duplicate simulation names with uniqueness suffixes."""
@@ -1593,16 +1574,15 @@ class TestCreateSingleWlMultiSimDataframe:
         # second is "duplicate_name_v1", third is "duplicate_name_v2"
         duplicate_profile_data = {}
         simulations_with_dups = ["model_A", "model_B", "model_C"]
-        wl_key = f"WL_{self.warming_level}"
 
         # Add data for original and uniquified names
         for i, unique_suffix in enumerate(
             ["duplicate_name", "duplicate_name_v1", "duplicate_name_v2"]
         ):
             profile_matrix = (
-                np.random.rand(365, 24) + 20.0 + i
+                np.random.rand(8760, 1) + 20.0 + i
             )  # Slightly different data
-            duplicate_profile_data[(wl_key, unique_suffix)] = profile_matrix
+            duplicate_profile_data[unique_suffix] = profile_matrix
 
         # Execute function and verify warning is printed
         with patch("builtins.print") as mock_print:
@@ -1631,7 +1611,7 @@ class TestCreateSingleWlMultiSimDataframe:
 
         # Verify the result has the uniquified names in columns
         assert isinstance(result, pd.DataFrame), "Should return a DataFrame"
-        unique_sims = result.columns.get_level_values("Simulation").unique()
+        unique_sims = result.columns.unique()
 
         # Should have 3 unique simulation names after de-duplication
         assert (
@@ -1645,11 +1625,11 @@ class TestCreateSingleWlMultiSimDataframe:
         """Test that profile data values are correctly preserved in MultiIndex structure."""
         # Create specific test data with known values for verification
         test_simulations = ["test_sim_A", "test_sim_B"]
-        test_hours = 24  # Use smaller dataset for precise testing
 
         # Create mock sim_label_func for predictable names
         test_sim_func = MagicMock()
         test_sim_func.side_effect = lambda sim, idx: f"test_{sim}_{idx}"
+        test_hours = 8760
 
         # Create test profile data with known values
         test_profile_data = {}
@@ -1658,17 +1638,15 @@ class TestCreateSingleWlMultiSimDataframe:
         for i, sim in enumerate(test_simulations):
             sim_key = f"test_{sim}_{i}"
             wl_key = f"WL_{self.warming_level}"
-            # Create known test data: day i, hour j has value (i+1)*10 + j
-            profile_matrix = np.zeros((test_days, len(test_hours)))
-            for day in range(test_days):
-                for hour_idx, hour in enumerate(test_hours):
-                    profile_matrix[day, hour_idx] = (day + 1) * 10 + hour
+            # Create known test data: hour i has value (i+1)*10 + hr
+            profile_matrix = np.zeros((test_hours, 1))
+            for hr in range(test_hours):
+                profile_matrix[hr, i] = (hr + 1) * 10 + i
 
-            test_profile_data[(wl_key, sim_key)] = profile_matrix
+            test_profile_data[sim_key] = profile_matrix
             expected_values[sim_key] = profile_matrix
 
         # Execute function
-        #! revisit
         result = _create_single_wl_multi_sim_dataframe(
             profile_data=test_profile_data,
             warming_level=self.warming_level,
@@ -1680,8 +1658,8 @@ class TestCreateSingleWlMultiSimDataframe:
         # Verify outcome: data integrity is preserved
         assert isinstance(result, pd.DataFrame), "Should return DataFrame"
         assert result.shape == (
-            test_days,
-            len(test_hours) * len(test_simulations),
+            test_hours,
+            len(test_simulations),
         ), "Should have correct dimensions"
 
         # Verify specific data values are preserved for each (hour, simulation) combination
@@ -1690,8 +1668,8 @@ class TestCreateSingleWlMultiSimDataframe:
                 sim_key = f"test_{sim}_{i}"
                 expected_matrix = expected_values[sim_key]
 
-                # Get column data for this (hour, simulation) combination
-                column_data = result[(hour, sim_key)]
+                # Get column data for this simulation combination
+                column_data = result[sim_key]
                 expected_column = expected_matrix[:, list(test_hours).index(hour)]
 
                 # Verify data values match
@@ -1705,13 +1683,13 @@ class TestCreateSingleWlMultiSimDataframe:
         # Day 1 (index 0), Hour 0, Sim A should be 10 (day 1 * 10 + hour 0)
         sim_a_key = "test_test_sim_A_0"
         assert (
-            result.loc[1, (0, sim_a_key)] == 10.0
+            result.loc[1, sim_a_key] == 10.0
         ), "Day 1, Hour 0, Sim A should be 10"
 
         # Day 2 (index 1), Hour 1, Sim B should be 21 (day 2 * 10 + hour 1)
         sim_b_key = "test_test_sim_B_1"
         assert (
-            result.loc[2, (1, sim_b_key)] == 21.0
+            result.loc[2, sim_b_key] == 21.0
         ), "Day 2, Hour 1, Sim B should be 21"
 
 
