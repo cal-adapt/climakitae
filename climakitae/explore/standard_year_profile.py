@@ -1039,11 +1039,17 @@ def _compute_difference_profile(
     #!
     print(f"historic_has_multiindex: {historic_has_multiindex}")
 
-    if future_has_multiindex == historic_has_multiindex: # either both contain a MultiIndex, or both do not
+    if (
+        future_has_multiindex == historic_has_multiindex
+    ):  # either both contain a MultiIndex, or both do not
         return _compute_paired_difference(future_profile, historic_profile)
-    else: # multiple warming levels in future profile, while historic profile always contains one warming level - 1.2
+    else:  # multiple warming levels in future profile, while historic profile always contains one warming level - 1.2
         # add MultiIndex to historic profile, then perform paired difference, as done above
         historic_profile_reformatted = historic_profile.copy
+        #!
+        print(
+            f"historic profile copy before reformatting: {historic_profile_reformatted}"
+        )
         historic_profile_reformatted.columns = pd.MultiIndex.from_arrays(
             [
                 ["1.2"] * len(historic_profile_reformatted.columns),
@@ -1051,6 +1057,8 @@ def _compute_difference_profile(
             ],
             names=["Warming_Level", "Simulation"],
         )
+        #!
+        print(f"historic_profile_reformatted: {historic_profile_reformatted}")
         return _compute_paired_difference(future_profile, historic_profile_reformatted)
 
 
@@ -1084,8 +1092,9 @@ def _compute_paired_difference(
         print(
             "   ⚠️  Warning: Found duplicate columns in historic profile. Removing duplicates."
         )
-        historic_profile = historic_profile.loc[:, ~historic_profile.columns.duplicated()]
-
+        historic_profile = historic_profile.loc[
+            :, ~historic_profile.columns.duplicated()
+        ]
 
     difference_profile = future_profile.copy()
 
@@ -1127,6 +1136,7 @@ def _compute_paired_difference(
                 pbar.update(1)
 
     return difference_profile
+
 
 def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
     """
@@ -1316,6 +1326,7 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
         print(f"         Units: {data.attrs['units']}")
 
     return df_profile
+
 
 def _construct_profile_dataframe(
     profile_data: dict,
