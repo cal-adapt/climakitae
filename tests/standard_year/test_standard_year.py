@@ -2061,7 +2061,7 @@ class TestCreateMultiWlMultiSimDataframe:
                 sim_index = test_simulations.index(sim)
                 profile_matrix = np.zeros((8760, 1))
                 for hr in range(8760):
-                    profile_matrix[hr, 0] = (hr - 1) + wl * 10 + sim_idx
+                    profile_matrix[hr, 0] = (hr - 1) + wl * 10 + sim_index
                 test_profile_data[(wl_key, sim_label)] = profile_matrix
 
         # Execute function
@@ -2075,7 +2075,7 @@ class TestCreateMultiWlMultiSimDataframe:
 
         # Verify outcome: data values are preserved correctly
         # Check specific values for a sample of combinations
-        for hr in [1, 4000, 8760]:  # Check first, middle, and last day
+        for hr in [1, 4000, 8759]:  # Check first, middle, and last day
             for wl in test_warming_levels:
                 for sim_idx, sim in enumerate(test_simulations):
                     wl_name = f"WL_{wl}"
@@ -2237,19 +2237,17 @@ class TestCreateMultiWlMultiSimDataframe:
                 "duplicate_name_v1",
                 "duplicate_name_v2",
             ]:
-                # Each hour-wl-sim combination should have a column
-                for hour in [1, 12, 24]:  # Sample a few hours
-                    # Check if the column exists in MultiIndex
-                    col_tuple = (hour, wl_name, unique_sim)
-                    assert (
-                        col_tuple in result.columns
-                    ), f"Should have column for (hour={hour}, wl={wl_name}, sim={unique_sim})"
+                # Check if the column exists in MultiIndex
+                col_tuple = (wl_name, unique_sim)
+                assert (
+                    col_tuple in result.columns
+                ), f"Should have column for wl={wl_name}, sim={unique_sim})"
 
-                    # Verify data length for this column
-                    col_data = result[col_tuple]
-                    assert (
-                        len(col_data) == 365
-                    ), f"Should have 365 days for hour={hour}, wl={wl_name}, sim={unique_sim}"
+                # Verify data length for this column
+                col_data = result[col_tuple]
+                assert (
+                    len(col_data) == 8760
+                ), f"Should have 8760 hours for wl={wl_name}, sim={unique_sim}"
 
 
 class TestGetStationCoordinates:
