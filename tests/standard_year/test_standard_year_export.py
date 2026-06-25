@@ -8,7 +8,7 @@ This module contains unit and integration tests for Standard Year profile export
 - _check_cached_area()
 - _check_lat_lon()
 - _check_stations()
- 
+
 """
 
 from unittest.mock import MagicMock, call, patch
