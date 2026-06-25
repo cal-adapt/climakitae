@@ -2253,7 +2253,7 @@ class persistence_XMY:
             )
             p = self.q * 100
             p = int(p)
-            filename = "persistence_XMY_p{0}_{1}_{2}".format(
+            filename = "persistence_xmy_p{0}_{1}_{2}".format(
                 p,
                 clean_stn_name,
                 clean_sim,
