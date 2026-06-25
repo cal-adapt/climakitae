@@ -6,8 +6,7 @@ is set to True, in which case the raw profile(s) for the requested warming level
 be returned.
 """
 
-from typing import Tuple
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 import numpy as np
 import pandas as pd
@@ -18,7 +17,7 @@ from climakitae.core.constants import UNSET, WRF_BA_MODELS
 from climakitae.core.data_interface import DataInterface, get_data
 from climakitae.core.paths import HADISD_STATIONS_URL, VARIABLE_DESCRIPTIONS_CSV_PATH
 from climakitae.explore.typical_meteorological_year import is_HadISD, match_str_to_wl
-from climakitae.util.utils import julianDay_to_date, read_csv_file
+from climakitae.util.utils import read_csv_file
 from climakitae.util.warming_levels import get_gwl_at_year
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
@@ -399,7 +398,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 )
         case _:
             raise ValueError(
-                f"Profile MultiIndex should have two or three levels. Found {profile.keys().nlevels} levels."
+                f"Profile MultiIndex should have one or two levels. Found {profile.keys().nlevels} levels."
             )
 
 
@@ -1580,7 +1579,7 @@ def _create_multi_wl_single_sim_dataframe(
     wl_names = [f"WL_{wl}" for wl in warming_levels]
 
     # Create MultiIndex columns
-    col_tuples = [(wl_name, sim) for wl_name in wl_names for sim in [sim_name]]
+    col_tuples = [(wl_name, sim_name) for wl_name in wl_names]
 
     multi_cols = pd.MultiIndex.from_tuples(
         col_tuples, names=["Warming_Level", "Simulation"]
