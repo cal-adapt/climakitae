@@ -158,22 +158,22 @@ class TestBoundariesProperties:
                 }
             )
 
-    def test_us_states_lazy_loading(self, mock_boundaries):
+    def test_states_lazy_loading(self, mock_boundaries):
         """Test lazy loading of US states data."""
         # Initially not loaded - check private attribute
-        assert getattr(mock_boundaries, "_Boundaries__us_states", None) is None
+        assert getattr(mock_boundaries, "_Boundaries__states", None) is None
 
         # Access triggers loading
-        states = mock_boundaries._us_states
+        states = mock_boundaries._states
         assert states is not None
         assert isinstance(states, pd.DataFrame)
-        assert getattr(mock_boundaries, "_Boundaries__us_states", None) is not None
+        assert getattr(mock_boundaries, "_Boundaries__states", None) is not None
 
         # Subsequent access uses cached data
-        states2 = mock_boundaries._us_states
+        states2 = mock_boundaries._states
         assert states is states2
 
-    def test_us_states_loading_error(self):
+    def test_states_loading_error(self):
         """Test error handling during US states loading."""
         mock_catalog = Mock()
         catalog_entry = Mock()
@@ -187,7 +187,7 @@ class TestBoundariesProperties:
         boundaries = Boundaries(mock_catalog)
 
         with pytest.raises(RuntimeError) as excinfo:
-            _ = boundaries._us_states
+            _ = boundaries._states
 
         assert "Failed to load US states data" in str(excinfo.value)
 
@@ -252,8 +252,8 @@ class TestBoundariesProperties:
         """Test property setters work correctly."""
         test_df = pd.DataFrame({"test": [1, 2, 3]})
 
-        mock_boundaries._us_states = test_df
-        assert getattr(mock_boundaries, "_Boundaries__us_states", None) is test_df
+        mock_boundaries._states = test_df
+        assert getattr(mock_boundaries, "_Boundaries__states", None) is test_df
 
         mock_boundaries._ca_counties = test_df
         assert getattr(mock_boundaries, "_Boundaries__ca_counties", None) is test_df
@@ -262,14 +262,14 @@ class TestBoundariesProperties:
 class TestBoundariesDataProcessing:
     """Test data processing methods."""
 
-    def test_process_us_states(self):
+    def test_process_states(self):
         """Test US states data processing."""
         boundaries = Boundaries.__new__(Boundaries)
         test_df = pd.DataFrame(
             {"abbrevs": ["CA", "OR"], "name": ["California", "Oregon"]}
         )
 
-        result = boundaries._process_us_states(test_df)
+        result = boundaries._process_states(test_df)
 
         # Currently no processing, should return same DataFrame
         pd.testing.assert_frame_equal(result, test_df)
@@ -355,7 +355,7 @@ class TestBoundariesLookupMethods:
         # Mock data for different boundary types using setattr
         setattr(
             boundaries,
-            "_Boundaries__us_states",
+            "_Boundaries__states",
             pd.DataFrame(
                 {
                     "abbrevs": ["CA", "OR", "WA", "NV"],  # Some western states
@@ -411,27 +411,27 @@ class TestBoundariesLookupMethods:
 
         return boundaries
 
-    def test_get_us_states_caching(self, mock_boundaries_with_data):
+    def test_get_states_caching(self, mock_boundaries_with_data):
         """Test US states lookup dictionary caching."""
         boundaries = mock_boundaries_with_data
 
         # First call builds cache
-        result1 = boundaries._get_us_states()
-        assert "us_states" in boundaries._lookup_cache
+        result1 = boundaries._get_states()
+        assert "states" in boundaries._lookup_cache
         assert isinstance(result1, dict)
 
         # Second call uses cache
-        result2 = boundaries._get_us_states()
+        result2 = boundaries._get_states()
         assert result1 is result2
 
-    def test_build_us_states_lookup(self, mock_boundaries_with_data):
+    def test_build_states_lookup(self, mock_boundaries_with_data):
         """Test building US states lookup with western states ordering."""
         boundaries = mock_boundaries_with_data
 
         with patch("pandas.Categorical") as mock_categorical:
-            us_states_df = getattr(boundaries, "_Boundaries__us_states")
-            mock_categorical.return_value = us_states_df["abbrevs"]
-            result = boundaries._build_us_states_lookup()
+            states_df = getattr(boundaries, "_Boundaries__states")
+            mock_categorical.return_value = states_df["abbrevs"]
+            result = boundaries._build_states_lookup()
 
         assert isinstance(result, dict)
         # Should only include western states
@@ -517,7 +517,7 @@ class TestBoundariesPublicMethods:
         boundaries = Boundaries(mock_catalog)
 
         # Mock all getter methods to avoid complex setup
-        boundaries._get_us_states = Mock(return_value={"CA": 0, "OR": 1})
+        boundaries._get_states = Mock(return_value={"CA": 0, "OR": 1})
         boundaries._get_ca_counties = Mock(
             return_value={"Alameda": 0, "Los Angeles": 1}
         )
@@ -550,7 +550,7 @@ class TestBoundariesPublicMethods:
             assert isinstance(result[key], dict)
 
         # Check that getter methods were called
-        mock_boundaries_public._get_us_states.assert_called_once()
+        mock_boundaries_public._get_states.assert_called_once()
         mock_boundaries_public._get_ca_counties.assert_called_once()
         mock_boundaries_public._get_ca_watersheds.assert_called_once()
         mock_boundaries_public._get_ious_pous.assert_called_once()
@@ -573,7 +573,7 @@ class TestBoundariesPublicMethods:
     def test_preload_all(self, mock_boundaries_public):
         """Test preload_all forces loading of all data."""
         # Mock the actual property accesses to avoid complex nested patches
-        mock_boundaries_public._us_states = Mock()
+        mock_boundaries_public._states = Mock()
         mock_boundaries_public._ca_counties = Mock()
         mock_boundaries_public._ca_watersheds = Mock()
         mock_boundaries_public._ca_utilities = Mock()
@@ -584,14 +584,14 @@ class TestBoundariesPublicMethods:
         mock_boundaries_public.preload_all()
 
         # Verify all getter methods were called for cache building
-        mock_boundaries_public._get_us_states.assert_called()
+        mock_boundaries_public._get_states.assert_called()
         mock_boundaries_public._get_ca_counties.assert_called()
 
     def test_clear_cache(self, mock_boundaries_public):
         """Test clear_cache resets all cached data."""
         # Set some data first
         mock_boundaries_public._lookup_cache["test"] = {"key": "value"}
-        setattr(mock_boundaries_public, "_Boundaries__us_states", Mock())
+        setattr(mock_boundaries_public, "_Boundaries__states", Mock())
         setattr(mock_boundaries_public, "_Boundaries__ca_counties", Mock())
 
         mock_boundaries_public.clear_cache()
@@ -600,7 +600,7 @@ class TestBoundariesPublicMethods:
         assert mock_boundaries_public._lookup_cache == {}
         # Check key attributes are None after clearing
         private_attrs = [
-            "_Boundaries__us_states",
+            "_Boundaries__states",
             "_Boundaries__ca_counties",
             "_Boundaries__ca_watersheds",
             "_Boundaries__ca_utilities",
@@ -620,7 +620,7 @@ class TestBoundariesMemoryManagement:
         boundaries._lookup_cache = {}
 
         # Set all private DataFrames to None (not loaded) using setattr
-        setattr(boundaries, "_Boundaries__us_states", None)
+        setattr(boundaries, "_Boundaries__states", None)
         setattr(boundaries, "_Boundaries__ca_counties", None)
         setattr(boundaries, "_Boundaries__ca_watersheds", None)
         setattr(boundaries, "_Boundaries__ca_utilities", None)
@@ -631,7 +631,7 @@ class TestBoundariesMemoryManagement:
         result = boundaries.get_memory_usage()
 
         # All dataset usage should be 0
-        assert result["us_states"] == 0
+        assert result["states"] == 0
         assert result["ca_counties"] == 0
         assert result["ca_watersheds"] == 0
         assert result["ca_utilities"] == 0
@@ -659,7 +659,7 @@ class TestBoundariesMemoryManagement:
         mock_df2.memory_usage.return_value = mock_memory_usage2
 
         # Set some DataFrames as loaded, others as None using setattr
-        setattr(boundaries, "_Boundaries__us_states", mock_df1)
+        setattr(boundaries, "_Boundaries__states", mock_df1)
         setattr(boundaries, "_Boundaries__ca_counties", mock_df2)
         setattr(boundaries, "_Boundaries__ca_watersheds", None)
         setattr(boundaries, "_Boundaries__ca_utilities", None)
@@ -669,7 +669,7 @@ class TestBoundariesMemoryManagement:
 
         result = boundaries.get_memory_usage()
 
-        assert result["us_states"] == 1024
+        assert result["states"] == 1024
         assert result["ca_counties"] == 2048
         assert result["ca_watersheds"] == 0
         assert result["ca_census_tracts"] == 0
@@ -712,7 +712,7 @@ class TestBoundariesEdgeCases:
         boundaries = Boundaries.__new__(Boundaries)
         setattr(
             boundaries,
-            "_Boundaries__us_states",
+            "_Boundaries__states",
             pd.DataFrame(
                 {
                     "abbrevs": ["NY", "FL"],  # No western states
@@ -722,7 +722,7 @@ class TestBoundariesEdgeCases:
         )
         boundaries._lookup_cache = {}
 
-        result = boundaries._build_us_states_lookup()
+        result = boundaries._build_states_lookup()
         # Should return empty dict or handle gracefully
         assert isinstance(result, dict)
 
@@ -819,7 +819,7 @@ class TestBoundariesAccessorFunctions:
             index=[70, 71],
         )
 
-        setattr(boundaries, "_Boundaries__us_states", states_df)
+        setattr(boundaries, "_Boundaries__states", states_df)
         setattr(boundaries, "_Boundaries__ca_counties", counties_df)
         setattr(boundaries, "_Boundaries__ca_watersheds", watersheds_df)
         setattr(boundaries, "_Boundaries__ca_utilities", utilities_df)
@@ -842,7 +842,7 @@ class TestBoundariesAccessorFunctions:
         ):
             with patch.object(
                 boundaries_with_data,
-                "_get_us_states",
+                "_get_states",
                 return_value={"CA": 10, "OR": 11, "NV": 12},
             ):
                 result = boundaries_with_data.get_states("CA")
@@ -852,7 +852,7 @@ class TestBoundariesAccessorFunctions:
     def test_get_states_invalid_name_raises(self, boundaries_with_data):
         with patch.object(
             boundaries_with_data,
-            "_get_us_states",
+            "_get_states",
             return_value={"CA": 10, "OR": 11},
         ):
             with pytest.raises(ValueError, match="State 'TX' not found"):

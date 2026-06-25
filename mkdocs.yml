@@ -1,5 +1,5 @@
 site_name: climakitae
-site_description: Modern documentation for climakitae, centered on new_core workflows.
+site_description: ClimakitAE is an open-source Python library for accessing and analyzing Cal-Adapt's Data Catalog - a multi-TB ARCO dataset for downscaled climate projections and historical data observations.
 site_url: https://cal-adapt.github.io/climakitae/
 repo_url: https://github.com/cal-adapt/climakitae
 repo_name: cal-adapt/climakitae
@@ -19,8 +19,6 @@ exclude_docs: |
 # converted into a pointer; users should land on the parent page.
 not_in_nav: |
   api/param-validation-detailed.md
-  api/core-data-interface.md
-  api/core-boundaries.md
   api/processors.md
 
 copyright: Copyright 2026, Cal-Adapt Analytics Engine
@@ -61,7 +59,7 @@ plugins:
           inventories:
             - url: https://docs.python-requests.org/en/latest/objects.inv
             - url: https://xarray.pydata.org/en/stable/objects.inv
-            - url: https://dask.readthedocs.io/en/latest/objects.inv
+            - url: https://docs.dask.org/en/latest/objects.inv
             - url: https://geopandas.org/objects.inv
           options:
             show_source: true
@@ -142,6 +140,13 @@ nav:
   - Migration:
       - Legacy to ClimateData: migration/legacy-to-climate-data.md
   - Legacy API:
-      - Status and Roadmap: legacy/status.md
-      - Reference: api/core.md
+      - Overview: legacy/index.md
+      - Core Concepts: legacy/concepts.md
+      - Reference:
+          - Data Interface: legacy/data-interface.md
+          - Boundaries: legacy/boundaries.md
+          - Data Loading: legacy/data-load.md
+          - Data Export: legacy/data-export.md
+          - Constants: legacy/constants.md
+          - Paths: legacy/paths.md
   - Contributing: contributing.md

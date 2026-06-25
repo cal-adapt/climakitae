@@ -2,7 +2,7 @@
 
 [![codecov](https://codecov.io/gh/cal-adapt/climakitae/branch/main/graph/badge.svg)](https://codecov.io/gh/cal-adapt/climakitae)
 [![CI](https://github.com/cal-adapt/climakitae/workflows/ci-main/badge.svg)](https://github.com/cal-adapt/climakitae/actions/workflows/ci-main.yml)
-[![Documentation Status](https://readthedocs.org/projects/climakitae/badge/?version=latest)](https://climakitae.readthedocs.io/en/latest/?badge=latest)
+[![docs](https://github.com/cal-adapt/climakitae/workflows/docs-mkdocs/badge.svg)](https://github.com/cal-adapt/climakitae/actions/workflows/docs-mkdocs.yml)
 [![PyPI version](https://badge.fury.io/py/climakitae.svg)](https://badge.fury.io/py/climakitae)
 [![Python](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
@@ -84,11 +84,11 @@ print(data)
 | [**AE Navigation Guide**](https://github.com/cal-adapt/cae-notebooks/blob/main/AE_navigation_guide.ipynb) | Interactive notebook tutorial |
 | [**API Reference**](https://cal-adapt.github.io/climakitae/dev/) | Complete API documentation |
 | [**AE Notebooks**](https://github.com/cal-adapt/cae-notebooks) | Sample notebooks and scripts |
-| [**Contributing**](https://climakitae.readthedocs.io/en/latest/contribute.html) | Development guidelines |
+| [**Contributing**](https://github.com/cal-adapt/climakitae/blob/main/docs-mkdocs/contributing.md) | Development guidelines |
 
 ## Contributing
 
-We welcome contributions! Please see our [contributing guidelines](https://climakitae.readthedocs.io/en/latest/contribute.html) for details on:
+We welcome contributions! Please see our [contributing guidelines](https://github.com/cal-adapt/climakitae/blob/main/docs-mkdocs/contributing.md) for details on:
 
 - 🐛 Reporting bugs
 - 💡 Requesting features
