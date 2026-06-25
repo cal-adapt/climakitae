@@ -1082,8 +1082,8 @@ class shock_XMY:
 
             # Set floating point precision for specific vars
             float_cols = [
-                "Air Temperature at 2m", 
-                "Dew point temperature", 
+                "Air Temperature at 2m",
+                "Dew point temperature",
                 "Relative humidity",
                 "Surface Pressure",
                 "Instantaneous downwelling longwave flux at bottom",
@@ -1094,9 +1094,13 @@ class shock_XMY:
             ]
             
             # precision 1 point for all vars
-            xmy_data_to_export[sim][float_cols] = xmy_data_to_export[sim][float_cols].round(1)
+            xmy_data_to_export[sim][float_cols] = xmy_data_to_export[sim][
+                float_cols
+            ].round(1)
             # precsion 2 point for wind speed only
-            xmy_data_to_export[sim]["Wind speed at 10m"] = xmy_data_to_export[sim]["Wind speed at 10m"].round(2)
+            xmy_data_to_export[sim]["Wind speed at 10m"] = xmy_data_to_export[sim][
+                "Wind speed at 10m"
+            ].round(2)
 
         self.xmy_data_to_export = xmy_data_to_export
         self._vprint("shock XMY analysis complete.")
