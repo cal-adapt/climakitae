@@ -1612,8 +1612,7 @@ class TestCreateSingleWlMultiSimDataframe:
         assert "duplicate_name_v2" in unique_sims, "Should contain duplicate_name_v2"
 
     def test_create_single_wl_multi_sim_dataframe_preserves_data_integrity(self):
-        """Test that profile data values are correctly preserved in MultiIndex structure."""
-        # Create specific test data with known values for verification
+        """Test that profile data values are correctly preserved."""
         # Create specific test data with known values for verification
         test_simulations = ["test_sim_A", "test_sim_B"]
         test_days = 24  # Use smaller dataset for precise testing
