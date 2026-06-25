@@ -1329,13 +1329,9 @@ class TMY:
             ]
 
             # precision 1 point for all vars
-            tmy_data_to_export[sim][float_cols] = (
-                tmy_data_to_export[sim][float_cols].round(1)
-            )
+            tmy_data_to_export[sim][float_cols] = tmy_data_to_export[sim][float_cols].round(1)
             # precsion 2 point for wind speed only
-            tmy_data_to_export[sim]["Wind speed at 10m"] = (
-                tmy_data_to_export[sim]["Wind speed at 10m"].round(2)
-            )
+            tmy_data_to_export[sim]["Wind speed at 10m"] = tmy_data_to_export[sim]["Wind speed at 10m"].round(2)
 
         self.tmy_data_to_export = tmy_data_to_export
         self._vprint("TMY analysis complete.")
