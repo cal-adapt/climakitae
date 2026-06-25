@@ -1044,6 +1044,26 @@ class shock_XMY:
             else:
                 xmy_data_to_export[sim]["scenario"] = "historical+ssp370"
 
+            # Set floating point precision to 1 decimal for all vars
+            # except wind speed which is 2 decimals
+            float_cols = [
+                "Air Temperature at 2m", 
+                "Dew point temperature", 
+                "Relative humidity",
+                "Surface Pressure",
+                "Instantaneous downwelling longwave flux at bottom",
+                "Instantaneous downwelling shortwave flux at bottom",
+                "Shortwave surface downward direct normal irradiance",
+                "Shortwave surface downward diffuse irradiance",
+                "Wind direction at 10m",
+                ]
+            xmy_data_to_export[sim][float_cols] = (
+                xmy_data_to_export[sim][float_cols].round(1)
+            )
+            xmy_data_to_export[sim]["Wind speed at 10m"] = (
+                xmy_data_to_export[sim]["Wind speed at 10m"].round(2)
+            )
+
         self.xmy_data_to_export = xmy_data_to_export
         self._vprint("shock XMY analysis complete.")
 
