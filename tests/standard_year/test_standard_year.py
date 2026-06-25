@@ -1632,7 +1632,11 @@ class TestCreateSingleWlMultiSimDataframe:
             # Create known test data: day i, hour j has value (i+1)*10 + j
             profile_matrix = np.zeros((test_days, 1))
             for day in range(test_days):
-                profile_matrix[day, sim_key] = (day + 1) * 10
+                #!
+                print(f"profile_matrix:{profile_matrix}")
+                print(f"day:{day}")
+                print(f"sim_key:{sim_key}")
+                profile_matrix[day:i] = (day + 1) * 10 + i
 
             test_profile_data[(wl_key, sim_key)] = profile_matrix
             expected_values[sim_key] = profile_matrix
@@ -1645,7 +1649,7 @@ class TestCreateSingleWlMultiSimDataframe:
             warming_level=self.warming_level,
             simulations=test_simulations,
             sim_label_func=test_sim_func,
-            days_in_year=test_days,
+            hours_per_year=test_days,
         )
         #!
         print(f"result: {result}")
