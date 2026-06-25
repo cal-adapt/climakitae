@@ -1621,7 +1621,7 @@ def write_tmy_file(
             # line 6 - comments 1, going to include simulation + warming level information here
             line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt: Analytics Engine, Warming Level: {warming_level}{degree_sign}C, Simulation: {simulation}\n"
             # line 7 - comments 2, including date range here from which TMY calculated
-            line_7 = f"COMMENTS 2,{profile_type} {data_type} produced using {warming_level}{degree_sign}C warming level. Year corresponds to index (1-30) in 30-year window centered on warming level. Model years for {warming_level}{degree_sign}C warming level in simulation {simulation} are {years[0]}-{years[1]}. Ground temps are not provided.\n"
+            line_7 = f"COMMENTS 2,{profile_type} {data_type} produced using {warming_level}{degree_sign}C warming level. Year corresponds to index (1-30) in 30-year window centered on warming level. Model years for {warming_level}{degree_sign}C warming level in simulation {simulation} are {years[0]}-{years[1]}. Ground temps are not provided\n"
         else:
             # line 6 - comments 1, going to include simulation + scenario information here
             if "scenario" in df.columns:
@@ -1634,7 +1634,7 @@ def write_tmy_file(
                 # scenario information is included in the simulation name
                 line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt: Analytics Engine, Simulation: {df['sim'].values[0]}\n"
             # line 7 - comments 2, including date range here from which TMY calculated
-            line_7 = f"COMMENTS 2,{profile_type} {data_type} produced using {years[0]}-{years[1]} climatological period\n"
+            line_7 = f"COMMENTS 2,{profile_type} {data_type} produced using {years[0]}-{years[1]} climatological period. Ground temps are not provided\n"
 
         # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
         line_8 = "DATA PERIODS,1,1,Data,Sunday,1/ 1,12/31\n"
