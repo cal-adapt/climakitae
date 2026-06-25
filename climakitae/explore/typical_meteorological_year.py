@@ -1326,7 +1326,7 @@ class TMY:
                 "Shortwave surface downward direct normal irradiance",
                 "Shortwave surface downward diffuse irradiance",
                 "Wind direction at 10m",
-                ]
+            ]
 
             # precision 1 point for all vars
             tmy_data_to_export[sim][float_cols] = (
