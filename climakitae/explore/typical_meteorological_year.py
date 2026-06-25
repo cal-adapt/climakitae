@@ -1315,8 +1315,7 @@ class TMY:
                 else:
                     tmy_data_to_export[sim]["scenario"] = "historical+ssp370"
 
-            # Set floating point precision to 1 decimal for all vars
-            # except wind speed which is 2 decimals
+            # Set floating point precision for specific vars
             float_cols = [
                 "Air Temperature at 2m", 
                 "Dew point temperature", 
@@ -1328,9 +1327,12 @@ class TMY:
                 "Shortwave surface downward diffuse irradiance",
                 "Wind direction at 10m",
                 ]
+
+            # precision 1 point for all vars
             tmy_data_to_export[sim][float_cols] = (
                 tmy_data_to_export[sim][float_cols].round(1)
             )
+            # precsion 2 point for wind speed only
             tmy_data_to_export[sim]["Wind speed at 10m"] = (
                 tmy_data_to_export[sim]["Wind speed at 10m"].round(2)
             )
