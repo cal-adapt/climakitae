@@ -1027,23 +1027,13 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
 
     # set time col to datetime object for easy split
     df["time"] = pd.to_datetime(df["time"])
-    if "warming_level" in df.columns:
-        # change year for GWL data to not use 2000's dummy times
-        df = df.assign(
-            year=df["time"].dt.year - 2000,
-            month=df["time"].dt.month,
-            day=df["time"].dt.day,
-            hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
-            minute=df["time"].dt.minute,
-        )
-    else:
-        df = df.assign(
-            year=df["time"].dt.year,
-            month=df["time"].dt.month,
-            day=df["time"].dt.day,
-            hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
-            minute=df["time"].dt.minute,
-        )
+    df = df.assign(
+        year=df["time"].dt.year,
+        month=df["time"].dt.month,
+        day=df["time"].dt.day,
+        hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
+        minute=df["time"].dt.minute,
+    )
 
     # set epw variable order, very specific -- manually set
     # Note: vars not provided by AE are noted as missing
@@ -1141,7 +1131,7 @@ def _leap_day_fix(df: pd.DataFrame) -> pd.DataFrame:
     # 3 models have leap days, 1 model does not -- handling for both
     # handling for TaiESM1 (no leap day natively)
     match df_leap.sim.unique()[0]:
-        case "wrf_ucla_taiesm1_ssp370_r1i1p1f1":
+        case "WRF_TaiESM1_r1i1p1f1":
             df_leap["time"] = np.where(
                 (df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29),
                 df_leap.time - pd.DateOffset(days=1),
@@ -1279,7 +1269,8 @@ def _tmy_8760_size_check(df: pd.DataFrame) -> pd.DataFrame:
     # fix cases
     match len(df_to_check):
         case 8760:
-            return df_to_check
+            # Find edge case where 8760 has partial 2-29
+            return _leap_day_fix(df_to_check)
         case 8759:  # Missing hour, add missing row
             df_to_check = _missing_hour_fix(df_to_check)
             return df_to_check
@@ -1312,7 +1303,7 @@ def _tmy_8760_size_check(df: pd.DataFrame) -> pd.DataFrame:
             return None
 
 
-def _tmy_reset_time_for_gwl(df: pd.DataFrame) -> pd.DataFrame:
+def _tmy_reset_time_for_gwl(df: pd.DataFrame, years: Tuple[int, int]) -> pd.DataFrame:
     """
     Change dummy time in GWL data to start at year 0001
     for writing TMY results.
@@ -1323,11 +1314,14 @@ def _tmy_reset_time_for_gwl(df: pd.DataFrame) -> pd.DataFrame:
         Dataframe of TMY data to export
     """
 
+    gwl_years = range(years[0], years[1] + 1)
+
     def replace_year(datestr: str) -> str:
-        """Subtract 2000 from dummy year to reset to 0001 baseline."""
+        """Get the corresponding year in the warming level"""
         year = int(datestr.split("-")[0])
-        year = year - 2000
-        datestr = str(year).zfill(4) + "-" + "-".join(datestr.split("-")[1:])
+        year_n = int(year - 2000)
+        year_str = str(gwl_years[year_n])
+        datestr = year_str + "-" + "-".join(datestr.split("-")[1:])
         return datestr
 
     cleaned_years = [replace_year(str(t)) for t in df["time"]]
@@ -1401,6 +1395,10 @@ def write_tmy_file(
     # consistent "%Y-%m-%d %H:%M" strings so downstream writers and
     # _tmy_reset_time_for_gwl see a uniform format.
     df["time"] = pd.to_datetime(df["time"]).dt.strftime("%Y-%m-%d %H:%M")
+
+    if "warming_level" in df.columns:
+        # Convert time axis from dummy time to warming level specific years
+        df = _tmy_reset_time_for_gwl(df, years)
 
     def _utc_offset_timezone(lat, lon):
         """Based on user input of lat lon, returns the UTC offset for that timezone
