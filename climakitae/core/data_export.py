@@ -27,7 +27,6 @@ from climakitae.util.utils import read_csv_file
 
 xr.set_options(keep_attrs=True)
 bytes_per_gigabyte = 1024 * 1024 * 1024
-degree_sign = "\N{DEGREE SIGN}"
 
 
 def remove_zarr(filename: str):
@@ -1054,7 +1053,7 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
         "day",
         "hour",
         "minute",
-        "data_source",  # missing
+        "data_source",  # missing, must be exactly 25 chars
         "Air temperature at 2m (degC)",
         "Dew point temperature at 2m (degC)",
         "Relative humidity (0-100)",
@@ -1114,6 +1113,7 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
     # lastly set data source / uncertainty flag (section 2.13 of doc)
     # on AE: ? = var does not fit source options
     # on AE: 9 = uncertainty unknown
+    # note: must be exactly 25 chars
     df["data_source"] = "?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9"
 
     # resets col order and drops any unnamed column from original df
@@ -1619,22 +1619,22 @@ def write_tmy_file(
             warming_level = df["warming_level"].values[0]
             simulation = df["sim"].values[0]
             # line 6 - comments 1, going to include simulation + warming level information here
-            line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt: Analytics Engine, Warming Level: {warming_level}{degree_sign}C, Simulation: {simulation}\n"
+            line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt Analytics Engine; Warming Level {warming_level}degC; Simulation {simulation}\n"
             # line 7 - comments 2, including date range here from which TMY calculated
-            line_7 = f"COMMENTS 2,{profile_type} {data_type} produced using {warming_level}{degree_sign}C warming level. Year corresponds to index (1-30) in 30-year window centered on warming level. Model years for {warming_level}{degree_sign}C warming level in simulation {simulation} are {years[0]}-{years[1]}. Ground temps are not provided\n"
+            line_7 = f"COMMENTS 2,{profile_type} {data_type} produced using {warming_level}degC warming level; Model years for {warming_level}degC warming level in simulation {simulation} are {years[0]}-{years[1]}; Ground temps are not provided\n"
         else:
             # line 6 - comments 1, going to include simulation + scenario information here
             if "scenario" in df.columns:
                 # get_data approach has a separate scenario column
                 # the scenario is not included in the simulation name
                 scenario = df["scenario"].values[0]
-                line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt: Analytics Engine, Simulation: {df['sim'].values[0]}, Scenario: {scenario}\n"
+                line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt Analytics Engine; Simulation {df['sim'].values[0]}; Scenario {scenario}\n"
             else:
                 # new core approach does not have a separate scenario column, scenario is included in simulation name
                 # scenario information is included in the simulation name
-                line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt: Analytics Engine, Simulation: {df['sim'].values[0]}\n"
+                line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt Analytics Engine; Simulation {df['sim'].values[0]}\n"
             # line 7 - comments 2, including date range here from which TMY calculated
-            line_7 = f"COMMENTS 2,{profile_type} {data_type} produced using {years[0]}-{years[1]} climatological period. Ground temps are not provided\n"
+            line_7 = f"COMMENTS 2,{profile_type} {data_type} produced using {years[0]}-{years[1]} climatological period; Ground temps are not provided\n"
 
         # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
         line_8 = "DATA PERIODS,1,1,Data,Sunday,1/ 1,12/31\n"
