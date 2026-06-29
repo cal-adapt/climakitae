@@ -2023,6 +2023,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#climakitae.util.utils.add_crs_to_downscaled_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        add_crs_to_downscaled_data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#warming-level-utilities" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3145,6 +3156,17 @@
     <span class="md-ellipsis">
       
         clip_gpd_to_shapefile
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climakitae.util.utils.add_crs_to_downscaled_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        add_crs_to_downscaled_data
       
     </span>
   </a>
@@ -8586,6 +8608,202 @@ Used to subset stationlist to shapefile area.</p>
 <a id="__codelineno-0-1977" name="__codelineno-0-1977"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Number of stations within area: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">clipped</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-1978" name="__codelineno-0-1978"></a>
 <a id="__codelineno-0-1979" name="__codelineno-0-1979"></a>    <span class="k">return</span> <span class="n">clipped</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="climakitae.util.utils.add_crs_to_downscaled_data" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">add_crs_to_downscaled_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Attach a coordinate references system (CRS) to WRF or LOCA2 data. Rioxarray is used for
+CRS management.</p>
+<p>If no CRS is found in the dataset, first check for the Lambert_Conformal coordinate
+to indicate that the dataset is on the conic WRF projection. If that coordinate is missing,
+fall back to a geographic coordinate system (WGS84). If a CRS is already attached to the
+input data, the data is returned unaltered.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>data</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" title="xarray.DataArray" href="https://xarray.pydata.org/en/stable/generated/xarray.DataArray.html#xarray.DataArray">DataArray</a> | <a class="autorefs autorefs-external" title="xarray.Dataset" href="https://xarray.pydata.org/en/stable/generated/xarray.Dataset.html#xarray.Dataset">Dataset</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A WRF or LOCA2 array, with or without a CRS</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-external" title="xarray.DataArray" href="https://xarray.pydata.org/en/stable/generated/xarray.DataArray.html#xarray.DataArray">DataArray</a> | <a class="autorefs autorefs-external" title="xarray.Dataset" href="https://xarray.pydata.org/en/stable/generated/xarray.Dataset.html#xarray.Dataset">Dataset</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The input dataset with a CRS attached</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>climakitae/util/utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-2030">2030</a></span>
+<span class="normal"><a href="#__codelineno-0-2031">2031</a></span>
+<span class="normal"><a href="#__codelineno-0-2032">2032</a></span>
+<span class="normal"><a href="#__codelineno-0-2033">2033</a></span>
+<span class="normal"><a href="#__codelineno-0-2034">2034</a></span>
+<span class="normal"><a href="#__codelineno-0-2035">2035</a></span>
+<span class="normal"><a href="#__codelineno-0-2036">2036</a></span>
+<span class="normal"><a href="#__codelineno-0-2037">2037</a></span>
+<span class="normal"><a href="#__codelineno-0-2038">2038</a></span>
+<span class="normal"><a href="#__codelineno-0-2039">2039</a></span>
+<span class="normal"><a href="#__codelineno-0-2040">2040</a></span>
+<span class="normal"><a href="#__codelineno-0-2041">2041</a></span>
+<span class="normal"><a href="#__codelineno-0-2042">2042</a></span>
+<span class="normal"><a href="#__codelineno-0-2043">2043</a></span>
+<span class="normal"><a href="#__codelineno-0-2044">2044</a></span>
+<span class="normal"><a href="#__codelineno-0-2045">2045</a></span>
+<span class="normal"><a href="#__codelineno-0-2046">2046</a></span>
+<span class="normal"><a href="#__codelineno-0-2047">2047</a></span>
+<span class="normal"><a href="#__codelineno-0-2048">2048</a></span>
+<span class="normal"><a href="#__codelineno-0-2049">2049</a></span>
+<span class="normal"><a href="#__codelineno-0-2050">2050</a></span>
+<span class="normal"><a href="#__codelineno-0-2051">2051</a></span>
+<span class="normal"><a href="#__codelineno-0-2052">2052</a></span>
+<span class="normal"><a href="#__codelineno-0-2053">2053</a></span>
+<span class="normal"><a href="#__codelineno-0-2054">2054</a></span>
+<span class="normal"><a href="#__codelineno-0-2055">2055</a></span>
+<span class="normal"><a href="#__codelineno-0-2056">2056</a></span>
+<span class="normal"><a href="#__codelineno-0-2057">2057</a></span>
+<span class="normal"><a href="#__codelineno-0-2058">2058</a></span>
+<span class="normal"><a href="#__codelineno-0-2059">2059</a></span>
+<span class="normal"><a href="#__codelineno-0-2060">2060</a></span>
+<span class="normal"><a href="#__codelineno-0-2061">2061</a></span>
+<span class="normal"><a href="#__codelineno-0-2062">2062</a></span>
+<span class="normal"><a href="#__codelineno-0-2063">2063</a></span>
+<span class="normal"><a href="#__codelineno-0-2064">2064</a></span>
+<span class="normal"><a href="#__codelineno-0-2065">2065</a></span>
+<span class="normal"><a href="#__codelineno-0-2066">2066</a></span>
+<span class="normal"><a href="#__codelineno-0-2067">2067</a></span>
+<span class="normal"><a href="#__codelineno-0-2068">2068</a></span>
+<span class="normal"><a href="#__codelineno-0-2069">2069</a></span>
+<span class="normal"><a href="#__codelineno-0-2070">2070</a></span>
+<span class="normal"><a href="#__codelineno-0-2071">2071</a></span>
+<span class="normal"><a href="#__codelineno-0-2072">2072</a></span>
+<span class="normal"><a href="#__codelineno-0-2073">2073</a></span>
+<span class="normal"><a href="#__codelineno-0-2074">2074</a></span>
+<span class="normal"><a href="#__codelineno-0-2075">2075</a></span>
+<span class="normal"><a href="#__codelineno-0-2076">2076</a></span>
+<span class="normal"><a href="#__codelineno-0-2077">2077</a></span>
+<span class="normal"><a href="#__codelineno-0-2078">2078</a></span>
+<span class="normal"><a href="#__codelineno-0-2079">2079</a></span>
+<span class="normal"><a href="#__codelineno-0-2080">2080</a></span>
+<span class="normal"><a href="#__codelineno-0-2081">2081</a></span>
+<span class="normal"><a href="#__codelineno-0-2082">2082</a></span>
+<span class="normal"><a href="#__codelineno-0-2083">2083</a></span>
+<span class="normal"><a href="#__codelineno-0-2084">2084</a></span>
+<span class="normal"><a href="#__codelineno-0-2085">2085</a></span>
+<span class="normal"><a href="#__codelineno-0-2086">2086</a></span>
+<span class="normal"><a href="#__codelineno-0-2087">2087</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-2030" name="__codelineno-0-2030"></a><span class="k">def</span><span class="w"> </span><span class="nf">add_crs_to_downscaled_data</span><span class="p">(</span>
+<a id="__codelineno-0-2031" name="__codelineno-0-2031"></a>    <span class="n">data</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span> <span class="o">|</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span>
+<a id="__codelineno-0-2032" name="__codelineno-0-2032"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">]:</span>
+<a id="__codelineno-0-2033" name="__codelineno-0-2033"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-2034" name="__codelineno-0-2034"></a><span class="sd">    Attach a coordinate references system (CRS) to WRF or LOCA2 data. Rioxarray is used for</span>
+<a id="__codelineno-0-2035" name="__codelineno-0-2035"></a><span class="sd">    CRS management.</span>
+<a id="__codelineno-0-2036" name="__codelineno-0-2036"></a>
+<a id="__codelineno-0-2037" name="__codelineno-0-2037"></a><span class="sd">    If no CRS is found in the dataset, first check for the Lambert_Conformal coordinate</span>
+<a id="__codelineno-0-2038" name="__codelineno-0-2038"></a><span class="sd">    to indicate that the dataset is on the conic WRF projection. If that coordinate is missing,</span>
+<a id="__codelineno-0-2039" name="__codelineno-0-2039"></a><span class="sd">    fall back to a geographic coordinate system (WGS84). If a CRS is already attached to the</span>
+<a id="__codelineno-0-2040" name="__codelineno-0-2040"></a><span class="sd">    input data, the data is returned unaltered.</span>
+<a id="__codelineno-0-2041" name="__codelineno-0-2041"></a>
+<a id="__codelineno-0-2042" name="__codelineno-0-2042"></a><span class="sd">    Parameters</span>
+<a id="__codelineno-0-2043" name="__codelineno-0-2043"></a><span class="sd">    ----------</span>
+<a id="__codelineno-0-2044" name="__codelineno-0-2044"></a><span class="sd">    data : xr.DataArray | xr.Dataset</span>
+<a id="__codelineno-0-2045" name="__codelineno-0-2045"></a><span class="sd">        A WRF or LOCA2 array, with or without a CRS</span>
+<a id="__codelineno-0-2046" name="__codelineno-0-2046"></a>
+<a id="__codelineno-0-2047" name="__codelineno-0-2047"></a><span class="sd">    Returns</span>
+<a id="__codelineno-0-2048" name="__codelineno-0-2048"></a><span class="sd">    -------</span>
+<a id="__codelineno-0-2049" name="__codelineno-0-2049"></a><span class="sd">    xr.DataArray | xr.Dataset</span>
+<a id="__codelineno-0-2050" name="__codelineno-0-2050"></a><span class="sd">        The input dataset with a CRS attached</span>
+<a id="__codelineno-0-2051" name="__codelineno-0-2051"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-2052" name="__codelineno-0-2052"></a>    <span class="c1"># Ensure data has CRS set</span>
+<a id="__codelineno-0-2053" name="__codelineno-0-2053"></a>    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">rio</span><span class="o">.</span><span class="n">crs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-2054" name="__codelineno-0-2054"></a>        <span class="c1"># Check if this is WRF data with Lambert Conformal projection</span>
+<a id="__codelineno-0-2055" name="__codelineno-0-2055"></a>        <span class="k">if</span> <span class="s2">&quot;Lambert_Conformal&quot;</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">coords</span><span class="p">:</span>
+<a id="__codelineno-0-2056" name="__codelineno-0-2056"></a>            <span class="c1"># WRF data: try spatial_ref attribute first, then build from CF attrs</span>
+<a id="__codelineno-0-2057" name="__codelineno-0-2057"></a>            <span class="n">spatial_ref</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Lambert_Conformal&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;spatial_ref&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-2058" name="__codelineno-0-2058"></a>            <span class="k">if</span> <span class="n">spatial_ref</span><span class="p">:</span>
+<a id="__codelineno-0-2059" name="__codelineno-0-2059"></a>                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">rio</span><span class="o">.</span><span class="n">write_crs</span><span class="p">(</span><span class="n">spatial_ref</span><span class="p">)</span>
+<a id="__codelineno-0-2060" name="__codelineno-0-2060"></a>            <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-2061" name="__codelineno-0-2061"></a>                <span class="c1"># Build CRS from CF convention attributes</span>
+<a id="__codelineno-0-2062" name="__codelineno-0-2062"></a>                <span class="n">attrs</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Lambert_Conformal&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span>
+<a id="__codelineno-0-2063" name="__codelineno-0-2063"></a>                <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-2064" name="__codelineno-0-2064"></a>                    <span class="n">crs</span> <span class="o">=</span> <span class="n">pyproj</span><span class="o">.</span><span class="n">CRS</span><span class="o">.</span><span class="n">from_cf</span><span class="p">(</span>
+<a id="__codelineno-0-2065" name="__codelineno-0-2065"></a>                        <span class="p">{</span>
+<a id="__codelineno-0-2066" name="__codelineno-0-2066"></a>                            <span class="s2">&quot;grid_mapping_name&quot;</span><span class="p">:</span> <span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;grid_mapping_name&quot;</span><span class="p">],</span>
+<a id="__codelineno-0-2067" name="__codelineno-0-2067"></a>                            <span class="s2">&quot;latitude_of_projection_origin&quot;</span><span class="p">:</span> <span class="n">attrs</span><span class="p">[</span>
+<a id="__codelineno-0-2068" name="__codelineno-0-2068"></a>                                <span class="s2">&quot;latitude_of_projection_origin&quot;</span>
+<a id="__codelineno-0-2069" name="__codelineno-0-2069"></a>                            <span class="p">],</span>
+<a id="__codelineno-0-2070" name="__codelineno-0-2070"></a>                            <span class="s2">&quot;longitude_of_central_meridian&quot;</span><span class="p">:</span> <span class="n">attrs</span><span class="p">[</span>
+<a id="__codelineno-0-2071" name="__codelineno-0-2071"></a>                                <span class="s2">&quot;longitude_of_central_meridian&quot;</span>
+<a id="__codelineno-0-2072" name="__codelineno-0-2072"></a>                            <span class="p">],</span>
+<a id="__codelineno-0-2073" name="__codelineno-0-2073"></a>                            <span class="s2">&quot;standard_parallel&quot;</span><span class="p">:</span> <span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;standard_parallel&quot;</span><span class="p">],</span>
+<a id="__codelineno-0-2074" name="__codelineno-0-2074"></a>                            <span class="s2">&quot;earth_radius&quot;</span><span class="p">:</span> <span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;earth_radius&quot;</span><span class="p">],</span>
+<a id="__codelineno-0-2075" name="__codelineno-0-2075"></a>                        <span class="p">}</span>
+<a id="__codelineno-0-2076" name="__codelineno-0-2076"></a>                    <span class="p">)</span>
+<a id="__codelineno-0-2077" name="__codelineno-0-2077"></a>                    <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">rio</span><span class="o">.</span><span class="n">write_crs</span><span class="p">(</span><span class="n">crs</span><span class="p">)</span>
+<a id="__codelineno-0-2078" name="__codelineno-0-2078"></a>                <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-2079" name="__codelineno-0-2079"></a>                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-2080" name="__codelineno-0-2080"></a>                        <span class="sa">f</span><span class="s2">&quot;Lambert_Conformal coordinate found but missing required &quot;</span>
+<a id="__codelineno-0-2081" name="__codelineno-0-2081"></a>                        <span class="sa">f</span><span class="s2">&quot;CF convention attribute: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-2082" name="__codelineno-0-2082"></a>                    <span class="p">)</span>
+<a id="__codelineno-0-2083" name="__codelineno-0-2083"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-2084" name="__codelineno-0-2084"></a>            <span class="c1"># LOCA2 or other lat/lon data: use WGS84/EPSG:4326</span>
+<a id="__codelineno-0-2085" name="__codelineno-0-2085"></a>            <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">rio</span><span class="o">.</span><span class="n">write_crs</span><span class="p">(</span><span class="s2">&quot;epsg:4326&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-2086" name="__codelineno-0-2086"></a>
+<a id="__codelineno-0-2087" name="__codelineno-0-2087"></a>    <span class="k">return</span> <span class="n">data</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

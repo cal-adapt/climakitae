@@ -4648,7 +4648,13 @@ compatibility).</p>
 <span class="normal"><a href="#__codelineno-0-728">728</a></span>
 <span class="normal"><a href="#__codelineno-0-729">729</a></span>
 <span class="normal"><a href="#__codelineno-0-730">730</a></span>
-<span class="normal"><a href="#__codelineno-0-731">731</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-465" name="__codelineno-0-465"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_data</span><span class="p">(</span>
+<span class="normal"><a href="#__codelineno-0-731">731</a></span>
+<span class="normal"><a href="#__codelineno-0-732">732</a></span>
+<span class="normal"><a href="#__codelineno-0-733">733</a></span>
+<span class="normal"><a href="#__codelineno-0-734">734</a></span>
+<span class="normal"><a href="#__codelineno-0-735">735</a></span>
+<span class="normal"><a href="#__codelineno-0-736">736</a></span>
+<span class="normal"><a href="#__codelineno-0-737">737</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-465" name="__codelineno-0-465"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_data</span><span class="p">(</span>
 <a id="__codelineno-0-466" name="__codelineno-0-466"></a>    <span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">catalog_key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <a id="__codelineno-0-467" name="__codelineno-0-467"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">]:</span>
 <a id="__codelineno-0-468" name="__codelineno-0-468"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get data from the specified catalog (thread-safe).</span>
@@ -4914,7 +4920,13 @@ compatibility).</p>
 <a id="__codelineno-0-728" name="__codelineno-0-728"></a>                <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <a id="__codelineno-0-729" name="__codelineno-0-729"></a>            <span class="p">)</span>
 <a id="__codelineno-0-730" name="__codelineno-0-730"></a>
-<a id="__codelineno-0-731" name="__codelineno-0-731"></a>    <span class="k">return</span> <span class="n">result</span>
+<a id="__codelineno-0-731" name="__codelineno-0-731"></a>    <span class="c1"># Not all cadcat datasets have CRS attached. If CRS is not found, it will be added here.</span>
+<a id="__codelineno-0-732" name="__codelineno-0-732"></a>    <span class="c1"># This will also add a CRS to derived datasets that could not copy spatial metadata</span>
+<a id="__codelineno-0-733" name="__codelineno-0-733"></a>    <span class="k">if</span> <span class="n">effective_key</span> <span class="o">==</span> <span class="n">CATALOG_CADCAT</span><span class="p">:</span>
+<a id="__codelineno-0-734" name="__codelineno-0-734"></a>        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">ds</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-0-735" name="__codelineno-0-735"></a>            <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">add_crs_to_downscaled_data</span><span class="p">(</span><span class="n">ds</span><span class="p">)</span>
+<a id="__codelineno-0-736" name="__codelineno-0-736"></a>
+<a id="__codelineno-0-737" name="__codelineno-0-737"></a>    <span class="k">return</span> <span class="n">result</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4955,13 +4967,7 @@ via the <code>available_boundaries</code> attribute.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/data_access.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-809">809</a></span>
-<span class="normal"><a href="#__codelineno-0-810">810</a></span>
-<span class="normal"><a href="#__codelineno-0-811">811</a></span>
-<span class="normal"><a href="#__codelineno-0-812">812</a></span>
-<span class="normal"><a href="#__codelineno-0-813">813</a></span>
-<span class="normal"><a href="#__codelineno-0-814">814</a></span>
-<span class="normal"><a href="#__codelineno-0-815">815</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-815">815</a></span>
 <span class="normal"><a href="#__codelineno-0-816">816</a></span>
 <span class="normal"><a href="#__codelineno-0-817">817</a></span>
 <span class="normal"><a href="#__codelineno-0-818">818</a></span>
@@ -4990,42 +4996,48 @@ via the <code>available_boundaries</code> attribute.</p>
 <span class="normal"><a href="#__codelineno-0-841">841</a></span>
 <span class="normal"><a href="#__codelineno-0-842">842</a></span>
 <span class="normal"><a href="#__codelineno-0-843">843</a></span>
-<span class="normal"><a href="#__codelineno-0-844">844</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-809" name="__codelineno-0-809"></a><span class="k">def</span><span class="w"> </span><span class="nf">list_clip_boundaries</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
-<a id="__codelineno-0-810" name="__codelineno-0-810"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;List all available boundary options for clipping operations.</span>
-<a id="__codelineno-0-811" name="__codelineno-0-811"></a>
-<a id="__codelineno-0-812" name="__codelineno-0-812"></a><span class="sd">    This method populates the `available_boundaries` attribute with a</span>
-<a id="__codelineno-0-813" name="__codelineno-0-813"></a><span class="sd">    dictionary of boundary categories and their available options. It&#39;s a</span>
-<a id="__codelineno-0-814" name="__codelineno-0-814"></a><span class="sd">    convenience method that provides direct access to boundary options</span>
-<a id="__codelineno-0-815" name="__codelineno-0-815"></a><span class="sd">    without needing to instantiate a Clip processor.</span>
-<a id="__codelineno-0-816" name="__codelineno-0-816"></a>
-<a id="__codelineno-0-817" name="__codelineno-0-817"></a><span class="sd">    Notes</span>
-<a id="__codelineno-0-818" name="__codelineno-0-818"></a><span class="sd">    -----</span>
-<a id="__codelineno-0-819" name="__codelineno-0-819"></a><span class="sd">    After calling this method, the available boundaries can be accessed</span>
-<a id="__codelineno-0-820" name="__codelineno-0-820"></a><span class="sd">    via the `available_boundaries` attribute.</span>
-<a id="__codelineno-0-821" name="__codelineno-0-821"></a>
-<a id="__codelineno-0-822" name="__codelineno-0-822"></a><span class="sd">    Examples</span>
-<a id="__codelineno-0-823" name="__codelineno-0-823"></a><span class="sd">    --------</span>
-<a id="__codelineno-0-824" name="__codelineno-0-824"></a><span class="sd">    &gt;&gt;&gt; catalog = DataCatalog()</span>
-<a id="__codelineno-0-825" name="__codelineno-0-825"></a><span class="sd">    &gt;&gt;&gt; catalog.list_clip_boundaries()</span>
-<a id="__codelineno-0-826" name="__codelineno-0-826"></a><span class="sd">    &gt;&gt;&gt; print(catalog.available_boundaries[&quot;states&quot;])</span>
-<a id="__codelineno-0-827" name="__codelineno-0-827"></a><span class="sd">    [&#39;AZ&#39;, &#39;CA&#39;, &#39;CO&#39;, &#39;ID&#39;, &#39;MT&#39;, &#39;NV&#39;, &#39;NM&#39;, &#39;OR&#39;, &#39;UT&#39;, &#39;WA&#39;, &#39;WY&#39;]</span>
-<a id="__codelineno-0-828" name="__codelineno-0-828"></a>
-<a id="__codelineno-0-829" name="__codelineno-0-829"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-830" name="__codelineno-0-830"></a>    <span class="n">boundary_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">boundaries</span><span class="o">.</span><span class="n">boundary_dict</span><span class="p">()</span>
-<a id="__codelineno-0-831" name="__codelineno-0-831"></a>
-<a id="__codelineno-0-832" name="__codelineno-0-832"></a>    <span class="c1"># Create a clean dictionary with boundary categories and their available options</span>
-<a id="__codelineno-0-833" name="__codelineno-0-833"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">available_boundaries</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="normal"><a href="#__codelineno-0-844">844</a></span>
+<span class="normal"><a href="#__codelineno-0-845">845</a></span>
+<span class="normal"><a href="#__codelineno-0-846">846</a></span>
+<span class="normal"><a href="#__codelineno-0-847">847</a></span>
+<span class="normal"><a href="#__codelineno-0-848">848</a></span>
+<span class="normal"><a href="#__codelineno-0-849">849</a></span>
+<span class="normal"><a href="#__codelineno-0-850">850</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-815" name="__codelineno-0-815"></a><span class="k">def</span><span class="w"> </span><span class="nf">list_clip_boundaries</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<a id="__codelineno-0-816" name="__codelineno-0-816"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;List all available boundary options for clipping operations.</span>
+<a id="__codelineno-0-817" name="__codelineno-0-817"></a>
+<a id="__codelineno-0-818" name="__codelineno-0-818"></a><span class="sd">    This method populates the `available_boundaries` attribute with a</span>
+<a id="__codelineno-0-819" name="__codelineno-0-819"></a><span class="sd">    dictionary of boundary categories and their available options. It&#39;s a</span>
+<a id="__codelineno-0-820" name="__codelineno-0-820"></a><span class="sd">    convenience method that provides direct access to boundary options</span>
+<a id="__codelineno-0-821" name="__codelineno-0-821"></a><span class="sd">    without needing to instantiate a Clip processor.</span>
+<a id="__codelineno-0-822" name="__codelineno-0-822"></a>
+<a id="__codelineno-0-823" name="__codelineno-0-823"></a><span class="sd">    Notes</span>
+<a id="__codelineno-0-824" name="__codelineno-0-824"></a><span class="sd">    -----</span>
+<a id="__codelineno-0-825" name="__codelineno-0-825"></a><span class="sd">    After calling this method, the available boundaries can be accessed</span>
+<a id="__codelineno-0-826" name="__codelineno-0-826"></a><span class="sd">    via the `available_boundaries` attribute.</span>
+<a id="__codelineno-0-827" name="__codelineno-0-827"></a>
+<a id="__codelineno-0-828" name="__codelineno-0-828"></a><span class="sd">    Examples</span>
+<a id="__codelineno-0-829" name="__codelineno-0-829"></a><span class="sd">    --------</span>
+<a id="__codelineno-0-830" name="__codelineno-0-830"></a><span class="sd">    &gt;&gt;&gt; catalog = DataCatalog()</span>
+<a id="__codelineno-0-831" name="__codelineno-0-831"></a><span class="sd">    &gt;&gt;&gt; catalog.list_clip_boundaries()</span>
+<a id="__codelineno-0-832" name="__codelineno-0-832"></a><span class="sd">    &gt;&gt;&gt; print(catalog.available_boundaries[&quot;states&quot;])</span>
+<a id="__codelineno-0-833" name="__codelineno-0-833"></a><span class="sd">    [&#39;AZ&#39;, &#39;CA&#39;, &#39;CO&#39;, &#39;ID&#39;, &#39;MT&#39;, &#39;NV&#39;, &#39;NM&#39;, &#39;OR&#39;, &#39;UT&#39;, &#39;WA&#39;, &#39;WY&#39;]</span>
 <a id="__codelineno-0-834" name="__codelineno-0-834"></a>
-<a id="__codelineno-0-835" name="__codelineno-0-835"></a>    <span class="k">for</span> <span class="n">category</span><span class="p">,</span> <span class="n">lookups</span> <span class="ow">in</span> <span class="n">boundary_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-<a id="__codelineno-0-836" name="__codelineno-0-836"></a>        <span class="c1"># Skip special categories that don&#39;t represent actual boundary data</span>
-<a id="__codelineno-0-837" name="__codelineno-0-837"></a>        <span class="k">if</span> <span class="n">category</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;lat/lon&quot;</span><span class="p">]:</span>
-<a id="__codelineno-0-838" name="__codelineno-0-838"></a>            <span class="k">continue</span>
-<a id="__codelineno-0-839" name="__codelineno-0-839"></a>
-<a id="__codelineno-0-840" name="__codelineno-0-840"></a>        <span class="c1"># Convert keys to a sorted list for better presentation</span>
-<a id="__codelineno-0-841" name="__codelineno-0-841"></a>        <span class="n">boundary_keys</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">lookups</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
-<a id="__codelineno-0-842" name="__codelineno-0-842"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">available_boundaries</span><span class="p">[</span><span class="n">category</span><span class="p">]</span> <span class="o">=</span> <span class="n">boundary_keys</span>
-<a id="__codelineno-0-843" name="__codelineno-0-843"></a>
-<a id="__codelineno-0-844" name="__codelineno-0-844"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">available_boundaries</span>
+<a id="__codelineno-0-835" name="__codelineno-0-835"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-836" name="__codelineno-0-836"></a>    <span class="n">boundary_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">boundaries</span><span class="o">.</span><span class="n">boundary_dict</span><span class="p">()</span>
+<a id="__codelineno-0-837" name="__codelineno-0-837"></a>
+<a id="__codelineno-0-838" name="__codelineno-0-838"></a>    <span class="c1"># Create a clean dictionary with boundary categories and their available options</span>
+<a id="__codelineno-0-839" name="__codelineno-0-839"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">available_boundaries</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-0-840" name="__codelineno-0-840"></a>
+<a id="__codelineno-0-841" name="__codelineno-0-841"></a>    <span class="k">for</span> <span class="n">category</span><span class="p">,</span> <span class="n">lookups</span> <span class="ow">in</span> <span class="n">boundary_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-0-842" name="__codelineno-0-842"></a>        <span class="c1"># Skip special categories that don&#39;t represent actual boundary data</span>
+<a id="__codelineno-0-843" name="__codelineno-0-843"></a>        <span class="k">if</span> <span class="n">category</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;lat/lon&quot;</span><span class="p">]:</span>
+<a id="__codelineno-0-844" name="__codelineno-0-844"></a>            <span class="k">continue</span>
+<a id="__codelineno-0-845" name="__codelineno-0-845"></a>
+<a id="__codelineno-0-846" name="__codelineno-0-846"></a>        <span class="c1"># Convert keys to a sorted list for better presentation</span>
+<a id="__codelineno-0-847" name="__codelineno-0-847"></a>        <span class="n">boundary_keys</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">lookups</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+<a id="__codelineno-0-848" name="__codelineno-0-848"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">available_boundaries</span><span class="p">[</span><span class="n">category</span><span class="p">]</span> <span class="o">=</span> <span class="n">boundary_keys</span>
+<a id="__codelineno-0-849" name="__codelineno-0-849"></a>
+<a id="__codelineno-0-850" name="__codelineno-0-850"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">available_boundaries</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -5063,13 +5075,7 @@ categories with many options.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/data_access.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-846">846</a></span>
-<span class="normal"><a href="#__codelineno-0-847">847</a></span>
-<span class="normal"><a href="#__codelineno-0-848">848</a></span>
-<span class="normal"><a href="#__codelineno-0-849">849</a></span>
-<span class="normal"><a href="#__codelineno-0-850">850</a></span>
-<span class="normal"><a href="#__codelineno-0-851">851</a></span>
-<span class="normal"><a href="#__codelineno-0-852">852</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-852">852</a></span>
 <span class="normal"><a href="#__codelineno-0-853">853</a></span>
 <span class="normal"><a href="#__codelineno-0-854">854</a></span>
 <span class="normal"><a href="#__codelineno-0-855">855</a></span>
@@ -5106,50 +5112,56 @@ categories with many options.</p>
 <span class="normal"><a href="#__codelineno-0-886">886</a></span>
 <span class="normal"><a href="#__codelineno-0-887">887</a></span>
 <span class="normal"><a href="#__codelineno-0-888">888</a></span>
-<span class="normal"><a href="#__codelineno-0-889">889</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-846" name="__codelineno-0-846"></a><span class="k">def</span><span class="w"> </span><span class="nf">print_clip_boundaries</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-847" name="__codelineno-0-847"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Print all available boundary options for clipping in a user-friendly format.</span>
-<a id="__codelineno-0-848" name="__codelineno-0-848"></a>
-<a id="__codelineno-0-849" name="__codelineno-0-849"></a><span class="sd">    This method provides a nicely formatted output showing all boundary</span>
-<a id="__codelineno-0-850" name="__codelineno-0-850"></a><span class="sd">    categories and their available options for clipping operations. The</span>
-<a id="__codelineno-0-851" name="__codelineno-0-851"></a><span class="sd">    output is formatted to be readable and includes summarized counts for</span>
-<a id="__codelineno-0-852" name="__codelineno-0-852"></a><span class="sd">    categories with many options.</span>
-<a id="__codelineno-0-853" name="__codelineno-0-853"></a>
-<a id="__codelineno-0-854" name="__codelineno-0-854"></a><span class="sd">    Examples</span>
-<a id="__codelineno-0-855" name="__codelineno-0-855"></a><span class="sd">    --------</span>
-<a id="__codelineno-0-856" name="__codelineno-0-856"></a><span class="sd">    &gt;&gt;&gt; catalog = DataCatalog()</span>
-<a id="__codelineno-0-857" name="__codelineno-0-857"></a><span class="sd">    &gt;&gt;&gt; catalog.print_clip_boundaries()</span>
-<a id="__codelineno-0-858" name="__codelineno-0-858"></a><span class="sd">    Available Boundary Options for Clipping:</span>
-<a id="__codelineno-0-859" name="__codelineno-0-859"></a><span class="sd">    ========================================</span>
-<a id="__codelineno-0-860" name="__codelineno-0-860"></a>
-<a id="__codelineno-0-861" name="__codelineno-0-861"></a><span class="sd">    states:</span>
-<a id="__codelineno-0-862" name="__codelineno-0-862"></a><span class="sd">      - AZ, CA, CO, ID, MT</span>
-<a id="__codelineno-0-863" name="__codelineno-0-863"></a><span class="sd">        ... and 6 more options</span>
-<a id="__codelineno-0-864" name="__codelineno-0-864"></a>
-<a id="__codelineno-0-865" name="__codelineno-0-865"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-866" name="__codelineno-0-866"></a>    <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-867" name="__codelineno-0-867"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">list_clip_boundaries</span><span class="p">()</span>
-<a id="__codelineno-0-868" name="__codelineno-0-868"></a>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-869" name="__codelineno-0-869"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Error accessing boundary data: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-0-870" name="__codelineno-0-870"></a>        <span class="k">return</span>
-<a id="__codelineno-0-871" name="__codelineno-0-871"></a>
-<a id="__codelineno-0-872" name="__codelineno-0-872"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Available Boundary Options for Clipping:&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-873" name="__codelineno-0-873"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">40</span><span class="p">)</span>
-<a id="__codelineno-0-874" name="__codelineno-0-874"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-875" name="__codelineno-0-875"></a>
-<a id="__codelineno-0-876" name="__codelineno-0-876"></a>    <span class="k">for</span> <span class="n">category</span><span class="p">,</span> <span class="n">boundary_list</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">available_boundaries</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-<a id="__codelineno-0-877" name="__codelineno-0-877"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">:&quot;</span><span class="p">,</span> <span class="n">category</span><span class="p">)</span>
-<a id="__codelineno-0-878" name="__codelineno-0-878"></a>
-<a id="__codelineno-0-879" name="__codelineno-0-879"></a>        <span class="c1"># Format the list nicely - wrap long lists</span>
-<a id="__codelineno-0-880" name="__codelineno-0-880"></a>        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">boundary_list</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">5</span><span class="p">:</span>
-<a id="__codelineno-0-881" name="__codelineno-0-881"></a>            <span class="c1"># For short lists, show all on one line</span>
-<a id="__codelineno-0-882" name="__codelineno-0-882"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;  - </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">boundary_list</span><span class="p">))</span>
-<a id="__codelineno-0-883" name="__codelineno-0-883"></a>        <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-884" name="__codelineno-0-884"></a>            <span class="c1"># For longer lists, show first few and count</span>
-<a id="__codelineno-0-885" name="__codelineno-0-885"></a>            <span class="n">displayed</span> <span class="o">=</span> <span class="n">boundary_list</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span>
-<a id="__codelineno-0-886" name="__codelineno-0-886"></a>            <span class="n">remaining</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">boundary_list</span><span class="p">)</span> <span class="o">-</span> <span class="mi">5</span>
-<a id="__codelineno-0-887" name="__codelineno-0-887"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;  - </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">displayed</span><span class="p">))</span>
-<a id="__codelineno-0-888" name="__codelineno-0-888"></a>            <span class="k">if</span> <span class="n">remaining</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-<a id="__codelineno-0-889" name="__codelineno-0-889"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;    ... and </span><span class="si">%d</span><span class="s2"> more options&quot;</span><span class="p">,</span> <span class="n">remaining</span><span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-889">889</a></span>
+<span class="normal"><a href="#__codelineno-0-890">890</a></span>
+<span class="normal"><a href="#__codelineno-0-891">891</a></span>
+<span class="normal"><a href="#__codelineno-0-892">892</a></span>
+<span class="normal"><a href="#__codelineno-0-893">893</a></span>
+<span class="normal"><a href="#__codelineno-0-894">894</a></span>
+<span class="normal"><a href="#__codelineno-0-895">895</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-852" name="__codelineno-0-852"></a><span class="k">def</span><span class="w"> </span><span class="nf">print_clip_boundaries</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-853" name="__codelineno-0-853"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Print all available boundary options for clipping in a user-friendly format.</span>
+<a id="__codelineno-0-854" name="__codelineno-0-854"></a>
+<a id="__codelineno-0-855" name="__codelineno-0-855"></a><span class="sd">    This method provides a nicely formatted output showing all boundary</span>
+<a id="__codelineno-0-856" name="__codelineno-0-856"></a><span class="sd">    categories and their available options for clipping operations. The</span>
+<a id="__codelineno-0-857" name="__codelineno-0-857"></a><span class="sd">    output is formatted to be readable and includes summarized counts for</span>
+<a id="__codelineno-0-858" name="__codelineno-0-858"></a><span class="sd">    categories with many options.</span>
+<a id="__codelineno-0-859" name="__codelineno-0-859"></a>
+<a id="__codelineno-0-860" name="__codelineno-0-860"></a><span class="sd">    Examples</span>
+<a id="__codelineno-0-861" name="__codelineno-0-861"></a><span class="sd">    --------</span>
+<a id="__codelineno-0-862" name="__codelineno-0-862"></a><span class="sd">    &gt;&gt;&gt; catalog = DataCatalog()</span>
+<a id="__codelineno-0-863" name="__codelineno-0-863"></a><span class="sd">    &gt;&gt;&gt; catalog.print_clip_boundaries()</span>
+<a id="__codelineno-0-864" name="__codelineno-0-864"></a><span class="sd">    Available Boundary Options for Clipping:</span>
+<a id="__codelineno-0-865" name="__codelineno-0-865"></a><span class="sd">    ========================================</span>
+<a id="__codelineno-0-866" name="__codelineno-0-866"></a>
+<a id="__codelineno-0-867" name="__codelineno-0-867"></a><span class="sd">    states:</span>
+<a id="__codelineno-0-868" name="__codelineno-0-868"></a><span class="sd">      - AZ, CA, CO, ID, MT</span>
+<a id="__codelineno-0-869" name="__codelineno-0-869"></a><span class="sd">        ... and 6 more options</span>
+<a id="__codelineno-0-870" name="__codelineno-0-870"></a>
+<a id="__codelineno-0-871" name="__codelineno-0-871"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-872" name="__codelineno-0-872"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-873" name="__codelineno-0-873"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">list_clip_boundaries</span><span class="p">()</span>
+<a id="__codelineno-0-874" name="__codelineno-0-874"></a>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-875" name="__codelineno-0-875"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Error accessing boundary data: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-876" name="__codelineno-0-876"></a>        <span class="k">return</span>
+<a id="__codelineno-0-877" name="__codelineno-0-877"></a>
+<a id="__codelineno-0-878" name="__codelineno-0-878"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Available Boundary Options for Clipping:&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-879" name="__codelineno-0-879"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">40</span><span class="p">)</span>
+<a id="__codelineno-0-880" name="__codelineno-0-880"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-881" name="__codelineno-0-881"></a>
+<a id="__codelineno-0-882" name="__codelineno-0-882"></a>    <span class="k">for</span> <span class="n">category</span><span class="p">,</span> <span class="n">boundary_list</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">available_boundaries</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-0-883" name="__codelineno-0-883"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">:&quot;</span><span class="p">,</span> <span class="n">category</span><span class="p">)</span>
+<a id="__codelineno-0-884" name="__codelineno-0-884"></a>
+<a id="__codelineno-0-885" name="__codelineno-0-885"></a>        <span class="c1"># Format the list nicely - wrap long lists</span>
+<a id="__codelineno-0-886" name="__codelineno-0-886"></a>        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">boundary_list</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">5</span><span class="p">:</span>
+<a id="__codelineno-0-887" name="__codelineno-0-887"></a>            <span class="c1"># For short lists, show all on one line</span>
+<a id="__codelineno-0-888" name="__codelineno-0-888"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;  - </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">boundary_list</span><span class="p">))</span>
+<a id="__codelineno-0-889" name="__codelineno-0-889"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-890" name="__codelineno-0-890"></a>            <span class="c1"># For longer lists, show first few and count</span>
+<a id="__codelineno-0-891" name="__codelineno-0-891"></a>            <span class="n">displayed</span> <span class="o">=</span> <span class="n">boundary_list</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span>
+<a id="__codelineno-0-892" name="__codelineno-0-892"></a>            <span class="n">remaining</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">boundary_list</span><span class="p">)</span> <span class="o">-</span> <span class="mi">5</span>
+<a id="__codelineno-0-893" name="__codelineno-0-893"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;  - </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">displayed</span><span class="p">))</span>
+<a id="__codelineno-0-894" name="__codelineno-0-894"></a>            <span class="k">if</span> <span class="n">remaining</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-0-895" name="__codelineno-0-895"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;    ... and </span><span class="si">%d</span><span class="s2"> more options&quot;</span><span class="p">,</span> <span class="n">remaining</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -5176,31 +5188,31 @@ This method is maintained for backward compatibility.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/data_access.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-891">891</a></span>
-<span class="normal"><a href="#__codelineno-0-892">892</a></span>
-<span class="normal"><a href="#__codelineno-0-893">893</a></span>
-<span class="normal"><a href="#__codelineno-0-894">894</a></span>
-<span class="normal"><a href="#__codelineno-0-895">895</a></span>
-<span class="normal"><a href="#__codelineno-0-896">896</a></span>
-<span class="normal"><a href="#__codelineno-0-897">897</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-897">897</a></span>
 <span class="normal"><a href="#__codelineno-0-898">898</a></span>
 <span class="normal"><a href="#__codelineno-0-899">899</a></span>
 <span class="normal"><a href="#__codelineno-0-900">900</a></span>
 <span class="normal"><a href="#__codelineno-0-901">901</a></span>
 <span class="normal"><a href="#__codelineno-0-902">902</a></span>
-<span class="normal"><a href="#__codelineno-0-903">903</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-891" name="__codelineno-0-891"></a><span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-892" name="__codelineno-0-892"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Reset the DataCatalog instance to its initial state.</span>
-<a id="__codelineno-0-893" name="__codelineno-0-893"></a>
-<a id="__codelineno-0-894" name="__codelineno-0-894"></a><span class="sd">    This method clears any deprecated mutable state and resets the instance</span>
-<a id="__codelineno-0-895" name="__codelineno-0-895"></a><span class="sd">    to its original state. The catalogs themselves remain loaded and available.</span>
-<a id="__codelineno-0-896" name="__codelineno-0-896"></a>
-<a id="__codelineno-0-897" name="__codelineno-0-897"></a><span class="sd">    Note: With thread-safe design, there is minimal mutable state to reset.</span>
-<a id="__codelineno-0-898" name="__codelineno-0-898"></a><span class="sd">    This method is maintained for backward compatibility.</span>
+<span class="normal"><a href="#__codelineno-0-903">903</a></span>
+<span class="normal"><a href="#__codelineno-0-904">904</a></span>
+<span class="normal"><a href="#__codelineno-0-905">905</a></span>
+<span class="normal"><a href="#__codelineno-0-906">906</a></span>
+<span class="normal"><a href="#__codelineno-0-907">907</a></span>
+<span class="normal"><a href="#__codelineno-0-908">908</a></span>
+<span class="normal"><a href="#__codelineno-0-909">909</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-897" name="__codelineno-0-897"></a><span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-898" name="__codelineno-0-898"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Reset the DataCatalog instance to its initial state.</span>
 <a id="__codelineno-0-899" name="__codelineno-0-899"></a>
-<a id="__codelineno-0-900" name="__codelineno-0-900"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-901" name="__codelineno-0-901"></a>    <span class="c1"># Clear deprecated _catalog_key if it exists (backward compatibility)</span>
-<a id="__codelineno-0-902" name="__codelineno-0-902"></a>    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_catalog_key&quot;</span><span class="p">):</span>
-<a id="__codelineno-0-903" name="__codelineno-0-903"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_catalog_key</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-900" name="__codelineno-0-900"></a><span class="sd">    This method clears any deprecated mutable state and resets the instance</span>
+<a id="__codelineno-0-901" name="__codelineno-0-901"></a><span class="sd">    to its original state. The catalogs themselves remain loaded and available.</span>
+<a id="__codelineno-0-902" name="__codelineno-0-902"></a>
+<a id="__codelineno-0-903" name="__codelineno-0-903"></a><span class="sd">    Note: With thread-safe design, there is minimal mutable state to reset.</span>
+<a id="__codelineno-0-904" name="__codelineno-0-904"></a><span class="sd">    This method is maintained for backward compatibility.</span>
+<a id="__codelineno-0-905" name="__codelineno-0-905"></a>
+<a id="__codelineno-0-906" name="__codelineno-0-906"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-907" name="__codelineno-0-907"></a>    <span class="c1"># Clear deprecated _catalog_key if it exists (backward compatibility)</span>
+<a id="__codelineno-0-908" name="__codelineno-0-908"></a>    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_catalog_key&quot;</span><span class="p">):</span>
+<a id="__codelineno-0-909" name="__codelineno-0-909"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_catalog_key</span> <span class="o">=</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
