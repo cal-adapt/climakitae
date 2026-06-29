@@ -1421,7 +1421,6 @@ class MetricCalc(DataProcessor):
         )
         if not compute_conf_int:
             nan_like = np.full_like(return_data, np.nan, dtype=float)
-            logger.info(nan_like)
             return return_data, nan_like, nan_like, p_value
 
         ci_lower, ci_upper = self._conf_int(
