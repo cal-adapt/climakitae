@@ -395,6 +395,60 @@ class TestXMYClass:
             )
 
     @pytest.mark.integration
+    def test_init_with_reanalysis(self):
+        """Check class initialization with reanalysis flag."""
+        # Use valid station name
+        lat = 33.56
+        lon = -117.81
+        start_year = 1981
+        end_year = 2009
+        extreme = "hot"
+
+        # Initialize XMY object
+        xmy = shock_XMY(
+            extreme=extreme,
+            start_year=start_year,
+            end_year=end_year,
+            latitude=lat,
+            longitude=lon,
+            reanalysis=True,
+        )
+        assert xmy.use_era5 == True
+
+        # Initialize XMY object
+        xmy = shock_XMY(
+            extreme=extreme,
+            start_year=start_year,
+            end_year=end_year,
+            latitude=lat,
+            longitude=lon,
+        )
+        assert xmy.use_era5 == False
+
+    @pytest.mark.integration
+    def test_init_with_reanalysis_value_error(self):
+        """Check that invalid year values are caught."""
+        # Use valid station name
+        lat = 33.56
+        lon = -117.81
+        start_year = 1980
+        end_year = 2020
+        extreme = "hot"
+
+        with pytest.raises(
+            ValueError,
+            match="Valid start and end years for ERA5 reanalysis must be between 1981 and 2019. User provided start year 1980 and end year 2020",
+        ):
+            xmy = shock_XMY(
+                extreme=extreme,
+                start_year=start_year,
+                end_year=end_year,
+                latitude=lat,
+                longitude=lon,
+                reanalysis=True,
+            )
+
+    @pytest.mark.integration
     def test__fetch_raw_variable_time(self):
         """Fetch a single variable via _fetch_raw_variable (time mode)."""
         lat = 33.56
