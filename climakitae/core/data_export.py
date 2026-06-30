@@ -1680,12 +1680,12 @@ def write_tmy_file(
                     "Air Temperature at 2m",
                     "Dew point temperature",
                     "Relative humidity",
-                    "Wind speed at 10m",
-                    "Wind direction at 10m",
                     "Instantaneous downwelling shortwave flux at bottom",
                     "Shortwave surface downward direct normal irradiance",
                     "Shortwave surface downward diffuse irradiance",
                     "Instantaneous downwelling longwave flux at bottom",
+                    "Wind speed at 10m",
+                    "Wind direction at 10m",
                     "Surface Pressure",
                 ]
                 tmy_data_cols_with_units = [
