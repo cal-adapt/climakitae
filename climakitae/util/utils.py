@@ -2025,3 +2025,63 @@ def _determine_is_complete_wl(
         return False
 
     return True
+
+
+def add_crs_to_downscaled_data(
+    data: xr.DataArray | xr.Dataset,
+) -> Union[xr.DataArray, xr.Dataset]:
+    """
+    Attach a coordinate references system (CRS) to WRF or LOCA2 data. Rioxarray is used for
+    CRS management.
+
+    If no CRS is found in the dataset, first check for the Lambert_Conformal coordinate
+    to indicate that the dataset is on the conic WRF projection. If that coordinate is missing,
+    fall back to a geographic coordinate system (WGS84). If a CRS is already attached to the
+    input data, the data is returned unaltered.
+
+    Parameters
+    ----------
+    data : xr.DataArray | xr.Dataset
+        A WRF or LOCA2 array, with or without a CRS
+
+    Returns
+    -------
+    xr.DataArray | xr.Dataset
+        The input dataset with a CRS attached
+    """
+    # Ensure data has CRS set
+    if data.rio.crs is None:
+        # Check if this is WRF data with Lambert Conformal projection
+        if "Lambert_Conformal" in data.coords:
+            # WRF data: try spatial_ref attribute first, then build from CF attrs
+            spatial_ref = data["Lambert_Conformal"].attrs.get("spatial_ref")
+            if spatial_ref:
+                data = data.rio.write_crs(spatial_ref)
+            else:
+                # Build CRS from CF convention attributes
+                attrs = data["Lambert_Conformal"].attrs
+                try:
+                    crs = pyproj.CRS.from_cf(
+                        {
+                            "grid_mapping_name": attrs["grid_mapping_name"],
+                            "latitude_of_projection_origin": attrs[
+                                "latitude_of_projection_origin"
+                            ],
+                            "longitude_of_central_meridian": attrs[
+                                "longitude_of_central_meridian"
+                            ],
+                            "standard_parallel": attrs["standard_parallel"],
+                            "earth_radius": attrs["earth_radius"],
+                        }
+                    )
+                    data = data.rio.write_crs(crs)
+                except KeyError as e:
+                    raise ValueError(
+                        f"Lambert_Conformal coordinate found but missing required "
+                        f"CF convention attribute: {e}"
+                    )
+        else:
+            # LOCA2 or other lat/lon data: use WGS84/EPSG:4326
+            data = data.rio.write_crs("epsg:4326")
+
+    return data
