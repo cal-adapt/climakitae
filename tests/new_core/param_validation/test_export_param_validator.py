@@ -5,6 +5,7 @@ This module contains comprehensive unit tests for the export parameter validatio
 functions that validate and normalize parameters for the Export processor.
 
 Tests cover:
+
 - Main validate_export_param function with various input types
 - Filename parameter validation (type, empty, invalid characters)
 - File format parameter validation with auto-correction
@@ -216,7 +217,7 @@ class TestValidateFileFormatParam:
     def test_format_auto_correction(self, typo_format, expected_corrected, caplog):
         """Test that common typos and variations are auto-corrected."""
         params = {"file_format": typo_format}
-        with caplog.at_level(logging.INFO):
+        with caplog.at_level(logging.INFO, logger="climakitae"):
             _validate_file_format_param(params)
         # Check that the params were updated in place
         assert params["file_format"] == expected_corrected

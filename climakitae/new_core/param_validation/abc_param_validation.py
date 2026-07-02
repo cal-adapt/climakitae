@@ -44,7 +44,7 @@ Examples
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 from climakitae.core.constants import PROC_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
@@ -60,7 +60,9 @@ _PROCESSOR_VALIDATOR_REGISTRY = {}
 logger = logging.getLogger(__name__)
 
 
-def register_catalog_validator(name: str):
+def register_catalog_validator(
+    name: str,
+) -> Callable[["Type[ParameterValidator]"], "Type[ParameterValidator]"]:
     """Decorator to register a catalog validator class in the global registry.
 
     This decorator allows validator classes to be registered for use with
@@ -96,14 +98,16 @@ def register_catalog_validator(name: str):
 
     """
 
-    def decorator(cls):
+    def decorator(cls: Type[ParameterValidator]) -> Type[ParameterValidator]:
         _CATALOG_VALIDATOR_REGISTRY[name] = cls
         return cls
 
     return decorator
 
 
-def register_processor_validator(name: str):
+def register_processor_validator(
+    name: str,
+) -> Callable[["Type[ParameterValidator]"], "Type[ParameterValidator]"]:
     """Decorator to register a processor validator function in the global registry.
 
     This decorator allows processor validation functions to be registered for
@@ -141,7 +145,7 @@ def register_processor_validator(name: str):
 
     """
 
-    def decorator(cls):
+    def decorator(cls: Type[ParameterValidator]) -> Type[ParameterValidator]:
         _PROCESSOR_VALIDATOR_REGISTRY[name] = cls
         return cls
 
@@ -624,7 +628,7 @@ class ParameterValidator(ABC):
             k: v for k, v in self.all_catalog_keys.items() if v is not UNSET
         }
 
-    def load_catalog_df(self):
+    def load_catalog_df(self) -> None:
         """Load the data catalog DataFrame and assign to instance attribute.
 
         Creates a DataCatalog instance and extracts its catalog DataFrame

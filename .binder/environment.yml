@@ -1,0 +1,63 @@
+name: climakitae-binder
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  
+  # Core scientific computing
+  - numpy
+  - scipy
+  - pandas
+  - xarray
+  - dask
+  - dask-core
+  - netcdf4
+  
+  # Geospatial
+  - geopandas
+  - shapely
+  - pyproj
+  - cartopy
+  - fiona
+  
+  # Climate/data tools
+  - cftime
+  - h5netcdf
+  - zarr
+  
+  # Intake ecosystem
+  - intake
+  - intake-xarray
+  
+  # Visualization
+  - matplotlib
+  - seaborn
+  - bokeh
+  
+  # Jupyter environment
+  - jupyterlab
+  - notebook
+  - ipython
+  - ipykernel
+  - ipywidgets
+  
+  # Documentation tools
+  - mkdocs
+  - mkdocs-material
+  - mkdocstrings-python
+  - griffe
+  - mike
+  
+  # Development & utilities
+  - git
+  - pip
+  - requests
+  
+  # Testing
+  - pytest
+  - pytest-xdist
+  
+  # Code quality
+  - black
+  - isort
+  - flake8

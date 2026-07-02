@@ -328,7 +328,7 @@ class WarmingLevel(DataProcessor):
 
         return context
 
-    def set_data_accessor(self, catalog: DataCatalog):
+    def set_data_accessor(self, catalog: DataCatalog) -> None:
         """
         Set data accessor for retrieving warming level information.
 

@@ -190,8 +190,11 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
     grouped_duration = one_in_x_config.get("grouped_duration", UNSET)
     block_size = one_in_x_config.get("block_size", 1)
     goodness_of_fit_test = one_in_x_config.get("goodness_of_fit_test", True)
+    alpha = one_in_x_config.get("alpha", UNSET)
+    bootstrap_runs = one_in_x_config.get("bootstrap_runs", 100)
     print_goodness_of_fit = one_in_x_config.get("print_goodness_of_fit", True)
     variable_preprocessing = one_in_x_config.get("variable_preprocessing", {})
+    check_ess = one_in_x_config.get("check_ess", True)
 
     # Validate return_periods (required parameter)
     if return_periods is None and return_values is None:
@@ -327,10 +330,27 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
         )
         return False
 
+    # Validate confidence interval parameters alpha and bootstrap_runs
+    if alpha is not UNSET:
+        if not isinstance(alpha, float) or alpha <= 0 or alpha >= 1:
+            logger.warning(
+                "\n\nalpha must be a positive float less than 1. "
+                "\nPlease check the configuration."
+            )
+            return False
+
+    if not isinstance(bootstrap_runs, int) or bootstrap_runs <= 0:
+        logger.warning(
+            "\n\nbootstrap_runs must be a positive integer. "
+            "\nPlease check the configuration."
+        )
+        return False
+
     # Validate boolean parameters
     for param_name, param_value in [
         ("goodness_of_fit_test", goodness_of_fit_test),
         ("print_goodness_of_fit", print_goodness_of_fit),
+        ("check_ess", check_ess),
     ]:
         if not isinstance(param_value, bool):
             logger.warning(

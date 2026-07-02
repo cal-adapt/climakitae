@@ -86,7 +86,7 @@ def _moisture_dampening_coeff(m: xr.DataArray) -> xr.DataArray:
     units="[0 to 100]",
     source="builtin",
 )
-def calc_fosberg_fire_weather_index(ds):
+def calc_fosberg_fire_weather_index(ds) -> xr.Dataset:
     """Calculate the Fosberg Fire Weather Index (FFWI).
 
     Parameters

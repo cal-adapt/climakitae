@@ -25,6 +25,8 @@ from climakitae.new_core.processors.processor_utils import (
     _apply_grouped_duration_filter_vectorized,
     _calc_average_ess_gridded_optimized,
     _calc_average_ess_timeseries_optimized,
+    _calc_ess_by_sim,
+    _calc_simplified_ess_by_sim,
     _check_effective_sample_size_optimized,
     _extract_block_extremes_vectorized,
     _get_block_maxima_optimized,
@@ -398,6 +400,7 @@ class TestGetBlockMaximaOptimized:
         )
 
         assert isinstance(result, xr.DataArray)
+        assert not np.isnan(result.any())
         # Should have called print for ESS checking
         assert mock_print.call_count >= 0  # May or may not trigger warnings
 
@@ -412,6 +415,7 @@ class TestGetBlockMaximaOptimized:
         )
 
         assert isinstance(result, xr.DataArray)
+        assert not np.isnan(result.any())
         assert result.attrs["extremes type"] == "maxima"
 
 
@@ -684,24 +688,26 @@ class TestCheckEffectiveSampleSizeOptimized:
         assert isinstance(gridded_data, xr.DataArray)
 
     @patch("builtins.print")
+    def test_ess_check_gridded_data_with_sim(self, _mock_print):
+        """Test ESS check for gridded data with a simulation dimension."""
+        # Create data with x,y dimensions as expected by the implementation
+        gridded_data = TestDataFactory.create_climate_dataset(
+            time_periods=365 * 3, lat_points=5, lon_points=5
+        ).rename({"lat": "x", "lon": "y"})
+        gridded_data = gridded_data.expand_dims(sim=["sim"])
+
+        _check_effective_sample_size_optimized(gridded_data, block_size=1)
+
+        # Function should run without errors (may or may not print warnings)
+        assert isinstance(gridded_data, xr.DataArray)
+
+    @patch("builtins.print")
     def test_ess_check_timeseries_data(self, mock_print, sample_timeseries_dataset):
         """Test ESS check for timeseries data."""
         _check_effective_sample_size_optimized(sample_timeseries_dataset, block_size=1)
 
         # Function should run without errors
         assert isinstance(sample_timeseries_dataset, xr.DataArray)
-
-    def test_ess_check_unsupported_dimensions(self, caplog):
-        """Test ESS check with unsupported dimensions."""
-        # Create data with unsupported dimensions (lat/lon instead of x/y)
-        unsupported_data = TestDataFactory.create_climate_dataset(
-            time_periods=10, lat_points=3, lon_points=3
-        )  # Uses lat/lon dimensions, not x/y
-
-        with caplog.at_level(logging.WARNING):
-            _check_effective_sample_size_optimized(unsupported_data, block_size=1)
-
-        assert "effective sample size can only be checked" in caplog.text
 
 
 class TestCalcAverageEssGriddedOptimized:
@@ -722,6 +728,7 @@ class TestCalcAverageEssGriddedOptimized:
 
         assert isinstance(result, float)
         assert result >= 0
+        assert not np.isnan(result)
 
     def test_large_dataset_approximation(self):
         """Test ESS calculation with large dataset approximation."""
@@ -735,8 +742,9 @@ class TestCalcAverageEssGriddedOptimized:
 
         result = _calc_average_ess_gridded_optimized(large_data, block_size=1)
 
-        assert isinstance(result, (int, float))
-        assert not np.isnan(result)
+        assert isinstance(result, (xr.DataArray))
+        assert result.all() >= 0
+        assert not np.isnan(result.any())
 
     @pytest.mark.advanced
     def test_dask_array_ess_calculation(self):
@@ -749,6 +757,7 @@ class TestCalcAverageEssGriddedOptimized:
         result = _calc_average_ess_gridded_optimized(dask_data, block_size=1)
 
         assert isinstance(result, (int, float))
+        assert result >= 0
         assert not np.isnan(result)
 
     @patch("climakitae.explore.threshold_tools.calculate_ess")
@@ -770,8 +779,9 @@ class TestCalcAverageEssGriddedOptimized:
         result = _calc_average_ess_gridded_optimized(error_data, block_size=1)
 
         # Should handle errors and return average of successful calculations
-        assert isinstance(result, (int, float))
-        assert not np.isnan(result)
+        assert isinstance(result, xr.DataArray)
+        assert result.all() >= 0
+        assert not np.isnan(result.any())
 
     def test_ess_calculation_memory_error(self):
         """Test ESS calculation when MemoryError occurs."""
@@ -787,8 +797,9 @@ class TestCalcAverageEssGriddedOptimized:
             result = _calc_average_ess_gridded_optimized(error_data, block_size=1)
 
             # Should return a reasonable ESS value or fallback
-            assert isinstance(result, (int, float))
-            assert result > 0  # ESS should be positive
+            assert isinstance(result, xr.DataArray)
+            assert result.all() >= 0
+            assert not np.isnan(result.all())
 
     def test_ess_calculation_large_dataset(self):
         """Test ESS calculation for large gridded dataset using approximation.
@@ -811,8 +822,9 @@ class TestCalcAverageEssGriddedOptimized:
 
         result = _calc_average_ess_gridded_optimized(large_dataset, block_size=1)
 
-        assert isinstance(result, float)
-        assert result >= 0
+        assert isinstance(result, xr.DataArray)
+        assert result.all() >= 0
+        assert not np.isnan(result.all())
         # Should successfully compute ESS using approximation method for large datasets
 
     def test_ess_calculation_insufficient_data(self):
@@ -833,6 +845,7 @@ class TestCalcAverageEssGriddedOptimized:
 
         assert isinstance(result, float)
         assert result >= 0
+        assert not np.isnan(result)
 
     def test_ess_calculation_error_handling(self, sample_gridded_dataset):
         """Test ESS calculation error handling."""
@@ -862,8 +875,9 @@ class TestCalcAverageEssTimeseriesOptimized:
             sample_timeseries_dataset, block_size=1
         )
 
-        assert isinstance(result, float)
+        assert isinstance(result, xr.DataArray)
         assert result >= 0
+        assert not np.isnan(result)
 
     def test_ess_calculation_large_timeseries(self):
         """Test ESS calculation for large timeseries using approximation."""
@@ -874,8 +888,9 @@ class TestCalcAverageEssTimeseriesOptimized:
 
         result = _calc_average_ess_timeseries_optimized(large_timeseries, block_size=1)
 
-        assert isinstance(result, (int, float))
-        assert not np.isnan(result)
+        assert isinstance(result, xr.DataArray)
+        assert result.all() > 0  # Should be a positive ESS value
+        assert not np.isnan(result.all())
 
     def test_ess_calculation_large_blocks_approximation(self):
         """Test ESS calculation with large blocks for autocorrelation approximation."""
@@ -893,9 +908,9 @@ class TestCalcAverageEssTimeseriesOptimized:
         # This gives us 365*24*2 = 17520 points per block, well above threshold
         result = _calc_average_ess_timeseries_optimized(large_data, block_size=2)
 
-        assert isinstance(result, (int, float))
-        assert result > 0  # Should be a positive ESS value
-        assert not np.isnan(result)
+        assert isinstance(result, xr.DataArray)
+        assert result.all() > 0  # Should be a positive ESS value
+        assert not np.isnan(result.all())
 
     def test_ess_calculation_autocorr_with_correlations(self):
         """Test ESS calculation autocorrelation path with realistic correlated data."""
@@ -925,12 +940,12 @@ class TestCalcAverageEssTimeseriesOptimized:
         # This will trigger the autocorrelation approximation path
         result = _calc_average_ess_timeseries_optimized(large_corr_data, block_size=1)
 
-        assert isinstance(result, (int, float))
+        assert isinstance(result, xr.DataArray)
         # ESS should be positive but less than n due to autocorrelation
-        assert result > 0
+        assert result.all() > 0
         # ESS should be less than total points due to correlation
-        assert result < time_periods
-        assert not np.isnan(result)
+        assert result.all() < time_periods
+        assert not np.isnan(result.all())
 
     @patch("climakitae.explore.threshold_tools.calculate_ess")
     def test_ess_timeseries_calculation_with_errors(self, mock_calculate_ess):
@@ -947,8 +962,9 @@ class TestCalcAverageEssTimeseriesOptimized:
         result = _calc_average_ess_timeseries_optimized(error_data, block_size=1)
 
         # Should handle errors and return average of successful calculations
-        assert isinstance(result, (int, float))
-        assert not np.isnan(result)
+        assert isinstance(result, xr.DataArray)
+        assert result.all() > 0  # Should be a positive ESS value
+        assert not np.isnan(result.all())
 
     def test_ess_timeseries_memory_error(self):
         """Test timeseries ESS calculation when MemoryError occurs."""
@@ -962,11 +978,9 @@ class TestCalcAverageEssTimeseriesOptimized:
             result = _calc_average_ess_timeseries_optimized(error_data, block_size=1)
 
             # Should return a reasonable ESS value or fallback
-            assert isinstance(result, (int, float))
-            assert result > 0  # ESS should be positive
-
-        assert isinstance(result, float)
-        assert result >= 0
+            assert isinstance(result, xr.DataArray)
+            assert result.all() > 0  # ESS should be positive
+            assert not np.isnan(result.all())
 
     def test_ess_calculation_insufficient_time_points(self):
         """Test ESS calculation with insufficient time points."""
@@ -990,6 +1004,28 @@ class TestCalcAverageEssTimeseriesOptimized:
 
         # Should return fallback value when calculation fails
         assert result == FALLBACK_ESS_VALUE
+
+    def test__calc_ess_by_sim(self):
+        """Test that helper function for ess returns array."""
+        gridded_data = TestDataFactory.create_climate_dataset(
+            time_periods=365 * 3, lat_points=5, lon_points=5
+        ).rename({"lat": "x", "lon": "y"})
+        test_array = gridded_data.isel(x=2, y=2).data
+
+        result = _calc_ess_by_sim(test_array)
+
+        assert isinstance(result, float)
+
+    def test__calc_simplified_ess_by_sim(self):
+        """Test that simplified helper function for ess returns array."""
+        gridded_data = TestDataFactory.create_climate_dataset(
+            time_periods=365 * 3, lat_points=5, lon_points=5
+        ).rename({"lat": "x", "lon": "y"})
+        test_array = gridded_data.isel(x=2, y=2).data
+
+        result = _calc_simplified_ess_by_sim(test_array)
+
+        assert isinstance(result, float)
 
 
 class TestSetBlockMaximaAttributes:

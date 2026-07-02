@@ -46,43 +46,37 @@ class TestExportProfile:
     def setup_method(self):
         """Set up test fixtures."""
         # Create DataFrame with MultiIndex columns
-        hours = list(range(1, 25))
         simulations = ["sim1", "sim2"]
-        multi_cols = pd.MultiIndex.from_product(
-            [hours, simulations], names=["Hour", "Simulation"]
-        )
         self.multi_df = pd.DataFrame(
-            np.random.rand(365, len(multi_cols)),
-            index=range(1, 366),
-            columns=multi_cols,
+            np.random.rand(8760, len(simulations)),
+            index=range(1, 8761),
+            columns=simulations,
         )
 
         # Create DataFrame with MultiIndex columns and warming levels
-        hours = list(range(1, 25))
         simulations = ["sim1", "sim2"]
         global_warming_levels = ["WL_1.5", "WL_2.0"]
         multi_cols = pd.MultiIndex.from_product(
-            [hours, global_warming_levels, simulations],
-            names=["Hour", "Warming_Level", "Simulation"],
+            [global_warming_levels, simulations],
+            names=["Warming_Level", "Simulation"],
         )
         self.multi_df_gwl = pd.DataFrame(
-            np.random.rand(365, len(multi_cols)),
-            index=range(1, 366),
+            np.random.rand(8760, len(multi_cols)),
+            index=range(1, 8761),
             columns=multi_cols,
         )
 
         # Create DataFrame with invalid MultiIndex
-        hours = list(range(1, 25))
         simulations = ["sim1", "sim2"]
         global_warming_levels = ["WL_1.5", "WL_2.0"]
         extra_dim = ["val1", "val2"]
         multi_cols = pd.MultiIndex.from_product(
-            [hours, global_warming_levels, simulations, extra_dim],
-            names=["Hour", "Warming_Level", "Simulation", "Extra_dim"],
+            [global_warming_levels, simulations, extra_dim],
+            names=["Warming_Level", "Simulation", "Extra_dim"],
         )
         self.multi_df_invalid = pd.DataFrame(
-            np.random.rand(365, len(multi_cols)),
-            index=range(1, 366),
+            np.random.rand(8760, len(multi_cols)),
+            index=range(1, 8761),
             columns=multi_cols,
         )
 
@@ -98,7 +92,7 @@ class TestExportProfile:
                 "variable": variable,
                 "q": q,
                 "warming_level": gwl,
-                "cached_area": cached_area,
+                "location": cached_area,
                 "no_delta": no_delta,
             }
             export_profile_to_csv(
@@ -106,7 +100,7 @@ class TestExportProfile:
                 **profile_selections,
             )
             expected_filename = "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical_30yr_window.csv"
-            to_csv_mock.assert_called_with(expected_filename)
+            to_csv_mock.assert_called_with(expected_filename, index=False)
 
         with patch("pandas.DataFrame.to_csv") as to_csv_mock:
             gwls = [1.5, 2.0]
@@ -114,16 +108,18 @@ class TestExportProfile:
                 "variable": variable,
                 "q": q,
                 "warming_level": gwls,
-                "cached_area": cached_area,
+                "location": cached_area,
                 "no_delta": no_delta,
             }
             export_profile_to_csv(self.multi_df_gwl, **profile_selections)
             expected_filenames = [
                 call(
-                    "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical_30yr_window.csv"
+                    "stdyr_t2_50ptile_sacramento_county_near-future_delta_from_historical_30yr_window.csv",
+                    index=False,
                 ),
                 call(
-                    "stdyr_t2_50ptile_sacramento_county_mid-century_delta_from_historical_30yr_window.csv"
+                    "stdyr_t2_50ptile_sacramento_county_mid-century_delta_from_historical_30yr_window.csv",
+                    index=False,
                 ),
             ]
             to_csv_mock.assert_has_calls(expected_filenames)
@@ -140,7 +136,7 @@ class TestExportProfile:
                 "variable": variable,
                 "q": q,
                 "warming_level": gwl,
-                "cached_area": cached_area,
+                "location": cached_area,
                 "no_delta": no_delta,
             }
             export_profile_to_csv(self.multi_df_invalid, **profile_selections)
@@ -496,7 +492,7 @@ class TestChainedExportHelpers:
                         -121.516 + 0.02,
                     ),
                 },
-                "custom station name_34-4041N_121-516W",
+                "34-4041N_121-516W",
             ),
             (
                 {
@@ -982,7 +978,7 @@ class TestCheckStations:
                         -121.516 + 0.02,
                     ),
                 },
-                "custom station name_34-4041N_121-516W",
+                "34-4041N_121-516W",
             ),
             (
                 "",
@@ -1070,7 +1066,7 @@ class TestCheckStations:
         }
         with pytest.raises(
             ValueError,
-            match="If multiple stations are given, and no other location parameters, all must be HadISD stations.",
+            match="All stations must be HadISD stations.",
         ):
             _check_stations("", **invalid_profile_selections)
 
@@ -1085,7 +1081,7 @@ class TestCheckStations:
         }
         with pytest.raises(
             ValueError,
-            match="If multiple stations are given, and no other location parameters, all must be HadISD stations.",
+            match="All stations must be HadISD stations.",
         ):
             _check_stations("", **invalid_profile_selections)
 
@@ -1099,6 +1095,6 @@ class TestCheckStations:
         }
         with pytest.raises(
             ValueError,
-            match="If a custom station name is given, and no cached area is given, its latitude and longitude must also be provided.",
+            match="Station must be a HadISD station.",
         ):
             _check_stations("", **invalid_profile_selections)

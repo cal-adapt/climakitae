@@ -16,6 +16,7 @@ from climakitae.util.utils import (  # stack_sims_across_locs, # TODO: Uncomment
     _get_cat_subset,
     _get_scenario_from_selections,
     _package_file_path,
+    add_crs_to_downscaled_data,
     add_dummy_time_to_wl,
     area_average,
     clip_gpd_to_shapefile,
@@ -1321,6 +1322,43 @@ class TestUtils:
             # Verify that it returns all SSPs and Historical Climate for Warming Level approach
             assert scenario_ssp == ["SSP 2-4.5", "SSP 3-7.0", "SSP 5-8.5"]
             assert scenario_historical == ["Historical Climate"]
+
+    def test_add_crs_to_downscaled_data(self):
+        """Test that CRS is correctly added to dataset depending on its attributes."""
+        # Set up test dataset with no CRS information
+        test_data = xr.Dataset(
+            {"temp": (["time", "y", "x"], np.random.rand(10, 5, 5))},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=10),
+                "y": np.linspace(32, 42, 5),
+                "x": np.linspace(-124, -114, 5),
+            },
+        )
+
+        data_with_crs = add_crs_to_downscaled_data(test_data)
+        assert test_data.rio.crs is None
+        assert data_with_crs is not None
+        assert data_with_crs.rio.crs == "EPSG:4326"
+
+        # Set up test dataset with WRF projection attributes
+        test_data = xr.Dataset(
+            {"temp": (["time", "y", "x"], np.random.rand(10, 5, 5))},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=10),
+                "y": np.linspace(32, 42, 5),
+                "x": np.linspace(-124, -114, 5),
+                "Lambert_Conformal": np.array(1),
+            },
+        )
+        test_data.Lambert_Conformal.attrs = {
+            "earth_radius": 6370000,
+            "grid_mapping_name": "lambert_conformal_conic",
+            "latitude_of_projection_origin": 38.0,
+            "longitude_of_central_meridian": -70.0,
+            "standard_parallel": [30.0, 60.0],
+        }
+        data_with_crs = add_crs_to_downscaled_data(test_data)
+        assert data_with_crs.rio.crs.to_dict()["proj"] == "lcc"
 
 
 class TestReprojectData:

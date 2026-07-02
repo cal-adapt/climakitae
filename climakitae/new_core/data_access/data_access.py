@@ -54,7 +54,7 @@ from climakitae.core.paths import (
 )
 from climakitae.new_core.data_access.boundaries import Boundaries
 from climakitae.new_core.data_access.infrastructure_layers import InfrastructureLayers
-from climakitae.util.utils import read_csv_file
+from climakitae.util.utils import read_csv_file, add_crs_to_downscaled_data
 
 
 class DataCatalog(dict):
@@ -326,7 +326,7 @@ class DataCatalog(dict):
         return self._infrastructure
 
     @property
-    def derived_registry(self):
+    def derived_registry(self) -> "DerivedVariableRegistry":
         """Access the derived variable registry.
 
         The registry contains definitions for derived variables that can be
@@ -764,6 +764,12 @@ class DataCatalog(dict):
                     "Derived-variable post-retrieval metadata fallback failed",
                     exc_info=True,
                 )
+
+        # Not all cadcat datasets have CRS attached. If CRS is not found, it will be added here.
+        # This will also add a CRS to derived datasets that could not copy spatial metadata
+        if effective_key == CATALOG_CADCAT:
+            for key, ds in result.items():
+                result[key] = add_crs_to_downscaled_data(ds)
 
         return result
 

@@ -48,7 +48,10 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 from climakitae.new_core.param_validation.param_validation_tools import (
     _get_closest_options,
 )
-from climakitae.new_core.processors.abc_data_processor import _PROCESSOR_REGISTRY
+from climakitae.new_core.processors.abc_data_processor import (
+    DataProcessor,
+    _PROCESSOR_REGISTRY,
+)
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -330,7 +333,7 @@ class DatasetFactory:
 
         return processing_steps
 
-    def register_catalog(self, key: str, catalog_url: str):
+    def register_catalog(self, key: str, catalog_url: str) -> None:
         """Register a data catalog with the factory.
 
         Parameters
@@ -360,7 +363,9 @@ class DatasetFactory:
             raise ValueError("Catalog key cannot be empty or None.")
         DataCatalog().set_catalog(key, catalog_url)
 
-    def register_validator(self, key: str, validator_class: Type[ParameterValidator]):
+    def register_validator(
+        self, key: str, validator_class: Type[ParameterValidator]
+    ) -> None:
         """Register a parameter validator with the factory.
 
         Parameters
@@ -373,14 +378,16 @@ class DatasetFactory:
         """
         self._validator_registry[key] = validator_class
 
-    def register_processing_step(self, step_type: str, step_class):
+    def register_processing_step(
+        self, step_type: str, step_class: Type[DataProcessor]
+    ) -> None:
         """Register a processing step with the factory.
 
         Parameters
         ----------
         step_type : str
             Identifier for the processing step
-        step_class : class
+        step_class : Type[DataProcessor]
             Processing step class to register
 
         """
@@ -592,7 +599,7 @@ class DatasetFactory:
         else:
             return list(DataCatalog().boundaries._lookup_cache[boundary_type].keys())
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset the factory state, clearing all registered catalogs, validators, and processors.
 
         This method is useful for reinitializing the factory without creating a new instance.

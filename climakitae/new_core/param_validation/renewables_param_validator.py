@@ -25,9 +25,6 @@ class RenewablesValidator(ParameterValidator):
     catalog : str
         path to the renewables dataset catalog
 
-    Attributes
-    ----------
-
     """
 
     def __init__(self, catalog: DataCatalog):

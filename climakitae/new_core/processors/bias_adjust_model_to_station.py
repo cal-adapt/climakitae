@@ -861,7 +861,7 @@ class BiasAdjustModelToStation(DataProcessor):
                 f"got {type(result)}"
             )
 
-    def update_context(self, context: Dict[str, Any]):
+    def update_context(self, context: Dict[str, Any]) -> None:
         """Update the context with information about the bias correction operation.
 
         This method adds metadata about the bias correction to the processing context,
@@ -890,7 +890,7 @@ class BiasAdjustModelToStation(DataProcessor):
             f"Observational data from HadISD weather stations."
         )
 
-    def set_data_accessor(self, catalog: DataCatalog):
+    def set_data_accessor(self, catalog: DataCatalog) -> None:
         """Set the data catalog accessor for the processor.
 
         The processor requires access to station metadata through the DataCatalog.

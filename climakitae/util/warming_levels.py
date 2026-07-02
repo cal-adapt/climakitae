@@ -128,6 +128,44 @@ def _get_sliced_data(
     # Dropping leap days before slicing time dimension because the window size can affect number of leap days per slice
     y = y.loc[~((y.time.dt.month == 2) & (y.time.dt.day == 29))]
 
+    # Number of days per month for a non-leap year
+    days_per_month = {i: calendar.monthrange(2001, i)[1] for i in range(1, 13)}
+
+    # --- Build the canonical time axis ONCE, shared by both branches ---
+    # Steps per year on the full (unfiltered), leap-free calendar
+    full_per_year = {"monthly": 12, "daily": 365, "hourly": 8760}[y.frequency]
+
+    # Month label for each step in ONE clean year
+    match y.frequency:
+        case "monthly":
+            month_of_step = np.arange(1, 13)
+        case "daily":
+            month_of_step = np.repeat(
+                np.arange(1, 13), [days_per_month[m] for m in range(1, 13)]
+            )
+        case "hourly":
+            month_of_step = np.repeat(
+                np.arange(1, 13), [days_per_month[m] * 24 for m in range(1, 13)]
+            )
+        case _:
+            raise ValueError(
+                'frequency needs to be either "hourly", "daily", or "monthly"'
+            )
+
+    # Full ±window axis (e.g. daily 30yr -> -5475 ... 5474)
+    n_full = full_per_year * window * 2
+    full_axis = np.arange(-n_full // 2, n_full // 2)
+
+    # Tag every step in the window with its month, then keep only requested months.
+    # Works for ANY month subset (contiguous, wrap-around, or full year).
+    month_full = np.tile(month_of_step, window * 2)
+    selected_mask = np.isin(month_full, months)
+
+    # Canonical time: selected-month deltas that RETAIN their full-window position
+    # (so e.g. summer ranges -5475...5475 WITH gaps, not a dense -1380...1380 block)
+    canonical_time = full_axis[selected_mask]
+    n_expected = len(canonical_time)
+
     # Getting start and end years for slicing if `center_time` is not NaN
     if not pd.isna(center_time):
         centered_year = pd.to_datetime(center_time).year
@@ -138,59 +176,31 @@ def _get_sliced_data(
     if not pd.isna(center_time) and _determine_is_complete_wl(
         start_year, end_year, y.simulation.item(), y.downscaling_method, level
     ):
-
         # Slicing data around the centered year
         sliced = y.sel(time=slice(str(start_year), str(end_year)))
 
-        # Creating a mask for timestamps that are within the desired months
-        valid_months_mask = sliced.time.dt.month.isin([months])
+        # Mask for timestamps within the desired months (computed while time is datetime)
+        valid_months_mask = sliced.time.dt.month.isin(months)
 
-        # Resetting and renaming time index for each data array so they can overlap and save storage space.
-        expected_counts = {
-            "monthly": window * 2 * 12,
-            "daily": window * 2 * 365,
-            "hourly": window * 2 * 8760,
-        }
-        # There may be missing time for time slices that exceed the 2100 year bound. If that is the case, only return a warming slice for the amount of valid data available AND correctly center `time_from_center` values.
-        # Otherwise, if no time is missing, then the warming slice will just center the center year.
-        sliced["time"] = np.arange(
-            -expected_counts[y.frequency] / 2,
-            expected_counts[y.frequency] / 2
-            - (expected_counts[y.frequency] - len(sliced)),
-        )
-
-        # Removing data not in the desired months (in this new time dimension)
+        # Remove data not in the desired months
         sliced = sliced.sel(time=valid_months_mask)
+
+        # Force onto the canonical axis so every sim shares an identical time coordinate.
+        # If a slice is short (time window exceeds the 2100 bound), align to the front of
+        # the canonical axis so the early years stay anchored and the missing tail is dropped.
+        if len(sliced.time) == n_expected:
+            sliced["time"] = canonical_time
+        else:
+            sliced["time"] = canonical_time[: len(sliced.time)]
 
         # Assigning `centered_year` as a coordinate to the DataArray
         sliced = sliced.assign_coords({"centered_year": centered_year})
 
     else:
-
-        # This clause creates an empty DataArray with similar shape to real WL slices
-        # to get dropped after the `.groupby` method is finished.
-
-        # Get number of days per month for non-leap year
-        days_per_month = {i: calendar.monthrange(2001, i)[1] for i in np.arange(1, 13)}
-
-        # This creates an approximately appropriately sized DataArray to be dropped later
-        match y.frequency:
-            case "monthly":
-                time_freq = len(months)
-            case "daily":
-                time_freq = sum([days_per_month[month] for month in months])
-            case "hourly":
-                time_freq = sum([days_per_month[month] for month in months]) * 24
-            case _:
-                raise ValueError(
-                    'frequency needs to be either "hourly", "daily", or "monthly"'
-                )
-        y = y.isel(
-            time=slice(0, window * 2 * time_freq)
-        )  # This is to create a dummy slice that conforms with other data structure. Can be re-written to something more elegant.
-
-        # Creating attributes
-        y["time"] = np.arange(-len(y.time) / 2, len(y.time) / 2)
+        # This clause creates an empty DataArray with the SAME shape/axis as a real WL
+        # slice, so the groupby recombination aligns cleanly. It gets dropped afterward.
+        y = y.isel(time=slice(0, n_expected))
+        y["time"] = canonical_time[: len(y.time)]
         y["centered_year"] = np.nan
 
         # Returning DataArray of NaNs to be dropped later.

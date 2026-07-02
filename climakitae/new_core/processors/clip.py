@@ -32,8 +32,9 @@ Clipping Modes
    - Single point: `Clip((lat, lon))` - returns closest gridcell
    - Multiple points: `Clip([(lat1, lon1), (lat2, lon2)])` - returns closest gridcells
 
-4. **Custom Geometry**: Clip using custom shapefiles
+4. **Custom Geometry**: Clip using custom shapefiles or GeoDataFrames
    - Shapefile path: `Clip("/path/to/shapefile.shp")`
+   - GeoDataFrame: `Clip(gdf)` where ``gdf`` is a ``geopandas.GeoDataFrame``
 
 Key Features
 ------------
@@ -99,6 +100,12 @@ Examples
 >>> processor = Clip("/path/to/custom_boundary.shp")
 >>> clipped_data = processor.execute(dataset, context)
 
+>>> # GeoDataFrame
+>>> import geopandas as gpd
+>>> gdf = gpd.read_file("/path/to/custom_boundary.shp")
+>>> processor = Clip(gdf)
+>>> clipped_data = processor.execute(dataset, context)
+
 Notes
 -----
 - The processor requires a DataCatalog to access predefined boundary data
@@ -129,7 +136,11 @@ from climakitae.new_core.processors.abc_data_processor import (
     register_processor,
 )
 from climakitae.new_core.processors.processor_utils import is_station_identifier
-from climakitae.util.utils import get_closest_gridcell, get_closest_gridcells
+from climakitae.util.utils import (
+    get_closest_gridcell,
+    get_closest_gridcells,
+    add_crs_to_downscaled_data,
+)
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -146,12 +157,13 @@ class Clip(DataProcessor):
 
     Parameters
     ----------
-    value : str | list | tuple | dict
+    value : str | list | tuple | dict | gpd.GeoDataFrame
         The value(s) to clip the data by. Can be:
         - str: Single boundary key, file path, or coordinate specification
         - list: Multiple boundary keys of the same category OR list of (lat, lon) tuples
         - tuple: Coordinate bounds ((lat_min, lat_max), (lon_min, lon_max)) or single (lat, lon) point
         - dict: Configuration with ``boundaries`` or ``points`` key and optional flags
+        - gpd.GeoDataFrame: Clip directly using a GeoDataFrame geometry
 
     Examples
     --------
@@ -181,6 +193,11 @@ class Clip(DataProcessor):
     Multiple points extracted to dimension:
     >>> clip = Clip({"points": [(37.7749, -122.4194), (34.0522, -118.2437)], "separated": True})
     >>> # Returns data with 'points' dimension containing each location's values
+
+    GeoDataFrame:
+    >>> import geopandas as gpd
+    >>> gdf = gpd.read_file("/path/to/custom_boundary.shp")
+    >>> clip = Clip(gdf)
     """
 
     def __init__(self, value, persist: bool = False):
@@ -189,7 +206,7 @@ class Clip(DataProcessor):
 
         Parameters
         ----------
-        value : str | list | tuple | dict
+        value : str | list | tuple | dict | gpd.GeoDataFrame
             The value(s) to clip the data by. Can be:
             - str: Single boundary key, file path, station code/name, or coordinate specification
             - list: Multiple boundary keys, station codes/names, or (lat, lon) tuples for multiple points
@@ -201,6 +218,7 @@ class Clip(DataProcessor):
                 For points, extract along 'points' dimension instead of returning masked grid.
               - ``persist`` (bool): Compute data to memory after clipping (recommended for
                 multi-point clipping with downstream computations like 1-in-X analysis)
+            - gpd.GeoDataFrame: Clip directly using a GeoDataFrame geometry
         persist : bool, optional
             If True, compute the clipped data to memory after clipping. This collapses
             the Dask task graph, which is critical for efficient downstream operations
@@ -364,9 +382,11 @@ class Clip(DataProcessor):
                         crs=pyproj.CRS.from_epsg(4326),
                         # 4326 is WGS84 i.e. lat/lon
                     )
+            case gpd.GeoDataFrame():
+                geom = self.value
             case _:
                 raise ValueError(
-                    f"Invalid value type for clipping. Expected str, list, or tuple but got {type(self.value)}."
+                    f"Invalid value type for clipping. Expected str, list, tuple, or GeoDataFrame but got {type(self.value)}."
                 )
 
         if (
@@ -476,7 +496,7 @@ class Clip(DataProcessor):
         self.update_context(context)
         return ret
 
-    def update_context(self, context: Dict[str, Any]):
+    def update_context(self, context: Dict[str, Any]) -> None:
         """
         Update the context with information about the clipping operation, to be stored
         in the "new_attrs" attribute.
@@ -534,7 +554,7 @@ class Clip(DataProcessor):
                 self.name
             ] = f"""Process '{self.name}' applied to the data. Clipping was done using the following value: {self.value}."""
 
-    def set_data_accessor(self, catalog: DataCatalog):
+    def set_data_accessor(self, catalog: DataCatalog) -> None:
         """Set the data catalog for accessing boundary data."""
         self.catalog = catalog
 
@@ -609,39 +629,7 @@ class Clip(DataProcessor):
             The clipped data.
         """
         # Ensure data has CRS set
-        if data.rio.crs is None:
-            # Check if this is WRF data with Lambert Conformal projection
-            if "Lambert_Conformal" in data.coords:
-                # WRF data: try spatial_ref attribute first, then build from CF attrs
-                spatial_ref = data["Lambert_Conformal"].attrs.get("spatial_ref")
-                if spatial_ref:
-                    data = data.rio.write_crs(spatial_ref, inplace=True)
-                else:
-                    # Build CRS from CF convention attributes
-                    attrs = data["Lambert_Conformal"].attrs
-                    try:
-                        crs = pyproj.CRS.from_cf(
-                            {
-                                "grid_mapping_name": attrs["grid_mapping_name"],
-                                "latitude_of_projection_origin": attrs[
-                                    "latitude_of_projection_origin"
-                                ],
-                                "longitude_of_central_meridian": attrs[
-                                    "longitude_of_central_meridian"
-                                ],
-                                "standard_parallel": attrs["standard_parallel"],
-                                "earth_radius": attrs["earth_radius"],
-                            }
-                        )
-                        data = data.rio.write_crs(crs, inplace=True)
-                    except KeyError as e:
-                        raise ValueError(
-                            f"Lambert_Conformal coordinate found but missing required "
-                            f"CF convention attribute: {e}"
-                        )
-            else:
-                # LOCA2 or other lat/lon data: use WGS84/EPSG:4326
-                data = data.rio.write_crs("epsg:4326", inplace=True)
+        data = add_crs_to_downscaled_data(data)
 
         # Ensure GeoDataFrame has CRS set (boundaries are always in EPSG:4326)
         if gdf.crs is None:
@@ -1524,7 +1512,7 @@ class Clip(DataProcessor):
 
         # Map category names to the appropriate DataFrame properties
         category_map = {
-            "states": boundaries._us_states,
+            "states": boundaries._states,
             "CA counties": boundaries._ca_counties,
             "CA watersheds": boundaries._ca_watersheds,
             "CA Electric Load Serving Entities (IOU & POU)": boundaries._ca_utilities,
