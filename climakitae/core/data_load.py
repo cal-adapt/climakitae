@@ -506,6 +506,10 @@ def _override_unit_defaults(da: xr.DataArray, var_id: str) -> xr.DataArray:
             # rsds units are "W m-2"
             # rename them to W/m2 to match the lookup catalog, and the units for WRF radiation variables
             da.attrs["units"] = "W/m2"
+        case "lwupb" | "lwupbc":
+            # lwupb and lwupbc units are "W m-2"
+            # rename them to W/m2 to match the lookup catalog, and the units for other WRF radiation variables
+            da.attrs["units"] = "W/m2"
     return da
 
 
