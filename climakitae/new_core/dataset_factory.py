@@ -578,26 +578,32 @@ class DatasetFactory:
         """
         return DataCatalog()["stations"]["station"].unique().tolist()
 
-    def get_boundaries(self, boundary_type: str) -> List[str]:
+    def get_boundaries(self, boundary_type: str = UNSET) -> List[str]:
         """Get a list of available boundary datasets.
 
         Parameters
         ----------
-        boundary_type : str
-            The type of boundary datasets to retrieve. If the type is not found
-            in the cache, returns all available boundary types.
+        boundary_type : str, optional
+            The type of boundary datasets to retrieve. If not specified, or
+            if the type is not a recognized boundary category, returns all
+            available boundary category names.
 
         Returns
         -------
         List[str]
             List of available boundary datasets for the specified type, or
-            all available boundary types if the specified type is not found.
+            all available boundary category names if no type is specified or
+            the specified type is not found.
 
         """
-        if boundary_type not in DataCatalog().boundaries._lookup_cache:
-            return list(DataCatalog().boundaries._lookup_cache.keys())
-        else:
-            return list(DataCatalog().boundaries._lookup_cache[boundary_type].keys())
+        # `boundary_dict()` builds (and caches) the lookup for every boundary
+        # category, unlike `_lookup_cache`, which only contains categories
+        # that have already been accessed individually and is empty until
+        # then.
+        boundaries = DataCatalog().boundaries.boundary_dict()
+        if boundary_type in boundaries:
+            return list(boundaries[boundary_type].keys())
+        return list(boundaries.keys())
 
     def reset(self) -> None:
         """Reset the factory state, clearing all registered catalogs, validators, and processors.
