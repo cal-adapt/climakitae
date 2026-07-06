@@ -1350,7 +1350,7 @@ class ClimateData:
                 if boundary_type is not UNSET:
                     msg = f"Invalid boundary type: {boundary_type}, see below for available `boundary_type` options."
                 else:
-                    msg = "Boundary Types (call again with boundary_type='...' to see all options for a specific boundary):"
+                    msg = "Boundary Types (call again with boundary_type=<boundary-type-below> to see all options for a specific boundary):"
                 boundaries = all_boundary_types
             logger.info(msg)
             logger.info("%s", "-" * len(msg))
