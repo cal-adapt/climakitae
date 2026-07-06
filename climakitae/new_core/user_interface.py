@@ -1348,7 +1348,7 @@ class ClimateData:
                 boundaries = self._factory.get_boundaries(boundary_type)
             else:
                 if boundary_type is not UNSET:
-                    msg = f"Invalid boundary type: {boundary_type}, see below for available `boundary_type` options."
+                    msg = f"Invalid boundary type, see below for available `boundary_type` options."
                 else:
                     msg = "Boundary Types (call again with boundary_type=<boundary-type-below> to see all options for a specific boundary):"
                 boundaries = all_boundary_types
