@@ -49,8 +49,8 @@ from climakitae.new_core.param_validation.param_validation_tools import (
     _get_closest_options,
 )
 from climakitae.new_core.processors.abc_data_processor import (
-    DataProcessor,
     _PROCESSOR_REGISTRY,
+    DataProcessor,
 )
 
 # Module logger
@@ -581,25 +581,25 @@ class DatasetFactory:
     def get_boundaries(self, boundary_type: str = UNSET) -> List[str]:
         """Get a list of available boundary datasets.
 
+        Call with no arguments to see all available boundary category names
+        (e.g. "states", "ca_counties"). Call again with one of those names as
+        `boundary_type` to see the individual boundaries within that category
+        (e.g. the list of county names).
+
         Parameters
         ----------
         boundary_type : str, optional
-            The type of boundary datasets to retrieve. If not specified, or
-            if the type is not a recognized boundary category, returns all
-            available boundary category names.
+            A boundary category name to look up, as returned by a previous
+            no-argument call. If omitted, or if it doesn't match a known
+            category, all available category names are returned instead.
 
         Returns
         -------
         List[str]
-            List of available boundary datasets for the specified type, or
-            all available boundary category names if no type is specified or
-            the specified type is not found.
+            The individual boundaries in `boundary_type`, or all available
+            boundary category names if no valid type was given.
 
         """
-        # `boundary_dict()` builds (and caches) the lookup for every boundary
-        # category, unlike `_lookup_cache`, which only contains categories
-        # that have already been accessed individually and is empty until
-        # then.
         boundaries = DataCatalog().boundaries.boundary_dict()
         if boundary_type in boundaries:
             return list(boundaries[boundary_type].keys())
