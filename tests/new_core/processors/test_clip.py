@@ -2796,7 +2796,7 @@ class TestClipDataWithGeomCRS:
         result = Clip._clip_data_with_geom(mock_data, self.gdf)
 
         # Verify write_crs was called with the spatial_ref
-        rio_mock.write_crs.assert_called_with("some_crs_string", inplace=True)
+        rio_mock.write_crs.assert_called_with("some_crs_string")
         assert result == "clipped_result"
 
     def test_wrf_lambert_conformal_missing_spatial_ref(self):
@@ -2843,7 +2843,7 @@ class TestClipDataWithGeomCRS:
 
         result = Clip._clip_data_with_geom(mock_data, self.gdf)
 
-        rio_mock.write_crs.assert_called_with("epsg:4326", inplace=True)
+        rio_mock.write_crs.assert_called_with("epsg:4326")
         assert result == "clipped_result"
 
 

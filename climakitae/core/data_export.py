@@ -27,7 +27,6 @@ from climakitae.util.utils import read_csv_file
 
 xr.set_options(keep_attrs=True)
 bytes_per_gigabyte = 1024 * 1024 * 1024
-degree_sign = "\N{DEGREE SIGN}"
 
 
 def remove_zarr(filename: str):
@@ -1028,23 +1027,13 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
 
     # set time col to datetime object for easy split
     df["time"] = pd.to_datetime(df["time"])
-    if "warming_level" in df.columns:
-        # change year for GWL data to not use 2000's dummy times
-        df = df.assign(
-            year=df["time"].dt.year - 2000,
-            month=df["time"].dt.month,
-            day=df["time"].dt.day,
-            hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
-            minute=df["time"].dt.minute,
-        )
-    else:
-        df = df.assign(
-            year=df["time"].dt.year,
-            month=df["time"].dt.month,
-            day=df["time"].dt.day,
-            hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
-            minute=df["time"].dt.minute,
-        )
+    df = df.assign(
+        year=df["time"].dt.year,
+        month=df["time"].dt.month,
+        day=df["time"].dt.day,
+        hour=df["time"].dt.hour + 1,  # 1-24, not 0-23
+        minute=df["time"].dt.minute,
+    )
 
     # set epw variable order, very specific -- manually set
     # Note: vars not provided by AE are noted as missing
@@ -1054,7 +1043,7 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
         "day",
         "hour",
         "minute",
-        "data_source",  # missing
+        "data_source",  # missing, must be exactly 25 chars
         "Air temperature at 2m (degC)",
         "Dew point temperature at 2m (degC)",
         "Relative humidity (0-100)",
@@ -1114,6 +1103,7 @@ def _epw_format_data(df: pd.DataFrame) -> pd.DataFrame:
     # lastly set data source / uncertainty flag (section 2.13 of doc)
     # on AE: ? = var does not fit source options
     # on AE: 9 = uncertainty unknown
+    # note: must be exactly 25 chars
     df["data_source"] = "?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9?9"
 
     # resets col order and drops any unnamed column from original df
@@ -1141,7 +1131,7 @@ def _leap_day_fix(df: pd.DataFrame) -> pd.DataFrame:
     # 3 models have leap days, 1 model does not -- handling for both
     # handling for TaiESM1 (no leap day natively)
     match df_leap.sim.unique()[0]:
-        case "wrf_ucla_taiesm1_ssp370_r1i1p1f1":
+        case "WRF_TaiESM1_r1i1p1f1":
             df_leap["time"] = np.where(
                 (df_leap.time.dt.month == 2) & (df_leap.time.dt.day == 29),
                 df_leap.time - pd.DateOffset(days=1),
@@ -1279,7 +1269,8 @@ def _tmy_8760_size_check(df: pd.DataFrame) -> pd.DataFrame:
     # fix cases
     match len(df_to_check):
         case 8760:
-            return df_to_check
+            # Find edge case where 8760 has partial 2-29
+            return _leap_day_fix(df_to_check)
         case 8759:  # Missing hour, add missing row
             df_to_check = _missing_hour_fix(df_to_check)
             return df_to_check
@@ -1312,7 +1303,7 @@ def _tmy_8760_size_check(df: pd.DataFrame) -> pd.DataFrame:
             return None
 
 
-def _tmy_reset_time_for_gwl(df: pd.DataFrame) -> pd.DataFrame:
+def _tmy_reset_time_for_gwl(df: pd.DataFrame, years: Tuple[int, int]) -> pd.DataFrame:
     """
     Change dummy time in GWL data to start at year 0001
     for writing TMY results.
@@ -1323,11 +1314,14 @@ def _tmy_reset_time_for_gwl(df: pd.DataFrame) -> pd.DataFrame:
         Dataframe of TMY data to export
     """
 
+    gwl_years = range(years[0], years[1] + 1)
+
     def replace_year(datestr: str) -> str:
-        """Subtract 2000 from dummy year to reset to 0001 baseline."""
+        """Get the corresponding year in the warming level"""
         year = int(datestr.split("-")[0])
-        year = year - 2000
-        datestr = str(year).zfill(4) + "-" + "-".join(datestr.split("-")[1:])
+        year_n = int(year - 2000)
+        year_str = str(gwl_years[year_n])
+        datestr = year_str + "-" + "-".join(datestr.split("-")[1:])
         return datestr
 
     cleaned_years = [replace_year(str(t)) for t in df["time"]]
@@ -1401,6 +1395,10 @@ def write_tmy_file(
     # consistent "%Y-%m-%d %H:%M" strings so downstream writers and
     # _tmy_reset_time_for_gwl see a uniform format.
     df["time"] = pd.to_datetime(df["time"]).dt.strftime("%Y-%m-%d %H:%M")
+
+    if "warming_level" in df.columns:
+        # Convert time axis from dummy time to warming level specific years
+        df = _tmy_reset_time_for_gwl(df, years)
 
     def _utc_offset_timezone(lat, lon):
         """Based on user input of lat lon, returns the UTC offset for that timezone
@@ -1619,22 +1617,22 @@ def write_tmy_file(
             warming_level = df["warming_level"].values[0]
             simulation = df["sim"].values[0]
             # line 6 - comments 1, going to include simulation + warming level information here
-            line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt: Analytics Engine, Warming Level: {warming_level}{degree_sign}C, Simulation: {simulation}\n"
+            line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt Analytics Engine; Warming Level {warming_level}degC; Simulation {simulation}\n"
             # line 7 - comments 2, including date range here from which TMY calculated
-            line_7 = f"COMMENTS 2,{profile_type} {data_type} produced using {warming_level}{degree_sign}C warming level. Year corresponds to index (1-30) in 30-year window centered on warming level. Model years for {warming_level}{degree_sign}C warming level in simulation {simulation} are {years[0]}-{years[1]}. Ground temps are not provided\n"
+            line_7 = f"COMMENTS 2,{profile_type} {data_type} produced using {warming_level}degC warming level; Model years for {warming_level}degC warming level in simulation {simulation} are {years[0]}-{years[1]}; Ground temps are not provided\n"
         else:
             # line 6 - comments 1, going to include simulation + scenario information here
             if "scenario" in df.columns:
                 # get_data approach has a separate scenario column
                 # the scenario is not included in the simulation name
                 scenario = df["scenario"].values[0]
-                line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt: Analytics Engine, Simulation: {df['sim'].values[0]}, Scenario: {scenario}\n"
+                line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt Analytics Engine; Simulation {df['sim'].values[0]}; Scenario {scenario}\n"
             else:
                 # new core approach does not have a separate scenario column, scenario is included in simulation name
                 # scenario information is included in the simulation name
-                line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt: Analytics Engine, Simulation: {df['sim'].values[0]}\n"
+                line_6 = f"COMMENTS 1,{profile_type} data produced on the Cal-Adapt Analytics Engine; Simulation {df['sim'].values[0]}\n"
             # line 7 - comments 2, including date range here from which TMY calculated
-            line_7 = f"COMMENTS 2,{profile_type} {data_type} produced using {years[0]}-{years[1]} climatological period. Ground temps are not provided\n"
+            line_7 = f"COMMENTS 2,{profile_type} {data_type} produced using {years[0]}-{years[1]} climatological period; Ground temps are not provided\n"
 
         # line 8 - data periods, num data periods, num records per hour, data period name, data period start day of week, data period start (Jan 1), data period end (Dec 31)
         line_8 = "DATA PERIODS,1,1,Data,Sunday,1/ 1,12/31\n"
