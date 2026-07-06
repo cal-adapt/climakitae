@@ -1366,7 +1366,7 @@ class ClimateData:
 
                 # Warn user of truncation if show_n was set
                 if limit < total_count:
-                    truncation_msg = f"Showing {limit} of {total_count} total boundaries, pass in `show_n`=None to see all boundaries"
+                    truncation_msg = f"Showing {limit} of {total_count} total boundaries, pass in `show_n`=None to see all boundaries."
                     logger.info("%s", truncation_msg)
 
                 for boundary in display_boundaries:
