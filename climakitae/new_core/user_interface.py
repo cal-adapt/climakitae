@@ -1348,8 +1348,12 @@ class ClimateData:
                 boundaries = self._factory.get_boundaries(boundary_type)
             else:
                 if boundary_type is not UNSET:
-                    logger.info("Invalid boundary type: %s", boundary_type)
-                msg = "Boundary Types (call again with boundary_type='...' to see all options for a specific boundary):"
+                    msg = (
+                        f"Invalid boundary type: {boundary_type}, call again with "
+                        "boundary_type='' to see available boundary options"
+                    )
+                else:
+                    msg = "Boundary Types (call again with boundary_type='...' to see all options for a specific boundary):"
                 boundaries = all_boundary_types
             logger.info(msg)
             logger.info("%s", "-" * len(msg))
