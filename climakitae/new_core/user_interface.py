@@ -1321,7 +1321,7 @@ class ClimateData:
 
     @_with_info_verbosity
     def show_boundary_options(
-        self, boundary_type=UNSET, show_n: Optional[int] = None
+        self, boundary_type=UNSET, show_n: Optional[int] = 10
     ) -> None:
         """Display available boundaries for spatial queries.
 
@@ -1331,7 +1331,8 @@ class ClimateData:
             The type of boundary to display (e.g., "ca_counties", "ca_watersheds").
             If not specified, displays available boundary types.
         show_n : int, optional
-            Maximum number of boundaries to display. If None (default), shows all boundaries.
+            Maximum number of boundaries to display. Defaults to 10. Pass a
+            larger value, or None, to show all boundaries.
 
         """
         try:
@@ -1346,6 +1347,8 @@ class ClimateData:
                 )
                 boundaries = self._factory.get_boundaries(boundary_type)
             else:
+                if boundary_type is not UNSET:
+                    logger.info("Invalid boundary type: %s", boundary_type)
                 msg = "Boundary Types (call again with boundary_type='...' to see all options for a specific boundary):"
                 boundaries = all_boundary_types
             logger.info(msg)
