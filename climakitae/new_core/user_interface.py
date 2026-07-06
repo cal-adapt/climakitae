@@ -1334,17 +1334,23 @@ class ClimateData:
             Maximum number of boundaries to display. If None (default), shows all boundaries.
 
         """
-        if boundary_type is UNSET:
-            msg = "Boundary Types (call again with boundary_type='...' to see options):"
-        else:
-            msg = "Available {} Boundaries:".format(
-                " ".join([x.capitalize() for x in boundary_type.split("_")])
-            )
-        logger.info(msg)
-        logger.info("%s", "-" * len(msg))
-
         try:
-            boundaries = self._factory.get_boundaries(boundary_type)
+            all_boundary_types = self._factory.get_boundaries()
+            is_valid_type = (
+                boundary_type is not UNSET and boundary_type in all_boundary_types
+            )
+
+            if is_valid_type:
+                msg = "Available {} Boundaries:".format(
+                    " ".join([x.capitalize() for x in boundary_type.split("_")])
+                )
+                boundaries = self._factory.get_boundaries(boundary_type)
+            else:
+                msg = "Boundary Types (call again with boundary_type='...' to see all options for a specific boundary):"
+                boundaries = all_boundary_types
+            logger.info(msg)
+            logger.info("%s", "-" * len(msg))
+
             if not boundaries:
                 logger.info("No boundaries available with current parameters")
 
