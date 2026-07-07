@@ -1342,9 +1342,7 @@ class ClimateData:
             )
 
             if is_valid_type:
-                msg = "Available {} Boundaries:".format(
-                    " ".join([x.capitalize() for x in boundary_type.split("_")])
-                )
+                msg = f"Available {boundary_type} Boundaries:"
                 boundaries = self._factory.get_boundaries(boundary_type)
             else:
                 if boundary_type is not UNSET:
