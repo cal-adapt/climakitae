@@ -94,6 +94,8 @@ class UpdateAttributes(DataProcessor):
         if self.name not in context:
             self.update_context(context)
 
+        context = self._context_cleanup(context)
+
         match result:
             case dict():
                 for key, item in result.items():
@@ -119,6 +121,24 @@ class UpdateAttributes(DataProcessor):
             len(context.get(_NEW_ATTRS_KEY, {})),
         )
         return result
+
+    @staticmethod
+    def _context_cleanup(context: Dict[str, Any]):
+        """Do any final clean up of the context before saving to attributes.
+
+        Parameters
+        ----------
+        context : dict[str, Any]
+            Parameters for processing the data.
+
+        Returns
+        -------
+        dict[str, Any]
+        """
+        # The warming level processor uses the name "warming_level_simple", and
+        # we don't want to save the warming_level parameters under "warming_level".
+        context[_NEW_ATTRS_KEY].pop("warming_level")
+        return context
 
     def update_context(self, context: Dict[str, Any]) -> None:
         """Update the context with information about the clipping operation, to be stored
