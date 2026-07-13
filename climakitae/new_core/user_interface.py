@@ -1321,7 +1321,7 @@ class ClimateData:
 
     @_with_info_verbosity
     def show_boundary_options(
-        self, boundary_type=UNSET, show_n: Optional[int] = None
+        self, boundary_type=UNSET, show_n: Optional[int] = 10
     ) -> None:
         """Display available boundaries for spatial queries.
 
@@ -1331,20 +1331,28 @@ class ClimateData:
             The type of boundary to display (e.g., "ca_counties", "ca_watersheds").
             If not specified, displays available boundary types.
         show_n : int, optional
-            Maximum number of boundaries to display. If None (default), shows all boundaries.
+            Maximum number of boundaries to display. Defaults to 10. Pass a
+            larger value, or None, to show all boundaries.
 
         """
-        if boundary_type is UNSET:
-            msg = "Boundary Types (call again with boundary_type='...' to see options):"
-        else:
-            msg = "Available {} Boundaries:".format(
-                " ".join([x.capitalize() for x in boundary_type.split("_")])
-            )
-        logger.info(msg)
-        logger.info("%s", "-" * len(msg))
-
         try:
-            boundaries = self._factory.get_boundaries(boundary_type)
+            all_boundary_types = self._factory.get_boundaries()
+            is_valid_type = (
+                boundary_type is not UNSET and boundary_type in all_boundary_types
+            )
+
+            if is_valid_type:
+                msg = f"Available {boundary_type} Boundaries:"
+                boundaries = self._factory.get_boundaries(boundary_type)
+            else:
+                if boundary_type is not UNSET:
+                    msg = f"Invalid boundary type, see below for available `boundary_type` options."
+                else:
+                    msg = "Boundary Types (call again with boundary_type=<insert-boundary-type-below> to see all options for a specific boundary):"
+                boundaries = all_boundary_types
+            logger.info(msg)
+            logger.info("%s", "-" * len(msg))
+
             if not boundaries:
                 logger.info("No boundaries available with current parameters")
 
@@ -1356,9 +1364,7 @@ class ClimateData:
 
                 # Warn user of truncation if show_n was set
                 if limit < total_count:
-                    truncation_msg = (
-                        f"Showing {limit} of {total_count} total boundaries"
-                    )
+                    truncation_msg = f"Showing {limit} of {total_count} total boundaries, pass in `show_n`=None to see all boundaries."
                     logger.info("%s", truncation_msg)
 
                 for boundary in display_boundaries:
