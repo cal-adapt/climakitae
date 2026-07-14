@@ -1337,7 +1337,9 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
                 diffs = np.abs(
                     year_hour_matrix - quantile_targets[np.newaxis, :]
                 )  # (n_years, 8760)
-                closest_year_idx = np.nanargmin(diffs, axis=0)  # (8760,)
+                # Mask NaN columns that may result from how get_data does lat/lon clipping
+                diffs_masked = np.ma.masked_array(diffs, np.isnan(diffs))
+                closest_year_idx = np.nanargmin(diffs_masked, axis=0)  # (8760,)
                 profile_1d = year_hour_matrix[
                     closest_year_idx, np.arange(hours_per_year)
                 ]
