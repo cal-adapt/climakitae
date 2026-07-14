@@ -17,7 +17,7 @@ from climakitae.core.constants import UNSET, WRF_BA_MODELS
 from climakitae.core.data_interface import DataInterface, get_data
 from climakitae.core.paths import HADISD_STATIONS_URL, VARIABLE_DESCRIPTIONS_CSV_PATH
 from climakitae.explore.typical_meteorological_year import is_HadISD, match_str_to_wl
-from climakitae.util.utils import read_csv_file
+from climakitae.util.utils import read_csv_file, area_average
 from climakitae.util.warming_levels import get_gwl_at_year
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
@@ -890,7 +890,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
         "resolution": kwargs.get("resolution", "3 km"),
         "downscaling_method": "Dynamical",  # must be WRF, cannot be LOCA
         "timescale": "hourly",  # must be hourly for 8760 analysis
-        "area_average": "Yes",
+        # "area_average": "Yes",
         "units": kwargs.get(
             "units",
             (
@@ -919,10 +919,12 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     if not no_delta:
         # Retrieve historical data at 1.2°C warming level
         historic_data = get_data(**get_data_params)
+        historic_data = area_average(historic_data)
 
     # Update with any user-provided parameters for future data retrieval
     get_data_params.update(kwargs)
     future_data = get_data(**get_data_params)
+    future_data = area_average(future_data)
 
     # Filter for only bias-adjusted WRF models, if user indicates this
     ba_models = kwargs.get("bias_adjusted_models", False)
@@ -1337,9 +1339,7 @@ def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
                 diffs = np.abs(
                     year_hour_matrix - quantile_targets[np.newaxis, :]
                 )  # (n_years, 8760)
-                # Mask NaN columns that may result from how get_data does lat/lon clipping
-                diffs_masked = np.ma.masked_array(diffs, np.isnan(diffs))
-                closest_year_idx = np.nanargmin(diffs_masked, axis=0)  # (8760,)
+                closest_year_idx = np.nanargmin(diffs, axis=0)  # (8760,)
                 profile_1d = year_hour_matrix[
                     closest_year_idx, np.arange(hours_per_year)
                 ]
