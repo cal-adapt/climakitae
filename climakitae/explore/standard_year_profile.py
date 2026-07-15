@@ -686,6 +686,15 @@ def _filter_ba_models(
     return data
 
 
+def _area_average(
+    data: xr.DataArray,
+) -> xr.DataArray:
+    """ """
+    if "x" in ds.dims:
+        ds = area_average(ds)
+    return ds
+
+
 def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     """
     Backend function for retrieving data needed for computing climate profiles.
@@ -919,12 +928,12 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     if not no_delta:
         # Retrieve historical data at 1.2°C warming level
         historic_data = get_data(**get_data_params)
-        historic_data = area_average(historic_data)
+        historic_data = _area_average(historic_data)
 
     # Update with any user-provided parameters for future data retrieval
     get_data_params.update(kwargs)
     future_data = get_data(**get_data_params)
-    future_data = area_average(future_data)
+    future_data = _area_average(future_data)
 
     # Filter for only bias-adjusted WRF models, if user indicates this
     ba_models = kwargs.get("bias_adjusted_models", False)
