@@ -846,7 +846,7 @@ def _get_Uearth(selections: "DataParameters") -> xr.DataArray:
     # Don't do any area averaging here
     area_average = selections.area_average
     selections.area_average = "No"
-    
+
     # Load v10 data
     selections.variable_id = ["v10"]
     v10_da = _get_data_one_var(selections)
@@ -897,7 +897,7 @@ def _get_Vearth(selections: "DataParameters") -> xr.DataArray:
     # Don't area average here
     area_average = selections.area_average
     selections.area_average = "No"
-    
+
     # Load u10 data
     selections.variable_id = ["u10"]
     u10_da = _get_data_one_var(selections)
@@ -924,7 +924,7 @@ def _get_Vearth(selections: "DataParameters") -> xr.DataArray:
 
     # Add variable name
     Vearth.name = selections.variable
-    
+
     # Reset selections to original value
     selections.area_average = area_average
     return Vearth
@@ -956,7 +956,7 @@ def _get_wind_speed_derived(selections: "DataParameters") -> xr.DataArray:
 
     # Derive the variable
     da = compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
-    
+
     # Do area averaging here if requested:
     if selections.area_average == "Yes":
         da = area_average(da)
