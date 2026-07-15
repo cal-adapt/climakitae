@@ -689,7 +689,19 @@ def _filter_ba_models(
 def _area_average(
     data: xr.DataArray,
 ) -> xr.DataArray:
-    """ """
+    """
+    Check if data has spatial dimensions, and, if so, take the area average.
+
+    Parameters
+    ----------
+    data : xr.DataArray
+        Input climate data array containing simulation data across multiple models.
+
+    Returns
+    -------
+    xr.DataArray
+        Area averaged version of input array.
+    """
     if "x" in data.dims:
         data = area_average(data)
     return data
