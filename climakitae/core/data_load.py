@@ -842,6 +842,10 @@ def _get_Uearth(selections: "DataParameters") -> xr.DataArray:
     -------
     da : xr.DataArray
 
+    Notes
+    -----
+    This function will not return area average even if selections.area_average == "Yes". Area averaging
+    must be applied separately to the final wind data.
     """
     # Don't do any area averaging here
     area_average = selections.area_average
@@ -893,6 +897,10 @@ def _get_Vearth(selections: "DataParameters") -> xr.DataArray:
     -------
     da : xr.DataArray
 
+    Notes
+    -----
+    This function will not return area average even if selections.area_average == "Yes". Area averaging
+    must be applied separately to the final wind data.
     """
     # Don't area average here
     area_average = selections.area_average
