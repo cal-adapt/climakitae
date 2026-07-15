@@ -911,7 +911,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
         "resolution": kwargs.get("resolution", "3 km"),
         "downscaling_method": "Dynamical",  # must be WRF, cannot be LOCA
         "timescale": "hourly",  # must be hourly for 8760 analysis
-        # "area_average": "Yes",
+        "area_average": "Yes",
         "units": kwargs.get(
             "units",
             (
