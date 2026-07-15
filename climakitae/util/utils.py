@@ -63,13 +63,15 @@ def area_average(dset: xr.Dataset) -> xr.Dataset:
         sub-setted output data
 
     """
-    weights = np.cos(np.deg2rad(dset.lat))
     if set(["x", "y"]).issubset(set(dset.dims)):
         # WRF data has x,y
+        weights = np.cos(np.deg2rad(dset.lat))
         dset = dset.weighted(weights).mean(["x", "y"])
     elif set(["lat", "lon"]).issubset(set(dset.dims)):
         # LOCA data has lat, lon
+        weights = np.cos(np.deg2rad(dset.lat))
         dset = dset.weighted(weights).mean(["lat", "lon"])
+    # else - nothing done to dataset
     return dset
 
 
