@@ -690,9 +690,9 @@ def _area_average(
     data: xr.DataArray,
 ) -> xr.DataArray:
     """ """
-    if "x" in ds.dims:
-        ds = area_average(ds)
-    return ds
+    if "x" in data.dims:
+        data = area_average(data)
+    return data
 
 
 def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
