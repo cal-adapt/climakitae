@@ -369,7 +369,7 @@ class TestTMYHiddenFunctions:
             freq="h",
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["sim"] = "wrf_ucla_taiesm1_ssp370_r1i1p1f1"
+        df["sim"] = "WRF_TaiESM1_r1i1p1f1"
         df_fixed = export._leap_day_fix(df)
 
         # Feb 29 renamed to Feb 28
@@ -392,7 +392,7 @@ class TestTMYHiddenFunctions:
             freq="h",
         )
         df = pd.DataFrame(datelist, columns=["time"])
-        df["sim"] = "wrf_ucla_ec-earth3_ssp370_r1i1p1f1"
+        df["sim"] = "WRF_MIROC6_r1i1p1f1"
         df_fixed = export._leap_day_fix(df)
 
         # Feb 29 renamed to Feb 28

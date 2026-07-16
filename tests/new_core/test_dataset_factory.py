@@ -608,7 +608,7 @@ class TestDatasetFactoryGetMethods:
         """Test get_boundaries method with specific boundary type."""
         mock_catalog_instance = MagicMock()
         mock_boundaries = MagicMock()
-        mock_boundaries._lookup_cache = {
+        mock_boundaries.boundary_dict.return_value = {
             "counties": {"LA": MagicMock(), "SF": MagicMock()},
             "states": {"CA": MagicMock()},
         }
@@ -624,7 +624,7 @@ class TestDatasetFactoryGetMethods:
         """Test get_boundaries method with unknown boundary type."""
         mock_catalog_instance = MagicMock()
         mock_boundaries = MagicMock()
-        mock_boundaries._lookup_cache = {
+        mock_boundaries.boundary_dict.return_value = {
             "counties": {"LA": MagicMock()},
             "states": {"CA": MagicMock()},
         }
@@ -634,6 +634,24 @@ class TestDatasetFactoryGetMethods:
         result = self.factory.get_boundaries("unknown_type")
 
         # Should return all available boundary types
+        assert result == ["counties", "states"]
+
+    @patch("climakitae.new_core.dataset_factory.DataCatalog")
+    def test_get_boundaries_no_type_returns_all(self, mock_catalog_class):
+        """Test get_boundaries with no arguments returns all boundary types,
+        even when no boundary category has been accessed yet (i.e. the
+        lazy-loaded lookup cache is still empty)."""
+        mock_catalog_instance = MagicMock()
+        mock_boundaries = MagicMock()
+        mock_boundaries.boundary_dict.return_value = {
+            "counties": {"LA": MagicMock()},
+            "states": {"CA": MagicMock()},
+        }
+        mock_catalog_instance.boundaries = mock_boundaries
+        mock_catalog_class.return_value = mock_catalog_instance
+
+        result = self.factory.get_boundaries()
+
         assert result == ["counties", "states"]
 
 
