@@ -119,6 +119,22 @@ class TestUpdateAttributesExecuteDataset:
         assert result["time"].attrs["standard_name"] == "time"
         assert result["time"].attrs["axis"] == "T"
 
+    def test_update_context_removes_warming_level_key(self):
+        """Test that execute removes unwanted warming_level attribute."""
+        context = {
+            _NEW_ATTRS_KEY: {
+                "test_attr": "test_value",
+                "warming_level": "warming_level_value",
+                "warming_level_simple": "simple_value",
+            }
+        }
+
+        result = self.processor.execute(self.sample_dataset, context)
+
+        # Make sure warming level key is dropped, warming_level_simple is saved
+        assert "warming_level" not in result.attrs
+        assert "warming_level_simple" in result.attrs
+
     def test_execute_dataset_calls_update_context_if_needed(self):
         """Test that execute calls update_context when processor name not in context."""
         # Context without the processor name, but with _NEW_ATTRS_KEY
