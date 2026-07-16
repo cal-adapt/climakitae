@@ -135,8 +135,9 @@ class UpdateAttributes(DataProcessor):
         -------
         dict[str, Any]
         """
-        # The warming level processor uses the name "warming_level_simple", and
-        # we don't want to save the warming_level parameters under "warming_level".
+        # The warming level processor uses the name "warming_level_simple",
+        # and we don't want to save the warming_level parameters that are
+        # under the "warming_level" key.
         context[_NEW_ATTRS_KEY].pop("warming_level", None)
         return context
 
