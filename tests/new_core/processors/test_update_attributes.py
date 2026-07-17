@@ -103,6 +103,19 @@ class TestUpdateAttributesExecuteDataset:
         assert result.attrs["original_attr"] == "original_value"
         assert "new_attr" in result.attrs
 
+    def test_execute_dataset_converts_bad_types(self):
+        """Test that execute converts bad types to strings."""
+        self.sample_dataset.attrs["dictionary"] = {"key": "value"}
+        self.sample_dataset.attrs["bool"] = True
+        context = {_NEW_ATTRS_KEY: {"new_attr": "new_value"}}
+
+        result = self.processor.execute(self.sample_dataset, context)
+
+        assert "dictionary" in result.attrs
+        assert result.attrs["dictionary"] == "{'key': 'value'}"
+        assert "bool" in result.attrs
+        assert result.attrs["bool"] == "True"
+
     def test_execute_dataset_updates_dim_attrs(self):
         """Test that execute updates dimension attributes with common_attrs."""
         context = {_NEW_ATTRS_KEY: {"test_attr": "test_value"}}
