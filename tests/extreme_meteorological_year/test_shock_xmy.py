@@ -835,7 +835,7 @@ class TestXMYClass:
             xmy.set_top_months()
             mock_clim.assert_called_once()
             mock_monthly.assert_called_once()
-            mock_generate.assert_called_once()
+            mock_generate.assert_called_with(UNSET, UNSET, "hot", False)
 
     def test_run_xmy_analysis_adds_scenario_column(self):
         """Check that run_xmy_analysis adds 'scenario' column in time mode."""
