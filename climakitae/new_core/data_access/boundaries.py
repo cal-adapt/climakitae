@@ -7,6 +7,7 @@ datasets when they are first accessed.
 
 The module supports various types of geographical boundaries including:
 - US western states
+- California cities
 - California counties
 - California watersheds (HUC8 level)
 - California electric utilities (IOUs and POUs)
@@ -87,6 +88,8 @@ class Boundaries:
         US western states with names, abbreviations, and geometries (lazy-loaded)
     _ca_counties : pd.DataFrame
         California counties with names and geometries, sorted alphabetically (lazy-loaded)
+    _ca_cities : pd.DataFrame
+        California cities with names and geometries, sorted alphabetically (lazy-loaded)
     _ca_watersheds : pd.DataFrame
         California HUC8 watersheds with names and geometries, sorted alphabetically (lazy-loaded)
     _ca_utilities : pd.DataFrame
@@ -168,7 +171,7 @@ class Boundaries:
         ----------
         boundary_catalog : intake.catalog.Catalog
             Intake catalog instance for accessing boundary parquet files.
-            Must contain entries for: 'states', 'counties', 'huc8',
+            Must contain entries for: 'states', 'counties', 'cities', 'huc8',
             'utilities', 'dfz', and 'eba'.
 
         Raises
@@ -188,6 +191,7 @@ class Boundaries:
         # Private storage for lazy-loaded DataFrames
         self.__states: Optional[pd.DataFrame] = None
         self.__ca_counties: Optional[pd.DataFrame] = None
+        self.__ca_cities: Optional[pd.DataFrame] = None
         self.__ca_watersheds: Optional[pd.DataFrame] = None
         self.__ca_utilities: Optional[pd.DataFrame] = None
         self.__ca_forecast_zones: Optional[pd.DataFrame] = None
@@ -218,12 +222,21 @@ class Boundaries:
         Required catalog entries:
         - 'states': US state boundaries
         - 'counties': California county boundaries
+        - 'cities' : CA city boundaries
         - 'huc8': California watershed boundaries (HUC8 level)
         - 'utilities': California electric utility boundaries
         - 'dfz': California demand forecast zones
         - 'eba': Electric balancing authority areas
         """
-        required_entries = ["states", "counties", "huc8", "utilities", "dfz", "eba"]
+        required_entries = [
+            "states",
+            "counties",
+            "cities",
+            "huc8",
+            "utilities",
+            "dfz",
+            "eba",
+        ]
         missing = [entry for entry in required_entries if not hasattr(self._cat, entry)]
         if missing:
             raise ValueError(f"Missing required catalog entries: {missing}")
@@ -257,6 +270,20 @@ class Boundaries:
     @_ca_counties.setter
     def _ca_counties(self, value: pd.DataFrame) -> None:
         self.__ca_counties = value
+
+    @property
+    def _ca_cities(self) -> pd.DataFrame:
+        """Lazy-loaded California cities data."""
+        if self.__ca_cities is None:
+            try:
+                self.__ca_cities = self._process_ca_cities(self._cat.cities.read())
+            except Exception as e:
+                raise RuntimeError(f"Failed to load CA cities data: {e}") from e
+        return self.__ca_cities
+
+    @_ca_cities.setter
+    def _ca_cities(self, value: pd.DataFrame) -> None:
+        self.__ca_cities = value
 
     @property
     def _ca_watersheds(self) -> pd.DataFrame:
@@ -370,6 +397,22 @@ class Boundaries:
 
         """
         return df.sort_values("NAME")
+
+    def _process_ca_cities(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Process raw CA cities data.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Raw CA cities DataFrame
+
+        Returns
+        -------
+        pd.DataFrame
+            Processed CA cities DataFrame sorted by name
+
+        """
+        return df.sort_values("CDT_NAME_S")
 
     def _process_ca_watersheds(self, df: pd.DataFrame) -> pd.DataFrame:
         """Process raw CA watersheds data.
@@ -488,6 +531,22 @@ class Boundaries:
                 self._ca_counties.index, index=self._ca_counties["NAME"]
             ).to_dict()
         return self._lookup_cache["ca_counties"]
+
+    def _get_ca_cities(self) -> Dict[str, int]:
+        """Get cached lookup dictionary for California cities.
+
+        Returns
+        -------
+        Dict[str, int]
+            Dictionary mapping city names to DataFrame indices
+
+        """
+        #!! ?? is that correct? not sure what this does tbh
+        if "ca_cities" not in self._lookup_cache:
+            self._lookup_cache["ca_cities"] = pd.Series(
+                self._ca_cities.index, index=self._ca_cities["CDT_NAME_S"]
+            ).to_dict()
+        return self._lookup_cache["ca_cities"]
 
     def _get_ca_watersheds(self) -> Dict[str, int]:
         """Get cached lookup dictionary for California watersheds.
@@ -614,6 +673,7 @@ class Boundaries:
             - 'lat/lon': Custom coordinate-based selection
             - 'states': Western US states
             - 'CA counties': California counties (alphabetical)
+            - 'CA cities': California cities (alphabetical)
             - 'CA watersheds': California HUC8 watersheds (alphabetical)
             - 'CA Electric Load Serving Entities (IOU & POU)': Electric utilities
             - 'CA Electricity Demand Forecast Zones': Forecast zones
@@ -644,11 +704,13 @@ class Boundaries:
         - All other boundaries are sorted alphabetically
 
         """
+
         return {
             "none": {"entire domain": 0},
             "lat/lon": {"coordinate selection": 0},
             "states": self._get_states(),
             "CA counties": self._get_ca_counties(),
+            "CA cities": self._get_ca_cities(),
             "CA watersheds": self._get_ca_watersheds(),
             "CA Electric Load Serving Entities (IOU & POU)": self._get_ious_pous(),
             "CA Electricity Demand Forecast Zones": self._get_forecast_zones(),
@@ -702,6 +764,10 @@ class Boundaries:
         return self._lookup_boundary(
             self._ca_counties, self._get_ca_counties, name, "County"
         )
+
+    def get_cities(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return California city boundary data."""
+        return self._lookup_boundary(self._ca_cities, self._get_ca_cities, name, "City")
 
     def get_watersheds(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
         """Return California HUC8 watershed boundary data."""
@@ -771,6 +837,7 @@ class Boundaries:
         The method loads all six boundary datasets:
         - US western states
         - California counties
+        - California cities
         - California watersheds
         - California utilities
         - California forecast zones
@@ -798,10 +865,12 @@ class Boundaries:
         - Memory usage can be monitored with get_memory_usage()
 
         """
+
         # Force loading of all properties
         _ = (
             self._states,
             self._ca_counties,
+            self._ca_cities,
             self._ca_watersheds,
             self._ca_utilities,
             self._ca_forecast_zones,
@@ -813,6 +882,7 @@ class Boundaries:
         _ = (
             self._get_states(),
             self._get_ca_counties(),
+            self._get_ca_cities(),
             self._get_ca_watersheds(),
             self._get_forecast_zones(),
             self._get_ious_pous(),
@@ -857,6 +927,7 @@ class Boundaries:
         # Clear raw DataFrames
         self.__states = None
         self.__ca_counties = None
+        self.__ca_cities = None
         self.__ca_watersheds = None
         self.__ca_utilities = None
         self.__ca_forecast_zones = None
@@ -881,6 +952,7 @@ class Boundaries:
             Per-dataset usage (bytes):
             - 'states': Memory used by US states DataFrame (0 if not loaded)
             - 'ca_counties': Memory used by CA counties DataFrame (0 if not loaded)
+            - 'ca_cities': Memory used by CA cities DataFrame (0 if not loaded)
             - 'ca_watersheds': Memory used by CA watersheds DataFrame (0 if not loaded)
             - 'ca_utilities': Memory used by CA utilities DataFrame (0 if not loaded)
             - 'ca_forecast_zones': Memory used by forecast zones DataFrame (0 if not loaded)
@@ -921,12 +993,14 @@ class Boundaries:
         - Total includes all loaded DataFrames but not lookup dictionaries
 
         """
+
         usage = {}
         total_bytes = 0
 
         datasets = {
             "states": self.__states,
             "ca_counties": self.__ca_counties,
+            "ca_cities": self.__ca_cities,
             "ca_watersheds": self.__ca_watersheds,
             "ca_utilities": self.__ca_utilities,
             "ca_forecast_zones": self.__ca_forecast_zones,
