@@ -2044,6 +2044,18 @@ def get_data(
     xr.DataArray
         The requested climate data, or None if an error occurred.
 
+    .. deprecated:: 1.6.0
+        Use :class:`climakitae.new_core.user_interface.ClimateData` instead.
+        This legacy entrypoint is scheduled for removal in 2.0.0, targeting
+        January 2027.
+
+    warnings.warn(
+        "climakitae.core.data_interface.get_data() is deprecated and will be "
+        "removed in climakitae 2.0.0 (targeting January 2027). Use "
+        "climakitae.new_core.user_interface.ClimateData instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     Notes
     -----
     Errors aren't raised by the function. Rather, an appropriate informative
@@ -2053,6 +2065,14 @@ def get_data(
     is printed instead.
 
     """
+
+    warnings.warn(
+        "climakitae.core.data_interface.get_data() is deprecated and will be "
+        "removed in climakitae 2.0.0 (targeting January 2027). Use "
+        "climakitae.new_core.user_interface.ClimateData instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
     def _check_valid_input_station(
         stations: list[str], station_options_all: list[str]
