@@ -1954,8 +1954,8 @@ class TestGetBoundaryGeometry:
             mock_df, geometry=[box(-124, 32, -114, 42)], crs="EPSG:4326"
         )
 
-        # Mock the boundaries._us_states attribute
-        self.mock_boundaries._us_states = mock_gdf
+        # Mock the boundaries._states attribute
+        self.mock_boundaries._states = mock_gdf
 
         # Call _extract_geometry_from_category
         result = self.clip._extract_geometry_from_category("states", 5)
@@ -1980,8 +1980,8 @@ class TestGetBoundaryGeometry:
             mock_df, geometry=[box(-124, 32, -114, 42)], crs="EPSG:4326"
         )
 
-        # Mock the boundaries._us_states attribute
-        self.mock_boundaries._us_states = mock_gdf
+        # Mock the boundaries._states attribute
+        self.mock_boundaries._states = mock_gdf
 
         # Try to extract with invalid index
         with pytest.raises(ValueError, match="Index 999 not found in states data"):
@@ -2796,7 +2796,7 @@ class TestClipDataWithGeomCRS:
         result = Clip._clip_data_with_geom(mock_data, self.gdf)
 
         # Verify write_crs was called with the spatial_ref
-        rio_mock.write_crs.assert_called_with("some_crs_string", inplace=True)
+        rio_mock.write_crs.assert_called_with("some_crs_string")
         assert result == "clipped_result"
 
     def test_wrf_lambert_conformal_missing_spatial_ref(self):
@@ -2843,7 +2843,7 @@ class TestClipDataWithGeomCRS:
 
         result = Clip._clip_data_with_geom(mock_data, self.gdf)
 
-        rio_mock.write_crs.assert_called_with("epsg:4326", inplace=True)
+        rio_mock.write_crs.assert_called_with("epsg:4326")
         assert result == "clipped_result"
 
 

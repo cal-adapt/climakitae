@@ -63,12 +63,12 @@ print(data.attrs)
 
 ## Code References
 
-| Method | Lines | Purpose |
-|--------|-------|---------|
-| `__init__` | [67–77](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/update_attributes.py#L67) | Store unused `value`; set name |
-| `execute` | [79–121](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/update_attributes.py#L79) | Ensure context entry; merge `new_attrs` per result type |
-| `update_context` | [123–144](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/update_attributes.py#L123) | Add `"update_attributes"` marker into `context["new_attrs"]` |
-| `set_data_accessor` | [146–](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/update_attributes.py#L146) | Unused stub |
+| Method | Link to Code | Purpose |
+|--------|-------|----------|
+| `__init__` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Aupdate_attributes.py&type=code) | Store unused `value`; set name |
+| `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Aupdate_attributes.py&type=code) | Ensure context entry; merge `new_attrs` per result type |
+| `update_context` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Aupdate_attributes.py&type=code) | Add `"update_attributes"` marker into `context["new_attrs"]` |
+| `set_data_accessor` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aset_data_accessor+path%3Aupdate_attributes.py&type=code) | Unused stub |
 
 ## See also
 

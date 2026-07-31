@@ -84,15 +84,15 @@ data = (ClimateData()
 
 ## Code References
 
-| Method | Lines | Purpose |
+| Method | Link to Code | Purpose |
 |--------|-------|---------|
-| `__init__` | [66–86](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L66) | Read `convert` and `reindex_time_axis` from value dict |
-| `execute` | [88–184](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L88) | Catalog-routed dispatch over result types |
-| `update_context` | [186–206](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L186) | Record applied timezone in `new_attrs` |
-| `_convert_to_local_time_gridded` | [212–267](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L212) | Central-pixel lat/lon → conversion (hourly only) |
-| `_convert_to_local_time_hdp` | [269–293](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L269) | First-station lat/lon → conversion |
-| `_contains_leap_days` | [295–318](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L295) | Detect Feb 29 entries |
-| `_find_timezone_and_convert` | [320–](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_to_local_time.py#L320) | `timezonefinder` lookup + `tz_convert`, optional reindex, set `timezone` attr |
+| `__init__` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Aconvert_to_local_time.py&type=code) | Read `convert` and `reindex_time_axis` from value dict |
+| `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Aconvert_to_local_time.py&type=code) | Catalog-routed dispatch over result types |
+| `update_context` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Aconvert_to_local_time.py&type=code) | Record applied timezone in `new_attrs` |
+| `_convert_to_local_time_gridded` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_convert_to_local_time_gridded+path%3Aconvert_to_local_time.py&type=code) | Central-pixel lat/lon → conversion (hourly only) |
+| `_convert_to_local_time_hdp` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_convert_to_local_time_hdp+path%3Aconvert_to_local_time.py&type=code) | First-station lat/lon → conversion |
+| `_contains_leap_days` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_contains_leap_days+path%3Aconvert_to_local_time.py&type=code) | Detect Feb 29 entries |
+| `_find_timezone_and_convert` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_find_timezone_and_convert+path%3Aconvert_to_local_time.py&type=code) | `timezonefinder` lookup + `tz_convert`, optional reindex, set `timezone` attr |
 
 ## See also
 

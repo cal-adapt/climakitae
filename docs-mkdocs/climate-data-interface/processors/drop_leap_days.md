@@ -61,13 +61,13 @@ data = (ClimateData()
 
 ## Code References
 
-| Method | Lines | Purpose |
-|--------|-------|---------|
-| `__init__` | [48–61](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py#L48) | Lowercase and store value |
-| `execute` | [63–111](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py#L63) | `match self.value` (yes/no/other) |
-| `_process_data` | [113–152](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py#L113) | Dispatch over result type via `match result` |
-| `update_context` | [154–172](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py#L154) | Tag `new_attrs` with applied operation |
-| `_drop_leap_days` | [178–](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/drop_leap_days.py#L178) | Build `time` mask and call `drop_sel` |
+| Method | Link to Code | Purpose |
+|--------|-------|----------|
+| `__init__` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Adrop_leap_days.py&type=code) | Lowercase and store value |
+| `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Adrop_leap_days.py&type=code) | `match self.value` (yes/no/other) |
+| `_process_data` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_process_data+path%3Adrop_leap_days.py&type=code) | Dispatch over result type via `match result` |
+| `update_context` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Adrop_leap_days.py&type=code) | Tag `new_attrs` with applied operation |
+| `_drop_leap_days` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_drop_leap_days+path%3Adrop_leap_days.py&type=code) | Build `time` mask and call `drop_sel` |
 
 ## See also
 

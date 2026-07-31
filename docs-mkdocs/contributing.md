@@ -8,6 +8,7 @@
 ## On this page
 
 - [Environment Setup](#environment-setup)
+- [Docs Preview](#docs-preview)
 - [Running Tests](#running-tests)
 - [Code Style](#code-style)
 - [Docstrings](#docstrings)
@@ -27,11 +28,28 @@ outside of an activated `.venv`.
 # One-time setup from the repo root
 uv venv
 source .venv/bin/activate
-uv sync
+uv sync --extra docs
 pip install -e . --no-deps   # editable install, skips dep conflicts
 ```
 
-After any new dependency is added to `pyproject.toml`, re-run `uv sync`.
+After any new dependency is added to `pyproject.toml`, re-run
+`uv sync --extra docs`.
+
+---
+
+## Docs Preview
+
+The MkDocs site depends on the optional `docs` extra, which installs
+`mkdocs-material`, `pymdown-extensions`, `mkdocstrings-python`, and related
+plugins.
+
+```bash
+# Serve the docs locally
+uv run --extra docs mkdocs serve
+
+# Or run a strict build (matches CI)
+uv run --extra docs mkdocs build --strict
+```
 
 ---
 

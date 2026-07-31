@@ -73,17 +73,17 @@ data = (ClimateData()
 
 ## Code References
 
-| Method | Lines | Purpose |
+| Method | Link to Code | Purpose |
 |--------|-------|---------|
-| `__init__` | [148–183](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L148) | Read configuration dict with defaults |
-| `_preprocess_hadisd` | [185–241](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L185) | Rename / unit-convert / attribute the raw HadISD slice |
-| `_load_station_data` | [243–307](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L243) | Resolve station IDs, load HadISD subset, return reference Dataset |
-| `_bias_correct_model_data` | [309–508](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L309) | Build QDM (`xclim`) train/adjust per station |
-| `_process_single_dataset` | [510–721](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L510) | Load reference, run QDM via `xarray.map`, return per-station vars |
-| `_execute_dict` | [723–788](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L723) | Recursive dict path |
-| `execute` | [790–862](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L790) | Dispatcher: dict / Dataset / DataArray |
-| `update_context` | [864–891](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L864) | Record stations and QDM parameters in `new_attrs` |
-| `set_data_accessor` | [893–](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L893) | Receive `DataCatalog` reference (used by `_load_station_data`) |
+| `__init__` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Abias_adjust_model_to_station.py&type=code) | Read configuration dict with defaults |
+| `_preprocess_hadisd` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_preprocess_hadisd+path%3Abias_adjust_model_to_station.py&type=code) | Rename / unit-convert / attribute the raw HadISD slice |
+| `_load_station_data` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_load_station_data+path%3Abias_adjust_model_to_station.py&type=code) | Resolve station IDs, load HadISD subset, return reference Dataset |
+| `_bias_correct_model_data` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_bias_correct_model_data+path%3Abias_adjust_model_to_station.py&type=code) | Build QDM (`xclim`) train/adjust per station |
+| `_process_single_dataset` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_process_single_dataset+path%3Abias_adjust_model_to_station.py&type=code) | Load reference, run QDM via `xarray.map`, return per-station vars |
+| `_execute_dict` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_execute_dict+path%3Abias_adjust_model_to_station.py&type=code) | Recursive dict path |
+| `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Abias_adjust_model_to_station.py&type=code) | Dispatcher: dict / Dataset / DataArray |
+| `update_context` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Abias_adjust_model_to_station.py&type=code) | Record stations and QDM parameters in `new_attrs` |
+| `set_data_accessor` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aset_data_accessor+path%3Abias_adjust_model_to_station.py&type=code) | Receive `DataCatalog` reference (used by `_load_station_data`) |
 
 > Earlier docs implied an early "activity_id == WRF" guard with line numbers in the 80–145 range. Those line numbers do not exist in the source — the file's first method (`__init__`) starts at line 148. The activity-id constraint is enforced by data availability rather than an explicit early-return check.
 

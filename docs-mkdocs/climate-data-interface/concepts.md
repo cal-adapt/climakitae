@@ -95,7 +95,7 @@ ClimateData provides multiple boundary types for spatial subsetting:
 - `ca_census_tracts`: Census block groups and tracts  
 
 **Regional/National:**  
-- `us_states`: Western US states (11 states)
+- `states`: Western US states (11 states)
 
 **Infrastructure:**  
 - `ious_pous`: California investor-owned (IOU) and publicly-owned (POU) utilities  

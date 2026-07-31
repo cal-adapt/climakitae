@@ -93,6 +93,6 @@ To add new packages to the Binder environment:
 
 ## More Information
 
-- [Binder Documentation](https://mybinder.readthedocs.io/)
-- [repo2docker Configuration](https://repo2docker.readthedocs.io/)
+- [Binder Documentation](https://mybinder.org/)
+- [repo2docker Configuration](https://github.com/jupyterhub/repo2docker)
 - [climakitae Repository](https://github.com/cal-adapt/climakitae)

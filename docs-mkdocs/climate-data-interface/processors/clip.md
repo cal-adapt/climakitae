@@ -145,23 +145,23 @@ When `persist=True` (constructor arg or `persist` key in dict input), the proces
 
 ## Code References
 
-| Method | Lines | Purpose |
+| Method | Link to Code | Purpose |
 |--------|-------|---------|
-| `__init__` | [186–291](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L186) | Parse `value`, set mode flags (`is_single_point`, `is_multi_point`, `separated`, `extract_points`, `persist`) |
-| `execute` | [294–477](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L294) | Two-phase: parse value → geom (line 303), then dispatch over result type (line 386); optional `.compute()` if `persist` |
-| `update_context` | [479–535](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L479) | Record clipped-region metadata under `new_attrs["clip"]` |
-| `set_data_accessor` | [537–539](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L537) | Receive `DataCatalog` reference for boundary/station lookups |
-| `_get_station_coordinates` | [541–568](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L541) | HadISD station code → (lat, lon, metadata) |
-| `_convert_stations_to_points` | [570–593](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L570) | Multi-station list → point_list + metadata list |
-| `_clip_data_with_geom` | [595–663](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L595) | CRS detection + `rio.clip(all_touched=True, drop=True)` |
-| `_clip_data_to_point` | [665–878](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L665) | Closest cell, fallback to 3×3 index-space neighborhood mean |
-| `_clip_data_to_multiple_points` | [880–961](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L880) | Vectorized multi-point selection |
-| `_clip_data_to_multiple_points_fallback` | [963–1059](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L963) | Fallback path used when vectorized lookup fails |
-| `_clip_data_to_points_as_mask` | [1061–1346](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1061) | Mask-based multi-point clip; supports `extract_points` along new `points` dim |
-| `_clip_data_separated` | [1348–1441](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1348) | Per-boundary clipping returning dict/list keyed by boundary |
-| `_get_boundary_geometry` | [1443–1503](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1443) | Single boundary key → GeoDataFrame |
-| `_get_multi_boundary_geometry` | [1683–1749](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1683) | Multi-boundary union via `_combine_geometries` |
-| `_combine_geometries` | [1751–](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/clip.py#L1751) | Geometry union helper |
+| `__init__` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Aclip.py&type=code) | Parse `value`, set mode flags (`is_single_point`, `is_multi_point`, `separated`, `extract_points`, `persist`) |
+| `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Aclip.py&type=code) | Two-phase: parse value → geom (line 303), then dispatch over result type (line 386); optional `.compute()` if `persist` |
+| `update_context` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Aclip.py&type=code) | Record clipped-region metadata under `new_attrs["clip"]` |
+| `set_data_accessor` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aset_data_accessor+path%3Aclip.py&type=code) | Receive `DataCatalog` reference for boundary/station lookups |
+| `_get_station_coordinates` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_get_station_coordinates+path%3Aclip.py&type=code) | HadISD station code → (lat, lon, metadata) |
+| `_convert_stations_to_points` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_convert_stations_to_points+path%3Aclip.py&type=code) | Multi-station list → point_list + metadata list |
+| `_clip_data_with_geom` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_clip_data_with_geom+path%3Aclip.py&type=code) | CRS detection + `rio.clip(all_touched=True, drop=True)` |
+| `_clip_data_to_point` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_clip_data_to_point+path%3Aclip.py&type=code) | Closest cell, fallback to 3×3 index-space neighborhood mean |
+| `_clip_data_to_multiple_points` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_clip_data_to_multiple_points+path%3Aclip.py&type=code) | Vectorized multi-point selection |
+| `_clip_data_to_multiple_points_fallback` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_clip_data_to_multiple_points_fallback+path%3Aclip.py&type=code) | Fallback path used when vectorized lookup fails |
+| `_clip_data_to_points_as_mask` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_clip_data_to_points_as_mask+path%3Aclip.py&type=code) | Mask-based multi-point clip; supports `extract_points` along new `points` dim |
+| `_clip_data_separated` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_clip_data_separated+path%3Aclip.py&type=code) | Per-boundary clipping returning dict/list keyed by boundary |
+| `_get_boundary_geometry` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_get_boundary_geometry+path%3Aclip.py&type=code) | Single boundary key → GeoDataFrame |
+| `_get_multi_boundary_geometry` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_get_multi_boundary_geometry+path%3Aclip.py&type=code) | Multi-boundary union via `_combine_geometries` |
+| `_combine_geometries` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_combine_geometries+path%3Aclip.py&type=code) | Geometry union helper |
 
 ## Examples
 

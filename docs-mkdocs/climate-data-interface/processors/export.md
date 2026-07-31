@@ -201,27 +201,27 @@ myfile_2.nc
 
 ## Code References
 
-| Method | Lines | Purpose |
+| Method | Link to Code | Purpose |
 |--------|-------|---------|
-| `__init__` | [197–237](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L197) | Parse `value` dict, set defaults |
-| `_validate_parameters` | [238–325](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L238) | Validate format / mode / export_method / types |
-| `execute` | [326–393](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L326) | Route by `export_method`; returns input unchanged |
-| `_export_data` | [394–455](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L394) | `match result` dispatcher (Dataset/DataArray, dict, list/tuple) |
-| `_export_collection` | [457–511](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L457) | List/tuple handler honoring `separated` and `location_based_naming` |
-| `_export_single_from_collection` | [513–571](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L513) | Per-item write inside `_export_collection` |
-| `_handle_dict_result` | [573–588](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L573) | `raw_data` / `calc_data` dict (e.g., `cava_data`) |
-| `_handle_selective_export` | [590–618](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L590) | Selective raw/calculate/both for non-dict inputs |
-| `_determine_data_type` | [620–646](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L620) | Classify input as raw vs calculated |
-| `_export_with_suffix` | [648–674](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L648) | Append suffix (`_raw`, `_calc`) and write |
-| `update_context` | [676–696](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L676) | Record export metadata in context |
-| `_clean_attrs_for_netcdf` | [702–761](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L702) | Sanitize attrs for NetCDF/Zarr serialization |
-| `_is_single_point_data` | [763–785](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L763) | Detect scalar lat/lon |
-| `_has_closest_cell_dimension` | [787–818](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L787) | Multi-point clip detection |
-| `_split_and_export_closest_cells` | [820–902](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L820) | Split along `closest_cell` and write each slice |
-| `_extract_point_coordinates` | [904–964](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L904) | Pull (lat, lon) for filename suffix |
-| `_generate_filename` | [966–1030](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L966) | Build base filename (location_based or template) |
-| `_get_unique_filename` | [1032–1062](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L1032) | Add `_1`, `_2`, ... when target exists |
-| `export_single` | [1064–1127](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/export.py#L1064) | `match req_format` and call format writer |
+| `__init__` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Aexport.py&type=code) | Parse `value` dict, set defaults |
+| `_validate_parameters` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_validate_parameters+path%3Aexport.py&type=code) | Validate format / mode / export_method / types |
+| `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Aexport.py&type=code) | Route by `export_method`; returns input unchanged |
+| `_export_data` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_export_data+path%3Aexport.py&type=code) | `match result` dispatcher (Dataset/DataArray, dict, list/tuple) |
+| `_export_collection` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_export_collection+path%3Aexport.py&type=code) | List/tuple handler honoring `separated` and `location_based_naming` |
+| `_export_single_from_collection` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_export_single_from_collection+path%3Aexport.py&type=code) | Per-item write inside `_export_collection` |
+| `_handle_dict_result` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_handle_dict_result+path%3Aexport.py&type=code) | `raw_data` / `calc_data` dict (e.g., `cava_data`) |
+| `_handle_selective_export` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_handle_selective_export+path%3Aexport.py&type=code) | Selective raw/calculate/both for non-dict inputs |
+| `_determine_data_type` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_determine_data_type+path%3Aexport.py&type=code) | Classify input as raw vs calculated |
+| `_export_with_suffix` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_export_with_suffix+path%3Aexport.py&type=code) | Append suffix (`_raw`, `_calc`) and write |
+| `update_context` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Aexport.py&type=code) | Record export metadata in context |
+| `_clean_attrs_for_netcdf` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_clean_attrs_for_netcdf+path%3Aexport.py&type=code) | Sanitize attrs for NetCDF/Zarr serialization |
+| `_is_single_point_data` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_is_single_point_data+path%3Aexport.py&type=code) | Detect scalar lat/lon |
+| `_has_closest_cell_dimension` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_has_closest_cell_dimension+path%3Aexport.py&type=code) | Multi-point clip detection |
+| `_split_and_export_closest_cells` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_split_and_export_closest_cells+path%3Aexport.py&type=code) | Split along `closest_cell` and write each slice |
+| `_extract_point_coordinates` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_extract_point_coordinates+path%3Aexport.py&type=code) | Pull (lat, lon) for filename suffix |
+| `_generate_filename` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_generate_filename+path%3Aexport.py&type=code) | Build base filename (location_based or template) |
+| `_get_unique_filename` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_get_unique_filename+path%3Aexport.py&type=code) | Add `_1`, `_2`, ... when target exists |
+| `export_single` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexport_single+path%3Aexport.py&type=code) | `match req_format` and call format writer |
     .table_id("day")
     .grid_label("d03")
     .processes({

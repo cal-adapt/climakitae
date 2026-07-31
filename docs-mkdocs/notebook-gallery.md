@@ -225,7 +225,7 @@ Access pre-installed notebooks on the [Cal-Adapt Analytics Engine JupyterHub](ht
 - **climakitae Documentation**: this site (cal-adapt.github.io/climakitae)  
 - **cae-notebooks Repository**: [https://github.com/cal-adapt/cae-notebooks](https://github.com/cal-adapt/cae-notebooks)  
 - **Cal-Adapt Analytics Engine**: [https://analytics.cal-adapt.org/](https://analytics.cal-adapt.org/)  
-  - [Example applications](https://analytics.cal-adapt.org/analytics/applications/example)  
+  - [Example Notebooks](https://cal-adapt.github.io/climakitae/dev/notebook-gallery/)  
   - [Methods](https://analytics.cal-adapt.org/analytics/methods)  
   - [Glossary](https://analytics.cal-adapt.org/guidance/glossary)  
 - **Cal-Adapt Overview**: [https://cal-adapt.org/](https://cal-adapt.org/)  

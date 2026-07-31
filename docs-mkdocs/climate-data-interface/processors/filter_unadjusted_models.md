@@ -73,14 +73,14 @@ data_all = (ClimateData()
 
 ## Code References
 
-| Method | Lines | Purpose |
+| Method | Link to Code | Purpose |
 |--------|-------|---------|
-| `__init__` | [51–63](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L51) | Lowercase + store value |
-| `execute` | [65–127](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L65) | `match self.value`; warn + filter or warn + pass |
-| `_contains_unadjusted_models` | [129–171](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L129) | Build model_id from `intake_esm_attrs:*`, check NON_WRF_BA_MODELS |
-| `_remove_unadjusted_models` | [173–225](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L173) | Drop matching entries; preserve container type |
-| `update_context` | [227–246](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L227) | (No-op for context attrs in this processor's flow) |
-| `set_data_accessor` | [248–](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/filter_unadjusted_models.py#L248) | Unused stub |
+| `__init__` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Afilter_unadjusted_models.py&type=code) | Lowercase + store value |
+| `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Afilter_unadjusted_models.py&type=code) | `match self.value`; warn + filter or warn + pass |
+| `_contains_unadjusted_models` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_contains_unadjusted_models+path%3Afilter_unadjusted_models.py&type=code) | Build model_id from `intake_esm_attrs:*`, check NON_WRF_BA_MODELS |
+| `_remove_unadjusted_models` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_remove_unadjusted_models+path%3Afilter_unadjusted_models.py&type=code) | Drop matching entries; preserve container type |
+| `update_context` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Afilter_unadjusted_models.py&type=code) | (No-op for context attrs in this processor's flow) |
+| `set_data_accessor` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aset_data_accessor+path%3Afilter_unadjusted_models.py&type=code) | Unused stub |
 
 ## See also
 

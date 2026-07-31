@@ -30,15 +30,15 @@ flowchart TD
 
 ## Code References
 
-| Method | Lines | Purpose |
+| Method | Link to Code | Purpose |
 |--------|-------|---------|
-| `__init__` | [128\u2013143](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L128) | Store target unit |
-| `execute` | [145\u2013190](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L145) | UNSET check; route by container type |
-| `update_context` | [192\u2013212](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L192) | Write conversion to `new_attrs` |
-| `set_data_accessor` | [214\u2013216](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L214) | Catalog reference |
-| `_convert_units` | [218\u2013](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L218) | Per-variable lookup + apply |
-| `_handle_precipitation_to_flux` | [70\u201378](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L70) | mm \u2194 flux helper |
-| `_handle_flux_to_precipitation` | [80\u201395](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/convert_units.py#L80) | flux \u2194 mm helper |
+| `__init__` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Aconvert_units.py&type=code) | Store target unit |
+| `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Aconvert_units.py&type=code) | UNSET check; route by container type |
+| `update_context` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Aconvert_units.py&type=code) | Write conversion to `new_attrs` |
+| `set_data_accessor` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aset_data_accessor+path%3Aconvert_units.py&type=code) | Catalog reference |
+| `_convert_units` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_convert_units+path%3Aconvert_units.py&type=code) | Per-variable lookup + apply |
+| `_handle_precipitation_to_flux` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_handle_precipitation_to_flux+path%3Aconvert_units.py&type=code) | mm ↔ flux helper |
+| `_handle_flux_to_precipitation` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_handle_flux_to_precipitation+path%3Aconvert_units.py&type=code) | flux ↔ mm helper |
 
 ## Parameter shape
 

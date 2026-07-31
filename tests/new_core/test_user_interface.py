@@ -1016,12 +1016,20 @@ class TestClimateDataShowOptionsExceptionHandling:
 
     def test_show_boundary_options_with_type(self):
         """Test show_boundary_options with specific boundary_type parameter."""
-        self.climate_data._factory.get_boundaries.return_value = ["CA", "NV"]
+
+        def get_boundaries_side_effect(boundary_type=UNSET):
+            if boundary_type == "states":
+                return ["CA", "NV"]
+            return ["states", "counties"]
+
+        self.climate_data._factory.get_boundaries.side_effect = (
+            get_boundaries_side_effect
+        )
 
         with patch("builtins.print"):
-            self.climate_data.show_boundary_options(boundary_type="us_states")
+            self.climate_data.show_boundary_options(boundary_type="states")
 
-        self.climate_data._factory.get_boundaries.assert_called_with("us_states")
+        self.climate_data._factory.get_boundaries.assert_called_with("states")
 
     def test_show_boundary_options_exception(self):
         """Test show_boundary_options handles exception gracefully."""

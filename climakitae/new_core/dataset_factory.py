@@ -49,8 +49,8 @@ from climakitae.new_core.param_validation.param_validation_tools import (
     _get_closest_options,
 )
 from climakitae.new_core.processors.abc_data_processor import (
-    DataProcessor,
     _PROCESSOR_REGISTRY,
+    DataProcessor,
 )
 
 # Module logger
@@ -578,26 +578,32 @@ class DatasetFactory:
         """
         return DataCatalog()["stations"]["station"].unique().tolist()
 
-    def get_boundaries(self, boundary_type: str) -> List[str]:
+    def get_boundaries(self, boundary_type: str = UNSET) -> List[str]:
         """Get a list of available boundary datasets.
+
+        Call with no arguments to see all available boundary category names
+        (e.g. "states", "ca_counties"). Call again with one of those names as
+        `boundary_type` to see the individual boundaries within that category
+        (e.g. the list of county names).
 
         Parameters
         ----------
-        boundary_type : str
-            The type of boundary datasets to retrieve. If the type is not found
-            in the cache, returns all available boundary types.
+        boundary_type : str, optional
+            A boundary category name to look up, as returned by a previous
+            no-argument call. If omitted, or if it doesn't match a known
+            category, all available category names are returned instead.
 
         Returns
         -------
         List[str]
-            List of available boundary datasets for the specified type, or
-            all available boundary types if the specified type is not found.
+            The individual boundaries in `boundary_type`, or all available
+            boundary category names if no valid type was given.
 
         """
-        if boundary_type not in DataCatalog().boundaries._lookup_cache:
-            return list(DataCatalog().boundaries._lookup_cache.keys())
-        else:
-            return list(DataCatalog().boundaries._lookup_cache[boundary_type].keys())
+        boundaries = DataCatalog().boundaries.boundary_dict()
+        if boundary_type in boundaries:
+            return list(boundaries[boundary_type].keys())
+        return list(boundaries.keys())
 
     def reset(self) -> None:
         """Reset the factory state, clearing all registered catalogs, validators, and processors.

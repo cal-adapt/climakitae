@@ -67,6 +67,11 @@ dependencies = [
 
 [project.optional-dependencies]
 docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.6",
+    "pymdown-extensions>=10.15",
+    "mike>=2.0",
+    "mkdocstrings-python>=1.0",
     "Sphinx",
     "sphinx-book-theme",
     "sphinx-design",
@@ -83,7 +88,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/cal-adapt/climakitae"
-Documentation = "https://climakitae.readthedocs.io"
+Documentation = "https://cal-adapt.github.io/climakitae/dev/"
 Repository = "https://github.com/cal-adapt/climakitae"
 Issues = "https://github.com/cal-adapt/climakitae/issues"
 "Cal-Adapt" = "https://analytics.cal-adapt.org"

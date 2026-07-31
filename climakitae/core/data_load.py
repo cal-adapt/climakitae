@@ -751,7 +751,6 @@ def _get_data_one_var(selections: "DataParameters") -> xr.DataArray:
     da.attrs["units"] = native_units
     da = _override_unit_defaults(da, selections.variable_id)
     da = convert_units(da=da, selected_units=orig_units)
-
     return da
 
 
@@ -843,7 +842,15 @@ def _get_Uearth(selections: "DataParameters") -> xr.DataArray:
     -------
     da : xr.DataArray
 
+    Notes
+    -----
+    This function will not return area average even if selections.area_average == "Yes". Area averaging
+    must be applied separately to the final wind data.
     """
+    # Don't do any area averaging here
+    area_average = selections.area_average
+    selections.area_average = "No"
+
     # Load v10 data
     selections.variable_id = ["v10"]
     v10_da = _get_data_one_var(selections)
@@ -871,6 +878,8 @@ def _get_Uearth(selections: "DataParameters") -> xr.DataArray:
     # Add variable name
     Uearth.name = selections.variable
 
+    # Reset selections to original value
+    selections.area_average = area_average
     return Uearth
 
 
@@ -888,7 +897,15 @@ def _get_Vearth(selections: "DataParameters") -> xr.DataArray:
     -------
     da : xr.DataArray
 
+    Notes
+    -----
+    This function will not return area average even if selections.area_average == "Yes". Area averaging
+    must be applied separately to the final wind data.
     """
+    # Don't area average here
+    area_average = selections.area_average
+    selections.area_average = "No"
+
     # Load u10 data
     selections.variable_id = ["u10"]
     u10_da = _get_data_one_var(selections)
@@ -916,6 +933,8 @@ def _get_Vearth(selections: "DataParameters") -> xr.DataArray:
     # Add variable name
     Vearth.name = selections.variable
 
+    # Reset selections to original value
+    selections.area_average = area_average
     return Vearth
 
 
@@ -936,17 +955,20 @@ def _get_wind_speed_derived(selections: "DataParameters") -> xr.DataArray:
     selections.units = (
         "m s-1"  # Need to set units to required units for compute_wind_mag
     )
-    # u10_da = _get_data_one_var(selections)
     u10_da = _get_Uearth(selections)
 
     # Load v10 data
     selections.variable_id = ["v10"]
     selections.units = "m s-1"
-    # v10_da = _get_data_one_var(selections)
     v10_da = _get_Vearth(selections)
 
     # Derive the variable
     da = compute_wind_mag(u10=u10_da, v10=v10_da)  # m/s
+
+    # Do area averaging here if requested:
+    if selections.area_average == "Yes":
+        da = area_average(da)
+
     return da
 
 
@@ -967,17 +989,19 @@ def _get_wind_dir_derived(selections: "DataParameters") -> xr.DataArray:
     selections.units = (
         "m s-1"  # Need to set units to required units for compute_wind_mag
     )
-    # u10_da = _get_data_one_var(selections)
     u10_da = _get_Uearth(selections)
 
     # Load v10 data
     selections.variable_id = ["v10"]
     selections.units = "m s-1"
-    # v10_da = _get_data_one_var(selections)
     v10_da = _get_Vearth(selections)
 
     # Derive the variable
     da = compute_wind_dir(u10=u10_da, v10=v10_da)
+
+    # Now do area averaging if requested
+    if selections.area_average == "Yes":
+        da = area_average(da)
     return da
 
 
@@ -1398,6 +1422,10 @@ def read_catalog_from_select(selections: "DataParameters") -> xr.DataArray:
             da = _get_Uearth(selections)
         elif "v10" in selections.variable_id:
             da = _get_Vearth(selections)
+        # Do area averaging here, if selected, as _get_Uearth and
+        # _get_Vearth return data without area averaging.
+        if selections.area_average == "Yes":
+            da = area_average(da)
 
     # Any other variable... i.e. not an index, derived var, or a WRF wind vector
     else:

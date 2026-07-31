@@ -36,7 +36,7 @@ Minor patch releases (e.g. `1.4.1`) may be issued at any time for regressions or
 
 ## Versioning
 
-climakitae uses **[`setuptools_scm`](https://setuptools-scm.readthedocs.io/)** — the version is derived automatically from git tags. There is no version number to edit manually.
+climakitae uses **[`setuptools_scm`](https://github.com/pypa/setuptools-scm)** — the version is derived automatically from git tags. There is no version number to edit manually.
 
 Version format follows [Semantic Versioning](https://semver.org/):
 

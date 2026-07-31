@@ -226,23 +226,23 @@ data = (ClimateData()
 
 ## Code References
 
-| Method | Lines | Purpose |
+| Method | Link to Code | Purpose |
 |--------|-------|---------|
-| `__init__` | [145–189](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L145) | Parse top-level + dispatch sub-config setup |
-| `_setup_one_in_x_parameters` | [191–260](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L191) | Validate periods/values, set distribution & defaults |
-| `_setup_threshold_parameters` | [262–303](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L262) | Validate threshold dict, normalize period tuple |
-| `execute` | [305–370](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L305) | Pick `process_fn`, dispatch over result type |
-| `_calculate_metrics_single` | [372–510](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L372) | Quantile + min/max/mean/median/sum reductions |
-| `_calculate_threshold_single` | [512–593](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L512) | Threshold mask, optional duration filter, resample-sum |
-| `_calculate_one_in_x_single` | [595–720](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L595) | Drives 1-in-X analysis per simulation |
-| `_fit_return_variable_1d` | [722–848](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L722) | Per-pixel distribution fit |
-| `_calculate_one_in_x_vectorized` | [850–927](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L850) | Vectorized fit pathway |
-| `_calculate_adaptive_batch_size` | [929–1037](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L929) | Pick spatial batch size from dataset shape |
-| `_process_simulation_batch` | [1039–1165](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1039) | Run one batch through the fit pipeline |
-| `_fit_distributions_vectorized` | [1167–1214](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1167) | NumPy-vectorized fitting |
-| `_fit_with_early_spatial_batching` | [1216–1346](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1216) | Memory-aware spatial batching |
-| `_preprocess_variable_for_one_in_x` | [1348–1385](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1348) | Apply user-supplied preprocessing |
-| `update_context` | [1387–](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/metric_calc.py#L1387) | Tag `new_attrs` with computed metric metadata |
+| `__init__` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Ametric_calc.py&type=code) | Parse top-level + dispatch sub-config setup |
+| `_setup_one_in_x_parameters` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_setup_one_in_x_parameters+path%3Ametric_calc.py&type=code) | Validate periods/values, set distribution & defaults |
+| `_setup_threshold_parameters` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_setup_threshold_parameters+path%3Ametric_calc.py&type=code) | Validate threshold dict, normalize period tuple |
+| `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Ametric_calc.py&type=code) | Pick `process_fn`, dispatch over result type |
+| `_calculate_metrics_single` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_calculate_metrics_single+path%3Ametric_calc.py&type=code) | Quantile + min/max/mean/median/sum reductions |
+| `_calculate_threshold_single` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_calculate_threshold_single+path%3Ametric_calc.py&type=code) | Threshold mask, optional duration filter, resample-sum |
+| `_calculate_one_in_x_single` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_calculate_one_in_x_single+path%3Ametric_calc.py&type=code) | Drives 1-in-X analysis per simulation |
+| `_fit_return_variable_1d` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_fit_return_variable_1d+path%3Ametric_calc.py&type=code) | Per-pixel distribution fit |
+| `_calculate_one_in_x_vectorized` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_calculate_one_in_x_vectorized+path%3Ametric_calc.py&type=code) | Vectorized fit pathway |
+| `_calculate_adaptive_batch_size` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_calculate_adaptive_batch_size+path%3Ametric_calc.py&type=code) | Pick spatial batch size from dataset shape |
+| `_process_simulation_batch` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_process_simulation_batch+path%3Ametric_calc.py&type=code) | Run one batch through the fit pipeline |
+| `_fit_distributions_vectorized` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_fit_distributions_vectorized+path%3Ametric_calc.py&type=code) | NumPy-vectorized fitting |
+| `_fit_with_early_spatial_batching` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_fit_with_early_spatial_batching+path%3Ametric_calc.py&type=code) | Memory-aware spatial batching |
+| `_preprocess_variable_for_one_in_x` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_preprocess_variable_for_one_in_x+path%3Ametric_calc.py&type=code) | Apply user-supplied preprocessing |
+| `update_context` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Ametric_calc.py&type=code) | Tag `new_attrs` with computed metric metadata |
 
 ## See also
 

@@ -6,10 +6,8 @@ is set to True, in which case the raw profile(s) for the requested warming level
 be returned.
 """
 
-from typing import Tuple
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
-from IPython.display import ProgressBar
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -19,7 +17,7 @@ from climakitae.core.constants import UNSET, WRF_BA_MODELS
 from climakitae.core.data_interface import DataInterface, get_data
 from climakitae.core.paths import HADISD_STATIONS_URL, VARIABLE_DESCRIPTIONS_CSV_PATH
 from climakitae.explore.typical_meteorological_year import is_HadISD, match_str_to_wl
-from climakitae.util.utils import julianDay_to_date, read_csv_file
+from climakitae.util.utils import read_csv_file
 from climakitae.util.warming_levels import get_gwl_at_year
 
 xr.set_options(keep_attrs=True)  # Keep attributes when mutating xr objects
@@ -222,6 +220,8 @@ def _check_cached_area(location_str: str, **kwargs: Any) -> str:
     match cached_area:
         case str():
             location_str = cached_area.lower()
+        case list():
+            location_str = "_".join(c.lower() for c in cached_area)
         case _:
             return location_str
     return location_str
@@ -267,9 +267,7 @@ def _check_stations(location_str: str, **kwargs: Any) -> str:
                     location_str = stations[0].lower()
                 # if not a HadISD station
                 else:
-                    raise ValueError(
-                        "If a custom station name is given, and no cached area is given, its latitude and longitude must also be provided."
-                    )
+                    raise ValueError("Station must be a HadISD station.")
             # if there are multiple station names
             else:
                 # if all are HadISD stations
@@ -277,24 +275,7 @@ def _check_stations(location_str: str, **kwargs: Any) -> str:
                     location_str = "_".join(s.lower() for s in stations)
                 # if at least one is not a HadISD station
                 else:
-                    raise ValueError(
-                        f"If multiple stations are given, and no other location parameters, all must be HadISD stations."
-                    )
-        # station(s) and other location parameters provided
-        case (list(), length) if length > 0:
-            # if location_str does NOT contain numbers (ie, cached area was provided)
-            if not any(char.isdigit() for char in location_str):
-                return location_str
-
-            # if only one station provided, it's custom, and location_str contains numbers (ie, lat/lon were provided)
-            if (
-                len(stations) == 1
-                and not is_HadISD(stations[0])
-                and any(char.isdigit() for char in location_str)
-            ):
-                location_str = f"{stations[0].lower()}_{location_str}"
-            else:
-                return location_str
+                    raise ValueError(f"All stations must be HadISD stations.")
         # no station(s), other location parameters provided
         case (object(), length) if length > 0:
             return location_str
@@ -327,12 +308,8 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 List of global warming levels in profile
             warming_level_winow: int in range (5,25), optional
                 Years around Global Warming Level (+/-) (e.g. 15 means a 30yr window)
-            latitude : tuple(float | int), optional
-                Latitude coordinate range from profile location
-            longitude : tuple(float | int), optional
-                Longitude coordinate range from profile location
-            station_name : list[str], optional
-                Name of HadISD station(s) or custom location used in profile
+            location : str, tuple(float | int), list[str | float | int]
+                Station name, cached_area, or coordinates
             cached_area : str, optional
                 Name of cached area used in profile
             no_delta : bool, default False, optional
@@ -346,21 +323,6 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
             time_profile_scenario (Optional) : str, default "SSP 3-7.0"
                 SSP scenario from ["SSP 3-7.0", "SSP 2-4.5","SSP 5-8.5"]
             bias_adjusted_models (optional) : bool, default False, if True only return bias-adjusted WRF models
-
-    Notes
-    -----
-
-    The function prioritizes location parameters in the following order:
-    1. cached_area
-    2. latitude/longitude
-    3. stations
-    Each parameter will override the lower-priority ones if provided. So if cached_area
-    is given, lat/lon and stations are ignored. If lat/lon are given, stations are
-    ignored. If stations are given, they are used only if neither cached_area nor lat/lon
-    are provided. With the exception of the case in which a single custom station name is
-    given. That name will be included in the filename only if lat/lon are given, and no
-    cached area.
-
     """
 
     # Get required parameter values
@@ -384,6 +346,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
     ]["variable_id"].item()
 
     # Get location string based on combination of location variables
+    kwargs = _handle_location_params(**kwargs)
     func_list = [_check_cached_area, _check_lat_lon, _check_stations]
     location_str = ""
     for func in func_list:
@@ -391,7 +354,7 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
 
     # Check profile MultiIndex to pull out data by Global Warming Level
     match profile.keys().nlevels:
-        case 2:  # Single WL
+        case 1:  # Single WL
             # If 'warming_level' provided, fetch the value within the input list
             if global_warming_levels:
                 gwl = global_warming_levels[0]
@@ -415,8 +378,8 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                 scenario,
                 ba_models,
             )
-            profile.to_csv(filename)
-        case 3:  # Multiple WL (WL included in MultiIndex)
+            profile.to_csv(filename, index=False)
+        case 2:  # Multiple WL (WL included in MultiIndex)
             for gwl in global_warming_levels:  # Single file per WL
                 filename = _get_clean_standardyr_filename(
                     var_id,
@@ -430,11 +393,122 @@ def export_profile_to_csv(profile: pd.DataFrame, **kwargs: Any) -> None:
                     scenario,
                     ba_models,
                 )
-                profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(filename)
+                profile.xs(f"WL_{gwl}", level="Warming_Level", axis=1).to_csv(
+                    filename, index=False
+                )
         case _:
             raise ValueError(
-                f"Profile MultiIndex should have two or three levels. Found {profile.keys().nlevels} levels."
+                f"Profile MultiIndex should have one or two levels. Found {profile.keys().nlevels} levels."
             )
+
+
+def _get_buffer_from_resolution(resolution: str) -> float:
+    """Return a buffer in degrees, used to select closest gridcell.
+
+    Parameters
+    ----------
+    resolution: str
+        The grid resolution, in km
+
+    Returns
+    -------
+    buffer: float
+        The buffer, in degrees, to select around a lat/lon point
+    """
+    match resolution:
+        case "3 km":
+            buffer = 0.02
+        case "9 km":
+            buffer = 0.08
+        case "45 km":
+            buffer = 0.35
+        case _:
+            # Use 3 km value as buffer
+            buffer = 0.02
+    return buffer
+
+
+def _handle_location_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Parse the `location` parameter to determine what kind of location is being selected.
+
+    Parameters
+    ----------
+    **kwargs : dict
+        Keyword arguments for data selection. Allowed keys:
+        - variable (Optional) : str, default "Air Temperature at 2m"
+        - resolution (Optional) : str, default "3 km"
+        - approach (Optional) : str, "Warming Level" or "Time"
+        - centered_year (Optional) : int in range [1980,2099]
+        - time_profile_scenario (Optional): str, default "SSP 3-7.0"
+        - warming_levels (Optional) : List[float], default [1.2]
+        - warming_level_window (Optional): int in range [5,25]
+        - location (Optional) : str, List[str|float|int], or Tuple[str|float|int]
+        - units (Optional) : str, default "degF"
+        - no_delta (optional) : bool, default False, if True, do not retrieve historical data, return raw future profile
+        - bias_adjusted_models (optional) : bool, default False, if True only return bias-adjusted WRF models
+
+    Returns
+    -------
+    **kwargs : dict
+        Arguments with updated "cached_area", "stations", or "latitude"/"longitude" parameters
+    """
+    # location is not required, could be unset
+    location = kwargs.pop("location", None)
+    match location:
+        case str():  # Can be single HadISD station or cached area
+            if is_HadISD(location):
+                kwargs["stations"] = [location]
+            else:
+                kwargs["cached_area"] = location
+        case (
+            list() | tuple()
+        ):  # Can be list/tuple of HadISD stations, cached area, or lat/lon
+            # Catch cases where someone provides invalid data - a list of coordinate tuples, for example
+            if not isinstance(location[0], (str, float, int)):
+                formatted_param_type = type(location).__name__
+                formatted_bad_type = type(location[0]).__name__
+                raise TypeError(
+                    f"The location {formatted_param_type} may only contain string or numeric values, not {formatted_bad_type}."
+                )
+            # Now work through the valid options
+            if all(is_HadISD(loc) for loc in location):  # stations
+                kwargs["stations"] = location
+            elif all(isinstance(loc, str) for loc in location):  # cached area
+                kwargs["cached_area"] = location
+            elif all(isinstance(loc, (float, int)) for loc in location):  # coordinates
+                if len(location) == 2:
+                    if all(loc <= 0 for loc in location) or all(
+                        loc >= 0 for loc in location
+                    ):
+                        raise ValueError(
+                            "Expected a positive-valued latitude coordinate and negative-valued longitude coordinate."
+                        )
+                    else:
+                        # In western US on our grids, latitude will always be positive
+                        # and longitude always negative
+                        latitude = [loc for loc in location if loc > 0][0]
+                        longitude = [loc for loc in location if loc < 0][0]
+                        # Add buffer around lat/lon point to help get nearest cell
+                        buffer = _get_buffer_from_resolution(
+                            kwargs.get("resolution", None)
+                        )
+                        kwargs["latitude"] = (latitude - buffer, latitude + buffer)
+                        kwargs["longitude"] = (longitude - buffer, longitude + buffer)
+                else:  # Location len != 2
+                    raise ValueError(
+                        "Length of `location` parameter must be two if providing a coordinate pair."
+                    )
+            else:  # Location parameter didn't match any expected format
+                raise ValueError(f"Unable to parse location parameter.")
+        case None:
+            # Do nothing here. Users will see a warning about the lack of location in retrieve_profile_data.
+            pass
+        case _:
+            formatted_param_type = type(location).__name__
+            raise TypeError(
+                f"The `location` parameter type should str, List, or Tuple if set. Got type {formatted_param_type}."
+            )
+    return kwargs
 
 
 def _handle_approach_params(**kwargs: Dict[str, Any]) -> Dict[str, Any]:
@@ -783,11 +857,14 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     elif "stations" in provided_location_params:
         # Stations provided - convert to lat/lon with buffer
         stations = kwargs.pop("stations")
+        buffer = _get_buffer_from_resolution(kwargs.get("resolution", "3 km"))
         print(
-            f"   📍 Converting {len(stations)} station(s) to lat/lon coordinates with ±0.02° buffer"
+            f"   📍 Converting {len(stations)} station(s) to lat/lon coordinates with ±{buffer:.2f}° buffer"
         )
         try:
-            lat_bounds, lon_bounds = _convert_stations_to_lat_lon(stations, buffer=0.02)
+            lat_bounds, lon_bounds = _convert_stations_to_lat_lon(
+                stations, buffer=buffer
+            )
             kwargs["latitude"] = lat_bounds
             kwargs["longitude"] = lon_bounds
             print(f"      Latitude range: {lat_bounds[0]:.4f} to {lat_bounds[1]:.4f}")
@@ -797,7 +874,7 @@ def retrieve_profile_data(**kwargs: Any) -> Tuple[xr.DataArray, xr.DataArray]:
     else:
         # No location parameters provided - warn about entire CA dataset
         print(
-            "   ⚠️  WARNING: No location parameters provided (cached_area, latitude/longitude, or stations)"
+            "   ⚠️  WARNING: No location parameter provided (cached_area, latitude/longitude, or stations)"
         )
         print(
             "      The entire California dataset will be retrieved, which may be very large and slow."
@@ -883,12 +960,8 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
         - time_profile_scenario (Optional) : str, default "SSP 3-7.0"
         - warming_level (Required) : List[float], default [1.2]
         - warming_level_window (Optional): int in range [5,25], default 15
-        - cached_area (Optional) : str or List[str]
+        - location (Optional) : str, List[str|float|int], or Tuple[str|float|int]
         - units (Optional) : str, default "degF"
-        - latitude (Optional) : float or tuple
-        - longitude (Optional) : float or tuple
-        - stations (Optional) : list[str], default None
-        - days_in_year (Optional) : int, default 365
         - q (Optional) : float | list[float], default 0.5, quantile for profile calculation
         - no_delta (optional) : bool, default False, if True, do not apply baseline subtraction, return raw future profile
         - bias_adjusted_models (optional) : bool, default False, if True only return bias-adjusted WRF models
@@ -912,9 +985,11 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
     >>> profile = get_climate_profile(warming_level=[2.0])
     """
     # Extract parameters for compute_profile
-    days_in_year = kwargs.pop("days_in_year", 365)
     q = kwargs.pop("q", 0.5)
     no_delta = kwargs.get("no_delta", False)
+
+    # Parse the location parameter
+    kwargs = _handle_location_params(**kwargs)
 
     # Retrieve the climate data
     print("📊 Retrieving climate data...")
@@ -947,7 +1022,7 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
                 print(f"Using default '{key}': {default_val}")
                 kwargs[key] = default_val
         else:
-            if key == "q" and q is not 0.5:
+            if key == "q" and q != 0.5:
                 continue
             else:
                 print(f"Using default '{key}': {default_val}")
@@ -986,15 +1061,11 @@ def get_climate_profile(**kwargs: Dict[str, Any]) -> pd.DataFrame:
     # Compute profiles for both datasets
     print("⚙️  Computing climate profiles...")
 
-    future_profile = compute_profile(
-        future_profile_data, days_in_year=days_in_year, q=q
-    )
+    future_profile = compute_profile(future_profile_data, q=q)
     if no_delta:
         historic_profile = None
     else:
-        historic_profile = compute_profile(
-            historic_profile_data, days_in_year=days_in_year, q=q
-        )
+        historic_profile = compute_profile(historic_profile_data, q=q)
 
     if no_delta:
         print("   ✓ No baseline subtraction requested, returning raw future profile")
@@ -1033,54 +1104,26 @@ def _compute_difference_profile(
     """
     future_has_multiindex = isinstance(future_profile.columns, pd.MultiIndex)
     historic_has_multiindex = isinstance(historic_profile.columns, pd.MultiIndex)
-
-    if future_has_multiindex and historic_has_multiindex:
-        return _compute_multiindex_difference(future_profile, historic_profile)
-    elif future_has_multiindex and not historic_has_multiindex:
-        return _compute_mixed_index_difference(future_profile, historic_profile)
-    else:
-        return _compute_simple_difference(future_profile, historic_profile)
-
-
-def _compute_multiindex_difference(
-    future_profile: pd.DataFrame, historic_profile: pd.DataFrame
-) -> pd.DataFrame:
-    """
-    Compute difference when both profiles have MultiIndex columns.
-
-    Parameters
-    ----------
-    future_profile : pd.DataFrame
-        Future profile with MultiIndex columns
-    historic_profile : pd.DataFrame
-        Historic profile with MultiIndex columns
-
-    Returns
-    -------
-    pd.DataFrame
-        Difference profile
-    """
-    future_levels = future_profile.columns.names
-    historic_levels = historic_profile.columns.names
-
-    if "Simulation" in future_levels and "Simulation" in historic_levels:
-        return _compute_simulation_paired_difference(
-            future_profile, historic_profile, future_levels, historic_levels
+    if (
+        future_has_multiindex == historic_has_multiindex
+    ):  # either both contain a MultiIndex, or both do not
+        return _compute_paired_difference(future_profile, historic_profile)
+    else:  # multiple warming levels in future profile, while historic profile always contains one warming level - 1.2
+        # add MultiIndex to historic profile, then perform paired difference, as done above
+        historic_profile_reformatted = historic_profile.copy()
+        historic_profile_reformatted.columns = pd.MultiIndex.from_arrays(
+            [
+                ["1.2"] * len(historic_profile_reformatted.columns),
+                historic_profile_reformatted.columns,
+            ],
+            names=["Warming_Level", "Simulation"],
         )
-    elif "Warming_Level" in future_levels and "Simulation" not in future_levels:
-        return _compute_warming_level_difference(
-            future_profile, historic_profile, future_levels, historic_levels
-        )
-    else:
-        # Default to simple difference if structure is unexpected
-        return _compute_simple_difference(future_profile, historic_profile)
+        return _compute_paired_difference(future_profile, historic_profile_reformatted)
 
 
-def _compute_simulation_paired_difference(
+def _compute_paired_difference(
     future_profile: pd.DataFrame,
     historic_profile: pd.DataFrame,
-    future_levels: list,
-    historic_levels: list,
 ) -> pd.DataFrame:
     """
     Compute difference for profiles with matching simulations.
@@ -1091,10 +1134,6 @@ def _compute_simulation_paired_difference(
         Future profile with Simulation level
     historic_profile : pd.DataFrame
         Historic profile with Simulation level
-    future_levels : list
-        Names of future profile column levels
-    historic_levels : list
-        Names of historic profile column levels
 
     Returns
     -------
@@ -1119,11 +1158,14 @@ def _compute_simulation_paired_difference(
     difference_profile = future_profile.copy()
 
     # Get unique simulations from both profiles
-    future_sims = future_profile.columns.get_level_values("Simulation").unique()
-    historic_sims = historic_profile.columns.get_level_values("Simulation").unique()
+    future_sims = future_profile.columns.unique()
+    historic_sims = historic_profile.columns.unique()
 
     # Find common simulations
     common_sims = set(future_sims) & set(historic_sims)
+
+    # calculate historic hourly means
+    historic_mean = historic_profile.T.mean()
 
     if not common_sims:
         print(
@@ -1132,11 +1174,8 @@ def _compute_simulation_paired_difference(
         print(f"      Future simulations: {list(future_sims)}")
         print(f"      Historic simulations: {list(historic_sims)}")
         # Fall back to using mean of historic
-        # Note: axis parameter removed in pandas 2.2, use level-based groupby instead
-        historic_mean = historic_profile.T.groupby(level="Hour").mean().T
         for col in future_profile.columns:
-            hour = col[0] if "Hour" in future_levels else col[-1]
-            difference_profile.loc[:, col] = future_profile[col] - historic_mean[hour]
+            difference_profile.loc[:, col] = future_profile[col] - historic_mean
     else:
         # Compute differences for matching simulations
         n_cols = len(future_profile.columns)
@@ -1144,313 +1183,21 @@ def _compute_simulation_paired_difference(
             total=n_cols, desc="   Computing paired differences", unit="column"
         ) as pbar:
             for col in future_profile.columns:
-                historic_col = _find_matching_historic_column(
-                    col, future_levels, historic_profile, historic_levels
-                )
-                if historic_col and historic_col in historic_profile.columns:
+                # if the column in future_profile is also in historic_column
+                if col in historic_profile.columns:
+                    # find the difference between them
                     difference_profile.loc[:, col] = (
-                        future_profile[col] - historic_profile[historic_col]
+                        future_profile[col] - historic_profile[col]
                     )
                 else:
-                    # Use mean of historic for that hour
-                    hour = col[0]  # Assuming hour is first level
-                    historic_hour_mean = _get_historic_hour_mean(
-                        historic_profile, historic_levels, hour
-                    )
-                    difference_profile.loc[:, col] = (
-                        future_profile[col] - historic_hour_mean
-                    )
+                    # if not, subtract the hourly historic means from the future_profile column
+                    difference_profile.loc[:, col] = future_profile[col] - historic_mean
                 pbar.update(1)
 
     return difference_profile
 
 
-def _compute_warming_level_difference(
-    future_profile: pd.DataFrame,
-    historic_profile: pd.DataFrame,
-    future_levels: list,
-    historic_levels: list,
-) -> pd.DataFrame:
-    """
-    Compute difference for profiles with warming levels but no simulations.
-
-    Parameters
-    ----------
-    future_profile : pd.DataFrame
-        Future profile with Warming_Level
-    historic_profile : pd.DataFrame
-        Historic profile
-    future_levels : list
-        Names of future profile column levels
-    historic_levels : list
-        Names of historic profile column levels
-
-    Returns
-    -------
-    pd.DataFrame
-        Difference profile
-    """
-    # Check for duplicate columns and handle them
-    if not future_profile.columns.is_unique:
-        print(
-            "   ⚠️  Warning: Found duplicate columns in future profile. Removing duplicates."
-        )
-        future_profile = future_profile.loc[:, ~future_profile.columns.duplicated()]
-
-    if not historic_profile.columns.is_unique:
-        print(
-            "   ⚠️  Warning: Found duplicate columns in historic profile. Removing duplicates."
-        )
-        historic_profile = historic_profile.loc[
-            :, ~historic_profile.columns.duplicated()
-        ]
-
-    difference_profile = future_profile.copy()
-
-    n_cols = len(future_profile.columns)
-    with tqdm(total=n_cols, desc="   Computing differences", unit="column") as pbar:
-        for col in future_profile.columns:
-            # Use future_levels to determine which position contains the hour
-            if "Hour" in future_levels:
-                hour_idx = future_levels.index("Hour")
-                hour = col[hour_idx]
-            else:
-                # Fallback: assume first position is hour
-                hour = col[0]
-
-            if hour in historic_profile.columns:
-                difference_profile.loc[:, col] = (
-                    future_profile[col] - historic_profile[hour]
-                )
-            else:
-                # Try to find corresponding hour in historic MultiIndex
-                if historic_levels and "Hour" in historic_levels:
-                    try:
-                        historic_hour = historic_profile.xs(
-                            hour, level="Hour", axis=1
-                        ).iloc[:, 0]
-                    except (KeyError, IndexError):
-                        # If xs fails, fall back to first column
-                        historic_hour = historic_profile.iloc[:, 0]
-                else:
-                    historic_hour = historic_profile.iloc[
-                        :, 0
-                    ]  # Fall back to first column
-                difference_profile.loc[:, col] = future_profile[col] - historic_hour
-            pbar.update(1)
-
-    return difference_profile
-
-
-def _compute_mixed_index_difference(
-    future_profile: pd.DataFrame, historic_profile: pd.DataFrame
-) -> pd.DataFrame:
-    """
-    Compute difference when future has MultiIndex and historic has simple index.
-
-    Parameters
-    ----------
-    future_profile : pd.DataFrame
-        Future profile with MultiIndex columns
-    historic_profile : pd.DataFrame
-        Historic profile with simple columns
-
-    Returns
-    -------
-    pd.DataFrame
-        Difference profile
-    """
-    # Check for duplicate columns and handle them
-    if not future_profile.columns.is_unique:
-        print(
-            "   ⚠️  Warning: Found duplicate columns in future profile. Removing duplicates."
-        )
-        future_profile = future_profile.loc[:, ~future_profile.columns.duplicated()]
-
-    if not historic_profile.columns.is_unique:
-        print(
-            "   ⚠️  Warning: Found duplicate columns in historic profile. Removing duplicates."
-        )
-        historic_profile = historic_profile.loc[
-            :, ~historic_profile.columns.duplicated()
-        ]
-
-    difference_profile = future_profile.copy()
-
-    n_cols = len(future_profile.columns)
-    with tqdm(total=n_cols, desc="   Computing differences", unit="column") as pbar:
-        for col in future_profile.columns:
-            historic_value = _find_matching_historic_value(
-                col, future_profile, historic_profile
-            )
-            difference_profile.loc[:, col] = future_profile[col] - historic_value
-            pbar.update(1)
-
-    return difference_profile
-
-
-def _compute_simple_difference(
-    future_profile: pd.DataFrame, historic_profile: pd.DataFrame
-) -> pd.DataFrame:
-    """
-    Compute difference for profiles with simple (non-MultiIndex) columns.
-
-    Parameters
-    ----------
-    future_profile : pd.DataFrame
-        Future profile
-    historic_profile : pd.DataFrame
-        Historic profile
-
-    Returns
-    -------
-    pd.DataFrame
-        Difference profile
-    """
-    if list(future_profile.columns) == list(historic_profile.columns):
-        print("   ✓ Columns match - computing element-wise difference")
-        return future_profile - historic_profile
-    else:
-        print("   ⚠️  Warning: Column mismatch between future and historic profiles")
-        print(f"      Future columns: {list(future_profile.columns)[:5]}...")
-        print(f"      Historic columns: {list(historic_profile.columns)[:5]}...")
-        # Try to align by position
-        min_cols = min(len(future_profile.columns), len(historic_profile.columns))
-        return future_profile.iloc[:, :min_cols] - historic_profile.iloc[:, :min_cols]
-
-
-def _find_matching_historic_column(
-    future_col: tuple,
-    future_levels: list,
-    historic_profile: pd.DataFrame,
-    historic_levels: list,
-) -> tuple | None:
-    """
-    Find the matching historic column for a future column.
-
-    Parameters
-    ----------
-    future_col : tuple
-        Future column tuple
-    future_levels : list
-        Names of future column levels
-    historic_profile : pd.DataFrame
-        Historic profile DataFrame
-    historic_levels : list
-        Names of historic column levels
-
-    Returns
-    -------
-    tuple | None
-        Matching historic column or None
-    """
-    # Check that both have required levels for matching
-    if "Hour" in future_levels and "Simulation" in future_levels:
-        # Identify positions in future column
-        hour_idx = future_levels.index("Hour")
-        sim_idx = future_levels.index("Simulation")
-
-        hour = future_col[hour_idx]
-        sim = future_col[sim_idx]
-
-        # Check historic structure using historic_levels
-        if "Hour" in historic_levels and "Simulation" in historic_levels:
-            # Build historic column tuple based on historic_levels structure
-            hist_hour_idx = historic_levels.index("Hour")
-            hist_sim_idx = historic_levels.index("Simulation")
-
-            # Create tuple in the order of historic_levels
-            if hist_hour_idx < hist_sim_idx:
-                historic_col = (hour, sim)
-            else:
-                historic_col = (sim, hour)
-
-            if historic_col in historic_profile.columns:
-                return historic_col
-
-    return None
-
-
-def _get_historic_hour_mean(
-    historic_profile: pd.DataFrame, historic_levels: list, hour: any
-) -> pd.Series:
-    """
-    Get the mean of historic profile for a specific hour.
-
-    Parameters
-    ----------
-    historic_profile : pd.DataFrame
-        Historic profile DataFrame
-    historic_levels : list
-        Names of historic column levels
-    hour : any
-        Hour identifier
-
-    Returns
-    -------
-    pd.Series
-        Mean values for the specified hour
-    """
-    if "Simulation" in historic_levels:
-        return historic_profile.xs(hour, level="Hour", axis=1).mean()
-    else:
-        return historic_profile[hour] if hour in historic_profile.columns else 0
-
-
-def _find_matching_historic_value(
-    future_col: tuple, future_profile: pd.DataFrame, historic_profile: pd.DataFrame
-) -> pd.Series:
-    """
-    Find matching historic value for a future column with mixed index types.
-
-    Parameters
-    ----------
-    future_col : tuple
-        Future column identifier
-    future_profile : pd.DataFrame
-        Future profile DataFrame
-    historic_profile : pd.DataFrame
-        Historic profile DataFrame
-
-    Returns
-    -------
-    pd.Series
-        Matching historic values
-    """
-    if "Hour" in future_profile.columns.names:
-        hour_idx = future_profile.columns.names.index("Hour")
-        hour = future_col[hour_idx]
-
-        # Try direct match
-        if hour in historic_profile.columns:
-            return historic_profile[hour]
-
-        # Try numeric hour matching
-        hour_num = (
-            int(hour.replace("am", "").replace("pm", ""))
-            if isinstance(hour, str)
-            else hour
-        )
-        if hour_num in historic_profile.columns:
-            return historic_profile[hour_num]
-
-        # Fall back to positional matching
-        col_position = future_profile.columns.get_loc(future_col)
-        if isinstance(col_position, int):
-            historic_col_idx = col_position % len(historic_profile.columns)
-            return historic_profile.iloc[:, historic_col_idx]
-
-    # No hour level, use positional matching
-    col_position = future_profile.columns.get_loc(future_col)
-    if isinstance(col_position, int):
-        historic_col_idx = col_position % len(historic_profile.columns)
-        return historic_profile.iloc[:, historic_col_idx]
-
-    # Default fallback
-    return historic_profile.iloc[:, 0]
-
-
-def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.DataFrame:
+def compute_profile(data: xr.DataArray, q=0.5) -> pd.DataFrame:
     """
     Calculates the standard year climate profile for warming level data using 8760
     analysis.
@@ -1468,10 +1215,6 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         Hourly base-line subtracted data for one variable with warming_level,
         time_delta, and simulation dimensions. Expected to contain ~30 years
         (262,800 hours) of data for each warming level and simulation.
-
-    days_in_year : int, optional
-        Either 366 or 365, depending on whether or not the year is a leap year.
-        Default to 365 days
 
     q : float, optional
         Quantile value for selecting representative values (0.0 to 1.0).
@@ -1495,7 +1238,6 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
         simulations = [None]
 
     # Get all available time_delta data (all 30 years)
-    hours_per_day = 24
     hours_per_year = 8760
     total_hours = len(data.time_delta)
     n_years = total_hours // hours_per_year
@@ -1572,13 +1314,11 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
             for sim_idx, sim in enumerate(simulations):
                 # Get simulation label
                 sim_label = _get_simulation_label(sim, sim_idx)
-
                 # Select data for this warming level and simulation combination
                 if has_simulation:
                     subset_data = data.isel(warming_level=wl_idx, simulation=sim_idx)
                 else:
                     subset_data = data.isel(warming_level=wl_idx)
-
                 # Vectorized quantile computation using numpy
                 # Reshape raw values into (n_years, hours_per_year) then compute
                 # the quantile across years for each hour-of-year position
@@ -1602,29 +1342,19 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
                     closest_year_idx, np.arange(hours_per_year)
                 ]
 
-                # Reshape to (days_in_year, 24) for the final DataFrame
-                profile_reshaped = profile_1d[: days_in_year * hours_per_day].reshape(
-                    days_in_year, hours_per_day
-                )
-
                 # Store the profile
                 key = (f"WL_{wl}", sim_label)
-                profile_data[key] = profile_reshaped
+                profile_data[key] = profile_1d
 
                 pbar.update(1)
 
-    # Create the multi-index DataFrame structure
     df_profile = _construct_profile_dataframe(
         profile_data=profile_data,
         warming_levels=warming_levels,
         simulations=simulations,
         sim_label_func=_get_simulation_label,
-        days_in_year=days_in_year,
-        hours_per_day=hours_per_day,
+        hours_per_year=hours_per_year,
     )
-
-    # Determine which formatting function to use based on the structure
-    _format_based_on_structure(df_profile)
 
     # Prepare metadata dictionary
     metadata = {
@@ -1657,41 +1387,12 @@ def compute_profile(data: xr.DataArray, days_in_year: int = 365, q=0.5) -> pd.Da
     return df_profile
 
 
-def _format_based_on_structure(df: pd.DataFrame):
-    """
-    Format the DataFrame based on whether it has single-level or multi-level columns.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The DataFrame to format.
-
-    Returns
-    -------
-    pd.DataFrame
-        The formatted DataFrame.
-    """
-    if not isinstance(df.columns, pd.MultiIndex):
-        # Simple single-level columns
-        df = _format_meteo_yr_df(df)
-    else:
-        # Multi-level columns - need special formatting
-        # For now, just format the index (Day of Year)
-        year = 2024 if len(df) == 366 else 2023
-        new_index = [
-            julianDay_to_date(julday, year=year, str_format="%b-%d")
-            for julday in df.index
-        ]
-        df.index = pd.Index(new_index, name="Day of Year")
-
-
 def _construct_profile_dataframe(
     profile_data: dict,
     warming_levels: np.ndarray,
     simulations: list,
     sim_label_func: callable,
-    days_in_year: int,
-    hours_per_day: int,
+    hours_per_year: int,
 ) -> pd.DataFrame:
     """
     Construct a DataFrame from profile data based on warming level and simulation dimensions.
@@ -1706,17 +1407,15 @@ def _construct_profile_dataframe(
         List of simulation identifiers
     sim_label_func : callable
         Function to extract simulation labels
-    days_in_year : int
-        Number of days in the year (365 or 366)
-    hours_per_day : int
-        Number of hours per day (24)
+    hours_per_year : int
+        Hours per year (8760)
 
     Returns
     -------
     pd.DataFrame
         Structured DataFrame with appropriate column structure based on dimensions
     """
-    hours = np.arange(1, 25, 1)
+
     n_warming_levels = len(warming_levels)
     n_simulations = len(simulations)
 
@@ -1726,39 +1425,21 @@ def _construct_profile_dataframe(
             warming_levels[0],
             simulations[0],
             sim_label_func,
-            days_in_year,
-            hours,
-            hours_per_day,
+            hours_per_year,
         )
     elif n_warming_levels == 1 and n_simulations > 1:
+
         return _create_single_wl_multi_sim_dataframe(
-            profile_data,
-            warming_levels[0],
-            simulations,
-            sim_label_func,
-            days_in_year,
-            hours,
-            hours_per_day,
+            profile_data, warming_levels[0], simulations, sim_label_func, hours_per_year
         )
+
     elif n_warming_levels > 1 and n_simulations == 1:
         return _create_multi_wl_single_sim_dataframe(
-            profile_data,
-            warming_levels,
-            simulations[0],
-            sim_label_func,
-            days_in_year,
-            hours,
-            hours_per_day,
+            profile_data, warming_levels, simulations[0], sim_label_func, hours_per_year
         )
     else:
         return _create_multi_wl_multi_sim_dataframe(
-            profile_data,
-            warming_levels,
-            simulations,
-            sim_label_func,
-            days_in_year,
-            hours,
-            hours_per_day,
+            profile_data, warming_levels, simulations, sim_label_func, hours_per_year
         )
 
 
@@ -1767,9 +1448,7 @@ def _create_simple_dataframe(
     warming_level: float,
     simulation: any,
     sim_label_func: callable,
-    days_in_year: int,
-    hours: np.ndarray,
-    hours_per_day: int,
+    hours_per_year: int,
 ) -> pd.DataFrame:
     """
     Create a simple DataFrame for single warming level and single simulation.
@@ -1784,39 +1463,27 @@ def _create_simple_dataframe(
         Single simulation identifier
     sim_label_func : callable
         Function to get simulation label
-    days_in_year : int
-        Number of days in year
-    hours : np.ndarray
-        Array of hour values
-    hours_per_day : int
-        Hours per day (24)
+    hours_per_year : int
+        Hours per year (8760)
 
     Returns
     -------
     pd.DataFrame
-        Simple DataFrame with hour columns
+        Simple DataFrame with a single simulation column
     """
 
     wl_key = warming_level
     sim_key = sim_label_func(simulation, 0)
 
-    # Create MultiIndex columns
-    col_tuples = [(hour, sim_key) for hour in hours]
-    multi_cols = pd.MultiIndex.from_tuples(col_tuples, names=["Hour", "Simulation"])
-
     # Stack data
     all_data = _stack_profile_data(
-        profile_data=profile_data,
-        hours_per_day=hours_per_day,
-        wl_names=[f"WL_{wl_key}"],
-        sim_names=[sim_key],
-        hour_first=True,
+        profile_data=profile_data, wl_names=[f"WL_{wl_key}"], sim_names=[sim_key]
     )
 
     return pd.DataFrame(
         all_data,
-        columns=multi_cols,
-        index=np.arange(1, days_in_year + 1, 1),
+        columns=[sim_key],
+        index=np.arange(1, hours_per_year + 1, 1),
     )
 
 
@@ -1825,9 +1492,7 @@ def _create_single_wl_multi_sim_dataframe(
     warming_level: float,
     simulations: list,
     sim_label_func: callable,
-    days_in_year: int,
-    hours: np.ndarray,
-    hours_per_day: int,
+    hours_per_year: int,
 ) -> pd.DataFrame:
     """
     Create DataFrame for single warming level with multiple simulations.
@@ -1842,17 +1507,13 @@ def _create_single_wl_multi_sim_dataframe(
         List of simulation identifiers
     sim_label_func : callable
         Function to get simulation labels
-    days_in_year : int
-        Number of days in year
-    hours : np.ndarray
-        Array of hour values
-    hours_per_day : int
-        Hours per day (24)
+    hours_per_year : int
+        Hours per year (8760)
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with (Hour, Simulation) MultiIndex columns
+        DataFrame with Simulation columns
     """
     wl = warming_level
     sim_names = [sim_label_func(sim, i) for i, sim in enumerate(simulations)]
@@ -1873,23 +1534,15 @@ def _create_single_wl_multi_sim_dataframe(
                 unique_sim_names.append(f"{name}_v{name_counts[name]}")
         sim_names = unique_sim_names
 
-    # Create MultiIndex columns
-    col_tuples = [(hour, sim_name) for hour in hours for sim_name in sim_names]
-    multi_cols = pd.MultiIndex.from_tuples(col_tuples, names=["Hour", "Simulation"])
-
     # Stack data
     all_data = _stack_profile_data(
-        profile_data=profile_data,
-        hours_per_day=hours_per_day,
-        wl_names=[f"WL_{wl}"],
-        sim_names=sim_names,
-        hour_first=True,
+        profile_data=profile_data, wl_names=[f"WL_{wl}"], sim_names=sim_names
     )
 
     return pd.DataFrame(
         all_data,
-        columns=multi_cols,
-        index=np.arange(1, days_in_year + 1, 1),
+        columns=sim_names,
+        index=np.arange(1, hours_per_year + 1, 1),
     )
 
 
@@ -1898,9 +1551,7 @@ def _create_multi_wl_single_sim_dataframe(
     warming_levels: np.ndarray,
     simulation: any,
     sim_label_func: callable,
-    days_in_year: int,
-    hours: np.ndarray,
-    hours_per_day: int,
+    hours_per_year: int,
 ) -> pd.DataFrame:
     """
     Create DataFrame for multiple warming levels with single simulation.
@@ -1915,38 +1566,34 @@ def _create_multi_wl_single_sim_dataframe(
         Single simulation identifier
     sim_label_func : callable
         Function to get simulation label
-    days_in_year : int
-        Number of days in year
-    hours : np.ndarray
-        Array of hour values
-    hours_per_day : int
-        Hours per day (24)
+    hours_per_year : int
+        Hours per year (8760)
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with (Hour, Warming_Level) MultiIndex columns
+        DataFrame with Warming_Level columns
     """
+
     sim_name = sim_label_func(simulation, 0)
     wl_names = [f"WL_{wl}" for wl in warming_levels]
 
     # Create MultiIndex columns
-    col_tuples = [(hour, wl_name) for hour in hours for wl_name in wl_names]
-    multi_cols = pd.MultiIndex.from_tuples(col_tuples, names=["Hour", "Warming_Level"])
+    col_tuples = [(wl_name, sim_name) for wl_name in wl_names]
+
+    multi_cols = pd.MultiIndex.from_tuples(
+        col_tuples, names=["Warming_Level", "Simulation"]
+    )
 
     # Stack data
     all_data = _stack_profile_data(
-        profile_data=profile_data,
-        hours_per_day=hours_per_day,
-        wl_names=wl_names,
-        sim_names=[sim_name],
-        hour_first=True,
+        profile_data=profile_data, wl_names=wl_names, sim_names=[sim_name]
     )
 
     return pd.DataFrame(
         all_data,
         columns=multi_cols,
-        index=np.arange(1, days_in_year + 1, 1),
+        index=np.arange(1, hours_per_year + 1, 1),
     )
 
 
@@ -1955,9 +1602,7 @@ def _create_multi_wl_multi_sim_dataframe(
     warming_levels: np.ndarray,
     simulations: list,
     sim_label_func: callable,
-    days_in_year: int,
-    hours: np.ndarray,
-    hours_per_day: int,
+    hours_per_year: int,
 ) -> pd.DataFrame:
     """
     Create DataFrame for multiple warming levels and multiple simulations.
@@ -1972,18 +1617,15 @@ def _create_multi_wl_multi_sim_dataframe(
         List of simulation identifiers
     sim_label_func : callable
         Function to get simulation labels
-    days_in_year : int
-        Number of days in year
-    hours : np.ndarray
-        Array of hour values
-    hours_per_day : int
-        Hours per day (24)
+    hours_per_year : int
+        Hours per year (8760)
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with (Hour, Warming_Level, Simulation) MultiIndex columns
+        DataFrame with (Warming_Level, Simulation) MultiIndex columns
     """
+
     wl_names = [f"WL_{wl}" for wl in warming_levels]
     sim_names = [sim_label_func(sim, i) for i, sim in enumerate(simulations)]
 
@@ -2004,40 +1646,27 @@ def _create_multi_wl_multi_sim_dataframe(
         sim_names = unique_sim_names
 
     # Create MultiIndex columns
-    col_tuples = [
-        (hour, wl_name, sim_name)
-        for hour in hours
-        for wl_name in wl_names
-        for sim_name in sim_names
-    ]
+    col_tuples = [(wl_name, sim_name) for wl_name in wl_names for sim_name in sim_names]
     multi_cols = pd.MultiIndex.from_tuples(
-        col_tuples, names=["Hour", "Warming_Level", "Simulation"]
+        col_tuples, names=["Warming_Level", "Simulation"]
     )
 
-    # Stack data with all three dimensions
+    # Stack data
     all_data = _stack_profile_data(
-        profile_data=profile_data,
-        hours_per_day=hours_per_day,
-        wl_names=wl_names,
-        sim_names=sim_names,
-        hour_first=True,
-        three_level=True,
+        profile_data=profile_data, wl_names=wl_names, sim_names=sim_names
     )
 
     return pd.DataFrame(
         all_data,
         columns=multi_cols,
-        index=np.arange(1, days_in_year + 1, 1),
+        index=np.arange(1, hours_per_year + 1, 1),
     )
 
 
 def _stack_profile_data(
     profile_data: dict,
-    hours_per_day: int,
     wl_names: list,
     sim_names: list,
-    hour_first: bool = True,
-    three_level: bool = False,
 ) -> np.ndarray:
     """
     Stack profile data into a single array for DataFrame construction.
@@ -2046,16 +1675,10 @@ def _stack_profile_data(
     ----------
     profile_data : dict
         Dictionary with (wl_name, sim_name) keys and profile arrays as values
-    hours_per_day : int
-        Number of hours per day (24)
     wl_names : list
         List of warming level names
     sim_names : list
         List of simulation names
-    hour_first : bool, optional
-        Whether hour should be the first level in iteration order
-    three_level : bool, optional
-        Whether this is a three-level MultiIndex (Hour, WL, Sim)
 
     Returns
     -------
@@ -2064,84 +1687,12 @@ def _stack_profile_data(
     """
     all_data = []
 
-    if three_level:
-        # For three-level index: iterate hour -> wl -> sim
-        for hour in range(hours_per_day):
-            for wl_name in wl_names:
-                for sim_name in sim_names:
-                    key = (wl_name, sim_name)
-                    all_data.append(profile_data[key][:, hour])
-    elif hour_first:
-        # For two-level with hour first
-        for hour in range(hours_per_day):
-            for wl_name in wl_names:
-                for sim_name in sim_names:
-                    key = (wl_name, sim_name)
-                    all_data.append(profile_data[key][:, hour])
-    else:
-        # For other two-level cases
-        for wl_name in wl_names:
-            for sim_name in sim_names:
-                for hour in range(hours_per_day):
-                    key = (wl_name, sim_name)
-                    all_data.append(profile_data[key][:, hour])
+    for wl_name in wl_names:
+        for sim_name in sim_names:
+            key = (wl_name, sim_name)
+            all_data.append(profile_data[key])
 
     return np.column_stack(all_data)
-
-
-def _format_meteo_yr_df(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Format meteorological yearly dataframe for display with readable time labels.
-
-    This function reformats a dataframe output from compute_profile
-    by reordering columns to PST time format, converting numeric hour columns to
-    12-hour AM/PM format, and converting Julian day indices to Month-Day format.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Input dataframe with meteorological data. Expected to have 24 columns
-        representing hours (0-23) and Julian day indices (1-365 or 1-366).
-
-    Returns
-    -------
-    pd.DataFrame
-        Formatted dataframe with:
-        - Columns reordered and labeled in 12-hour AM/PM format (12am, 1am, ..., 11pm)
-        - Column name set to "Hour"
-        - Index converted from Julian days to "Month-Day" format (e.g., "Jan-01")
-        - Index name set to "Day of Year"
-        - Uses leap year (2024) for 366-day datasets, otherwise uses 2023
-
-    Notes
-    -----
-    The function assumes the input dataframe has exactly 24 columns representing
-    hourly data, with the first 7 columns corresponding to hours 17-23 (5pm-11pm)
-    and the last 17 columns corresponding to hours 0-16 (12am-4pm).
-    """
-    ## Re-order columns for PST, with easy to read time labels
-    cols = df.columns.tolist()
-    cols = cols[7:] + cols[:7]
-    df = df[cols]
-
-    n_col_lst = []
-    for ampm in ["am", "pm"]:
-        hr_lst = []
-        for hr in range(1, 13, 1):
-            hr_lst.append(str(hr) + ampm)
-        hr_lst = hr_lst[-1:] + hr_lst[:-1]
-        n_col_lst = n_col_lst + hr_lst
-    df.columns = n_col_lst
-    df.columns.name = "Hour"
-
-    # Convert Julian date index to Month-Day format
-    # Use 2024 as year if we have 366 days (leap year), otherwise use 2023
-    year = 2024 if len(df) == 366 else 2023
-    new_index = [
-        julianDay_to_date(julday, year=year, str_format="%b-%d") for julday in df.index
-    ]
-    df.index = pd.Index(new_index, name="Day of Year")
-    return df
 
 
 def get_profile_units(profile_df: pd.DataFrame) -> str:
