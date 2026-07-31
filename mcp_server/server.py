@@ -49,7 +49,15 @@ mcp = FastMCP(
         "- Always use: from climakitae.new_core.user_interface import ClimateData\n"
         "- WRF variables: t2max, t2min, t2, prec, dew_point (dynamical)\n"
         "- LOCA2 variables: tasmax, tasmin, pr (statistical, CMIP6 naming)\n"
-        "- Minimum required: catalog, variable, table_id, grid_label\n"
+        "- There are three catalogs, each with different required params:\n"
+        '  * catalog="cadcat" (WRF/LOCA2 gridded climate data): requires '
+        "variable, table_id, grid_label\n"
+        '  * catalog="renewable energy generation": requires installation '
+        "(pv_utility, pv_distributed, windpower_onshore, windpower_offshore), "
+        "variable, table_id, grid_label\n"
+        '  * catalog="hdp" (historical weather station observations): requires '
+        "network_id (station_id is optional); variable/table_id/grid_label do "
+        "not apply\n"
         '- WRF queries MUST include .institution_id("UCLA") — this is required for all WRF data retrieval\n'
         "- Never use the legacy core.data_interface\n"
         "- Include imports, comments, and explain what the code does"
@@ -86,6 +94,7 @@ def _load_catalog_summary() -> dict:
         "experiment_ids": "experiment_id",
         "institution_ids": "institution_id",
         "source_ids": "source_id",
+        "installation_ids": "installation",
     }
 
     sets = {k: set() for k in fields}
@@ -136,11 +145,39 @@ _CATALOG_ALIASES = {
 }
 _CATALOG_ALIASES_REV = {v: k for k, v in _CATALOG_ALIASES.items()}
 
-# Add user-facing catalog aliases to summary
+# Required ClimateData query params per catalog, mirroring
+# ClimateData._validate_required_parameters in new_core/user_interface.py
+CATALOG_REQUIRED_PARAMS = {
+    "cadcat": ["variable", "table_id", "grid_label"],
+    "renewable energy generation": ["variable", "table_id", "grid_label"],
+    "hdp": ["network_id"],
+}
+
+# Processors registered as invalid for a given catalog, mirroring the
+# invalid_processors lists in the new_core/param_validation validators.
+CATALOG_INVALID_PROCESSORS = {
+    "hdp": [
+        "clip",
+        "convert_units",
+        "bias_adjust_model_to_station",
+        "filter_unadjusted_models",
+        "metric_calc",
+        "warming_level",
+    ],
+}
+
+# Add user-facing catalog aliases to summary, and replace internal CSV names
+# with the actual values accepted by ClimateData().catalog(...). The hdp
+# catalog has no rows in catalogs.csv (it's loaded live from a remote
+# intake-esm source) so it must be added explicitly.
+_catalogs = CATALOG.get("summary", {}).get("catalogs", [])
 for user_name, csv_name in _CATALOG_ALIASES.items():
-    if csv_name in CATALOG.get("summary", {}).get("catalogs", []):
-        CATALOG["summary"]["catalogs"].append(user_name)
-        CATALOG["summary"]["catalogs"] = sorted(set(CATALOG["summary"]["catalogs"]))
+    if csv_name in _catalogs:
+        _catalogs.remove(csv_name)
+        _catalogs.append(user_name)
+if "hdp" not in _catalogs:
+    _catalogs.append("hdp")
+CATALOG.setdefault("summary", {})["catalogs"] = sorted(set(_catalogs))
 
 
 UNIT_OPTIONS = {
@@ -206,6 +243,7 @@ PROCESSOR_OPTIONS = {
     "filter_unadjusted_models": {
         "description": "Include/exclude unadjusted WRF models",
         "options": {"value": ["yes", "no"]},
+        "not_available_for": ["hdp"],
     },
     "drop_leap_days": {
         "description": "Remove Feb 29 entries",
@@ -221,6 +259,7 @@ PROCESSOR_OPTIONS = {
             "warming_levels": [0.8, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0, 4.0],
             "warming_level_window": "int years",
         },
+        "not_available_for": ["hdp"],
     },
     "clip": {
         "description": "Clip to boundary / point / bbox",
@@ -231,10 +270,12 @@ PROCESSOR_OPTIONS = {
             "bbox": "((lat_min, lat_max), (lon_min, lon_max))",
             "separated": [True, False],
         },
+        "not_available_for": ["hdp"],
     },
     "convert_units": {
         "description": "Convert variable units",
         "options": {"target_unit": "see lookup_unit_conversions"},
+        "not_available_for": ["hdp"],
     },
     "metric_calc": {
         "description": "Calculate metrics, percentiles, or 1-in-X return values",
@@ -245,6 +286,7 @@ PROCESSOR_OPTIONS = {
             "one_in_x.distribution": ["gev", "genpareto", "gamma"],
             "one_in_x.extremes_type": ["max", "min"],
         },
+        "not_available_for": ["hdp"],
     },
     "bias_adjust_model_to_station": {
         "description": "Bias-correct WRF data to station observations",
@@ -252,6 +294,7 @@ PROCESSOR_OPTIONS = {
             "stations": "list[str]",
             "historical_slice": "(start_year, end_year)",
         },
+        "not_available_for": ["hdp"],
     },
     "export": {
         "description": "Export data to file",
@@ -699,7 +742,13 @@ def lookup_options(option_type: str) -> str:
     ----------
     option_type : str
         One of: catalogs, activity_ids, variable_ids, table_ids,
-        grid_labels, experiment_ids, institution_ids, source_ids
+        grid_labels, experiment_ids, institution_ids, source_ids,
+        installation_ids (renewable energy generation catalog only).
+
+        Note: network_id and station_id (hdp catalog) are not enumerable
+        from static data — the hdp catalog is loaded live from a remote
+        intake-esm source. Use ClimateData().catalog("hdp").show_network_id_options()
+        / .show_station_id_options() at runtime to discover valid values.
     """
     summary = CATALOG.get("summary", {})
     if option_type not in summary:
@@ -1004,12 +1053,15 @@ def search_code_examples(query: str, top_k: int = 3) -> str:
 @mcp.tool()
 def validate_query(
     catalog: str,
-    variable: str,
+    variable: str = "",
     activity_id: str = "",
     table_id: str = "",
     grid_label: str = "",
     experiment_id: str = "",
     institution_id: str = "",
+    installation: str = "",
+    network_id: str = "",
+    station_id: str = "",
     processors: str = "",
 ) -> str:
     """Validate core ClimateData query parameters and processor names.
@@ -1017,19 +1069,30 @@ def validate_query(
     Parameters
     ----------
     catalog : str
-        Data catalog name
+        Data catalog name: "cadcat", "renewable energy generation", or "hdp"
     variable : str
-        Variable ID
+        Variable ID. Required for "cadcat" and "renewable energy generation";
+        not used by "hdp".
     activity_id : str
-        Downscaling method
+        Downscaling method (cadcat only)
     table_id : str
-        Temporal resolution
+        Temporal resolution. Required for "cadcat" and "renewable energy
+        generation"; not used by "hdp".
     grid_label : str
-        Spatial resolution
+        Spatial resolution. Required for "cadcat" and "renewable energy
+        generation"; not used by "hdp".
     experiment_id : str
         SSP experiment id
     institution_id : str
         Institution id
+    installation : str
+        Installation type, required for "renewable energy generation"
+        (e.g., "pv_utility", "pv_distributed", "windpower_onshore",
+        "windpower_offshore")
+    network_id : str
+        Weather station network id, required for "hdp" catalog
+    station_id : str
+        Comma-separated weather station id(s), optional filter for "hdp"
     processors : str
         Comma-separated processor names (e.g., "warming_level,clip,export")
     """
@@ -1045,11 +1108,52 @@ def validate_query(
         ("grid_label", grid_label, "grid_labels"),
         ("experiment_id", experiment_id, "experiment_ids"),
         ("institution_id", institution_id, "institution_ids"),
+        ("installation", installation, "installation_ids"),
     ]
 
     for label, value, key in checks:
         if value and value not in summary.get(key, []):
             issues.append(f"Unknown {label} '{value}'. Valid: {summary.get(key, [])}")
+
+    # Catalog-specific required parameters, mirroring
+    # ClimateData._validate_required_parameters
+    required = CATALOG_REQUIRED_PARAMS.get(catalog, [])
+    provided = {
+        "variable": variable,
+        "table_id": table_id,
+        "grid_label": grid_label,
+        "network_id": network_id,
+    }
+    missing = [p for p in required if not provided.get(p)]
+    if missing:
+        issues.append(
+            f"catalog '{catalog}' requires {missing} to be set "
+            f"(currently missing/empty)."
+        )
+
+    if catalog == "renewable energy generation" and not installation:
+        warnings.append(
+            "renewable energy generation catalog typically requires "
+            '.installation(...) (e.g., "pv_utility") to select a dataset.'
+        )
+
+    if catalog == "hdp":
+        unused = {
+            "variable": variable,
+            "activity_id": activity_id,
+            "table_id": table_id,
+            "grid_label": grid_label,
+        }
+        unused_names = [name for name, value in unused.items() if value]
+        if unused_names:
+            warnings.append(
+                f"hdp catalog does not use {unused_names}; these will be ignored."
+            )
+
+    if catalog != "hdp" and (network_id or station_id):
+        issues.append(
+            f"network_id/station_id only apply to catalog='hdp' (got catalog='{catalog}')."
+        )
 
     if activity_id == "WRF" and (not institution_id or institution_id != "UCLA"):
         issues.append(
@@ -1072,6 +1176,11 @@ def validate_query(
                 issues.append(
                     f"Unknown processor '{proc}'. Valid: {sorted(PROCESSOR_OPTIONS.keys())}"
                 )
+
+        invalid_for_catalog = CATALOG_INVALID_PROCESSORS.get(catalog, [])
+        for proc in requested:
+            if proc in invalid_for_catalog:
+                issues.append(f"Processor '{proc}' is not available for catalog '{catalog}'.")
 
         if "warming_level" in requested and experiment_id:
             warnings.append(
@@ -1213,13 +1322,16 @@ def _split_csv(value: str, cast=None) -> list:
 @mcp.tool()
 def generate_code(
     catalog: str,
-    variable: str,
-    table_id: str,
-    grid_label: str,
+    variable: str = "",
+    table_id: str = "",
+    grid_label: str = "",
     activity_id: str = "",
     experiment_id: str = "",
     institution_id: str = "",
     source_id: str = "",
+    installation: str = "",
+    network_id: str = "",
+    station_id: str = "",
     time_slice_start: str = "",
     time_slice_end: str = "",
     clip: str = "",
@@ -1249,6 +1361,14 @@ def generate_code(
     """Generate ready-to-run Python code for a ClimateData query.
 
     Supports common and advanced processors in a single generated query.
+    Supports all three catalogs:
+    - catalog="cadcat" (WRF/LOCA2 gridded data): pass variable, table_id,
+      grid_label (+ activity_id/experiment_id as needed).
+    - catalog="renewable energy generation": pass installation (e.g.
+      "pv_utility"), variable, table_id, grid_label.
+    - catalog="hdp" (historical weather station observations): pass
+      network_id (required) and optionally station_id; variable, table_id,
+      grid_label, and most processors do not apply to this catalog.
 
     IMPORTANT: Before calling this tool, call search_guidance(query) if the
     user's request involves any methodology decision:
@@ -1279,6 +1399,9 @@ def generate_code(
         f'    .catalog("{catalog}")',
     ]
 
+    if installation:
+        lines.append(f'    .installation("{installation}")')
+
     if activity_id:
         lines.append(f'    .activity_id("{activity_id}")')
     # WRF data requires institution_id="UCLA"
@@ -1296,21 +1419,37 @@ def generate_code(
         else:
             lines.append(f"    .experiment_id({experiments})")
 
-    lines.append(f'    .table_id("{table_id}")')
-    lines.append(f'    .grid_label("{grid_label}")')
-    lines.append(f'    .variable("{variable}")')
+    if network_id:
+        lines.append(f'    .network_id("{network_id}")')
+
+    if station_id:
+        stations = _split_csv(station_id)
+        if len(stations) == 1:
+            lines.append(f'    .station_id("{stations[0]}")')
+        else:
+            lines.append(f"    .station_id({stations})")
+
+    if table_id:
+        lines.append(f'    .table_id("{table_id}")')
+    if grid_label:
+        lines.append(f'    .grid_label("{grid_label}")')
+    if variable:
+        lines.append(f'    .variable("{variable}")')
+
+    # These processors don't apply to the hdp (weather station) catalog
+    hdp_query = catalog == "hdp"
 
     process_lines = []
 
     if concat_dim:
         process_lines.append(f'        "concat": "{concat_dim}"')
 
-    if filter_unadjusted_models:
+    if filter_unadjusted_models and not hdp_query:
         process_lines.append(
             f'        "filter_unadjusted_models": "{filter_unadjusted_models}"'
         )
 
-    if drop_leap_days:
+    if drop_leap_days and not hdp_query:
         process_lines.append('        "drop_leap_days": "yes"')
 
     if time_slice_start and time_slice_end:
@@ -1323,14 +1462,14 @@ def generate_code(
                 f'        "time_slice": ("{time_slice_start}", "{time_slice_end}")'
             )
 
-    if warming_levels:
+    if warming_levels and not hdp_query:
         levels = _split_csv(warming_levels, float)
         wl_parts = [f'"warming_levels": {levels}']
         if warming_level_window:
             wl_parts.append(f'"warming_level_window": {warming_level_window}')
         process_lines.append(f'        "warming_level": {{{", ".join(wl_parts)}}}')
 
-    if clip:
+    if clip and not hdp_query:
         boundaries = [x.strip() for x in clip.split(";") if x.strip()]
         if len(boundaries) == 1 and not clip_separated:
             process_lines.append(f'        "clip": "{boundaries[0]}"')
@@ -1340,7 +1479,7 @@ def generate_code(
             )
         else:
             process_lines.append(f'        "clip": {boundaries}')
-    elif clip_points:
+    elif clip_points and not hdp_query:
         points = []
         for pair in [x.strip() for x in clip_points.split(";") if x.strip()]:
             lat, lon = [value.strip() for value in pair.split(",", maxsplit=1)]
@@ -1354,7 +1493,7 @@ def generate_code(
             )
         else:
             process_lines.append(f'        "clip": [{", ".join(points)}]')
-    elif clip_bbox:
+    elif clip_bbox and not hdp_query:
         values = [x.strip() for x in clip_bbox.split(",") if x.strip()]
         if len(values) == 4:
             lat_min, lat_max, lon_min, lon_max = values
@@ -1362,10 +1501,10 @@ def generate_code(
                 f'        "clip": (({lat_min}, {lat_max}), ({lon_min}, {lon_max}))'
             )
 
-    if convert_units:
+    if convert_units and not hdp_query:
         process_lines.append(f'        "convert_units": "{convert_units}"')
 
-    if bias_stations:
+    if bias_stations and not hdp_query:
         stations = [x.strip() for x in bias_stations.split(",") if x.strip()]
         bias_parts = [f'"stations": {stations}']
 
@@ -1382,7 +1521,7 @@ def generate_code(
             f'        "bias_adjust_model_to_station": {{{", ".join(bias_parts)}}}'
         )
 
-    if metric or percentiles or one_in_x_return_periods:
+    if (metric or percentiles or one_in_x_return_periods) and not hdp_query:
         metric_parts = []
 
         if metric:

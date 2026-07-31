@@ -82,7 +82,7 @@ TOOL_SCHEMAS = [
                 "properties": {
                     "option_type": {
                         "type": "string",
-                        "description": "One of: catalogs, activity_ids, variable_ids, table_ids, grid_labels, experiment_ids, institution_ids, source_ids",
+                        "description": "One of: catalogs, activity_ids, variable_ids, table_ids, grid_labels, experiment_ids, institution_ids, source_ids, installation_ids",
                     },
                 },
             },
@@ -95,15 +95,15 @@ TOOL_SCHEMAS = [
             "description": "Check if a combination of query parameters is valid before generating code.",
             "parameters": {
                 "type": "object",
-                "required": ["catalog", "variable"],
+                "required": ["catalog"],
                 "properties": {
                     "catalog": {
                         "type": "string",
-                        "description": 'Data catalog (e.g., "cadcat")',
+                        "description": '"cadcat", "renewable energy generation", or "hdp"',
                     },
                     "variable": {
                         "type": "string",
-                        "description": 'Variable ID (e.g., "tasmax", "t2max")',
+                        "description": 'Variable ID (e.g., "tasmax", "t2max"). Required for cadcat/renewables; unused by hdp.',
                     },
                     "activity_id": {
                         "type": "string",
@@ -111,11 +111,23 @@ TOOL_SCHEMAS = [
                     },
                     "table_id": {
                         "type": "string",
-                        "description": '"1hr", "day", "mon"',
+                        "description": '"1hr", "day", "mon". Required for cadcat/renewables; unused by hdp.',
                     },
                     "grid_label": {
                         "type": "string",
-                        "description": '"d01", "d02", "d03"',
+                        "description": '"d01", "d02", "d03". Required for cadcat/renewables; unused by hdp.',
+                    },
+                    "installation": {
+                        "type": "string",
+                        "description": 'Renewable installation type (e.g., "pv_utility"). Only for the renewables catalog.',
+                    },
+                    "network_id": {
+                        "type": "string",
+                        "description": "Weather station network id. Required for the hdp catalog only.",
+                    },
+                    "station_id": {
+                        "type": "string",
+                        "description": "Comma-separated weather station id(s). Optional filter for the hdp catalog only.",
                     },
                 },
             },
@@ -136,27 +148,39 @@ TOOL_SCHEMAS = [
             "description": "Generate ready-to-run Python code for a ClimateData query. Supports time slices, spatial clipping, warming levels, and export.",
             "parameters": {
                 "type": "object",
-                "required": ["catalog", "variable", "table_id", "grid_label"],
+                "required": ["catalog"],
                 "properties": {
                     "catalog": {
                         "type": "string",
-                        "description": '"cadcat" or "renewable energy generation"',
+                        "description": '"cadcat", "renewable energy generation", or "hdp"',
                     },
                     "variable": {
                         "type": "string",
-                        "description": 'Climate variable (e.g., "tasmax", "t2max")',
+                        "description": 'Climate variable (e.g., "tasmax", "t2max"). Required for cadcat/renewables; unused by hdp.',
                     },
                     "table_id": {
                         "type": "string",
-                        "description": '"1hr", "day", "mon"',
+                        "description": '"1hr", "day", "mon". Required for cadcat/renewables; unused by hdp.',
                     },
                     "grid_label": {
                         "type": "string",
-                        "description": '"d01" (45km), "d02" (9km), "d03" (3km)',
+                        "description": '"d01" (45km), "d02" (9km), "d03" (3km). Required for cadcat/renewables; unused by hdp.',
                     },
                     "activity_id": {
                         "type": "string",
                         "description": '"WRF" or "LOCA2"',
+                    },
+                    "installation": {
+                        "type": "string",
+                        "description": 'Renewable installation type, e.g. "pv_utility", "pv_distributed", "windpower_onshore", "windpower_offshore". Only for catalog="renewable energy generation".',
+                    },
+                    "network_id": {
+                        "type": "string",
+                        "description": 'Weather station network id (e.g., "ASOSAWOS"). Required for catalog="hdp".',
+                    },
+                    "station_id": {
+                        "type": "string",
+                        "description": 'Comma-separated weather station id(s). Optional filter for catalog="hdp".',
                     },
                     "experiment_id": {
                         "type": "string",
