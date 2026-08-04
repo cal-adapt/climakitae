@@ -37,4 +37,3 @@ SSP245_FILE = "data/tas_global_SSP2_4_5.csv"
 SSP370_FILE = "data/tas_global_SSP3_7_0.csv"
 SSP585_FILE = "data/tas_global_SSP5_8_5.csv"
 HIST_FILE = "data/tas_global_Historical.csv"
-# temporary no-op touch to re-trigger docs-coverage-check for testing; will be reverted
