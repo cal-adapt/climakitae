@@ -190,6 +190,7 @@ For releases, make sure all new public symbols have NumPy-style docstrings befor
 | `publish` | [`publish.yml`](.github/workflows/publish.yml) | GitHub Release published (or manual dispatch) | Basic tests → build wheel + sdist → `twine check` → publish to PyPI via Trusted Publishing |
 | `docs-mkdocs` | [`docs-mkdocs.yml`](.github/workflows/docs-mkdocs.yml) | Push to `main` or `v*` tag (or manual dispatch) | Builds MkDocs site and deploys to GitHub Pages |
 | `docs-check` | [`docs-check.yml`](.github/workflows/docs-check.yml) | PRs touching `docs-mkdocs/**`, `mkdocs.yml`, or `docs/requirements-mkdocs.txt` | Strict MkDocs build (warnings as errors) + Lychee external link check |
+| `docs-coverage-check` | [`docs-coverage-check.yml`](.github/workflows/docs-coverage-check.yml) | PRs touching `climakitae/**/*.py` (or manual dispatch) | Flags public modules with no docs-mkdocs coverage; report-only, does not fail the build |
 | `send-issues-to-slack` | [`send-issues-to-slack.yml`](.github/workflows/send-issues-to-slack.yml) | Issue opened | Posts a Slack notification to the team channel |
 
 ---
