@@ -51,7 +51,7 @@ jobs:
                       fi
                       if [ "$missing" -eq 0 ]; then
                           echo "" >> comment.md
-                          echo "These modules have public functions/classes but no ':::' directive or matching page in \`docs-mkdocs/\`:" >> comment.md
+                          echo "These modules aren't covered anywhere in the [docs site](https://cal-adapt.github.io/climakitae/) yet:" >> comment.md
                           echo "" >> comment.md
                       fi
                       echo "- \`$mod\`" >> comment.md
@@ -60,8 +60,10 @@ jobs:
 
                   if [ "$missing" -eq 0 ]; then
                       echo "" >> comment.md
-                      echo "All public climakitae modules are referenced in docs-mkdocs/." >> comment.md
+                      echo "All public climakitae modules are covered in the docs site." >> comment.md
                   else
+                      echo "" >> comment.md
+                      echo "If this is public API, add it to a page in \`docs-mkdocs/\` (an \`::: module.path\` line, or a narrative page). If it's not meant to be public, add it to the exclude list in \`.github/workflows/docs-coverage-check.yml\`." >> comment.md
                       echo "" >> comment.md
                       echo "_Report-only — this does not block the PR._" >> comment.md
                   fi
