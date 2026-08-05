@@ -14,7 +14,7 @@ Example Usage:
     >>> result = (data.catalog("renewables")
     ...               .installation("pv_utility")
     ...               .activity_id("CMIP6")
-    ...               .variable("tasmax")
+    ...               .variable_id("tasmax")
     ...               .table_id("day")
     ...               .grid_label("d03")
     ...               .get())
@@ -129,8 +129,10 @@ class ClimateData:
         Set the temporal resolution.
     grid_label(grid_label: str) -> ClimateData
         Set the spatial resolution.
-    variable(variable: str) -> ClimateData
+    variable_id(variable_id: str) -> ClimateData
         Set the climate variable to retrieve.
+    variable(variable: str) -> ClimateData
+        Deprecated alias for ``variable_id``. Use ``variable_id`` instead.
     station_id(station_id: str) --> ClimateData
         Set the station identifier
     network_id(network_id: str) --> ClimateData
@@ -198,7 +200,7 @@ class ClimateData:
     ...     .experiment_id("historical")
     ...     .table_id("1hr")
     ...     .grid_label("d02")
-    ...     .variable("prec")
+    ...     .variable_id("prec")
     ...     .get()
     ...    )
 
@@ -213,7 +215,7 @@ class ClimateData:
     >>> processes = {"spatial_avg": "region", "temporal_avg": "monthly"}
     >>> data = (ClimateData()
     ...         .catalog("climate")
-    ...         .variable("pr")
+    ...         .variable_id("pr")
     ...         .processes(processes)
     ...         .get())
 
@@ -641,8 +643,35 @@ class ClimateData:
         logger.info("Grid label set to: %s", grid_label.strip())
         return self
 
-    def variable(self, variable: str) -> "ClimateData":
+    def variable_id(self, variable_id: str) -> "ClimateData":
         """Set the climate variable to retrieve.
+
+        Parameters
+        ----------
+        variable_id : str
+            The variable identifier (e.g., "tasmax", "pr", "cf").
+            Can also be a registered derived variable name.
+
+        Returns
+        -------
+        ClimateData
+            The current instance for method chaining.
+
+        """
+        logger.debug("Setting variable_id to: %s", variable_id)
+        if not isinstance(variable_id, str) or not variable_id.strip():
+            logger.error("Invalid variable_id parameter: must be non-empty string")
+            raise ValueError("Variable ID must be a non-empty string")
+        self._query["variable_id"] = variable_id.strip()
+        logger.info("Variable ID set to: %s", variable_id.strip())
+        return self
+
+    def variable(self, variable: str) -> "ClimateData":
+        """Set the climate variable to retrieve (DEPRECATED - use variable_id instead).
+
+        .. deprecated::
+            Use :meth:`variable_id` instead. This alias exists only for
+            backward compatibility and will be removed in a future release.
 
         Parameters
         ----------
@@ -656,13 +685,16 @@ class ClimateData:
             The current instance for method chaining.
 
         """
-        logger.debug("Setting variable to: %s", variable)
-        if not isinstance(variable, str) or not variable.strip():
-            logger.error("Invalid variable parameter: must be non-empty string")
-            raise ValueError("Variable must be a non-empty string")
-        self._query["variable_id"] = variable.strip()
-        logger.info("Variable set to: %s", variable.strip())
-        return self
+        import warnings
+
+        warnings.warn(
+            "variable() is deprecated and will be removed in a future release. "
+            "Use variable_id() instead, which matches the query dictionary key "
+            "expected by load_query().",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.variable_id(variable)
 
     def derived_variable(
         self,
@@ -1550,7 +1582,7 @@ class ClimateData:
             "experiment_id": self.experiment_id,
             "table_id": self.table_id,
             "grid_label": self.grid_label,
-            "variable_id": self.variable,
+            "variable_id": self.variable_id,
             "processes": self.processes,
         }
 

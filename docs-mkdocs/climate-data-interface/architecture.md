@@ -28,7 +28,7 @@ The `new_core` module uses a **pipeline architecture** with layered responsibili
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ ClimateData (user_interface.py)                             │
-│ Fluent API: .catalog("cadcat").variable("tas").get()        │
+│ Fluent API: .catalog("cadcat").variable_id("tas").get()     │
 └────────────────┬────────────────────────────────────────────┘
                  │ Creates
                  ▼
@@ -86,7 +86,7 @@ The `new_core` module uses a **pipeline architecture** with layered responsibili
 cd = ClimateData(verbosity=0)
 cd.catalog("cadcat")                    # Set catalog
 cd.activity_id("WRF")                   # Set downscaling method
-cd.variable("t2max")                    # Set variable
+cd.variable_id("t2max")                    # Set variable
 cd.experiment_id("ssp245")              # Set scenario
 cd.table_id("mon")                      # Set temporal resolution
 cd.grid_label("d03")                    # Set spatial resolution
@@ -375,7 +375,7 @@ The **Clip processor** is the primary tool for spatial subsetting. It extracts d
 ```python
 # ✅ EFFICIENT: Clip first, then aggregate
 data = (cd
-    .variable("tasmax")
+    .variable_id("tasmax")
     .processes({
         "clip": "Los Angeles",
         "time_slice": ("2030", "2060")
@@ -384,7 +384,7 @@ data = (cd
 mean_temp = data["tasmax"].mean(dim=["lat", "lon"]).compute()
 
 # ❌ INEFFICIENT: Load all data then subset
-data = cd.variable("tasmax").get()
+data = cd.variable_id("tasmax").get()
 clipped = data.sel(lat=slice(33.5, 35), lon=slice(-119, -117))
 mean_temp = clipped["tasmax"].mean().compute()
 ```
@@ -445,7 +445,7 @@ The **Export processor** writes climate data to disk in multiple formats optimiz
 ```python
 # Simple NetCDF export
 data = (cd
-    .variable("tasmax")
+    .variable_id("tasmax")
     .processes({
         "time_slice": ("2030-01-01", "2060-12-31"),
         "clip": "Los Angeles",
@@ -458,7 +458,7 @@ data = (cd
 
 # Cloud-optimized Zarr export
 data = (cd
-    .variable("pr")
+    .variable_id("pr")
     .processes({
         "export": {
             "filename": "precipitation_data",
@@ -512,13 +512,13 @@ All parameter setters return `self` to enable chaining:
 data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
-    .variable("t2max")
+    .variable_id("t2max")
     .get())
 
 # ❌ INCORRECT: State resets after .get()
 cd = ClimateData()
-d1 = cd.variable("tasmax").get()
-d2 = cd.variable("pr").get()  # Lost context - create new instance
+d1 = cd.variable_id("tasmax").get()
+d2 = cd.variable_id("pr").get()  # Lost context - create new instance
 ```
 
 **Implementation**:

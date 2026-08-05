@@ -10,7 +10,7 @@ data = (ClimateData()
     .activity_id("WRF")
     .table_id("mon")
     .grid_label("d03")
-    .variable("t2max")
+    .variable_id("t2max")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
         "clip": "Los Angeles County",

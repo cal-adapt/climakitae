@@ -64,7 +64,7 @@ from climakitae.new_core.user_interface import ClimateData
 ensemble = (ClimateData()
     .catalog("cadcat")
     .activity_id("LOCA2")
-    .variable("tasmax")
+    .variable_id("tasmax")
     .experiment_id(["historical", "ssp370"])
     .table_id("day")
     .grid_label("d03")
