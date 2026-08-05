@@ -685,13 +685,9 @@ class ClimateData:
             The current instance for method chaining.
 
         """
-        import warnings
-
-        warnings.warn(
+        logger.warning(
             "variable() is deprecated and will be removed in a future release. "
-            "Use variable_id() instead, which matches the catalog dictionary query.", 
-            DeprecationWarning,
-            stacklevel=2,
+            "Use variable_id() instead, which matches the catalog dictionary query."
         )
         return self.variable_id(variable)
 

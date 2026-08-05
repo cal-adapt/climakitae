@@ -183,20 +183,23 @@ class TestClimateDataParameterSetters:
             assert "Variable ID must be a non-empty string" in str(e)
 
     def test_variable_deprecated_alias(self):
-        """Test that the deprecated variable() alias still works and warns."""
-        with pytest.warns(DeprecationWarning, match="variable_id"):
+        """Test that the deprecated variable() alias still works and logs a warning."""
+        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
             result = self.climate_data.variable("tasmax")
         assert self.climate_data._query["variable_id"] == "tasmax"
         assert result is self.climate_data
+        mock_logger.warning.assert_called_once()
+        assert "variable_id" in mock_logger.warning.call_args[0][0]
 
     def test_variable_deprecated_alias_invalid(self):
         """Test that the deprecated variable() alias still validates input."""
-        with pytest.warns(DeprecationWarning, match="variable_id"):
+        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
             try:
                 self.climate_data.variable("")
                 assert False, "Should have raised ValueError"
             except ValueError as e:
                 assert "Variable ID must be a non-empty string" in str(e)
+        mock_logger.warning.assert_called_once()
 
     def test_experiment_id_string_valid(self):
         """Test experiment_id setter with valid string."""
