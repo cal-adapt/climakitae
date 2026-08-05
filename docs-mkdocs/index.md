@@ -107,10 +107,10 @@ ClimakitAE is the Python toolkit underneath the
 website hosts the broader scientific context that complements this API
 reference:
 
-- [About climate projections and models](https://analytics.cal-adapt.org/guidance/about_climate_projections_and_models) — GCMs, downscaling, SSPs, global warming levels
-- [Glossary](https://analytics.cal-adapt.org/guidance/glossary) — bias correction, GWL, localization, dynamical vs. statistical downscaling
-- [Datasets summary](https://analytics.cal-adapt.org/data/about) — WRF + LOCA2 model lists, resolution and time coverage
-- [Methods](https://analytics.cal-adapt.org/data-tools/access-methods.html) — algorithmic details (e.g. the warming-level fetching procedure)
+- [About climate projections and models](https://analytics.cal-adapt.org/scientific-guidance/general-climate-guidance/about-climate-projections.html) — GCMs, downscaling, SSPs, global warming levels
+- [Glossary](https://analytics.cal-adapt.org/glossary/) — bias correction, GWL, localization, dynamical vs. statistical downscaling
+- [Datasets summary](https://analytics.cal-adapt.org/data-tools/data-documentation/climate-model-sims.html) — WRF + LOCA2 model lists, resolution and time coverage
+- [Warming Levels Methods](https://analytics.cal-adapt.org/scientific-guidance/global-warming-levels.html) — algorithmic details on the warming levels methods
 - [Example applications](https://cal-adapt.github.io/climakitae/dev/notebook-gallery/) — featured notebooks
 
 ---
