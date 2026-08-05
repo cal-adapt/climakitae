@@ -232,7 +232,7 @@ params.variable = "Minimum air temperature at 2m"
 data = get_data(params)
 ```
 
-The Cal-Adapt [Methods page](https://analytics.cal-adapt.org/analytics/methods)
+The Cal-Adapt [Methods page](https://analytics.cal-adapt.org/data-tools/access-methods.html)
 describes the warming-level fetching algorithm in more detail (and is itself
 still written against the legacy API).
 

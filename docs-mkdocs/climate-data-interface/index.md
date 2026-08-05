@@ -43,6 +43,6 @@ The ClimateData interface has reached feature parity with the legacy `climakitae
 
 ## See also
 
-- [Cal-Adapt Analytics Engine — Methods](https://analytics.cal-adapt.org/analytics/methods)
+- [Cal-Adapt Analytics Engine — Methods](https://analytics.cal-adapt.org/data-tools/access-methods.html)
 - [Cal-Adapt Analytics Engine — Glossary](https://analytics.cal-adapt.org/guidance/glossary)
 - [Notebook Gallery](../notebook-gallery.md)

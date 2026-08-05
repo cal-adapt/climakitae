@@ -110,7 +110,7 @@ reference:
 - [About climate projections and models](https://analytics.cal-adapt.org/guidance/about_climate_projections_and_models) — GCMs, downscaling, SSPs, global warming levels
 - [Glossary](https://analytics.cal-adapt.org/guidance/glossary) — bias correction, GWL, localization, dynamical vs. statistical downscaling
 - [Datasets summary](https://analytics.cal-adapt.org/data/about) — WRF + LOCA2 model lists, resolution and time coverage
-- [Methods](https://analytics.cal-adapt.org/analytics/methods) — algorithmic details (e.g. the warming-level fetching procedure)
+- [Methods](https://analytics.cal-adapt.org/data-tools/access-methods.html) — algorithmic details (e.g. the warming-level fetching procedure)
 - [Example applications](https://cal-adapt.github.io/climakitae/dev/notebook-gallery/) — featured notebooks
 
 ---
