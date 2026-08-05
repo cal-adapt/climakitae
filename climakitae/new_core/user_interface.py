@@ -689,8 +689,7 @@ class ClimateData:
 
         warnings.warn(
             "variable() is deprecated and will be removed in a future release. "
-            "Use variable_id() instead, which matches the query dictionary key "
-            "expected by load_query().",
+            "Use variable_id() instead, which matches the catalog dictionary query.", 
             DeprecationWarning,
             stacklevel=2,
         )
