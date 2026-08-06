@@ -203,7 +203,9 @@ class WarmingLevel(DataProcessor):
                 continue
 
             slices = []
-            valid_center_years = []  # Track center years for valid warming levels
+            valid_center_years = (
+                {}
+            )  # Map warming_level -> center year, for valid WLs only
 
             for year, wl in zip(years, self.warming_levels):
                 if year is None or pd.isna(year):
@@ -270,7 +272,7 @@ class WarmingLevel(DataProcessor):
                 )
 
                 slices.append(da_slice)
-                valid_center_years.append(center_year)
+                valid_center_years[wl] = center_year
 
             # After processing all warming levels, check if we have any valid slices.
             if not slices:
@@ -289,9 +291,9 @@ class WarmingLevel(DataProcessor):
             if self.add_dummy_time:
                 ret[key] = add_dummy_time_to_wl(ret[key])
 
-            # Store center years for this simulation key
+            # Store center years for this simulation key, keyed by warming_level so
+            # concatenate.py can align by label instead of list position
             # DO NOT assign as coordinate here - it will be broadcast incorrectly
-            # Store in sim_centered_years dict to be reconstructed in concatenate processor
             sim_centered_years[key] = valid_center_years
 
         # Store center years in context for reconstruction after concatenation
