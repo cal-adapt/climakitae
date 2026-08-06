@@ -168,19 +168,38 @@ class TestClimateDataParameterSetters:
         except ValueError as e:
             assert "Grid label must be a non-empty string" in str(e)
 
-    def test_variable_valid(self):
-        """Test variable setter with valid input."""
-        result = self.climate_data.variable("tasmax")
+    def test_variable_id_valid(self):
+        """Test variable_id setter with valid input."""
+        result = self.climate_data.variable_id("tasmax")
         assert self.climate_data._query["variable_id"] == "tasmax"
         assert result is self.climate_data
 
-    def test_variable_invalid(self):
-        """Test variable setter with invalid input."""
+    def test_variable_id_invalid(self):
+        """Test variable_id setter with invalid input."""
         try:
-            self.climate_data.variable("")
+            self.climate_data.variable_id("")
             assert False, "Should have raised ValueError"
         except ValueError as e:
-            assert "Variable must be a non-empty string" in str(e)
+            assert "Variable ID must be a non-empty string" in str(e)
+
+    def test_variable_deprecated_alias(self):
+        """Test that the deprecated variable() alias still works and logs a warning."""
+        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
+            result = self.climate_data.variable("tasmax")
+        assert self.climate_data._query["variable_id"] == "tasmax"
+        assert result is self.climate_data
+        mock_logger.warning.assert_called_once()
+        assert "variable_id" in mock_logger.warning.call_args[0][0]
+
+    def test_variable_deprecated_alias_invalid(self):
+        """Test that the deprecated variable() alias still validates input."""
+        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
+            try:
+                self.climate_data.variable("")
+                assert False, "Should have raised ValueError"
+            except ValueError as e:
+                assert "Variable ID must be a non-empty string" in str(e)
+        mock_logger.warning.assert_called_once()
 
     def test_experiment_id_string_valid(self):
         """Test experiment_id setter with valid string."""
@@ -492,7 +511,7 @@ class TestClimateDataChaining:
         """Test that methods can be chained together."""
         result = (
             self.climate_data.catalog("climate")
-            .variable("tas")
+            .variable_id("tas")
             .table_id("day")
             .grid_label("d03")
         )

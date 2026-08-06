@@ -51,7 +51,7 @@ data = (ClimateData()
     .activity_id("WRF")
     .table_id("mon")
     .grid_label("d03")
-    .variable("t2max")
+    .variable_id("t2max")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
         "clip": "Los Angeles"
@@ -124,22 +124,22 @@ params.longitude = (-118.25, -118.25)
 
 ```python
 # Named region
-data = (cd.variable("t2max")
+data = (cd.variable_id("t2max")
     .processes({"clip": "Los Angeles"})
     .get())
 
 # Single point (lat, lon)
-data = (cd.variable("t2max")
+data = (cd.variable_id("t2max")
     .processes({"clip": (34.05, -118.25)})
     .get())
 
 # Multiple points
-data = (cd.variable("t2max")
+data = (cd.variable_id("t2max")
     .processes({"clip": [(34.05, -118.25), (37.77, -122.42)]})
     .get())
 
 # Bounding box ((lat_min, lat_max), (lon_min, lon_max))
-data = (cd.variable("t2max")
+data = (cd.variable_id("t2max")
     .processes({"clip": ((34.0, 36.0), (-121.0, -119.0))})
     .get())
 ```
@@ -165,7 +165,7 @@ data_export.export(data, "output.zarr", format="zarr")
 ```python
 # Export via processor (integrated into query)
 data = (cd
-    .variable("t2max")
+    .variable_id("t2max")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
         "export": {
@@ -211,7 +211,7 @@ results = {}
 for scenario in scenarios:
     results[scenario] = (ClimateData()
         .experiment_id(scenario)
-        .variable("tasmax")
+        .variable_id("tasmax")
         # ... chain other params ...
         .get())
 ```
@@ -241,7 +241,7 @@ still written against the legacy API).
 ```python
 # Direct warming level support
 data = (ClimateData()
-    .variable("t2min")
+    .variable_id("t2min")
     .processes({
         "warming_level": {
             "warming_levels": [1.5, 2.0, 3.0]
@@ -273,7 +273,7 @@ data = (ClimateData()
     - `resolution` ("3 km" / "9 km" / "45 km") → `.grid_label("d03" | "d02" | "d01")`  
     - `timescale` ("hourly" / "daily" / "monthly") → `.table_id("1hr" | "day" | "mon")`  
     - `scenario_ssp` / `scenario_historical` → `.experiment_id(...)` (a list of `"ssp245"` / `"ssp370"` / `"ssp585"` / `"historical"`)  
-    - Display variable name (e.g. "Maximum air temperature at 2m") → `.variable("<variable_id>")` such as `"t2max"` for WRF or `"tasmax"` for LOCA2.  
+    - Display variable name (e.g. "Maximum air temperature at 2m") → `.variable_id("<variable_id>")` such as `"t2max"` for WRF or `"tasmax"` for LOCA2.  
 - Convert year ranges: `params.time_slice = (2015, 2050)` → `.processes({"time_slice": (2015, 2050)})` (or ISO date strings).  
 - Convert clipping: `params.area_subset` + `params.cached_area` → `.processes({"clip": "<boundary name>"})` or a `(lat, lon)` tuple.  
 - Replace `get_data(params)` with `.get()`.  

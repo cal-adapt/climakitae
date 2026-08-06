@@ -48,7 +48,7 @@ from climakitae.new_core.user_interface import ClimateData
 
 data = (ClimateData()
     .catalog("cadcat").activity_id("WRF").institution_id("UCLA")
-    .variable("t2max").table_id("day").grid_label("d03")
+    .variable_id("t2max").table_id("day").grid_label("d03")
     .processes({
         "time_slice": ("2030-01-01", "2060-12-31"),
         "clip": "Los Angeles",

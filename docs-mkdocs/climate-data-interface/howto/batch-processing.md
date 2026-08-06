@@ -46,7 +46,7 @@ for scenario in scenarios:
             .activity_id("WRF")
             .institution_id("UCLA")
             .experiment_id(scenario)
-            .variable("tasmax")
+            .variable_id("tasmax")
             .processes({
                 "warming_level": {"warming_levels": [gwl]},
                 "clip": "Los Angeles"
@@ -71,7 +71,7 @@ results = {}
 
 for county in tqdm(counties, desc="Processing counties"):
     data = (cd
-        .variable("tasmax")
+        .variable_id("tasmax")
         .processes({
             "time_slice": ("2030-01-01", "2060-12-31"),
             "clip": county,
@@ -94,7 +94,7 @@ def query_county(county_name):
     """Query temperature for one county"""
     cd = ClimateData(verbosity=-1)  # Quiet mode
     data = (cd
-        .variable("tasmax")
+        .variable_id("tasmax")
         .processes({"clip": county_name})
         .get())
     return county_name, data["tasmax"].mean().compute()
@@ -132,7 +132,7 @@ for scenario in ["historical", "ssp245", "ssp370", "ssp585"]:
         .catalog("cadcat")
         .activity_id("LOCA2")
         .experiment_id(scenario)
-        .variable("tasmax")
+        .variable_id("tasmax")
         .table_id("mon")
         .grid_label("d03")
         .processes({
@@ -175,7 +175,7 @@ for county in counties:
         data = (cd
             .activity_id("WRF")
             .institution_id("UCLA")
-            .variable("tasmax")
+            .variable_id("tasmax")
             .processes({
                 "time_slice": ("2030-01-01", "2060-12-31"),
                 "clip": county

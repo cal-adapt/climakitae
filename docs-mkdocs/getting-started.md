@@ -40,7 +40,7 @@ data = (cd
     .institution_id("UCLA")  # UCLA WRF model (recommended)
     .table_id("mon")
     .grid_label("d03")
-    .variable("t2max")
+    .variable_id("t2max")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
         "clip": "Los Angeles County",
@@ -79,7 +79,7 @@ data_celsius = (cd
     .institution_id("UCLA")
     .table_id("mon")
     .grid_label("d03")
-    .variable("t2max")
+    .variable_id("t2max")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
         "clip": "Los Angeles County",
@@ -94,7 +94,7 @@ data_fahrenheit = (cd
     .institution_id("UCLA")
     .table_id("mon")
     .grid_label("d03")
-    .variable("t2max")
+    .variable_id("t2max")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
         "clip": "Los Angeles County",
