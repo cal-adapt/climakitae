@@ -93,7 +93,7 @@ cd = ClimateData()
 
 # Programmatic discovery
 cd.show_catalog_options()           # All available catalogs
-cd.show_variable_options()          # All available variables for current catalog
+cd.show_variable_id_options()          # All available variables for current catalog
 cd.show_grid_label_options()        # All available resolutions
 cd.show_boundary_options()          # All clipping regions
 

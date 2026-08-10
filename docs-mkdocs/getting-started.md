@@ -112,7 +112,7 @@ data_fahrenheit = (cd
 
 ## Next Steps  
 
-- **Browse variables**: Use `cd.show_variable_options()` to see all available climate variables  
+- **Browse variables**: Use `cd.show_variable_id_options()` to see all available climate variables  
 - **Explore boundaries**: Use `cd.show_boundary_options()` to see geographic regions available for clipping  
 - **Learn processors**: See the [processor reference](climate-data-interface/processors/index.md) for spatial/temporal operations  
 - **Try warming levels**: Use `.processes({"warming_level": {"warming_levels": [1.5, 2.0]}})` for climate scenario analysis  

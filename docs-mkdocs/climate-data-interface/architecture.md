@@ -91,7 +91,7 @@ cd.experiment_id("ssp245")              # Set scenario
 cd.table_id("mon")                      # Set temporal resolution
 cd.grid_label("d03")                    # Set spatial resolution
 cd.processes({"clip": "Los Angeles"})   # Set processors
-cd.show_variable_options()              # Discover available variables
+cd.show_variable_id_options()              # Discover available variables
 data = cd.get()                         # Execute query, return xarray
 ```
 

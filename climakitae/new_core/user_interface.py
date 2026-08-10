@@ -159,7 +159,7 @@ class ClimateData:
         Display available table ID (temporal resolution) options.
     show_grid_label_options(show_n: int, optional) -> None
         Display available grid label (spatial resolution) options.
-    show_variable_options(show_n: int, optional) -> None
+    show_variable_id_options(show_n: int, optional) -> None
         Display available climate variable options.
     show_station_id_options(show_n: int, optional) -> None
         Display available station ID options.
@@ -208,7 +208,7 @@ class ClimateData:
 
     >>> cd = ClimateData()
     >>> cd.show_catalog_options()
-    >>> cd.catalog("cadcat").show_variable_options()
+    >>> cd.catalog("cadcat").show_variable_id_options()
 
     Using with processing:
 
@@ -1182,7 +1182,7 @@ class ClimateData:
         )
 
     @_with_info_verbosity
-    def show_variable_options(self, show_n: Optional[int] = None) -> None:
+    def show_variable_id_options(self, show_n: Optional[int] = None) -> None:
         """Display available variable options.
 
         Parameters
@@ -1198,6 +1198,26 @@ class ClimateData:
             msg = "Variables"
 
         self._show_options("variable_id", msg, limit_per_group=show_n)
+
+    @_with_info_verbosity
+    def show_variable_options(self, show_n: Optional[int] = None) -> None:
+        """Display available variable options (DEPRECATED - use show_variable_id_options instead).
+
+        .. deprecated::
+            Use :meth:`show_variable_id_options` instead. This alias exists only
+            for backward compatibility and will be removed in a future release.
+
+        Parameters
+        ----------
+        show_n : int, optional
+            Maximum number of options to display. If None (default), shows all options.
+        """
+        logger.warning(
+            "show_variable_options() is deprecated and will be removed in a "
+            "future release. Use show_variable_id_options() instead, which "
+            "matches the catalog dictionary query."
+        )
+        self.show_variable_id_options(show_n)
 
     @_with_info_verbosity
     def show_derived_variables(self) -> None:
@@ -1418,7 +1438,7 @@ class ClimateData:
             "show_experiment_id_options": None,  # Small list, show all
             "show_table_id_options": None,  # Small list, show all
             "show_grid_label_options": None,  # Small list, show all
-            "show_variable_options": 15,
+            "show_variable_id_options": 15,
             "show_installation_options": None,  # Small list, show all
             "show_station_id_options": 15,
             "show_network_id_options": None,  # Small list, show all
@@ -1434,7 +1454,7 @@ class ClimateData:
             ("show_experiment_id_options", "Experiment IDs"),
             ("show_table_id_options", "Table IDs (Temporal Resolution)"),
             ("show_grid_label_options", "Grid Labels (Spatial Resolution)"),
-            ("show_variable_options", "Variables"),
+            ("show_variable_id_options", "Variables"),
             ("show_derived_variables", "Derived Variables"),
             ("show_installation_options", "Installations"),
             ("show_station_id_options", "Station IDs"),
