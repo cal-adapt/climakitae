@@ -183,13 +183,13 @@ class TestClimateDataParameterSetters:
             assert "Variable ID must be a non-empty string" in str(e)
 
     def test_variable_deprecated_alias(self):
-        """Test that the deprecated variable() alias still works and logs a warning."""
+        """Test that the deprecated variable() alias still works and logs an error."""
         with patch("climakitae.new_core.user_interface.logger") as mock_logger:
             result = self.climate_data.variable("tasmax")
         assert self.climate_data._query["variable_id"] == "tasmax"
         assert result is self.climate_data
-        mock_logger.warning.assert_called_once()
-        assert "variable_id" in mock_logger.warning.call_args[0][0]
+        mock_logger.error.assert_called_once()
+        assert "variable_id" in mock_logger.error.call_args[0][0]
 
     def test_variable_deprecated_alias_invalid(self):
         """Test that the deprecated variable() alias still validates input."""
@@ -199,7 +199,9 @@ class TestClimateDataParameterSetters:
                 assert False, "Should have raised ValueError"
             except ValueError as e:
                 assert "Variable ID must be a non-empty string" in str(e)
-        mock_logger.warning.assert_called_once()
+        # One error log for the deprecation notice, one for the invalid parameter
+        assert mock_logger.error.call_count == 2
+        assert "variable_id" in mock_logger.error.call_args_list[0][0][0]
 
     def test_experiment_id_string_valid(self):
         """Test experiment_id setter with valid string."""
@@ -636,15 +638,15 @@ class TestClimateDataAdditionalShowMethods:
             )
 
     def test_show_variable_options_deprecated_alias(self):
-        """Test that the deprecated show_variable_options() alias still works and logs a warning."""
+        """Test that the deprecated show_variable_options() alias still works and logs an error."""
         with patch("climakitae.new_core.user_interface.logger") as mock_logger:
             with patch.object(self.climate_data, "_show_options") as mock_show:
                 self.climate_data.show_variable_options()
                 mock_show.assert_called_once_with(
                     "variable_id", "Variables", limit_per_group=None
                 )
-        mock_logger.warning.assert_called_once()
-        assert "show_variable_id_options" in mock_logger.warning.call_args[0][0]
+        mock_logger.error.assert_called_once()
+        assert "show_variable_id_options" in mock_logger.error.call_args[0][0]
 
     def test_show_station_options(self):
         """Test show_station_options method."""

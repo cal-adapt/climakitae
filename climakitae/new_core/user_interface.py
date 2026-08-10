@@ -685,7 +685,7 @@ class ClimateData:
             The current instance for method chaining.
 
         """
-        logger.warning(
+        logger.error(
             "variable() is deprecated and will be removed in a future release. "
             "Use variable_id() instead, which matches the catalog dictionary query."
         )
@@ -1212,7 +1212,7 @@ class ClimateData:
         show_n : int, optional
             Maximum number of options to display. If None (default), shows all options.
         """
-        logger.warning(
+        logger.error(
             "show_variable_options() is deprecated and will be removed in a "
             "future release. Use show_variable_id_options() instead, which "
             "matches the catalog dictionary query."
