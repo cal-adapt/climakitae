@@ -327,10 +327,12 @@ class TestBoundariesDataProcessing:
         expected = test_df.sort_values("NAME")
         pd.testing.assert_frame_equal(result, expected)
 
-    def test_process_ca_counties(self):
-        """Test CA counties data processing (sorting)."""
+    def test_process_ca_cities(self):
+        """Test CA cities data processing (sorting)."""
         boundaries = Boundaries.__new__(Boundaries)
-        test_df = pd.DataFrame({"NAME": ["San Francisco", "Alameda", "Los Angeles"]})
+        test_df = pd.DataFrame(
+            {"CDT_NAME_S	": ["San Francisco", "Alhambra", "Los Angeles"]}
+        )
 
         result = boundaries._process_ca_counties(test_df)
 
@@ -429,6 +431,15 @@ class TestBoundariesLookupMethods:
 
         setattr(
             boundaries,
+            "_Boundaries__ca_cities",
+            pd.DataFrame(
+                {"CDT_NAME_S": ["Alhambra", "Los Angeles", "San Francisco"]},
+                index=[20, 21, 22],
+            ),
+        )
+
+        setattr(
+            boundaries,
             "_Boundaries__ca_watersheds",
             pd.DataFrame(
                 {"Name": ["Central Valley", "San Francisco Bay"]}, index=[30, 31]
@@ -501,6 +512,16 @@ class TestBoundariesLookupMethods:
         result2 = boundaries._get_ca_counties()
         assert result1 is result2
 
+    def test_get_ca_cities_caching(self, mock_boundaries_with_data):
+        """Test CA cities lookup dictionary caching."""
+        boundaries = mock_boundaries_with_data
+
+        result1 = boundaries._get_ca_cities()
+        assert "ca_cities" in boundaries._lookup_cache
+
+        result2 = boundaries._get_ca_cities()
+        assert result1 is result2
+
     def test_get_ca_watersheds_caching(self, mock_boundaries_with_data):
         """Test CA watersheds lookup dictionary caching."""
         boundaries = mock_boundaries_with_data
@@ -562,7 +583,7 @@ class TestBoundariesPublicMethods:
     def mock_boundaries_public(self):
         """Create boundaries for testing public methods."""
         mock_catalog = Mock()
-        for attr in ["states", "counties", "huc8", "utilities", "dfz", "eba"]:
+        for attr in ["states", "counties", "cities", "huc8", "utilities", "dfz", "eba"]:
             catalog_entry = Mock()
             catalog_entry.read.return_value = pd.DataFrame({"test": [1, 2, 3]})
             setattr(mock_catalog, attr, catalog_entry)
@@ -572,6 +593,9 @@ class TestBoundariesPublicMethods:
         # Mock all getter methods to avoid complex setup
         boundaries._get_states = Mock(return_value={"CA": 0, "OR": 1})
         boundaries._get_ca_counties = Mock(
+            return_value={"Alameda": 0, "Los Angeles": 1}
+        )
+        boundaries._get_ca_cities = Mock(
             return_value={"Alameda": 0, "Los Angeles": 1}
         )
         boundaries._get_ca_watersheds = Mock(return_value={"Central Valley": 0})
@@ -591,6 +615,7 @@ class TestBoundariesPublicMethods:
             "lat/lon",
             "states",
             "CA counties",
+            "CA cities",
             "CA watersheds",
             "CA Electric Load Serving Entities (IOU & POU)",
             "CA Electricity Demand Forecast Zones",
@@ -605,6 +630,7 @@ class TestBoundariesPublicMethods:
         # Check that getter methods were called
         mock_boundaries_public._get_states.assert_called_once()
         mock_boundaries_public._get_ca_counties.assert_called_once()
+        mock_boundaries_public._get_ca_cities.assert_called_once()
         mock_boundaries_public._get_ca_watersheds.assert_called_once()
         mock_boundaries_public._get_ious_pous.assert_called_once()
         mock_boundaries_public._get_forecast_zones.assert_called_once()
@@ -628,6 +654,7 @@ class TestBoundariesPublicMethods:
         # Mock the actual property accesses to avoid complex nested patches
         mock_boundaries_public._states = Mock()
         mock_boundaries_public._ca_counties = Mock()
+        mock_boundaries_public._ca_cities = Mock()
         mock_boundaries_public._ca_watersheds = Mock()
         mock_boundaries_public._ca_utilities = Mock()
         mock_boundaries_public._ca_forecast_zones = Mock()
@@ -639,6 +666,7 @@ class TestBoundariesPublicMethods:
         # Verify all getter methods were called for cache building
         mock_boundaries_public._get_states.assert_called()
         mock_boundaries_public._get_ca_counties.assert_called()
+        mock_boundaries_public._get_ca_cities.assert_called()
 
     def test_clear_cache(self, mock_boundaries_public):
         """Test clear_cache resets all cached data."""
@@ -655,6 +683,7 @@ class TestBoundariesPublicMethods:
         private_attrs = [
             "_Boundaries__states",
             "_Boundaries__ca_counties",
+            "_Boundaries__ca_cities",
             "_Boundaries__ca_watersheds",
             "_Boundaries__ca_utilities",
             "_Boundaries__ca_forecast_zones",
@@ -675,6 +704,7 @@ class TestBoundariesMemoryManagement:
         # Set all private DataFrames to None (not loaded) using setattr
         setattr(boundaries, "_Boundaries__states", None)
         setattr(boundaries, "_Boundaries__ca_counties", None)
+        setattr(boundaries, "_Boundaries__ca_cities", None)
         setattr(boundaries, "_Boundaries__ca_watersheds", None)
         setattr(boundaries, "_Boundaries__ca_utilities", None)
         setattr(boundaries, "_Boundaries__ca_forecast_zones", None)
@@ -686,6 +716,7 @@ class TestBoundariesMemoryManagement:
         # All dataset usage should be 0
         assert result["states"] == 0
         assert result["ca_counties"] == 0
+        assert result["ca_cities"] == 0
         assert result["ca_watersheds"] == 0
         assert result["ca_utilities"] == 0
         assert result["ca_forecast_zones"] == 0
@@ -714,6 +745,7 @@ class TestBoundariesMemoryManagement:
         # Set some DataFrames as loaded, others as None using setattr
         setattr(boundaries, "_Boundaries__states", mock_df1)
         setattr(boundaries, "_Boundaries__ca_counties", mock_df2)
+        setattr(boundaries, "_Boundaries__ca_cities", None)
         setattr(boundaries, "_Boundaries__ca_watersheds", None)
         setattr(boundaries, "_Boundaries__ca_utilities", None)
         setattr(boundaries, "_Boundaries__ca_forecast_zones", None)
@@ -724,6 +756,7 @@ class TestBoundariesMemoryManagement:
 
         assert result["states"] == 1024
         assert result["ca_counties"] == 2048
+        assert result["ca_cities"] == 0
         assert result["ca_watersheds"] == 0
         assert result["ca_census_tracts"] == 0
         assert result["total_bytes"] == 3072
@@ -871,6 +904,13 @@ class TestBoundariesAccessorFunctions:
             {"GEOID": ["06001400100", "06001400200"], "geometry": ["POLY_0", "POLY_1"]},
             index=[70, 71],
         )
+        cities_df = pd.DataFrame(
+            {
+                "CDT_NAME_S": ["Alameda", "Los Angeles"],
+                "geometry": ["POLY_0", "POLY_1"],
+            },
+            index=[80, 81],
+        )
 
         setattr(boundaries, "_Boundaries__states", states_df)
         setattr(boundaries, "_Boundaries__ca_counties", counties_df)
@@ -879,6 +919,7 @@ class TestBoundariesAccessorFunctions:
         setattr(boundaries, "_Boundaries__ca_forecast_zones", forecast_zones_df)
         setattr(boundaries, "_Boundaries__ca_electric_balancing_areas", eba_df)
         setattr(boundaries, "_Boundaries__ca_census_tracts", census_df)
+        setattr(boundaries, "_Boundaries__ca_cities", cities_df)
 
         return boundaries
 
