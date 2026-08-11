@@ -105,9 +105,12 @@ class FilterUnAdjustedModels(DataProcessor):
                         f"\nClimateData().processes('{self.name}': 'no')\n"
                     )
                     logger.warning(msg)
-                    return self._remove_unadjusted_models(result)
+                    new_result = self._remove_unadjusted_models(result)
+                    self.update_context(context)
+                    return new_result
 
                 # If no unadjusted models are found, return the result as is
+                self.update_context(context)
                 return result
             case "no":
                 # check if there are any biased models in the dataset
@@ -118,7 +121,7 @@ class FilterUnAdjustedModels(DataProcessor):
                         "\nProceed with caution as these models may not be suitable for your analysis.\n"
                     )
                     logger.warning(msg)
-
+                self.update_context(context)
                 return result
             case _:
                 raise ValueError(

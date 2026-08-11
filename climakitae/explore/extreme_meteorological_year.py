@@ -994,7 +994,7 @@ class shock_XMY:
             "Finding top months (greatest deviation from climatological CDF median)."
         )
         self.top_months = generate_candidate_months(
-            self.cdf_monthly, self.cdf_climatology, self.extreme
+            self.cdf_monthly, self.cdf_climatology, self.extreme, self._skip_last
         )
 
     def show_xmy_data_to_export(self, simulation: str):

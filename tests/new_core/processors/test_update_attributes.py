@@ -103,6 +103,19 @@ class TestUpdateAttributesExecuteDataset:
         assert result.attrs["original_attr"] == "original_value"
         assert "new_attr" in result.attrs
 
+    def test_execute_dataset_converts_bad_types(self):
+        """Test that execute converts bad types to strings."""
+        self.sample_dataset.attrs["dictionary"] = {"key": "value"}
+        self.sample_dataset.attrs["bool"] = True
+        context = {_NEW_ATTRS_KEY: {"new_attr": "new_value"}}
+
+        result = self.processor.execute(self.sample_dataset, context)
+
+        assert "dictionary" in result.attrs
+        assert result.attrs["dictionary"] == "{'key': 'value'}"
+        assert "bool" in result.attrs
+        assert result.attrs["bool"] == "True"
+
     def test_execute_dataset_updates_dim_attrs(self):
         """Test that execute updates dimension attributes with common_attrs."""
         context = {_NEW_ATTRS_KEY: {"test_attr": "test_value"}}
@@ -118,6 +131,22 @@ class TestUpdateAttributesExecuteDataset:
         # Check time dimension attrs
         assert result["time"].attrs["standard_name"] == "time"
         assert result["time"].attrs["axis"] == "T"
+
+    def test_update_context_removes_warming_level_key(self):
+        """Test that execute removes unwanted warming_level attribute."""
+        context = {
+            _NEW_ATTRS_KEY: {
+                "test_attr": "test_value",
+                "warming_level": "warming_level_value",
+                "warming_level_simple": "simple_value",
+            }
+        }
+
+        result = self.processor.execute(self.sample_dataset, context)
+
+        # Make sure warming level key is dropped, warming_level_simple is saved
+        assert "warming_level" not in result.attrs
+        assert "warming_level_simple" in result.attrs
 
     def test_execute_dataset_calls_update_context_if_needed(self):
         """Test that execute calls update_context when processor name not in context."""
