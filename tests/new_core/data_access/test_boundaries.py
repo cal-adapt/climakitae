@@ -985,6 +985,30 @@ class TestBoundariesAccessorFunctions:
             with pytest.raises(ValueError, match="County 'Sacramento' not found"):
                 boundaries_with_data.get_counties("Sacramento")
 
+    def test_get_cities_no_name_returns_full_df(self, boundaries_with_data):
+        result = boundaries_with_data.get_cities()
+        assert len(result) == 2
+        assert "Alameda" in result["CDT_NAME_S"].values
+
+    def test_get_cities_with_name_returns_single_row(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_ca_cities",
+            return_value={"Alameda": 80, "Los Angeles": 81},
+        ):
+            result = boundaries_with_data.get_cities("Alameda")
+        assert len(result) == 1
+        assert result.index[0] == 80
+
+    def test_get_cities_invalid_name_raises(self, boundaries_with_data):
+        with patch.object(
+            boundaries_with_data,
+            "_get_ca_cities",
+            return_value={"Alameda": 80},
+        ):
+            with pytest.raises(ValueError, match="City 'Sacramento' not found"):
+                boundaries_with_data.get_cities("Sacramento")
+
     def test_get_watersheds_no_name_returns_full_df(self, boundaries_with_data):
         result = boundaries_with_data.get_watersheds()
         assert len(result) == 2
