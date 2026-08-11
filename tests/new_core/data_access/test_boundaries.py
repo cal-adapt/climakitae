@@ -331,13 +331,13 @@ class TestBoundariesDataProcessing:
         """Test CA cities data processing (sorting)."""
         boundaries = Boundaries.__new__(Boundaries)
         test_df = pd.DataFrame(
-            {"CDT_NAME_S	": ["San Francisco", "Alhambra", "Los Angeles"]}
+            {"CDT_NAME_S": ["San Francisco", "Alhambra", "Los Angeles"]}
         )
 
-        result = boundaries._process_ca_counties(test_df)
+        result = boundaries._process_ca_cities(test_df)
 
         # Should be sorted by NAME
-        expected = test_df.sort_values("NAME")
+        expected = test_df.sort_values("CDT_NAME_S")
         pd.testing.assert_frame_equal(result, expected)
 
     def test_process_ca_watersheds(self):
@@ -595,9 +595,7 @@ class TestBoundariesPublicMethods:
         boundaries._get_ca_counties = Mock(
             return_value={"Alameda": 0, "Los Angeles": 1}
         )
-        boundaries._get_ca_cities = Mock(
-            return_value={"Alameda": 0, "Los Angeles": 1}
-        )
+        boundaries._get_ca_cities = Mock(return_value={"Alameda": 0, "Los Angeles": 1})
         boundaries._get_ca_watersheds = Mock(return_value={"Central Valley": 0})
         boundaries._get_ious_pous = Mock(return_value={"PG&E": 0})
         boundaries._get_forecast_zones = Mock(return_value={"North Bay": 0})
