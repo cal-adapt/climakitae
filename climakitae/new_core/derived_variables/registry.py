@@ -498,7 +498,7 @@ def register_user_function(
     ... )
     ...
     >>> # Now query it directly
-    >>> data = cd.catalog("cadcat").variable("temp_range").get()
+    >>> data = cd.catalog("cadcat").variable_id("temp_range").get()
 
     Notes
     -----

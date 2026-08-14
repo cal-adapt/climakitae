@@ -11,7 +11,7 @@ from climakitae.tools.indices import effective_temp, noaa_heat_index
 # Fetch base temperature data
 # Note: convert_units processor ensures correct units for derived variable functions
 data = (cd
-    .variable("tasmax")
+    .variable_id("tasmax")
     .table_id("day")
     .grid_label("d03")
     .processes({
