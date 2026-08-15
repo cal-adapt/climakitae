@@ -418,6 +418,80 @@ class TestGetBlockMaximaOptimized:
         assert not np.isnan(result.any())
         assert result.attrs["extremes type"] == "maxima"
 
+    def test_invalid_rolling_agg(self, sample_gridded_dataset):
+        """Test with invalid rolling_agg."""
+        with pytest.raises(ValueError, match="invalid rolling_agg"):
+            _get_block_maxima_optimized(
+                sample_gridded_dataset,
+                extremes_type="max",
+                check_ess=False,
+                rolling_agg="invalid",
+            )
+
+    def test_rolling_agg_recorded_in_attrs(self, sample_gridded_dataset):
+        """Test that a non-default rolling_agg is recorded in output attrs."""
+        result = _get_block_maxima_optimized(
+            sample_gridded_dataset,
+            extremes_type="max",
+            groupby=(1, "day"),
+            check_ess=False,
+            rolling_agg="cumulative",
+        )
+
+        assert result.attrs["rolling_agg"] == "cumulative"
+
+    def test_rolling_agg_default_matches_sustained(self, sample_gridded_dataset):
+        """Omitting rolling_agg should be identical to explicit 'sustained'."""
+        default_result = _get_block_maxima_optimized(
+            sample_gridded_dataset,
+            extremes_type="max",
+            groupby=(1, "day"),
+            check_ess=False,
+        )
+        explicit_result = _get_block_maxima_optimized(
+            sample_gridded_dataset,
+            extremes_type="max",
+            groupby=(1, "day"),
+            check_ess=False,
+            rolling_agg="sustained",
+        )
+
+        xr.testing.assert_identical(default_result, explicit_result)
+
+    def test_cumulative_rolling_agg_matches_legacy_get_block_maxima(
+        self, sample_gridded_dataset
+    ):
+        """Numerical parity: rolling_agg='cumulative' must match the legacy
+        explore.threshold_tools.get_block_maxima(..., rolling_agg='cumulative')
+        implementation this function was ported from.
+
+        This guards the specific precipitation 1-in-X regression this feature
+        was added for: cumulative (summed) totals over the event window, not
+        the sustained-minimum semantics that were previously hardcoded.
+        """
+        from climakitae.explore.threshold_tools import get_block_maxima
+
+        new_result = _get_block_maxima_optimized(
+            sample_gridded_dataset,
+            extremes_type="max",
+            groupby=(1, "day"),
+            grouped_duration=(3, "day"),
+            check_ess=False,
+            rolling_agg="cumulative",
+        )
+        legacy_result = get_block_maxima(
+            sample_gridded_dataset,
+            extremes_type="max",
+            groupby=(1, "day"),
+            grouped_duration=(3, "day"),
+            check_ess=False,
+            rolling_agg="cumulative",
+        )
+
+        np.testing.assert_allclose(
+            new_result.values, legacy_result.values, equal_nan=True
+        )
+
 
 class TestOptimizeChunkingForBlockMaxima:
     """Test class for _optimize_chunking_for_block_maxima function."""
@@ -498,6 +572,72 @@ class TestApplyDurationFilterVectorized:
                 sample_hourly_dataset, duration=(4, "hour"), extremes_type="invalid"
             )
 
+    def test_duration_filter_cumulative(self):
+        """Test duration filter with rolling_agg='cumulative' sums the window."""
+        time = pd.date_range("2020-01-01", periods=6, freq="h")
+        da_series = xr.DataArray(
+            [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            coords={"time": time},
+            dims=["time"],
+            attrs={"frequency": "1hr"},
+        )
+
+        result = _apply_duration_filter_vectorized(
+            da_series, duration=(3, "hour"), extremes_type="max", rolling_agg="cumulative"
+        )
+
+        # rolling sum, window=3, non-centered: first 2 are NaN, then 1+2+3, 2+3+4, ...
+        expected = [np.nan, np.nan, 6.0, 9.0, 12.0, 15.0]
+        np.testing.assert_allclose(result.values, expected, equal_nan=True)
+
+    def test_duration_filter_average(self):
+        """Test duration filter with rolling_agg='average' means the window."""
+        time = pd.date_range("2020-01-01", periods=6, freq="h")
+        da_series = xr.DataArray(
+            [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            coords={"time": time},
+            dims=["time"],
+            attrs={"frequency": "1hr"},
+        )
+
+        result = _apply_duration_filter_vectorized(
+            da_series, duration=(3, "hour"), extremes_type="max", rolling_agg="average"
+        )
+
+        expected = [np.nan, np.nan, 2.0, 3.0, 4.0, 5.0]
+        np.testing.assert_allclose(result.values, expected, equal_nan=True)
+
+    def test_duration_filter_sustained_unchanged(self, sample_hourly_dataset):
+        """Explicit rolling_agg='sustained' matches default (no-arg) behavior."""
+        sample_hourly_dataset.attrs["frequency"] = "1hr"
+
+        default_result = _apply_duration_filter_vectorized(
+            sample_hourly_dataset, duration=(4, "hour"), extremes_type="max"
+        )
+        explicit_result = _apply_duration_filter_vectorized(
+            sample_hourly_dataset,
+            duration=(4, "hour"),
+            extremes_type="max",
+            rolling_agg="sustained",
+        )
+
+        xr.testing.assert_identical(default_result, explicit_result)
+
+    def test_invalid_rolling_agg_duration(self, sample_hourly_dataset):
+        """Test with invalid rolling_agg."""
+        sample_hourly_dataset.attrs["frequency"] = "1hr"
+
+        with pytest.raises(
+            ValueError,
+            match='rolling_agg needs to be one of "sustained", "cumulative", or "average"',
+        ):
+            _apply_duration_filter_vectorized(
+                sample_hourly_dataset,
+                duration=(4, "hour"),
+                extremes_type="max",
+                rolling_agg="invalid",
+            )
+
 
 class TestApplyGroupbyFilterVectorized:
     """Test class for _apply_groupby_filter_vectorized function."""
@@ -548,6 +688,60 @@ class TestApplyGroupbyFilterVectorized:
         ):
             _apply_groupby_filter_vectorized(
                 sample_gridded_dataset, groupby=(1, "day"), extremes_type="invalid"
+            )
+
+    def test_groupby_filter_cumulative(self):
+        """Test groupby filter with rolling_agg='cumulative' sums each group."""
+        time = pd.date_range("2020-01-01", periods=4, freq="D")
+        da_series = xr.DataArray(
+            [1.0, 2.0, 3.0, 4.0], coords={"time": time}, dims=["time"]
+        )
+
+        result = _apply_groupby_filter_vectorized(
+            da_series, groupby=(2, "day"), extremes_type="max", rolling_agg="cumulative"
+        )
+
+        # 2-day resample sums: [1+2, 3+4]
+        np.testing.assert_allclose(result.values, [3.0, 7.0])
+
+    def test_groupby_filter_average(self):
+        """Test groupby filter with rolling_agg='average' means each group."""
+        time = pd.date_range("2020-01-01", periods=4, freq="D")
+        da_series = xr.DataArray(
+            [1.0, 2.0, 3.0, 4.0], coords={"time": time}, dims=["time"]
+        )
+
+        result = _apply_groupby_filter_vectorized(
+            da_series, groupby=(2, "day"), extremes_type="max", rolling_agg="average"
+        )
+
+        np.testing.assert_allclose(result.values, [1.5, 3.5])
+
+    def test_groupby_filter_sustained_unchanged(self, sample_gridded_dataset):
+        """Explicit rolling_agg='sustained' matches default (no-arg) behavior."""
+        default_result = _apply_groupby_filter_vectorized(
+            sample_gridded_dataset, groupby=(1, "day"), extremes_type="max"
+        )
+        explicit_result = _apply_groupby_filter_vectorized(
+            sample_gridded_dataset,
+            groupby=(1, "day"),
+            extremes_type="max",
+            rolling_agg="sustained",
+        )
+
+        xr.testing.assert_identical(default_result, explicit_result)
+
+    def test_invalid_rolling_agg_groupby(self, sample_gridded_dataset):
+        """Test with invalid rolling_agg."""
+        with pytest.raises(
+            ValueError,
+            match='rolling_agg needs to be one of "sustained", "cumulative", or "average"',
+        ):
+            _apply_groupby_filter_vectorized(
+                sample_gridded_dataset,
+                groupby=(1, "day"),
+                extremes_type="max",
+                rolling_agg="invalid",
             )
 
 
@@ -602,6 +796,73 @@ class TestApplyGroupedDurationFilterVectorized:
                 sample_gridded_dataset,
                 grouped_duration=(3, "day"),
                 extremes_type="invalid",
+            )
+
+    def test_grouped_duration_filter_cumulative(self):
+        """Test grouped duration filter with rolling_agg='cumulative' sums the window."""
+        time = pd.date_range("2020-01-01", periods=4, freq="D")
+        da_series = xr.DataArray(
+            [1.0, 2.0, 3.0, 4.0], coords={"time": time}, dims=["time"]
+        )
+
+        result = _apply_grouped_duration_filter_vectorized(
+            da_series,
+            grouped_duration=(2, "day"),
+            extremes_type="max",
+            rolling_agg="cumulative",
+        )
+
+        # rolling sum, window=2, non-centered: NaN, 1+2, 2+3, 3+4
+        expected = [np.nan, 3.0, 5.0, 7.0]
+        np.testing.assert_allclose(result.values, expected, equal_nan=True)
+
+    def test_grouped_duration_filter_average(self):
+        """Test grouped duration filter with rolling_agg='average' means the window."""
+        time = pd.date_range("2020-01-01", periods=4, freq="D")
+        da_series = xr.DataArray(
+            [1.0, 2.0, 3.0, 4.0], coords={"time": time}, dims=["time"]
+        )
+
+        result = _apply_grouped_duration_filter_vectorized(
+            da_series,
+            grouped_duration=(2, "day"),
+            extremes_type="max",
+            rolling_agg="average",
+        )
+
+        expected = [np.nan, 1.5, 2.5, 3.5]
+        np.testing.assert_allclose(result.values, expected, equal_nan=True)
+
+    def test_grouped_duration_filter_sustained_unchanged(self, sample_gridded_dataset):
+        """Explicit rolling_agg='sustained' matches default (no-arg) behavior."""
+        grouped = _apply_groupby_filter_vectorized(
+            sample_gridded_dataset, groupby=(1, "day"), extremes_type="max"
+        )
+
+        default_result = _apply_grouped_duration_filter_vectorized(
+            grouped, grouped_duration=(3, "day"), extremes_type="max"
+        )
+        explicit_result = _apply_grouped_duration_filter_vectorized(
+            grouped, grouped_duration=(3, "day"), extremes_type="max", rolling_agg="sustained"
+        )
+
+        xr.testing.assert_identical(default_result, explicit_result)
+
+    def test_invalid_rolling_agg_grouped_duration(self, sample_gridded_dataset):
+        """Test with invalid rolling_agg."""
+        grouped = _apply_groupby_filter_vectorized(
+            sample_gridded_dataset, groupby=(1, "day"), extremes_type="max"
+        )
+
+        with pytest.raises(
+            ValueError,
+            match='rolling_agg needs to be one of "sustained", "cumulative", or "average"',
+        ):
+            _apply_grouped_duration_filter_vectorized(
+                grouped,
+                grouped_duration=(3, "day"),
+                extremes_type="max",
+                rolling_agg="invalid",
             )
 
 
@@ -1053,6 +1314,7 @@ class TestSetBlockMaximaAttributes:
         assert result.attrs["extreme_value_extraction_method"] == "block maxima"
         assert result.attrs["block_size"] == "2 year"
         assert result.attrs["timeseries_type"] == "block max series"
+        assert result.attrs["rolling_agg"] == "sustained"
 
     def test_set_attributes_minimal(self, sample_gridded_dataset):
         """Test setting minimal attributes with None values."""
@@ -1076,6 +1338,25 @@ class TestSetBlockMaximaAttributes:
         assert result.attrs["extreme_value_extraction_method"] == "block maxima"
         assert result.attrs["block_size"] == "1 year"
         assert result.attrs["timeseries_type"] == "block min series"
+        assert result.attrs["rolling_agg"] == "sustained"
+
+    def test_set_attributes_custom_rolling_agg(self, sample_gridded_dataset):
+        """Test that a non-default rolling_agg is recorded in attrs."""
+        bms = _extract_block_extremes_vectorized(
+            sample_gridded_dataset, extremes_type="max", block_size=1
+        )
+
+        result = _set_block_maxima_attributes(
+            bms,
+            duration=UNSET,
+            groupby=(1, "day"),
+            grouped_duration=UNSET,
+            extremes_type="max",
+            block_size=1,
+            rolling_agg="cumulative",
+        )
+
+        assert result.attrs["rolling_agg"] == "cumulative"
 
 
 class TestHandleNanValuesOptimized:
