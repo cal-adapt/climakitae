@@ -583,7 +583,10 @@ class TestApplyDurationFilterVectorized:
         )
 
         result = _apply_duration_filter_vectorized(
-            da_series, duration=(3, "hour"), extremes_type="max", rolling_agg="cumulative"
+            da_series,
+            duration=(3, "hour"),
+            extremes_type="max",
+            rolling_agg="cumulative",
         )
 
         # rolling sum, window=3, non-centered: first 2 are NaN, then 1+2+3, 2+3+4, ...
@@ -843,7 +846,10 @@ class TestApplyGroupedDurationFilterVectorized:
             grouped, grouped_duration=(3, "day"), extremes_type="max"
         )
         explicit_result = _apply_grouped_duration_filter_vectorized(
-            grouped, grouped_duration=(3, "day"), extremes_type="max", rolling_agg="sustained"
+            grouped,
+            grouped_duration=(3, "day"),
+            extremes_type="max",
+            rolling_agg="sustained",
         )
 
         xr.testing.assert_identical(default_result, explicit_result)

@@ -93,9 +93,7 @@ class TestOneInXRollingAgg:
 
     def test_default_rolling_agg_is_sustained(self):
         """rolling_agg defaults to 'sustained' when not specified."""
-        processor = MetricCalc(
-            value={"one_in_x": {"return_periods": [10, 25]}}
-        )
+        processor = MetricCalc(value={"one_in_x": {"return_periods": [10, 25]}})
         assert processor.rolling_agg == "sustained"
 
     def test_custom_rolling_agg_cumulative(self):
@@ -156,9 +154,7 @@ class TestOneInXRollingAgg:
             captured_kwargs.update(block_maxima_kwargs)
             return original(batch_data, block_maxima_kwargs, *args, **kwargs)
 
-        with patch.object(
-            processor, "_process_simulation_batch", side_effect=_capture
-        ):
+        with patch.object(processor, "_process_simulation_batch", side_effect=_capture):
             data = xr.DataArray(
                 np.random.rand(3, 365 * 5),
                 dims=["sim", "time"],
