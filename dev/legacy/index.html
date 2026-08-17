@@ -2499,13 +2499,13 @@ its own <code>DataParameters</code> object internally, and returns an xarray obj
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.core.data_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_data</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">data</span> <span class="o">=</span> <span class="n">get_data</span><span class="p">(</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;Air Temperature at 2m&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">resolution</span><span class="o">=</span><span class="s2">&quot;9 km&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">timescale</span><span class="o">=</span><span class="s2">&quot;hourly&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">downscaling_method</span><span class="o">=</span><span class="s2">&quot;Dynamical&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">scenario</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Historical Climate&quot;</span><span class="p">,</span> <span class="s2">&quot;SSP 3-7.0&quot;</span><span class="p">],</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">area_subset</span><span class="o">=</span><span class="s2">&quot;CA counties&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">cached_area</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Los Angeles County&quot;</span><span class="p">],</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">variable</span><span class="o">=</span><span class="s2">"Air Temperature at 2m"</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">resolution</span><span class="o">=</span><span class="s2">"9 km"</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">timescale</span><span class="o">=</span><span class="s2">"hourly"</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">downscaling_method</span><span class="o">=</span><span class="s2">"Dynamical"</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">scenario</span><span class="o">=</span><span class="p">[</span><span class="s2">"Historical Climate"</span><span class="p">,</span> <span class="s2">"SSP 3-7.0"</span><span class="p">],</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">area_subset</span><span class="o">=</span><span class="s2">"CA counties"</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">cached_area</span><span class="o">=</span><span class="p">[</span><span class="s2">"Los Angeles County"</span><span class="p">],</span>
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">)</span>
 </code></pre></div>
 <p>For GUI-style workflows you can still build a <code>DataParameters</code> object directly

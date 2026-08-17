@@ -2967,7 +2967,7 @@
 <a id="__codelineno-0-13" name="__codelineno-0-13"></a>    <span class="n">load_data</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-0-14" name="__codelineno-0-14"></a>    <span class="n">progress_bar</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <a id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Conducts batch mode analysis on a series of points for a given metric.</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16"></a><span class="w">    </span><span class="sd">"""Conducts batch mode analysis on a series of points for a given metric.</span>
 <a id="__codelineno-0-17" name="__codelineno-0-17"></a>
 <a id="__codelineno-0-18" name="__codelineno-0-18"></a><span class="sd">    Parameters</span>
 <a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="sd">    ----------</span>
@@ -2986,20 +2986,20 @@
 <a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">    cells_of_interest: xr.DataArray</span>
 <a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">        Gridcells that the points lie within, aggregated together into one DataArray. It can or cannot be loaded into memory, depending on `load_data`.</span>
 <a id="__codelineno-0-34" name="__codelineno-0-34"></a>
-<a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Batch retrieving all </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">points</span><span class="p">)</span><span class="si">}</span><span class="s2"> points passed in...</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="sd">    """</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Batch retrieving all </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">points</span><span class="p">)</span><span class="si">}</span><span class="s2"> points passed in...</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
 <a id="__codelineno-0-37" name="__codelineno-0-37"></a>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="c1"># Add selections attributes to cover the entire domain since we don&#39;t know exactly where the selected points lie.</span>
-<a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="n">selections</span><span class="o">.</span><span class="n">area_subset</span> <span class="o">=</span> <span class="s2">&quot;none&quot;</span>
-<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="n">selections</span><span class="o">.</span><span class="n">cached_area</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;entire domain&quot;</span><span class="p">]</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="c1"># Add selections attributes to cover the entire domain since we don't know exactly where the selected points lie.</span>
+<a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="n">selections</span><span class="o">.</span><span class="n">area_subset</span> <span class="o">=</span> <span class="s2">"none"</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="n">selections</span><span class="o">.</span><span class="n">cached_area</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"entire domain"</span><span class="p">]</span>
 <a id="__codelineno-0-41" name="__codelineno-0-41"></a>
 <a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="n">data</span> <span class="o">=</span> <span class="n">selections</span><span class="o">.</span><span class="n">retrieve</span><span class="p">()</span>
 <a id="__codelineno-0-43" name="__codelineno-0-43"></a>
-<a id="__codelineno-0-44" name="__codelineno-0-44"></a>    <span class="k">if</span> <span class="n">approach</span> <span class="o">==</span> <span class="s2">&quot;Time&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a>    <span class="k">if</span> <span class="n">approach</span> <span class="o">==</span> <span class="s2">"Time"</span><span class="p">:</span>
 <a id="__codelineno-0-45" name="__codelineno-0-45"></a>        <span class="c1"># Remove leap days, if applicable</span>
 <a id="__codelineno-0-46" name="__codelineno-0-46"></a>        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">time</span><span class="o">=~</span><span class="p">((</span><span class="n">data</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">month</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">day</span> <span class="o">==</span> <span class="mi">29</span><span class="p">)))</span>
 <a id="__codelineno-0-47" name="__codelineno-0-47"></a>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a>    <span class="c1"># Find the closest gridcells for each of the passed in points and concatenate them on a new &#39;points&#39; dimension to go from 2D grid to 1D series of points</span>
+<a id="__codelineno-0-48" name="__codelineno-0-48"></a>    <span class="c1"># Find the closest gridcells for each of the passed in points and concatenate them on a new 'points' dimension to go from 2D grid to 1D series of points</span>
 <a id="__codelineno-0-49" name="__codelineno-0-49"></a>    <span class="n">cells_of_interest</span> <span class="o">=</span> <span class="n">get_closest_gridcells</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>
 <a id="__codelineno-0-50" name="__codelineno-0-50"></a>
 <a id="__codelineno-0-51" name="__codelineno-0-51"></a>    <span class="c1"># Load in the cells of interest into memory, if desired.</span>
@@ -3169,9 +3169,9 @@ This derivation only considers 4 days of temperature data in the computation of 
 <span class="normal"><a href="#__codelineno-0-44">44</a></span>
 <span class="normal"><a href="#__codelineno-0-45">45</a></span>
 <span class="normal"><a href="#__codelineno-0-46">46</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="k">def</span><span class="w"> </span><span class="nf">effective_temp</span><span class="p">(</span><span class="n">T</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute effective temperature</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="sd">    Effective Temp = (1/2)*(yesterday&#39;s effective temp) + (1/2)*(today&#39;s actual temp)</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="sd">    To make sense of the expansion, today&#39;s ET is consist of a portion of the actual temperature of each day up to today--half of today&#39;s temp, 1/4 of yesterday&#39;s temp, 1/8 of the day before yesterday&#39;s temp etc, thus it&#39;s &quot;an exponentially smoothed temperature&quot; as stated in the glossary of the reference.</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="w">    </span><span class="sd">"""Compute effective temperature</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="sd">    Effective Temp = (1/2)*(yesterday's effective temp) + (1/2)*(today's actual temp)</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="sd">    To make sense of the expansion, today's ET is consist of a portion of the actual temperature of each day up to today--half of today's temp, 1/4 of yesterday's temp, 1/8 of the day before yesterday's temp etc, thus it's "an exponentially smoothed temperature" as stated in the glossary of the reference.</span>
 <a id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="sd">    This derivation only considers 4 days of temperature data in the computation of EFT: today, yesterday, the day before yesterday, and two days before yesterday. Thus, the first 3 timesteps of the EFT will be NaN.</span>
 <a id="__codelineno-0-12" name="__codelineno-0-12"></a>
 <a id="__codelineno-0-13" name="__codelineno-0-13"></a><span class="sd">    Parameters</span>
@@ -3188,10 +3188,10 @@ This derivation only considers 4 days of temperature data in the computation of 
 <a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="sd">    ----------</span>
 <a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="sd">    https://www.nationalgas.com/document/132516/download</span>
 <a id="__codelineno-0-26" name="__codelineno-0-26"></a>
-<a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-28" name="__codelineno-0-28"></a>    <span class="c1"># Get &quot;yesterday&quot; temp by shifting the time index back one time step (1 day)</span>
-<a id="__codelineno-0-29" name="__codelineno-0-29"></a>    <span class="c1"># Get &quot;day before&quot; temp by shifting the time index back two time steps (2 days)</span>
-<a id="__codelineno-0-30" name="__codelineno-0-30"></a>    <span class="c1"># Get &quot;2 days before yesterday&quot; temp by shifting the time index back three time steps (3 days)</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="sd">    """</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28"></a>    <span class="c1"># Get "yesterday" temp by shifting the time index back one time step (1 day)</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29"></a>    <span class="c1"># Get "day before" temp by shifting the time index back two time steps (2 days)</span>
+<a id="__codelineno-0-30" name="__codelineno-0-30"></a>    <span class="c1"># Get "2 days before yesterday" temp by shifting the time index back three time steps (3 days)</span>
 <a id="__codelineno-0-31" name="__codelineno-0-31"></a>    <span class="n">T_minus1</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 <a id="__codelineno-0-32" name="__codelineno-0-32"></a>    <span class="n">T_minus2</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 <a id="__codelineno-0-33" name="__codelineno-0-33"></a>    <span class="n">T_minus3</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
@@ -3378,8 +3378,8 @@ NCAR NCL documentation: https://www.ncl.ucar.edu/Document/Functions/Heat_stress/
 <span class="normal"><a href="#__codelineno-0-116">116</a></span>
 <span class="normal"><a href="#__codelineno-0-117">117</a></span>
 <span class="normal"><a href="#__codelineno-0-118">118</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-49" name="__codelineno-0-49"></a><span class="k">def</span><span class="w"> </span><span class="nf">noaa_heat_index</span><span class="p">(</span><span class="n">T</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">RH</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
-<a id="__codelineno-0-50" name="__codelineno-0-50"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the NOAA Heat Index.</span>
-<a id="__codelineno-0-51" name="__codelineno-0-51"></a><span class="sd">    Heat Index quantifies the perceived &quot;real feel&quot; of air temperature on the human body,</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50"></a><span class="w">    </span><span class="sd">"""Compute the NOAA Heat Index.</span>
+<a id="__codelineno-0-51" name="__codelineno-0-51"></a><span class="sd">    Heat Index quantifies the perceived "real feel" of air temperature on the human body,</span>
 <a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="sd">    including the impact of humidity. See references for more information on this derived variable.</span>
 <a id="__codelineno-0-53" name="__codelineno-0-53"></a>
 <a id="__codelineno-0-54" name="__codelineno-0-54"></a><span class="sd">    Parameters</span>
@@ -3399,7 +3399,7 @@ NCAR NCL documentation: https://www.ncl.ucar.edu/Document/Functions/Heat_stress/
 <a id="__codelineno-0-68" name="__codelineno-0-68"></a><span class="sd">    NOAA: https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml</span>
 <a id="__codelineno-0-69" name="__codelineno-0-69"></a><span class="sd">    NCAR NCL documentation: https://www.ncl.ucar.edu/Document/Functions/Heat_stress/heat_index_nws.shtml</span>
 <a id="__codelineno-0-70" name="__codelineno-0-70"></a>
-<a id="__codelineno-0-71" name="__codelineno-0-71"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a><span class="sd">    """</span>
 <a id="__codelineno-0-72" name="__codelineno-0-72"></a>    <span class="n">T</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">reindex_like</span><span class="p">(</span><span class="n">RH</span><span class="p">)</span>  <span class="c1"># Need to have the same dimension/coordinate orders</span>
 <a id="__codelineno-0-73" name="__codelineno-0-73"></a>    <span class="n">HI</span> <span class="o">=</span> <span class="p">(</span>
 <a id="__codelineno-0-74" name="__codelineno-0-74"></a>        <span class="o">-</span><span class="mf">42.379</span>
@@ -3445,7 +3445,7 @@ NCAR NCL documentation: https://www.ncl.ucar.edu/Document/Functions/Heat_stress/
 <a id="__codelineno-0-114" name="__codelineno-0-114"></a>        <span class="n">HI</span><span class="p">[</span><span class="n">coord</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="n">RH</span><span class="p">[</span><span class="n">coord</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span>
 <a id="__codelineno-0-115" name="__codelineno-0-115"></a>
 <a id="__codelineno-0-116" name="__codelineno-0-116"></a>    <span class="c1"># Assign units attribute</span>
-<a id="__codelineno-0-117" name="__codelineno-0-117"></a>    <span class="n">HI</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;degF&quot;</span>
+<a id="__codelineno-0-117" name="__codelineno-0-117"></a>    <span class="n">HI</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"units"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"degF"</span>
 <a id="__codelineno-0-118" name="__codelineno-0-118"></a>    <span class="k">return</span> <span class="n">HI</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -3622,7 +3622,7 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <span class="normal"><a href="#__codelineno-0-179">179</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-124" name="__codelineno-0-124"></a><span class="k">def</span><span class="w"> </span><span class="nf">fosberg_fire_index</span><span class="p">(</span>
 <a id="__codelineno-0-125" name="__codelineno-0-125"></a>    <span class="n">t2_F</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">rh_percent</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">windspeed_mph</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span>
 <a id="__codelineno-0-126" name="__codelineno-0-126"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
-<a id="__codelineno-0-127" name="__codelineno-0-127"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the Fosberg Fire Weather Index.</span>
+<a id="__codelineno-0-127" name="__codelineno-0-127"></a><span class="w">    </span><span class="sd">"""Compute the Fosberg Fire Weather Index.</span>
 <a id="__codelineno-0-128" name="__codelineno-0-128"></a><span class="sd">    Use hourly weather as inputs.</span>
 <a id="__codelineno-0-129" name="__codelineno-0-129"></a><span class="sd">    Ensure that the input variables are in the correct units (see below).</span>
 <a id="__codelineno-0-130" name="__codelineno-0-130"></a>
@@ -3646,7 +3646,7 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <a id="__codelineno-0-148" name="__codelineno-0-148"></a><span class="sd">    https://github.com/sharppy/SHARPpy/blob/main/sharppy/sharptab/fire.py</span>
 <a id="__codelineno-0-149" name="__codelineno-0-149"></a><span class="sd">    https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</span>
 <a id="__codelineno-0-150" name="__codelineno-0-150"></a>
-<a id="__codelineno-0-151" name="__codelineno-0-151"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-151" name="__codelineno-0-151"></a><span class="sd">    """</span>
 <a id="__codelineno-0-152" name="__codelineno-0-152"></a>    <span class="c1"># Compute the equilibrium moisture constant</span>
 <a id="__codelineno-0-153" name="__codelineno-0-153"></a>    <span class="n">m_low</span><span class="p">,</span> <span class="n">m_mid</span><span class="p">,</span> <span class="n">m_high</span> <span class="o">=</span> <span class="n">_equilibrium_moisture_constant</span><span class="p">(</span><span class="n">h</span><span class="o">=</span><span class="n">rh_percent</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">t2_F</span><span class="p">)</span>
 <a id="__codelineno-0-154" name="__codelineno-0-154"></a>
@@ -3671,8 +3671,8 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <a id="__codelineno-0-173" name="__codelineno-0-173"></a>        <span class="n">FFWI</span><span class="p">[</span><span class="n">coord</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="n">t2_F</span><span class="p">[</span><span class="n">coord</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span>
 <a id="__codelineno-0-174" name="__codelineno-0-174"></a>
 <a id="__codelineno-0-175" name="__codelineno-0-175"></a>    <span class="c1"># Add descriptive attributes</span>
-<a id="__codelineno-0-176" name="__codelineno-0-176"></a>    <span class="n">FFWI</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Fosberg Fire Weather Index&quot;</span>
-<a id="__codelineno-0-177" name="__codelineno-0-177"></a>    <span class="n">FFWI</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;[0 to 100]&quot;</span>
+<a id="__codelineno-0-176" name="__codelineno-0-176"></a>    <span class="n">FFWI</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"Fosberg Fire Weather Index"</span>
+<a id="__codelineno-0-177" name="__codelineno-0-177"></a>    <span class="n">FFWI</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"units"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"[0 to 100]"</span>
 <a id="__codelineno-0-178" name="__codelineno-0-178"></a>
 <a id="__codelineno-0-179" name="__codelineno-0-179"></a>    <span class="k">return</span> <span class="n">FFWI</span>
 </code></pre></div></td></tr></table></div>
@@ -3871,7 +3871,7 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <span class="normal"><a href="#__codelineno-0-61">61</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="k">def</span><span class="w"> </span><span class="nf">compute_hdd_cdd</span><span class="p">(</span>
 <a id="__codelineno-0-15" name="__codelineno-0-15"></a>    <span class="n">t2</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">hdd_threshold</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">cdd_threshold</span><span class="p">:</span> <span class="nb">int</span>
 <a id="__codelineno-0-16" name="__codelineno-0-16"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">]:</span>
-<a id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute heating degree days (HDD) and cooling degree days (CDD)</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="w">    </span><span class="sd">"""Compute heating degree days (HDD) and cooling degree days (CDD)</span>
 <a id="__codelineno-0-18" name="__codelineno-0-18"></a>
 <a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="sd">    Parameters</span>
 <a id="__codelineno-0-20" name="__codelineno-0-20"></a><span class="sd">    ----------</span>
@@ -3887,12 +3887,12 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="sd">    tuple of xr.DataArray</span>
 <a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="sd">        (hdd, cdd)</span>
 <a id="__codelineno-0-32" name="__codelineno-0-32"></a>
-<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">    """</span>
 <a id="__codelineno-0-34" name="__codelineno-0-34"></a>
 <a id="__codelineno-0-35" name="__codelineno-0-35"></a>    <span class="c1"># Check that temperature data was passed to function, throw error if not</span>
-<a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">if</span> <span class="n">t2</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;t2&quot;</span><span class="p">,</span> <span class="s2">&quot;Air Temperature at 2m&quot;</span><span class="p">]:</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">if</span> <span class="n">t2</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"t2"</span><span class="p">,</span> <span class="s2">"Air Temperature at 2m"</span><span class="p">]:</span>
 <a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
-<a id="__codelineno-0-38" name="__codelineno-0-38"></a>            <span class="s2">&quot;Invalid input data, please provide Air Temperature at 2m data to CDD/HDD calculation&quot;</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>            <span class="s2">"Invalid input data, please provide Air Temperature at 2m data to CDD/HDD calculation"</span>
 <a id="__codelineno-0-39" name="__codelineno-0-39"></a>        <span class="p">)</span>
 <a id="__codelineno-0-40" name="__codelineno-0-40"></a>
 <a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="c1"># Subtract t2 from the threshold inputs</span>
@@ -3902,17 +3902,17 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <a id="__codelineno-0-45" name="__codelineno-0-45"></a>    <span class="c1"># Compute HDD: Find positive difference (i.e. days &lt; 65 degF)</span>
 <a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="n">hdd</span> <span class="o">=</span> <span class="n">hdd_deg_less_than_standard</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 <a id="__codelineno-0-47" name="__codelineno-0-47"></a>    <span class="c1"># Replace negative values with 0</span>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a>    <span class="n">hdd</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Heating Degree Days&quot;</span>
-<a id="__codelineno-0-49" name="__codelineno-0-49"></a>    <span class="n">hdd</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;hdd_threshold&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-<a id="__codelineno-0-50" name="__codelineno-0-50"></a>        <span class="nb">str</span><span class="p">(</span><span class="n">hdd_threshold</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; degF&quot;</span>
+<a id="__codelineno-0-48" name="__codelineno-0-48"></a>    <span class="n">hdd</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"Heating Degree Days"</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49"></a>    <span class="n">hdd</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"hdd_threshold"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50"></a>        <span class="nb">str</span><span class="p">(</span><span class="n">hdd_threshold</span><span class="p">)</span> <span class="o">+</span> <span class="s2">" degF"</span>
 <a id="__codelineno-0-51" name="__codelineno-0-51"></a>    <span class="p">)</span>  <span class="c1"># add attribute of threshold value</span>
 <a id="__codelineno-0-52" name="__codelineno-0-52"></a>
 <a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="c1"># Compute CDD: Find negative difference (i.e. days &gt; 65 degF)</span>
 <a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="n">cdd</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">cdd_deg_less_than_standard</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
 <a id="__codelineno-0-55" name="__codelineno-0-55"></a>    <span class="c1"># Replace positive values with 0</span>
-<a id="__codelineno-0-56" name="__codelineno-0-56"></a>    <span class="n">cdd</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Cooling Degree Days&quot;</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a>    <span class="n">cdd</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;cdd_threshold&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>        <span class="nb">str</span><span class="p">(</span><span class="n">cdd_threshold</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; degF&quot;</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a>    <span class="n">cdd</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"Cooling Degree Days"</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a>    <span class="n">cdd</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"cdd_threshold"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a>        <span class="nb">str</span><span class="p">(</span><span class="n">cdd_threshold</span><span class="p">)</span> <span class="o">+</span> <span class="s2">" degF"</span>
 <a id="__codelineno-0-59" name="__codelineno-0-59"></a>    <span class="p">)</span>  <span class="c1"># add attribute of threshold value</span>
 <a id="__codelineno-0-60" name="__codelineno-0-60"></a>
 <a id="__codelineno-0-61" name="__codelineno-0-61"></a>    <span class="k">return</span> <span class="p">(</span><span class="n">hdd</span><span class="p">,</span> <span class="n">cdd</span><span class="p">)</span>
@@ -4072,7 +4072,7 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <span class="normal"><a href="#__codelineno-0-109">109</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-64" name="__codelineno-0-64"></a><span class="k">def</span><span class="w"> </span><span class="nf">compute_hdh_cdh</span><span class="p">(</span>
 <a id="__codelineno-0-65" name="__codelineno-0-65"></a>    <span class="n">t2</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">hdh_threshold</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">cdh_threshold</span><span class="p">:</span> <span class="nb">int</span>
 <a id="__codelineno-0-66" name="__codelineno-0-66"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">]:</span>
-<a id="__codelineno-0-67" name="__codelineno-0-67"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute heating degree hours (HDH) and cooling degree hours (CDH)</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67"></a><span class="w">    </span><span class="sd">"""Compute heating degree hours (HDH) and cooling degree hours (CDH)</span>
 <a id="__codelineno-0-68" name="__codelineno-0-68"></a>
 <a id="__codelineno-0-69" name="__codelineno-0-69"></a><span class="sd">    Parameters</span>
 <a id="__codelineno-0-70" name="__codelineno-0-70"></a><span class="sd">    ----------</span>
@@ -4088,12 +4088,12 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <a id="__codelineno-0-80" name="__codelineno-0-80"></a><span class="sd">    tuple of xr.DataArray</span>
 <a id="__codelineno-0-81" name="__codelineno-0-81"></a><span class="sd">        (hdh, cdh)</span>
 <a id="__codelineno-0-82" name="__codelineno-0-82"></a>
-<a id="__codelineno-0-83" name="__codelineno-0-83"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a><span class="sd">    """</span>
 <a id="__codelineno-0-84" name="__codelineno-0-84"></a>
 <a id="__codelineno-0-85" name="__codelineno-0-85"></a>    <span class="c1"># Check that temperature data was passed to function, throw error if not</span>
-<a id="__codelineno-0-86" name="__codelineno-0-86"></a>    <span class="k">if</span> <span class="n">t2</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;t2&quot;</span><span class="p">,</span> <span class="s2">&quot;Air Temperature at 2m&quot;</span><span class="p">]:</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a>    <span class="k">if</span> <span class="n">t2</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"t2"</span><span class="p">,</span> <span class="s2">"Air Temperature at 2m"</span><span class="p">]:</span>
 <a id="__codelineno-0-87" name="__codelineno-0-87"></a>        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
-<a id="__codelineno-0-88" name="__codelineno-0-88"></a>            <span class="s2">&quot;Invalid input data, please provide Air Temperature at 2m data to CDH/HDH calculation&quot;</span>
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a>            <span class="s2">"Invalid input data, please provide Air Temperature at 2m data to CDH/HDH calculation"</span>
 <a id="__codelineno-0-89" name="__codelineno-0-89"></a>        <span class="p">)</span>
 <a id="__codelineno-0-90" name="__codelineno-0-90"></a>
 <a id="__codelineno-0-91" name="__codelineno-0-91"></a>    <span class="c1"># Calculate heating and cooling hours</span>
@@ -4105,14 +4105,14 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <a id="__codelineno-0-97" name="__codelineno-0-97"></a>    <span class="p">)</span>  <span class="c1"># temperatures below threshold, require heating</span>
 <a id="__codelineno-0-98" name="__codelineno-0-98"></a>
 <a id="__codelineno-0-99" name="__codelineno-0-99"></a>    <span class="c1"># Compute CDH: count number of hours and resample to daily (max 24 value)</span>
-<a id="__codelineno-0-100" name="__codelineno-0-100"></a>    <span class="n">cdh</span> <span class="o">=</span> <span class="n">cooling_hours</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="s2">&quot;1D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="s2">&quot;time&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
-<a id="__codelineno-0-101" name="__codelineno-0-101"></a>    <span class="n">cdh</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Cooling Degree Hours&quot;</span>
-<a id="__codelineno-0-102" name="__codelineno-0-102"></a>    <span class="n">cdh</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;cdh_threshold&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">cdh_threshold</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; degF&quot;</span>
+<a id="__codelineno-0-100" name="__codelineno-0-100"></a>    <span class="n">cdh</span> <span class="o">=</span> <span class="n">cooling_hours</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="s2">"1D"</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="s2">"time"</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+<a id="__codelineno-0-101" name="__codelineno-0-101"></a>    <span class="n">cdh</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"Cooling Degree Hours"</span>
+<a id="__codelineno-0-102" name="__codelineno-0-102"></a>    <span class="n">cdh</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"cdh_threshold"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">cdh_threshold</span><span class="p">)</span> <span class="o">+</span> <span class="s2">" degF"</span>
 <a id="__codelineno-0-103" name="__codelineno-0-103"></a>
 <a id="__codelineno-0-104" name="__codelineno-0-104"></a>    <span class="c1"># Compute HDH: count number of hours and resample to daily (max 24 value)</span>
-<a id="__codelineno-0-105" name="__codelineno-0-105"></a>    <span class="n">hdh</span> <span class="o">=</span> <span class="n">heating_hours</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="s2">&quot;1D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="s2">&quot;time&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
-<a id="__codelineno-0-106" name="__codelineno-0-106"></a>    <span class="n">hdh</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Heating Degree Hours&quot;</span>
-<a id="__codelineno-0-107" name="__codelineno-0-107"></a>    <span class="n">hdh</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;hdh_threshold&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">hdh_threshold</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; degF&quot;</span>
+<a id="__codelineno-0-105" name="__codelineno-0-105"></a>    <span class="n">hdh</span> <span class="o">=</span> <span class="n">heating_hours</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="s2">"1D"</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="s2">"time"</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+<a id="__codelineno-0-106" name="__codelineno-0-106"></a>    <span class="n">hdh</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"Heating Degree Hours"</span>
+<a id="__codelineno-0-107" name="__codelineno-0-107"></a>    <span class="n">hdh</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"hdh_threshold"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">hdh_threshold</span><span class="p">)</span> <span class="o">+</span> <span class="s2">" degF"</span>
 <a id="__codelineno-0-108" name="__codelineno-0-108"></a>
 <a id="__codelineno-0-109" name="__codelineno-0-109"></a>    <span class="k">return</span> <span class="p">(</span><span class="n">hdh</span><span class="p">,</span> <span class="n">cdh</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
@@ -4239,7 +4239,7 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <span class="normal"><a href="#__codelineno-0-141">141</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-112" name="__codelineno-0-112"></a><span class="k">def</span><span class="w"> </span><span class="nf">compute_dewpointtemp</span><span class="p">(</span>
 <a id="__codelineno-0-113" name="__codelineno-0-113"></a>    <span class="n">temperature</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">rel_hum</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span>
 <a id="__codelineno-0-114" name="__codelineno-0-114"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
-<a id="__codelineno-0-115" name="__codelineno-0-115"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate dew point temperature</span>
+<a id="__codelineno-0-115" name="__codelineno-0-115"></a><span class="w">    </span><span class="sd">"""Calculate dew point temperature</span>
 <a id="__codelineno-0-116" name="__codelineno-0-116"></a>
 <a id="__codelineno-0-117" name="__codelineno-0-117"></a><span class="sd">    Parameters</span>
 <a id="__codelineno-0-118" name="__codelineno-0-118"></a><span class="sd">    ----------</span>
@@ -4253,7 +4253,7 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <a id="__codelineno-0-126" name="__codelineno-0-126"></a><span class="sd">    dew_point : xr.DataArray</span>
 <a id="__codelineno-0-127" name="__codelineno-0-127"></a><span class="sd">        Dew point (K)</span>
 <a id="__codelineno-0-128" name="__codelineno-0-128"></a>
-<a id="__codelineno-0-129" name="__codelineno-0-129"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-129" name="__codelineno-0-129"></a><span class="sd">    """</span>
 <a id="__codelineno-0-130" name="__codelineno-0-130"></a>    <span class="n">es</span> <span class="o">=</span> <span class="mf">0.611</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span>
 <a id="__codelineno-0-131" name="__codelineno-0-131"></a>        <span class="mi">5423</span> <span class="o">*</span> <span class="p">((</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">273</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">temperature</span><span class="p">))</span>
 <a id="__codelineno-0-132" name="__codelineno-0-132"></a>    <span class="p">)</span>  <span class="c1"># calculates saturation vapor pressure</span>
@@ -4263,8 +4263,8 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <a id="__codelineno-0-136" name="__codelineno-0-136"></a>    <span class="p">)</span> <span class="o">**</span> <span class="o">-</span><span class="mi">1</span>  <span class="c1"># calculates dew point temperature, units = K</span>
 <a id="__codelineno-0-137" name="__codelineno-0-137"></a>
 <a id="__codelineno-0-138" name="__codelineno-0-138"></a>    <span class="c1"># Assign descriptive name</span>
-<a id="__codelineno-0-139" name="__codelineno-0-139"></a>    <span class="n">tdps</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;dew_point_derived&quot;</span>
-<a id="__codelineno-0-140" name="__codelineno-0-140"></a>    <span class="n">tdps</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;K&quot;</span>
+<a id="__codelineno-0-139" name="__codelineno-0-139"></a>    <span class="n">tdps</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"dew_point_derived"</span>
+<a id="__codelineno-0-140" name="__codelineno-0-140"></a>    <span class="n">tdps</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"units"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"K"</span>
 <a id="__codelineno-0-141" name="__codelineno-0-141"></a>    <span class="k">return</span> <span class="n">tdps</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -4276,7 +4276,7 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 
 
 <h2 id="climakitae.tools.derived_variables.compute_specific_humidity" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">compute_specific_humidity</span><span class="p">(</span><span class="n">tdps</span><span class="p">,</span> <span class="n">pressure</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;q2_derived&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">compute_specific_humidity</span><span class="p">(</span><span class="n">tdps</span><span class="p">,</span> <span class="n">pressure</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'q2_derived'</span><span class="p">)</span></code>
 
 </h2>
 
@@ -4408,9 +4408,9 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <span class="normal"><a href="#__codelineno-0-175">175</a></span>
 <span class="normal"><a href="#__codelineno-0-176">176</a></span>
 <span class="normal"><a href="#__codelineno-0-177">177</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-144" name="__codelineno-0-144"></a><span class="k">def</span><span class="w"> </span><span class="nf">compute_specific_humidity</span><span class="p">(</span>
-<a id="__codelineno-0-145" name="__codelineno-0-145"></a>    <span class="n">tdps</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">pressure</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;q2_derived&quot;</span>
+<a id="__codelineno-0-145" name="__codelineno-0-145"></a>    <span class="n">tdps</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">pressure</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"q2_derived"</span>
 <a id="__codelineno-0-146" name="__codelineno-0-146"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
-<a id="__codelineno-0-147" name="__codelineno-0-147"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute specific humidity.</span>
+<a id="__codelineno-0-147" name="__codelineno-0-147"></a><span class="w">    </span><span class="sd">"""Compute specific humidity.</span>
 <a id="__codelineno-0-148" name="__codelineno-0-148"></a>
 <a id="__codelineno-0-149" name="__codelineno-0-149"></a><span class="sd">    Parameters</span>
 <a id="__codelineno-0-150" name="__codelineno-0-150"></a><span class="sd">    ----------</span>
@@ -4426,7 +4426,7 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <a id="__codelineno-0-160" name="__codelineno-0-160"></a><span class="sd">    spec_hum : xr.DataArray</span>
 <a id="__codelineno-0-161" name="__codelineno-0-161"></a><span class="sd">        Specific humidity</span>
 <a id="__codelineno-0-162" name="__codelineno-0-162"></a>
-<a id="__codelineno-0-163" name="__codelineno-0-163"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-163" name="__codelineno-0-163"></a><span class="sd">    """</span>
 <a id="__codelineno-0-164" name="__codelineno-0-164"></a>
 <a id="__codelineno-0-165" name="__codelineno-0-165"></a>    <span class="c1"># Calculate vapor pressure, unit is in kPa</span>
 <a id="__codelineno-0-166" name="__codelineno-0-166"></a>    <span class="n">e</span> <span class="o">=</span> <span class="mf">0.611</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">((</span><span class="mi">2500000</span> <span class="o">/</span> <span class="mi">461</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">273</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">tdps</span><span class="p">)))</span>
@@ -4439,7 +4439,7 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 <a id="__codelineno-0-173" name="__codelineno-0-173"></a>
 <a id="__codelineno-0-174" name="__codelineno-0-174"></a>    <span class="c1"># Assign descriptive name</span>
 <a id="__codelineno-0-175" name="__codelineno-0-175"></a>    <span class="n">q</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
-<a id="__codelineno-0-176" name="__codelineno-0-176"></a>    <span class="n">q</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;g/kg&quot;</span>
+<a id="__codelineno-0-176" name="__codelineno-0-176"></a>    <span class="n">q</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"units"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"g/kg"</span>
 <a id="__codelineno-0-177" name="__codelineno-0-177"></a>    <span class="k">return</span> <span class="n">q</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -4451,7 +4451,7 @@ https://www.spc.noaa.gov/exper/firecomp/INFO/fosbinfo.html</p>
 
 
 <h2 id="climakitae.tools.derived_variables.compute_relative_humidity" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">compute_relative_humidity</span><span class="p">(</span><span class="n">pressure</span><span class="p">,</span> <span class="n">temperature</span><span class="p">,</span> <span class="n">mixing_ratio</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;rh_derived&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">compute_relative_humidity</span><span class="p">(</span><span class="n">pressure</span><span class="p">,</span> <span class="n">temperature</span><span class="p">,</span> <span class="n">mixing_ratio</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'rh_derived'</span><span class="p">)</span></code>
 
 </h2>
 
@@ -4633,9 +4633,9 @@ Variable attributes need to be assigned outside of this function because the met
 <a id="__codelineno-0-181" name="__codelineno-0-181"></a>    <span class="n">pressure</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span>
 <a id="__codelineno-0-182" name="__codelineno-0-182"></a>    <span class="n">temperature</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span>
 <a id="__codelineno-0-183" name="__codelineno-0-183"></a>    <span class="n">mixing_ratio</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span>
-<a id="__codelineno-0-184" name="__codelineno-0-184"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;rh_derived&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-184" name="__codelineno-0-184"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"rh_derived"</span><span class="p">,</span>
 <a id="__codelineno-0-185" name="__codelineno-0-185"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
-<a id="__codelineno-0-186" name="__codelineno-0-186"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute relative humidity.</span>
+<a id="__codelineno-0-186" name="__codelineno-0-186"></a><span class="w">    </span><span class="sd">"""Compute relative humidity.</span>
 <a id="__codelineno-0-187" name="__codelineno-0-187"></a><span class="sd">    Variable attributes need to be assigned outside of this function because the metpy function removes them</span>
 <a id="__codelineno-0-188" name="__codelineno-0-188"></a>
 <a id="__codelineno-0-189" name="__codelineno-0-189"></a><span class="sd">    Parameters</span>
@@ -4656,7 +4656,7 @@ Variable attributes need to be assigned outside of this function because the met
 <a id="__codelineno-0-204" name="__codelineno-0-204"></a>
 <a id="__codelineno-0-205" name="__codelineno-0-205"></a><span class="sd">    Source: https://www.weather.gov/media/epz/wxcalc/mixingRatio.pdf</span>
 <a id="__codelineno-0-206" name="__codelineno-0-206"></a>
-<a id="__codelineno-0-207" name="__codelineno-0-207"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-207" name="__codelineno-0-207"></a><span class="sd">    """</span>
 <a id="__codelineno-0-208" name="__codelineno-0-208"></a>
 <a id="__codelineno-0-209" name="__codelineno-0-209"></a>    <span class="c1"># Calculates saturated vapor pressure</span>
 <a id="__codelineno-0-210" name="__codelineno-0-210"></a>    <span class="n">e_s</span> <span class="o">=</span> <span class="mf">6.11</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">**</span> <span class="p">(</span><span class="mf">7.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">temperature</span> <span class="o">/</span> <span class="p">(</span><span class="mf">237.7</span> <span class="o">+</span> <span class="n">temperature</span><span class="p">)))</span>
@@ -4681,7 +4681,7 @@ Variable attributes need to be assigned outside of this function because the met
 <a id="__codelineno-0-229" name="__codelineno-0-229"></a>
 <a id="__codelineno-0-230" name="__codelineno-0-230"></a>    <span class="c1"># Assign descriptive name</span>
 <a id="__codelineno-0-231" name="__codelineno-0-231"></a>    <span class="n">rel_hum</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
-<a id="__codelineno-0-232" name="__codelineno-0-232"></a>    <span class="n">rel_hum</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;[0 to 100]&quot;</span>
+<a id="__codelineno-0-232" name="__codelineno-0-232"></a>    <span class="n">rel_hum</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"units"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"[0 to 100]"</span>
 <a id="__codelineno-0-233" name="__codelineno-0-233"></a>    <span class="k">return</span> <span class="n">rel_hum</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -4693,7 +4693,7 @@ Variable attributes need to be assigned outside of this function because the met
 
 
 <h2 id="climakitae.tools.derived_variables.compute_wind_mag" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">compute_wind_mag</span><span class="p">(</span><span class="n">u10</span><span class="p">,</span> <span class="n">v10</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;wind_speed_derived&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">compute_wind_mag</span><span class="p">(</span><span class="n">u10</span><span class="p">,</span> <span class="n">v10</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'wind_speed_derived'</span><span class="p">)</span></code>
 
 </h2>
 
@@ -4815,9 +4815,9 @@ Variable attributes need to be assigned outside of this function because the met
 <span class="normal"><a href="#__codelineno-0-301">301</a></span>
 <span class="normal"><a href="#__codelineno-0-302">302</a></span>
 <span class="normal"><a href="#__codelineno-0-303">303</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-280" name="__codelineno-0-280"></a><span class="k">def</span><span class="w"> </span><span class="nf">compute_wind_mag</span><span class="p">(</span>
-<a id="__codelineno-0-281" name="__codelineno-0-281"></a>    <span class="n">u10</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">v10</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;wind_speed_derived&quot;</span>
+<a id="__codelineno-0-281" name="__codelineno-0-281"></a>    <span class="n">u10</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">v10</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"wind_speed_derived"</span>
 <a id="__codelineno-0-282" name="__codelineno-0-282"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
-<a id="__codelineno-0-283" name="__codelineno-0-283"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute wind magnitude at 10 meters</span>
+<a id="__codelineno-0-283" name="__codelineno-0-283"></a><span class="w">    </span><span class="sd">"""Compute wind magnitude at 10 meters</span>
 <a id="__codelineno-0-284" name="__codelineno-0-284"></a>
 <a id="__codelineno-0-285" name="__codelineno-0-285"></a><span class="sd">    Parameters</span>
 <a id="__codelineno-0-286" name="__codelineno-0-286"></a><span class="sd">    ----------</span>
@@ -4833,10 +4833,10 @@ Variable attributes need to be assigned outside of this function because the met
 <a id="__codelineno-0-296" name="__codelineno-0-296"></a><span class="sd">    wind_mag : xr.DataArray</span>
 <a id="__codelineno-0-297" name="__codelineno-0-297"></a><span class="sd">        Wind magnitude</span>
 <a id="__codelineno-0-298" name="__codelineno-0-298"></a>
-<a id="__codelineno-0-299" name="__codelineno-0-299"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-299" name="__codelineno-0-299"></a><span class="sd">    """</span>
 <a id="__codelineno-0-300" name="__codelineno-0-300"></a>    <span class="n">wind_mag</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">u10</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">v10</span><span class="p">))</span>
 <a id="__codelineno-0-301" name="__codelineno-0-301"></a>    <span class="n">wind_mag</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
-<a id="__codelineno-0-302" name="__codelineno-0-302"></a>    <span class="n">wind_mag</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;m s-1&quot;</span>
+<a id="__codelineno-0-302" name="__codelineno-0-302"></a>    <span class="n">wind_mag</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"units"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"m s-1"</span>
 <a id="__codelineno-0-303" name="__codelineno-0-303"></a>    <span class="k">return</span> <span class="n">wind_mag</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -4848,7 +4848,7 @@ Variable attributes need to be assigned outside of this function because the met
 
 
 <h2 id="climakitae.tools.derived_variables.compute_wind_dir" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">compute_wind_dir</span><span class="p">(</span><span class="n">u10</span><span class="p">,</span> <span class="n">v10</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;wind_direction_derived&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">compute_wind_dir</span><span class="p">(</span><span class="n">u10</span><span class="p">,</span> <span class="n">v10</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'wind_direction_derived'</span><span class="p">)</span></code>
 
 </h2>
 
@@ -4981,9 +4981,9 @@ Variable attributes need to be assigned outside of this function because the met
 <span class="normal"><a href="#__codelineno-0-332">332</a></span>
 <span class="normal"><a href="#__codelineno-0-333">333</a></span>
 <span class="normal"><a href="#__codelineno-0-334">334</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-306" name="__codelineno-0-306"></a><span class="k">def</span><span class="w"> </span><span class="nf">compute_wind_dir</span><span class="p">(</span>
-<a id="__codelineno-0-307" name="__codelineno-0-307"></a>    <span class="n">u10</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">v10</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;wind_direction_derived&quot;</span>
+<a id="__codelineno-0-307" name="__codelineno-0-307"></a>    <span class="n">u10</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">v10</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"wind_direction_derived"</span>
 <a id="__codelineno-0-308" name="__codelineno-0-308"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
-<a id="__codelineno-0-309" name="__codelineno-0-309"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute wind direction at 10 meters</span>
+<a id="__codelineno-0-309" name="__codelineno-0-309"></a><span class="w">    </span><span class="sd">"""Compute wind direction at 10 meters</span>
 <a id="__codelineno-0-310" name="__codelineno-0-310"></a>
 <a id="__codelineno-0-311" name="__codelineno-0-311"></a><span class="sd">    Parameters</span>
 <a id="__codelineno-0-312" name="__codelineno-0-312"></a><span class="sd">    ----------</span>
@@ -5003,11 +5003,11 @@ Variable attributes need to be assigned outside of this function because the met
 <a id="__codelineno-0-326" name="__codelineno-0-326"></a><span class="sd">    -----</span>
 <a id="__codelineno-0-327" name="__codelineno-0-327"></a><span class="sd">        source: https://sites.google.com/view/raybellwaves/cheat-sheets/xarray</span>
 <a id="__codelineno-0-328" name="__codelineno-0-328"></a>
-<a id="__codelineno-0-329" name="__codelineno-0-329"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-329" name="__codelineno-0-329"></a><span class="sd">    """</span>
 <a id="__codelineno-0-330" name="__codelineno-0-330"></a>
 <a id="__codelineno-0-331" name="__codelineno-0-331"></a>    <span class="n">wind_dir</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="mi">90</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="o">-</span><span class="n">v10</span><span class="p">,</span> <span class="o">-</span><span class="n">u10</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">180</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">),</span> <span class="mi">360</span><span class="p">)</span>
 <a id="__codelineno-0-332" name="__codelineno-0-332"></a>    <span class="n">wind_dir</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
-<a id="__codelineno-0-333" name="__codelineno-0-333"></a>    <span class="n">wind_dir</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;degrees&quot;</span>
+<a id="__codelineno-0-333" name="__codelineno-0-333"></a>    <span class="n">wind_dir</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"units"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"degrees"</span>
 <a id="__codelineno-0-334" name="__codelineno-0-334"></a>    <span class="k">return</span> <span class="n">wind_dir</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -5019,7 +5019,7 @@ Variable attributes need to be assigned outside of this function because the met
 
 
 <h2 id="climakitae.tools.derived_variables.compute_sea_level_pressure" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">compute_sea_level_pressure</span><span class="p">(</span><span class="n">psfc</span><span class="p">,</span> <span class="n">t2</span><span class="p">,</span> <span class="n">q2</span><span class="p">,</span> <span class="n">elevation</span><span class="p">,</span> <span class="n">lapse_rate</span><span class="o">=</span><span class="mf">0.0065</span><span class="p">,</span> <span class="n">average_t2</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;slp_derived&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">compute_sea_level_pressure</span><span class="p">(</span><span class="n">psfc</span><span class="p">,</span> <span class="n">t2</span><span class="p">,</span> <span class="n">q2</span><span class="p">,</span> <span class="n">elevation</span><span class="p">,</span> <span class="n">lapse_rate</span><span class="o">=</span><span class="mf">0.0065</span><span class="p">,</span> <span class="n">average_t2</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'slp_derived'</span><span class="p">)</span></code>
 
 </h2>
 
@@ -5298,9 +5298,9 @@ Pauley, P. M., 1998: An Example of Uncertainty in Sea Level Pressure Reduction. 
 <a id="__codelineno-0-341" name="__codelineno-0-341"></a>    <span class="n">elevation</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span>
 <a id="__codelineno-0-342" name="__codelineno-0-342"></a>    <span class="n">lapse_rate</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0065</span><span class="p">,</span>
 <a id="__codelineno-0-343" name="__codelineno-0-343"></a>    <span class="n">average_t2</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-344" name="__codelineno-0-344"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;slp_derived&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-344" name="__codelineno-0-344"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"slp_derived"</span><span class="p">,</span>
 <a id="__codelineno-0-345" name="__codelineno-0-345"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
-<a id="__codelineno-0-346" name="__codelineno-0-346"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate sea level pressure from hourly surface pressure, temperature, and mixing ratio.</span>
+<a id="__codelineno-0-346" name="__codelineno-0-346"></a><span class="w">    </span><span class="sd">"""Calculate sea level pressure from hourly surface pressure, temperature, and mixing ratio.</span>
 <a id="__codelineno-0-347" name="__codelineno-0-347"></a>
 <a id="__codelineno-0-348" name="__codelineno-0-348"></a><span class="sd">    This function uses the basic method derived from the hydrostatic balance equation</span>
 <a id="__codelineno-0-349" name="__codelineno-0-349"></a><span class="sd">    and the equation of state (Hess 1979). The SLP calculation method used here may not produce</span>
@@ -5351,17 +5351,17 @@ Pauley, P. M., 1998: An Example of Uncertainty in Sea Level Pressure Reduction. 
 <a id="__codelineno-0-394" name="__codelineno-0-394"></a><span class="sd">    ----------</span>
 <a id="__codelineno-0-395" name="__codelineno-0-395"></a><span class="sd">    Hess, S. L., 1979: Introduction to Theoretical Meteorology. Robert E. Krieger Publishing Company, 362 pp.</span>
 <a id="__codelineno-0-396" name="__codelineno-0-396"></a><span class="sd">    Pauley, P. M., 1998: An Example of Uncertainty in Sea Level Pressure Reduction. Wea. Forecasting, 13, 833–850, https://doi.org/10.1175/1520-0434(1998)013&lt;0833:AEOUIS&gt;2.0.CO;2.</span>
-<a id="__codelineno-0-397" name="__codelineno-0-397"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-397" name="__codelineno-0-397"></a><span class="sd">    """</span>
 <a id="__codelineno-0-398" name="__codelineno-0-398"></a>    <span class="c1"># Get mean virtual temperature</span>
 <a id="__codelineno-0-399" name="__codelineno-0-399"></a>    <span class="k">if</span> <span class="n">average_t2</span><span class="p">:</span>
-<a id="__codelineno-0-400" name="__codelineno-0-400"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;compute_sea_level_pressure: Using 12-timestep mean temperature.&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-401" name="__codelineno-0-401"></a>        <span class="k">if</span> <span class="s2">&quot;time&quot;</span> <span class="ow">in</span> <span class="n">t2</span><span class="o">.</span><span class="n">dims</span><span class="p">:</span>
+<a id="__codelineno-0-400" name="__codelineno-0-400"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"compute_sea_level_pressure: Using 12-timestep mean temperature."</span><span class="p">)</span>
+<a id="__codelineno-0-401" name="__codelineno-0-401"></a>        <span class="k">if</span> <span class="s2">"time"</span> <span class="ow">in</span> <span class="n">t2</span><span class="o">.</span><span class="n">dims</span><span class="p">:</span>
 <a id="__codelineno-0-402" name="__codelineno-0-402"></a>            <span class="n">t2</span> <span class="o">=</span> <span class="n">t2</span><span class="o">.</span><span class="n">rolling</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
-<a id="__codelineno-0-403" name="__codelineno-0-403"></a>        <span class="k">elif</span> <span class="s2">&quot;time_delta&quot;</span> <span class="ow">in</span> <span class="n">t2</span><span class="o">.</span><span class="n">dims</span><span class="p">:</span>
+<a id="__codelineno-0-403" name="__codelineno-0-403"></a>        <span class="k">elif</span> <span class="s2">"time_delta"</span> <span class="ow">in</span> <span class="n">t2</span><span class="o">.</span><span class="n">dims</span><span class="p">:</span>
 <a id="__codelineno-0-404" name="__codelineno-0-404"></a>            <span class="n">t2</span> <span class="o">=</span> <span class="n">t2</span><span class="o">.</span><span class="n">rolling</span><span class="p">(</span><span class="n">time_delta</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 <a id="__codelineno-0-405" name="__codelineno-0-405"></a>        <span class="k">else</span><span class="p">:</span>
 <a id="__codelineno-0-406" name="__codelineno-0-406"></a>            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
-<a id="__codelineno-0-407" name="__codelineno-0-407"></a>                <span class="s2">&quot;No time or time_delta axis found in t2. Use `average_t2=False` for data without time axis.&quot;</span>
+<a id="__codelineno-0-407" name="__codelineno-0-407"></a>                <span class="s2">"No time or time_delta axis found in t2. Use `average_t2=False` for data without time axis."</span>
 <a id="__codelineno-0-408" name="__codelineno-0-408"></a>            <span class="p">)</span>
 <a id="__codelineno-0-409" name="__codelineno-0-409"></a>
 <a id="__codelineno-0-410" name="__codelineno-0-410"></a>    <span class="n">t_virtual_sfc</span> <span class="o">=</span> <span class="p">((</span><span class="mi">1</span> <span class="o">+</span> <span class="mf">1.609</span> <span class="o">*</span> <span class="n">q2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">q2</span><span class="p">))</span> <span class="o">*</span> <span class="n">t2</span>
@@ -5374,7 +5374,7 @@ Pauley, P. M., 1998: An Example of Uncertainty in Sea Level Pressure Reduction. 
 <a id="__codelineno-0-417" name="__codelineno-0-417"></a>    <span class="n">h</span> <span class="o">=</span> <span class="p">(</span><span class="n">Rd</span> <span class="o">*</span> <span class="n">t_virtual_mean</span><span class="p">)</span> <span class="o">/</span> <span class="n">g</span>
 <a id="__codelineno-0-418" name="__codelineno-0-418"></a>    <span class="n">slp</span> <span class="o">=</span> <span class="n">psfc</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">elevation</span> <span class="o">/</span> <span class="n">h</span><span class="p">)</span>
 <a id="__codelineno-0-419" name="__codelineno-0-419"></a>    <span class="n">slp</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
-<a id="__codelineno-0-420" name="__codelineno-0-420"></a>    <span class="n">slp</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Pa&quot;</span>
+<a id="__codelineno-0-420" name="__codelineno-0-420"></a>    <span class="n">slp</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"units"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"Pa"</span>
 <a id="__codelineno-0-421" name="__codelineno-0-421"></a>    <span class="k">return</span> <span class="n">slp</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -5386,7 +5386,7 @@ Pauley, P. M., 1998: An Example of Uncertainty in Sea Level Pressure Reduction. 
 
 
 <h2 id="climakitae.tools.derived_variables.compute_geostrophic_wind" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">compute_geostrophic_wind</span><span class="p">(</span><span class="n">geopotential_height</span><span class="p">,</span> <span class="n">gridlabel</span><span class="o">=</span><span class="s1">&#39;d01&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">compute_geostrophic_wind</span><span class="p">(</span><span class="n">geopotential_height</span><span class="p">,</span> <span class="n">gridlabel</span><span class="o">=</span><span class="s1">'d01'</span><span class="p">)</span></code>
 
 </h2>
 
@@ -5504,9 +5504,9 @@ MetPy, 2026: geostrophic_wind. Accessed 10 Feb 2026, https://unidata.github.io/M
 <span class="normal"><a href="#__codelineno-0-699">699</a></span>
 <span class="normal"><a href="#__codelineno-0-700">700</a></span>
 <span class="normal"><a href="#__codelineno-0-701">701</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-658" name="__codelineno-0-658"></a><span class="k">def</span><span class="w"> </span><span class="nf">compute_geostrophic_wind</span><span class="p">(</span>
-<a id="__codelineno-0-659" name="__codelineno-0-659"></a>    <span class="n">geopotential_height</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">gridlabel</span><span class="o">=</span><span class="s2">&quot;d01&quot;</span>
+<a id="__codelineno-0-659" name="__codelineno-0-659"></a>    <span class="n">geopotential_height</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">gridlabel</span><span class="o">=</span><span class="s2">"d01"</span>
 <a id="__codelineno-0-660" name="__codelineno-0-660"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">]:</span>
-<a id="__codelineno-0-661" name="__codelineno-0-661"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate the geostrophic wind at a single point on a constant pressure surface.</span>
+<a id="__codelineno-0-661" name="__codelineno-0-661"></a><span class="w">    </span><span class="sd">"""Calculate the geostrophic wind at a single point on a constant pressure surface.</span>
 <a id="__codelineno-0-662" name="__codelineno-0-662"></a>
 <a id="__codelineno-0-663" name="__codelineno-0-663"></a><span class="sd">    Currently only implemented for data on the WRF grid. This code follows the</span>
 <a id="__codelineno-0-664" name="__codelineno-0-664"></a><span class="sd">    MetPy code for calculating the geostrophic wind on an unevenly spaced grid.</span>
@@ -5525,7 +5525,7 @@ MetPy, 2026: geostrophic_wind. Accessed 10 Feb 2026, https://unidata.github.io/M
 <a id="__codelineno-0-677" name="__codelineno-0-677"></a><span class="sd">    ----------</span>
 <a id="__codelineno-0-678" name="__codelineno-0-678"></a><span class="sd">    Hess, S. L., 1979: Introduction to Theoretical Meteorology. Robert E. Krieger Publishing Company, 362 pp.</span>
 <a id="__codelineno-0-679" name="__codelineno-0-679"></a><span class="sd">    MetPy, 2026: geostrophic_wind. Accessed 10 Feb 2026, https://unidata.github.io/MetPy/latest/api/generated/metpy.calc.geostrophic_wind.html#geostrophic-wind.</span>
-<a id="__codelineno-0-680" name="__codelineno-0-680"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-680" name="__codelineno-0-680"></a><span class="sd">    """</span>
 <a id="__codelineno-0-681" name="__codelineno-0-681"></a>    <span class="n">lat_to_radian</span> <span class="o">=</span> <span class="n">geopotential_height</span><span class="o">.</span><span class="n">lat</span><span class="o">.</span><span class="n">data</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span>
 <a id="__codelineno-0-682" name="__codelineno-0-682"></a>    <span class="n">omega</span> <span class="o">=</span> <span class="mf">7292115e-11</span>  <span class="c1"># rad/s</span>
 <a id="__codelineno-0-683" name="__codelineno-0-683"></a>    <span class="n">g</span> <span class="o">=</span> <span class="mf">9.81</span>  <span class="c1"># m/s2</span>
@@ -5541,10 +5541,10 @@ MetPy, 2026: geostrophic_wind. Accessed 10 Feb 2026, https://unidata.github.io/M
 <a id="__codelineno-0-693" name="__codelineno-0-693"></a>    <span class="n">geo_u_earth</span><span class="p">,</span> <span class="n">geo_v_earth</span> <span class="o">=</span> <span class="n">_get_rotated_geostrophic_wind</span><span class="p">(</span><span class="n">geo_u</span><span class="p">,</span> <span class="n">geo_v</span><span class="p">,</span> <span class="n">gridlabel</span><span class="p">)</span>
 <a id="__codelineno-0-694" name="__codelineno-0-694"></a>
 <a id="__codelineno-0-695" name="__codelineno-0-695"></a>    <span class="c1"># Update attributes for results</span>
-<a id="__codelineno-0-696" name="__codelineno-0-696"></a>    <span class="n">geo_u_earth</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;u&quot;</span>
-<a id="__codelineno-0-697" name="__codelineno-0-697"></a>    <span class="n">geo_u_earth</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;long_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Geostrophic Wind U Component&quot;</span>
-<a id="__codelineno-0-698" name="__codelineno-0-698"></a>    <span class="n">geo_v_earth</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;v&quot;</span>
-<a id="__codelineno-0-699" name="__codelineno-0-699"></a>    <span class="n">geo_v_earth</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;long_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Geostrophic Wind V Component&quot;</span>
+<a id="__codelineno-0-696" name="__codelineno-0-696"></a>    <span class="n">geo_u_earth</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"u"</span>
+<a id="__codelineno-0-697" name="__codelineno-0-697"></a>    <span class="n">geo_u_earth</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"long_name"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"Geostrophic Wind U Component"</span>
+<a id="__codelineno-0-698" name="__codelineno-0-698"></a>    <span class="n">geo_v_earth</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"v"</span>
+<a id="__codelineno-0-699" name="__codelineno-0-699"></a>    <span class="n">geo_v_earth</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">"long_name"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"Geostrophic Wind V Component"</span>
 <a id="__codelineno-0-700" name="__codelineno-0-700"></a>
 <a id="__codelineno-0-701" name="__codelineno-0-701"></a>    <span class="k">return</span> <span class="n">geo_u_earth</span><span class="p">,</span> <span class="n">geo_v_earth</span>
 </code></pre></div></td></tr></table></div>

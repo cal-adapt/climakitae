@@ -2538,7 +2538,7 @@ queries.</p>
 <li><strong><code>update_context(context: Dict) → None</code></strong> — Record operation in dataset attributes</li>
 </ul>
 <p>The processor registry uses decorators:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nd">@register_processor</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s2">&quot;processor_name&quot;</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="n">N</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nd">@register_processor</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s2">"processor_name"</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="n">N</span><span class="p">)</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">ProcessorName</span><span class="p">(</span><span class="n">DataProcessor</span><span class="p">):</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>        <span class="c1"># Transform data</span>

@@ -2352,26 +2352,26 @@
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Fetch base temperature data</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Note: convert_units processor ensures correct units for derived variable functions</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">cd</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">.</span><span class="n">variable_id</span><span class="p">(</span><span class="s2">&quot;tasmax&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">&quot;day&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">&quot;d03&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="o">.</span><span class="n">variable_id</span><span class="p">(</span><span class="s2">"tasmax"</span><span class="p">)</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="o">.</span><span class="n">table_id</span><span class="p">(</span><span class="s2">"day"</span><span class="p">)</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="o">.</span><span class="n">grid_label</span><span class="p">(</span><span class="s2">"d03"</span><span class="p">)</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">&quot;time_slice&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;2030-01-01&quot;</span><span class="p">,</span> <span class="s2">&quot;2060-12-31&quot;</span><span class="p">),</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>        <span class="s2">&quot;clip&quot;</span><span class="p">:</span> <span class="s2">&quot;Los Angeles&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>        <span class="s2">&quot;convert_units&quot;</span><span class="p">:</span> <span class="s2">&quot;degC&quot;</span>  <span class="c1"># Derived functions expect Celsius</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">"time_slice"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"2030-01-01"</span><span class="p">,</span> <span class="s2">"2060-12-31"</span><span class="p">),</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>        <span class="s2">"clip"</span><span class="p">:</span> <span class="s2">"Los Angeles"</span><span class="p">,</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>        <span class="s2">"convert_units"</span><span class="p">:</span> <span class="s2">"degC"</span>  <span class="c1"># Derived functions expect Celsius</span>
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="p">})</span>
 <a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
 <a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>
 <a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="c1"># Compute heating/cooling degree days</span>
 <a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="c1"># Thresholds are in °C for converted data</span>
 <a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="n">hdd</span><span class="p">,</span> <span class="n">cdd</span> <span class="o">=</span> <span class="n">compute_hdd_cdd</span><span class="p">(</span>
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    <span class="n">data</span><span class="p">[</span><span class="s2">&quot;tasmax&quot;</span><span class="p">],</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    <span class="n">data</span><span class="p">[</span><span class="s2">"tasmax"</span><span class="p">],</span>
 <a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    <span class="n">hdd_threshold</span><span class="o">=</span><span class="mf">18.3</span><span class="p">,</span>  <span class="c1"># °C (standard: ~65°F)</span>
 <a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    <span class="n">cdd_threshold</span><span class="o">=</span><span class="mf">18.3</span>   <span class="c1"># °C (standard: ~65°F)</span>
 <a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="p">)</span>
 <a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>
 <a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="c1"># Compute effective temperature (energy demand)</span>
-<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="n">eff_temp</span> <span class="o">=</span> <span class="n">effective_temp</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;tasmax&quot;</span><span class="p">])</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="n">eff_temp</span> <span class="o">=</span> <span class="n">effective_temp</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">"tasmax"</span><span class="p">])</span>
 </code></pre></div>
 <h2 id="available-functions">Available Functions</h2>
 <ul>
