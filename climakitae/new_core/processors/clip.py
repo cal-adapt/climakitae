@@ -1514,6 +1514,7 @@ class Clip(DataProcessor):
         category_map = {
             "states": boundaries._states,
             "CA counties": boundaries._ca_counties,
+            "CA cities": boundaries._ca_cities,
             "CA watersheds": boundaries._ca_watersheds,
             "CA Electric Load Serving Entities (IOU & POU)": boundaries._ca_utilities,
             "CA Electricity Demand Forecast Zones": boundaries._ca_forecast_zones,
@@ -1565,6 +1566,7 @@ class Clip(DataProcessor):
         category_to_dimension = {
             "states": "state",
             "CA counties": "county",
+            "CA cities": "city",
             "CA watersheds": "watershed",
             "CA Electric Load Serving Entities (IOU & POU)": "utility",
             "CA Electricity Demand Forecast Zones": "forecast_zone",

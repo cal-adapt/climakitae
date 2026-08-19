@@ -1,0 +1,131 @@
+metadata: {}
+name: parquet
+sources:
+  censustracts:
+    args:
+      storage_options:
+        anon: true
+      urlpath: s3://cadcat/parquet/ca-census-tracts.parquet
+    cache: []
+    catalog_dir: s3://cadcat/parquet
+    description: ''
+    direct_access: forbid
+    driver:
+    - geoparquet
+    getenv: true
+    getshell: true
+    metadata: {}
+    name: censustracts
+    parameters: {}
+  cities:
+    args:
+      storage_options:
+        anon: true
+      urlpath: s3://cadcat/parquet/ca_cities.parquet
+    cache: []
+    catalog_dir: s3://cadcat/parquet
+    description: ''
+    direct_access: forbid
+    driver:
+    - geoparquet
+    getenv: true
+    getshell: true
+    metadata: {}
+    name: cities
+    parameters: {}
+  counties:
+    args:
+      storage_options:
+        anon: true
+      urlpath: s3://cadcat/parquet/ca_counties.parquet
+    cache: []
+    catalog_dir: s3://cadcat/parquet
+    description: ''
+    direct_access: forbid
+    driver:
+    - geoparquet
+    getenv: true
+    getshell: true
+    metadata: {}
+    name: counties
+    parameters: {}
+  dfz:
+    args:
+      storage_options:
+        anon: true
+      urlpath: s3://cadcat/parquet/demand-forecast-zones.parquet
+    cache: []
+    catalog_dir: s3://cadcat/parquet
+    description: ''
+    direct_access: forbid
+    driver:
+    - geoparquet
+    getenv: true
+    getshell: true
+    metadata: {}
+    name: dfz
+    parameters: {}
+  eba:
+    args:
+      storage_options:
+        anon: true
+      urlpath: s3://cadcat/parquet/balancing-authorities.parquet
+    cache: []
+    catalog_dir: s3://cadcat/parquet
+    description: ''
+    direct_access: forbid
+    driver:
+    - geoparquet
+    getenv: true
+    getshell: true
+    metadata: {}
+    name: eba
+    parameters: {}
+  huc8:
+    args:
+      storage_options:
+        anon: true
+      urlpath: s3://cadcat/parquet/huc8_ca_simplified.parquet
+    cache: []
+    catalog_dir: s3://cadcat/parquet
+    description: ''
+    direct_access: forbid
+    driver:
+    - geoparquet
+    getenv: true
+    getshell: true
+    metadata: {}
+    name: huc8
+    parameters: {}
+  states:
+    args:
+      storage_options:
+        anon: true
+      urlpath: s3://cadcat/parquet/usstates.parquet
+    cache: []
+    catalog_dir: s3://cadcat/parquet
+    description: ''
+    direct_access: forbid
+    driver:
+    - geoparquet
+    getenv: true
+    getshell: true
+    metadata: {}
+    name: states
+    parameters: {}
+  utilities:
+    args:
+      storage_options:
+        anon: true
+      urlpath: s3://cadcat/parquet/utilities.parquet
+    cache: []
+    catalog_dir: s3://cadcat/parquet
+    description: ''
+    direct_access: forbid
+    driver: 
+    - geoparquet
+    getenv: true
+    getshell: true
+    metadata: {}
+    name: utilities
+    parameters: {}
