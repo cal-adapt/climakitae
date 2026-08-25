@@ -39,6 +39,24 @@ from climakitae.util.utils import add_dummy_time_to_wl
 
 logger = logging.getLogger(__name__)
 
+# Dims that carry meaning even when they happen to have length 1 (e.g. a
+# single clipped location, or a single simulation after model filtering) —
+# block-maxima squeezing must never drop these, or downstream code that
+# expects them (e.g. `.sizes["points"]`) breaks.
+_SQUEEZE_PROTECTED_DIMS = frozenset({"points", "closest_cell", "sim"})
+
+
+def _squeeze_block_maxima(data: xr.DataArray) -> xr.DataArray:
+    """Drop incidental length-1 dims from block maxima without dropping
+    spatial/simulation dims that happen to be length 1 (e.g. a single point
+    or a single surviving model)."""
+    squeeze_dims = [
+        dim
+        for dim, size in data.sizes.items()
+        if size == 1 and dim not in _SQUEEZE_PROTECTED_DIMS
+    ]
+    return data.squeeze(dim=squeeze_dims) if squeeze_dims else data
+
 
 @register_processor("metric_calc", priority=7500)
 class MetricCalc(DataProcessor):
@@ -1279,7 +1297,7 @@ class MetricCalc(DataProcessor):
             block_maxima = _get_block_maxima_optimized(
                 batch_data, **block_maxima_kwargs
             )
-            block_maxima = block_maxima.squeeze()
+            block_maxima = _squeeze_block_maxima(block_maxima)
             logger.debug(
                 "Block maxima extraction took %.1fs", time_module.time() - step_start
             )
@@ -1511,7 +1529,7 @@ class MetricCalc(DataProcessor):
             chunk_block_maxima = _get_block_maxima_optimized(
                 chunk_data, **block_maxima_kwargs
             )
-            chunk_block_maxima = chunk_block_maxima.squeeze()
+            chunk_block_maxima = _squeeze_block_maxima(chunk_block_maxima)
 
             # Compute to memory (now it's small: e.g., 10 sims × 2 WL × 30 years × 100 points)
             if hasattr(chunk_block_maxima.data, "compute"):
