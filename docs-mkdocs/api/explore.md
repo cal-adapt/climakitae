@@ -61,10 +61,3 @@ The `climakitae.explore` module provides user-friendly classes and functions for
     options:
       docstring_style: numpy
       show_source: true
-
-## Vulnerability Tables
-
-::: climakitae.explore.vulnerability_table
-    options:
-      docstring_style: numpy
-      show_source: true
