@@ -207,6 +207,61 @@ class TestLoadHDPStationData:
         with pytest.raises(ValueError, match="same HDP network"):
             proc._load_station_data()
 
+    def test_load_station_data_translates_airport_code(self):
+        """Test that a legacy airport code is translated to its HDP station_id."""
+        proc = self.ProcClass({"stations": ["KSAC"]})
+
+        legacy_stations_df = pd.DataFrame(
+            {
+                "ID": ["KSAC"],
+                "station": ["Sacramento (KSAC)"],
+                "station id": [72483023225],
+            }
+        )
+        hdp_df = pd.DataFrame(
+            {"network_id": ["ASOSAWOS"], "station_id": ["ASOSAWOS_72483023225"]}
+        )
+        raw_ds = self._build_raw_hdp_dataset("ASOSAWOS_72483023225", "SACRAMENTO EXEC")
+
+        mock_hdp_catalog = MagicMock()
+        mock_hdp_catalog.df = hdp_df
+        mock_search_result = MagicMock()
+        mock_search_result.to_dataset_dict.return_value = {"key1": raw_ds}
+        mock_hdp_catalog.search.return_value = mock_search_result
+
+        proc.catalog = MagicMock()
+        proc.catalog.hdp = mock_hdp_catalog
+        proc.catalog.__getitem__.return_value = legacy_stations_df
+
+        station_ds = proc._load_station_data()
+
+        assert isinstance(station_ds, xr.Dataset)
+        mock_hdp_catalog.search.assert_called_once_with(
+            station_id=["ASOSAWOS_72483023225"]
+        )
+
+    def test_load_station_data_skips_legacy_lookup_for_raw_id(self):
+        """Test that a raw HDP station_id never triggers the legacy lookup."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
+
+        hdp_df = pd.DataFrame(
+            {"network_id": ["ASOSAWOS"], "station_id": ["ASOSAWOS_1234"]}
+        )
+        raw_ds = self._build_raw_hdp_dataset("ASOSAWOS_1234", "TEST STATION")
+
+        mock_hdp_catalog = MagicMock()
+        mock_hdp_catalog.df = hdp_df
+        mock_search_result = MagicMock()
+        mock_search_result.to_dataset_dict.return_value = {"key1": raw_ds}
+        mock_hdp_catalog.search.return_value = mock_search_result
+
+        proc.catalog = MagicMock()
+        proc.catalog.hdp = mock_hdp_catalog
+
+        proc._load_station_data()
+
+        proc.catalog.__getitem__.assert_not_called()
+
 
 class TestBiasCorrectStationDataBiasCorrection:
     """Tests for bias correction logic (_bias_correct_model_data)."""

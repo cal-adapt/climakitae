@@ -51,7 +51,11 @@ from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
 )
-from climakitae.new_core.processors.processor_utils import resolve_hdp_stations
+from climakitae.new_core.processors.processor_utils import (
+    is_station_identifier,
+    resolve_airport_code_to_hdp_station_id,
+    resolve_hdp_stations,
+)
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -75,6 +79,23 @@ def _get_station_metadata() -> pd.DataFrame:
     """
     catalog = DataCatalog()
     return catalog.hdp.df
+
+
+def _get_legacy_stations_metadata() -> pd.DataFrame:
+    """Get the legacy HadISD station lookup table from DataCatalog singleton.
+
+    This table still doubles as an airport-code lookup for HDP ASOSAWOS
+    stations, since its numeric station id matches the numeric suffix of the
+    corresponding HDP `station_id`. See `resolve_airport_code_to_hdp_station_id`.
+
+    Returns
+    -------
+    pd.DataFrame
+        The legacy station lookup dataframe, with 'ID', 'station', and
+        'station id' columns.
+    """
+    catalog = DataCatalog()
+    return catalog["stations"]
 
 
 @register_processor_validator("bias_adjust_model_to_station")
@@ -217,9 +238,11 @@ def _validate_stations(stations: Any) -> bool:
     """Validate station selection parameter.
 
     Accepts HDP station identifiers, either bare `station_id` values (e.g.,
-    "ASOSAWOS_69007093217") or `"network_id:station_id"` strings, and
-    validates that all requested stations exist in the HDP catalog, belong
-    to a single network, and that network provides temperature observations.
+    "ASOSAWOS_69007093217") or `"network_id:station_id"` strings, as well as
+    legacy airport codes/names (e.g. "KSAC", "Sacramento (KSAC)") which are
+    translated to their HDP ASOSAWOS `station_id` equivalent. Validates that
+    all requested stations exist in the HDP catalog, belong to a single
+    network, and that network provides temperature observations.
 
     Parameters
     ----------
@@ -253,11 +276,27 @@ def _validate_stations(stations: Any) -> bool:
         logger.warning(msg)
         return False
 
+    # Translate any legacy airport code / name identifiers (e.g. "KSAC") to
+    # their HDP ASOSAWOS station_id equivalent. Only fetch the legacy lookup
+    # table if it's actually needed.
+    if any(is_station_identifier(s) for s in stations):
+        legacy_stations_df = _get_legacy_stations_metadata()
+        try:
+            resolved_stations = [
+                resolve_airport_code_to_hdp_station_id(s, legacy_stations_df)
+                for s in stations
+            ]
+        except ValueError as e:
+            logger.warning(str(e))
+            return False
+    else:
+        resolved_stations = stations
+
     # Load HDP catalog metadata
     hdp_df = _get_station_metadata()
 
     try:
-        _, network_id = resolve_hdp_stations(stations, hdp_df)
+        _, network_id = resolve_hdp_stations(resolved_stations, hdp_df)
     except ValueError as e:
         logger.warning(str(e))
         return False

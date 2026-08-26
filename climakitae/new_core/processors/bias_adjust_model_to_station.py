@@ -25,6 +25,13 @@ Examples
 ... )
 >>> result = processor.execute(gridded_data, context)
 
+>>> # Legacy airport codes are also accepted for ASOSAWOS stations
+>>> processor = StationBiasCorrection(
+...     stations=["KSAC"],
+...     historical_slice=(1980, 2014)
+... )
+>>> result = processor.execute(gridded_data, context)
+
 >>> # Multiple stations (must belong to the same HDP network) with custom
 >>> # bias correction parameters
 >>> processor = StationBiasCorrection(
@@ -97,7 +104,9 @@ class BiasAdjustModelToStation(DataProcessor):
     stations : list[str]
         List of HDP station identifiers to process, either bare `station_id`
         values (e.g., ["ASOSAWOS_69007093217"]) or `"network_id:station_id"`
-        strings. All stations must belong to a single HDP network.
+        strings. Legacy airport codes/names (e.g. "KSAC", "Sacramento (KSAC)")
+        are also accepted and translated to their HDP ASOSAWOS `station_id`
+        equivalent. All stations must belong to a single HDP network.
     historical_slice : tuple[int, int], optional
         Start and end years for historical training period (default: (1980, 2014))
     window : int, optional
@@ -281,17 +290,40 @@ class BiasAdjustModelToStation(DataProcessor):
         ValueError
             If any station identifier is invalid, not found, or the
             requested stations span more than one HDP network.
+
+        Notes
+        -----
+        Accepts legacy airport codes/names (e.g. "KSAC", "Sacramento (KSAC)")
+        in addition to HDP station identifiers; these are translated to their
+        HDP ASOSAWOS `station_id` equivalent via
+        `resolve_airport_code_to_hdp_station_id`.
         """
         from climakitae.new_core.processors.processor_utils import (
+            is_station_identifier,
+            resolve_airport_code_to_hdp_station_id,
             resolve_hdp_stations,
         )
 
         hdp_catalog = self.catalog.hdp
 
+        # Translate any legacy airport code / name identifiers (e.g. "KSAC")
+        # to their HDP ASOSAWOS station_id equivalent. Only fetch the legacy
+        # lookup table if it's actually needed.
+        if any(is_station_identifier(s) for s in self.stations):
+            legacy_stations_df = self.catalog["stations"]
+            station_identifiers = [
+                resolve_airport_code_to_hdp_station_id(s, legacy_stations_df)
+                for s in self.stations
+            ]
+        else:
+            station_identifiers = self.stations
+
         # Validate all stations, ensure single network, and resolve station_ids.
         # Raises ValueError with details if any station is invalid or if
         # stations span multiple networks.
-        station_ids, network_id = resolve_hdp_stations(self.stations, hdp_catalog.df)
+        station_ids, network_id = resolve_hdp_stations(
+            station_identifiers, hdp_catalog.df
+        )
 
         logger.info(
             "Loading HDP station data for network '%s', station(s): %s",

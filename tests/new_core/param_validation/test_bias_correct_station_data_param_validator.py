@@ -13,6 +13,7 @@ import pytest
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator import (
+    _get_legacy_stations_metadata,
     _get_station_metadata,
     _validate_catalog_requirement,
     _validate_downscaling_method_requirement,
@@ -281,6 +282,50 @@ class TestValidateStations:
         with pytest.warns(UserWarning, match="does not provide temperature"):
             result = _validate_stations(["CDEC_1"])
         assert result is False
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_legacy_stations_metadata"
+    )
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_valid_airport_code_translated(
+        self, mock_get_metadata, mock_get_legacy_metadata
+    ):
+        """Test that a legacy airport code is translated and validated."""
+        mock_get_metadata.return_value = pd.DataFrame(
+            {
+                "network_id": ["ASOSAWOS"],
+                "station_id": ["ASOSAWOS_72483023225"],
+            }
+        )
+        mock_get_legacy_metadata.return_value = pd.DataFrame(
+            {
+                "ID": ["KSAC"],
+                "station": ["Sacramento (KSAC)"],
+                "station id": [72483023225],
+            }
+        )
+
+        result = _validate_stations(["KSAC"])
+        assert result is True
+        mock_get_legacy_metadata.assert_called_once()
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_legacy_stations_metadata"
+    )
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_valid_stations_skip_legacy_lookup(
+        self, mock_get_metadata, mock_get_legacy_metadata
+    ):
+        """Test that raw HDP station_id inputs never touch the legacy lookup table."""
+        mock_get_metadata.return_value = self.mock_station_metadata
+
+        result = _validate_stations(["ASOSAWOS_KSAC"])
+        assert result is True
+        mock_get_legacy_metadata.assert_not_called()
 
 
 class TestValidateHistoricalSlice:
