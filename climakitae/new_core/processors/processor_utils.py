@@ -1255,3 +1255,97 @@ def convert_stations_to_points(
             raise ValueError(f"Error processing station '{station_id}': {str(e)}")
 
     return points, metadata_list
+
+
+def parse_hdp_station_identifier(identifier: str) -> tuple:
+    """Parse an HDP station identifier into (network_id, station_id).
+
+    Accepts a bare `station_id` (e.g. "ASOSAWOS_69007093217") or a
+    `"network_id:station_id"` string for extra disambiguation.
+
+    Parameters
+    ----------
+    identifier : str
+        Station identifier to parse.
+
+    Returns
+    -------
+    tuple[str | None, str]
+        (network_id or None if not specified, station_id)
+    """
+    if ":" in identifier:
+        network_id, station_id = identifier.split(":", 1)
+        return network_id, station_id
+    return None, identifier
+
+
+def resolve_hdp_stations(station_identifiers: list, hdp_df) -> tuple:
+    """Resolve and validate HDP station identifiers against the HDP catalog.
+
+    Validates that every requested station exists in the catalog and that
+    all resolved stations share a single `network_id`, since bias
+    correction does not support mixing stations from different HDP
+    networks in one call.
+
+    Parameters
+    ----------
+    station_identifiers : list[str]
+        Station identifiers, either bare `station_id` values or
+        `"network_id:station_id"` strings.
+    hdp_df : pd.DataFrame
+        The HDP catalog dataframe (e.g. `DataCatalog().hdp.df`), with
+        `network_id` and `station_id` columns.
+
+    Returns
+    -------
+    tuple[list[str], str]
+        The validated `station_id` values (in input order) and the single
+        shared `network_id`.
+
+    Raises
+    ------
+    ValueError
+        If any station is not found, or if the requested stations span
+        more than one HDP network.
+
+    Examples
+    --------
+    >>> station_ids, network_id = resolve_hdp_stations(
+    ...     ["ASOSAWOS_69007093217"], DataCatalog().hdp.df
+    ... )
+    """
+    station_ids = []
+    missing = []
+    networks_by_station: dict = {}
+
+    for identifier in station_identifiers:
+        network_hint, station_id = parse_hdp_station_identifier(identifier)
+        match = hdp_df[hdp_df["station_id"] == station_id]
+        if network_hint is not None:
+            match = match[match["network_id"] == network_hint]
+
+        if match.empty:
+            missing.append(identifier)
+            continue
+
+        station_ids.append(station_id)
+        networks_by_station[station_id] = set(match["network_id"].unique())
+
+    if missing:
+        raise ValueError(
+            f"The following HDP station(s) were not found: {', '.join(missing)}. "
+            "Use DataCatalog().hdp.df to browse available network_id/station_id "
+            "combinations."
+        )
+
+    all_networks = sorted(
+        {network for networks in networks_by_station.values() for network in networks}
+    )
+    if len(all_networks) > 1:
+        raise ValueError(
+            "All stations in a single bias_adjust_model_to_station call must "
+            f"belong to the same HDP network, but found multiple: {all_networks}. "
+            "Please split your request by network."
+        )
+
+    return station_ids, all_networks[0]

@@ -2,10 +2,11 @@
 
 This module provides validation for parameters used with the StationBiasCorrection
 processor, which applies Quantile Delta Mapping (QDM) bias correction to gridded
-climate data using historical weather station observations.
+climate data using historical weather station observations from the HDP
+(Historical Data Platform) catalog.
 
 The validator ensures:
-- Valid station selection from available HadISD stations
+- Valid station selection from available HDP stations, all within a single network
 - Proper time slice specification for bias correction
 - Valid QDM parameters (window, nquantiles, group, kind)
 - Station metadata availability
@@ -20,7 +21,7 @@ Examples
 --------
 >>> # Valid station bias correction parameters
 >>> params = {
-...     "stations": ["Sacramento (KSAC)", "San Francisco (KSFO)"],
+...     "stations": ["ASOSAWOS_69007093217", "ASOSAWOS_72384023155"],
 ...     "time_slice": (2030, 2060),
 ...     "window": 90,
 ...     "nquantiles": 20
@@ -35,9 +36,9 @@ False
 
 Notes
 -----
-- Station observational data is available through 2014-08-31
-- Bias correction requires historical period (1980-2014) in input data
-- Currently only supports temperature (tas/tasmax/tasmin) bias correction
+- Station observational coverage varies per HDP station
+- Currently only supports temperature (tas) bias correction, since that is
+  the only variable HDP reliably provides across networks
 """
 
 import logging
@@ -50,26 +51,30 @@ from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
 )
-from climakitae.new_core.processors.processor_utils import find_station_match
+from climakitae.new_core.processors.processor_utils import resolve_hdp_stations
 
 # Module logger
 logger = logging.getLogger(__name__)
 
+# HDP networks known not to provide temperature (tas) observations, based on
+# spot-checking the catalog. Periodically reconcile against the live catalog;
+# the authoritative check happens at load time in the processor.
+_NO_TAS_NETWORKS = {"CDEC", "CNRFC", "MTRWFO", "VALLEYWATER"}
+
 
 def _get_station_metadata() -> pd.DataFrame:
-    """Get HadISD station metadata from DataCatalog singleton.
+    """Get HDP station metadata from DataCatalog singleton.
 
-    Uses the DataCatalog singleton to access the stations GeoDataFrame,
+    Uses the DataCatalog singleton to access the HDP catalog dataframe,
     avoiding the need for module-level globals.
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with station information including 'station', 'station id',
-        'latitude', 'longitude', and 'elevation' columns.
+        The HDP catalog dataframe, with 'network_id' and 'station_id' columns.
     """
     catalog = DataCatalog()
-    return catalog["stations"]
+    return catalog.hdp.df
 
 
 @register_processor_validator("bias_adjust_model_to_station")
@@ -81,7 +86,7 @@ def validate_bias_correction_station_data_param(
     """Validate parameters for StationBiasCorrection processor.
 
     This function validates all parameters required for station bias correction:
-    - Station selection (must exist in HadISD dataset)
+    - Station selection (must exist in the HDP catalog, all in one network)
     - Historical slice (optional, must be valid years if provided)
     - QDM parameters (window, nquantiles, group, kind)
     - Variable compatibility (currently only temperature variables supported)
@@ -211,13 +216,15 @@ def validate_bias_correction_station_data_param(
 def _validate_stations(stations: Any) -> bool:
     """Validate station selection parameter.
 
-    Accepts both full station names (e.g., "Sacramento Executive Airport (KSAC)")
-    and 4-letter airport codes (e.g., "KSAC"). Uses fuzzy matching to find stations.
+    Accepts HDP station identifiers, either bare `station_id` values (e.g.,
+    "ASOSAWOS_69007093217") or `"network_id:station_id"` strings, and
+    validates that all requested stations exist in the HDP catalog, belong
+    to a single network, and that network provides temperature observations.
 
     Parameters
     ----------
     stations : Any
-        Station names or codes to validate.
+        Station identifiers to validate.
 
     Returns
     -------
@@ -227,8 +234,9 @@ def _validate_stations(stations: Any) -> bool:
     # Check type
     if not isinstance(stations, list):
         msg = (
-            f"'stations' must be a list of station names, got {type(stations).__name__}. "
-            f"Example: ['Sacramento (KSAC)', 'KSAC']"
+            f"'stations' must be a list of HDP station identifiers, "
+            f"got {type(stations).__name__}. "
+            f"Example: ['ASOSAWOS_69007093217']"
         )
         logger.warning(msg)
         return False
@@ -241,51 +249,32 @@ def _validate_stations(stations: Any) -> bool:
 
     # Check all elements are strings
     if not all(isinstance(s, str) for s in stations):
-        msg = "All station names must be strings."
+        msg = "All station identifiers must be strings."
         logger.warning(msg)
         return False
 
-    # Load station metadata
-    station_metadata = _get_station_metadata()
+    # Load HDP catalog metadata
+    hdp_df = _get_station_metadata()
 
-    # Validate each station using fuzzy matching (supports 4-letter codes)
-    invalid_stations = []
-    for station in stations:
-        try:
-            # Use find_station_match which handles both full names and 4-letter codes
-            matched_station = find_station_match(station, station_metadata)
-            if matched_station is None:
-                invalid_stations.append(station)
-        except Exception as e:
-            logger.debug("Error validating station '%s': %s", station, str(e))
-            invalid_stations.append(station)
+    try:
+        _, network_id = resolve_hdp_stations(stations, hdp_df)
+    except ValueError as e:
+        logger.warning(str(e))
+        return False
 
-    if invalid_stations:
+    if network_id in _NO_TAS_NETWORKS:
         msg = (
-            f"Invalid station(s): {', '.join(invalid_stations)}. "
-            f"Please choose from available HadISD stations. "
-            f"Use show_stations_options() to see available stations."
+            f"HDP network '{network_id}' does not provide temperature (tas) "
+            f"observations and cannot be used for station bias correction."
         )
         logger.warning(msg)
-
-        # Provide helpful suggestions for close matches
-        if len(invalid_stations) == 1:
-            station_name = invalid_stations[0]
-            # Try to find close matches using substring matching
-            available_stations = station_metadata["station"].values
-            close_matches = [
-                s
-                for s in available_stations
-                if station_name.lower() in s.lower()
-                or s.lower() in station_name.lower()
-            ]
-            if close_matches:
-                suggestions = ", ".join(close_matches[:5])
-                logger.info("Did you mean one of these? %s", suggestions)
-
         return False
 
-    logger.debug("Station validation passed for %d station(s)", len(stations))
+    logger.debug(
+        "Station validation passed for %d station(s) in network '%s'",
+        len(stations),
+        network_id,
+    )
     return True
 
 
@@ -342,22 +331,10 @@ def _validate_historical_slice(historical_slice: Any) -> bool:
         logger.warning(msg)
         return False
 
-    # Check reasonable year range (HadISD data available 1980-2014)
-    if start_year < 1980:
-        msg = (
-            f"Start year ({start_year}) is before HadISD observational period starts (1980). "
-            f"Please use a start year >= 1980."
-        )
-        logger.warning(msg)
-        return False
-
-    if end_year > 2014:
-        msg = (
-            f"End year ({end_year}) is after HadISD observational period ends (2014). "
-            f"Please use an end year <= 2014."
-        )
-        logger.warning(msg)
-        return False
+    # Note: HDP station coverage varies per station (ranging from a few years
+    # to multiple decades), so there is no single valid bound to check here.
+    # Overlap between the requested historical_slice and a given station's
+    # actual record is validated at runtime when the data is loaded.
 
     logger.debug("Historical slice validation passed: %s", historical_slice)
     return True
@@ -507,9 +484,9 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
     bool
         True if variable is compatible, False otherwise.
     """
-    # Currently, station bias correction only supports temperature variables
-    # HadISD dataset contains temperature (tas) observations
-    supported_variables = ["tas", "tasmax", "tasmin", "t2"]
+    # Currently, station bias correction only supports the 'tas' variable,
+    # since that is the only temperature variable HDP reliably provides.
+    supported_variables = ["tas"]
 
     variable_id = query.get("variable_id", None)
     if variable_id is None:
@@ -528,9 +505,9 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
     unsupported = [v for v in variable_ids if v not in supported_variables]
     if unsupported:
         msg = (
-            f"Station bias correction currently only supports temperature variables "
-            f"(tas, tasmax, tasmin, t2), but got: {', '.join(unsupported)}. "
-            f"HadISD station data contains temperature observations only."
+            f"Station bias correction currently only supports the 'tas' temperature "
+            f"variable, but got: {', '.join(unsupported)}. "
+            f"HDP station data only provides temperature (tas) observations."
         )
         logger.warning(msg)
         return False
@@ -542,8 +519,8 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
 def _validate_timescale_requirement(query: Dict[str, Any]) -> bool:
     """Validate that timescale is set to hourly for station bias correction.
 
-    Station bias correction requires hourly data to match HadISD observational
-    data resolution. This is a legacy constraint from the original implementation.
+    Station bias correction requires hourly data to match HDP observational
+    data resolution.
 
     Parameters
     ----------
@@ -565,7 +542,7 @@ def _validate_timescale_requirement(query: Dict[str, Any]) -> bool:
     if table_id not in ["1hr", "hr"]:
         msg = (
             f"\n\nStation bias correction requires hourly data (table_id='1hr' or '1hr'), "
-            f"but got table_id='{table_id}'. HadISD station observations are recorded hourly, "
+            f"but got table_id='{table_id}'. HDP station observations are recorded hourly, "
             f"and bias correction can only match hourly model data to hourly observations. "
             f"Please use .table_id('1hr') in your query.\n\n"
         )
