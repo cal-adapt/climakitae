@@ -35,7 +35,6 @@ from climakitae.new_core.processors.processor_utils import (
     _set_block_maxima_attributes,
     extend_time_domain,
     find_station_match,
-    resolve_airport_code_to_hdp_station_id,
 )
 
 

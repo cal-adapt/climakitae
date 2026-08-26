@@ -246,10 +246,13 @@ class BiasAdjustModelToStation(DataProcessor):
             )
             ds["tas"] = ds["tas"] + 273.15
 
-        # Capture coordinates/elevation before renaming/dropping variables
-        lat = float(ds["lat"].isel(time=0).item())
-        lon = float(ds["lon"].isel(time=0).item())
-        elevation = ds["elevation"].isel(time=0).item()
+        # Capture coordinates/elevation before renaming/dropping variables.
+        # `.values` computes any still-dask-backed data to numpy first
+        # (dask arrays don't support `.item()` directly), then `.item()`
+        # extracts the scalar.
+        lat = float(ds["lat"].isel(time=0).values.item())
+        lon = float(ds["lon"].isel(time=0).values.item())
+        elevation = float(ds["elevation"].isel(time=0).values.item())
         elevation_units = ds["elevation"].attrs.get("units", "m")
 
         # Rename data variable to the station display name
@@ -270,6 +273,30 @@ class BiasAdjustModelToStation(DataProcessor):
         ds = ds.squeeze("station", drop=True)[[display_name]]
 
         return ds
+
+    @staticmethod
+    def _rename_t2_to_tas(da: xr.DataArray) -> xr.DataArray:
+        """Treat WRF's native 't2' variable as equivalent to 'tas'.
+
+        WRF's raw 2m temperature variable is named 't2' in the `cadcat`
+        catalog, while HDP observations are always named 'tas'. Renaming
+        't2' to 'tas' here keeps variable naming consistent through bias
+        correction and output; the two represent the same physical
+        quantity, so no unit or value conversion is needed.
+
+        Parameters
+        ----------
+        da : xr.DataArray
+            Gridded model data, possibly named 't2'.
+
+        Returns
+        -------
+        xr.DataArray
+            The same data, renamed to 'tas' if it was 't2'.
+        """
+        if da.name == "t2":
+            return da.rename("tas")
+        return da
 
     def _load_station_data(self) -> xr.Dataset:
         """Load HDP station data from the HDP intake-esm catalog.
@@ -597,6 +624,13 @@ class BiasAdjustModelToStation(DataProcessor):
                 f"StationBiasCorrection requires xr.DataArray or xr.Dataset input, "
                 f"got {type(result)}"
             )
+
+        # WRF's native 2m temperature variable is 't2'; treat it as
+        # equivalent to the CF-standard 'tas' name used by HDP observations
+        # so naming stays consistent through bias correction and output.
+        result_da = self._rename_t2_to_tas(result_da)
+        if historical_da is not None:
+            historical_da = self._rename_t2_to_tas(historical_da)
 
         # Ensure resolution attribute is present for get_closest_gridcell
         if "resolution" not in result_da.attrs:

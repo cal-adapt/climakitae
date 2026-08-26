@@ -37,8 +37,9 @@ False
 Notes
 -----
 - Station observational coverage varies per HDP station
-- Currently only supports temperature (tas) bias correction, since that is
-  the only variable HDP reliably provides across networks
+- Currently only supports temperature bias correction ('tas' or 't2', WRF's
+  native 2m temperature variable), since 'tas' is the only variable HDP
+  reliably provides across networks
 """
 
 import logging
@@ -523,9 +524,10 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
     bool
         True if variable is compatible, False otherwise.
     """
-    # Currently, station bias correction only supports the 'tas' variable,
-    # since that is the only temperature variable HDP reliably provides.
-    supported_variables = ["tas"]
+    # Station bias correction supports 'tas' and 't2' (WRF's native 2m
+    # temperature variable name, treated as equivalent to 'tas' here) since
+    # HDP reliably only provides temperature as 'tas'.
+    supported_variables = ["tas", "t2"]
 
     variable_id = query.get("variable_id", None)
     if variable_id is None:
@@ -544,8 +546,8 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
     unsupported = [v for v in variable_ids if v not in supported_variables]
     if unsupported:
         msg = (
-            f"Station bias correction currently only supports the 'tas' temperature "
-            f"variable, but got: {', '.join(unsupported)}. "
+            f"Station bias correction currently only supports temperature variables "
+            f"('tas' or 't2'), but got: {', '.join(unsupported)}. "
             f"HDP station data only provides temperature (tas) observations."
         )
         logger.warning(msg)
