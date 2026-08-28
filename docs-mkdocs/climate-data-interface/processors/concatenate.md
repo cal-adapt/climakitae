@@ -86,7 +86,7 @@ For the `hdp` catalog, `concat` produces a station-dimension stack:
 ```python
 stations = (ClimateData()
     .catalog("hdp")
-    .network_id("hadisd")
+    .network_id("ASOSAWOS")
     .processes({"concat": "station"})
     .get())
 ```
