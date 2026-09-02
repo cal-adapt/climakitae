@@ -2815,7 +2815,7 @@
 <h2 id="algorithm">Algorithm</h2>
 <h3 id="execution-flow">Execution Flow</h3>
 <ol>
-<li><strong>Initialization</strong> (lines 73–111): Validate dict, store <code>warming_levels</code>, <code>warming_level_window</code> (default 15), <code>warming_level_months</code> (default <code>UNSET</code>), <code>add_dummy_time</code> (default <code>False</code>). <strong>Eagerly loads two CSV lookup tables</strong> (<code>gwl_1850-1900ref.csv</code> at L91 and <code>gwl_1981-2010ref.csv</code> at L94). Sets <code>self.name = "warming_level_simple"</code> (note: this is the metadata key written to context).</li>
+<li><strong>Initialization</strong> (lines 73–111): Validate dict, store <code>warming_levels</code>, <code>warming_level_window</code> (default 15), <code>warming_level_months</code> (default <code>UNSET</code>), <code>add_dummy_time</code> (default <code>False</code>). <strong>Eagerly loads two CSV lookup tables</strong> (<code>gwl_1850-1900ref.csv</code> at L91 and <code>gwl_1850-1900ref_timeidx.csv</code> at L94). Sets <code>self.name = "warming_level_simple"</code> (note: this is the metadata key written to context).</li>
 <li><strong>Defensive Reload</strong> (lines 120–129): If <code>warming_level_times</code> is somehow <code>None</code>, attempt to reload from CSV; raise <code>RuntimeError</code> on failure.</li>
 <li><strong>Member ID Reformatting</strong> (line 132 → method at line 343): <code>reformat_member_ids</code> splits any <code>member_id</code> dimension into separate dict keys with <code>key.member_id</code> suffix.</li>
 <li><strong>Time Domain Extension</strong> (line 135): <code>extend_time_domain</code> (helper) splices historical onto SSP scenarios so the data range covers 1980/1850 – 2100.</li>
@@ -3023,7 +3023,7 @@
 <p>GWL timing is pre-computed from climate model simulations and stored in CSV files shipped with <code>climakitae</code>:</p>
 <ul>
 <li><strong><code>gwl_1850-1900ref.csv</code></strong>: Year/timestamp when each <code>(activity_id, member_id, source_id)</code> triple reaches each integer warming level (1850–1900 reference period). Used when the requested WL exists as a column in the table.</li>
-<li><strong><code>gwl_1981-2010ref.csv</code></strong> (loaded as <code>warming_level_times_idx</code>): Time-indexed table of running warming-level estimates per simulation column. Used as a fallback when the requested WL is not a column in <code>gwl_1850-1900ref.csv</code> — the processor finds the <strong>first</strong> time the simulation column crosses the requested level.</li>
+<li><strong><code>gwl_1850-1900ref_timeidx.csv</code></strong> (loaded as <code>warming_level_times_idx</code>): Time-indexed table of running warming-level estimates per simulation column, also referenced to the 1850–1900 baseline. Used as a fallback when the requested WL is not a column in <code>gwl_1850-1900ref.csv</code> — the processor finds the <strong>first</strong> time the simulation column crosses the requested level.</li>
 </ul>
 <p>Lookup keys parse the dict key as <code>key.split(".")</code> and use <code>(key_list[2], member_id, key_list[3])</code>, which corresponds to <code>(activity_id, member_id, source_id)</code> in catalog terms. Missing entries log a warning and append <code>np.nan</code> for that warming level (the slice is then skipped).</p>
 <h3 id="time-windows">Time Windows</h3>
