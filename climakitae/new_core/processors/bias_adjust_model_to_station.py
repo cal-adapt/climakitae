@@ -225,6 +225,10 @@ class BiasAdjustModelToStation(DataProcessor):
         """
         station_id = str(ds["station"].values.item())
 
+        import pdb
+
+        pdb.set_trace()
+
         if "tas" not in ds.data_vars:
             raise ValueError(
                 f"HDP station '{station_id}' does not have a 'tas' (temperature) "
@@ -232,7 +236,9 @@ class BiasAdjustModelToStation(DataProcessor):
             )
 
         display_name = ds.attrs.get("station_name")
-        if not display_name or (isinstance(display_name, float) and pd.isna(display_name)):
+        if not display_name or (
+            isinstance(display_name, float) and pd.isna(display_name)
+        ):
             display_name = station_id
 
         # Validate/normalize units to Kelvin. HDP tas is expected to already
