@@ -24,6 +24,13 @@ class HDPValidator(ParameterValidator):
     to prevent mixing data from different weather station networks, which
     may have different time periods and data characteristics.
 
+    An optional ``variable_id`` may also be set (e.g. ``"tas"``). Each HDP
+    station's zarr store bundles many climate variables together (e.g.
+    ``tas``, ``pr``, ``psl``, ``sfcWind``); when ``variable_id`` is set, the
+    data catalog narrows the returned Dataset down to just that variable
+    before it reaches the processor pipeline. If omitted, the full
+    multi-variable Dataset is returned, matching prior behavior.
+
     Parameters
     ----------
     catalog : DataCatalog
@@ -110,6 +117,10 @@ class HDPValidator(ParameterValidator):
            (accepts string or single-item list, rejects multi-item lists)
         2. station_id is optional and can be used to filter within the network
         3. If station_id is provided, all requested station IDs must exist in the catalog
+        4. variable_id is optional; if provided, the returned Dataset for each
+           station is narrowed down to that single variable (existence is
+           checked per-station at retrieval time, since HDP's variable set
+           varies by network and isn't part of the catalog schema)
 
         Multiple network_ids are not allowed to prevent mixing data from
         different networks with potentially different time periods and
@@ -129,6 +140,19 @@ class HDPValidator(ParameterValidator):
             return None
 
         result = super()._is_valid_query(query)
+
+        # variable_id is intentionally excluded from `all_catalog_keys` since
+        # the HDP catalog has no such column and including it would break
+        # `self.catalog.search(**self.all_catalog_keys)` above. Instead, once
+        # the base network_id/station_id search succeeds, thread the original
+        # requested variable_id (if any) through to the validated query so
+        # `DataCatalog.get_data()` can use it to narrow each station's
+        # Dataset down to that single variable.
+        if result is not None:
+            variable_id = query.get("variable_id", UNSET)
+            if variable_id is not UNSET:
+                result["variable_id"] = variable_id
+
         logger.info("HDP query validation result: %s", bool(result))
         return result
 
