@@ -56,14 +56,16 @@ from climakitae.util.utils import read_csv_file, add_crs_to_downscaled_data
 
 
 def _subset_hdp_variable(ds: xr.Dataset, variable_id: str) -> xr.Dataset:
-    """Narrow an HDP station Dataset down to one requested variable.
+    """Narrow an HDP station Dataset down to strictly one requested variable.
 
     Each HDP station zarr bundles many climate variables together (e.g.
     ``tas``, ``pr``, ``psl``, ``sfcWind``) plus a ``_eraqc`` QC-flag sibling
-    for each. This keeps only the requested variable, its QC sibling (if
-    present), and the ``lat``/``lon``/``elevation`` variables that downstream
-    HDP consumers (e.g. local-time conversion) rely on regardless of which
-    climate variable was requested.
+    for each. This keeps only the requested variable itself — its QC
+    sibling and the ``lat``/``lon``/``elevation`` variables are dropped too.
+
+    Note this means processors that need lat/lon off the dataset (e.g.
+    ``convert_to_local_time`` for HDP data) will not work together with
+    variable_id filtering, since those coordinates are removed here.
 
     Parameters
     ----------
@@ -75,7 +77,7 @@ def _subset_hdp_variable(ds: xr.Dataset, variable_id: str) -> xr.Dataset:
     Returns
     -------
     xr.Dataset
-        The Dataset narrowed to the requested variable and essential vars.
+        The Dataset narrowed to only the requested variable.
 
     Raises
     ------
@@ -96,15 +98,7 @@ def _subset_hdp_variable(ds: xr.Dataset, variable_id: str) -> xr.Dataset:
             f"{station_id}. Available variables: {available}"
         )
 
-    keep = [variable_id]
-    qc_var = f"{variable_id}_eraqc"
-    if qc_var in ds.data_vars:
-        keep.append(qc_var)
-    for essential in ("lat", "lon", "elevation"):
-        if essential in ds.data_vars:
-            keep.append(essential)
-
-    return ds[keep]
+    return ds[[variable_id]]
 
 
 class DataCatalog(dict):
