@@ -41,106 +41,226 @@ class TestBiasCorrectStationDataInit:
         assert getattr(proc, "needs_catalog", False) is True
 
 
-class TestBiasCorrectStationDataPreprocessing:
-    """Tests for HadISD preprocessing (_preprocess_hadisd)."""
+class TestPreprocessHDP:
+    """Tests for HDP preprocessing (_preprocess_hdp)."""
 
     def setup_method(self):
         """Set up test fixtures."""
         self.ProcClass = BiasAdjustModelToStation
 
-    def test_preprocess_hadisd_successful(self):
-        """Test HadISD preprocessing with valid input."""
-        import geopandas as gpd
-        from shapely.geometry import Point
-
-        proc = self.ProcClass({"stations": ["KSAC"]})
-
-        # Build a minimal HadISD-like dataset
+    def _build_raw_hdp_dataset(self, station_id="ASOSAWOS_1234", station_name="TEST STATION"):
+        """Build a minimal HDP-like raw dataset with (station, time) dims."""
         times = pd.date_range("2010-01-01", periods=2)
         ds = xr.Dataset(
             {
-                "tas": ("time", [10.0, 11.0]),
-                "latitude": ([], 38.5),
-                "longitude": ([], -121.5),
-                "elevation": ([], 25.0),
+                "tas": (("station", "time"), [[283.15, 284.15]]),
+                "lat": (("station", "time"), [[38.5, 38.5]]),
+                "lon": (("station", "time"), [[-121.5, -121.5]]),
+                "elevation": (("station", "time"), [[25.0, 25.0]]),
+                "pr_eraqc": (("station", "time"), [[0, 0]]),
             },
-            coords={"time": times},
+            coords={"time": times, "station": [station_id]},
         )
-        # Add expected encoding to extract station id
-        ds.encoding["source"] = "s3://somepath/HadISD_1234.zarr"
-        ds.elevation.attrs["units"] = "m"
+        if station_name is not None:
+            ds.attrs["station_name"] = station_name
+        ds["tas"].attrs["units"] = "degree_Kelvin"
+        ds["elevation"].attrs["units"] = "m"
+        return ds
 
-        # Create station metadata GeoDataFrame
-        # Use object dtype for string columns to avoid StringDtype issues in pandas 2.2+
-        stations_gdf = gpd.GeoDataFrame(
-            {
-                "station id": pd.Series([1234], dtype="object"),
-                "station": pd.Series(["KSAC"], dtype="object"),
-                "geometry": [Point(-121.5, 38.5)],
-            }
-        )
+    def test_preprocess_hdp_successful(self):
+        """Test HDP preprocessing with valid input."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
+        ds = self._build_raw_hdp_dataset()
 
-        out = proc._preprocess_hadisd(ds, stations_gdf)
+        out = proc._preprocess_hdp(ds)
 
-        # After preprocessing, station variable name should be present
-        assert "KSAC" in out.data_vars
-        # Units should be converted to Kelvin
-        assert out["KSAC"].attrs.get("units") == "K"
+        # After preprocessing, station display name should be the only data var
+        assert "TEST STATION" in out.data_vars
+        assert list(out.data_vars) == ["TEST STATION"]
+        # Units should already be Kelvin (no conversion needed)
+        assert out["TEST STATION"].attrs.get("units") == "K"
         # Coordinates and elevation attributes set
-        assert out["KSAC"].attrs.get("coordinates") == (38.5, -121.5)
-        assert "m" in str(out["KSAC"].attrs.get("elevation", ""))
-        # Latitude/longitude/elevation variables dropped
-        assert "latitude" not in out.variables
-        assert "longitude" not in out.variables
+        assert out["TEST STATION"].attrs.get("coordinates") == (38.5, -121.5)
+        assert "m" in str(out["TEST STATION"].attrs.get("elevation", ""))
+        # Station dimension and all other variables dropped
+        assert "station" not in out.dims
+        assert "lat" not in out.variables
+        assert "lon" not in out.variables
         assert "elevation" not in out.variables
+        assert "pr_eraqc" not in out.variables
+
+    def test_preprocess_hdp_missing_station_name_falls_back_to_station_id(self):
+        """Test that a missing station_name attribute falls back to station_id."""
+        proc = self.ProcClass({"stations": ["NDBC_9999"]})
+        ds = self._build_raw_hdp_dataset(station_id="NDBC_9999", station_name=None)
+
+        out = proc._preprocess_hdp(ds)
+
+        assert "NDBC_9999" in out.data_vars
+
+    def test_preprocess_hdp_converts_non_kelvin_units(self):
+        """Test that non-Kelvin tas units are converted defensively."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
+        ds = self._build_raw_hdp_dataset()
+        ds["tas"] = ds["tas"] - 273.15
+        ds["tas"].attrs["units"] = "degree_Celsius"
+
+        out = proc._preprocess_hdp(ds)
+
+        assert out["TEST STATION"].values[0] == pytest.approx(283.15)
+        assert out["TEST STATION"].attrs.get("units") == "K"
+
+    def test_preprocess_hdp_missing_tas_raises(self):
+        """Test that a station without a 'tas' variable raises ValueError."""
+        proc = self.ProcClass({"stations": ["CDEC_1"]})
+        times = pd.date_range("2010-01-01", periods=2)
+        ds = xr.Dataset(
+            {"pr": (("station", "time"), [[0.0, 1.0]])},
+            coords={"time": times, "station": ["CDEC_1"]},
+        )
+
+        with pytest.raises(ValueError, match="does not have a 'tas'"):
+            proc._preprocess_hdp(ds)
 
 
-@patch("climakitae.new_core.processors.bias_adjust_model_to_station.xr.open_mfdataset")
-@patch("climakitae.new_core.processors.processor_utils.convert_stations_to_points")
-class TestBiasCorrectStationDataLoading:
+class TestLoadHDPStationData:
     """Tests for loading station data (_load_station_data)."""
 
     def setup_method(self):
         """Set up test fixtures."""
         self.ProcClass = BiasAdjustModelToStation
 
-    def test_load_station_data_single_station(self, mock_convert, mock_open_mf):
-        """Test loading single station data."""
-        proc = self.ProcClass({"stations": ["KSAC"]})
-
-        # Provide a minimal catalog with stations table
-        # Use object dtype for string columns to avoid StringDtype issues in pandas 2.2+
-        proc.catalog = {
-            "stations": pd.DataFrame(
-                {
-                    "station id": pd.Series([1234], dtype="object"),
-                    "station": pd.Series(["KSAC"], dtype="object"),
-                }
-            )
-        }
-
-        # Mock convert_stations_to_points
-        mock_convert.return_value = (
-            None,
-            [
-                {
-                    "station_id_numeric": 1234,
-                    "station_id": "1234",
-                    "station_name": "KSAC",
-                }
-            ],
-        )
-
-        # Mock open_mfdataset to return a simple dataset
+    def _build_raw_hdp_dataset(self, station_id, station_name):
         times = pd.date_range("2010-01-01", periods=2)
-        mock_open_mf.return_value = xr.Dataset(
-            {"KSAC": ("time", [1.0, 2.0])}, coords={"time": times}
+        ds = xr.Dataset(
+            {
+                "tas": (("station", "time"), [[283.15, 284.15]]),
+                "lat": (("station", "time"), [[38.5, 38.5]]),
+                "lon": (("station", "time"), [[-121.5, -121.5]]),
+                "elevation": (("station", "time"), [[25.0, 25.0]]),
+            },
+            coords={"time": times, "station": [station_id]},
+            attrs={"station_name": station_name},
         )
+        ds["tas"].attrs["units"] = "degree_Kelvin"
+        ds["elevation"].attrs["units"] = "m"
+        return ds
+
+    def test_load_station_data_single_station(self):
+        """Test loading single station data from the HDP catalog."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
+
+        hdp_df = pd.DataFrame(
+            {"network_id": ["ASOSAWOS"], "station_id": ["ASOSAWOS_1234"]}
+        )
+        raw_ds = self._build_raw_hdp_dataset("ASOSAWOS_1234", "TEST STATION")
+
+        mock_hdp_catalog = MagicMock()
+        mock_hdp_catalog.df = hdp_df
+        mock_search_result = MagicMock()
+        mock_search_result.to_dataset_dict.return_value = {"key1": raw_ds}
+        mock_hdp_catalog.search.return_value = mock_search_result
+
+        proc.catalog = MagicMock()
+        proc.catalog.hdp = mock_hdp_catalog
 
         station_ds = proc._load_station_data()
 
         assert isinstance(station_ds, xr.Dataset)
-        assert "KSAC" in station_ds.data_vars
+        assert "TEST STATION" in station_ds.data_vars
+        mock_hdp_catalog.search.assert_called_once_with(
+            station_id=["ASOSAWOS_1234"]
+        )
+
+    def test_load_station_data_missing_station_raises(self):
+        """Test that requesting a station not in the catalog raises ValueError."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_9999"]})
+
+        hdp_df = pd.DataFrame(
+            {"network_id": ["ASOSAWOS"], "station_id": ["ASOSAWOS_1234"]}
+        )
+        mock_hdp_catalog = MagicMock()
+        mock_hdp_catalog.df = hdp_df
+
+        proc.catalog = MagicMock()
+        proc.catalog.hdp = mock_hdp_catalog
+
+        with pytest.raises(ValueError, match="not found"):
+            proc._load_station_data()
+
+    def test_load_station_data_multiple_networks_raises(self):
+        """Test that stations spanning multiple HDP networks raise ValueError."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1", "SNOTEL_1"]})
+
+        hdp_df = pd.DataFrame(
+            {
+                "network_id": ["ASOSAWOS", "SNOTEL"],
+                "station_id": ["ASOSAWOS_1", "SNOTEL_1"],
+            }
+        )
+        mock_hdp_catalog = MagicMock()
+        mock_hdp_catalog.df = hdp_df
+
+        proc.catalog = MagicMock()
+        proc.catalog.hdp = mock_hdp_catalog
+
+        with pytest.raises(ValueError, match="same HDP network"):
+            proc._load_station_data()
+
+    def test_load_station_data_translates_airport_code(self):
+        """Test that a legacy airport code is translated to its HDP station_id."""
+        proc = self.ProcClass({"stations": ["KSAC"]})
+
+        legacy_stations_df = pd.DataFrame(
+            {
+                "ID": ["KSAC"],
+                "station": ["Sacramento (KSAC)"],
+                "station id": [72483023225],
+            }
+        )
+        hdp_df = pd.DataFrame(
+            {"network_id": ["ASOSAWOS"], "station_id": ["ASOSAWOS_72483023225"]}
+        )
+        raw_ds = self._build_raw_hdp_dataset("ASOSAWOS_72483023225", "SACRAMENTO EXEC")
+
+        mock_hdp_catalog = MagicMock()
+        mock_hdp_catalog.df = hdp_df
+        mock_search_result = MagicMock()
+        mock_search_result.to_dataset_dict.return_value = {"key1": raw_ds}
+        mock_hdp_catalog.search.return_value = mock_search_result
+
+        proc.catalog = MagicMock()
+        proc.catalog.hdp = mock_hdp_catalog
+        proc.catalog.__getitem__.return_value = legacy_stations_df
+
+        station_ds = proc._load_station_data()
+
+        assert isinstance(station_ds, xr.Dataset)
+        mock_hdp_catalog.search.assert_called_once_with(
+            station_id=["ASOSAWOS_72483023225"]
+        )
+
+    def test_load_station_data_skips_legacy_lookup_for_raw_id(self):
+        """Test that a raw HDP station_id never triggers the legacy lookup."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
+
+        hdp_df = pd.DataFrame(
+            {"network_id": ["ASOSAWOS"], "station_id": ["ASOSAWOS_1234"]}
+        )
+        raw_ds = self._build_raw_hdp_dataset("ASOSAWOS_1234", "TEST STATION")
+
+        mock_hdp_catalog = MagicMock()
+        mock_hdp_catalog.df = hdp_df
+        mock_search_result = MagicMock()
+        mock_search_result.to_dataset_dict.return_value = {"key1": raw_ds}
+        mock_hdp_catalog.search.return_value = mock_search_result
+
+        proc.catalog = MagicMock()
+        proc.catalog.hdp = mock_hdp_catalog
+
+        proc._load_station_data()
+
+        proc.catalog.__getitem__.assert_not_called()
 
 
 class TestBiasCorrectStationDataBiasCorrection:
@@ -293,6 +413,39 @@ class TestBiasCorrectStationDataBiasCorrection:
             12700 <= len(out.time) <= 12800
         )  # Allow flexibility for calendar conversion
 
+    @pytest.mark.advanced
+    def test_bias_correct_model_data_preserves_obs_past_2014(self):
+        """Regression test: obs data extending past 2014-08-31 must not be
+        silently truncated. This was a HadISD-specific hardcoded clip that
+        does not apply to HDP stations, whose coverage can extend much later.
+        """
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
+
+        obs_times = pd.date_range("2010-01-01", "2016-12-31", freq="D")
+        dayofyear = obs_times.dayofyear
+        seasonal_temp = 15 + 10 * np.sin(2 * np.pi * (dayofyear - 80) / 365)
+        np.random.seed(42)
+        obs_values = seasonal_temp + np.random.randn(len(obs_times)) * 2
+
+        obs_da = xr.DataArray(obs_values, dims=("time",), coords={"time": obs_times})
+        obs_da.name = "obs"
+        obs_da.attrs["units"] = "K"
+
+        gr_times = pd.date_range("2010-01-01", "2016-12-31", freq="D")
+        gr_dayofyear = gr_times.dayofyear
+        gr_seasonal_temp = 17 + 10 * np.sin(2 * np.pi * (gr_dayofyear - 80) / 365)
+        np.random.seed(43)
+        gr_values = gr_seasonal_temp + np.random.randn(len(gr_times)) * 2
+
+        gr_da = xr.DataArray(gr_values, dims=("time",), coords={"time": gr_times})
+        gr_da.name = "tas"
+        gr_da.attrs["units"] = "K"
+
+        out = proc._bias_correct_model_data(obs_da, gr_da)
+
+        end_time = pd.Timestamp(out.time.values[-1])
+        assert end_time.year == 2016
+
 
 class TestBiasCorrectStationDataExecution:
     """Tests for main execute method."""
@@ -411,7 +564,7 @@ class TestBiasCorrectStationDataContext:
         The processor should add a 'new_attrs' key to context with attributes
         to be added to the final dataset.
         """
-        context = {"catalog": "hadisd"}
+        context = {"catalog": "hdp"}
 
         self.processor.update_context(context)
 

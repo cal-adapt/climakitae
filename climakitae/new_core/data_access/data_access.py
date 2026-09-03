@@ -55,6 +55,52 @@ from climakitae.new_core.data_access.boundaries import Boundaries
 from climakitae.util.utils import read_csv_file, add_crs_to_downscaled_data
 
 
+def _subset_hdp_variable(ds: xr.Dataset, variable_id: str) -> xr.Dataset:
+    """Narrow an HDP station Dataset down to strictly one requested variable.
+
+    Each HDP station zarr bundles many climate variables together (e.g.
+    ``tas``, ``pr``, ``psl``, ``sfcWind``) plus a ``_eraqc`` QC-flag sibling
+    for each. This keeps only the requested variable itself — its QC
+    sibling and the ``lat``/``lon``/``elevation`` variables are dropped too.
+
+    Note this means processors that need lat/lon off the dataset (e.g.
+    ``convert_to_local_time`` for HDP data) will not work together with
+    variable_id filtering, since those coordinates are removed here.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        A single HDP station Dataset, as returned by ``to_dataset_dict()``.
+    variable_id : str
+        The requested variable name (e.g. ``"tas"``).
+
+    Returns
+    -------
+    xr.Dataset
+        The Dataset narrowed to only the requested variable.
+
+    Raises
+    ------
+    ValueError
+        If `variable_id` is not present in `ds`.
+
+    """
+    if variable_id not in ds.data_vars:
+        available = sorted(
+            v for v in ds.data_vars if not str(v).endswith("_eraqc")
+        )
+        station_id = ds.attrs.get("station_id")
+        if station_id is None and "station_id" in ds.coords:
+            values = ds.coords["station_id"].values
+            station_id = values.item() if values.size == 1 else list(values)
+        raise ValueError(
+            f"Variable '{variable_id}' not found in HDP dataset for station "
+            f"{station_id}. Available variables: {available}"
+        )
+
+    return ds[[variable_id]]
+
+
 class DataCatalog(dict):
     """Thread-safe singleton for managing catalog connections to climate data sources.
 
@@ -499,6 +545,11 @@ class DataCatalog(dict):
         >>> query = {"variable_id": "tas", "experiment_id": "historical"}
         >>> data = catalog.get_data(query, catalog_key="cadcat")
 
+        >>> # HDP queries may also set variable_id to narrow each station's
+        >>> # multi-variable Dataset down to a single requested variable.
+        >>> query = {"network_id": "ASOSAWOS", "variable_id": "tas"}
+        >>> data = catalog.get_data(query, catalog_key="hdp")
+
         """
         # Use provided catalog_key, fall back to deprecated instance attr
         effective_key = catalog_key
@@ -513,9 +564,18 @@ class DataCatalog(dict):
         logger.info("Querying %s catalog", effective_key)
         logger.debug("Query parameters: %s", query)
 
+        # Capture the requested variable_id for HDP post-load filtering (see
+        # below) before stripping it — the HDP catalog has no variable_id
+        # column, so it can't be passed to .search() itself.
+        requested_variable = query.get("variable_id") if effective_key == CATALOG_HDP else None
+
         # Strip internal metadata keys that shouldn't be passed to catalog search
-        # These are used internally for derived variable handling
+        # These are used internally for derived variable handling. variable_id
+        # is also stripped for HDP queries, since the HDP catalog schema has
+        # no such column (only network_id/station_id/path).
         internal_keys = {"_derived_variable", "_source_variables", "_catalog_key"}
+        if effective_key == CATALOG_HDP:
+            internal_keys = internal_keys | {"variable_id"}
         search_query = {k: v for k, v in query.items() if k not in internal_keys}
 
         logger.debug("Querying %s catalog with query: %s", effective_key, search_query)
@@ -562,6 +622,17 @@ class DataCatalog(dict):
             for key in result:
                 result[key] = result[key].rename({"station": "station_id"})
                 logger.debug("Renamed station → station_id for dataset %s", key)
+
+        # For HDP data, narrow each station's multi-variable Dataset down to
+        # the single requested variable_id, if one was given. This must
+        # happen here (post-retrieval) since the HDP catalog schema has no
+        # variable_id column to filter on at .search() time.
+        if effective_key == CATALOG_HDP and requested_variable:
+            for key in result:
+                result[key] = _subset_hdp_variable(result[key], requested_variable)
+                logger.debug(
+                    "Filtered dataset %s to variable_id=%s", key, requested_variable
+                )
 
         # Apply derived variable computation if requested. If the intake-esm
         # registry was attached it may already have computed the derived
