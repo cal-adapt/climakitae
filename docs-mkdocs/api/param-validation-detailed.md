@@ -84,6 +84,16 @@ All validators inherit from the abstract base class:
       docstring_style: numpy
       show_source: true
 
+::: climakitae.new_core.param_validation.derived_variable_param_validator
+    options:
+      docstring_style: numpy
+      show_source: true
+
+::: climakitae.new_core.param_validation.update_attributes_param_validator
+    options:
+      docstring_style: numpy
+      show_source: true
+
 ## Alternative Catalog Validators
 
 ::: climakitae.new_core.param_validation.renewables_param_validator
