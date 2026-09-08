@@ -1295,6 +1295,63 @@ class TestMetricCalcSpatialBatching:
         assert "return_values" in result.data_vars
         assert "points" in result.dims
 
+    @pytest.fixture
+    def single_point_data(self):
+        """Data with exactly one point (below SPATIAL_BATCH_SIZE, so it takes
+        the non-chunked block-maxima path in `_process_simulation_batch`)."""
+        np.random.seed(42)
+        n_time = 365 * 30
+        n_sims = 2
+
+        data = np.random.gumbel(loc=20, scale=5, size=(n_time, n_sims, 1))
+        time_coords = pd.date_range("1990-01-01", periods=n_time, freq="D")
+
+        return xr.DataArray(
+            data,
+            dims=["time", "sim", "points"],
+            coords={
+                "time": time_coords,
+                "sim": ["sim_0", "sim_1"],
+                "points": [0],
+            },
+            name="temperature",
+            attrs={"frequency": "day"},
+        )
+
+    def test_process_batch_single_point_keeps_points_dim(self, single_point_data):
+        """Regression test: a single clipped location has `points` size 1, so
+        a blanket `.squeeze()` on block maxima used to silently drop the
+        `points` dim entirely, which broke every downstream consumer that
+        assumes it exists (e.g. `cava_data`'s `.sizes["points"]` export path)."""
+        processor = MetricCalc(
+            {
+                "one_in_x": {
+                    "return_periods": [10, 100],
+                    "distribution": "gev",
+                    "goodness_of_fit_test": False,
+                    "event_duration": (1, "day"),
+                }
+            }
+        )
+
+        block_maxima_kwargs = {
+            "extremes_type": "max",
+            "check_ess": False,
+            "groupby": (1, "day"),
+        }
+
+        result = processor._process_simulation_batch(
+            single_point_data,
+            block_maxima_kwargs,
+            batch_num=1,
+            total_batches=1,
+        )
+
+        assert isinstance(result, xr.Dataset)
+        assert "return_values" in result.data_vars
+        assert "points" in result.dims
+        assert result.sizes["points"] == 1
+
 
 class TestMetricCalcEventDuration:
     """Test class for event duration configuration in 1-in-X analysis."""

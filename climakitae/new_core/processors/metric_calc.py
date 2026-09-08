@@ -39,6 +39,24 @@ from climakitae.util.utils import add_dummy_time_to_wl
 
 logger = logging.getLogger(__name__)
 
+# Dims that carry meaning even when they happen to have length 1 (e.g. a
+# single clipped location, or a single simulation after model filtering) —
+# block-maxima squeezing must never drop these, or downstream code that
+# expects them (e.g. `.sizes["points"]`) breaks.
+_SQUEEZE_PROTECTED_DIMS = frozenset({"points", "closest_cell", "sim"})
+
+
+def _squeeze_block_maxima(data: xr.DataArray) -> xr.DataArray:
+    """Drop incidental length-1 dims from block maxima without dropping
+    spatial/simulation dims that happen to be length 1 (e.g. a single point
+    or a single surviving model)."""
+    squeeze_dims = [
+        dim
+        for dim, size in data.sizes.items()
+        if size == 1 and dim not in _SQUEEZE_PROTECTED_DIMS
+    ]
+    return data.squeeze(dim=squeeze_dims) if squeeze_dims else data
+
 
 @register_processor("metric_calc", priority=7500)
 class MetricCalc(DataProcessor):
@@ -89,6 +107,10 @@ class MetricCalc(DataProcessor):
           - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
           - variable_preprocessing (dict, optional): Variable-specific preprocessing options
           - check_ess (bool, optional): Check the effective sample size. Default: TRUE
+          - rolling_agg (str, optional): How to aggregate values within the event_duration/grouped_duration
+            window before extracting block extremes. "sustained" (rolling min/max — the value that must hold
+            for the entire window), "cumulative" (rolling/resample sum — e.g. total precipitation over the
+            window), or "average" (rolling/resample mean). Default: "sustained"
 
         Threshold Exceedance Count:
         - thresholds (dict, optional): Configuration for counting timesteps that exceed
@@ -267,6 +289,12 @@ class MetricCalc(DataProcessor):
             "variable_preprocessing", {}
         )
         self.check_ess = self.one_in_x_config.get("check_ess", True)
+        self.rolling_agg = self.one_in_x_config.get("rolling_agg", "sustained")
+        valid_rolling_aggs = ["sustained", "cumulative", "average"]
+        if self.rolling_agg not in valid_rolling_aggs:
+            raise ValueError(
+                f"invalid rolling_agg. expected one of the following: {valid_rolling_aggs}"
+            )
 
         # Confidence interval setting
         alpha = self.one_in_x_config.get("alpha", UNSET)
@@ -1032,6 +1060,7 @@ class MetricCalc(DataProcessor):
             "extremes_type": self.extremes_type,
             "block_size": self.block_size,
             "check_ess": self.check_ess,
+            "rolling_agg": self.rolling_agg,
         }
 
         if self.event_duration == (1, "day"):
@@ -1268,7 +1297,7 @@ class MetricCalc(DataProcessor):
             block_maxima = _get_block_maxima_optimized(
                 batch_data, **block_maxima_kwargs
             )
-            block_maxima = block_maxima.squeeze()
+            block_maxima = _squeeze_block_maxima(block_maxima)
             logger.debug(
                 "Block maxima extraction took %.1fs", time_module.time() - step_start
             )
@@ -1500,7 +1529,7 @@ class MetricCalc(DataProcessor):
             chunk_block_maxima = _get_block_maxima_optimized(
                 chunk_data, **block_maxima_kwargs
             )
-            chunk_block_maxima = chunk_block_maxima.squeeze()
+            chunk_block_maxima = _squeeze_block_maxima(chunk_block_maxima)
 
             # Compute to memory (now it's small: e.g., 10 sims × 2 WL × 30 years × 100 points)
             if hasattr(chunk_block_maxima.data, "compute"):
