@@ -12,7 +12,9 @@ RENEWABLES_CATALOG_URL = (
     "https://wfclimres.s3.amazonaws.com/era/era-ren-collection.json"
 )
 HDP_CATALOG_URL = "https://cadcat.s3.amazonaws.com/histwxstns/era-hdp-collection.json"
-SUP3RCC_CATALOG_URL = "https://cadcat.s3.amazonaws.com/sup3r/nlr-sup3rcc-collection.json"
+SUP3RCC_CATALOG_URL = (
+    "https://cadcat.s3.amazonaws.com/sup3r/nlr-sup3rcc-collection.json"
+)
 
 # S3 scratch bucket for exporting
 EXPORT_S3_BUCKET = "cadcat-tmp"
