@@ -18,7 +18,7 @@ import re
 from pathlib import Path
 
 import numpy as np
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -33,7 +33,7 @@ SITE_DATA = ROOT.parent / "cae-website" / "src" / "data"
 
 # ── Server ─────────────────────────────────────────────────────────────
 
-mcp = FastMCP(
+mcp = MCPServer(
     "climakitae-assistant",
     instructions=(
         "You are a Cal-Adapt climate data code assistant. You help users "
@@ -46,7 +46,7 @@ mcp = FastMCP(
         "3. Consult resource docs for correct API patterns\n"
         "4. Return well-commented Python code the user can copy and run\n\n"
         "RULES:\n"
-        "- Always use: from climakitae.new_core.user_interface import ClimateData\n"
+        "- Always use: from climakitae import ClimateData\n"
         "- WRF variables: t2max, t2min, t2, prec, dew_point (dynamical)\n"
         "- LOCA2 variables: tasmax, tasmin, pr (statistical, CMIP6 naming)\n"
         "- There are three catalogs, each with different required params:\n"
@@ -1180,7 +1180,9 @@ def validate_query(
         invalid_for_catalog = CATALOG_INVALID_PROCESSORS.get(catalog, [])
         for proc in requested:
             if proc in invalid_for_catalog:
-                issues.append(f"Processor '{proc}' is not available for catalog '{catalog}'.")
+                issues.append(
+                    f"Processor '{proc}' is not available for catalog '{catalog}'."
+                )
 
         if "warming_level" in requested and experiment_id:
             warnings.append(
@@ -1387,7 +1389,7 @@ def generate_code(
     2. Add # comments in the generated code citing the methodology rationale
     """
     lines = [
-        "from climakitae.new_core.user_interface import ClimateData",
+        "from climakitae import ClimateData",
         "",
         (
             f"cd = ClimateData(verbosity={verbosity})"
@@ -1434,7 +1436,7 @@ def generate_code(
     if grid_label:
         lines.append(f'    .grid_label("{grid_label}")')
     if variable:
-        lines.append(f'    .variable("{variable}")')
+        lines.append(f'    .variable_id("{variable}")')
 
     # These processors don't apply to the hdp (weather station) catalog
     hdp_query = catalog == "hdp"
@@ -1599,7 +1601,7 @@ Use these prompts with `generate_code` or as direct templates:
 
 Code skeleton:
 
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 cd = ClimateData(verbosity=-1)
 data = (
@@ -1608,7 +1610,7 @@ data = (
       .institution_id("UCLA")
       .table_id("day")
       .grid_label("d03")
-      .variable("t2")
+      .variable_id("t2")
       .processes({
           "warming_level": {"warming_levels": [1.5, 2.0]},
           "clip": "Los Angeles County",

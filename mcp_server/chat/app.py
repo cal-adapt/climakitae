@@ -252,7 +252,7 @@ MULTIPLE REGIONS: When user asks about multiple counties/cities, use semicolons 
   clip="Los Angeles;Sacramento;San Francisco"
 
 KEY RULES:
-- Always use: from climakitae.new_core.user_interface import ClimateData
+- Always use: from climakitae import ClimateData
 - WRF uses dynamical downscaling: variables are t2max, t2min, t2, prec, dew_point
 - LOCA2 uses statistical downscaling: variables are tasmax, tasmin, pr (CMIP6 naming)
 - Never mix WRF variables with LOCA2 activity_id (or vice versa)

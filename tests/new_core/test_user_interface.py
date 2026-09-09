@@ -170,14 +170,14 @@ class TestClimateDataParameterSetters:
 
     def test_variable_valid(self):
         """Test variable setter with valid input."""
-        result = self.climate_data.variable("tasmax")
+        result = self.climate_data.variable_id("tasmax")
         assert self.climate_data._query["variable_id"] == "tasmax"
         assert result is self.climate_data
 
     def test_variable_invalid(self):
         """Test variable setter with invalid input."""
         try:
-            self.climate_data.variable("")
+            self.climate_data.variable_id("")
             assert False, "Should have raised ValueError"
         except ValueError as e:
             assert "Variable must be a non-empty string" in str(e)
@@ -492,7 +492,7 @@ class TestClimateDataChaining:
         """Test that methods can be chained together."""
         result = (
             self.climate_data.catalog("climate")
-            .variable("tas")
+            .variable_id("tas")
             .table_id("day")
             .grid_label("d03")
         )
