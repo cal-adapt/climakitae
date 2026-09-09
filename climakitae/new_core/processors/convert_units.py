@@ -60,10 +60,13 @@ UNIT_CONVERSIONS = {
     ("K", "degF"): lambda da: (1.8 * (da - 273.15)) + 32,
     ("degC", "K"): lambda da: da + 273.15,
     ("degC", "degF"): lambda da: (1.8 * da) + 32,
+    ("C", "K"): lambda da: da + 273.15,
+    ("C", "degF"): lambda da: (1.8 * da) + 32,
     ("degF", "degC"): lambda da: (da - 32) / 1.8,
     ("degF", "K"): lambda da: ((da - 32) / 1.8) + 273.15,
     # Relative humidity
     ("[0 to 100]", "fraction"): lambda da: da / 100.0,
+    ("%", "fraction"): lambda da: da / 100.0,
 }
 
 
@@ -235,6 +238,8 @@ class ConvertUnits(DataProcessor):
         """
         try:
             var = list(data.data_vars.keys())[0]
+            if var == "crs": # May grab crs for Sup3rCC data
+                var = list(data.data_vars.keys())[1]
             units_from = data.data_vars[var].attrs[
                 "units"
             ]  # Trying to get an error if the units attribute does not exist

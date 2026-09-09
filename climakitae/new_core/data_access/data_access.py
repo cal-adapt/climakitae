@@ -39,6 +39,7 @@ from climakitae.core.constants import (
     CATALOG_CADCAT,
     CATALOG_HDP,
     CATALOG_REN_ENERGY_GEN,
+    CATALOG_SUP3RCC,
     UNSET,
 )
 
@@ -50,6 +51,7 @@ from climakitae.core.paths import (
     HADISD_STATIONS_URL,
     HDP_CATALOG_URL,
     RENEWABLES_CATALOG_URL,
+    SUP3RCC_CATALOG_URL,
 )
 from climakitae.new_core.data_access.boundaries import Boundaries
 from climakitae.util.utils import read_csv_file, add_crs_to_downscaled_data
@@ -173,6 +175,10 @@ class DataCatalog(dict):
             )
             self[CATALOG_BOUNDARY] = intake.open_catalog(BOUNDARY_CATALOG_URL)
             try:
+                self[CATALOG_SUP3RCC] = intake.open_esm_datastore(SUP3RCC_CATALOG_URL)#, registry=self._derived_registry) #TODO update
+            except Exception as e:
+                logger.warning("Failed to load Sup3rCC catalog: %s. Sup3rCC data will be unavailable.")
+            try:
                 self[CATALOG_REN_ENERGY_GEN] = intake.open_esm_datastore(
                     RENEWABLES_CATALOG_URL, registry=self._derived_registry
                 )
@@ -268,6 +274,23 @@ class DataCatalog(dict):
         return catalog
 
     @property
+    def sup3rcc(self) -> intake_esm.core.esm_datastore:
+        """Access Sup3rCC catalog.
+
+        Returns
+        -------
+        intake_esm.core.esm_datastore
+            The main climate data catalog.
+
+        """
+        catalog = self[CATALOG_SUP3RCC]
+        if catalog is None:
+            raise RuntimeError(
+                "Sup3rCC catalog failed to load during initialization and is unavailable."
+            )
+        return catalog
+
+    @property
     def boundaries(self) -> Boundaries:
         """Access boundaries data with lazy loading (thread-safe).
 
@@ -334,6 +357,10 @@ class DataCatalog(dict):
             hdp_df = self.hdp.df
             hdp_df["catalog"] = CATALOG_HDP
             dfs.append(hdp_df)
+        if self[CATALOG_SUP3RCC] is not None:
+            sup3rcc_df = self.sup3rcc.df
+            sup3rcc_df["catalog"] = CATALOG_SUP3RCC
+            dfs.append(sup3rcc_df)
 
         ret = pd.concat(dfs, ignore_index=True)
 
