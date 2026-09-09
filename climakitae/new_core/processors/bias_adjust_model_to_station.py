@@ -224,11 +224,6 @@ class BiasAdjustModelToStation(DataProcessor):
             If the station does not have a 'tas' (temperature) variable.
         """
         station_id = str(ds["station"].values.item())
-
-        import pdb
-
-        pdb.set_trace()
-
         if "tas" not in ds.data_vars:
             raise ValueError(
                 f"HDP station '{station_id}' does not have a 'tas' (temperature) "

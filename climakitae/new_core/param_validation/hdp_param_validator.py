@@ -24,12 +24,13 @@ class HDPValidator(ParameterValidator):
     to prevent mixing data from different weather station networks, which
     may have different time periods and data characteristics.
 
-    An optional ``variable_id`` may also be set (e.g. ``"tas"``). Each HDP
-    station's zarr store bundles many climate variables together (e.g.
-    ``tas``, ``pr``, ``psl``, ``sfcWind``); when ``variable_id`` is set, the
-    data catalog narrows the returned Dataset down to just that variable
-    before it reaches the processor pipeline. If omitted, the full
-    multi-variable Dataset is returned, matching prior behavior.
+    An optional ``variable_id`` may also be set, restricted to ``"tas"`` or
+    ``"tdps"``. Each HDP station's zarr store bundles many climate variables
+    together (e.g. ``tas``, ``pr``, ``psl``, ``sfcWind``, ``tdps``); when
+    ``variable_id`` is set, the data catalog narrows the returned Dataset
+    down to just that variable before it reaches the processor pipeline. If
+    omitted, the full multi-variable Dataset is returned, matching prior
+    behavior.
 
     Parameters
     ----------
@@ -44,6 +45,11 @@ class HDPValidator(ParameterValidator):
         Required query parameters with default values
 
     """
+
+    #: variable_id values accepted for HDP queries. Every HDP zarr bundles
+    #: several climate variables together, but only these are currently
+    #: exposed for direct querying; expand deliberately if more are needed.
+    ALLOWED_VARIABLES = {"tas", "tdps"}
 
     def __init__(self, catalog: DataCatalog):
         """Initialize with catalog of historical data platform datasets.
@@ -117,10 +123,11 @@ class HDPValidator(ParameterValidator):
            (accepts string or single-item list, rejects multi-item lists)
         2. station_id is optional and can be used to filter within the network
         3. If station_id is provided, all requested station IDs must exist in the catalog
-        4. variable_id is optional; if provided, the returned Dataset for each
-           station is narrowed down to that single variable (existence is
-           checked per-station at retrieval time, since HDP's variable set
-           varies by network and isn't part of the catalog schema)
+        4. variable_id is optional; if provided, it must be one of
+           `ALLOWED_VARIABLES` (``"tas"`` or ``"tdps"``), and the returned
+           Dataset for each station is narrowed down to that single variable
+           (existence on a given station is checked at retrieval time, since
+           not every network carries every allowed variable)
 
         Multiple network_ids are not allowed to prevent mixing data from
         different networks with potentially different time periods and
@@ -134,6 +141,7 @@ class HDPValidator(ParameterValidator):
             self._check_network_id_required(query),
             self._check_station_ids_exist(query),
             self._check_query_invalid_processors(query),
+            self._check_variable_id_allowed(query),
         ]
         if not all(initial_checks):
             logger.warning("Initial validation checks failed")
@@ -174,6 +182,34 @@ class HDPValidator(ParameterValidator):
             if processor in self.invalid_processors:
                 logger.warning("Invalid processor for HDP data: %s", processor)
                 return False
+        return True
+
+    def _check_variable_id_allowed(self, query: Dict[str, Any]) -> bool:
+        """Check that variable_id, if provided, is an allowed value.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The query to check.
+
+        Returns
+        -------
+        bool
+            True if variable_id is absent or allowed, False otherwise.
+
+        """
+        variable_id = query.get("variable_id", UNSET)
+        if variable_id is UNSET:
+            return True
+
+        if variable_id not in self.ALLOWED_VARIABLES:
+            msg = (
+                f"variable_id '{variable_id}' is not supported for HDP queries. "
+                f"Allowed values: {sorted(self.ALLOWED_VARIABLES)}."
+            )
+            logger.warning(msg)
+            return False
+
         return True
 
     def _check_network_id_required(self, query: Dict[str, Any]) -> bool:
