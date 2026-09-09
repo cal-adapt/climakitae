@@ -731,7 +731,7 @@ class TMY:
             .institution_id("UCLA")
             .table_id(table_id)
             .grid_label("d03")
-            .variable(variable_id)
+            .variable_id(variable_id)
         )
 
         processes = {

@@ -13,7 +13,7 @@ cd = ClimateData()
 data = (cd
     .catalog("cadcat")
     .activity_id("LOCA2")
-    .variable("tasmax")
+    .variable_id("tasmax")
     .table_id("mon")
     .grid_label("d03")
     .processes({"clip": "Los Angeles County"})
@@ -23,7 +23,7 @@ data = (cd
 data = (cd
     .catalog("cadcat")
     .activity_id("LOCA2")
-    .variable("tasmax")
+    .variable_id("tasmax")
     .table_id("mon")
     .grid_label("d03")
     .processes({"clip": ["Alameda County", "Contra Costa County", "Santa Clara County"]})
@@ -54,7 +54,7 @@ cd.show_boundary_options("ca_counties")  # All California counties
 data = (cd
     .catalog("cadcat")
     .activity_id("LOCA2")
-    .variable("tasmax")
+    .variable_id("tasmax")
     .table_id("day")
     .grid_label("d03")
     .processes({"clip": (37.7749, -122.4194)})  # San Francisco
@@ -77,7 +77,7 @@ locations = [
 data = (cd
     .catalog("cadcat")
     .activity_id("LOCA2")
-    .variable("tasmax")
+    .variable_id("tasmax")
     .table_id("day")
     .grid_label("d03")
     .processes({"clip": locations})
@@ -97,7 +97,7 @@ sd_data = data.isel(closest_cell=2)
 data = (cd
     .catalog("cadcat")
     .activity_id("LOCA2")
-    .variable("tasmax")
+    .variable_id("tasmax")
     .table_id("mon")
     .grid_label("d03")
     .processes({
@@ -117,7 +117,7 @@ data_subset = data.sel(lat=slice(34.5, 35.5), lon=slice(-120.5, -119.5))
 data = (cd
     .catalog("cadcat")
     .activity_id("LOCA2")
-    .variable("tasmax")
+    .variable_id("tasmax")
     .table_id("mon")
     .grid_label("d03")
     .processes({
@@ -132,7 +132,7 @@ spatial_mean = data["tasmax"].mean(dim=["lat", "lon"]).compute()
 data_full = (cd
     .catalog("cadcat")
     .activity_id("LOCA2")
-    .variable("tasmax")
+    .variable_id("tasmax")
     .table_id("mon")
     .grid_label("d03")
     .get())

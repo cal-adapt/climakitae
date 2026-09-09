@@ -103,7 +103,7 @@ class DatasetFactory:
     Creating a basic dataset:
 
     >>> factory = DatasetFactory()
-    >>> query = {'data_type': 'gridded', 'variable': 'precipitation'}
+    >>> query = {'data_type': 'gridded', 'variable_id': 'precipitation'}
     >>> dataset = factory.create_dataset(query)
 
     Registering custom components:

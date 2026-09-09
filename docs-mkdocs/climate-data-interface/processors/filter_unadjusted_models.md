@@ -59,14 +59,14 @@ from climakitae.new_core.user_interface import ClimateData
 # Default: drop unadjusted models
 data = (ClimateData()
     .catalog("cadcat").activity_id("WRF").institution_id("UCLA")
-    .variable("t2max").table_id("day").grid_label("d03")
+    .variable_id("t2max").table_id("day").grid_label("d03")
     .processes({"filter_unadjusted_models": "yes"})
     .get())
 
 # Opt out: keep all models (warning logged)
 data_all = (ClimateData()
     .catalog("cadcat").activity_id("WRF").institution_id("UCLA")
-    .variable("t2max").table_id("day").grid_label("d03")
+    .variable_id("t2max").table_id("day").grid_label("d03")
     .processes({"filter_unadjusted_models": "no"})
     .get())
 ```

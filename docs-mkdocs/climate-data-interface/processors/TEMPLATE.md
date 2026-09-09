@@ -61,7 +61,7 @@ from climakitae.new_core.user_interface import ClimateData
 data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
-    .variable("t2max")
+    .variable_id("t2max")
     .table_id("mon")
     .grid_label("d03")
     .processes({

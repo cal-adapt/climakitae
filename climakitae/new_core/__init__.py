@@ -20,7 +20,7 @@ Example
 >>> from climakitae.new_core.user_interface import ClimateData
 >>> data = (ClimateData()
 ...         .catalog("cadcat")
-...         .variable("tasmax")
+...         .variable_id("tasmax")
 ...         .experiment("ssp245")
 ...         .get())
 

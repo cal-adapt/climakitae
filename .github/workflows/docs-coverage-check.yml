@@ -1,0 +1,81 @@
+name: docs-coverage-check
+
+on:
+    pull_request:
+        paths:
+            - "climakitae/**/*.py"
+    workflow_dispatch:
+
+permissions:
+    pull-requests: write
+
+jobs:
+    check-coverage:
+        name: Check for modules missing from docs-mkdocs
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Compare source modules against docs-mkdocs references
+              run: |
+                  # Modules with a top-level def/class, excluding tests, __init__,
+                  # and files that are auto-generated / dev-only / not public API.
+                  find climakitae -name "*.py" \
+                      ! -path "*/tests/*" \
+                      ! -name "__init__.py" \
+                      ! -name "_version.py" \
+                      ! -name "template.py" \
+                      ! -name "dev_logging.py" \
+                      ! -name "generate_gwl_*.py" \
+                      -exec grep -lE '^(def |class )' {} \; \
+                      | sed 's/\.py$//; s/\//./g' | sort -u > source_modules.txt
+
+                  # Modules referenced anywhere via a mkdocstrings ":::" directive
+                  grep -rhoE '^\s*:::\s*[A-Za-z0-9_.]+' docs-mkdocs --include='*.md' \
+                      | awk '{print $2}' | sort -u > documented_refs.txt
+
+                  # Some modules (e.g. the processors) are documented as hand-written
+                  # narrative pages instead of via "::: ", named after the module itself.
+                  find docs-mkdocs -name "*.md" -exec basename {} .md \; | sort -u > documented_basenames.txt
+
+                  echo "### 📋 Docs coverage check" > comment.md
+
+                  missing=0
+                  while read -r mod; do
+                      base="${mod##*.}"
+                      if grep -qE "^${mod}(\.|$)" documented_refs.txt; then
+                          continue
+                      fi
+                      if grep -qxF "$base" documented_basenames.txt; then
+                          continue
+                      fi
+                      if [ "$missing" -eq 0 ]; then
+                          echo "" >> comment.md
+                          echo "These modules aren't covered anywhere in the [docs site](https://cal-adapt.github.io/climakitae/) yet:" >> comment.md
+                          echo "" >> comment.md
+                      fi
+                      echo "- \`$mod\`" >> comment.md
+                      missing=$((missing + 1))
+                  done < source_modules.txt
+
+                  if [ "$missing" -eq 0 ]; then
+                      echo "" >> comment.md
+                      echo "All public climakitae modules are covered in the docs site." >> comment.md
+                  else
+                      echo "" >> comment.md
+                      echo "If this is public API, add it to a page in \`docs-mkdocs/\` (an \`::: module.path\` line, or a narrative page). If it's not meant to be public, add it to the exclude list in \`.github/workflows/docs-coverage-check.yml\`." >> comment.md
+                      echo "" >> comment.md
+                      echo "_Report-only — this does not block the PR._" >> comment.md
+                  fi
+
+                  cat comment.md
+
+            - name: Post/update PR comment
+              if: github.event_name == 'pull_request'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  gh pr comment "${{ github.event.pull_request.number }}" \
+                      --repo "${{ github.repository }}" \
+                      --body-file comment.md \
+                      --edit-last --create-if-none
