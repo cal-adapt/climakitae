@@ -54,7 +54,7 @@ from climakitae.core.paths import (
     SUP3RCC_CATALOG_URL,
 )
 from climakitae.new_core.data_access.boundaries import Boundaries
-from climakitae.util.utils import read_csv_file, add_crs_to_downscaled_data
+from climakitae.util.utils import add_crs_to_downscaled_data, read_csv_file
 
 
 class DataCatalog(dict):
@@ -689,8 +689,8 @@ class DataCatalog(dict):
             # or from the registry metadata as a fallback.
             try:
                 from climakitae.new_core.derived_variables.registry import (
-                    preserve_spatial_metadata,
                     get_derived_variable_info,
+                    preserve_spatial_metadata,
                 )
 
                 source_vars_from_query = query.get("_source_variables") or []
