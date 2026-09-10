@@ -176,12 +176,14 @@ class DataCatalog(dict):
             self[CATALOG_BOUNDARY] = intake.open_catalog(BOUNDARY_CATALOG_URL)
             try:
                 self[CATALOG_SUP3RCC] = intake.open_esm_datastore(
-                    SUP3RCC_CATALOG_URL
-                )  # , registry=self._derived_registry) #TODO update
+                    SUP3RCC_CATALOG_URL, registry=self._derived_registry
+                )
             except Exception as e:
                 logger.warning(
-                    "Failed to load Sup3rCC catalog: %s. Sup3rCC data will be unavailable."
+                    "Failed to load Sup3rCC catalog: %s. Sup3rCC data will be unavailable.",
+                    e,
                 )
+                self[CATALOG_SUP3RCC] = None
             try:
                 self[CATALOG_REN_ENERGY_GEN] = intake.open_esm_datastore(
                     RENEWABLES_CATALOG_URL, registry=self._derived_registry

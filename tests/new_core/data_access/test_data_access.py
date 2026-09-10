@@ -17,12 +17,14 @@ from climakitae.core.paths import (
     DATA_CATALOG_URL,
     HDP_CATALOG_URL,
     RENEWABLES_CATALOG_URL,
+    SUP3RCC_CATALOG_URL,
 )
 from climakitae.new_core.data_access.data_access import (
     CATALOG_BOUNDARY,
     CATALOG_CADCAT,
     CATALOG_HDP,
     CATALOG_REN_ENERGY_GEN,
+    CATALOG_SUP3RCC,
     UNSET,
     DataCatalog,
     _get_closest_options,
@@ -138,12 +140,13 @@ class TestDataCatalogInitialization:
 
         # Intake functions called with expected args
         # Note: cadcat and renewables get registry= kwarg, HDP does not
-        assert mock_open_esm.call_count == 3
+        assert mock_open_esm.call_count == 4
         # Extract just the URL from each call (first positional arg)
         call_urls = [call.args[0] for call in mock_open_esm.call_args_list]
         assert DATA_CATALOG_URL in call_urls
         assert RENEWABLES_CATALOG_URL in call_urls
         assert HDP_CATALOG_URL in call_urls
+        assert SUP3RCC_CATALOG_URL in call_urls
         mock_open_catalog.assert_called_once_with(BOUNDARY_CATALOG_URL)
 
     def test_contains_expected_catalog_keys(self, mock_data_catalog_and_objs: Tuple):
@@ -185,7 +188,7 @@ class TestDataCatalogInitialization:
 
         assert isinstance(df, pd.DataFrame)
         assert set(df["catalog"].unique()).issubset(
-            [CATALOG_REN_ENERGY_GEN, CATALOG_CADCAT, CATALOG_HDP]
+            [CATALOG_REN_ENERGY_GEN, CATALOG_CADCAT, CATALOG_HDP, CATALOG_SUP3RCC]
         )
 
     def test_initialized_state(self, mock_data_catalog_and_objs: Tuple):
@@ -426,13 +429,19 @@ class TestDataCatalogCatalogLoadFailures:
         _, mock_boundary_catalog, _, mock_stations_df = make_mock_objects()
 
         # Give each catalog its own mock so merge_catalogs doesn't mutate a shared df
-        mock_cadcat, mock_renewables = make_mock_objects()[0], make_mock_objects()[0]
+        mock_cadcat, mock_renewables, mock_sup3rcc = (
+            make_mock_objects()[0],
+            make_mock_objects()[0],
+            make_mock_objects()[0],
+        )
 
         def open_esm_side_effect(url, **kwargs):
             if url == HDP_CATALOG_URL:
                 raise Exception("Simulated HDP catalog load failure")
             elif url == RENEWABLES_CATALOG_URL:
                 return mock_renewables
+            elif url == SUP3RCC_CATALOG_URL:
+                return mock_sup3rcc
             return mock_cadcat
 
         with (
@@ -460,13 +469,59 @@ class TestDataCatalogCatalogLoadFailures:
         _, mock_boundary_catalog, _, mock_stations_df = make_mock_objects()
 
         # Give each catalog its own mock so merge_catalogs doesn't mutate a shared df
-        mock_cadcat, mock_hdp = make_mock_objects()[0], make_mock_objects()[0]
+        mock_cadcat, mock_hdp, mock_sup3rcc = (
+            make_mock_objects()[0],
+            make_mock_objects()[0],
+            make_mock_objects()[0],
+        )
 
         def open_esm_side_effect(url, **kwargs):
             if url == RENEWABLES_CATALOG_URL:
                 raise Exception("Simulated renewables catalog load failure")
             elif url == HDP_CATALOG_URL:
                 return mock_hdp
+            elif url == SUP3RCC_CATALOG_URL:
+                return mock_sup3rcc
+            return mock_cadcat
+
+        with (
+            patch(
+                "climakitae.new_core.data_access.data_access.intake.open_esm_datastore",
+                side_effect=open_esm_side_effect,
+            ),
+            patch(
+                "climakitae.new_core.data_access.data_access.intake.open_catalog",
+                return_value=mock_boundary_catalog,
+            ),
+            patch(
+                "climakitae.new_core.data_access.data_access.read_csv_file",
+                return_value=mock_stations_df,
+            ),
+        ):
+            DataCatalog._instance = UNSET
+            yield DataCatalog()
+            # Reset after test so a None-catalog instance doesn't leak into other tests
+            DataCatalog._instance = UNSET
+
+    @pytest.fixture
+    def catalog_with_sup3rcc_failure(self):
+        """DataCatalog where the sup3rcc catalog raises on load."""
+        _, mock_boundary_catalog, _, mock_stations_df = make_mock_objects()
+
+        # Give each catalog its own mock so merge_catalogs doesn't mutate a shared df
+        mock_cadcat, mock_hdp, mock_renewables = (
+            make_mock_objects()[0],
+            make_mock_objects()[0],
+            make_mock_objects()[0],
+        )
+
+        def open_esm_side_effect(url, **kwargs):
+            if url == SUP3RCC_CATALOG_URL:
+                raise Exception("Simulated sup3rcc catalog load failure")
+            elif url == HDP_CATALOG_URL:
+                return mock_hdp
+            elif url == RENEWABLES_CATALOG_URL:
+                return mock_renewables
             return mock_cadcat
 
         with (
@@ -513,6 +568,7 @@ class TestDataCatalogCatalogLoadFailures:
         df = catalog_with_hdp_failure.catalog_df
         assert CATALOG_CADCAT in df["catalog"].values
         assert CATALOG_REN_ENERGY_GEN in df["catalog"].values
+        assert CATALOG_SUP3RCC in df["catalog"].values
 
     def test_renewables_failure_still_initializes(
         self, catalog_with_renewables_failure
@@ -545,3 +601,33 @@ class TestDataCatalogCatalogLoadFailures:
         df = catalog_with_renewables_failure.catalog_df
         assert CATALOG_CADCAT in df["catalog"].values
         assert CATALOG_HDP in df["catalog"].values
+        assert CATALOG_SUP3RCC in df["catalog"].values
+
+    def test_sup3rcc_failure_still_initializes(self, catalog_with_sup3rcc_failure):
+        """DataCatalog should initialize successfully even if sup3rcc catalog fails to load."""
+        assert catalog_with_sup3rcc_failure._initialized is True
+
+    def test_sup3rcc_failure_sets_none(self, catalog_with_sup3rcc_failure):
+        """Sup3rCC catalog entry should be None when it fails to load."""
+        assert catalog_with_sup3rcc_failure[CATALOG_SUP3RCC] is None
+
+    def test_sup3rcc_property_raises_when_none(self, catalog_with_sup3rcc_failure):
+        """The .sup3rcc property should raise RuntimeError when the catalog failed to load."""
+        with pytest.raises(RuntimeError, match="Sup3rCC catalog failed to load"):
+            _ = catalog_with_sup3rcc_failure.sup3rcc
+
+    def test_sup3rcc_failure_catalog_df_excludes_sup3rcc(
+        self, catalog_with_sup3rcc_failure
+    ):
+        """catalog_df should not include renewables rows when sup3rcc failed to load."""
+        df = catalog_with_sup3rcc_failure.catalog_df
+        assert CATALOG_SUP3RCC not in df["catalog"].values
+
+    def test_sup3rcc_failure_catalog_df_includes_other_catalogs(
+        self, catalog_with_sup3rcc_failure
+    ):
+        """catalog_df should still include cadcat, renewables, and HDP rows when sup3rcc failed."""
+        df = catalog_with_sup3rcc_failure.catalog_df
+        assert CATALOG_CADCAT in df["catalog"].values
+        assert CATALOG_HDP in df["catalog"].values
+        assert CATALOG_REN_ENERGY_GEN in df["catalog"].values
