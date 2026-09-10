@@ -48,7 +48,9 @@ class TestPreprocessHDP:
         """Set up test fixtures."""
         self.ProcClass = BiasAdjustModelToStation
 
-    def _build_raw_hdp_dataset(self, station_id="ASOSAWOS_1234", station_name="TEST STATION"):
+    def _build_raw_hdp_dataset(
+        self, station_id="ASOSAWOS_1234", station_name="TEST STATION"
+    ):
         """Build a minimal HDP-like raw dataset with (station, time) dims."""
         times = pd.date_range("2010-01-01", periods=2)
         ds = xr.Dataset(
@@ -168,9 +170,7 @@ class TestLoadHDPStationData:
 
         assert isinstance(station_ds, xr.Dataset)
         assert "TEST STATION" in station_ds.data_vars
-        mock_hdp_catalog.search.assert_called_once_with(
-            station_id=["ASOSAWOS_1234"]
-        )
+        mock_hdp_catalog.search.assert_called_once_with(station_id=["ASOSAWOS_1234"])
 
     def test_load_station_data_missing_station_raises(self):
         """Test that requesting a station not in the catalog raises ValueError."""

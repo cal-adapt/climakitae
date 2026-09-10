@@ -86,9 +86,7 @@ def _subset_hdp_variable(ds: xr.Dataset, variable_id: str) -> xr.Dataset:
 
     """
     if variable_id not in ds.data_vars:
-        available = sorted(
-            v for v in ds.data_vars if not str(v).endswith("_eraqc")
-        )
+        available = sorted(v for v in ds.data_vars if not str(v).endswith("_eraqc"))
         station_id = ds.attrs.get("station_id")
         if station_id is None and "station_id" in ds.coords:
             values = ds.coords["station_id"].values
@@ -567,7 +565,9 @@ class DataCatalog(dict):
         # Capture the requested variable_id for HDP post-load filtering (see
         # below) before stripping it — the HDP catalog has no variable_id
         # column, so it can't be passed to .search() itself.
-        requested_variable = query.get("variable_id") if effective_key == CATALOG_HDP else None
+        requested_variable = (
+            query.get("variable_id") if effective_key == CATALOG_HDP else None
+        )
 
         # Strip internal metadata keys that shouldn't be passed to catalog search
         # These are used internally for derived variable handling. variable_id
