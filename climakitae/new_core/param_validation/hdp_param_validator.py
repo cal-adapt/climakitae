@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-from climakitae.core.constants import CATALOG_HDP, UNSET
+from climakitae.core.constants import CATALOG_HDP, PROC_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     ParameterValidator,
@@ -28,9 +28,17 @@ class HDPValidator(ParameterValidator):
     ``"tdps"``. Each HDP station's zarr store bundles many climate variables
     together (e.g. ``tas``, ``pr``, ``psl``, ``sfcWind``, ``tdps``); when
     ``variable_id`` is set, the data catalog narrows the returned Dataset
-    down to just that variable before it reaches the processor pipeline. If
-    omitted, the full multi-variable Dataset is returned, matching prior
-    behavior.
+    down to just that variable (plus lat/lon/elevation) before it reaches
+    the processor pipeline. If omitted, the full multi-variable Dataset is
+    returned, matching prior behavior.
+
+    Some processors (``convert_units``, ``metric_calc``) require a single
+    unambiguous variable to operate on and are only allowed once
+    ``variable_id`` has been set; others (``localize``, ``clip``,
+    ``bias_adjust_model_to_station``, ``filter_unadjusted_models``,
+    ``warming_level``) are always disallowed for HDP queries regardless of
+    ``variable_id``, since they're structurally incompatible with point
+    station data or model-warming-level metadata.
 
     Parameters
     ----------
@@ -51,6 +59,12 @@ class HDPValidator(ParameterValidator):
     #: exposed for direct querying; expand deliberately if more are needed.
     ALLOWED_VARIABLES = {"tas", "tdps"}
 
+    #: Processors that are only meaningful once a query has been narrowed to
+    #: exactly one variable_id, since they operate on a single named
+    #: variable and can't disambiguate which one to act on when the full
+    #: multi-variable HDP Dataset is returned.
+    VARIABLE_SCOPED_PROCESSORS = ["convert_units", "metric_calc"]
+
     def __init__(self, catalog: DataCatalog):
         """Initialize with catalog of historical data platform datasets.
 
@@ -69,10 +83,8 @@ class HDPValidator(ParameterValidator):
         self.invalid_processors = [
             "localize",
             "clip",
-            "convert_units",
             "bias_adjust_model_to_station",
             "filter_unadjusted_models",
-            "metric_calc",
             "warming_level",
         ]
         logger.debug("HDPValidator initialized for hdp catalog")
@@ -128,6 +140,9 @@ class HDPValidator(ParameterValidator):
            Dataset for each station is narrowed down to that single variable
            (existence on a given station is checked at retrieval time, since
            not every network carries every allowed variable)
+        5. `VARIABLE_SCOPED_PROCESSORS` (``convert_units``, ``metric_calc``)
+           are only allowed once variable_id has been set; requesting one of
+           them without variable_id fails validation
 
         Multiple network_ids are not allowed to prevent mixing data from
         different networks with potentially different time periods and
@@ -142,6 +157,7 @@ class HDPValidator(ParameterValidator):
             self._check_station_ids_exist(query),
             self._check_query_invalid_processors(query),
             self._check_variable_id_allowed(query),
+            self._check_variable_scoped_processors(query),
         ]
         if not all(initial_checks):
             logger.warning("Initial validation checks failed")
@@ -178,10 +194,53 @@ class HDPValidator(ParameterValidator):
             True if the query does not contain invalid processors, False otherwise.
 
         """
-        for processor in query.get("processors", []):
+        for processor in query.get(PROC_KEY, {}):
             if processor in self.invalid_processors:
                 logger.warning("Invalid processor for HDP data: %s", processor)
                 return False
+        return True
+
+    def _check_variable_scoped_processors(self, query: Dict[str, Any]) -> bool:
+        """Check that variable-scoped processors are only used with variable_id set.
+
+        `VARIABLE_SCOPED_PROCESSORS` (``convert_units``, ``metric_calc``)
+        operate on a single named variable, so they can't disambiguate
+        which variable to act on unless the query has already been narrowed
+        to one via `variable_id`.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The query to check.
+
+        Returns
+        -------
+        bool
+            True if no variable-scoped processor is requested without
+            variable_id set, False otherwise.
+
+        """
+        requested_processors = query.get(PROC_KEY, {})
+        variable_id = query.get("variable_id", UNSET)
+
+        if variable_id is not UNSET:
+            return True
+
+        offending = [
+            processor
+            for processor in requested_processors
+            if processor in self.VARIABLE_SCOPED_PROCESSORS
+        ]
+        if offending:
+            msg = (
+                f"Processor(s) {sorted(offending)} require a single variable_id "
+                f"to be set on HDP queries (e.g. .variable_id('tas')), since "
+                f"they can't operate on the full multi-variable Dataset "
+                f"returned when variable_id is omitted."
+            )
+            logger.warning(msg)
+            return False
+
         return True
 
     def _check_variable_id_allowed(self, query: Dict[str, Any]) -> bool:
