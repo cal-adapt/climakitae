@@ -36,7 +36,7 @@ The processor takes a **dict**:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `stations` | `list[str]` | `[]` | HDP station identifiers to bias-correct against — bare `station_id` values (e.g. `"ASOSAWOS_69007093217"`) or `"network_id:station_id"` strings. May span multiple HDP networks in one call. Required for non-trivial use. |
+| `stations` | `list[str]` | `[]` | HDP `station_id` values to bias-correct against (e.g. `"ASOSAWOS_69007093217"`). Required for non-trivial use. |
 | `historical_slice` | `tuple[int, int]` | `(1980, 2014)` | Years used as the training period. Must overlap each station's actual observational coverage, which varies per HDP station. |
 | `window` | `int` | `90` | Window size (days) for seasonal grouping in QDM. |
 | `nquantiles` | `int` | `20` | Number of quantiles for the QDM mapping. |

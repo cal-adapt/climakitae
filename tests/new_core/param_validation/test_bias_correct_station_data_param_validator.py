@@ -39,9 +39,9 @@ def mock_station_metadata():
         {
             "network_id": ["ASOSAWOS", "ASOSAWOS", "ASOSAWOS", "SNOTEL"],
             "station_id": [
-                "ASOSAWOS_KSAC",
-                "ASOSAWOS_KSFO",
-                "ASOSAWOS_KOAK",
+                "ASOSAWOS_72483023225",
+                "ASOSAWOS_72494023234",
+                "ASOSAWOS_72273003124",
                 "SNOTEL_1000",
             ],
         }
@@ -70,7 +70,7 @@ class TestValidateBiasCorrectStationDataParam:
         self.mock_station_metadata = pd.DataFrame(
             {
                 "network_id": ["ASOSAWOS", "ASOSAWOS"],
-                "station_id": ["ASOSAWOS_KSAC", "ASOSAWOS_KSFO"],
+                "station_id": ["ASOSAWOS_72483023225", "ASOSAWOS_72494023234"],
             }
         )
 
@@ -81,7 +81,7 @@ class TestValidateBiasCorrectStationDataParam:
         """Test validation with minimal valid parameters."""
         mock_get_metadata.return_value = self.mock_station_metadata
 
-        value = {"stations": ["ASOSAWOS_KSAC"]}
+        value = {"stations": ["ASOSAWOS_72483023225"]}
         result = validate_bias_correction_station_data_param(value, query=valid_query)
 
         assert result is True
@@ -94,7 +94,7 @@ class TestValidateBiasCorrectStationDataParam:
         mock_get_metadata.return_value = self.mock_station_metadata
 
         value = {
-            "stations": ["ASOSAWOS_KSAC"],
+            "stations": ["ASOSAWOS_72483023225"],
             "historical_slice": (1990, 2010),
             "window": 90,
             "nquantiles": 20,
@@ -180,11 +180,11 @@ class TestValidateStations:
             {
                 "network_id": ["ASOSAWOS", "ASOSAWOS", "ASOSAWOS", "SNOTEL", "CDEC"],
                 "station_id": [
-                    "ASOSAWOS_KSAC",
-                    "ASOSAWOS_KSFO",
-                    "ASOSAWOS_KOAK",
+                    "ASOSAWOS_72483023225",
+                    "ASOSAWOS_72494023234",
+                    "ASOSAWOS_72273003124",
                     "SNOTEL_1000",
-                    "CDEC_1",
+                    "CDEC_BLB",
                 ],
             }
         )
@@ -195,14 +195,12 @@ class TestValidateStations:
     @pytest.mark.parametrize(
         "stations",
         [
-            ["ASOSAWOS_KSAC"],
-            ["ASOSAWOS:ASOSAWOS_KSAC"],
-            ["ASOSAWOS_KSAC", "ASOSAWOS_KSFO"],
-            ["ASOSAWOS_KSAC", "ASOSAWOS_KSFO", "ASOSAWOS_KOAK"],
+            ["ASOSAWOS_72483023225"],
+            ["ASOSAWOS_72483023225", "ASOSAWOS_72494023234"],
+            ["ASOSAWOS_72483023225", "ASOSAWOS_72494023234", "ASOSAWOS_72273003124"],
         ],
         ids=[
             "single_bare_id",
-            "single_network_prefixed_id",
             "multiple_ids",
             "three_stations",
         ],
@@ -217,8 +215,8 @@ class TestValidateStations:
     @pytest.mark.parametrize(
         "stations,error_match",
         [
-            ("ASOSAWOS_KSAC", "'stations' must be a list"),
-            ({"ASOSAWOS_KSAC"}, "'stations' must be a list"),
+            ("ASOSAWOS_72483023225", "'stations' must be a list"),
+            ({"ASOSAWOS_72483023225"}, "'stations' must be a list"),
             (123, "'stations' must be a list"),
         ],
         ids=["string", "set", "integer"],
@@ -238,9 +236,9 @@ class TestValidateStations:
     @pytest.mark.parametrize(
         "stations",
         [
-            ["ASOSAWOS_KSAC", 123],
-            [123, "ASOSAWOS_KSFO"],
-            ["ASOSAWOS_KSAC", None, "ASOSAWOS_KSFO"],
+            ["ASOSAWOS_72483023225", 123],
+            [123, "ASOSAWOS_72494023234"],
+            ["ASOSAWOS_72483023225", None, "ASOSAWOS_72494023234"],
         ],
         ids=["string_and_int", "int_first", "with_none"],
     )
@@ -268,7 +266,7 @@ class TestValidateStations:
         """Test validation succeeds when stations span more than one network."""
         mock_get_metadata.return_value = self.mock_station_metadata
 
-        result = _validate_stations(["ASOSAWOS_KSAC", "SNOTEL_1000"])
+        result = _validate_stations(["ASOSAWOS_72483023225", "SNOTEL_1000"])
         assert result is True
 
     @patch(
@@ -279,7 +277,7 @@ class TestValidateStations:
         mock_get_metadata.return_value = self.mock_station_metadata
 
         with pytest.warns(UserWarning, match="do not provide 'tas'"):
-            result = _validate_stations(["CDEC_1"], {"variable_id": "t2"})
+            result = _validate_stations(["CDEC_BLB"], {"variable_id": "t2"})
         assert result is False
 
     @patch(
@@ -300,9 +298,12 @@ class TestValidateStations:
         """Test validation succeeds when the network provides the requested variable."""
         mock_get_metadata.return_value = self.mock_station_metadata
 
-        assert _validate_stations(["ASOSAWOS_KSAC"], {"variable_id": "t2"}) is True
         assert (
-            _validate_stations(["ASOSAWOS_KSAC"], {"variable_id": "dew_point"}) is True
+            _validate_stations(["ASOSAWOS_72483023225"], {"variable_id": "t2"}) is True
+        )
+        assert (
+            _validate_stations(["ASOSAWOS_72483023225"], {"variable_id": "dew_point"})
+            is True
         )
 
     @patch(
@@ -314,7 +315,7 @@ class TestValidateStations:
 
         with pytest.warns(UserWarning, match="do not provide 'tas'"):
             result = _validate_stations(
-                ["ASOSAWOS_KSAC", "CDEC_1"], {"variable_id": "t2"}
+                ["ASOSAWOS_72483023225", "CDEC_BLB"], {"variable_id": "t2"}
             )
         assert result is False
 
@@ -325,8 +326,8 @@ class TestValidateStations:
         """Test that omitting query skips the network/variable compatibility check."""
         mock_get_metadata.return_value = self.mock_station_metadata
 
-        assert _validate_stations(["CDEC_1"]) is True
-        assert _validate_stations(["CDEC_1"], {}) is True
+        assert _validate_stations(["CDEC_BLB"]) is True
+        assert _validate_stations(["CDEC_BLB"], {}) is True
 
     @patch(
         "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_airport_code_lookup_table"
@@ -368,7 +369,7 @@ class TestValidateStations:
         """Test that raw HDP station_id inputs never touch the legacy lookup table."""
         mock_get_metadata.return_value = self.mock_station_metadata
 
-        result = _validate_stations(["ASOSAWOS_KSAC"])
+        result = _validate_stations(["ASOSAWOS_72483023225"])
         assert result is True
         mock_get_legacy_metadata.assert_not_called()
 
@@ -862,7 +863,7 @@ class TestGetStationMetadata:
         mock_hdp_df = pd.DataFrame(
             {
                 "network_id": ["ASOSAWOS"],
-                "station_id": ["ASOSAWOS_KSAC"],
+                "station_id": ["ASOSAWOS_72483023225"],
             }
         )
         mock_catalog_instance.hdp.df = mock_hdp_df
@@ -883,7 +884,7 @@ class TestGetStationMetadata:
         mock_hdp_df = pd.DataFrame(
             {
                 "network_id": ["ASOSAWOS", "ASOSAWOS"],
-                "station_id": ["ASOSAWOS_KSAC", "ASOSAWOS_KSFO"],
+                "station_id": ["ASOSAWOS_72483023225", "ASOSAWOS_72494023234"],
             }
         )
         mock_catalog_instance.hdp.df = mock_hdp_df

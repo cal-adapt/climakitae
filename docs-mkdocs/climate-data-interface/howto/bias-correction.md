@@ -51,7 +51,7 @@ data = (cd
 **Currently available for:**  
 - ✅ WRF data only (not LOCA2 statistical downscaling)  
 - ✅ Hourly temperature (t2) only  
-- ✅ HDP weather stations (may span multiple networks per call; not every network provides temperature)  
+- ✅ HDP weather stations (not every network provides temperature)  
 
 **Why these limitations?**
 

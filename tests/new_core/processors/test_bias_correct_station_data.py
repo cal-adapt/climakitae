@@ -114,11 +114,11 @@ class TestPreprocessHDP:
 
     def test_preprocess_hdp_missing_tas_raises(self):
         """Test that a station without a 'tas' variable raises ValueError."""
-        proc = self.ProcClass({"stations": ["CDEC_1"]})
+        proc = self.ProcClass({"stations": ["CDEC_BLB"]})
         times = pd.date_range("2010-01-01", periods=2)
         ds = xr.Dataset(
             {"pr": (("station", "time"), [[0.0, 1.0]])},
-            coords={"time": times, "station": ["CDEC_1"]},
+            coords={"time": times, "station": ["CDEC_BLB"]},
         )
 
         with pytest.raises(ValueError, match="does not have a 'tas'"):

@@ -1258,28 +1258,6 @@ def convert_stations_to_points(
     return points, metadata_list
 
 
-def parse_hdp_station_identifier(identifier: str) -> tuple:
-    """Parse an HDP station identifier into (network_id, station_id).
-
-    Accepts a bare `station_id` (e.g. "ASOSAWOS_69007093217") or a
-    `"network_id:station_id"` string for extra disambiguation.
-
-    Parameters
-    ----------
-    identifier : str
-        Station identifier to parse.
-
-    Returns
-    -------
-    tuple[str | None, str]
-        (network_id or None if not specified, station_id)
-    """
-    if ":" in identifier:
-        network_id, station_id = identifier.split(":", 1)
-        return network_id, station_id
-    return None, identifier
-
-
 def resolve_hdp_stations(station_identifiers: list, hdp_df) -> tuple:
     """Resolve and validate HDP station identifiers against the HDP catalog.
 
@@ -1289,8 +1267,7 @@ def resolve_hdp_stations(station_identifiers: list, hdp_df) -> tuple:
     Parameters
     ----------
     station_identifiers : list[str]
-        Station identifiers, either bare `station_id` values or
-        `"network_id:station_id"` strings.
+        HDP `station_id` values.
     hdp_df : pd.DataFrame
         The HDP catalog dataframe (e.g. `DataCatalog().hdp.df`), with
         `network_id` and `station_id` columns.
@@ -1316,14 +1293,11 @@ def resolve_hdp_stations(station_identifiers: list, hdp_df) -> tuple:
     missing = []
     networks_by_station: dict = {}
 
-    for identifier in station_identifiers:
-        network_hint, station_id = parse_hdp_station_identifier(identifier)
+    for station_id in station_identifiers:
         match = hdp_df[hdp_df["station_id"] == station_id]
-        if network_hint is not None:
-            match = match[match["network_id"] == network_hint]
 
         if match.empty:
-            missing.append(identifier)
+            missing.append(station_id)
             continue
 
         station_ids.append(station_id)
@@ -1354,8 +1328,8 @@ def resolve_airport_code_to_hdp_station_id(identifier: str, stations_df) -> str:
 
     Only strings that look like a legacy airport code/name (per
     `is_station_identifier`) are translated; anything else (an already-formed
-    HDP `station_id` or `"network_id:station_id"` string) is returned
-    unchanged, so this is safe to apply unconditionally to HDP identifiers.
+    HDP `station_id`) is returned unchanged, so this is safe to apply
+    unconditionally to HDP identifiers.
 
     Parameters
     ----------

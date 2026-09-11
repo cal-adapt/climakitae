@@ -32,8 +32,7 @@ Examples
 ... )
 >>> result = processor.execute(gridded_data, context)
 
->>> # Multiple stations (may span multiple HDP networks) with custom
->>> # bias correction parameters
+>>> # Multiple stations with custom bias correction parameters
 >>> processor = BiasAdjustModelToStation(
 ...     stations=["ASOSAWOS_69007093217", "ASOSAWOS_72384023155"],
 ...     historical_slice=(1980, 2014),
@@ -108,11 +107,10 @@ class BiasAdjustModelToStation(DataProcessor):
     Parameters
     ----------
     stations : list[str]
-        List of HDP station identifiers to process, either bare `station_id`
-        values (e.g., ["ASOSAWOS_69007093217"]) or `"network_id:station_id"`
-        strings. Legacy airport codes/names (e.g. "KSAC", "Sacramento (KSAC)")
-        are also accepted and translated to their HDP ASOSAWOS `station_id`
-        equivalent. Stations may span multiple HDP networks.
+        List of HDP `station_id` values to process (e.g.,
+        ["ASOSAWOS_69007093217"]). Legacy airport codes/names (e.g. "KSAC",
+        "Sacramento (KSAC)") are also accepted and translated to their HDP
+        ASOSAWOS `station_id` equivalent.
     historical_slice : tuple[int, int], optional
         Start and end years for historical training period (default: (1980, 2014))
     window : int, optional
@@ -333,8 +331,7 @@ class BiasAdjustModelToStation(DataProcessor):
         """Load HDP station data from the HDP intake-esm catalog.
 
         Resolves the requested station identifiers against the HDP catalog
-        (stations may span multiple HDP networks) and loads each station's
-        hourly record for `hdp_variable`.
+        and loads each station's hourly record for `hdp_variable`.
 
         Parameters
         ----------
@@ -382,8 +379,7 @@ class BiasAdjustModelToStation(DataProcessor):
             station_identifiers = self.stations
 
         # Validate all stations and resolve station_ids. Raises ValueError
-        # with details if any station is invalid. Stations may span
-        # multiple HDP networks.
+        # with details if any station is invalid.
         station_ids, network_ids = resolve_hdp_stations(
             station_identifiers, hdp_catalog.df
         )

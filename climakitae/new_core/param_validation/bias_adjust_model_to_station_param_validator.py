@@ -6,7 +6,7 @@ climate data using historical weather station observations from the HDP
 (Historical Data Platform) catalog.
 
 The validator ensures:
-- Valid station selection from available HDP stations (may span multiple networks)
+- Valid station selection from available HDP stations
 - Proper time slice specification for bias correction
 - Valid QDM parameters (window, nquantiles, group, kind)
 - Station metadata availability
@@ -47,7 +47,7 @@ from typing import Any, Dict
 
 import pandas as pd
 
-from climakitae.core.constants import UNSET
+from climakitae.core.constants import NO_TAS_NETWORKS, NO_TDPS_NETWORKS, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
@@ -64,48 +64,11 @@ from climakitae.new_core.processors.processor_utils import (
 # Module logger
 logger = logging.getLogger(__name__)
 
-# HDP networks known not to provide temperature ('tas') observations, based
-# on spot-checking the catalog. Periodically reconcile against the live
-# catalog.
-_NO_TAS_NETWORKS = {"CDEC", "CNRFC", "MTRWFO", "VALLEYWATER"}
-
-# HDP networks known not to provide dewpoint ('tdps') observations (some of
-# these provide a derived 'tdps_derived' variable instead, which is not
-# currently supported here), based on spot-checking the catalog.
-# Periodically reconcile against the live catalog.
-_NO_TDPS_NETWORKS = {
-    "CAHYDRO",
-    "CDEC",
-    "CIMIS",
-    "CNRFC",
-    "CRN",
-    "CW3E",
-    "CWOP",
-    "HADS",
-    "HNXWFO",
-    "HOLFUY",
-    "HPWREN",
-    "LOXWFO",
-    "MAP",
-    "MARITIME",
-    "MTRWFO",
-    "NCAWOS",
-    "NDBC",
-    "NOS-NWLON",
-    "NOS-PORTS",
-    "RAWS",
-    "SGXWFO",
-    "SHASAVAL",
-    "SNOTEL",
-    "VALLEYWATER",
-    "VCAPCD",
-}
-
 # Maps the HDP variable a network must provide to the set of networks known
 # not to provide it, keyed by the HDP variable name (see
 # _VARIABLE_ID_TO_HDP_VARIABLE for the gridded variable_id -> HDP variable
 # mapping).
-_NO_VARIABLE_NETWORKS = {"tas": _NO_TAS_NETWORKS, "tdps": _NO_TDPS_NETWORKS}
+_NO_VARIABLE_NETWORKS = {"tas": NO_TAS_NETWORKS, "tdps": NO_TDPS_NETWORKS}
 
 
 def _get_station_metadata() -> pd.DataFrame:
@@ -279,14 +242,12 @@ def validate_bias_correction_station_data_param(
 def _validate_stations(stations: Any, query: Dict[str, Any] | None = None) -> bool:
     """Validate station selection parameter.
 
-    Accepts HDP station identifiers, either bare `station_id` values (e.g.,
-    "ASOSAWOS_69007093217") or `"network_id:station_id"` strings, as well as
+    Accepts HDP `station_id` values (e.g. "ASOSAWOS_69007093217"), as well as
     legacy airport codes/names (e.g. "KSAC", "Sacramento (KSAC)") which are
     translated to their HDP ASOSAWOS `station_id` equivalent. Validates that
-    all requested stations exist in the HDP catalog; stations may span
-    multiple networks. If `query` is provided, also validates that every
-    resolved station's network provides the HDP variable the query's
-    `variable_id` needs (see `_NO_VARIABLE_NETWORKS`).
+    all requested stations exist in the HDP catalog. If `query` is provided,
+    also validates that every resolved station's network provides the HDP
+    variable the query's `variable_id` needs (see `_NO_VARIABLE_NETWORKS`).
 
     Parameters
     ----------
@@ -357,7 +318,7 @@ def _validate_stations(stations: Any, query: Dict[str, Any] | None = None) -> bo
             no_variable_networks = _NO_VARIABLE_NETWORKS.get(hdp_variable)
             if no_variable_networks is None:
                 continue
-            offending = sorted(set(network_ids) & no_variable_networks)
+            offending = sorted(n for n in network_ids if n in no_variable_networks)
             if offending:
                 msg = (
                     f"HDP network(s) {offending} do not provide '{hdp_variable}' "
