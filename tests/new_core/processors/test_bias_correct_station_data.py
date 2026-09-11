@@ -158,12 +158,12 @@ class TestResolveHDPVariable:
         "context,expected",
         [
             ({"query": {"variable_id": "t2"}}, "tas"),
-            ({"query": {"variable_id": "tdps"}}, "tdps"),
-            ({"query": {"variable_id": ["tdps"]}}, "tdps"),
+            ({"query": {"variable_id": "dew_point"}}, "tdps"),
+            ({"query": {"variable_id": ["dew_point"]}}, "tdps"),
             ({"query": {}}, "tas"),
             ({}, "tas"),
         ],
-        ids=["t2", "tdps", "list_tdps", "no_variable_id", "no_query"],
+        ids=["t2", "dew_point", "list_dew_point", "no_variable_id", "no_query"],
     )
     def test_resolve_hdp_variable(self, context, expected):
         """Test resolving the HDP variable name from query variable_id."""
@@ -233,8 +233,8 @@ class TestLoadHDPStationData:
         with pytest.raises(ValueError, match="not found"):
             proc._load_station_data()
 
-    def test_load_station_data_multiple_networks_raises(self):
-        """Test that stations spanning multiple HDP networks raise ValueError."""
+    def test_load_station_data_multiple_networks_allowed(self):
+        """Test that stations spanning multiple HDP networks are allowed."""
         proc = self.ProcClass({"stations": ["ASOSAWOS_1", "SNOTEL_1"]})
 
         hdp_df = pd.DataFrame(
@@ -243,14 +243,26 @@ class TestLoadHDPStationData:
                 "station_id": ["ASOSAWOS_1", "SNOTEL_1"],
             }
         )
+        raw_ds_1 = self._build_raw_hdp_dataset("ASOSAWOS_1", "STATION ONE")
+        raw_ds_2 = self._build_raw_hdp_dataset("SNOTEL_1", "STATION TWO")
+
         mock_hdp_catalog = MagicMock()
         mock_hdp_catalog.df = hdp_df
+        mock_search_result = MagicMock()
+        mock_search_result.to_dataset_dict.return_value = {
+            "key1": raw_ds_1,
+            "key2": raw_ds_2,
+        }
+        mock_hdp_catalog.search.return_value = mock_search_result
 
         proc.catalog = MagicMock()
         proc.catalog.hdp = mock_hdp_catalog
 
-        with pytest.raises(ValueError, match="same HDP network"):
-            proc._load_station_data()
+        station_ds = proc._load_station_data()
+
+        assert isinstance(station_ds, xr.Dataset)
+        assert "STATION ONE" in station_ds.data_vars
+        assert "STATION TWO" in station_ds.data_vars
 
     def test_load_station_data_translates_airport_code(self):
         """Test that a legacy airport code is translated to its HDP station_id."""

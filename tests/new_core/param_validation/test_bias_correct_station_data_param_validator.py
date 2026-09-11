@@ -264,13 +264,69 @@ class TestValidateStations:
     @patch(
         "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
     )
-    def test_invalid_multiple_networks(self, mock_get_metadata):
-        """Test validation fails when stations span more than one network."""
+    def test_valid_multiple_networks(self, mock_get_metadata):
+        """Test validation succeeds when stations span more than one network."""
         mock_get_metadata.return_value = self.mock_station_metadata
 
-        with pytest.warns(UserWarning, match="same HDP network"):
-            result = _validate_stations(["ASOSAWOS_KSAC", "SNOTEL_1000"])
+        result = _validate_stations(["ASOSAWOS_KSAC", "SNOTEL_1000"])
+        assert result is True
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_invalid_no_tas_network(self, mock_get_metadata):
+        """Test validation fails for a network that doesn't provide tas."""
+        mock_get_metadata.return_value = self.mock_station_metadata
+
+        with pytest.warns(UserWarning, match="do not provide 'tas'"):
+            result = _validate_stations(["CDEC_1"], {"variable_id": "t2"})
         assert result is False
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_invalid_no_tdps_network(self, mock_get_metadata):
+        """Test validation fails for a network that doesn't provide tdps."""
+        mock_get_metadata.return_value = self.mock_station_metadata
+
+        with pytest.warns(UserWarning, match="do not provide 'tdps'"):
+            result = _validate_stations(["SNOTEL_1000"], {"variable_id": "dew_point"})
+        assert result is False
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_valid_network_variable_compatible(self, mock_get_metadata):
+        """Test validation succeeds when the network provides the requested variable."""
+        mock_get_metadata.return_value = self.mock_station_metadata
+
+        assert _validate_stations(["ASOSAWOS_KSAC"], {"variable_id": "t2"}) is True
+        assert (
+            _validate_stations(["ASOSAWOS_KSAC"], {"variable_id": "dew_point"}) is True
+        )
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_invalid_mixed_network_one_incompatible(self, mock_get_metadata):
+        """Test validation fails if any resolved network lacks the variable."""
+        mock_get_metadata.return_value = self.mock_station_metadata
+
+        with pytest.warns(UserWarning, match="do not provide 'tas'"):
+            result = _validate_stations(
+                ["ASOSAWOS_KSAC", "CDEC_1"], {"variable_id": "t2"}
+            )
+        assert result is False
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_valid_no_query_skips_network_variable_check(self, mock_get_metadata):
+        """Test that omitting query skips the network/variable compatibility check."""
+        mock_get_metadata.return_value = self.mock_station_metadata
+
+        assert _validate_stations(["CDEC_1"]) is True
+        assert _validate_stations(["CDEC_1"], {}) is True
 
     @patch(
         "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_airport_code_lookup_table"
@@ -511,10 +567,10 @@ class TestValidateVariableCompatibility:
         [
             "t2",
             ["t2"],
-            "tdps",
-            ["tdps"],
+            "dew_point",
+            ["dew_point"],
         ],
-        ids=["t2", "list_t2", "tdps", "list_tdps"],
+        ids=["t2", "list_t2", "dew_point", "list_dew_point"],
     )
     def test_valid_temperature_variables(self, variable_id):
         """Test validation with valid temperature/dewpoint variables."""
@@ -539,6 +595,7 @@ class TestValidateVariableCompatibility:
         "variable_id",
         [
             "tas",
+            "tdps",
             "pr",
             "huss",
             "tasmax",
@@ -548,6 +605,7 @@ class TestValidateVariableCompatibility:
         ],
         ids=[
             "tas",
+            "tdps",
             "precipitation",
             "humidity",
             "tasmax",

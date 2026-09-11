@@ -28,8 +28,8 @@ data = (cd
 from climakitae.new_core.data_access.data_access import DataCatalog
 DataCatalog().hdp.df[["network_id", "station_id"]]
 
-# All stations passed to bias_adjust_model_to_station in one call must
-# belong to the same network_id.
+# Stations passed to bias_adjust_model_to_station in one call may span
+# multiple network_ids.
 data = (cd
     .processes({
         "bias_adjust_model_to_station": {
@@ -51,7 +51,7 @@ data = (cd
 **Currently available for:**  
 - ✅ WRF data only (not LOCA2 statistical downscaling)  
 - ✅ Hourly temperature (t2) only  
-- ✅ HDP weather stations (single network per call; not every network provides temperature)  
+- ✅ HDP weather stations (may span multiple networks per call; not every network provides temperature)  
 
 **Why these limitations?**
 

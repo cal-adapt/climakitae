@@ -6,7 +6,7 @@ climate data using historical weather station observations from the HDP
 (Historical Data Platform) catalog.
 
 The validator ensures:
-- Valid station selection from available HDP stations, all within a single network
+- Valid station selection from available HDP stations (may span multiple networks)
 - Proper time slice specification for bias correction
 - Valid QDM parameters (window, nquantiles, group, kind)
 - Station metadata availability
@@ -38,8 +38,8 @@ Notes
 -----
 - Station observational coverage varies per HDP station
 - Currently only supports 't2' (WRF's native 2m temperature variable,
-  matched to HDP's 'tas') or 'tdps' (dewpoint, matched directly to HDP's
-  'tdps')
+  matched to HDP's 'tas') or 'dew_point' (WRF's native dewpoint variable,
+  matched to HDP's 'tdps')
 """
 
 import logging
@@ -52,6 +52,9 @@ from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
 )
+from climakitae.new_core.processors.bias_adjust_model_to_station import (
+    _VARIABLE_ID_TO_HDP_VARIABLE,
+)
 from climakitae.new_core.processors.processor_utils import (
     is_station_identifier,
     resolve_airport_code_to_hdp_station_id,
@@ -60,6 +63,49 @@ from climakitae.new_core.processors.processor_utils import (
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+# HDP networks known not to provide temperature ('tas') observations, based
+# on spot-checking the catalog. Periodically reconcile against the live
+# catalog.
+_NO_TAS_NETWORKS = {"CDEC", "CNRFC", "MTRWFO", "VALLEYWATER"}
+
+# HDP networks known not to provide dewpoint ('tdps') observations (some of
+# these provide a derived 'tdps_derived' variable instead, which is not
+# currently supported here), based on spot-checking the catalog.
+# Periodically reconcile against the live catalog.
+_NO_TDPS_NETWORKS = {
+    "CAHYDRO",
+    "CDEC",
+    "CIMIS",
+    "CNRFC",
+    "CRN",
+    "CW3E",
+    "CWOP",
+    "HADS",
+    "HNXWFO",
+    "HOLFUY",
+    "HPWREN",
+    "LOXWFO",
+    "MAP",
+    "MARITIME",
+    "MTRWFO",
+    "NCAWOS",
+    "NDBC",
+    "NOS-NWLON",
+    "NOS-PORTS",
+    "RAWS",
+    "SGXWFO",
+    "SHASAVAL",
+    "SNOTEL",
+    "VALLEYWATER",
+    "VCAPCD",
+}
+
+# Maps the HDP variable a network must provide to the set of networks known
+# not to provide it, keyed by the HDP variable name (see
+# _VARIABLE_ID_TO_HDP_VARIABLE for the gridded variable_id -> HDP variable
+# mapping).
+_NO_VARIABLE_NETWORKS = {"tas": _NO_TAS_NETWORKS, "tdps": _NO_TDPS_NETWORKS}
 
 
 def _get_station_metadata() -> pd.DataFrame:
@@ -185,7 +231,7 @@ def validate_bias_correction_station_data_param(
         return False
 
     # Validate stations parameter (only after confirming query is not None)
-    if not _validate_stations(value["stations"]):
+    if not _validate_stations(value["stations"], query):
         return False
 
     # Validate historical_slice parameter if provided
@@ -230,20 +276,24 @@ def validate_bias_correction_station_data_param(
     return True
 
 
-def _validate_stations(stations: Any) -> bool:
+def _validate_stations(stations: Any, query: Dict[str, Any] | None = None) -> bool:
     """Validate station selection parameter.
 
     Accepts HDP station identifiers, either bare `station_id` values (e.g.,
     "ASOSAWOS_69007093217") or `"network_id:station_id"` strings, as well as
     legacy airport codes/names (e.g. "KSAC", "Sacramento (KSAC)") which are
     translated to their HDP ASOSAWOS `station_id` equivalent. Validates that
-    all requested stations exist in the HDP catalog and belong to a single
-    network.
+    all requested stations exist in the HDP catalog; stations may span
+    multiple networks. If `query` is provided, also validates that every
+    resolved station's network provides the HDP variable the query's
+    `variable_id` needs (see `_NO_VARIABLE_NETWORKS`).
 
     Parameters
     ----------
     stations : Any
         Station identifiers to validate.
+    query : Dict[str, Any], optional
+        Full query dictionary, used to check network/variable compatibility.
 
     Returns
     -------
@@ -292,15 +342,35 @@ def _validate_stations(stations: Any) -> bool:
     hdp_df = _get_station_metadata()
 
     try:
-        _, network_id = resolve_hdp_stations(resolved_stations, hdp_df)
+        _, network_ids = resolve_hdp_stations(resolved_stations, hdp_df)
     except ValueError as e:
         logger.warning(str(e))
         return False
 
+    # If the query specifies a variable_id we know how to map to an HDP
+    # variable, reject any resolved network known not to provide it.
+    if query is not None:
+        variable_id = query.get("variable_id", None)
+        variable_ids = variable_id if isinstance(variable_id, list) else [variable_id]
+        for vid in variable_ids:
+            hdp_variable = _VARIABLE_ID_TO_HDP_VARIABLE.get(vid)
+            no_variable_networks = _NO_VARIABLE_NETWORKS.get(hdp_variable)
+            if no_variable_networks is None:
+                continue
+            offending = sorted(set(network_ids) & no_variable_networks)
+            if offending:
+                msg = (
+                    f"HDP network(s) {offending} do not provide '{hdp_variable}' "
+                    f"observations, which are required for variable_id='{vid}', and cannot "
+                    f"be used for station bias correction."
+                )
+                logger.warning(msg)
+                return False
+
     logger.debug(
-        "Station validation passed for %d station(s) in network '%s'",
+        "Station validation passed for %d station(s) across network(s): %s",
         len(stations),
-        network_id,
+        network_ids,
     )
     return True
 
@@ -507,9 +577,9 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
         True if variable is compatible, False otherwise.
     """
     # Station bias correction supports WRF's 't2' (2m temperature, matched
-    # to HDP's 'tas') and 'tdps' (dewpoint, matched directly to HDP's
-    # 'tdps').
-    supported_variables = ["t2", "tdps"]
+    # to HDP's 'tas') and 'dew_point' (WRF's native dewpoint, matched to
+    # HDP's 'tdps').
+    supported_variables = ["t2", "dew_point"]
 
     variable_id = query.get("variable_id", None)
     if variable_id is None:
@@ -529,9 +599,10 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
     if unsupported:
         msg = (
             f"Station bias correction currently only supports temperature or "
-            f"dewpoint variables ('t2' or 'tdps'), but got: {', '.join(unsupported)}. "
-            f"'t2' is matched to HDP's 'tas' observations, and 'tdps' is matched "
-            f"to HDP's 'tdps' observations."
+            f"dewpoint variables ('t2' or 'dew_point'), but got: "
+            f"{', '.join(unsupported)}. 't2' is matched to HDP's 'tas' "
+            f"observations, and 'dew_point' is matched to HDP's 'tdps' "
+            f"observations."
         )
         logger.warning(msg)
         return False

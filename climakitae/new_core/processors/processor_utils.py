@@ -1283,10 +1283,8 @@ def parse_hdp_station_identifier(identifier: str) -> tuple:
 def resolve_hdp_stations(station_identifiers: list, hdp_df) -> tuple:
     """Resolve and validate HDP station identifiers against the HDP catalog.
 
-    Validates that every requested station exists in the catalog and that
-    all resolved stations share a single `network_id`, since bias
-    correction does not support mixing stations from different HDP
-    networks in one call.
+    Validates that every requested station exists in the catalog. Stations
+    may span multiple HDP networks in a single call.
 
     Parameters
     ----------
@@ -1299,19 +1297,18 @@ def resolve_hdp_stations(station_identifiers: list, hdp_df) -> tuple:
 
     Returns
     -------
-    tuple[list[str], str]
-        The validated `station_id` values (in input order) and the single
-        shared `network_id`.
+    tuple[list[str], list[str]]
+        The validated `station_id` values (in input order) and the sorted
+        list of distinct `network_id`s spanned by those stations.
 
     Raises
     ------
     ValueError
-        If any station is not found, or if the requested stations span
-        more than one HDP network.
+        If any station is not found.
 
     Examples
     --------
-    >>> station_ids, network_id = resolve_hdp_stations(
+    >>> station_ids, network_ids = resolve_hdp_stations(
     ...     ["ASOSAWOS_69007093217"], DataCatalog().hdp.df
     ... )
     """
@@ -1342,14 +1339,8 @@ def resolve_hdp_stations(station_identifiers: list, hdp_df) -> tuple:
     all_networks = sorted(
         {network for networks in networks_by_station.values() for network in networks}
     )
-    if len(all_networks) > 1:
-        raise ValueError(
-            "All stations in a single bias_adjust_model_to_station call must "
-            f"belong to the same HDP network, but found multiple: {all_networks}. "
-            "Please split your request by network."
-        )
 
-    return station_ids, all_networks[0]
+    return station_ids, all_networks
 
 
 def resolve_airport_code_to_hdp_station_id(identifier: str, stations_df) -> str:

@@ -32,7 +32,7 @@ Examples
 ... )
 >>> result = processor.execute(gridded_data, context)
 
->>> # Multiple stations (must belong to the same HDP network) with custom
+>>> # Multiple stations (may span multiple HDP networks) with custom
 >>> # bias correction parameters
 >>> processor = BiasAdjustModelToStation(
 ...     stations=["ASOSAWOS_69007093217", "ASOSAWOS_72384023155"],
@@ -47,7 +47,7 @@ Notes
 - Requires gridded data to include the requested historical training period
 - Station observational coverage varies per HDP station; the historical
   training period must overlap with the station's actual record
-- All requested stations must belong to a single HDP network
+- Requested stations may span multiple HDP networks in a single call
 - Uses xclim's QuantileDeltaMapping for bias correction
 - Converts all data to noleap calendar for consistency
 - Final output is time-sliced to user's requested period after bias correction
@@ -76,8 +76,9 @@ logger = logging.getLogger(__name__)
 
 # Maps the gridded model's variable_id to the HDP station variable it should
 # be bias-corrected against: 't2' (WRF's native 2m temperature) is matched
-# to HDP's 'tas', and 'tdps' (dewpoint) is matched directly to HDP's 'tdps'.
-_VARIABLE_ID_TO_HDP_VARIABLE = {"t2": "tas", "tdps": "tdps"}
+# to HDP's 'tas', and 'dew_point' (WRF's native dewpoint) is matched to
+# HDP's 'tdps'.
+_VARIABLE_ID_TO_HDP_VARIABLE = {"t2": "tas", "dew_point": "tdps"}
 
 
 @register_processor("bias_adjust_model_to_station", priority=60)
@@ -111,7 +112,7 @@ class BiasAdjustModelToStation(DataProcessor):
         values (e.g., ["ASOSAWOS_69007093217"]) or `"network_id:station_id"`
         strings. Legacy airport codes/names (e.g. "KSAC", "Sacramento (KSAC)")
         are also accepted and translated to their HDP ASOSAWOS `station_id`
-        equivalent. All stations must belong to a single HDP network.
+        equivalent. Stations may span multiple HDP networks.
     historical_slice : tuple[int, int], optional
         Start and end years for historical training period (default: (1980, 2014))
     window : int, optional
@@ -331,9 +332,9 @@ class BiasAdjustModelToStation(DataProcessor):
     def _load_station_data(self, hdp_variable: str = "tas") -> xr.Dataset:
         """Load HDP station data from the HDP intake-esm catalog.
 
-        Resolves the requested station identifiers against the HDP catalog,
-        enforces that they all belong to a single network, and loads each
-        station's hourly record for `hdp_variable`.
+        Resolves the requested station identifiers against the HDP catalog
+        (stations may span multiple HDP networks) and loads each station's
+        hourly record for `hdp_variable`.
 
         Parameters
         ----------
@@ -351,8 +352,7 @@ class BiasAdjustModelToStation(DataProcessor):
         RuntimeError
             If station data cannot be loaded or catalog is not available.
         ValueError
-            If any station identifier is invalid, not found, or the
-            requested stations span more than one HDP network.
+            If any station identifier is invalid or not found.
 
         Notes
         -----
@@ -381,16 +381,16 @@ class BiasAdjustModelToStation(DataProcessor):
         else:
             station_identifiers = self.stations
 
-        # Validate all stations, ensure single network, and resolve station_ids.
-        # Raises ValueError with details if any station is invalid or if
-        # stations span multiple networks.
-        station_ids, network_id = resolve_hdp_stations(
+        # Validate all stations and resolve station_ids. Raises ValueError
+        # with details if any station is invalid. Stations may span
+        # multiple HDP networks.
+        station_ids, network_ids = resolve_hdp_stations(
             station_identifiers, hdp_catalog.df
         )
 
         logger.info(
-            "Loading HDP station data for network '%s', station(s): %s",
-            network_id,
+            "Loading HDP station data for network(s) '%s', station(s): %s",
+            ", ".join(network_ids),
             ", ".join(station_ids),
         )
 

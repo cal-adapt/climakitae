@@ -36,7 +36,7 @@ The processor takes a **dict**:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `stations` | `list[str]` | `[]` | HDP station identifiers to bias-correct against — bare `station_id` values (e.g. `"ASOSAWOS_69007093217"`) or `"network_id:station_id"` strings. All stations in one call must belong to the same HDP network. Required for non-trivial use. |
+| `stations` | `list[str]` | `[]` | HDP station identifiers to bias-correct against — bare `station_id` values (e.g. `"ASOSAWOS_69007093217"`) or `"network_id:station_id"` strings. May span multiple HDP networks in one call. Required for non-trivial use. |
 | `historical_slice` | `tuple[int, int]` | `(1980, 2014)` | Years used as the training period. Must overlap each station's actual observational coverage, which varies per HDP station. |
 | `window` | `int` | `90` | Window size (days) for seasonal grouping in QDM. |
 | `nquantiles` | `int` | `20` | Number of quantiles for the QDM mapping. |
@@ -46,9 +46,9 @@ The processor takes a **dict**:
 ## Requirements
 
 - **Activity ID**: WRF (dynamical downscaling). LOCA2 already includes statistical bias correction at the watershed level and is not the intended input.
-- **Variable**: Designed for hourly `t2` (temperature, matched to HDP's `tas`) or `tdps` (dewpoint, matched to HDP's `tdps`). Not every HDP network provides every variable.
+- **Variable**: Designed for hourly `t2` (temperature, matched to HDP's `tas`) or `dew_point` (dewpoint, matched to HDP's `tdps`). Not every HDP network provides every variable — requesting a station from a network known not to provide the needed variable is rejected up front.
 - **Time coverage**: Input must overlap the requested historical training period (default 1980–2014). HDP station coverage varies widely by station, from a few years to multiple decades.
-- **Single network**: All requested stations must belong to the same HDP network; mixing networks in one call is rejected.
+- **Multiple networks**: Requested stations may span multiple HDP networks in a single call.
 - **Calendar**: All inputs are converted to a `noleap` calendar internally for consistency.
 
 ## Example
