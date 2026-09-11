@@ -89,6 +89,43 @@ CATALOG_REN_ENERGY_GEN = "renewable energy generation"
 CATALOG_BOUNDARY = "boundary"
 CATALOG_HDP = "hdp"
 
+# HDP networks known not to provide temperature ('tas') observations, based
+# on spot-checking the catalog. Periodically reconcile against the live
+# catalog.
+NO_TAS_NETWORKS = ["CDEC", "CNRFC", "MTRWFO", "VALLEYWATER"]
+
+# HDP networks known not to provide dewpoint ('tdps') observations (some of
+# these provide a derived 'tdps_derived' variable instead, which is not
+# currently supported). Based on spot-checking the catalog. Periodically
+# reconcile against the live catalog.
+NO_TDPS_NETWORKS = [
+    "CAHYDRO",
+    "CDEC",
+    "CIMIS",
+    "CNRFC",
+    "CRN",
+    "CW3E",
+    "CWOP",
+    "HADS",
+    "HNXWFO",
+    "HOLFUY",
+    "HPWREN",
+    "LOXWFO",
+    "MAP",
+    "MARITIME",
+    "MTRWFO",
+    "NCAWOS",
+    "NDBC",
+    "NOS-NWLON",
+    "NOS-PORTS",
+    "RAWS",
+    "SGXWFO",
+    "SHASAVAL",
+    "SNOTEL",
+    "VALLEYWATER",
+    "VCAPCD",
+]
+
 # Boundary Data Constants
 WESTERN_STATES_LIST = ["CA", "NV", "OR", "WA", "UT", "MT", "ID", "AZ", "CO", "NM", "WY"]
 

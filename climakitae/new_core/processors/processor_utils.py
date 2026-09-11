@@ -4,6 +4,7 @@ import logging
 from typing import Dict, Union
 
 import numpy as np
+import pandas as pd
 import re
 import statsmodels as sm
 import xarray as xr
@@ -1100,7 +1101,7 @@ def get_station_coordinates(
 
     This function provides a centralized way to extract station coordinates
     from the catalog. It's used by both the Clip processor and the
-    StationBiasCorrection processor.
+    BiasAdjustModelToStation processor.
 
     Parameters
     ----------
@@ -1255,3 +1256,127 @@ def convert_stations_to_points(
             raise ValueError(f"Error processing station '{station_id}': {str(e)}")
 
     return points, metadata_list
+
+
+def resolve_hdp_stations(station_identifiers: list, hdp_df) -> tuple:
+    """Resolve and validate HDP station identifiers against the HDP catalog.
+
+    Validates that every requested station exists in the catalog. Stations
+    may span multiple HDP networks in a single call.
+
+    Parameters
+    ----------
+    station_identifiers : list[str]
+        HDP `station_id` values.
+    hdp_df : pd.DataFrame
+        The HDP catalog dataframe (e.g. `DataCatalog().hdp.df`), with
+        `network_id` and `station_id` columns.
+
+    Returns
+    -------
+    tuple[list[str], list[str]]
+        The validated `station_id` values (in input order) and the sorted
+        list of distinct `network_id`s spanned by those stations.
+
+    Raises
+    ------
+    ValueError
+        If any station is not found.
+
+    Examples
+    --------
+    >>> station_ids, network_ids = resolve_hdp_stations(
+    ...     ["ASOSAWOS_69007093217"], DataCatalog().hdp.df
+    ... )
+    """
+    station_ids = []
+    missing = []
+    networks_by_station: dict = {}
+
+    for station_id in station_identifiers:
+        match = hdp_df[hdp_df["station_id"] == station_id]
+
+        if match.empty:
+            missing.append(station_id)
+            continue
+
+        station_ids.append(station_id)
+        networks_by_station[station_id] = set(match["network_id"].unique())
+
+    if missing:
+        raise ValueError(
+            f"The following HDP station(s) were not found: {', '.join(missing)}. "
+            "Use DataCatalog().hdp.df to browse available network_id/station_id "
+            "combinations."
+        )
+
+    all_networks = sorted(
+        {network for networks in networks_by_station.values() for network in networks}
+    )
+
+    return station_ids, all_networks
+
+
+def resolve_airport_code_to_hdp_station_id(identifier: str, stations_df) -> str:
+    """Translate a legacy airport code/name into its HDP ASOSAWOS `station_id`.
+
+    HDP's numeric `station_id` suffix for the `ASOSAWOS` network is the same
+    USAF/WBAN identifier used by the legacy HadISD station lookup table
+    (`catalog["stations"]`), so that table still doubles as an airport-code
+    lookup for ASOS stations, e.g. "KSAC" or "Sacramento (KSAC)" resolves to
+    "ASOSAWOS_72483023225".
+
+    Only strings that look like a legacy airport code/name (per
+    `is_station_identifier`) are translated; anything else (an already-formed
+    HDP `station_id`) is returned unchanged, so this is safe to apply
+    unconditionally to HDP identifiers.
+
+    Parameters
+    ----------
+    identifier : str
+        Station identifier as provided by the user.
+    stations_df : pd.DataFrame
+        The legacy HadISD station lookup table (`catalog["stations"]`), with
+        `ID`, `station`, and `station id` columns.
+
+    Returns
+    -------
+    str
+        The HDP `station_id` if `identifier` matched a known airport
+        code/name, otherwise `identifier` unchanged.
+
+    Raises
+    ------
+    ValueError
+        If the identifier ambiguously matches more than one legacy station.
+
+    Examples
+    --------
+    >>> resolve_airport_code_to_hdp_station_id("KSAC", stations_df)
+    'ASOSAWOS_72483023225'
+    >>> resolve_airport_code_to_hdp_station_id("ASOSAWOS_69007093217", stations_df)
+    'ASOSAWOS_69007093217'
+    """
+    if not is_station_identifier(identifier):
+        return identifier
+
+    if stations_df is None or len(stations_df) == 0:
+        return identifier
+
+    match = find_station_match(identifier, stations_df)
+
+    if len(match) == 0:
+        return identifier
+
+    if len(match) > 1:
+        station_list = match[["ID", "station"]].to_string(index=False)
+        raise ValueError(
+            f"Multiple legacy stations match '{identifier}':\n{station_list}\n\n"
+            "Please use a more specific identifier."
+        )
+
+    numeric_id = match.iloc[0].get("station id")
+    if numeric_id is None or (isinstance(numeric_id, float) and pd.isna(numeric_id)):
+        return identifier
+
+    return f"ASOSAWOS_{numeric_id}"

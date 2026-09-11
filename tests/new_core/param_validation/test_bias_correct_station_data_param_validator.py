@@ -1,7 +1,7 @@
 """
 Unit tests for climakitae/new_core/param_validation/bias_adjust_model_to_station_param_validator.py
 
-This module contains comprehensive unit tests for the StationBiasCorrection processor
+This module contains comprehensive unit tests for the BiasAdjustModelToStation processor
 parameter validation functionality.
 """
 
@@ -13,6 +13,7 @@ import pytest
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator import (
+    _get_airport_code_lookup_table,
     _get_station_metadata,
     _validate_catalog_requirement,
     _validate_downscaling_method_requirement,
@@ -33,19 +34,16 @@ from climakitae.new_core.param_validation.bias_adjust_model_to_station_param_val
 
 @pytest.fixture
 def mock_station_metadata():
-    """Fixture providing mock station metadata DataFrame."""
+    """Fixture providing mock HDP catalog dataframe."""
     return pd.DataFrame(
         {
-            "station": [
-                "Sacramento Executive Airport (KSAC)",
-                "San Francisco International Airport (KSFO)",
-                "Oakland International Airport (KOAK)",
-                "Los Angeles International Airport (KLAX)",
+            "network_id": ["ASOSAWOS", "ASOSAWOS", "ASOSAWOS", "SNOTEL"],
+            "station_id": [
+                "ASOSAWOS_72483023225",
+                "ASOSAWOS_72494023234",
+                "ASOSAWOS_72273003124",
+                "SNOTEL_1000",
             ],
-            "station id": ["KSAC", "KSFO", "KOAK", "KLAX"],
-            "latitude": [38.5, 37.6, 37.7, 33.9],
-            "longitude": [-121.5, -122.4, -122.2, -118.4],
-            "elevation": [10, 5, 3, 38],
         }
     )
 
@@ -55,7 +53,7 @@ def valid_query():
     """Fixture providing a valid query dictionary for cross-validation."""
     return {
         "catalog": "cadcat",
-        "variable_id": "tas",
+        "variable_id": "t2",
         "table_id": "1hr",
         "activity_id": "WRF",
         "grid_label": "d02",
@@ -71,31 +69,19 @@ class TestValidateBiasCorrectStationDataParam:
         """Set up test fixtures for each test method."""
         self.mock_station_metadata = pd.DataFrame(
             {
-                "station": [
-                    "Sacramento Executive Airport (KSAC)",
-                    "San Francisco (KSFO)",
-                ],
-                "station id": ["KSAC", "KSFO"],
-                "latitude": [38.5, 37.6],
-                "longitude": [-121.5, -122.4],
-                "elevation": [10, 5],
+                "network_id": ["ASOSAWOS", "ASOSAWOS"],
+                "station_id": ["ASOSAWOS_72483023225", "ASOSAWOS_72494023234"],
             }
         )
 
     @patch(
         "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
     )
-    @patch(
-        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.find_station_match"
-    )
-    def test_valid_minimal_parameters(
-        self, mock_find_station, mock_get_metadata, valid_query
-    ):
+    def test_valid_minimal_parameters(self, mock_get_metadata, valid_query):
         """Test validation with minimal valid parameters."""
         mock_get_metadata.return_value = self.mock_station_metadata
-        mock_find_station.return_value = "Sacramento Executive Airport (KSAC)"
 
-        value = {"stations": ["KSAC"]}
+        value = {"stations": ["ASOSAWOS_72483023225"]}
         result = validate_bias_correction_station_data_param(value, query=valid_query)
 
         assert result is True
@@ -103,18 +89,12 @@ class TestValidateBiasCorrectStationDataParam:
     @patch(
         "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
     )
-    @patch(
-        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.find_station_match"
-    )
-    def test_valid_full_parameters(
-        self, mock_find_station, mock_get_metadata, valid_query
-    ):
+    def test_valid_full_parameters(self, mock_get_metadata, valid_query):
         """Test validation with all optional parameters."""
         mock_get_metadata.return_value = self.mock_station_metadata
-        mock_find_station.return_value = "Sacramento Executive Airport (KSAC)"
 
         value = {
-            "stations": ["KSAC"],
+            "stations": ["ASOSAWOS_72483023225"],
             "historical_slice": (1990, 2010),
             "window": 90,
             "nquantiles": 20,
@@ -198,38 +178,36 @@ class TestValidateStations:
         """Set up test fixtures."""
         self.mock_station_metadata = pd.DataFrame(
             {
-                "station": [
-                    "Sacramento Executive Airport (KSAC)",
-                    "San Francisco International Airport (KSFO)",
-                    "Oakland International Airport (KOAK)",
+                "network_id": ["ASOSAWOS", "ASOSAWOS", "ASOSAWOS", "SNOTEL", "CDEC"],
+                "station_id": [
+                    "ASOSAWOS_72483023225",
+                    "ASOSAWOS_72494023234",
+                    "ASOSAWOS_72273003124",
+                    "SNOTEL_1000",
+                    "CDEC_BLB",
                 ],
-                "station id": ["KSAC", "KSFO", "KOAK"],
-                "latitude": [38.5, 37.6, 37.7],
-                "longitude": [-121.5, -122.4, -122.2],
-                "elevation": [10, 5, 3],
             }
         )
 
     @patch(
         "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
     )
-    @patch(
-        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.find_station_match"
-    )
     @pytest.mark.parametrize(
         "stations",
         [
-            ["KSAC"],
-            ["Sacramento Executive Airport (KSAC)"],
-            ["KSAC", "KSFO"],
-            ["KSAC", "KSFO", "KOAK"],
+            ["ASOSAWOS_72483023225"],
+            ["ASOSAWOS_72483023225", "ASOSAWOS_72494023234"],
+            ["ASOSAWOS_72483023225", "ASOSAWOS_72494023234", "ASOSAWOS_72273003124"],
         ],
-        ids=["single_code", "single_full_name", "multiple_codes", "three_stations"],
+        ids=[
+            "single_bare_id",
+            "multiple_ids",
+            "three_stations",
+        ],
     )
-    def test_valid_stations(self, mock_find_station, mock_get_metadata, stations):
-        """Test validation with valid station names and codes."""
+    def test_valid_stations(self, mock_get_metadata, stations):
+        """Test validation with valid HDP station identifiers."""
         mock_get_metadata.return_value = self.mock_station_metadata
-        mock_find_station.return_value = "Sacramento Executive Airport (KSAC)"
 
         result = _validate_stations(stations)
         assert result is True
@@ -237,8 +215,8 @@ class TestValidateStations:
     @pytest.mark.parametrize(
         "stations,error_match",
         [
-            ("KSAC", "'stations' must be a list"),
-            ({"KSAC"}, "'stations' must be a list"),
+            ("ASOSAWOS_72483023225", "'stations' must be a list"),
+            ({"ASOSAWOS_72483023225"}, "'stations' must be a list"),
             (123, "'stations' must be a list"),
         ],
         ids=["string", "set", "integer"],
@@ -258,9 +236,9 @@ class TestValidateStations:
     @pytest.mark.parametrize(
         "stations",
         [
-            ["KSAC", 123],
-            [123, "KSFO"],
-            ["KSAC", None, "KSFO"],
+            ["ASOSAWOS_72483023225", 123],
+            [123, "ASOSAWOS_72494023234"],
+            ["ASOSAWOS_72483023225", None, "ASOSAWOS_72494023234"],
         ],
         ids=["string_and_int", "int_first", "with_none"],
     )
@@ -273,17 +251,127 @@ class TestValidateStations:
     @patch(
         "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
     )
-    @patch(
-        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.find_station_match"
-    )
-    def test_invalid_station_not_found(self, mock_find_station, mock_get_metadata):
-        """Test validation with invalid station name."""
+    def test_invalid_station_not_found(self, mock_get_metadata):
+        """Test validation with invalid station identifier."""
         mock_get_metadata.return_value = self.mock_station_metadata
-        mock_find_station.return_value = None
 
-        with pytest.warns(UserWarning, match="Invalid station"):
+        with pytest.warns(UserWarning, match="were not found"):
             result = _validate_stations(["INVALIDSTATION"])
         assert result is False
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_valid_multiple_networks(self, mock_get_metadata):
+        """Test validation succeeds when stations span more than one network."""
+        mock_get_metadata.return_value = self.mock_station_metadata
+
+        result = _validate_stations(["ASOSAWOS_72483023225", "SNOTEL_1000"])
+        assert result is True
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_invalid_no_tas_network(self, mock_get_metadata):
+        """Test validation fails for a network that doesn't provide tas."""
+        mock_get_metadata.return_value = self.mock_station_metadata
+
+        with pytest.warns(UserWarning, match="do not provide 'tas'"):
+            result = _validate_stations(["CDEC_BLB"], {"variable_id": "t2"})
+        assert result is False
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_invalid_no_tdps_network(self, mock_get_metadata):
+        """Test validation fails for a network that doesn't provide tdps."""
+        mock_get_metadata.return_value = self.mock_station_metadata
+
+        with pytest.warns(UserWarning, match="do not provide 'tdps'"):
+            result = _validate_stations(["SNOTEL_1000"], {"variable_id": "dew_point"})
+        assert result is False
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_valid_network_variable_compatible(self, mock_get_metadata):
+        """Test validation succeeds when the network provides the requested variable."""
+        mock_get_metadata.return_value = self.mock_station_metadata
+
+        assert (
+            _validate_stations(["ASOSAWOS_72483023225"], {"variable_id": "t2"}) is True
+        )
+        assert (
+            _validate_stations(["ASOSAWOS_72483023225"], {"variable_id": "dew_point"})
+            is True
+        )
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_invalid_mixed_network_one_incompatible(self, mock_get_metadata):
+        """Test validation fails if any resolved network lacks the variable."""
+        mock_get_metadata.return_value = self.mock_station_metadata
+
+        with pytest.warns(UserWarning, match="do not provide 'tas'"):
+            result = _validate_stations(
+                ["ASOSAWOS_72483023225", "CDEC_BLB"], {"variable_id": "t2"}
+            )
+        assert result is False
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_valid_no_query_skips_network_variable_check(self, mock_get_metadata):
+        """Test that omitting query skips the network/variable compatibility check."""
+        mock_get_metadata.return_value = self.mock_station_metadata
+
+        assert _validate_stations(["CDEC_BLB"]) is True
+        assert _validate_stations(["CDEC_BLB"], {}) is True
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_airport_code_lookup_table"
+    )
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_valid_airport_code_translated(
+        self, mock_get_metadata, mock_get_legacy_metadata
+    ):
+        """Test that a legacy airport code is translated and validated."""
+        mock_get_metadata.return_value = pd.DataFrame(
+            {
+                "network_id": ["ASOSAWOS"],
+                "station_id": ["ASOSAWOS_72483023225"],
+            }
+        )
+        mock_get_legacy_metadata.return_value = pd.DataFrame(
+            {
+                "ID": ["KSAC"],
+                "station": ["Sacramento (KSAC)"],
+                "station id": [72483023225],
+            }
+        )
+
+        result = _validate_stations(["KSAC"])
+        assert result is True
+        mock_get_legacy_metadata.assert_called_once()
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_airport_code_lookup_table"
+    )
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_valid_stations_skip_legacy_lookup(
+        self, mock_get_metadata, mock_get_legacy_metadata
+    ):
+        """Test that raw HDP station_id inputs never touch the legacy lookup table."""
+        mock_get_metadata.return_value = self.mock_station_metadata
+
+        result = _validate_stations(["ASOSAWOS_72483023225"])
+        assert result is True
+        mock_get_legacy_metadata.assert_not_called()
 
 
 class TestValidateHistoricalSlice:
@@ -296,8 +384,19 @@ class TestValidateHistoricalSlice:
             (1990, 2010),
             (1980, 2000),
             (2000, 2014),
+            # No fixed HadISD-derived bound applies to HDP: coverage varies
+            # per station and is validated at runtime against the actual data.
+            (1950, 1970),
+            (2015, 2022),
         ],
-        ids=["full_period", "partial_period", "early_period", "late_period"],
+        ids=[
+            "full_period",
+            "partial_period",
+            "early_period",
+            "late_period",
+            "before_legacy_1980_bound",
+            "after_legacy_2014_bound",
+        ],
     )
     def test_valid_historical_slices(self, historical_slice):
         """Test validation with valid historical periods."""
@@ -314,8 +413,6 @@ class TestValidateHistoricalSlice:
             ((1980, "2014"), "must be integers"),
             ((2000, 2000), "must be less than"),
             ((2014, 1980), "must be less than"),
-            ((1970, 2014), "before HadISD observational period starts"),
-            ((1980, 2020), "after HadISD observational period ends"),
         ],
         ids=[
             "list_not_tuple",
@@ -325,8 +422,6 @@ class TestValidateHistoricalSlice:
             "end_string",
             "equal_years",
             "reversed_years",
-            "before_1980",
-            "after_2014",
         ],
     )
     def test_invalid_historical_slices(self, historical_slice, error_match):
@@ -471,17 +566,15 @@ class TestValidateVariableCompatibility:
     @pytest.mark.parametrize(
         "variable_id",
         [
-            "tas",
-            "tasmax",
-            "tasmin",
             "t2",
-            ["tas", "tasmax"],
-            ["tas", "tasmax", "tasmin"],
+            ["t2"],
+            "dew_point",
+            ["dew_point"],
         ],
-        ids=["tas", "tasmax", "tasmin", "t2", "multiple_tas_tasmax", "all_temp"],
+        ids=["t2", "list_t2", "dew_point", "list_dew_point"],
     )
     def test_valid_temperature_variables(self, variable_id):
-        """Test validation with valid temperature variables."""
+        """Test validation with valid temperature/dewpoint variables."""
         query = {"variable_id": variable_id}
         result = _validate_variable_compatibility(query)
         assert result is True
@@ -502,17 +595,32 @@ class TestValidateVariableCompatibility:
     @pytest.mark.parametrize(
         "variable_id",
         [
+            "tas",
+            "tdps",
             "pr",
             "huss",
-            ["tas", "pr"],
+            "tasmax",
+            "tasmin",
+            ["t2", "pr"],
             ["tasmax", "huss"],
         ],
-        ids=["precipitation", "humidity", "mixed_tas_pr", "mixed_tasmax_huss"],
+        ids=[
+            "tas",
+            "tdps",
+            "precipitation",
+            "humidity",
+            "tasmax",
+            "tasmin",
+            "mixed_t2_pr",
+            "mixed_tasmax_huss",
+        ],
     )
     def test_invalid_unsupported_variables(self, variable_id):
         """Test validation with unsupported variables."""
         query = {"variable_id": variable_id}
-        with pytest.warns(UserWarning, match="only supports temperature variables"):
+        with pytest.warns(
+            UserWarning, match="only supports temperature or dewpoint variables"
+        ):
             result = _validate_variable_compatibility(query)
         assert result is False
 
@@ -750,24 +858,21 @@ class TestGetStationMetadata:
         "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.DataCatalog"
     )
     def test_returns_dataframe(self, mock_catalog_class):
-        """Test that function returns DataFrame from DataCatalog."""
+        """Test that function returns the HDP catalog dataframe from DataCatalog."""
         mock_catalog_instance = MagicMock()
-        mock_stations_df = pd.DataFrame(
+        mock_hdp_df = pd.DataFrame(
             {
-                "station": ["Sacramento (KSAC)"],
-                "station id": ["KSAC"],
-                "latitude": [38.5],
-                "longitude": [-121.5],
-                "elevation": [10],
+                "network_id": ["ASOSAWOS"],
+                "station_id": ["ASOSAWOS_72483023225"],
             }
         )
-        mock_catalog_instance.__getitem__.return_value = mock_stations_df
+        mock_catalog_instance.hdp.df = mock_hdp_df
         mock_catalog_class.return_value = mock_catalog_instance
 
         result = _get_station_metadata()
 
         assert isinstance(result, pd.DataFrame)
-        assert "station" in result.columns
+        assert "station_id" in result.columns
         mock_catalog_class.assert_called_once()
 
     @patch(
@@ -776,26 +881,17 @@ class TestGetStationMetadata:
     def test_contains_required_columns(self, mock_catalog_class):
         """Test that returned DataFrame has required columns."""
         mock_catalog_instance = MagicMock()
-        mock_stations_df = pd.DataFrame(
+        mock_hdp_df = pd.DataFrame(
             {
-                "station": ["Sacramento (KSAC)", "San Francisco (KSFO)"],
-                "station id": ["KSAC", "KSFO"],
-                "latitude": [38.5, 37.6],
-                "longitude": [-121.5, -122.4],
-                "elevation": [10, 5],
+                "network_id": ["ASOSAWOS", "ASOSAWOS"],
+                "station_id": ["ASOSAWOS_72483023225", "ASOSAWOS_72494023234"],
             }
         )
-        mock_catalog_instance.__getitem__.return_value = mock_stations_df
+        mock_catalog_instance.hdp.df = mock_hdp_df
         mock_catalog_class.return_value = mock_catalog_instance
 
         result = _get_station_metadata()
 
-        required_columns = [
-            "station",
-            "station id",
-            "latitude",
-            "longitude",
-            "elevation",
-        ]
+        required_columns = ["network_id", "station_id"]
         for col in required_columns:
             assert col in result.columns
