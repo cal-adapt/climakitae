@@ -46,7 +46,7 @@ The processor takes a **dict**:
 ## Requirements
 
 - **Activity ID**: WRF (dynamical downscaling). LOCA2 already includes statistical bias correction at the watershed level and is not the intended input.
-- **Variable**: Designed for hourly temperature (`tas`); the underlying station observations are HDP `tas`. Not every HDP network provides temperature (e.g. `CDEC`, `CNRFC`, `MTRWFO`, `VALLEYWATER` do not).
+- **Variable**: Designed for hourly `t2` (temperature, matched to HDP's `tas`) or `tdps` (dewpoint, matched to HDP's `tdps`). Not every HDP network provides every variable.
 - **Time coverage**: Input must overlap the requested historical training period (default 1980–2014). HDP station coverage varies widely by station, from a few years to multiple decades.
 - **Single network**: All requested stations must belong to the same HDP network; mixing networks in one call is rejected.
 - **Calendar**: All inputs are converted to a `noleap` calendar internally for consistency.
@@ -60,12 +60,12 @@ data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
     .institution_id("UCLA")
-    .variable_id("tas")
+    .variable_id("t2")
     .table_id("1hr")
     .grid_label("d03")
     .processes({
         "time_slice": ("1980-01-01", "2050-12-31"),
-        "bias_adjust_model_to_station": {"stations": ["ASOSAWOS_69007093217"]},
+        "bias_adjust_model_to_station": {"stations": ["KSAC"]},
     })
     .get())
 

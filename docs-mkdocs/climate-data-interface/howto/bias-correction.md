@@ -9,11 +9,11 @@ Use historical weather station observations to correct WRF model bias locally.
 data = (cd
     .activity_id("WRF")
     .institution_id("UCLA")      # Specify WRF producer
-    .variable_id("tas")             # Hourly temperature
+    .variable_id("t2")             # Hourly temperature
     .table_id("1hr")             # Must be hourly
     .processes({
         "bias_adjust_model_to_station": {
-            "stations": ["ASOSAWOS_69007093217"]
+            "stations": ["KSAC"]
         }
     })
     .get())
@@ -33,7 +33,7 @@ DataCatalog().hdp.df[["network_id", "station_id"]]
 data = (cd
     .processes({
         "bias_adjust_model_to_station": {
-            "stations": ["ASOSAWOS_69007093217"]
+            "stations": ["KSAC"]
         }
     })
     .get())
@@ -50,7 +50,7 @@ data = (cd
 
 **Currently available for:**  
 - ✅ WRF data only (not LOCA2 statistical downscaling)  
-- ✅ Hourly temperature (`tas`) only  
+- ✅ Hourly temperature (t2) only  
 - ✅ HDP weather stations (single network per call; not every network provides temperature)  
 
 **Why these limitations?**

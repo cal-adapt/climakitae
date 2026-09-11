@@ -1,6 +1,6 @@
 """Station Bias Correction Processor for ClimakitAE.
 
-This module provides the StationBiasCorrection processor for bias-correcting
+This module provides the BiasAdjustModelToStation processor for bias-correcting
 gridded climate model data to weather station locations using Quantile Delta
 Mapping (QDM) with historical observational data from the HDP (Historical
 Data Platform) weather station catalog.
@@ -13,20 +13,20 @@ The processor performs the following operations:
 
 Classes
 -------
-StationBiasCorrection : DataProcessor
+BiasAdjustModelToStation : DataProcessor
     Main processor for station-based bias correction using QDM method.
 
 Examples
 --------
 >>> # Create processor for single station
->>> processor = StationBiasCorrection(
+>>> processor = BiasAdjustModelToStation(
 ...     stations=["ASOSAWOS_69007093217"],
 ...     historical_slice=(1980, 2014)
 ... )
 >>> result = processor.execute(gridded_data, context)
 
 >>> # Legacy airport codes are also accepted for ASOSAWOS stations
->>> processor = StationBiasCorrection(
+>>> processor = BiasAdjustModelToStation(
 ...     stations=["KSAC"],
 ...     historical_slice=(1980, 2014)
 ... )
@@ -34,7 +34,7 @@ Examples
 
 >>> # Multiple stations (must belong to the same HDP network) with custom
 >>> # bias correction parameters
->>> processor = StationBiasCorrection(
+>>> processor = BiasAdjustModelToStation(
 ...     stations=["ASOSAWOS_69007093217", "ASOSAWOS_72384023155"],
 ...     historical_slice=(1980, 2014),
 ...     window=60,  # 60-day window instead of default 90
@@ -73,6 +73,11 @@ from climakitae.util.utils import get_closest_gridcell
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+# Maps the gridded model's variable_id to the HDP station variable it should
+# be bias-corrected against: 't2' (WRF's native 2m temperature) is matched
+# to HDP's 'tas', and 'tdps' (dewpoint) is matched directly to HDP's 'tdps'.
+_VARIABLE_ID_TO_HDP_VARIABLE = {"t2": "tas", "tdps": "tdps"}
 
 
 @register_processor("bias_adjust_model_to_station", priority=60)
@@ -196,21 +201,25 @@ class BiasAdjustModelToStation(DataProcessor):
         self.catalog: Union[DataCatalog, object] = UNSET
         self.needs_catalog = True
 
-    def _preprocess_hdp(self, ds: xr.Dataset) -> xr.Dataset:
+    def _preprocess_hdp(self, ds: xr.Dataset, hdp_variable: str = "tas") -> xr.Dataset:
         """Preprocess HDP station data for bias correction.
 
         This method prepares a single station's raw HDP dataset by:
         - Reading the station_id from the 'station' dimension coordinate
-        - Looking up a human-readable display name from the 'station_name' attribute
-        - Renaming the 'tas' data variable to the display name
-        - Validating/normalizing units to Kelvin
+        - Looking up station name from metadata
+        - Renaming data variable to station name
+        - Converting temperature to Kelvin
         - Adding descriptive attributes (coordinates, elevation)
-        - Dropping the station dimension and all other variables
+        - Dropping the station dimension
 
         Parameters
         ----------
         ds : xr.Dataset
-            Raw HDP station dataset with a 'tas' variable and 'station' dim.
+            Raw HDP station dataset with a `hdp_variable` variable and
+            'station' dim.
+        hdp_variable : str, optional
+            Name of the HDP data variable to bias-correct against (default:
+            "tas"). See `_VARIABLE_ID_TO_HDP_VARIABLE`.
 
         Returns
         -------
@@ -221,12 +230,12 @@ class BiasAdjustModelToStation(DataProcessor):
         Raises
         ------
         ValueError
-            If the station does not have a 'tas' (temperature) variable.
+            If the station does not have the requested variable.
         """
         station_id = str(ds["station"].values.item())
-        if "tas" not in ds.data_vars:
+        if hdp_variable not in ds.data_vars:
             raise ValueError(
-                f"HDP station '{station_id}' does not have a 'tas' (temperature) "
+                f"HDP station '{station_id}' does not have a '{hdp_variable}' "
                 "variable available for bias correction."
             )
 
@@ -236,16 +245,17 @@ class BiasAdjustModelToStation(DataProcessor):
         ):
             display_name = station_id
 
-        # Validate/normalize units to Kelvin. HDP tas is expected to already
-        # be in Kelvin, but convert defensively if a network reports Celsius.
-        if ds["tas"].attrs.get("units") != "degree_Kelvin":
+        # Validate/normalize units to Kelvin. HDP data is expected to
+        # already be in Kelvin, but convert if a network reports Celsius.
+        if ds[hdp_variable].attrs.get("units") != "degree_Kelvin":
             logger.warning(
-                "HDP station '%s' tas units are '%s', expected 'degree_Kelvin'; "
+                "HDP station '%s' %s units are '%s', expected 'degree_Kelvin'; "
                 "converting.",
                 station_id,
-                ds["tas"].attrs.get("units"),
+                hdp_variable,
+                ds[hdp_variable].attrs.get("units"),
             )
-            ds["tas"] = ds["tas"] + 273.15
+            ds[hdp_variable] = ds[hdp_variable] + 273.15
 
         # Capture coordinates/elevation before renaming/dropping variables.
         # `.values` computes any still-dask-backed data to numpy first
@@ -257,7 +267,7 @@ class BiasAdjustModelToStation(DataProcessor):
         elevation_units = ds["elevation"].attrs.get("units", "m")
 
         # Rename data variable to the station display name
-        ds = ds.rename({"tas": display_name})
+        ds = ds.rename({hdp_variable: display_name})
 
         # Assign descriptive attributes to the data variable
         ds[display_name] = ds[display_name].assign_attrs(
@@ -268,9 +278,7 @@ class BiasAdjustModelToStation(DataProcessor):
             }
         )
 
-        # Drop the station dimension (single station per file) and every
-        # other variable (lat/lon/elevation, other HDP measurements, QC
-        # flags), leaving only 'time' and the renamed data variable.
+        # Drop the station dimension (single station per file)
         ds = ds.squeeze("station", drop=True)[[display_name]]
 
         return ds
@@ -299,12 +307,39 @@ class BiasAdjustModelToStation(DataProcessor):
             return da.rename("tas")
         return da
 
-    def _load_station_data(self) -> xr.Dataset:
+    @staticmethod
+    def _resolve_hdp_variable(context: Dict[str, Any]) -> str:
+        """Determine which HDP variable to load for this query's variable_id.
+
+        Parameters
+        ----------
+        context : dict
+            Processing context, expected to contain `context["query"]
+            ["variable_id"]`.
+
+        Returns
+        -------
+        str
+            The HDP variable name to load (default: "tas" if variable_id is
+            missing or unrecognized). See `_VARIABLE_ID_TO_HDP_VARIABLE`.
+        """
+        variable_id = (context or {}).get("query", {}).get("variable_id")
+        if isinstance(variable_id, list):
+            variable_id = variable_id[0] if variable_id else None
+        return _VARIABLE_ID_TO_HDP_VARIABLE.get(variable_id, "tas")
+
+    def _load_station_data(self, hdp_variable: str = "tas") -> xr.Dataset:
         """Load HDP station data from the HDP intake-esm catalog.
 
         Resolves the requested station identifiers against the HDP catalog,
         enforces that they all belong to a single network, and loads each
-        station's hourly temperature record.
+        station's hourly record for `hdp_variable`.
+
+        Parameters
+        ----------
+        hdp_variable : str, optional
+            Name of the HDP data variable to load (default: "tas"). See
+            `_VARIABLE_ID_TO_HDP_VARIABLE`.
 
         Returns
         -------
@@ -375,7 +410,9 @@ class BiasAdjustModelToStation(DataProcessor):
                 f"{', '.join(sorted(missing))}."
             )
 
-        processed = [self._preprocess_hdp(ds) for ds in station_datasets.values()]
+        processed = [
+            self._preprocess_hdp(ds, hdp_variable) for ds in station_datasets.values()
+        ]
         station_ds = xr.merge(processed, join="outer")
 
         return station_ds
@@ -622,7 +659,7 @@ class BiasAdjustModelToStation(DataProcessor):
             result_da = result
         else:
             raise TypeError(
-                f"StationBiasCorrection requires xr.DataArray or xr.Dataset input, "
+                f"BiasAdjustModelToStation requires xr.DataArray or xr.Dataset input, "
                 f"got {type(result)}"
             )
 
@@ -818,7 +855,8 @@ class BiasAdjustModelToStation(DataProcessor):
             Dictionary of bias-corrected datasets
         """
         logger.debug("Loading station data from HDP...")
-        station_ds = self._load_station_data()
+        hdp_variable = self._resolve_hdp_variable(context)
+        station_ds = self._load_station_data(hdp_variable)
         logger.debug("Station data loaded. Variables: %s", list(station_ds.data_vars))
 
         ret = {}
@@ -924,14 +962,15 @@ class BiasAdjustModelToStation(DataProcessor):
 
         # Load station observational data from HDP
         logger.debug("Loading station data from HDP...")
-        station_ds = self._load_station_data()
+        hdp_variable = self._resolve_hdp_variable(context)
+        station_ds = self._load_station_data(hdp_variable)
         logger.debug("Station data loaded. Variables: %s", list(station_ds.data_vars))
 
         if isinstance(result, (xr.Dataset, xr.DataArray)):
             return self._process_single_dataset(result, station_ds, context)
         else:
             raise TypeError(
-                f"StationBiasCorrection requires xr.DataArray, xr.Dataset, or Dict input, "
+                f"BiasAdjustModelToStation requires xr.DataArray, xr.Dataset, or Dict input, "
                 f"got {type(result)}"
             )
 

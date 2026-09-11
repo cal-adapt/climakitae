@@ -1,7 +1,7 @@
 """
 Unit tests for climakitae/new_core/processors/bias_adjust_model_to_station.py
 
-This module contains comprehensive unit tests for the BiasCorrectStationData
+This module contains comprehensive unit tests for the BiasAdjustModelToStation
 processor that performs bias correction of climate model data to weather station
 locations using Quantile Delta Mapping (QDM).
 """
@@ -123,6 +123,51 @@ class TestPreprocessHDP:
 
         with pytest.raises(ValueError, match="does not have a 'tas'"):
             proc._preprocess_hdp(ds)
+
+    def test_preprocess_hdp_tdps_variable(self):
+        """Test HDP preprocessing when targeting the 'tdps' variable."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
+        times = pd.date_range("2010-01-01", periods=2)
+        ds = xr.Dataset(
+            {
+                "tdps": (("station", "time"), [[283.15, 284.15]]),
+                "lat": (("station", "time"), [[38.5, 38.5]]),
+                "lon": (("station", "time"), [[-121.5, -121.5]]),
+                "elevation": (("station", "time"), [[25.0, 25.0]]),
+            },
+            coords={"time": times, "station": ["ASOSAWOS_1234"]},
+        )
+        ds.attrs["station_name"] = "TEST STATION"
+        ds["tdps"].attrs["units"] = "degree_Kelvin"
+        ds["elevation"].attrs["units"] = "m"
+
+        out = proc._preprocess_hdp(ds, hdp_variable="tdps")
+
+        assert list(out.data_vars) == ["TEST STATION"]
+        assert out["TEST STATION"].attrs.get("units") == "K"
+
+
+class TestResolveHDPVariable:
+    """Tests for the _resolve_hdp_variable helper."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.ProcClass = BiasAdjustModelToStation
+
+    @pytest.mark.parametrize(
+        "context,expected",
+        [
+            ({"query": {"variable_id": "t2"}}, "tas"),
+            ({"query": {"variable_id": "tdps"}}, "tdps"),
+            ({"query": {"variable_id": ["tdps"]}}, "tdps"),
+            ({"query": {}}, "tas"),
+            ({}, "tas"),
+        ],
+        ids=["t2", "tdps", "list_tdps", "no_variable_id", "no_query"],
+    )
+    def test_resolve_hdp_variable(self, context, expected):
+        """Test resolving the HDP variable name from query variable_id."""
+        assert self.ProcClass._resolve_hdp_variable(context) == expected
 
 
 class TestLoadHDPStationData:

@@ -1,6 +1,6 @@
-"""Parameter validator for StationBiasCorrection processor.
+"""Parameter validator for BiasAdjustModelToStation processor.
 
-This module provides validation for parameters used with the StationBiasCorrection
+This module provides validation for parameters used with the BiasAdjustModelToStation
 processor, which applies Quantile Delta Mapping (QDM) bias correction to gridded
 climate data using historical weather station observations from the HDP
 (Historical Data Platform) catalog.
@@ -21,7 +21,7 @@ Examples
 --------
 >>> # Valid station bias correction parameters
 >>> params = {
-...     "stations": ["ASOSAWOS_69007093217", "ASOSAWOS_72384023155"],
+...     "stations": ["KSAC", "KSFO"],
 ...     "time_slice": (2030, 2060),
 ...     "window": 90,
 ...     "nquantiles": 20
@@ -37,9 +37,9 @@ False
 Notes
 -----
 - Station observational coverage varies per HDP station
-- Currently only supports temperature bias correction ('tas' or 't2', WRF's
-  native 2m temperature variable), since 'tas' is the only variable HDP
-  reliably provides across networks
+- Currently only supports 't2' (WRF's native 2m temperature variable,
+  matched to HDP's 'tas') or 'tdps' (dewpoint, matched directly to HDP's
+  'tdps')
 """
 
 import logging
@@ -61,11 +61,6 @@ from climakitae.new_core.processors.processor_utils import (
 # Module logger
 logger = logging.getLogger(__name__)
 
-# HDP networks known not to provide temperature (tas) observations, based on
-# spot-checking the catalog. Periodically reconcile against the live catalog;
-# the authoritative check happens at load time in the processor.
-_NO_TAS_NETWORKS = {"CDEC", "CNRFC", "MTRWFO", "VALLEYWATER"}
-
 
 def _get_station_metadata() -> pd.DataFrame:
     """Get HDP station metadata from DataCatalog singleton.
@@ -82,10 +77,10 @@ def _get_station_metadata() -> pd.DataFrame:
     return catalog.hdp.df
 
 
-def _get_legacy_stations_metadata() -> pd.DataFrame:
-    """Get the legacy HadISD station lookup table from DataCatalog singleton.
+def _get_airport_code_lookup_table() -> pd.DataFrame:
+    """Get the legacy airport-code lookup table from DataCatalog singleton.
 
-    This table still doubles as an airport-code lookup for HDP ASOSAWOS
+    This table doubles as an airport-code lookup for HDP ASOSAWOS
     stations, since its numeric station id matches the numeric suffix of the
     corresponding HDP `station_id`. See `resolve_airport_code_to_hdp_station_id`.
 
@@ -105,7 +100,7 @@ def validate_bias_correction_station_data_param(
     query: Dict[str, Any] | None = None,
     **kwargs: Any,  # noqa: ARG001
 ) -> bool:
-    """Validate parameters for StationBiasCorrection processor.
+    """Validate parameters for BiasAdjustModelToStation processor.
 
     This function validates all parameters required for station bias correction:
     - Station selection (must exist in the HDP catalog, all in one network)
@@ -242,8 +237,8 @@ def _validate_stations(stations: Any) -> bool:
     "ASOSAWOS_69007093217") or `"network_id:station_id"` strings, as well as
     legacy airport codes/names (e.g. "KSAC", "Sacramento (KSAC)") which are
     translated to their HDP ASOSAWOS `station_id` equivalent. Validates that
-    all requested stations exist in the HDP catalog, belong to a single
-    network, and that network provides temperature observations.
+    all requested stations exist in the HDP catalog and belong to a single
+    network.
 
     Parameters
     ----------
@@ -260,7 +255,7 @@ def _validate_stations(stations: Any) -> bool:
         msg = (
             f"'stations' must be a list of HDP station identifiers, "
             f"got {type(stations).__name__}. "
-            f"Example: ['ASOSAWOS_69007093217']"
+            f"Example: ['ASOSAWOS_69007093217', 'KSAC']"
         )
         logger.warning(msg)
         return False
@@ -273,7 +268,7 @@ def _validate_stations(stations: Any) -> bool:
 
     # Check all elements are strings
     if not all(isinstance(s, str) for s in stations):
-        msg = "All station identifiers must be strings."
+        msg = "All station names must be strings."
         logger.warning(msg)
         return False
 
@@ -281,7 +276,7 @@ def _validate_stations(stations: Any) -> bool:
     # their HDP ASOSAWOS station_id equivalent. Only fetch the legacy lookup
     # table if it's actually needed.
     if any(is_station_identifier(s) for s in stations):
-        legacy_stations_df = _get_legacy_stations_metadata()
+        legacy_stations_df = _get_airport_code_lookup_table()
         try:
             resolved_stations = [
                 resolve_airport_code_to_hdp_station_id(s, legacy_stations_df)
@@ -300,14 +295,6 @@ def _validate_stations(stations: Any) -> bool:
         _, network_id = resolve_hdp_stations(resolved_stations, hdp_df)
     except ValueError as e:
         logger.warning(str(e))
-        return False
-
-    if network_id in _NO_TAS_NETWORKS:
-        msg = (
-            f"HDP network '{network_id}' does not provide temperature (tas) "
-            f"observations and cannot be used for station bias correction."
-        )
-        logger.warning(msg)
         return False
 
     logger.debug(
@@ -370,11 +357,6 @@ def _validate_historical_slice(historical_slice: Any) -> bool:
         )
         logger.warning(msg)
         return False
-
-    # Note: HDP station coverage varies per station (ranging from a few years
-    # to multiple decades), so there is no single valid bound to check here.
-    # Overlap between the requested historical_slice and a given station's
-    # actual record is validated at runtime when the data is loaded.
 
     logger.debug("Historical slice validation passed: %s", historical_slice)
     return True
@@ -524,10 +506,10 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
     bool
         True if variable is compatible, False otherwise.
     """
-    # Station bias correction supports 'tas' and 't2' (WRF's native 2m
-    # temperature variable name, treated as equivalent to 'tas' here) since
-    # HDP reliably only provides temperature as 'tas'.
-    supported_variables = ["tas", "t2"]
+    # Station bias correction supports WRF's 't2' (2m temperature, matched
+    # to HDP's 'tas') and 'tdps' (dewpoint, matched directly to HDP's
+    # 'tdps').
+    supported_variables = ["t2", "tdps"]
 
     variable_id = query.get("variable_id", None)
     if variable_id is None:
@@ -546,9 +528,10 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
     unsupported = [v for v in variable_ids if v not in supported_variables]
     if unsupported:
         msg = (
-            f"Station bias correction currently only supports temperature variables "
-            f"('tas' or 't2'), but got: {', '.join(unsupported)}. "
-            f"HDP station data only provides temperature (tas) observations."
+            f"Station bias correction currently only supports temperature or "
+            f"dewpoint variables ('t2' or 'tdps'), but got: {', '.join(unsupported)}. "
+            f"'t2' is matched to HDP's 'tas' observations, and 'tdps' is matched "
+            f"to HDP's 'tdps' observations."
         )
         logger.warning(msg)
         return False

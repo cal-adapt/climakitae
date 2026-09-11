@@ -1101,7 +1101,7 @@ def get_station_coordinates(
 
     This function provides a centralized way to extract station coordinates
     from the catalog. It's used by both the Clip processor and the
-    StationBiasCorrection processor.
+    BiasAdjustModelToStation processor.
 
     Parameters
     ----------

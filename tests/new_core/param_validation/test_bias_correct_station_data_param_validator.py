@@ -1,7 +1,7 @@
 """
 Unit tests for climakitae/new_core/param_validation/bias_adjust_model_to_station_param_validator.py
 
-This module contains comprehensive unit tests for the StationBiasCorrection processor
+This module contains comprehensive unit tests for the BiasAdjustModelToStation processor
 parameter validation functionality.
 """
 
@@ -13,7 +13,7 @@ import pytest
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator import (
-    _get_legacy_stations_metadata,
+    _get_airport_code_lookup_table,
     _get_station_metadata,
     _validate_catalog_requirement,
     _validate_downscaling_method_requirement,
@@ -53,7 +53,7 @@ def valid_query():
     """Fixture providing a valid query dictionary for cross-validation."""
     return {
         "catalog": "cadcat",
-        "variable_id": "tas",
+        "variable_id": "t2",
         "table_id": "1hr",
         "activity_id": "WRF",
         "grid_label": "d02",
@@ -246,7 +246,7 @@ class TestValidateStations:
     )
     def test_invalid_non_string_elements(self, stations):
         """Test validation with non-string elements in list."""
-        with pytest.warns(UserWarning, match="All station identifiers must be strings"):
+        with pytest.warns(UserWarning, match="All station names must be strings"):
             result = _validate_stations(stations)
         assert result is False
 
@@ -273,18 +273,7 @@ class TestValidateStations:
         assert result is False
 
     @patch(
-        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
-    )
-    def test_invalid_no_tas_network(self, mock_get_metadata):
-        """Test validation fails for a network known not to provide tas."""
-        mock_get_metadata.return_value = self.mock_station_metadata
-
-        with pytest.warns(UserWarning, match="does not provide temperature"):
-            result = _validate_stations(["CDEC_1"])
-        assert result is False
-
-    @patch(
-        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_legacy_stations_metadata"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_airport_code_lookup_table"
     )
     @patch(
         "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
@@ -312,7 +301,7 @@ class TestValidateStations:
         mock_get_legacy_metadata.assert_called_once()
 
     @patch(
-        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_legacy_stations_metadata"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_airport_code_lookup_table"
     )
     @patch(
         "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
@@ -520,13 +509,15 @@ class TestValidateVariableCompatibility:
     @pytest.mark.parametrize(
         "variable_id",
         [
-            "tas",
-            ["tas"],
+            "t2",
+            ["t2"],
+            "tdps",
+            ["tdps"],
         ],
-        ids=["tas", "list_tas"],
+        ids=["t2", "list_t2", "tdps", "list_tdps"],
     )
     def test_valid_temperature_variables(self, variable_id):
-        """Test validation with valid temperature variables."""
+        """Test validation with valid temperature/dewpoint variables."""
         query = {"variable_id": variable_id}
         result = _validate_variable_compatibility(query)
         assert result is True
@@ -547,28 +538,30 @@ class TestValidateVariableCompatibility:
     @pytest.mark.parametrize(
         "variable_id",
         [
+            "tas",
             "pr",
             "huss",
             "tasmax",
             "tasmin",
-            "t2",
-            ["tas", "pr"],
+            ["t2", "pr"],
             ["tasmax", "huss"],
         ],
         ids=[
+            "tas",
             "precipitation",
             "humidity",
             "tasmax",
             "tasmin",
-            "t2",
-            "mixed_tas_pr",
+            "mixed_t2_pr",
             "mixed_tasmax_huss",
         ],
     )
     def test_invalid_unsupported_variables(self, variable_id):
         """Test validation with unsupported variables."""
         query = {"variable_id": variable_id}
-        with pytest.warns(UserWarning, match="only supports the 'tas' temperature"):
+        with pytest.warns(
+            UserWarning, match="only supports temperature or dewpoint variables"
+        ):
             result = _validate_variable_compatibility(query)
         assert result is False
 
