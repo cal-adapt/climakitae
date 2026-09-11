@@ -2322,6 +2322,75 @@ class TestClipDataToPointNaNSearchExpansion:
         assert not np.isnan(result["temp"].isel(time=0).values)
 
 
+class TestClipDataToPointXYTransformOrder:
+    """Regression test for x/y transform ordering bug in the NaN-search fallback.
+
+    The nearest-cell fallback in `_clip_data_to_point` used to swap the
+    projected x/y values returned by `pyproj.Transformer.transform` before
+    matching them against the "x" and "y" dimension coordinates. On grids
+    where the x and y coordinate ranges don't overlap (e.g. real projected
+    WRF Lambert Conformal grids), this caused the search to look in the
+    wrong part of the domain, sometimes finding a "valid" cell hundreds of
+    kilometers from the requested point.
+    """
+
+    def setup_method(self):
+        """Build a small projected (non-lat/lon) grid with non-overlapping x/y ranges."""
+        self.crs = pyproj.CRS.from_proj4(
+            "+proj=lcc +lat_1=30 +lat_2=60 +lat_0=38 +lon_0=-120 "
+            "+x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
+        )
+        self.transformer = pyproj.Transformer.from_crs(
+            "epsg:4326", self.crs, always_xy=True
+        )
+
+        # Non-overlapping x/y ranges: a coordinate swap lands far outside
+        # the domain instead of coincidentally landing on a valid cell.
+        self.x_vals = np.linspace(0, 100_000, 11)
+        self.y_vals = np.linspace(200_000, 300_000, 11)
+
+        self.target_lat = 39.0
+        self.target_lon = -119.5
+        target_x, target_y = self.transformer.transform(
+            self.target_lon, self.target_lat
+        )
+        self.true_x_idx = int(np.abs(self.x_vals - target_x).argmin())
+        self.true_y_idx = int(np.abs(self.y_vals - target_y).argmin())
+
+        # All-NaN grid except the one cell nearest the true projected target.
+        data = np.full((1, 11, 11), np.nan)
+        data[0, self.true_y_idx, self.true_x_idx] = 25.0
+        self.dataset = xr.Dataset(
+            {"temp": (["time", "y", "x"], data)},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=1),
+                "y": self.y_vals,
+                "x": self.x_vals,
+            },
+        )
+        self.dataset = self.dataset.rio.write_crs(self.crs)
+
+        # A NaN cell far from the true index to force the fallback path.
+        nan_x_idx = 0 if self.true_x_idx != 0 else 1
+        nan_y_idx = 0 if self.true_y_idx != 0 else 1
+        self.nan_cell = self.dataset.isel(x=nan_x_idx, y=nan_y_idx)
+
+    def test_neighbor_search_finds_cell_near_true_projected_target(self):
+        """Fallback search must use (x, y) in the correct order, not swapped."""
+        with patch(
+            "climakitae.new_core.processors.clip.get_closest_gridcell",
+            return_value=self.nan_cell,
+        ):
+            result = Clip._clip_data_to_point(
+                self.dataset, self.target_lat, self.target_lon
+            )
+
+        # With the coordinate swap bug, the 3x3 search centers on a location
+        # derived from mismatched x/y ranges, misses the only valid cell,
+        # and returns None. The fix must find it.
+        assert result is not None
+
+
 class TestGetMultiBoundaryGeometry:
     """Test class for _get_multi_boundary_geometry method.
 

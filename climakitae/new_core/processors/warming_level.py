@@ -14,7 +14,7 @@ import pandas as pd
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
-from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1981_2010_TIMEIDX_FILE
+from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1850_1900_TIMEIDX_FILE
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
@@ -95,7 +95,7 @@ class WarmingLevel(DataProcessor):
             GWL_1850_1900_FILE, index_col=[0, 1, 2], parse_dates=True
         )
         self.warming_level_times_idx = read_csv_file(
-            GWL_1981_2010_TIMEIDX_FILE, index_col="time", parse_dates=True
+            GWL_1850_1900_TIMEIDX_FILE, index_col="time", parse_dates=True
         )
         self.catalog = None
         self.value = {
@@ -147,7 +147,7 @@ class WarmingLevel(DataProcessor):
         if self.warming_level_times is None:
             try:
                 self.warming_level_times = read_csv_file(
-                    GWL_1981_2010_TIMEIDX_FILE, index_col="time", parse_dates=True
+                    GWL_1850_1900_TIMEIDX_FILE, index_col="time", parse_dates=True
                 )
             except (FileNotFoundError, pd.errors.ParserError) as e:
                 logger.error(
