@@ -1,6 +1,6 @@
 # Bias Correction: Localize WRF to Weather Stations
 
-Use historical weather station observations to correct WRF model bias locally.
+Use historical weather station observations to correct WRF model bias locally. Historical weather station data has gone through quality assurance (QA) and quality control (QC) protocols. More details about the data itself can be found at the [**Historical Data Platform (HDP)**](https://github.com/Eagle-Rock-Analytics/historical-obs-platform) repository.
 
 ## Basic Localization
 

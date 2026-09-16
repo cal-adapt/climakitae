@@ -89,20 +89,12 @@ CATALOG_REN_ENERGY_GEN = "renewable energy generation"
 CATALOG_BOUNDARY = "boundary"
 CATALOG_HDP = "hdp"
 
-# HDP networks known not to provide temperature ('tas') observations, based
-# on spot-checking the catalog. Periodically reconcile against the live
-# catalog.
-NO_TAS_NETWORKS = ["CDEC", "CNRFC", "MTRWFO", "VALLEYWATER"]
-
-# HDP networks known not to provide dewpoint ('tdps') observations (some of
-# these provide a derived 'tdps_derived' variable instead, which is not
-# currently supported). Based on spot-checking the catalog. Periodically
-# reconcile against the live catalog.
-NO_TDPS_NETWORKS = [
+# HDP networks known to provide temperature ('tas') observations, based on
+# spot-checking the catalog. Periodically reconcile against the live catalog.
+HAS_TAS_NETWORKS = [
+    "ASOSAWOS",
     "CAHYDRO",
-    "CDEC",
     "CIMIS",
-    "CNRFC",
     "CRN",
     "CW3E",
     "CWOP",
@@ -113,16 +105,38 @@ NO_TDPS_NETWORKS = [
     "LOXWFO",
     "MAP",
     "MARITIME",
-    "MTRWFO",
     "NCAWOS",
     "NDBC",
     "NOS-NWLON",
     "NOS-PORTS",
+    "OtherISD",
     "RAWS",
+    "SCAN",
     "SGXWFO",
     "SHASAVAL",
     "SNOTEL",
-    "VALLEYWATER",
+    "VCAPCD",
+]
+
+# HDP networks known to provide dewpoint observations, either as literal
+# 'tdps' or as a derived 'tdps_derived' variable (both are accepted; see
+# _HDP_VARIABLE_ALIASES). Based on spot-checking the catalog. Periodically
+# reconcile against the live catalog.
+HAS_TDPS_NETWORKS = [
+    "ASOSAWOS",
+    "CIMIS",
+    "CRN",
+    "CW3E",
+    "CWOP",
+    "HNXWFO",
+    "HPWREN",
+    "LOXWFO",
+    "MAP",
+    "NCAWOS",
+    "OtherISD",
+    "RAWS",
+    "SCAN",
+    "SGXWFO",
     "VCAPCD",
 ]
 

@@ -146,6 +146,28 @@ class TestPreprocessHDP:
         assert list(out.data_vars) == ["TEST STATION"]
         assert out["TEST STATION"].attrs.get("units") == "K"
 
+    def test_preprocess_hdp_tdps_derived_fallback(self):
+        """Test that 'tdps_derived' is used when 'tdps' is not available."""
+        proc = self.ProcClass({"stations": ["CIMIS_1234"]})
+        times = pd.date_range("2010-01-01", periods=2)
+        ds = xr.Dataset(
+            {
+                "tdps_derived": (("station", "time"), [[283.15, 284.15]]),
+                "lat": (("station", "time"), [[38.5, 38.5]]),
+                "lon": (("station", "time"), [[-121.5, -121.5]]),
+                "elevation": (("station", "time"), [[25.0, 25.0]]),
+            },
+            coords={"time": times, "station": ["CIMIS_1234"]},
+        )
+        ds.attrs["station_name"] = "TEST STATION"
+        ds["tdps_derived"].attrs["units"] = "degree_Kelvin"
+        ds["elevation"].attrs["units"] = "m"
+
+        out = proc._preprocess_hdp(ds, hdp_variable="tdps")
+
+        assert list(out.data_vars) == ["TEST STATION"]
+        assert out["TEST STATION"].attrs.get("units") == "K"
+
 
 class TestResolveHDPVariable:
     """Tests for the _resolve_hdp_variable helper."""
@@ -541,15 +563,18 @@ class TestBiasCorrectStationDataExecution:
         # Mock _bias_correct_model_data to avoid QDM complexity
         with patch.object(proc, "_bias_correct_model_data") as mock_bias_correct:
             mock_bias_correct.return_value = xr.Dataset({"KSAC": station_da}).to_array(
-                dim="station"
+                dim="station", name="tas"
             )
 
             context = {}
             result = proc.execute(input_da, context)
 
-        # Verify result is a Dataset
+        # Verify result is a Dataset with a 'station' dimension, not a
+        # separate data variable per station
         assert isinstance(result, xr.Dataset)
-        assert "KSAC" in result.data_vars
+        assert list(result.data_vars) == ["tas"]
+        assert "station" in result.dims
+        assert "KSAC" in result["station"].values
 
     @patch.object(BiasAdjustModelToStation, "_load_station_data")
     @patch.object(BiasAdjustModelToStation, "_process_single_dataset")
@@ -697,16 +722,17 @@ class TestBiasCorrectStationDataEdgeCases:
             self.processor, "_bias_correct_model_data"
         ) as mock_bias_correct:
             mock_bias_correct.return_value = xr.Dataset({"KSAC": station_da}).to_array(
-                dim="station"
+                dim="station", name="tas"
             )
 
             context = {}
             result = self.processor.execute(ds, context)
 
-        # Should return a Dataset
+        # Should return a Dataset with a 'station' dimension
         assert isinstance(result, xr.Dataset)
-        # Should have station data
-        assert "KSAC" in result.data_vars
+        assert list(result.data_vars) == ["tas"]
+        assert "station" in result.dims
+        assert "KSAC" in result["station"].values
 
 
 class TestBiasCorrectConcatIntegration:
@@ -794,9 +820,10 @@ class TestBiasCorrectConcatIntegration:
 
             result = self.processor.execute(da, context)
 
-            # Verification
+            # Verification: single data var with a 'station' dimension
             assert isinstance(result, xr.Dataset)
-            assert "KSAC" in result.data_vars
+            assert list(result.data_vars) == ["tas"]
+            assert "KSAC" in result["station"].values
 
             # Check that QDM.train was called
             assert mock_qdm.train.called
@@ -822,8 +849,8 @@ class TestBiasCorrectConcatIntegration:
             assert hist_arg.time.dt.year.max() == 2001
 
             # Check that result has 'sim' dimension
-            assert "sim" in result["KSAC"].dims
-            assert len(result["KSAC"].sim) == 2
+            assert "sim" in result["tas"].dims
+            assert len(result["tas"].sim) == 2
 
 
 class TestBiasCorrectUnitsPreservation:
@@ -910,7 +937,7 @@ class TestBiasCorrectUnitsPreservation:
     def test_output_has_station_coordinates_and_elevation(
         self, mock_load, mock_get_closest
     ):
-        """Test that output DataArrays have station metadata attributes."""
+        """Test that output has lat/lon/elevation coordinates along 'station'."""
         # Create input DataArray
         times = pd.date_range("2000-01-01", periods=10)
         input_da = xr.DataArray(
@@ -954,7 +981,11 @@ class TestBiasCorrectUnitsPreservation:
             context = {}
             result = self.processor.execute(input_da, context)
 
-        # Verify output attributes
-        assert "station_coordinates" in result["KSAC"].attrs
-        assert "station_elevation" in result["KSAC"].attrs
-        assert "units" in result["KSAC"].attrs
+        # Verify per-station metadata is carried as coordinates along the
+        # 'station' dimension, rather than duplicated into per-variable attrs
+        assert "station" in result.dims
+        station_idx = list(result["station"].values).index("KSAC")
+        assert result["lat"].values[station_idx] == pytest.approx(38.5816)
+        assert result["lon"].values[station_idx] == pytest.approx(-121.4944)
+        assert result["elevation"].values[station_idx] == "10 m"
+        assert "units" in result["bias_corrected"].attrs

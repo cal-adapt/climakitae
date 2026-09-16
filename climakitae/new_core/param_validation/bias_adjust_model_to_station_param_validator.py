@@ -1,13 +1,13 @@
 """Parameter validator for BiasAdjustModelToStation processor.
 
 This module provides validation for parameters used with the BiasAdjustModelToStation
-processor, which applies Quantile Delta Mapping (QDM) bias correction to gridded
+processor, which applies Quantile Delta Mapping (QDM) bias adjustment to gridded
 climate data using historical weather station observations from the HDP
 (Historical Data Platform) catalog.
 
 The validator ensures:
 - Valid station selection from available HDP stations
-- Proper time slice specification for bias correction
+- Proper time slice specification for bias adjustment
 - Valid QDM parameters (window, nquantiles, group, kind)
 - Station metadata availability
 - Compatibility between selected stations and data variables
@@ -15,11 +15,11 @@ The validator ensures:
 Functions
 ---------
 validate_station_bias_correction_param
-    Main validation function for station bias correction parameters.
+    Main validation function for station bias adjustment parameters.
 
 Examples
 --------
->>> # Valid station bias correction parameters
+>>> # Valid station bias adjustment parameters
 >>> params = {
 ...     "stations": ["KSAC", "KSFO"],
 ...     "time_slice": (2030, 2060),
@@ -39,7 +39,7 @@ Notes
 - Station observational coverage varies per HDP station
 - Currently only supports 't2' (WRF's native 2m temperature variable,
   matched to HDP's 'tas') or 'dew_point' (WRF's native dewpoint variable,
-  matched to HDP's 'tdps')
+  matched to HDP's 'tdps', or 'tdps_derived' where 'tdps' isn't available)
 """
 
 import logging
@@ -47,7 +47,7 @@ from typing import Any, Dict
 
 import pandas as pd
 
-from climakitae.core.constants import NO_TAS_NETWORKS, NO_TDPS_NETWORKS, UNSET
+from climakitae.core.constants import HAS_TAS_NETWORKS, HAS_TDPS_NETWORKS, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
@@ -64,11 +64,10 @@ from climakitae.new_core.processors.processor_utils import (
 # Module logger
 logger = logging.getLogger(__name__)
 
-# Maps the HDP variable a network must provide to the set of networks known
-# not to provide it, keyed by the HDP variable name (see
-# _VARIABLE_ID_TO_HDP_VARIABLE for the gridded variable_id -> HDP variable
-# mapping).
-_NO_VARIABLE_NETWORKS = {"tas": NO_TAS_NETWORKS, "tdps": NO_TDPS_NETWORKS}
+# Maps an HDP variable to the set of networks known to provide it, keyed by
+# the HDP variable name (see _VARIABLE_ID_TO_HDP_VARIABLE for the gridded
+# variable_id -> HDP variable mapping).
+_HAS_VARIABLE_NETWORKS = {"tas": HAS_TAS_NETWORKS, "tdps": HAS_TDPS_NETWORKS}
 
 
 def _get_station_metadata() -> pd.DataFrame:
@@ -111,7 +110,7 @@ def validate_bias_correction_station_data_param(
 ) -> bool:
     """Validate parameters for BiasAdjustModelToStation processor.
 
-    This function validates all parameters required for station bias correction:
+    This function validates all parameters required for station bias adjustment:
     - Station selection (must exist in the HDP catalog, all in one network)
     - Historical slice (optional, must be valid years if provided)
     - QDM parameters (window, nquantiles, group, kind)
@@ -120,7 +119,7 @@ def validate_bias_correction_station_data_param(
     Parameters
     ----------
     value : Any
-        Dictionary containing station bias correction parameters. Expected keys:
+        Dictionary containing station bias adjustment parameters. Expected keys:
         - stations: list[str] - Station names or codes (REQUIRED)
         - historical_slice: tuple[int, int], optional - Historical training period (default: (1980, 2014))
         - window: int, optional - Seasonal grouping window (default: 90)
@@ -247,7 +246,7 @@ def _validate_stations(stations: Any, query: Dict[str, Any] | None = None) -> bo
     translated to their HDP ASOSAWOS `station_id` equivalent. Validates that
     all requested stations exist in the HDP catalog. If `query` is provided,
     also validates that every resolved station's network provides the HDP
-    variable the query's `variable_id` needs (see `_NO_VARIABLE_NETWORKS`).
+    variable the query's `variable_id` needs (see `_HAS_VARIABLE_NETWORKS`).
 
     Parameters
     ----------
@@ -309,16 +308,16 @@ def _validate_stations(stations: Any, query: Dict[str, Any] | None = None) -> bo
         return False
 
     # If the query specifies a variable_id we know how to map to an HDP
-    # variable, reject any resolved network known not to provide it.
+    # variable, reject any resolved network not known to provide it.
     if query is not None:
         variable_id = query.get("variable_id", None)
         variable_ids = variable_id if isinstance(variable_id, list) else [variable_id]
         for vid in variable_ids:
             hdp_variable = _VARIABLE_ID_TO_HDP_VARIABLE.get(vid)
-            no_variable_networks = _NO_VARIABLE_NETWORKS.get(hdp_variable)
-            if no_variable_networks is None:
+            has_variable_networks = _HAS_VARIABLE_NETWORKS.get(hdp_variable)
+            if has_variable_networks is None:
                 continue
-            offending = sorted(n for n in network_ids if n in no_variable_networks)
+            offending = sorted(n for n in network_ids if n not in has_variable_networks)
             if offending:
                 msg = (
                     f"HDP network(s) {offending} do not provide '{hdp_variable}' "
@@ -337,7 +336,7 @@ def _validate_stations(stations: Any, query: Dict[str, Any] | None = None) -> bo
 
 
 def _validate_historical_slice(historical_slice: Any) -> bool:
-    """Validate historical slice parameter for bias correction training period.
+    """Validate historical slice parameter for bias adjustment training period.
 
     Parameters
     ----------
@@ -525,7 +524,7 @@ def _validate_kind(kind: Any) -> bool:
 
 
 def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
-    """Validate that selected variable is compatible with station bias correction.
+    """Validate that selected variable is compatible with station bias adjustment.
 
     Parameters
     ----------
@@ -563,7 +562,7 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
             f"dewpoint variables ('t2' or 'dew_point'), but got: "
             f"{', '.join(unsupported)}. 't2' is matched to HDP's 'tas' "
             f"observations, and 'dew_point' is matched to HDP's 'tdps' "
-            f"observations."
+            f"(or 'tdps_derived') observations."
         )
         logger.warning(msg)
         return False
@@ -573,9 +572,9 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
 
 
 def _validate_timescale_requirement(query: Dict[str, Any]) -> bool:
-    """Validate that timescale is set to hourly for station bias correction.
+    """Validate that timescale is set to hourly for station bias adjustment.
 
-    Station bias correction requires hourly data to match HDP observational
+    Station bias adjustment requires hourly data to match HDP observational
     data resolution.
 
     Parameters
@@ -610,10 +609,10 @@ def _validate_timescale_requirement(query: Dict[str, Any]) -> bool:
 
 
 def _validate_downscaling_method_requirement(query: Dict[str, Any]) -> bool:
-    """Validate that downscaling method is Dynamical (WRF) for station bias correction.
+    """Validate that downscaling method is Dynamical (WRF) for station bias adjustment.
 
-    Station bias correction only supports WRF dynamical downscaling because bias
-    correction parameters were calibrated specifically for WRF data. This is a
+    Station bias adjustment only supports WRF dynamical downscaling because bias
+    adjustment parameters were calibrated specifically for WRF data. This is a
     legacy constraint from the original implementation.
 
     Parameters
@@ -648,9 +647,9 @@ def _validate_downscaling_method_requirement(query: Dict[str, Any]) -> bool:
 
 
 def _validate_resolution_requirement(query: Dict[str, Any]) -> bool:
-    """Validate that resolution is not 3km for station bias correction.
+    """Validate that resolution is not 3km for station bias adjustment.
 
-    Station bias correction does not support 3km resolution due to limitations
+    Station bias adjustment does not support 3km resolution due to limitations
     in the original calibration. Only 9km and 45km resolutions are supported.
     This is a legacy constraint from the original implementation.
 
@@ -688,7 +687,7 @@ def _validate_scenario_resolution_compatibility(query: Dict[str, Any]) -> bool:
     """Validate that 3km resolution is not used with SSP 2-4.5 or SSP 5-8.5 scenarios.
 
     This is a legacy constraint from the original implementation. While station
-    bias correction already rejects 3km resolution entirely, this function provides
+    bias adjustment already rejects 3km resolution entirely, this function provides
     more specific error messages when the incompatible combination is detected.
 
     Parameters
@@ -740,9 +739,9 @@ def _validate_scenario_resolution_compatibility(query: Dict[str, Any]) -> bool:
 
 
 def _validate_institution_id_requirement(query: Dict[str, Any]) -> bool:
-    """Validate that institution_id is set for station bias correction.
+    """Validate that institution_id is set for station bias adjustment.
 
-    Station bias correction requires institution_id to ensure proper data
+    Station bias adjustment requires institution_id to ensure proper data
     access and provenance tracking.
 
     Parameters
@@ -771,7 +770,7 @@ def _validate_institution_id_requirement(query: Dict[str, Any]) -> bool:
 
 
 def _validate_catalog_requirement(query: Dict[str, Any]) -> bool:
-    """Require query['catalog'] == 'cadcat' for station bias correction.
+    """Require query['catalog'] == 'cadcat' for station bias adjustment.
 
     Accepts a string or list of strings. Returns False if catalog is missing
     or any value is not 'cadcat'.
