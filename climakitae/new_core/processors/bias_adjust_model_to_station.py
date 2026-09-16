@@ -5,13 +5,6 @@ gridded climate model data to weather station locations using Quantile Delta
 Mapping (QDM) with historical observational data from the HDP (Historical
 Data Platform) weather station catalog.
 
-What is QDM? Quantile Delta Mapping compares the model's historical
-distribution of values to the station's observed distribution, quantile by
-quantile, and uses the differences to correct the model data (including
-future projections) so its statistics line up with what was actually
-observed at that station. Quick read + API reference:
-https://xsdba.readthedocs.io/en/v0.5.0/apidoc/xsdba.html#xsdba.adjustment.QuantileDeltaMapping
-
 The processor performs the following operations:
 1. Loads HDP weather station observations from the HDP intake-esm catalog
 2. Finds the closest gridcell in the climate model data to each station
@@ -99,7 +92,7 @@ _QDM_LOG_REFERENCE = (
     "for more info)"
 )
 
-# CF-ish metadata for the output data variable, keyed by the name it ends up
+# Metadata for the output data variable, keyed by the name it ends up
 # with after bias adjustment (see _rename_t2_to_tas and
 # _bias_correct_model_data, which name the result after the gridded
 # variable).
@@ -876,7 +869,7 @@ class BiasAdjustModelToStation(DataProcessor):
         output_da["lon"].attrs["units"] = "degrees_east"
 
         # Preserve units from input model data for downstream processors, and
-        # add CF-ish metadata describing the bias-adjusted variable.
+        # add metadata describing the bias-adjusted variable.
         output_da.attrs["units"] = output_units
         output_da.attrs.update(_OUTPUT_VARIABLE_METADATA.get(output_da.name, {}))
         output_da.attrs["description"] = (

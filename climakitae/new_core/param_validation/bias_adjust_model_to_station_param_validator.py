@@ -317,10 +317,12 @@ def _validate_stations(stations: Any, query: Dict[str, Any] | None = None) -> bo
             has_variable_networks = _HAS_VARIABLE_NETWORKS.get(hdp_variable)
             if has_variable_networks is None:
                 continue
-            offending = sorted(n for n in network_ids if n not in has_variable_networks)
-            if offending:
+            not_included = sorted(
+                n for n in network_ids if n not in has_variable_networks
+            )
+            if not_included:
                 msg = (
-                    f"HDP network(s) {offending} do not provide '{hdp_variable}' "
+                    f"HDP network(s) {not_included} do not provide '{hdp_variable}' "
                     f"observations, which are required for variable_id='{vid}', and cannot "
                     f"be used for station bias correction."
                 )
