@@ -48,8 +48,7 @@ class Sup3rCCValidator(ParameterValidator):
         }
         self.catalog = catalog.sup3rcc
         self.invalid_processors = [
-            "bias_adjust_model_to_station"
-            "filter_unadjusted_models",
+            "bias_adjust_model_to_station" "filter_unadjusted_models",
             "warming_level",
             "concatenate",
         ]
@@ -157,4 +156,3 @@ class Sup3rCCValidator(ParameterValidator):
             )
             return False
         return True
-
