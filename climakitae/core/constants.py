@@ -89,8 +89,7 @@ CATALOG_REN_ENERGY_GEN = "renewable energy generation"
 CATALOG_BOUNDARY = "boundary"
 CATALOG_HDP = "hdp"
 
-# HDP networks known to provide temperature ('tas') observations, based on
-# spot-checking the catalog. Periodically reconcile against the live catalog.
+# HDP networks known to provide temperature ('tas') observations.
 HAS_TAS_NETWORKS = [
     "ASOSAWOS",
     "CAHYDRO",
@@ -118,10 +117,8 @@ HAS_TAS_NETWORKS = [
     "VCAPCD",
 ]
 
-# HDP networks known to provide dewpoint observations, either as literal
-# 'tdps' or as a derived 'tdps_derived' variable (both are accepted; see
-# _HDP_VARIABLE_ALIASES). Based on spot-checking the catalog. Periodically
-# reconcile against the live catalog.
+# HDP networks known to provide dewpoint observations, either as 'tdps' or
+# 'tdps_derived'.
 HAS_TDPS_NETWORKS = [
     "ASOSAWOS",
     "CIMIS",
