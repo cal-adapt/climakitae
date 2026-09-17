@@ -1521,6 +1521,7 @@ class Clip(DataProcessor):
             "CA Electricity Demand Forecast Zones": boundaries._ca_forecast_zones,
             "CA Electric Balancing Authority Areas": boundaries._ca_electric_balancing_areas,
             "CA Census Tracts": boundaries._ca_census_tracts,
+            "Tribal Areas": boundaries._tribal_areas,
         }
 
         if category not in category_map:
@@ -1572,6 +1573,7 @@ class Clip(DataProcessor):
             "CA Electricity Demand Forecast Zones": "forecast_zone",
             "CA Electric Balancing Authority Areas": "balancing_area",
             "CA Census Tracts": "census_tract",
+            "Tribal Areas": "tribal_area",
         }
 
         # Get the category for this boundary key

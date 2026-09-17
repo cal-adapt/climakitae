@@ -193,6 +193,7 @@ class Boundaries:
         self.__ca_forecast_zones: Optional[pd.DataFrame] = None
         self.__ca_electric_balancing_areas: Optional[pd.DataFrame] = None
         self.__ca_census_tracts: Optional[pd.DataFrame] = None
+        self.__tribal_areas: Optional[gpd.GeoDataFrame] = None
 
         # Cache for lookup dictionaries
         self._lookup_cache: Dict[str, Dict[str, int]] = {}
@@ -338,6 +339,20 @@ class Boundaries:
     @_ca_census_tracts.setter
     def _ca_census_tracts(self, value: gpd.GeoDataFrame) -> None:
         self.__ca_census_tracts = value
+
+    @property
+    def _tribal_areas(self) -> gpd.GeoDataFrame:
+        """Lazy-loaded western US Tribal areas data."""
+        if self.__tribal_areas is None:
+            try:
+                self.__tribal_areas = self._cat.tribalareas.read()
+            except Exception as e:
+                raise RuntimeError(f"Failed to load Tribal areas data: {e}") from e
+        return self.__tribal_areas
+
+    @_tribal_areas.setter
+    def _tribal_areas(self, value: gpd.GeoDataFrame) -> None:
+        self.__tribal_areas = value
 
     def _process_states(self, df: pd.DataFrame) -> pd.DataFrame:
         """Process raw US states data.
@@ -590,6 +605,21 @@ class Boundaries:
             ).to_dict()
         return self._lookup_cache["ca_census_tracts"]
 
+    def _get_tribal_areas(self) -> Dict[str, int]:
+        """Get cached lookup dictionary for western US Tribal areas."""
+        if "tribal_areas" not in self._lookup_cache:
+            self._lookup_cache["tribal_areas"] = pd.Series(
+                self._tribal_areas.index, index=self._tribal_areas["selector"]
+            ).to_dict()
+        return self._lookup_cache["tribal_areas"]
+
+    def _catalog_has_entry(self, name: str) -> bool:
+        """Return whether the Intake catalog contains an optional entry."""
+        try:
+            return name in self._cat
+        except TypeError:
+            return False
+
     def boundary_dict(self) -> Dict[str, Dict[str, int]]:
         """Return dictionary of all boundary lookup dictionaries for UI population.
 
@@ -644,7 +674,7 @@ class Boundaries:
         - All other boundaries are sorted alphabetically
 
         """
-        return {
+        boundary_options = {
             "none": {"entire domain": 0},
             "lat/lon": {"coordinate selection": 0},
             "states": self._get_states(),
@@ -655,6 +685,9 @@ class Boundaries:
             "CA Electric Balancing Authority Areas": self._get_electric_balancing_areas(),
             "CA Census Tracts": self._get_ca_census_tracts(),
         }
+        if self._catalog_has_entry("tribalareas"):
+            boundary_options["Tribal Areas"] = self._get_tribal_areas()
+        return boundary_options
 
     def _lookup_boundary(
         self, df: gpd.GeoDataFrame, lookup_fn, name: Optional[str], label: str
@@ -819,6 +852,8 @@ class Boundaries:
             self._get_electric_balancing_areas(),
             self._get_ca_census_tracts(),
         )
+        if self._catalog_has_entry("tribalareas"):
+            _ = (self._tribal_areas, self._get_tribal_areas())
 
     def clear_cache(self) -> None:
         """Clear all cached data and lookup dictionaries to free memory.
@@ -862,6 +897,7 @@ class Boundaries:
         self.__ca_forecast_zones = None
         self.__ca_electric_balancing_areas = None
         self.__ca_census_tracts = None
+        self.__tribal_areas = None
 
         # Clear lookup cache
         self._lookup_cache.clear()
@@ -932,6 +968,7 @@ class Boundaries:
             "ca_forecast_zones": self.__ca_forecast_zones,
             "ca_electric_balancing_areas": self.__ca_electric_balancing_areas,
             "ca_census_tracts": self.__ca_census_tracts,
+            "tribal_areas": getattr(self, "_Boundaries__tribal_areas", None),
         }
 
         for name, df in datasets.items():
