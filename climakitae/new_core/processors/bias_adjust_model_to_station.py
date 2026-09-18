@@ -836,7 +836,7 @@ class BiasAdjustModelToStation(DataProcessor):
         # Preserve units from input model data for downstream processors, and
         # add metadata describing the bias-adjusted variable.
         output_da.attrs["units"] = output_units
-        output_da.attrs.update(_OUTPUT_VARIABLE_METADATA.get(output_da.name, {}))
+        # output_da.attrs.update(_OUTPUT_VARIABLE_METADATA.get(output_da.name, {}))
         output_da.attrs["description"] = (
             f"Bias-adjusted '{output_da.name}' data at HDP station location(s), "
             f"using QDM (Quantile Delta Mapping) trained on historical "
