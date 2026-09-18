@@ -2,7 +2,7 @@
 
 **Registry key:** `bias_adjust_model_to_station` &nbsp;|&nbsp; **Priority:** 60 &nbsp;|&nbsp; **Category:** Data Refinement
 
-Apply quantile delta mapping (QDM) bias correction to gridded climate model data using HadISD weather station observations as the training reference. Output is bias-corrected at the requested station locations, with one data variable per station.
+Apply quantile delta mapping (QDM) bias adjustment to gridded climate model data using HDP (Historical Data Platform) weather station observations as the training reference. Output is bias-adjusted at the requested station locations, with a `station` dimension (and `lat`/`lon`/`elevation` coordinates along it) on a single data variable, rather than one data variable per station.
 
 ## Algorithm
 
@@ -10,24 +10,24 @@ Apply quantile delta mapping (QDM) bias correction to gridded climate model data
 flowchart TD
     Start([execute]) --> DictCheck{result is dict?}
     DictCheck -->|Yes| ExecDict[_execute_dict<br/>per-key recursion]
-    DictCheck -->|No| LoadObs[_load_station_data<br/>HadISD reference]
+    DictCheck -->|No| LoadObs[_load_station_data<br/>HDP reference]
     LoadObs --> TypeCheck{Dataset / DataArray?}
     TypeCheck -->|Yes| ProcSingle[_process_single_dataset]
     TypeCheck -->|No| TypeErr[raise TypeError]
 
     ExecDict --> ProcSingle
-    ProcSingle --> Preproc[_preprocess_hadisd<br/>rename, K to C, attrs]
-    Preproc --> BiasCorrect[_bias_correct_model_data<br/>QDM via xclim]
-    BiasCorrect --> UpdateCtx[update_context]
-    UpdateCtx --> End([Output: Dataset with one variable per station])
+    ProcSingle --> Preproc[_preprocess_hdp<br/>rename, unit check, attrs]
+    Preproc --> BiasAdjust[_bias_adjust_model_data<br/>QDM via xclim]
+    BiasAdjust --> UpdateCtx[update_context]
+    UpdateCtx --> End([Output: Dataset with a 'station' dimension])
 
-    click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L790" "execute"
-    click ExecDict "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L723" "_execute_dict"
-    click LoadObs "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L243" "_load_station_data"
-    click ProcSingle "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L510" "_process_single_dataset"
-    click Preproc "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L185" "_preprocess_hadisd"
-    click BiasCorrect "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L309" "_bias_correct_model_data"
-    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py#L864" "update_context"
+    click Start "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py" "execute"
+    click ExecDict "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py" "_execute_dict"
+    click LoadObs "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py" "_load_station_data"
+    click ProcSingle "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py" "_process_single_dataset"
+    click Preproc "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py" "_preprocess_hdp"
+    click BiasAdjust "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py" "_bias_adjust_model_data"
+    click UpdateCtx "https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py" "update_context"
 ```
 
 ## Parameters
@@ -36,8 +36,8 @@ The processor takes a **dict**:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `stations` | `list[str]` | `[]` | Station names to bias-correct against. Required for non-trivial use. |
-| `historical_slice` | `tuple[int, int]` | `(1980, 2014)` | Years used as the training period. |
+| `stations` | `list[str]` | `[]` | HDP `station_id` values to bias-adjust against (e.g. `"ASOSAWOS_69007093217"`). Required for non-trivial use. |
+| `historical_slice` | `tuple[int, int]` | `(1980, 2014)` | Years used as the training period. Must overlap each station's actual observational coverage, which varies per HDP station. |
 | `window` | `int` | `90` | Window size (days) for seasonal grouping in QDM. |
 | `nquantiles` | `int` | `20` | Number of quantiles for the QDM mapping. |
 | `group` | `str` | `"time.dayofyear"` | Temporal grouping passed to `xclim` QDM. |
@@ -45,9 +45,10 @@ The processor takes a **dict**:
 
 ## Requirements
 
-- **Activity ID**: WRF (dynamical downscaling). LOCA2 already includes statistical bias correction at the watershed level and is not the intended input.
-- **Variable**: Designed for hourly temperature (`t2`); the underlying station observations are HadISD temperature.
-- **Time coverage**: Input must include the historical training period (default 1980–2014). HadISD reference data is available through 2014‑08‑31.
+- **Activity ID**: WRF (dynamical downscaling). LOCA2 already includes statistical bias adjustment at the watershed level and is not the intended input.
+- **Variable**: Designed for hourly `t2` (temperature, matched to HDP's `tas`) or `dew_point` (dewpoint, matched to HDP's `tdps`, or `tdps_derived` where `tdps` isn't available). Not every HDP network provides every variable — requesting a station from a network known not to provide the needed variable is rejected up front.
+- **Time coverage**: Input must overlap the requested historical training period (default 1980–2014). HDP station coverage varies widely by station, from a few years to multiple decades.
+- **Multiple networks**: Requested stations may span multiple HDP networks in a single call.
 - **Calendar**: All inputs are converted to a `noleap` calendar internally for consistency.
 
 ## Example
@@ -64,11 +65,11 @@ data = (ClimateData()
     .grid_label("d03")
     .processes({
         "time_slice": ("1980-01-01", "2050-12-31"),
-        "bias_adjust_model_to_station": {"stations": ["KSAC", "KSFO"]},
+        "bias_adjust_model_to_station": {"stations": ["KSAC"]},
     })
     .get())
 
-# Result: one data variable per station, time-sliced to requested range.
+# Result: single data variable with a 'station' dimension, time-sliced to requested range.
 ```
 
 ## Code References
@@ -76,10 +77,10 @@ data = (ClimateData()
 | Method | Link to Code | Purpose |
 |--------|-------|---------|
 | `__init__` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Abias_adjust_model_to_station.py&type=code) | Read configuration dict with defaults |
-| `_preprocess_hadisd` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_preprocess_hadisd+path%3Abias_adjust_model_to_station.py&type=code) | Rename / unit-convert / attribute the raw HadISD slice |
-| `_load_station_data` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_load_station_data+path%3Abias_adjust_model_to_station.py&type=code) | Resolve station IDs, load HadISD subset, return reference Dataset |
-| `_bias_correct_model_data` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_bias_correct_model_data+path%3Abias_adjust_model_to_station.py&type=code) | Build QDM (`xclim`) train/adjust per station |
-| `_process_single_dataset` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_process_single_dataset+path%3Abias_adjust_model_to_station.py&type=code) | Load reference, run QDM via `xarray.map`, return per-station vars |
+| `_preprocess_hdp` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_preprocess_hdp+path%3Abias_adjust_model_to_station.py&type=code) | Rename / unit-check / attribute the raw HDP station slice |
+| `_load_station_data` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_load_station_data+path%3Abias_adjust_model_to_station.py&type=code) | Resolve station IDs against the HDP catalog, load HDP subset, return reference Dataset |
+| `_bias_adjust_model_data` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_bias_adjust_model_data+path%3Abias_adjust_model_to_station.py&type=code) | Build QDM (`xclim`) train/adjust, vectorized across all stations at once |
+| `_process_single_dataset` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_process_single_dataset+path%3Abias_adjust_model_to_station.py&type=code) | Load reference, run vectorized QDM across stations, return dataset with a `station` dimension |
 | `_execute_dict` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_execute_dict+path%3Abias_adjust_model_to_station.py&type=code) | Recursive dict path |
 | `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Abias_adjust_model_to_station.py&type=code) | Dispatcher: dict / Dataset / DataArray |
 | `update_context` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Abias_adjust_model_to_station.py&type=code) | Record stations and QDM parameters in `new_attrs` |
@@ -91,4 +92,4 @@ data = (ClimateData()
 
 - [Processor index](index.md)
 - [`climakitae/new_core/processors/bias_adjust_model_to_station.py`](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py)
-- [How-To: bias correction](../howto/bias-correction.md)
+- [How-To: bias adjustment](../howto/bias-adjustment.md)
