@@ -834,7 +834,7 @@ class BiasAdjustModelToStation(DataProcessor):
 
         # Apply Bias Adjustment (Vectorized)
         # This applies QDM once across all stations (broadcasting over 'station' dim)
-        bias_corrected_stacked = self._bias_adjust_model_data(
+        bias_adjusted_stacked = self._bias_adjust_model_data(
             station_stacked,
             gridded_stacked,
             historical_da=historical_stacked,
@@ -844,7 +844,7 @@ class BiasAdjustModelToStation(DataProcessor):
         # rather than unstacking into one data variable per station. Per-
         # station metadata becomes coordinates along that dimension instead
         # of being duplicated into per-variable attrs.
-        output_da = bias_corrected_stacked.assign_coords(
+        output_da = bias_adjusted_stacked.assign_coords(
             lat=(
                 "station",
                 [station_metadata[s]["coordinates"][0] for s in station_names],
