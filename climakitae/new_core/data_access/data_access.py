@@ -23,9 +23,13 @@ DataCatalog
 """
 
 import difflib
+import json
 import logging
 import threading
 from typing import Any, Dict, Optional
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
+from urllib.request import urlopen
 
 import dask
 import geopandas as gpd
@@ -121,6 +125,59 @@ class DataCatalog(dict):
 
     """
 
+    @staticmethod
+    def _load_esm_catalog_with_compatible_s3_url(
+        catalog_url: str, *, registry: Optional[Any] = None
+    ) -> intake_esm.core.esm_datastore:
+        """Open an ESM catalog while normalizing S3-based catalog_file URLs.
+
+        intake-esm does not reliably handle the public Sup3rCC JSON when the
+        embedded ``catalog_file`` is a raw ``s3://`` URI. Normalize that value to
+        the corresponding public HTTPS URL and build the intake catalog from a
+        dict that includes both the catalog metadata and the CSV dataframe.
+
+        Parameters
+        ----------
+        catalog_url : str
+            URL to the ESM catalog JSON.
+        registry : Any, optional
+            Derived-variable registry to attach to the catalog.
+
+        Returns
+        -------
+        intake_esm.core.esm_datastore
+            The loaded ESM datastore.
+
+        """
+        try:
+            return intake.open_esm_datastore(catalog_url, registry=registry)
+        except (HTTPError, OSError, ValueError, URLError) as exc:
+            if "sup3rcc" not in catalog_url.lower():
+                raise
+
+            try:
+                with urlopen(catalog_url) as response:
+                    catalog_json = json.loads(response.read().decode("utf-8"))
+            except Exception:
+                raise exc
+
+            catalog_file = catalog_json.get("catalog_file")
+            if catalog_file is None:
+                raise exc
+
+            parsed = urlparse(catalog_file)
+            if parsed.scheme != "s3":
+                raise exc
+
+            catalog_file = f"https://{parsed.netloc}.s3.amazonaws.com{parsed.path}"
+            catalog_json["catalog_file"] = catalog_file
+
+            df = pd.read_csv(catalog_file)
+            return intake.open_esm_datastore(
+                {"esmcat": catalog_json, "df": df},
+                registry=registry,
+            )
+
     _instance = UNSET
     _lock = threading.Lock()
 
@@ -175,7 +232,7 @@ class DataCatalog(dict):
             )
             self[CATALOG_BOUNDARY] = intake.open_catalog(BOUNDARY_CATALOG_URL)
             try:
-                self[CATALOG_SUP3RCC] = intake.open_esm_datastore(
+                self[CATALOG_SUP3RCC] = self._load_esm_catalog_with_compatible_s3_url(
                     SUP3RCC_CATALOG_URL, registry=self._derived_registry
                 )
             except Exception as e:

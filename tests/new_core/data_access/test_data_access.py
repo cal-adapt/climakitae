@@ -1,10 +1,8 @@
-"""
-Explicitly test the DataCatalog class and its methods.
-This module contains unit tests for the DataCatalog class, which is part of the climakitae.new_core.data_access.data_access module.
-These tests cover the initialization, default values, update methods, getting data, listing and printing clip boundaries, and resetting.
-"""
+"""Explicitly test the DataCatalog class and its methods."""
 
+import json
 from typing import Generator, Tuple
+from urllib.error import HTTPError
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import geopandas as gpd
@@ -189,6 +187,72 @@ class TestDataCatalogInitialization:
         assert isinstance(df, pd.DataFrame)
         assert set(df["catalog"].unique()).issubset(
             [CATALOG_REN_ENERGY_GEN, CATALOG_CADCAT, CATALOG_HDP, CATALOG_SUP3RCC]
+        )
+
+    def test_sup3rcc_loader_normalizes_s3_catalog_file(self):
+        """Sup3rCC catalogs with s3:// catalog_file values should normalize to HTTPS."""
+        json_payload = {
+            "catalog_file": "s3://cadcat/sup3r/nlr-sup3rcc-collection.csv",
+            "id": "nlr-sup3rcc-collection",
+            "description": "test",
+            "title": None,
+            "last_updated": "2026-09-08T19:04:32Z",
+            "esmcat_version": "0.0.1",
+            "attributes": [{"column_name": "activity_id", "vocabulary": ""}],
+            "assets": {"column_name": "path", "format": "zarr"},
+            "aggregation_control": {
+                "variable_column_name": "variable_id",
+                "groupby_attrs": ["activity_id"],
+                "aggregations": [
+                    {"type": "union", "attribute_name": "variable_id", "options": {}}
+                ],
+            },
+        }
+        csv_df = pd.DataFrame(
+            {"activity_id": ["Sup3rCC"], "path": ["s3://example/data.zarr"]}
+        )
+
+        with (
+            patch(
+                "climakitae.new_core.data_access.data_access.urlopen"
+            ) as mock_urlopen,
+            patch(
+                "climakitae.new_core.data_access.data_access.pd.read_csv",
+                return_value=csv_df,
+            ) as mock_read_csv,
+            patch(
+                "climakitae.new_core.data_access.data_access.intake.open_esm_datastore"
+            ) as mock_open_esm,
+        ):
+            mock_open_esm.side_effect = [
+                HTTPError(
+                    "https://example/sup3rcc/catalog.json",
+                    404,
+                    "Not Found",
+                    {},
+                    None,
+                ),
+                MagicMock(),
+            ]
+            mock_response = MagicMock()
+            mock_response.__enter__.return_value.read.return_value = str(
+                json.dumps(json_payload)
+            ).encode("utf-8")
+            mock_urlopen.return_value = mock_response
+
+            DataCatalog._load_esm_catalog_with_compatible_s3_url(
+                "https://example/sup3rcc/catalog.json"
+            )
+
+        args, kwargs = mock_open_esm.call_args
+        assert kwargs["registry"] is None
+        catalog_payload = args[0]
+        assert catalog_payload["esmcat"]["catalog_file"] == (
+            "https://cadcat.s3.amazonaws.com/sup3r/nlr-sup3rcc-collection.csv"
+        )
+        assert catalog_payload["df"].equals(csv_df)
+        mock_read_csv.assert_called_once_with(
+            "https://cadcat.s3.amazonaws.com/sup3r/nlr-sup3rcc-collection.csv"
         )
 
     def test_initialized_state(self, mock_data_catalog_and_objs: Tuple):
