@@ -107,16 +107,6 @@ _OUTPUT_VARIABLE_METADATA = {
     },
 }
 
-# Dataset-level attrs that `get_closest_gridcell` needs to see on the extracted DataArray.
-_DATASET_ATTRS_NEEDED_ON_DATAARRAY = ("resolution", "grid_label")
-
-
-def _copy_needed_dataset_attrs(dataset: xr.Dataset, dataarray: xr.DataArray) -> None:
-    """Copy only the dataset-level attrs the DataArray actually needs."""
-    for key in _DATASET_ATTRS_NEEDED_ON_DATAARRAY:
-        if key in dataset.attrs and key not in dataarray.attrs:
-            dataarray.attrs[key] = dataset.attrs[key]
-
 
 @register_processor("bias_adjust_model_to_station", priority=60)
 class BiasAdjustModelToStation(DataProcessor):
@@ -694,7 +684,6 @@ class BiasAdjustModelToStation(DataProcessor):
                     data_vars[0],
                 )
             result_da = result[data_vars[0]]
-            # _copy_needed_dataset_attrs(result, result_da)
             logger.info("Converted Dataset to DataArray: %s", result_da.name)
         elif isinstance(result, xr.DataArray):
             result_da = result
@@ -934,12 +923,10 @@ class BiasAdjustModelToStation(DataProcessor):
                     historical_da = result[hist_key]
                     # Convert to DataArray if needed
                     if isinstance(historical_da, xr.Dataset):
-                        # Preserve attributes from Dataset when extracting DataArray
                         historical_da_ds = historical_da
                         historical_da = historical_da_ds[
                             list(historical_da_ds.data_vars)[0]
                         ]
-                        # _copy_needed_dataset_attrs(historical_da_ds, historical_da)
                 else:
                     logger.warning(
                         f"No historical data found for {key} (expected {hist_key}). "
@@ -949,12 +936,10 @@ class BiasAdjustModelToStation(DataProcessor):
                 # Use itself as historical training data
                 historical_da = data
                 if isinstance(historical_da, xr.Dataset):
-                    # Preserve attributes from Dataset when extracting DataArray
                     historical_da_ds = historical_da
                     historical_da = historical_da_ds[
                         list(historical_da_ds.data_vars)[0]
                     ]
-                    # _copy_needed_dataset_attrs(historical_da_ds, historical_da)
 
             # Process
             ret[key] = self._process_single_dataset(
