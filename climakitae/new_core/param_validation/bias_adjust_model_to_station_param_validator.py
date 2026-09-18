@@ -14,7 +14,7 @@ The validator ensures:
 
 Functions
 ---------
-validate_station_bias_correction_param
+validate_station_bias_adjustment_param
     Main validation function for station bias adjustment parameters.
 
 Examples
@@ -26,12 +26,12 @@ Examples
 ...     "window": 90,
 ...     "nquantiles": 20
 ... }
->>> validate_station_bias_correction_param(params)
+>>> validate_station_bias_adjustment_param(params)
 True
 
 >>> # Invalid station name
 >>> params = {"stations": ["InvalidStation"], "time_slice": (2030, 2060)}
->>> validate_station_bias_correction_param(params)
+>>> validate_station_bias_adjustment_param(params)
 False
 
 Notes
@@ -103,7 +103,7 @@ def _get_airport_code_lookup_table() -> pd.DataFrame:
 
 
 @register_processor_validator("bias_adjust_model_to_station")
-def validate_bias_correction_station_data_param(
+def validate_bias_adjustment_station_data_param(
     value: Any,
     query: Dict[str, Any] | None = None,
     **kwargs: Any,  # noqa: ARG001
@@ -150,15 +150,15 @@ def validate_bias_correction_station_data_param(
     ...     "stations": ["Sacramento (KSAC)"],
     ...     "window": 90
     ... }
-    >>> validate_station_bias_correction_param(params)
+    >>> validate_station_bias_adjustment_param(params)
     True
     """
-    logger.debug("validate_station_bias_correction_param called with value: %s", value)
+    logger.debug("validate_station_bias_adjustment_param called with value: %s", value)
 
     # Handle None or UNSET values
     if value is None or value is UNSET:
         msg = (
-            "Station bias correction parameters cannot be None. "
+            "Station bias adjustment parameters cannot be None. "
             "Please provide a dictionary with 'stations' key."
         )
         logger.warning(msg)
@@ -167,7 +167,7 @@ def validate_bias_correction_station_data_param(
     # Validate it's a dictionary
     if not isinstance(value, dict):
         msg = (
-            f"Station bias correction parameters must be a dictionary, "
+            f"Station bias adjustment parameters must be a dictionary, "
             f"got {type(value).__name__}. "
             f"Example: {{'stations': ['Sacramento (KSAC)']}}"
         )
@@ -187,7 +187,7 @@ def validate_bias_correction_station_data_param(
     if missing_keys:
         msg = (
             f"Missing required parameter(s): {', '.join(missing_keys)}. "
-            f"Station bias correction requires 'stations' (list of station names)."
+            f"Station bias adjustment requires 'stations' (list of station names)."
         )
         logger.warning(msg)
         return False
@@ -232,7 +232,7 @@ def validate_bias_correction_station_data_param(
         return False
 
     logger.info(
-        "Station bias correction parameters validated successfully for %d station(s)",
+        "Station bias adjustment parameters validated successfully for %d station(s)",
         len(value["stations"]),
     )
     return True
@@ -324,7 +324,7 @@ def _validate_stations(stations: Any, query: Dict[str, Any] | None = None) -> bo
                 msg = (
                     f"HDP network(s) {not_included} do not provide '{hdp_variable}' "
                     f"observations, which are required for variable_id='{vid}', and cannot "
-                    f"be used for station bias correction."
+                    f"be used for station bias adjustment."
                 )
                 logger.warning(msg)
                 return False
@@ -538,7 +538,7 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
     bool
         True if variable is compatible, False otherwise.
     """
-    # Station bias correction supports WRF's 't2' (2m temperature, matched
+    # Station bias adjustment supports WRF's 't2' (2m temperature, matched
     # to HDP's 'tas') and 'dew_point' (WRF's native dewpoint, matched to
     # HDP's 'tdps').
     supported_variables = ["t2", "dew_point"]
@@ -560,7 +560,7 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
     unsupported = [v for v in variable_ids if v not in supported_variables]
     if unsupported:
         msg = (
-            f"Station bias correction currently only supports temperature or "
+            f"Station bias adjustment currently only supports temperature or "
             f"dewpoint variables ('t2' or 'dew_point'), but got: "
             f"{', '.join(unsupported)}. 't2' is matched to HDP's 'tas' "
             f"observations, and 'dew_point' is matched to HDP's 'tdps' "
@@ -598,9 +598,9 @@ def _validate_timescale_requirement(query: Dict[str, Any]) -> bool:
     # Check if table_id is hourly (1hr or hr)
     if table_id not in ["1hr", "hr"]:
         msg = (
-            f"\n\nStation bias correction requires hourly data (table_id='1hr' or '1hr'), "
+            f"\n\nStation bias adjustment requires hourly data (table_id='1hr' or '1hr'), "
             f"but got table_id='{table_id}'. HDP station observations are recorded hourly, "
-            f"and bias correction can only match hourly model data to hourly observations. "
+            f"and bias adjustment can only match hourly model data to hourly observations. "
             f"Please use .table_id('1hr') in your query.\n\n"
         )
         logger.warning(msg)
@@ -636,8 +636,8 @@ def _validate_downscaling_method_requirement(query: Dict[str, Any]) -> bool:
     # Check if activity_id is WRF (Dynamical downscaling)
     if activity_id != "WRF":
         msg = (
-            f"\n\nStation bias correction only supports WRF dynamical downscaling "
-            f"(activity_id='WRF'), but got activity_id='{activity_id}'. Bias correction "
+            f"\n\nStation bias adjustment only supports WRF dynamical downscaling "
+            f"(activity_id='WRF'), but got activity_id='{activity_id}'. Bias adjustment "
             f"parameters are calibrated for WRF data only. Please set activity_id='WRF' "
             f"or use .activity_id('WRF') in your query.\n\n"
         )
@@ -674,7 +674,7 @@ def _validate_resolution_requirement(query: Dict[str, Any]) -> bool:
     # Check if grid_label is 45km (d01)
     if grid_label == "d01":
         msg = (
-            "\n\nStation bias correction does not support 45km resolution (grid_label='d01'). "
+            "\n\nStation bias adjustment does not support 45km resolution (grid_label='d01'). "
             "Only 9km (grid_label='d02') and 3km (grid_label='d03') resolutions are "
             "supported. Please use grid_label='d02' (9km) or grid_label='d03' (3km).\n\n"
         )
@@ -760,7 +760,7 @@ def _validate_institution_id_requirement(query: Dict[str, Any]) -> bool:
 
     if institution_id != "UCLA":
         msg = (
-            "\n\nStation bias correction requires 'institution_id' to be set to 'UCLA' in the query. "
+            "\n\nStation bias adjustment requires 'institution_id' to be set to 'UCLA' in the query. "
             "Please specify an institution_id using .institution_id('UCLA') "
             "in your query.\n\n"
         )
@@ -781,7 +781,7 @@ def _validate_catalog_requirement(query: Dict[str, Any]) -> bool:
 
     if catalog is None:
         msg = (
-            "\n\nStation bias correction requires 'catalog' to be set to 'cadcat' in the query. "
+            "\n\nStation bias adjustment requires 'catalog' to be set to 'cadcat' in the query. "
             "Please specify .catalog('cadcat') in your query.\n\n"
         )
         logger.warning(msg)
@@ -800,7 +800,7 @@ def _validate_catalog_requirement(query: Dict[str, Any]) -> bool:
     invalid = [c for c in catalogs if c != "cadcat"]
     if invalid:
         msg = (
-            f"\n\nStation bias correction requires 'catalog' == 'cadcat', but got: "
+            f"\n\nStation bias adjustment requires 'catalog' == 'cadcat', but got: "
             f"{', '.join(map(str, set(invalid)))}. Please set .catalog('cadcat').\n\n"
         )
         logger.warning(msg)

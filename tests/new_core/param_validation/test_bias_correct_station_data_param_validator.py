@@ -28,7 +28,7 @@ from climakitae.new_core.param_validation.bias_adjust_model_to_station_param_val
     _validate_timescale_requirement,
     _validate_variable_compatibility,
     _validate_window,
-    validate_bias_correction_station_data_param,
+    validate_bias_adjustment_station_data_param,
 )
 
 
@@ -63,7 +63,7 @@ def valid_query():
 
 
 class TestValidateBiasCorrectStationDataParam:
-    """Test class for validate_bias_correction_station_data_param function."""
+    """Test class for validate_bias_adjustment_station_data_param function."""
 
     def setup_method(self):
         """Set up test fixtures for each test method."""
@@ -82,7 +82,7 @@ class TestValidateBiasCorrectStationDataParam:
         mock_get_metadata.return_value = self.mock_station_metadata
 
         value = {"stations": ["ASOSAWOS_72483023225"]}
-        result = validate_bias_correction_station_data_param(value, query=valid_query)
+        result = validate_bias_adjustment_station_data_param(value, query=valid_query)
 
         assert result is True
 
@@ -101,7 +101,7 @@ class TestValidateBiasCorrectStationDataParam:
             "group": "time.dayofyear",
             "kind": "+",
         }
-        result = validate_bias_correction_station_data_param(value, query=valid_query)
+        result = validate_bias_adjustment_station_data_param(value, query=valid_query)
 
         assert result is True
 
@@ -116,9 +116,9 @@ class TestValidateBiasCorrectStationDataParam:
     def test_none_or_unset_value(self, value, valid_query):
         """Test validation with None or UNSET values."""
         with pytest.warns(
-            UserWarning, match="Station bias correction parameters cannot be None"
+            UserWarning, match="Station bias adjustment parameters cannot be None"
         ):
-            result = validate_bias_correction_station_data_param(
+            result = validate_bias_adjustment_station_data_param(
                 value, query=valid_query
             )
         assert result is False
@@ -136,7 +136,7 @@ class TestValidateBiasCorrectStationDataParam:
     def test_invalid_type_not_dict(self, value, valid_query):
         """Test validation with non-dictionary input types."""
         with pytest.warns(UserWarning, match="must be a dictionary"):
-            result = validate_bias_correction_station_data_param(
+            result = validate_bias_adjustment_station_data_param(
                 value, query=valid_query
             )
         assert result is False
@@ -145,7 +145,7 @@ class TestValidateBiasCorrectStationDataParam:
         """Test validation with missing 'stations' key."""
         value = {"window": 90}
         with pytest.warns(UserWarning, match="Missing required parameter"):
-            result = validate_bias_correction_station_data_param(
+            result = validate_bias_adjustment_station_data_param(
                 value, query=valid_query
             )
         assert result is False
@@ -160,14 +160,14 @@ class TestValidateBiasCorrectStationDataParam:
         mock_validate_stations.return_value = False
 
         value = {"stations": ["InvalidStation"]}
-        result = validate_bias_correction_station_data_param(value, query=valid_query)
+        result = validate_bias_adjustment_station_data_param(value, query=valid_query)
 
         assert result is False
 
     def test_query_none_returns_false(self):
         """Test that missing query returns False without calling station validation."""
         value = {"stations": ["KSAC"]}
-        result = validate_bias_correction_station_data_param(value, query=None)
+        result = validate_bias_adjustment_station_data_param(value, query=None)
         assert result is False
 
 

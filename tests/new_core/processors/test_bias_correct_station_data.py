@@ -2,7 +2,7 @@
 Unit tests for climakitae/new_core/processors/bias_adjust_model_to_station.py
 
 This module contains comprehensive unit tests for the BiasAdjustModelToStation
-processor that performs bias correction of climate model data to weather station
+processor that performs bias adjustment of climate model data to weather station
 locations using Quantile Delta Mapping (QDM).
 """
 
@@ -342,19 +342,19 @@ class TestLoadHDPStationData:
         proc.catalog.__getitem__.assert_not_called()
 
 
-class TestBiasCorrectStationDataBiasCorrection:
-    """Tests for bias correction logic (_bias_correct_model_data)."""
+class TestBiasCorrectStationDataBiasAdjustment:
+    """Tests for bias adjustment logic (_bias_adjust_model_data)."""
 
     def setup_method(self):
         """Set up test fixtures."""
         self.ProcClass = BiasAdjustModelToStation
 
     @pytest.mark.advanced
-    def test_bias_correct_model_data_successful(self):
-        """Test _bias_correct_model_data method with observational and gridded data.
+    def test_bias_adjust_model_data_successful(self):
+        """Test _bias_adjust_model_data method with observational and gridded data.
 
         This test uses realistic multi-year daily data to validate the QDM
-        bias correction workflow with proper dayofyear grouping.
+        bias adjustment workflow with proper dayofyear grouping.
         """
         proc = self.ProcClass({"stations": ["KSAC"]})
 
@@ -388,8 +388,8 @@ class TestBiasCorrectStationDataBiasCorrection:
         gr_da.name = "tas"
         gr_da.attrs["units"] = "K"
 
-        # Test bias correction
-        out = proc._bias_correct_model_data(obs_da, gr_da)
+        # Test bias adjustment
+        out = proc._bias_adjust_model_data(obs_da, gr_da)
 
         # Verify output structure
         assert isinstance(out, xr.DataArray)
@@ -414,8 +414,8 @@ class TestBiasCorrectStationDataBiasCorrection:
         )  # Allow some flexibility for calendar conversion
 
     @pytest.mark.advanced
-    def test_bias_correct_model_data_with_sim_dimension(self):
-        """Test _bias_correct_model_data with multiple simulations (sim dimension).
+    def test_bias_adjust_model_data_with_sim_dimension(self):
+        """Test _bias_adjust_model_data with multiple simulations (sim dimension).
 
         This test covers the code path where data has a 'sim' dimension,
         requiring QDM to be trained and applied separately for each simulation.
@@ -461,8 +461,8 @@ class TestBiasCorrectStationDataBiasCorrection:
         gr_da.name = "tas"
         gr_da.attrs["units"] = "K"
 
-        # Test bias correction
-        out = proc._bias_correct_model_data(obs_da, gr_da)
+        # Test bias adjustment
+        out = proc._bias_adjust_model_data(obs_da, gr_da)
 
         # Verify output structure includes sim dimension
         assert isinstance(out, xr.DataArray)
@@ -493,7 +493,7 @@ class TestBiasCorrectStationDataBiasCorrection:
         )  # Allow flexibility for calendar conversion
 
     @pytest.mark.advanced
-    def test_bias_correct_model_data_preserves_obs_past_2014(self):
+    def test_bias_adjust_model_data_preserves_obs_past_2014(self):
         """Regression test: obs data extending past 2014-08-31 must not be
         silently truncated. This was a HadISD-specific hardcoded clip that
         does not apply to HDP stations, whose coverage can extend much later.
@@ -520,7 +520,7 @@ class TestBiasCorrectStationDataBiasCorrection:
         gr_da.name = "tas"
         gr_da.attrs["units"] = "K"
 
-        out = proc._bias_correct_model_data(obs_da, gr_da)
+        out = proc._bias_adjust_model_data(obs_da, gr_da)
 
         end_time = pd.Timestamp(out.time.values[-1])
         assert end_time.year == 2016
@@ -560,8 +560,8 @@ class TestBiasCorrectStationDataExecution:
         # Mock get_closest_gridcell to return input_da
         mock_get_closest.return_value = input_da
 
-        # Mock _bias_correct_model_data to avoid QDM complexity
-        with patch.object(proc, "_bias_correct_model_data") as mock_bias_correct:
+        # Mock _bias_adjust_model_data to avoid QDM complexity
+        with patch.object(proc, "_bias_adjust_model_data") as mock_bias_correct:
             mock_bias_correct.return_value = xr.Dataset({"KSAC": station_da}).to_array(
                 dim="station", name="tas"
             )
@@ -717,9 +717,9 @@ class TestBiasCorrectStationDataEdgeCases:
         # Mock get_closest_gridcell
         mock_get_closest.return_value = ds["tas"]
 
-        # Mock _bias_correct_model_data
+        # Mock _bias_adjust_model_data
         with patch.object(
-            self.processor, "_bias_correct_model_data"
+            self.processor, "_bias_adjust_model_data"
         ) as mock_bias_correct:
             mock_bias_correct.return_value = xr.Dataset({"KSAC": station_da}).to_array(
                 dim="station", name="tas"
@@ -872,7 +872,7 @@ class TestBiasCorrectUnitsPreservation:
         """Test that output DataArrays have 'units' attribute for downstream processing.
 
         The ConvertUnits processor relies on data having a 'units' attribute.
-        This test ensures that bias correction output preserves this attribute.
+        This test ensures that bias adjustment output preserves this attribute.
         """
         # Create input DataArray with units attribute
         times = pd.date_range("2000-01-01", periods=10)
@@ -898,9 +898,9 @@ class TestBiasCorrectUnitsPreservation:
         # Mock get_closest_gridcell
         mock_get_closest.return_value = input_da
 
-        # Mock _bias_correct_model_data to return data without units (simulating the bug)
+        # Mock _bias_adjust_model_data to return data without units (simulating the bug)
         with patch.object(
-            self.processor, "_bias_correct_model_data"
+            self.processor, "_bias_adjust_model_data"
         ) as mock_bias_correct:
             # Return a stacked DataArray (like the real implementation does)
             bias_corrected = xr.DataArray(
@@ -966,9 +966,9 @@ class TestBiasCorrectUnitsPreservation:
         # Mock get_closest_gridcell
         mock_get_closest.return_value = input_da
 
-        # Mock _bias_correct_model_data
+        # Mock _bias_adjust_model_data
         with patch.object(
-            self.processor, "_bias_correct_model_data"
+            self.processor, "_bias_adjust_model_data"
         ) as mock_bias_correct:
             bias_corrected = xr.DataArray(
                 np.random.rand(1, 10) + 273.15,

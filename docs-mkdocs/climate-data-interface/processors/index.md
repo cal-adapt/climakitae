@@ -19,7 +19,7 @@ The **registry key** is the string you pass to `.processes({...})`. It is not al
 | `convert_units` | 5 | [convert_units](convert_units.md) | Unit conversion for climate variables |
 | `warming_level` | 10 | [warming_level](warming_level.md) | Subset around global warming-level thresholds |
 | `concat` | 50 | [concatenate](concatenate.md) | Concatenate datasets along the `sim` (or named) dimension |
-| `bias_adjust_model_to_station` | 60 | [bias_adjust_model_to_station](bias_adjust_model_to_station.md) | Quantile-delta-mapping bias correction using HDP station observations |
+| `bias_adjust_model_to_station` | 60 | [bias_adjust_model_to_station](bias_adjust_model_to_station.md) | Quantile-delta-mapping bias adjustment using HDP station observations |
 | `clip` | 65 | [clip](clip.md) | Spatial subsetting by boundary, point(s), bbox, station, or shapefile |
 | `convert_to_local_time` | 70 | [convert_to_local_time](convert_to_local_time.md) | Convert UTC to a local timezone |
 | `time_slice` | 150 | [time_slice](time_slice.md) | Temporal subsetting by date range and optional season |
@@ -38,9 +38,9 @@ Phase 1: Catalog refinement (priority 0–10)
   ├─ convert_units (5)               — Unit standardization
   └─ warming_level (10)              — Global-warming-level window selection
 
-Phase 2: Aggregation, correction, spatial (priority 50–70)
+Phase 2: Aggregation, adjustment, spatial (priority 50–70)
   ├─ concat (50)                     — Concatenate along sim (or other) dimension
-  ├─ bias_adjust_model_to_station (60) — Station-based bias correction (WRF only)
+  ├─ bias_adjust_model_to_station (60) — Station-based bias adjustment (WRF only)
   ├─ clip (65)                       — Geographic filtering
   └─ convert_to_local_time (70)      — Timezone conversion
 

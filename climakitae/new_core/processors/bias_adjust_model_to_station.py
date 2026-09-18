@@ -94,7 +94,7 @@ _QDM_LOG_REFERENCE = (
 
 # Metadata for the output data variable, keyed by the name it ends up
 # with after bias adjustment (see _rename_t2_to_tas and
-# _bias_correct_model_data, which name the result after the gridded
+# _bias_adjust_model_data, which name the result after the gridded
 # variable).
 _OUTPUT_VARIABLE_METADATA = {
     "tas": {
@@ -106,6 +106,18 @@ _OUTPUT_VARIABLE_METADATA = {
         "long_name": "Dewpoint Temperature at 2m",
     },
 }
+
+# Dataset-level attrs that get_closest_gridcell's resolution inference
+# needs to see on the extracted DataArray. Everything else is
+# dataset-specific and should not be copied down to the DataArray.
+_DATASET_ATTRS_NEEDED_ON_DATAARRAY = ("resolution", "grid_label")
+
+
+def _copy_needed_dataset_attrs(dataset: xr.Dataset, dataarray: xr.DataArray) -> None:
+    """Copy only the dataset-level attrs the DataArray actually needs."""
+    for key in _DATASET_ATTRS_NEEDED_ON_DATAARRAY:
+        if key in dataset.attrs and key not in dataarray.attrs:
+            dataarray.attrs[key] = dataset.attrs[key]
 
 
 @register_processor("bias_adjust_model_to_station", priority=60)
@@ -214,7 +226,7 @@ class BiasAdjustModelToStation(DataProcessor):
         # Validate input
         if not isinstance(value, dict):
             raise TypeError(
-                "Expected dictionary for station bias correction configuration"
+                "Expected dictionary for station bias adjustment configuration"
             )
 
         # Extract configuration parameters with defaults
@@ -273,7 +285,7 @@ class BiasAdjustModelToStation(DataProcessor):
         if source_variable is None:
             raise ValueError(
                 f"HDP station '{station_id}' does not have a '{hdp_variable}' "
-                "variable available for bias correction."
+                "variable available for bias adjustment."
             )
 
         display_name = ds.attrs.get("station_name")
@@ -451,7 +463,7 @@ class BiasAdjustModelToStation(DataProcessor):
 
         return station_ds
 
-    def _bias_correct_model_data(
+    def _bias_adjust_model_data(
         self,
         obs_da: xr.DataArray,
         gridded_da: xr.DataArray,
@@ -484,7 +496,7 @@ class BiasAdjustModelToStation(DataProcessor):
         xr.DataArray
             Bias-adjusted data (noleap calendar)
         """
-        logger.debug("=== Starting bias correction for station: %s ===", obs_da.name)
+        logger.debug("=== Starting bias adjustment for station: %s ===", obs_da.name)
         # Avoid accessing .values for logging as it triggers computation
         logger.debug(
             "Input gridded_da time size: %s",
@@ -641,7 +653,7 @@ class BiasAdjustModelToStation(DataProcessor):
 
         # Rechunk to convert back to dask array for downstream processing
         # This maintains lazy evaluation for subsequent operations
-        logger.debug("=== Bias correction complete for %s ===", da_adj.name)
+        logger.debug("=== Bias adjustment complete for %s ===", da_adj.name)
 
         return da_adj  # type: ignore[return-value]
 
@@ -657,7 +669,7 @@ class BiasAdjustModelToStation(DataProcessor):
         Parameters
         ----------
         result : xr.Dataset or xr.DataArray
-            Input data to bias correct
+            Input data to bias adjust
         station_ds : xr.Dataset
             Loaded station data
         context : Dict[str, Any]
@@ -668,7 +680,7 @@ class BiasAdjustModelToStation(DataProcessor):
         Returns
         -------
         xr.Dataset or xr.DataArray
-            Bias corrected data
+            Bias-adjusted data
         """
         # Convert Dataset to DataArray if needed
         result_da: xr.DataArray
@@ -684,10 +696,7 @@ class BiasAdjustModelToStation(DataProcessor):
                     data_vars[0],
                 )
             result_da = result[data_vars[0]]
-            # Copy important attributes from Dataset to DataArray
-            # These are needed by utility functions like get_closest_gridcell
-            # We copy all attributes to be safe, as resolution and others are needed
-            result_da.attrs.update(result.attrs)
+            _copy_needed_dataset_attrs(result, result_da)
             logger.info("Converted Dataset to DataArray: %s", result_da.name)
         elif isinstance(result, xr.DataArray):
             result_da = result
@@ -699,7 +708,7 @@ class BiasAdjustModelToStation(DataProcessor):
 
         # WRF's native 2m temperature variable is 't2'; treat it as
         # equivalent to the CF-standard 'tas' name used by HDP observations
-        # so naming stays consistent through bias correction and output.
+        # so naming stays consistent through bias adjustment and output.
         result_da = self._rename_t2_to_tas(result_da)
         if historical_da is not None:
             historical_da = self._rename_t2_to_tas(historical_da)
@@ -827,7 +836,7 @@ class BiasAdjustModelToStation(DataProcessor):
                 station_stacked.attrs["units"] = first_station.attrs["units"]
 
         # Preserve the model data units - these will be the output units
-        # (bias correction converts obs to match gridded, so output has gridded units)
+        # (bias adjustment converts obs to match gridded, so output has gridded units)
         output_units = gridded_stacked.attrs.get("units", "K")
 
         # Convert calendars to noleap (vectorized)
@@ -836,9 +845,9 @@ class BiasAdjustModelToStation(DataProcessor):
             historical_stacked = historical_stacked.convert_calendar("noleap")
         station_stacked = station_stacked.convert_calendar("noleap")
 
-        # Apply Bias Correction (Vectorized)
+        # Apply Bias Adjustment (Vectorized)
         # This applies QDM once across all stations (broadcasting over 'station' dim)
-        bias_corrected_stacked = self._bias_correct_model_data(
+        bias_corrected_stacked = self._bias_adjust_model_data(
             station_stacked,
             gridded_stacked,
             historical_da=historical_stacked,
@@ -863,7 +872,8 @@ class BiasAdjustModelToStation(DataProcessor):
             ),
         )
         output_da["station"].attrs = {
-            "standard_name": "Historical Data Platform (HDP) weather station identifier"
+            "standard_name": "Historical Data Platform (HDP) weather station identifier",
+            "units": "",
         }
         output_da["lat"].attrs["units"] = "degrees_north"
         output_da["lon"].attrs["units"] = "degrees_east"
@@ -931,7 +941,7 @@ class BiasAdjustModelToStation(DataProcessor):
                         historical_da = historical_da_ds[
                             list(historical_da_ds.data_vars)[0]
                         ]
-                        historical_da.attrs.update(historical_da_ds.attrs)
+                        _copy_needed_dataset_attrs(historical_da_ds, historical_da)
                 else:
                     logger.warning(
                         f"No historical data found for {key} (expected {hist_key}). "
@@ -946,7 +956,7 @@ class BiasAdjustModelToStation(DataProcessor):
                     historical_da = historical_da_ds[
                         list(historical_da_ds.data_vars)[0]
                     ]
-                    historical_da.attrs.update(historical_da_ds.attrs)
+                    _copy_needed_dataset_attrs(historical_da_ds, historical_da)
 
             # Process
             ret[key] = self._process_single_dataset(
@@ -1052,7 +1062,7 @@ class BiasAdjustModelToStation(DataProcessor):
         # Build informative context message
         station_list = ", ".join(self.stations)
         context[_NEW_ATTRS_KEY][self.name] = (
-            f"Station bias correction applied using Quantile Delta Mapping (QDM). "
+            f"Station bias adjustment applied using Quantile Delta Mapping (QDM). "
             f"Stations: {station_list}. "
             f"Historical training period: {self.historical_slice[0]}-{self.historical_slice[1]}. "
             f"QDM parameters: window={self.window} days, "
