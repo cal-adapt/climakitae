@@ -98,11 +98,11 @@ _QDM_LOG_REFERENCE = (
 _OUTPUT_VARIABLE_METADATA = {
     "t2": {
         "standard_name": "air_temperature",
-        "long_name": "Air Temperature at 2m",
+        "long_name": "Bias-Adjusted Air Temperature at 2m",
     },
     "dew_point": {
         "standard_name": "dew_point_temperature",
-        "long_name": "Dewpoint Temperature at 2m",
+        "long_name": "Bias-Adjusted Dewpoint Temperature at 2m",
     },
 }
 
