@@ -293,7 +293,7 @@ filename = f"{base}_{lat_str}_{lon_str}.{ext}"
 data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
-    .variable("t2max")
+    .variable_id("t2max")
     .table_id("day")
     .grid_label("d03")
     .processes({
@@ -316,7 +316,7 @@ for county in counties:
     (ClimateData()
         .catalog("cadcat")
         .activity_id("WRF")
-        .variable("t2max")
+        .variable_id("t2max")
         .table_id("day")
         .grid_label("d03")
         .processes({

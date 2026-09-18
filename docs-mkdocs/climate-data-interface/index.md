@@ -10,7 +10,7 @@ data = (ClimateData()
     .activity_id("WRF")
     .table_id("mon")
     .grid_label("d03")
-    .variable("t2max")
+    .variable_id("t2max")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
         "clip": "Los Angeles County",
@@ -43,6 +43,6 @@ The ClimateData interface has reached feature parity with the legacy `climakitae
 
 ## See also
 
-- [Cal-Adapt Analytics Engine — Methods](https://analytics.cal-adapt.org/analytics/methods)
+- [Cal-Adapt Analytics Engine — Python Tools](https://analytics.cal-adapt.org/data-tools/python-tools.html)
 - [Cal-Adapt Analytics Engine — Glossary](https://analytics.cal-adapt.org/guidance/glossary)
 - [Notebook Gallery](../notebook-gallery.md)

@@ -9,7 +9,7 @@ Use historical weather station observations to correct WRF model bias locally.
 data = (cd
     .activity_id("WRF")
     .institution_id("UCLA")      # Specify WRF producer
-    .variable("t2")              # Hourly 2m temperature
+    .variable_id("t2")              # Hourly 2m temperature
     .table_id("1hr")             # Must be hourly
     .processes({
         "bias_adjust_model_to_station": {

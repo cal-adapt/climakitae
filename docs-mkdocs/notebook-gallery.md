@@ -196,8 +196,8 @@ source .venv/bin/activate
 uv pip install -r requirements.txt
 
 # Or install with conda
-conda create -n cae -f conda-linux-64.lock
-conda activate cae
+conda env create -f environment.yml
+conda activate notebook
 
 # Start Jupyter
 jupyter lab
@@ -226,7 +226,7 @@ Access pre-installed notebooks on the [Cal-Adapt Analytics Engine JupyterHub](ht
 - **cae-notebooks Repository**: [https://github.com/cal-adapt/cae-notebooks](https://github.com/cal-adapt/cae-notebooks)  
 - **Cal-Adapt Analytics Engine**: [https://analytics.cal-adapt.org/](https://analytics.cal-adapt.org/)  
   - [Example Notebooks](https://cal-adapt.github.io/climakitae/dev/notebook-gallery/)  
-  - [Methods](https://analytics.cal-adapt.org/analytics/methods)  
+  - [Analytics Engine Python Tools page](https://analytics.cal-adapt.org/data-tools/python-tools.html)  
   - [Glossary](https://analytics.cal-adapt.org/guidance/glossary)  
 - **Cal-Adapt Overview**: [https://cal-adapt.org/](https://cal-adapt.org/)  
 

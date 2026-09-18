@@ -761,11 +761,13 @@ class Clip(DataProcessor):
                 coord2_target = lon
             else:
                 # For x/y dims transform lat/lon -> x/y coordinates
+                # dim1_name is "x", dim2_name is "y" here, so keep transform
+                # output (x, y) in that same order.
                 try:
                     fwd_transformer = pyproj.Transformer.from_crs(
                         "epsg:4326", dataset.rio.crs, always_xy=True
                     )
-                    coord2_target, coord1_target = fwd_transformer.transform(lon, lat)
+                    coord1_target, coord2_target = fwd_transformer.transform(lon, lat)
                 except Exception:
                     # Fall back to lat/lon if transform fails
                     coord1_target = lat

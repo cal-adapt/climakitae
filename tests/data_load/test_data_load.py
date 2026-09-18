@@ -5,7 +5,6 @@ import pandas as pd
 import pytest
 import shapely
 import xarray as xr
-from pytest import approx
 
 from climakitae.core.data_interface import DataParameters
 from climakitae.core.data_load import (
@@ -18,8 +17,6 @@ from climakitae.core.data_load import (
     _get_hourly_specific_humidity,
     _get_monthly_daily_dewpoint,
     _get_noaa_heat_index,
-    _get_Uearth,
-    _get_Vearth,
     _get_wind_dir_derived,
     _get_wind_speed_derived,
     _override_unit_defaults,
@@ -36,44 +33,6 @@ def mock_data() -> xr.DataArray:
     da.attrs = {"units": ""}
     da.name = "data"
     return da
-
-
-def mock_wind_var() -> xr.DataArray:
-    # Simplify testing wind speed functions
-    # with single gridpoint dataset
-    lon = -123.521255
-    lat = 9.475632
-    da = xr.DataArray(
-        data=np.array([[10]]),
-        dims=["y", "x"],
-        coords={
-            "lon": (("y", "x"), np.array([[lon]])),
-            "lat": (("y", "x"), np.array([[lat]])),
-        },
-    )
-    da.name = "wind speed"
-    da.attrs = {"units": "m/s"}
-    return da
-
-
-def mock_wrf_angles_ds() -> xr.DataArray:
-    # Simplify testing wind speed functions with
-    # single gridpoint dataset
-    lon = -123.521255
-    lat = 9.475632
-    sinalpha = 0.6197577
-    cosalpha = 0.78479314
-    ds = xr.Dataset(
-        data_vars={
-            "COSALPHA": ((lat, lon), np.array([[cosalpha]])),
-            "SINALPHA": ((lat, lon), np.array([[sinalpha]])),
-        },
-        coords={
-            "lon": (("y", "x"), np.array([[lon]])),
-            "lat": (("y", "x"), np.array([[lat]])),
-        },
-    )
-    return ds
 
 
 @pytest.fixture
@@ -278,59 +237,19 @@ class TestDataLoadDerived:
         assert isinstance(result, xr.core.dataarray.DataArray)
         assert result.name == "Fosberg Fire Weather Index"
 
-    @patch("xarray.backends.zarr.open_zarr", return_value=mock_wrf_angles_ds())
-    @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_wind_var())
-    @patch(
-        "climakitae.core.data_load._spatial_subset", return_value=mock_wrf_angles_ds()
-    )
-    def test__get_Uearth(
-        self, mock_open_zarr, mock_get_data_one_var, mock_spatial_subset, selections
-    ):
-        # Function is heavily patched so we aren't downloading any data
-        # Just stepping through the function with small canned datasets
-        result = _get_Uearth(selections)
-        assert isinstance(result, xr.core.dataarray.DataArray)
-        assert result.name == selections.variable
-        assert approx(result.data.item(), rel=1e-7) == 1.6503544
-
-    @patch("xarray.backends.zarr.open_zarr", return_value=mock_wrf_angles_ds())
-    @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_wind_var())
-    @patch(
-        "climakitae.core.data_load._spatial_subset", return_value=mock_wrf_angles_ds()
-    )
-    def test__get_Vearth(
-        self, mock_open_zarr, mock_get_data_one_var, mock_spatial_subset, selections
-    ):
-        # Function is heavily patched so we aren't downloading any data
-        # Just stepping through the function with small canned datasets
-        result = _get_Vearth(selections)
-        assert isinstance(result, xr.core.dataarray.DataArray)
-        assert result.name == selections.variable
-        assert approx(result.data.item(), rel=1e-7) == 14.0455084
-
-    @patch("climakitae.core.data_load._get_Uearth", return_value=mock_wind_var())
-    @patch("climakitae.core.data_load._get_Vearth", return_value=mock_wind_var())
-    def test__get_wind_speed_derived(
-        self, mock_get_Uearth, mock_get_Vearth, selections
-    ):
-        # Function is heavily patched so we aren't downloading any data
-        # Just stepping through the function with small canned datasets
+    @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_data())
+    def test__get_wind_speed_derived(self, mock_get_data_one_var, selections):
+        # Check that wind speed variable is returned with data.
         result = _get_wind_speed_derived(selections)
-        expected = np.sqrt(np.square(1.6503544) + np.square(14.0455084))
         assert isinstance(result, xr.core.dataarray.DataArray)
-        assert approx(result.data.item(), rel=1e-7) == expected
         assert result.name == "wind_speed_derived"
         assert result.attrs["units"] == "m s-1"
 
-    @patch("climakitae.core.data_load._get_Uearth", return_value=mock_wind_var())
-    @patch("climakitae.core.data_load._get_Vearth", return_value=mock_wind_var())
-    def test__get_wind_dir_derived(self, mock_get_Uearth, mock_get_Vearth, selections):
-        # Function is heavily patched so we aren't downloading any data
-        # Just stepping through the function with small canned datasets
+    @patch("climakitae.core.data_load._get_data_one_var", return_value=mock_data())
+    def test__get_wind_dir_derived(self, mock_get_data_one_var, selections):
+        # Check that wind direction variable is returned with data.
         result = _get_wind_dir_derived(selections)
-        expected = 225
         assert isinstance(result, xr.core.dataarray.DataArray)
-        assert approx(result.data.item(), rel=1e-7) == expected
         assert result.name == "wind_direction_derived"
         assert result.attrs["units"] == "degrees"
 

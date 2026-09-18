@@ -35,7 +35,7 @@ dataset = (Dataset()
 )
 
 # Execute the pipeline
-result = dataset.execute({"variable": "temperature", "grid_label": "d03"})
+result = dataset.execute({"variable_id": "temperature", "grid_label": "d03"})
 ```
 
 Pipeline Processing

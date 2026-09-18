@@ -14,7 +14,7 @@ import pandas as pd
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
-from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1981_2010_TIMEIDX_FILE
+from climakitae.core.paths import GWL_1850_1900_FILE, GWL_1850_1900_TIMEIDX_FILE
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,
@@ -95,7 +95,7 @@ class WarmingLevel(DataProcessor):
             GWL_1850_1900_FILE, index_col=[0, 1, 2], parse_dates=True
         )
         self.warming_level_times_idx = read_csv_file(
-            GWL_1981_2010_TIMEIDX_FILE, index_col="time", parse_dates=True
+            GWL_1850_1900_TIMEIDX_FILE, index_col="time", parse_dates=True
         )
         self.catalog = None
         self.value = {
@@ -147,7 +147,7 @@ class WarmingLevel(DataProcessor):
         if self.warming_level_times is None:
             try:
                 self.warming_level_times = read_csv_file(
-                    GWL_1981_2010_TIMEIDX_FILE, index_col="time", parse_dates=True
+                    GWL_1850_1900_TIMEIDX_FILE, index_col="time", parse_dates=True
                 )
             except (FileNotFoundError, pd.errors.ParserError) as e:
                 logger.error(
@@ -203,7 +203,9 @@ class WarmingLevel(DataProcessor):
                 continue
 
             slices = []
-            valid_center_years = []  # Track center years for valid warming levels
+            valid_center_years = (
+                {}
+            )  # Map warming_level -> center year, for valid WLs only
 
             for year, wl in zip(years, self.warming_levels):
                 if year is None or pd.isna(year):
@@ -270,7 +272,7 @@ class WarmingLevel(DataProcessor):
                 )
 
                 slices.append(da_slice)
-                valid_center_years.append(center_year)
+                valid_center_years[wl] = center_year
 
             # After processing all warming levels, check if we have any valid slices.
             if not slices:
@@ -289,9 +291,9 @@ class WarmingLevel(DataProcessor):
             if self.add_dummy_time:
                 ret[key] = add_dummy_time_to_wl(ret[key])
 
-            # Store center years for this simulation key
+            # Store center years for this simulation key, keyed by warming_level so
+            # concatenate.py can align by label instead of list position
             # DO NOT assign as coordinate here - it will be broadcast incorrectly
-            # Store in sim_centered_years dict to be reconstructed in concatenate processor
             sim_centered_years[key] = valid_center_years
 
         # Store center years in context for reconstruction after concatenation

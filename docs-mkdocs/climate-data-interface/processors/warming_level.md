@@ -8,7 +8,7 @@ Subset climate data by global warming level thresholds instead of calendar dates
 
 ### Execution Flow
 
-1. **Initialization** (lines 73–111): Validate dict, store `warming_levels`, `warming_level_window` (default 15), `warming_level_months` (default `UNSET`), `add_dummy_time` (default `False`). **Eagerly loads two CSV lookup tables** (`gwl_1850-1900ref.csv` at L91 and `gwl_1981-2010ref.csv` at L94). Sets `self.name = "warming_level_simple"` (note: this is the metadata key written to context).
+1. **Initialization** (lines 73–111): Validate dict, store `warming_levels`, `warming_level_window` (default 15), `warming_level_months` (default `UNSET`), `add_dummy_time` (default `False`). **Eagerly loads two CSV lookup tables** (`gwl_1850-1900ref.csv` at L91 and `gwl_1850-1900ref_timeidx.csv` at L94). Sets `self.name = "warming_level_simple"` (note: this is the metadata key written to context).
 2. **Defensive Reload** (lines 120–129): If `warming_level_times` is somehow `None`, attempt to reload from CSV; raise `RuntimeError` on failure.
 3. **Member ID Reformatting** (line 132 → method at line 343): `reformat_member_ids` splits any `member_id` dimension into separate dict keys with `key.member_id` suffix.
 4. **Time Domain Extension** (line 135): `extend_time_domain` (helper) splices historical onto SSP scenarios so the data range covers 1980/1850 – 2100.
@@ -60,7 +60,7 @@ data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
     .experiment_id("ssp245")
-    .variable("t2max")
+    .variable_id("t2max")
     .table_id("day")
     .grid_label("d03")
     .processes({
@@ -79,7 +79,7 @@ data = (ClimateData()
     .catalog("cadcat")
     .activity_id("LOCA2")
     .experiment_id("ssp370")
-    .variable("tasmax")
+    .variable_id("tasmax")
     .table_id("day")
     .grid_label("d02")
     .processes({
@@ -101,7 +101,7 @@ data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
     .experiment_id("ssp585")
-    .variable("pr")
+    .variable_id("pr")
     .table_id("mon")
     .grid_label("d03")
     .processes({
@@ -121,7 +121,7 @@ data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
     .experiment_id("ssp245")
-    .variable("t2max")
+    .variable_id("t2max")
     .table_id("day")
     .grid_label("d03")
     .processes({
@@ -141,7 +141,7 @@ data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
     .experiment_id("ssp245")
-    .variable("t2max")
+    .variable_id("t2max")
     .table_id("day")
     .grid_label("d03")
     .processes({
@@ -165,7 +165,7 @@ data = (ClimateData()
 GWL timing is pre-computed from climate model simulations and stored in CSV files shipped with `climakitae`:
 
 - **`gwl_1850-1900ref.csv`**: Year/timestamp when each `(activity_id, member_id, source_id)` triple reaches each integer warming level (1850–1900 reference period). Used when the requested WL exists as a column in the table.
-- **`gwl_1981-2010ref.csv`** (loaded as `warming_level_times_idx`): Time-indexed table of running warming-level estimates per simulation column. Used as a fallback when the requested WL is not a column in `gwl_1850-1900ref.csv` — the processor finds the **first** time the simulation column crosses the requested level.
+- **`gwl_1850-1900ref_timeidx.csv`** (loaded as `warming_level_times_idx`): Time-indexed table of running warming-level estimates per simulation column, also referenced to the 1850–1900 baseline. Used as a fallback when the requested WL is not a column in `gwl_1850-1900ref.csv` — the processor finds the **first** time the simulation column crosses the requested level.
 
 Lookup keys parse the dict key as `key.split(".")` and use `(key_list[2], member_id, key_list[3])`, which corresponds to `(activity_id, member_id, source_id)` in catalog terms. Missing entries log a warning and append `np.nan` for that warming level (the slice is then skipped).
 
@@ -224,7 +224,7 @@ for scenario in scenarios:
         .catalog("cadcat")
         .activity_id("WRF")
         .experiment_id(scenario)
-        .variable("t2max")
+        .variable_id("t2max")
         .table_id("day")
         .grid_label("d03")
         .processes({
@@ -241,7 +241,7 @@ data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
     .experiment_id("ssp370")
-    .variable("pr")
+    .variable_id("pr")
     .table_id("mon")
     .grid_label("d03")
     .processes({

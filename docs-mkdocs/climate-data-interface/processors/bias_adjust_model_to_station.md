@@ -59,7 +59,7 @@ data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
     .institution_id("UCLA")
-    .variable("t2")
+    .variable_id("t2")
     .table_id("1hr")
     .grid_label("d03")
     .processes({
