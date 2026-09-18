@@ -1400,6 +1400,14 @@ class DataParameters(param.Parameterized):
 
         """
 
+        warnings.warn(
+            "DataParameters.retrieve() is deprecated and will be removed in "
+            "climakitae 2.0.0 (targeting January 2027). Use "
+            "climakitae.new_core.user_interface.ClimateData instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         def _warn_of_large_file_size(da: xr.DataArray):
             """Warn user if the data array is large"""
             nbytes = da.nbytes
@@ -1792,6 +1800,14 @@ def get_data_options(
         Catalog options for user-provided inputs
 
     """
+    warnings.warn(
+        "climakitae.core.data_interface.get_data_options() is deprecated and "
+        "will be removed in climakitae 2.0.0 (targeting January 2027). Use "
+        "new-core query and validation APIs instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     # Get intake catalog and variable descriptions from DataInterface object
     data_interface = DataInterface()
     var_df = data_interface.variable_descriptions
@@ -1867,6 +1883,14 @@ def get_subsetting_options(area_subset: str = "all") -> pd.DataFrame:
         i.e. if area_subset = "states", only the options for states will be returned
 
     """
+    warnings.warn(
+        "climakitae.core.data_interface.get_subsetting_options() is deprecated "
+        "and will be removed in climakitae 2.0.0 (targeting January 2027). Use "
+        "new-core boundary and clip APIs instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     # Get geographies from DataInterface object
     data_interface = DataInterface()
     geographies = data_interface._geographies
@@ -2049,13 +2073,6 @@ def get_data(
         This legacy entrypoint is scheduled for removal in 2.0.0, targeting
         January 2027.
 
-    warnings.warn(
-        "climakitae.core.data_interface.get_data() is deprecated and will be "
-        "removed in climakitae 2.0.0 (targeting January 2027). Use "
-        "climakitae.new_core.user_interface.ClimateData instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
     Notes
     -----
     Errors aren't raised by the function. Rather, an appropriate informative
