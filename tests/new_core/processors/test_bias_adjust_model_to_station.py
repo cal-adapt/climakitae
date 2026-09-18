@@ -1,0 +1,991 @@
+"""
+Unit tests for climakitae/new_core/processors/bias_adjust_model_to_station.py
+
+This module contains comprehensive unit tests for the BiasAdjustModelToStation
+processor that performs bias adjustment of climate model data to weather station
+locations using Quantile Delta Mapping (QDM).
+"""
+
+from unittest.mock import MagicMock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
+import xarray as xr
+
+from climakitae.new_core.processors.bias_adjust_model_to_station import (
+    BiasAdjustModelToStation,
+)
+
+
+class TestBiasCorrectStationDataInit:
+    """Tests for BiasCorrectStationData initialization."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.ProcClass = BiasAdjustModelToStation
+
+    def test_init_with_valid_config(self):
+        """Test initialization with valid configuration."""
+        cfg = {"stations": ["Sacramento (KSAC)"]}
+        proc = self.ProcClass(cfg)
+        assert proc.stations == ["Sacramento (KSAC)"]
+        # defaults
+        assert proc.historical_slice == (1980, 2014)
+        assert proc.window == 90
+        assert proc.nquantiles == 20
+        assert proc.group == "time.dayofyear"
+        assert proc.kind == "+"
+        assert proc.name == "bias_adjust_model_to_station"
+        # Processor declares it needs a catalog to run
+        assert getattr(proc, "needs_catalog", False) is True
+
+
+class TestPreprocessHDP:
+    """Tests for HDP preprocessing (_preprocess_hdp)."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.ProcClass = BiasAdjustModelToStation
+
+    def _build_raw_hdp_dataset(
+        self, station_id="ASOSAWOS_1234", station_name="TEST STATION"
+    ):
+        """Build a minimal HDP-like raw dataset with (station, time) dims."""
+        times = pd.date_range("2010-01-01", periods=2)
+        ds = xr.Dataset(
+            {
+                "tas": (("station", "time"), [[283.15, 284.15]]),
+                "lat": (("station", "time"), [[38.5, 38.5]]),
+                "lon": (("station", "time"), [[-121.5, -121.5]]),
+                "elevation": (("station", "time"), [[25.0, 25.0]]),
+                "pr_eraqc": (("station", "time"), [[0, 0]]),
+            },
+            coords={"time": times, "station": [station_id]},
+        )
+        if station_name is not None:
+            ds.attrs["station_name"] = station_name
+        ds["tas"].attrs["units"] = "degree_Kelvin"
+        ds["elevation"].attrs["units"] = "m"
+        return ds
+
+    def test_preprocess_hdp_successful(self):
+        """Test HDP preprocessing with valid input."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
+        ds = self._build_raw_hdp_dataset()
+
+        out = proc._preprocess_hdp(ds)
+
+        # After preprocessing, station display name should be the only data var
+        assert "TEST STATION" in out.data_vars
+        assert list(out.data_vars) == ["TEST STATION"]
+        # Units should already be Kelvin (no conversion needed)
+        assert out["TEST STATION"].attrs.get("units") == "K"
+        # Coordinates and elevation attributes set
+        assert out["TEST STATION"].attrs.get("coordinates") == (38.5, -121.5)
+        assert "m" in str(out["TEST STATION"].attrs.get("elevation", ""))
+        # Station dimension and all other variables dropped
+        assert "station" not in out.dims
+        assert "lat" not in out.variables
+        assert "lon" not in out.variables
+        assert "elevation" not in out.variables
+        assert "pr_eraqc" not in out.variables
+
+    def test_preprocess_hdp_missing_station_name_falls_back_to_station_id(self):
+        """Test that a missing station_name attribute falls back to station_id."""
+        proc = self.ProcClass({"stations": ["NDBC_9999"]})
+        ds = self._build_raw_hdp_dataset(station_id="NDBC_9999", station_name=None)
+
+        out = proc._preprocess_hdp(ds)
+
+        assert "NDBC_9999" in out.data_vars
+
+    def test_preprocess_hdp_converts_non_kelvin_units(self):
+        """Test that non-Kelvin tas units are converted defensively."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
+        ds = self._build_raw_hdp_dataset()
+        ds["tas"] = ds["tas"] - 273.15
+        ds["tas"].attrs["units"] = "degree_Celsius"
+
+        out = proc._preprocess_hdp(ds)
+
+        assert out["TEST STATION"].values[0] == pytest.approx(283.15)
+        assert out["TEST STATION"].attrs.get("units") == "K"
+
+    def test_preprocess_hdp_missing_tas_raises(self):
+        """Test that a station without a 'tas' variable raises ValueError."""
+        proc = self.ProcClass({"stations": ["CDEC_BLB"]})
+        times = pd.date_range("2010-01-01", periods=2)
+        ds = xr.Dataset(
+            {"pr": (("station", "time"), [[0.0, 1.0]])},
+            coords={"time": times, "station": ["CDEC_BLB"]},
+        )
+
+        with pytest.raises(ValueError, match="does not have a 'tas'"):
+            proc._preprocess_hdp(ds)
+
+    def test_preprocess_hdp_tdps_variable(self):
+        """Test HDP preprocessing when targeting the 'tdps' variable."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
+        times = pd.date_range("2010-01-01", periods=2)
+        ds = xr.Dataset(
+            {
+                "tdps": (("station", "time"), [[283.15, 284.15]]),
+                "lat": (("station", "time"), [[38.5, 38.5]]),
+                "lon": (("station", "time"), [[-121.5, -121.5]]),
+                "elevation": (("station", "time"), [[25.0, 25.0]]),
+            },
+            coords={"time": times, "station": ["ASOSAWOS_1234"]},
+        )
+        ds.attrs["station_name"] = "TEST STATION"
+        ds["tdps"].attrs["units"] = "degree_Kelvin"
+        ds["elevation"].attrs["units"] = "m"
+
+        out = proc._preprocess_hdp(ds, hdp_variable="tdps")
+
+        assert list(out.data_vars) == ["TEST STATION"]
+        assert out["TEST STATION"].attrs.get("units") == "K"
+
+    def test_preprocess_hdp_tdps_derived_fallback(self):
+        """Test that 'tdps_derived' is used when 'tdps' is not available."""
+        proc = self.ProcClass({"stations": ["CIMIS_1234"]})
+        times = pd.date_range("2010-01-01", periods=2)
+        ds = xr.Dataset(
+            {
+                "tdps_derived": (("station", "time"), [[283.15, 284.15]]),
+                "lat": (("station", "time"), [[38.5, 38.5]]),
+                "lon": (("station", "time"), [[-121.5, -121.5]]),
+                "elevation": (("station", "time"), [[25.0, 25.0]]),
+            },
+            coords={"time": times, "station": ["CIMIS_1234"]},
+        )
+        ds.attrs["station_name"] = "TEST STATION"
+        ds["tdps_derived"].attrs["units"] = "degree_Kelvin"
+        ds["elevation"].attrs["units"] = "m"
+
+        out = proc._preprocess_hdp(ds, hdp_variable="tdps")
+
+        assert list(out.data_vars) == ["TEST STATION"]
+        assert out["TEST STATION"].attrs.get("units") == "K"
+
+
+class TestResolveHDPVariable:
+    """Tests for the _resolve_hdp_variable helper."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.ProcClass = BiasAdjustModelToStation
+
+    @pytest.mark.parametrize(
+        "context,expected",
+        [
+            ({"query": {"variable_id": "t2"}}, "tas"),
+            ({"query": {"variable_id": "dew_point"}}, "tdps"),
+            ({"query": {"variable_id": ["dew_point"]}}, "tdps"),
+            ({"query": {}}, "tas"),
+            ({}, "tas"),
+        ],
+        ids=["t2", "dew_point", "list_dew_point", "no_variable_id", "no_query"],
+    )
+    def test_resolve_hdp_variable(self, context, expected):
+        """Test resolving the HDP variable name from query variable_id."""
+        assert self.ProcClass._resolve_hdp_variable(context) == expected
+
+
+class TestLoadHDPStationData:
+    """Tests for loading station data (_load_station_data)."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.ProcClass = BiasAdjustModelToStation
+
+    def _build_raw_hdp_dataset(self, station_id, station_name):
+        times = pd.date_range("2010-01-01", periods=2)
+        ds = xr.Dataset(
+            {
+                "tas": (("station", "time"), [[283.15, 284.15]]),
+                "lat": (("station", "time"), [[38.5, 38.5]]),
+                "lon": (("station", "time"), [[-121.5, -121.5]]),
+                "elevation": (("station", "time"), [[25.0, 25.0]]),
+            },
+            coords={"time": times, "station": [station_id]},
+            attrs={"station_name": station_name},
+        )
+        ds["tas"].attrs["units"] = "degree_Kelvin"
+        ds["elevation"].attrs["units"] = "m"
+        return ds
+
+    def test_load_station_data_single_station(self):
+        """Test loading single station data from the HDP catalog."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
+
+        hdp_df = pd.DataFrame(
+            {"network_id": ["ASOSAWOS"], "station_id": ["ASOSAWOS_1234"]}
+        )
+        raw_ds = self._build_raw_hdp_dataset("ASOSAWOS_1234", "TEST STATION")
+
+        mock_hdp_catalog = MagicMock()
+        mock_hdp_catalog.df = hdp_df
+        mock_search_result = MagicMock()
+        mock_search_result.to_dataset_dict.return_value = {"key1": raw_ds}
+        mock_hdp_catalog.search.return_value = mock_search_result
+
+        proc.catalog = MagicMock()
+        proc.catalog.hdp = mock_hdp_catalog
+
+        station_ds = proc._load_station_data()
+
+        assert isinstance(station_ds, xr.Dataset)
+        assert "TEST STATION" in station_ds.data_vars
+        mock_hdp_catalog.search.assert_called_once_with(station_id=["ASOSAWOS_1234"])
+
+    def test_load_station_data_missing_station_raises(self):
+        """Test that requesting a station not in the catalog raises ValueError."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_9999"]})
+
+        hdp_df = pd.DataFrame(
+            {"network_id": ["ASOSAWOS"], "station_id": ["ASOSAWOS_1234"]}
+        )
+        mock_hdp_catalog = MagicMock()
+        mock_hdp_catalog.df = hdp_df
+
+        proc.catalog = MagicMock()
+        proc.catalog.hdp = mock_hdp_catalog
+
+        with pytest.raises(ValueError, match="not found"):
+            proc._load_station_data()
+
+    def test_load_station_data_multiple_networks_allowed(self):
+        """Test that stations spanning multiple HDP networks are allowed."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1", "SNOTEL_1"]})
+
+        hdp_df = pd.DataFrame(
+            {
+                "network_id": ["ASOSAWOS", "SNOTEL"],
+                "station_id": ["ASOSAWOS_1", "SNOTEL_1"],
+            }
+        )
+        raw_ds_1 = self._build_raw_hdp_dataset("ASOSAWOS_1", "STATION ONE")
+        raw_ds_2 = self._build_raw_hdp_dataset("SNOTEL_1", "STATION TWO")
+
+        mock_hdp_catalog = MagicMock()
+        mock_hdp_catalog.df = hdp_df
+        mock_search_result = MagicMock()
+        mock_search_result.to_dataset_dict.return_value = {
+            "key1": raw_ds_1,
+            "key2": raw_ds_2,
+        }
+        mock_hdp_catalog.search.return_value = mock_search_result
+
+        proc.catalog = MagicMock()
+        proc.catalog.hdp = mock_hdp_catalog
+
+        station_ds = proc._load_station_data()
+
+        assert isinstance(station_ds, xr.Dataset)
+        assert "STATION ONE" in station_ds.data_vars
+        assert "STATION TWO" in station_ds.data_vars
+
+    def test_load_station_data_translates_airport_code(self):
+        """Test that a legacy airport code is translated to its HDP station_id."""
+        proc = self.ProcClass({"stations": ["KSAC"]})
+
+        legacy_stations_df = pd.DataFrame(
+            {
+                "ID": ["KSAC"],
+                "station": ["Sacramento (KSAC)"],
+                "station id": [72483023225],
+            }
+        )
+        hdp_df = pd.DataFrame(
+            {"network_id": ["ASOSAWOS"], "station_id": ["ASOSAWOS_72483023225"]}
+        )
+        raw_ds = self._build_raw_hdp_dataset("ASOSAWOS_72483023225", "SACRAMENTO EXEC")
+
+        mock_hdp_catalog = MagicMock()
+        mock_hdp_catalog.df = hdp_df
+        mock_search_result = MagicMock()
+        mock_search_result.to_dataset_dict.return_value = {"key1": raw_ds}
+        mock_hdp_catalog.search.return_value = mock_search_result
+
+        proc.catalog = MagicMock()
+        proc.catalog.hdp = mock_hdp_catalog
+        proc.catalog.__getitem__.return_value = legacy_stations_df
+
+        station_ds = proc._load_station_data()
+
+        assert isinstance(station_ds, xr.Dataset)
+        mock_hdp_catalog.search.assert_called_once_with(
+            station_id=["ASOSAWOS_72483023225"]
+        )
+
+    def test_load_station_data_skips_legacy_lookup_for_raw_id(self):
+        """Test that a raw HDP station_id never triggers the legacy lookup."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
+
+        hdp_df = pd.DataFrame(
+            {"network_id": ["ASOSAWOS"], "station_id": ["ASOSAWOS_1234"]}
+        )
+        raw_ds = self._build_raw_hdp_dataset("ASOSAWOS_1234", "TEST STATION")
+
+        mock_hdp_catalog = MagicMock()
+        mock_hdp_catalog.df = hdp_df
+        mock_search_result = MagicMock()
+        mock_search_result.to_dataset_dict.return_value = {"key1": raw_ds}
+        mock_hdp_catalog.search.return_value = mock_search_result
+
+        proc.catalog = MagicMock()
+        proc.catalog.hdp = mock_hdp_catalog
+
+        proc._load_station_data()
+
+        proc.catalog.__getitem__.assert_not_called()
+
+
+class TestBiasCorrectStationDataBiasAdjustment:
+    """Tests for bias adjustment logic (_bias_adjust_model_data)."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.ProcClass = BiasAdjustModelToStation
+
+    @pytest.mark.advanced
+    def test_bias_adjust_model_data_successful(self):
+        """Test _bias_adjust_model_data method with observational and gridded data.
+
+        This test uses realistic multi-year daily data to validate the QDM
+        bias adjustment workflow with proper dayofyear grouping.
+        """
+        proc = self.ProcClass({"stations": ["KSAC"]})
+
+        # Create realistic observational data (5 years, daily frequency)
+        # QDM requires full year coverage for dayofyear grouping
+        obs_times = pd.date_range("1980-01-01", "1984-12-31", freq="D")
+
+        # Generate realistic temperature data with seasonal cycle
+        # Base temp ~15°C with ±10°C seasonal variation
+        dayofyear = obs_times.dayofyear
+        seasonal_temp = 15 + 10 * np.sin(2 * np.pi * (dayofyear - 80) / 365)
+        # Add small random noise
+        np.random.seed(42)
+        obs_values = seasonal_temp + np.random.randn(len(obs_times)) * 2
+
+        obs_da = xr.DataArray(obs_values, dims=("time",), coords={"time": obs_times})
+        obs_da.name = "obs"
+        obs_da.attrs["units"] = "K"
+
+        # Create gridded data spanning historical + future (1980-2014)
+        # This matches the typical historical training period used in the processor
+        gr_times = pd.date_range("1980-01-01", "2014-12-31", freq="D")
+
+        # Generate gridded data with similar pattern but slightly warmer (bias)
+        gr_dayofyear = gr_times.dayofyear
+        gr_seasonal_temp = 17 + 10 * np.sin(2 * np.pi * (gr_dayofyear - 80) / 365)
+        np.random.seed(43)
+        gr_values = gr_seasonal_temp + np.random.randn(len(gr_times)) * 2
+
+        gr_da = xr.DataArray(gr_values, dims=("time",), coords={"time": gr_times})
+        gr_da.name = "tas"
+        gr_da.attrs["units"] = "K"
+
+        # Test bias adjustment
+        out = proc._bias_adjust_model_data(obs_da, gr_da)
+
+        # Verify output structure
+        assert isinstance(out, xr.DataArray)
+        assert "time" in out.dims
+        assert out.name == "tas"
+
+        # Verify output time range using pandas conversion
+        start_time = pd.Timestamp(out.time.values[0])
+        end_time = pd.Timestamp(out.time.values[-1])
+        assert start_time.year == 1980
+        assert end_time.year == 2014
+
+        # Verify output has reasonable values (no NaN, finite values)
+        # Note: .compute() is needed because out.isnull().any() returns a dask array
+        assert not out.isnull().any().compute()
+        assert np.isfinite(out.values).all()
+
+        # Verify output length is reasonable for 35 years (1980-2014)
+        # Should be ~12775 days (35 years × 365 days, after noleap calendar conversion)
+        assert (
+            12700 <= len(out.time) <= 12800
+        )  # Allow some flexibility for calendar conversion
+
+    @pytest.mark.advanced
+    def test_bias_adjust_model_data_with_sim_dimension(self):
+        """Test _bias_adjust_model_data with multiple simulations (sim dimension).
+
+        This test covers the code path where data has a 'sim' dimension,
+        requiring QDM to be trained and applied separately for each simulation.
+        """
+        proc = self.ProcClass({"stations": ["KSAC"]})
+
+        # Create observational data (5 years, daily frequency)
+        obs_times = pd.date_range("1980-01-01", "1984-12-31", freq="D")
+        dayofyear = obs_times.dayofyear
+        seasonal_temp = 15 + 10 * np.sin(2 * np.pi * (dayofyear - 80) / 365)
+        np.random.seed(42)
+        obs_values = seasonal_temp + np.random.randn(len(obs_times)) * 2
+
+        obs_da = xr.DataArray(obs_values, dims=("time",), coords={"time": obs_times})
+        obs_da.name = "obs"
+        obs_da.attrs["units"] = "K"
+
+        # Create gridded data with 'sim' dimension (multiple simulations)
+        gr_times = pd.date_range("1980-01-01", "2014-12-31", freq="D")
+        n_times = len(gr_times)
+
+        # Generate data for each simulation with different biases
+        gr_dayofyear = gr_times.dayofyear
+
+        # Simulation 1: warmer bias
+        sim1_temp = 17 + 10 * np.sin(2 * np.pi * (gr_dayofyear - 80) / 365)
+        np.random.seed(43)
+        sim1_values = sim1_temp + np.random.randn(n_times) * 2
+
+        # Simulation 2: even warmer bias
+        sim2_temp = 18 + 10 * np.sin(2 * np.pi * (gr_dayofyear - 80) / 365)
+        np.random.seed(44)
+        sim2_values = sim2_temp + np.random.randn(n_times) * 2
+
+        # Stack simulations into array with sim dimension
+        gr_values = np.stack([sim1_values, sim2_values], axis=0)
+
+        gr_da = xr.DataArray(
+            gr_values,
+            dims=("sim", "time"),
+            coords={"sim": ["sim1", "sim2"], "time": gr_times},
+        )
+        gr_da.name = "tas"
+        gr_da.attrs["units"] = "K"
+
+        # Test bias adjustment
+        out = proc._bias_adjust_model_data(obs_da, gr_da)
+
+        # Verify output structure includes sim dimension
+        assert isinstance(out, xr.DataArray)
+        assert "sim" in out.dims
+        assert "time" in out.dims
+        assert out.name == "tas"
+
+        # Verify we have both simulations in output
+        assert len(out.sim) == 2
+        assert "sim1" in out.sim.values
+        assert "sim2" in out.sim.values
+
+        # Verify output time range
+        start_time = pd.Timestamp(out.time.values[0])
+        end_time = pd.Timestamp(out.time.values[-1])
+        assert start_time.year == 1980
+        assert end_time.year == 2014
+
+        # Verify output has reasonable values (no NaN, finite values)
+        # Note: .compute() is needed because out.isnull().any() returns a dask array
+        assert not out.isnull().any().compute()
+        assert np.isfinite(out.values).all()
+
+        # Verify each simulation was processed independently
+        # Both should have similar length (35 years × 365 days)
+        assert (
+            12700 <= len(out.time) <= 12800
+        )  # Allow flexibility for calendar conversion
+
+    @pytest.mark.advanced
+    def test_bias_adjust_model_data_preserves_obs_past_2014(self):
+        """Regression test: obs data extending past 2014-08-31 must not be
+        silently truncated. This was a HadISD-specific hardcoded clip that
+        does not apply to HDP stations, whose coverage can extend much later.
+        """
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
+
+        obs_times = pd.date_range("2010-01-01", "2016-12-31", freq="D")
+        dayofyear = obs_times.dayofyear
+        seasonal_temp = 15 + 10 * np.sin(2 * np.pi * (dayofyear - 80) / 365)
+        np.random.seed(42)
+        obs_values = seasonal_temp + np.random.randn(len(obs_times)) * 2
+
+        obs_da = xr.DataArray(obs_values, dims=("time",), coords={"time": obs_times})
+        obs_da.name = "obs"
+        obs_da.attrs["units"] = "K"
+
+        gr_times = pd.date_range("2010-01-01", "2016-12-31", freq="D")
+        gr_dayofyear = gr_times.dayofyear
+        gr_seasonal_temp = 17 + 10 * np.sin(2 * np.pi * (gr_dayofyear - 80) / 365)
+        np.random.seed(43)
+        gr_values = gr_seasonal_temp + np.random.randn(len(gr_times)) * 2
+
+        gr_da = xr.DataArray(gr_values, dims=("time",), coords={"time": gr_times})
+        gr_da.name = "tas"
+        gr_da.attrs["units"] = "K"
+
+        out = proc._bias_adjust_model_data(obs_da, gr_da)
+
+        end_time = pd.Timestamp(out.time.values[-1])
+        assert end_time.year == 2016
+
+
+class TestBiasCorrectStationDataExecution:
+    """Tests for main execute method."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.ProcClass = BiasAdjustModelToStation
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    def test_execute_with_dataarray_input(self, mock_load, mock_get_closest):
+        """Test execute with xr.DataArray input."""
+        proc = self.ProcClass({"stations": ["KSAC"]})
+
+        # Create a minimal input DataArray with time dimension
+        times = pd.date_range("2000-01-01", periods=5)
+        input_da = xr.DataArray(
+            [1.0, 2.0, 3.0, 4.0, 5.0], dims=("time",), coords={"time": times}
+        )
+        input_da.name = "tas"
+
+        # Mock _load_station_data to return a simple Dataset
+        station_da = xr.DataArray(
+            [10.0, 20.0, 30.0],
+            dims="time",
+            coords={"time": times[:3]},
+            attrs={"coordinates": (38.5, -121.5), "elevation": "10 m", "units": "K"},
+        )
+        mock_load.return_value = xr.Dataset({"KSAC": station_da})
+
+        # Mock get_closest_gridcell to return input_da
+        mock_get_closest.return_value = input_da
+
+        # Mock _bias_adjust_model_data to avoid QDM complexity
+        with patch.object(proc, "_bias_adjust_model_data") as mock_bias_adjust:
+            mock_bias_adjust.return_value = xr.Dataset({"KSAC": station_da}).to_array(
+                dim="station", name="tas"
+            )
+
+            context = {}
+            result = proc.execute(input_da, context)
+
+        # Verify result is a Dataset with a 'station' dimension, not a
+        # separate data variable per station
+        assert isinstance(result, xr.Dataset)
+        assert list(result.data_vars) == ["tas"]
+        assert "station" in result.dims
+        assert "KSAC" in result["station"].values
+
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    @patch.object(BiasAdjustModelToStation, "_process_single_dataset")
+    def test_execute_with_dict_input(self, mock_process, mock_load):
+        """Test execute with dictionary input (pre-concatenation)."""
+        proc = self.ProcClass({"stations": ["KSAC"]})
+
+        # Mock inputs
+        ssp_da = MagicMock(spec=xr.DataArray)
+        hist_da = MagicMock(spec=xr.DataArray)
+
+        input_dict = {"ssp245": ssp_da, "historical": hist_da}
+
+        # Mock return values
+        mock_load.return_value = MagicMock(spec=xr.Dataset)
+        mock_process.return_value = MagicMock(spec=xr.Dataset)
+
+        context = {}
+        result = proc.execute(input_dict, context)
+
+        assert isinstance(result, dict)
+        assert "ssp245" in result
+        assert "historical" in result
+
+        # Verify calls
+        # Should call process for ssp245 with historical data
+        # Should call process for historical with itself
+
+        assert mock_process.call_count == 2
+
+        # Check args for ssp245 call
+        # We don't know order of iteration, so check call_args_list
+
+        calls = mock_process.call_args_list
+
+        # Find call for ssp245
+        ssp_call = None
+        for call in calls:
+            if call[0][0] == ssp_da:
+                ssp_call = call
+                break
+
+        assert ssp_call is not None
+        assert ssp_call[0][2] == context  # context arg
+        assert ssp_call[0][3] == hist_da  # historical_da arg
+
+        # Find call for historical
+        hist_call = None
+        for call in calls:
+            if call[0][0] == hist_da:
+                hist_call = call
+                break
+
+        assert hist_call is not None
+        assert hist_call[0][2] == context  # context arg
+        assert hist_call[0][3] == hist_da  # historical_da arg
+
+
+class TestBiasCorrectStationDataContext:
+    """Test class for update_context method."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = BiasAdjustModelToStation({})
+
+    def test_update_context_creates_new_attrs_key(self):
+        """Test that update_context creates 'new_attrs' key in context.
+
+        The processor should add a 'new_attrs' key to context with attributes
+        to be added to the final dataset.
+        """
+        context = {"catalog": "hdp"}
+
+        self.processor.update_context(context)
+
+        # Verify 'new_attrs' key was created
+        assert "new_attrs" in context
+        # Verify it's a dictionary
+        assert isinstance(context["new_attrs"], dict)
+
+
+class TestBiasCorrectStationDataCatalogSetting:
+    """Test class for set_data_accessor method."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = BiasAdjustModelToStation({})
+
+    def test_set_data_accessor_successful(self):
+        """Test that set_data_accessor stores the data accessor.
+
+        The processor should store a reference to the data accessor for
+        loading additional data during processing.
+        """
+        mock_accessor = MagicMock()
+
+        self.processor.set_data_accessor(mock_accessor)
+
+        # Verify the accessor was stored as 'catalog' attribute
+        assert self.processor.catalog is mock_accessor
+
+
+class TestBiasCorrectStationDataEdgeCases:
+    """Test class for edge cases and invalid inputs."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = BiasAdjustModelToStation({})
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    def test_execute_with_dataset_input(self, mock_load, mock_get_closest):
+        """Test execute method when input is a Dataset instead of DataArray.
+
+        The processor should handle Dataset inputs by mapping over data
+        variables. This verifies robustness to different input types.
+        """
+        # Create a simple Dataset with a data variable and time coordinate
+        time_values = pd.date_range("2020-01-01", periods=3)
+        ds = xr.Dataset(
+            {
+                "tas": xr.DataArray(
+                    [1.0, 2.0, 3.0], dims=["time"], coords={"time": time_values}
+                )
+            }
+        )
+
+        # Mock _load_station_data to return a simple station Dataset
+        station_time = pd.date_range("2020-01-01", periods=3)
+        station_da = xr.DataArray(
+            [10.0, 11.0, 12.0],
+            dims=["time"],
+            coords={"time": station_time},
+            attrs={"coordinates": (38.5, -121.5), "elevation": "10 m", "units": "K"},
+        )
+        mock_load.return_value = xr.Dataset({"KSAC": station_da})
+
+        # Mock get_closest_gridcell
+        mock_get_closest.return_value = ds["tas"]
+
+        # Mock _bias_adjust_model_data
+        with patch.object(
+            self.processor, "_bias_adjust_model_data"
+        ) as mock_bias_adjust:
+            mock_bias_adjust.return_value = xr.Dataset({"KSAC": station_da}).to_array(
+                dim="station", name="tas"
+            )
+
+            context = {}
+            result = self.processor.execute(ds, context)
+
+        # Should return a Dataset with a 'station' dimension
+        assert isinstance(result, xr.Dataset)
+        assert list(result.data_vars) == ["tas"]
+        assert "station" in result.dims
+        assert "KSAC" in result["station"].values
+
+
+class TestBiasCorrectConcatIntegration:
+    """Test integration with concatenated data (sim dimension)."""
+
+    def setup_method(self):
+        self.processor = BiasAdjustModelToStation(
+            {
+                "stations": ["KSAC"],
+                "historical_slice": (2000, 2001),  # Short period for test
+            }
+        )
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    def test_execute_with_concatenated_input(self, mock_load, mock_get_closest):
+        """Test execute with a single DataArray containing 'sim' dimension."""
+
+        # Create concatenated input data (2 simulations, historical + future)
+        # Time range: 2000-2003 (2000-2001 historical, 2002-2003 future)
+        times = pd.date_range("2000-01-01", "2003-12-31", freq="D")
+        # Filter to match simple calendar if needed, but standard is fine for mock
+
+        # Create DataArray with sim, time, y, x
+        da = xr.DataArray(
+            np.random.rand(2, len(times), 5, 5),
+            dims=["sim", "time", "y", "x"],
+            coords={
+                "sim": ["model1", "model2"],
+                "time": times,
+                "y": np.arange(5),
+                "x": np.arange(5),
+            },
+            name="t2",
+            attrs={"resolution": "9 km", "units": "K", "grid_label": "d02"},
+        )
+
+        # Mock station data
+        # Station data should cover historical period
+        station_times = pd.date_range("2000-01-01", "2001-12-31", freq="D")
+        station_da = xr.DataArray(
+            np.random.rand(len(station_times)) + 273.15,
+            dims=["time"],
+            coords={"time": station_times},
+            name="KSAC",
+            attrs={"units": "K", "coordinates": (38.5, -121.5), "elevation": "10 m"},
+        )
+        station_ds = xr.Dataset({"KSAC": station_da})
+        mock_load.return_value = station_ds
+
+        # Mock get_closest_gridcell to return a slice of the input
+        # It needs to return something that looks like the input but spatially subsetted
+        def side_effect(data, lat, lon, print_coords=False):
+            # Return data at index 0,0 spatially, preserving sim and time
+            if "y" in data.dims and "x" in data.dims:
+                return data.isel(y=0, x=0)
+            return data
+
+        mock_get_closest.side_effect = side_effect
+
+        # Context
+        context = {"query": {"grid_label": "d02"}}
+
+        # Execute
+        # We need to mock QuantileDeltaMapping because it does complex stats
+        with patch(
+            "climakitae.new_core.processors.bias_adjust_model_to_station.QuantileDeltaMapping"
+        ) as mock_qdm:
+            # Mock QDM.train and .adjust
+            mock_qdm_instance = MagicMock()
+            mock_qdm.train.return_value = mock_qdm_instance
+
+            # adjust returns the adjusted data
+            # It should have same shape as input (or sliced input)
+            # The processor slices output to input time range (or user requested?)
+            # The processor extracts output slice from input data time range
+
+            def adjust_side_effect(data):
+                # Return data with same dims/coords
+                return data
+
+            mock_qdm_instance.adjust.side_effect = adjust_side_effect
+
+            result = self.processor.execute(da, context)
+
+            # Verification: single data var with a 'station' dimension
+            assert isinstance(result, xr.Dataset)
+            assert list(result.data_vars) == ["tas"]
+            assert "KSAC" in result["station"].values
+
+            # Check that QDM.train was called
+            assert mock_qdm.train.called
+
+            # Check arguments to QDM.train
+            # args[0] is obs (station data)
+            # args[1] is hist (historical model data)
+            call_args = mock_qdm.train.call_args
+            obs_arg = call_args[0][0]
+            hist_arg = call_args[0][1]
+
+            # Obs should be 2D (station, time)
+            assert obs_arg.dims == ("station", "time")
+
+            # Hist should have station, simulation, time
+            assert "station" in hist_arg.dims
+            assert "simulation" in hist_arg.dims
+            assert "time" in hist_arg.dims
+
+            # Check that historical data was correctly sliced from input
+            # Should cover 2000-2001
+            assert hist_arg.time.dt.year.min() == 2000
+            assert hist_arg.time.dt.year.max() == 2001
+
+            # Check that result has 'sim' dimension
+            assert "sim" in result["tas"].dims
+            assert len(result["tas"].sim) == 2
+
+
+class TestBiasCorrectUnitsPreservation:
+    """Test that units are preserved in output DataArrays for downstream processors."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.processor = BiasAdjustModelToStation(
+            {
+                "stations": ["KSAC"],
+            }
+        )
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    def test_output_dataarrays_have_units_attribute(self, mock_load, mock_get_closest):
+        """Test that output DataArrays have 'units' attribute for downstream processing.
+
+        The ConvertUnits processor relies on data having a 'units' attribute.
+        This test ensures that bias adjustment output preserves this attribute.
+        """
+        # Create input DataArray with units attribute
+        times = pd.date_range("2000-01-01", periods=10)
+        input_da = xr.DataArray(
+            np.random.rand(10) + 273.15,
+            dims=("time",),
+            coords={"time": times},
+            name="t2",
+            attrs={"units": "K", "resolution": "9 km"},
+        )
+
+        # Mock station data with units
+        station_da = xr.DataArray(
+            np.random.rand(10) + 273.15,
+            dims=("time",),
+            coords={"time": times},
+            name="KSAC",
+            attrs={"units": "K", "coordinates": (38.5, -121.5), "elevation": "10 m"},
+        )
+        station_ds = xr.Dataset({"KSAC": station_da})
+        mock_load.return_value = station_ds
+
+        # Mock get_closest_gridcell
+        mock_get_closest.return_value = input_da
+
+        # Mock _bias_adjust_model_data to return data without units (simulating the bug)
+        with patch.object(
+            self.processor, "_bias_adjust_model_data"
+        ) as mock_bias_adjust:
+            # Return a stacked DataArray (like the real implementation does)
+            bias_adjusted = xr.DataArray(
+                np.random.rand(1, 10) + 273.15,
+                dims=("station", "time"),
+                coords={"station": ["KSAC"], "time": times},
+                name="bias_adjusted",
+                # Note: no 'units' attr - this simulates QDM stripping attrs
+            )
+            mock_bias_adjust.return_value = bias_adjusted
+
+            context = {}
+            result = self.processor.execute(input_da, context)
+
+        # Verify output is a Dataset
+        assert isinstance(result, xr.Dataset)
+
+        # Verify each data variable has the 'units' attribute
+        for var_name in result.data_vars:
+            assert "units" in result[var_name].attrs, (
+                f"DataArray '{var_name}' is missing 'units' attribute. "
+                f"This will cause ConvertUnits processor to fail."
+            )
+            # Verify units value matches input (should be 'K' for temperature)
+            assert result[var_name].attrs["units"] == "K", (
+                f"DataArray '{var_name}' has incorrect units: "
+                f"{result[var_name].attrs['units']}"
+            )
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    def test_output_has_station_coordinates_and_elevation(
+        self, mock_load, mock_get_closest
+    ):
+        """Test that output has lat/lon/elevation coordinates along 'station'."""
+        # Create input DataArray
+        times = pd.date_range("2000-01-01", periods=10)
+        input_da = xr.DataArray(
+            np.random.rand(10) + 273.15,
+            dims=("time",),
+            coords={"time": times},
+            name="t2",
+            attrs={"units": "K", "resolution": "9 km"},
+        )
+
+        # Mock station data with metadata
+        station_da = xr.DataArray(
+            np.random.rand(10) + 273.15,
+            dims=("time",),
+            coords={"time": times},
+            name="KSAC",
+            attrs={
+                "units": "K",
+                "coordinates": (38.5816, -121.4944),
+                "elevation": "10 m",
+            },
+        )
+        station_ds = xr.Dataset({"KSAC": station_da})
+        mock_load.return_value = station_ds
+
+        # Mock get_closest_gridcell
+        mock_get_closest.return_value = input_da
+
+        # Mock _bias_adjust_model_data
+        with patch.object(
+            self.processor, "_bias_adjust_model_data"
+        ) as mock_bias_adjust:
+            bias_adjusted = xr.DataArray(
+                np.random.rand(1, 10) + 273.15,
+                dims=("station", "time"),
+                coords={"station": ["KSAC"], "time": times},
+                name="bias_adjusted",
+            )
+            mock_bias_adjust.return_value = bias_adjusted
+
+            context = {}
+            result = self.processor.execute(input_da, context)
+
+        # Verify per-station metadata is carried as coordinates along the
+        # 'station' dimension, rather than duplicated into per-variable attrs
+        assert "station" in result.dims
+        station_idx = list(result["station"].values).index("KSAC")
+        assert result["lat"].values[station_idx] == pytest.approx(38.5816)
+        assert result["lon"].values[station_idx] == pytest.approx(-121.4944)
+        assert result["elevation"].values[station_idx] == "10 m"
+        assert "units" in result["bias_adjusted"].attrs
