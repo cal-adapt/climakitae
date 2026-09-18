@@ -92,12 +92,11 @@ _QDM_LOG_REFERENCE = (
     "for more info)"
 )
 
-# Metadata for the output data variable, keyed by the name it ends up
-# with after bias adjustment (see _rename_t2_to_tas and
-# _bias_adjust_model_data, which name the result after the gridded
-# variable).
+# Metadata for the output data variable, keyed by the gridded variable_id
+# it retains through bias adjustment (see _bias_adjust_model_data, which
+# names the result after the gridded variable).
 _OUTPUT_VARIABLE_METADATA = {
-    "tas": {
+    "t2": {
         "standard_name": "air_temperature",
         "long_name": "Air Temperature at 2m",
     },
@@ -319,30 +318,6 @@ class BiasAdjustModelToStation(DataProcessor):
         ds = ds.squeeze("station", drop=True)[[display_name]]
 
         return ds
-
-    @staticmethod
-    def _rename_t2_to_tas(da: xr.DataArray) -> xr.DataArray:
-        """Treat WRF's native 't2' variable as equivalent to 'tas'.
-
-        WRF's raw 2m temperature variable is named 't2' in the `cadcat`
-        catalog, while HDP observations are always named 'tas'. Renaming
-        't2' to 'tas' here keeps variable naming consistent through bias
-        correction and output; the two represent the same physical
-        quantity, so no unit or value conversion is needed.
-
-        Parameters
-        ----------
-        da : xr.DataArray
-            Gridded model data, possibly named 't2'.
-
-        Returns
-        -------
-        xr.DataArray
-            The same data, renamed to 'tas' if it was 't2'.
-        """
-        if da.name == "t2":
-            return da.rename("tas")
-        return da
 
     @staticmethod
     def _resolve_hdp_variable(context: Dict[str, Any]) -> str:
@@ -692,13 +667,6 @@ class BiasAdjustModelToStation(DataProcessor):
                 f"BiasAdjustModelToStation requires xr.DataArray or xr.Dataset input, "
                 f"got {type(result)}"
             )
-
-        # WRF's native 2m temperature variable is 't2'; treat it as
-        # equivalent to the CF-standard 'tas' name used by HDP observations
-        # so naming stays consistent through bias adjustment and output.
-        result_da = self._rename_t2_to_tas(result_da)
-        if historical_da is not None:
-            historical_da = self._rename_t2_to_tas(historical_da)
 
         # Ensure resolution attribute is present for get_closest_gridcell
         if "resolution" not in result_da.attrs:

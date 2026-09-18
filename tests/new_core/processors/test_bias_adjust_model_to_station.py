@@ -822,7 +822,7 @@ class TestBiasCorrectConcatIntegration:
 
             # Verification: single data var with a 'station' dimension
             assert isinstance(result, xr.Dataset)
-            assert list(result.data_vars) == ["tas"]
+            assert list(result.data_vars) == ["t2"]
             assert "KSAC" in result["station"].values
 
             # Check that QDM.train was called
@@ -849,8 +849,8 @@ class TestBiasCorrectConcatIntegration:
             assert hist_arg.time.dt.year.max() == 2001
 
             # Check that result has 'sim' dimension
-            assert "sim" in result["tas"].dims
-            assert len(result["tas"].sim) == 2
+            assert "sim" in result["t2"].dims
+            assert len(result["t2"].sim) == 2
 
 
 class TestBiasCorrectUnitsPreservation:
@@ -974,7 +974,7 @@ class TestBiasCorrectUnitsPreservation:
                 np.random.rand(1, 10) + 273.15,
                 dims=("station", "time"),
                 coords={"station": ["KSAC"], "time": times},
-                name="bias_adjusted",
+                name="t2",
             )
             mock_bias_adjust.return_value = bias_adjusted
 
@@ -988,4 +988,4 @@ class TestBiasCorrectUnitsPreservation:
         assert result["lat"].values[station_idx] == pytest.approx(38.5816)
         assert result["lon"].values[station_idx] == pytest.approx(-121.4944)
         assert result["elevation"].values[station_idx] == "10 m"
-        assert "units" in result["bias_adjusted"].attrs
+        assert "units" in result["t2"].attrs
