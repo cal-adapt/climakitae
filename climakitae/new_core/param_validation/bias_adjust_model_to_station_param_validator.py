@@ -14,7 +14,7 @@ The validator ensures:
 
 Functions
 ---------
-validate_station_bias_adjustment_param
+validate_bias_adjustment_station_data_param
     Main validation function for station bias adjustment parameters.
 
 Examples
@@ -26,12 +26,12 @@ Examples
 ...     "window": 90,
 ...     "nquantiles": 20
 ... }
->>> validate_station_bias_adjustment_param(params)
+>>> validate_bias_adjustment_station_data_param(params)
 True
 
 >>> # Invalid station name
 >>> params = {"stations": ["InvalidStation"], "time_slice": (2030, 2060)}
->>> validate_station_bias_adjustment_param(params)
+>>> validate_bias_adjustment_station_data_param(params)
 False
 
 Notes
@@ -150,10 +150,12 @@ def validate_bias_adjustment_station_data_param(
     ...     "stations": ["Sacramento (KSAC)"],
     ...     "window": 90
     ... }
-    >>> validate_station_bias_adjustment_param(params)
+    >>> validate_bias_adjustment_station_data_param(params)
     True
     """
-    logger.debug("validate_station_bias_adjustment_param called with value: %s", value)
+    logger.debug(
+        "validate_bias_adjustment_station_data_param called with value: %s", value
+    )
 
     # Handle None or UNSET values
     if value is None or value is UNSET:
