@@ -118,7 +118,11 @@ class Sup3rCCValidator(ParameterValidator):
         A list of checks that are performed on the query:
 
         1. Check if the query contains the localize processor.
-            Localize is not supported for LOCA2 datasets.
+            Localize is not supported for Sup3rCC datasets.
+        2. Check if the query contains the filter unadjusted models processor.
+            No models are filtered from Sup3rCC datasets.
+        3. Check if the query contains the warming level processor.
+            Warming levels are not supported for Sup3rCC datasets.
 
         """
         query = query.copy()
