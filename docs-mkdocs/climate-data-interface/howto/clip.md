@@ -2,6 +2,10 @@
 
 Subset your data to a specific geographic area using boundaries, points, or bounding boxes.
 
+The boundary catalog also includes an optional `Tribal Areas` category for named BIA
+areas in the western United States. These are illustrative geographic representations,
+not legal or ownership boundaries.
+
 ## By Named Region (County, Watershed, etc.)
 
 ```python
@@ -32,6 +36,7 @@ data = (cd
 # Discover available regions
 cd.show_boundary_options()  # All boundary types
 cd.show_boundary_options("ca_counties")  # All California counties
+cd.show_boundary_options("Tribal Areas")  # Western US BIA tribal areas
 ```
 
 
@@ -46,6 +51,25 @@ cd.show_boundary_options("ca_counties")  # All California counties
 | `ious_pous` | California investor-owned and public utilities |
 | `forecast_zones` | NOAA forecast zones |
 | `electric_balancing_areas` | Electric grid authorities |
+| `Tribal Areas` | BIA land-area representations and Tribal statistical areas in the western US |
+
+Tribal selections use qualified names so they do not collide with counties or watersheds.
+For example, to select the Shingle Springs area:
+
+```python
+data = (cd
+    .catalog("cadcat")
+    .activity_id("LOCA2")
+    .variable_id("tasmax")
+    .table_id("mon")
+    .grid_label("d03")
+    .processes({"clip": "Tribal Area: Shingle Springs"})
+    .get())
+```
+
+Use `cd.show_boundary_options("Tribal Areas", show_n=None)` to see the exact
+selectors available in the current catalog. The category is available only when
+the optional `tribalareas` entry is present in the boundary Intake catalog.
 
 ## By Single Point (Lat/Lon)
 
