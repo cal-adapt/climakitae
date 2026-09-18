@@ -107,9 +107,7 @@ _OUTPUT_VARIABLE_METADATA = {
     },
 }
 
-# Dataset-level attrs that get_closest_gridcell's resolution inference
-# needs to see on the extracted DataArray. Everything else is
-# dataset-specific and should not be copied down to the DataArray.
+# Dataset-level attrs that `get_closest_gridcell` needs to see on the extracted DataArray.
 _DATASET_ATTRS_NEEDED_ON_DATAARRAY = ("resolution", "grid_label")
 
 
@@ -696,7 +694,7 @@ class BiasAdjustModelToStation(DataProcessor):
                     data_vars[0],
                 )
             result_da = result[data_vars[0]]
-            _copy_needed_dataset_attrs(result, result_da)
+            # _copy_needed_dataset_attrs(result, result_da)
             logger.info("Converted Dataset to DataArray: %s", result_da.name)
         elif isinstance(result, xr.DataArray):
             result_da = result
@@ -941,7 +939,7 @@ class BiasAdjustModelToStation(DataProcessor):
                         historical_da = historical_da_ds[
                             list(historical_da_ds.data_vars)[0]
                         ]
-                        _copy_needed_dataset_attrs(historical_da_ds, historical_da)
+                        # _copy_needed_dataset_attrs(historical_da_ds, historical_da)
                 else:
                     logger.warning(
                         f"No historical data found for {key} (expected {hist_key}). "
@@ -956,7 +954,7 @@ class BiasAdjustModelToStation(DataProcessor):
                     historical_da = historical_da_ds[
                         list(historical_da_ds.data_vars)[0]
                     ]
-                    _copy_needed_dataset_attrs(historical_da_ds, historical_da)
+                    # _copy_needed_dataset_attrs(historical_da_ds, historical_da)
 
             # Process
             ret[key] = self._process_single_dataset(
