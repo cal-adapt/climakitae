@@ -106,6 +106,11 @@ All validators inherit from the abstract base class:
       docstring_style: numpy
       show_source: true
 
+::: climakitae.new_core.param_validation.sup3rcc_param_validator
+    options:
+      docstring_style: numpy
+      show_source: true
+
 ## Utilities
 
 ::: climakitae.new_core.param_validation.param_validation_tools

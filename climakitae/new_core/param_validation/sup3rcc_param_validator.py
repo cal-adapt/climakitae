@@ -28,7 +28,7 @@ class Sup3rCCValidator(ParameterValidator):
     """
 
     def __init__(self, catalog: DataCatalog):
-        """Initialize with  catalog of Sup3rCC energy datasets.
+        """Initialize with the catalog of Sup3rCC climate datasets.
 
         Parameters
         ----------
@@ -48,9 +48,9 @@ class Sup3rCCValidator(ParameterValidator):
         }
         self.catalog = catalog.sup3rcc
         self.invalid_processors = [
-            "bias_adjust_model_to_station" "filter_unadjusted_models",
+            "bias_adjust_model_to_station",
+            "filter_unadjusted_models",
             "warming_level",
-            "concatenate",
         ]
         logger.debug(
             "DataValidator initialized for catalog with keys: %s",
@@ -121,6 +121,31 @@ class Sup3rCCValidator(ParameterValidator):
             Localize is not supported for LOCA2 datasets.
 
         """
+        query = query.copy()
+        activity_id = query.get("activity_id", UNSET)
+        if activity_id is UNSET:
+            query["activity_id"] = "Sup3rCC"
+        elif activity_id != "Sup3rCC":
+            logger.warning(
+                "Sup3rCC queries require activity_id='Sup3rCC', got %r.",
+                activity_id,
+            )
+            return None
+
+        if query.get("grid_label", UNSET) is UNSET:
+            query["grid_label"] = "conus4km"
+
+        processes = query.get("processes", {})
+        if processes is UNSET:
+            processes = {}
+        invalid_processors = set(processes).intersection(self.invalid_processors)
+        if invalid_processors:
+            logger.warning(
+                "The following processors are not supported for Sup3rCC data: %s",
+                sorted(invalid_processors),
+            )
+            return None
+
         logger.debug("Validating query: %s", query)
         initial_checks = [
             self._check_query_for_required_keys(query),

@@ -65,7 +65,7 @@ class TestSup3rCCValidator:
         """
         # Include all required keys: activity_id, institution_id, table_id, grid_label, variable_id
         query = {
-            "activity_id": "Sup3r",
+            "activity_id": "Sup3rCC",
             "institution_id": "NLR",
             "table_id": "1hr",
             "grid_label": "conus4km",
@@ -83,6 +83,87 @@ class TestSup3rCCValidator:
             # Should call parent method once and return its result
             mock_parent.assert_called_once_with(query)
             assert result == expected_result
+
+    def test_is_valid_query_defaults_activity_and_grid(self):
+        """Test omitted activity and grid values receive Sup3rCC defaults."""
+        query = {
+            "table_id": "1hr",
+            "variable_id": "t2",
+        }
+        expected_result = {
+            **query,
+            "activity_id": "Sup3rCC",
+            "grid_label": "conus4km",
+        }
+
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query",
+            return_value=expected_result,
+        ) as mock_parent:
+            result = self.validator.is_valid_query(query)
+
+        mock_parent.assert_called_once_with(expected_result)
+        assert result == expected_result
+
+    def test_is_valid_query_rejects_incompatible_activity(self):
+        """Test an explicitly incompatible activity is rejected."""
+        query = {
+            "activity_id": "WRF",
+            "table_id": "1hr",
+            "grid_label": "conus4km",
+            "variable_id": "t2",
+        }
+
+        assert self.validator.is_valid_query(query) is None
+
+    def test_is_valid_query_allows_future_grid_values(self):
+        """Test explicit grid values are passed to catalog validation."""
+        query = {
+            "activity_id": "Sup3rCC",
+            "table_id": "1hr",
+            "grid_label": "future-grid",
+            "variable_id": "t2",
+        }
+
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query",
+            return_value=query,
+        ) as mock_parent:
+            result = self.validator.is_valid_query(query)
+
+        mock_parent.assert_called_once_with(query)
+        assert result == query
+
+    def test_is_valid_query_rejects_unsupported_processors(self):
+        """Test Sup3rCC rejects processors requiring unavailable metadata."""
+        query = {
+            "activity_id": "Sup3rCC",
+            "table_id": "1hr",
+            "grid_label": "conus4km",
+            "variable_id": "t2",
+            "processes": {"warming_level": {"warming_levels": [2.0]}},
+        }
+
+        assert self.validator.is_valid_query(query) is None
+
+    def test_is_valid_query_allows_supported_concat_processor(self):
+        """Test Sup3rCC allows the registered concat processor."""
+        query = {
+            "activity_id": "Sup3rCC",
+            "table_id": "1hr",
+            "grid_label": "conus4km",
+            "variable_id": "t2",
+            "processes": {"concat": "time"},
+        }
+
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query",
+            return_value=query,
+        ) as mock_parent:
+            result = self.validator.is_valid_query(query)
+
+        mock_parent.assert_called_once_with(query)
+        assert result == query
 
     def test_default_processors_with_empty_query(self):
         """Test get_default_processors with empty query.
