@@ -74,7 +74,7 @@ data = (
 print(data)
 ```
 
-> The legacy `climakitae.core.data_interface.get_data` API is still supported for backward compatibility, but new work should use `ClimateData` from `climakitae.new_core`.
+> The legacy `climakitae.core.data_interface` APIs are deprecated and scheduled for removal in `2.0.0`, targeting January 2027. Existing calls may emit `DeprecationWarning`; new work should use `ClimateData` from `climakitae.new_core`.
 
 ## Documentation
 
