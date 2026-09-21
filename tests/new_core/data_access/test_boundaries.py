@@ -7,7 +7,7 @@ memory management, and error handling.
 """
 
 import warnings
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pandas as pd
 import pytest
@@ -557,6 +557,37 @@ class TestBoundariesPublicMethods:
         mock_boundaries_public._get_forecast_zones.assert_called_once()
         mock_boundaries_public._get_electric_balancing_areas.assert_called_once()
         mock_boundaries_public._get_ca_census_tracts.assert_called_once()
+
+    def test_boundary_dict_includes_optional_tribal_areas(self):
+        """Test optional Tribal areas are exposed by their selectors."""
+        mock_catalog = MagicMock()
+        for attr in ["states", "counties", "huc8", "utilities", "dfz", "eba"]:
+            setattr(mock_catalog, attr, Mock())
+        mock_catalog.__contains__.side_effect = lambda name: name == "tribalareas"
+        mock_catalog.tribalareas.read.return_value = pd.DataFrame(
+            {
+                "selector": [
+                    "Tribal Area: Acoma",
+                    "Tribal Statistical Area: Cherokee",
+                ]
+            }
+        )
+
+        boundaries = Boundaries(mock_catalog)
+        boundaries._get_states = Mock(return_value={})
+        boundaries._get_ca_counties = Mock(return_value={})
+        boundaries._get_ca_watersheds = Mock(return_value={})
+        boundaries._get_ious_pous = Mock(return_value={})
+        boundaries._get_forecast_zones = Mock(return_value={})
+        boundaries._get_electric_balancing_areas = Mock(return_value={})
+        boundaries._get_ca_census_tracts = Mock(return_value={})
+
+        result = boundaries.boundary_dict()
+
+        assert result["Tribal Areas"] == {
+            "Tribal Area: Acoma": 0,
+            "Tribal Statistical Area: Cherokee": 1,
+        }
 
     def test_load_deprecated_warning(self, mock_boundaries_public):
         """Test that load() method issues deprecation warning."""
