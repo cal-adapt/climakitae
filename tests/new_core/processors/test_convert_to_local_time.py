@@ -102,6 +102,23 @@ def test_dataset():
 
 
 @pytest.fixture
+def test_dataset_1d_lat_lon():
+    """Fixture to create a sample xarray.Dataset for testing."""
+    dataset = xr.Dataset(
+        {
+            "var1": (("time", "lat", "lon"), np.ones((24, 2, 2))),
+            "var2": (("time", "lat", "lon"), np.ones((24, 2, 2))),
+        },
+        coords={
+            "time": pd.date_range("2000-01-01 00", "2000-01-01 23", freq="1h"),
+            "lat": [35, 36],
+            "lon": [-119, -118],
+        },
+    )
+    yield dataset
+
+
+@pytest.fixture
 def test_daily():
     """Fixture to create a sample xarray.DataArray for testing."""
     dataarray = xr.DataArray(
@@ -320,3 +337,13 @@ class TestConvertToLocalTimeExecute:
         result = processor_no_convert.execute(test_dataarray, context={})
         assert "timezone" not in result.attrs
         assert result.time[0] == test_dataarray.time[0]
+
+    def test_convert_to_local_time_1d_lat_lon(
+        self,
+        processor: ConvertToLocalTime,
+        test_dataset_1d_lat_lon: xr.Dataset,
+    ) -> None:
+        """Test that conversion work for 1-d arrays of lat/lon"""
+        result = processor.execute(test_dataset_1d_lat_lon, context={})
+        assert len(result.lat) == 2
+        assert len(result.lon) == 2

@@ -136,6 +136,7 @@ dataset = factory.create_dataset(query)
 - `cadcat` → main climate data (LOCA2, WRF)
 - `renewable energy generation` → wind/solar capacity factors
 - `hdp` → historical data platform (weather stations)
+- `sup3rcc` → NLR Sup3rCC climate-model data
 
 ---
 
@@ -194,6 +195,7 @@ catalog.data        # intake_esm for main climate data
 catalog.boundary    # intake for geographic boundaries
 catalog.renewables  # intake_esm for renewable energy
 catalog.hdp         # intake_esm for historical data platform
+catalog.sup3rcc     # intake_esm for Sup3rCC climate-model data
 catalog.catalog_df  # Merged DataFrame of all ESM catalogs
 catalog.boundaries  # Lazy-loading Boundaries manager
 ```
