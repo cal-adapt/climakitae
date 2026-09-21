@@ -236,8 +236,6 @@ class ConvertUnits(DataProcessor):
         """
         try:
             var = list(data.data_vars.keys())[0]
-            if var == "crs":  # May grab crs for Sup3rCC data
-                var = list(data.data_vars.keys())[1]
             units_from = data.data_vars[var].attrs[
                 "units"
             ]  # Trying to get an error if the units attribute does not exist
