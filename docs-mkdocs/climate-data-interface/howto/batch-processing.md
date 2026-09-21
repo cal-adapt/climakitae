@@ -113,7 +113,7 @@ climakitae returns lazy [Dask](https://docs.dask.org)-backed xarray objects, so 
 
 ```python
 import coiled
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 # Spin up a Coiled cluster in us-west-2 (same region as Cal-Adapt S3 data)
 cluster = coiled.Cluster(

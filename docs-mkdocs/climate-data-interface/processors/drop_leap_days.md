@@ -46,7 +46,7 @@ If the data lacks a `time` dimension, `_drop_leap_days` returns it unchanged. If
 ## Example
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 data = (ClimateData()
     .catalog("cadcat")

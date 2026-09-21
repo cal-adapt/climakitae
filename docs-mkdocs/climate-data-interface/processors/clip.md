@@ -168,7 +168,7 @@ When `persist=True` (constructor arg or `persist` key in dict input), the proces
 ### Single County
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 data = (ClimateData()
     .catalog("cadcat")

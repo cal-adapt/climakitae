@@ -3,7 +3,7 @@
 Here's a complete workflow using multiple concepts:
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 import matplotlib.pyplot as plt
 
 # Workflow: Analyze temperature extremes at warming levels across California

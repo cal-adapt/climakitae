@@ -54,7 +54,7 @@ The processor takes a **single string** (case-insensitive):
 ## Examples
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 # Default: drop unadjusted models
 data = (ClimateData()

@@ -43,7 +43,7 @@ data = get_data(params)
 ### ✅ ClimateData Approach
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 # Fluent/builder pattern
 data = (ClimateData()
@@ -87,7 +87,7 @@ print(params.grid_label)  # Check what's set
 ### ✅ ClimateData Approach
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 cd = ClimateData()
 
@@ -203,7 +203,7 @@ for scenario in scenarios:
 ### ✅ ClimateData Approach
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 scenarios = ["ssp245", "ssp370", "ssp585"]
 results = {}
@@ -267,7 +267,7 @@ data = (ClimateData()
 
 ## Migration Checklist  
 
-- Replace `from climakitae.core.data_interface import DataParameters, get_data` with `from climakitae.new_core.user_interface import ClimateData`.  
+- Replace `from climakitae.core.data_interface import DataParameters, get_data` with `from climakitae import ClimateData`.  
 - Translate field names:  
     - `downscaling_method` ("Dynamical" / "Statistical") → `.activity_id("WRF" | "LOCA2")`  
     - `resolution` ("3 km" / "9 km" / "45 km") → `.grid_label("d03" | "d02" | "d01")`  

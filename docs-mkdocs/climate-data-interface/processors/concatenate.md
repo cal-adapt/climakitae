@@ -59,7 +59,7 @@ The processor takes a **single string**: the name of the new dimension. The defa
 ### Multi-model ensemble (gridded catalog)
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 ensemble = (ClimateData()
     .catalog("cadcat")
