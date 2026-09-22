@@ -12,13 +12,6 @@ The `climakitae.explore` module provides user-friendly classes and functions for
 - **Typical meteorological year** — TMY analysis for engineering applications
 - **Vulnerability assessment** — Climate vulnerability analysis tools
 
-## Time Series Visualization
-
-::: climakitae.explore.timeseries.TimeSeries
-    options:
-      docstring_style: numpy
-      show_source: true
-
 ## Typical Meteorological Year
 
 ::: climakitae.explore.typical_meteorological_year.TMY
