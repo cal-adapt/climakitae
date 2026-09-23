@@ -768,7 +768,7 @@ final = result.mean(dim='time')  # Already computed
 
 ```python
 import concurrent.futures
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 # ✅ CORRECT: Create new ClimateData instance per thread
 def fetch_scenario(scenario):

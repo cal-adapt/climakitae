@@ -52,7 +52,7 @@ For editable installs, developer dependencies, and platform-specific tips, see t
 ### Basic Usage
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 # Retrieve monthly max temperature for Los Angeles in 2015
 data = (
@@ -62,7 +62,7 @@ data = (
     .institution_id("UCLA")
     .table_id("mon")
     .grid_label("d03")
-    .variable("t2max")
+    .variable_id("t2max")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
         "clip": "Los Angeles",
@@ -74,7 +74,7 @@ data = (
 print(data)
 ```
 
-> The legacy `climakitae.core.data_interface.get_data` API is still supported for backward compatibility, but new work should use `ClimateData` from `climakitae.new_core`.
+> The legacy `climakitae.core.data_interface` APIs are deprecated and scheduled for removal in `2.0.0`, targeting January 2027. Existing calls may emit `DeprecationWarning`; new work should use `ClimateData` from `climakitae.new_core`.
 
 ## Documentation
 

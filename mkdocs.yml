@@ -103,7 +103,7 @@ nav:
           - Access Boundary Geometries: climate-data-interface/howto/boundary-accessors.md
           - Export Data: climate-data-interface/howto/export.md
           - Warming Level Analysis: climate-data-interface/howto/warming-levels.md
-          - Bias Correction: climate-data-interface/howto/bias-correction.md
+          - Bias Correction: climate-data-interface/howto/bias-adjustment.md
           - Batch Processing: climate-data-interface/howto/batch-processing.md
           - Combining Techniques: climate-data-interface/howto/combining-techniques.md
           - Derived Variables: climate-data-interface/howto/derived-variables.md

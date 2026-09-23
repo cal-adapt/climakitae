@@ -201,15 +201,16 @@ class TestAppropriateStringErrorReturnedIfBadInputGetData:
         # Because of this, we have to use sys to capture the print message
         capture = io.StringIO()
         save, sys.stdout = sys.stdout, capture
-        ds = get_data(
-            variable="Precipitation (total)",
-            downscaling_method="Dynamical",
-            resolution="45 km",
-            timescale="monthly",
-            cached_area="San Bernardino County",
-            approach="Warming Level",
-            warming_level="20",
-        )
+        with pytest.warns(DeprecationWarning, match="ClimateData"):
+            ds = get_data(
+                variable="Precipitation (total)",
+                downscaling_method="Dynamical",
+                resolution="45 km",
+                timescale="monthly",
+                cached_area="San Bernardino County",
+                approach="Warming Level",
+                warming_level="20",
+            )
         sys.stdout = save
 
         assert capture.getvalue() == expected_print_message

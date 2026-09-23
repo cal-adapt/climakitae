@@ -3,7 +3,7 @@
 The **`climakitae.core.data_interface` module** is the main compatibility layer for the original climakitae API. It exposes the legacy parameter object, the data retrieval entry points, and the discovery helpers that powered the old GUI.
 
 !!! warning
-    This page documents the legacy `climakitae.core.data_interface` module. It is kept for backward compatibility. New code should use [`climakitae.new_core.user_interface.ClimateData`](../climate-data-interface/index.md).
+  This page documents the legacy `climakitae.core.data_interface` module. Its public data-access methods are deprecated and scheduled for removal in `2.0.0`, targeting January 2027. New code should use [`climakitae.new_core.user_interface.ClimateData`](../climate-data-interface/index.md).
 
 ## On this page
 
@@ -156,10 +156,10 @@ data = get_data(
 
 ## Notes on behavior
 
-- `DataParameters.retrieve()` is the closest analogue to the old GUI workflow.
-- `get_data_options()` and `get_subsetting_options()` are useful when you need to discover valid values programmatically.
+- `DataParameters.retrieve()`, `get_data_options()`, `get_subsetting_options()`, and `get_data()` emit `DeprecationWarning` and are scheduled for removal in `2.0.0`.
+- `ClimateData` option and boundary discovery should be used for new code: `show_*_options()` and the `clip` processor replace the legacy helpers.
 - The module does not raise on every bad input. In several cases it prints a diagnostic message and returns `None` to match the original notebook behavior.
-- `get_data()` is the lower-level direct entry point and accepts the same legacy naming conventions as the GUI.
+- The legacy examples on this page are retained only as migration references. Follow the [Legacy → ClimateData migration guide](../migration/legacy-to-climate-data.md) when updating them.
 
 ---
 

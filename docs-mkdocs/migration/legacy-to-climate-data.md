@@ -5,9 +5,9 @@ This guide helps you migrate from the legacy `climakitae.core` API to the modern
 ## Migration Policy
 
 - **New work**: Always use `new_core` (fluent API)
-- **Existing code**: Legacy APIs remain available and functional during transition
-- **Timeline**: A multi-phase deprecation plan is published in [Legacy API status](../legacy/index.md#status-and-roadmap). No breaking changes in the current minor-release series.
-- **Support**: Both interfaces are maintained, but `new_core` is where all new features land.
+- **Existing code**: Legacy APIs remain available during the transition and emit deprecation warnings at their public entry points.
+- **Timeline**: Legacy data-access APIs are scheduled for removal in `2.0.0`, targeting January 2027. See [Legacy API status](../legacy/index.md#status-and-roadmap).
+- **Support**: `new_core` is the supported interface and the only home for new data-access features.
 
 !!! note "A note on field names"
     The legacy `DataParameters` class is built on the `param` library and uses
@@ -43,7 +43,7 @@ data = get_data(params)
 ### ✅ ClimateData Approach
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 # Fluent/builder pattern
 data = (ClimateData()
@@ -87,7 +87,7 @@ print(params.grid_label)  # Check what's set
 ### ✅ ClimateData Approach
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 cd = ClimateData()
 
@@ -203,7 +203,7 @@ for scenario in scenarios:
 ### ✅ ClimateData Approach
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 scenarios = ["ssp245", "ssp370", "ssp585"]
 results = {}
@@ -267,7 +267,7 @@ data = (ClimateData()
 
 ## Migration Checklist  
 
-- Replace `from climakitae.core.data_interface import DataParameters, get_data` with `from climakitae.new_core.user_interface import ClimateData`.  
+- Replace `from climakitae.core.data_interface import DataParameters, get_data` with `from climakitae import ClimateData`.  
 - Translate field names:  
     - `downscaling_method` ("Dynamical" / "Statistical") → `.activity_id("WRF" | "LOCA2")`  
     - `resolution` ("3 km" / "9 km" / "45 km") → `.grid_label("d03" | "d02" | "d01")`  
@@ -285,6 +285,7 @@ data = (ClimateData()
 
 ## Still Using Legacy? Questions?
 
-- Legacy interface remains fully supported in `climakitae.core`  
+- Legacy interface remains temporarily available in `climakitae.core` for migration purposes and may emit `DeprecationWarning`.  
+- Plan migration before `2.0.0`; the current target for removal is January 2027.  
 - For new_core API details, see the [API Reference section](../api/climate-data.md)  
 - See [Legacy API status](../legacy/index.md#status-and-roadmap) for deprecation timeline

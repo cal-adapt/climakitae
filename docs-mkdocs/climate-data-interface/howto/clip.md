@@ -5,7 +5,7 @@ Subset your data to a specific geographic area using boundaries, points, or boun
 ## By Named Region (County, Watershed, etc.)
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 cd = ClimateData()
 
