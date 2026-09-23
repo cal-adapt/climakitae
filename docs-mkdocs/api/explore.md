@@ -47,13 +47,6 @@ The `climakitae.explore` module provides user-friendly classes and functions for
       docstring_style: numpy
       show_source: true
 
-## Thresholds
-
-::: climakitae.explore.thresholds
-    options:
-      docstring_style: numpy
-      show_source: true
-
 ## Vulnerability Tables
 
 ::: climakitae.explore.vulnerability_table
