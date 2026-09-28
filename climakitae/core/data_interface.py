@@ -1402,7 +1402,7 @@ class DataParameters(param.Parameterized):
 
         warnings.warn(
             "DataParameters.retrieve() is deprecated and will be removed in "
-            "climakitae 2.0.0 (targeting January 2027). Use "
+            "climakitae 2.0.0 (targeting late Q1 2027). Use "
             "climakitae.new_core.user_interface.ClimateData instead.",
             DeprecationWarning,
             stacklevel=2,
@@ -1802,7 +1802,7 @@ def get_data_options(
     """
     warnings.warn(
         "climakitae.core.data_interface.get_data_options() is deprecated and "
-        "will be removed in climakitae 2.0.0 (targeting January 2027). Use "
+        "will be removed in climakitae 2.0.0 (targeting late Q1 2027). Use "
         "new-core query and validation APIs instead.",
         DeprecationWarning,
         stacklevel=2,
@@ -1885,7 +1885,7 @@ def get_subsetting_options(area_subset: str = "all") -> pd.DataFrame:
     """
     warnings.warn(
         "climakitae.core.data_interface.get_subsetting_options() is deprecated "
-        "and will be removed in climakitae 2.0.0 (targeting January 2027). Use "
+        "and will be removed in climakitae 2.0.0 (targeting late Q1 2027). Use "
         "new-core boundary and clip APIs instead.",
         DeprecationWarning,
         stacklevel=2,
@@ -2071,7 +2071,7 @@ def get_data(
     .. deprecated:: 1.6.0
         Use :class:`climakitae.new_core.user_interface.ClimateData` instead.
         This legacy entrypoint is scheduled for removal in 2.0.0, targeting
-        January 2027.
+        late Q1 2027.
 
     Notes
     -----
@@ -2085,7 +2085,7 @@ def get_data(
 
     warnings.warn(
         "climakitae.core.data_interface.get_data() is deprecated and will be "
-        "removed in climakitae 2.0.0 (targeting January 2027). Use "
+        "removed in climakitae 2.0.0 (targeting late Q1 2027). Use "
         "climakitae.new_core.user_interface.ClimateData instead.",
         DeprecationWarning,
         stacklevel=2,

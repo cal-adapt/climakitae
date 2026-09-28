@@ -6,7 +6,7 @@ The **legacy `climakitae.core` interface** is the original function-based API fo
     `climakitae.core` is maintained for backward compatibility only. It still powers older notebooks and internal workflows, but it is no longer the home for new features. New processors, validators, catalogs, and analysis features land in `climakitae.new_core`.
 
 !!! danger "Removal target"
-    The legacy public data-access APIs are deprecated and scheduled for removal in `2.0.0`, targeting January 2027. Calls to the legacy retrieval and option-discovery methods may emit `DeprecationWarning`. Use [`ClimateData`](../climate-data-interface/index.md) and its processors for new work.
+    The legacy public data-access APIs are deprecated and scheduled for removal in `2.0.0`, targeting late Q1 2027. Calls to the legacy retrieval and option-discovery methods may emit `DeprecationWarning`. Use [`ClimateData`](../climate-data-interface/index.md) and its processors for new work.
 
 ---
 
@@ -98,7 +98,7 @@ direction and removal target are clear:
 - Existing code may continue to work during the transition, with deprecation warnings on public legacy data-access methods.
 - New documentation and tutorials use `ClimateData`.
 - New feature work lands in `climakitae.new_core` only.
-- The legacy data-access surface is targeted for removal in `2.0.0`, around January 2027.
+- The legacy data-access surface is targeted for removal in `2.0.0`, around late Q1 2027.
 
 If you are starting new code, use the modern interface and treat this section as
 a compatibility reference.

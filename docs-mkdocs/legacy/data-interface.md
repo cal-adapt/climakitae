@@ -3,7 +3,7 @@
 The **`climakitae.core.data_interface` module** is the main compatibility layer for the original climakitae API. It exposes the legacy parameter object, the data retrieval entry points, and the discovery helpers that powered the old GUI.
 
 !!! warning
-  This page documents the legacy `climakitae.core.data_interface` module. Its public data-access methods are deprecated and scheduled for removal in `2.0.0`, targeting January 2027. New code should use [`climakitae.new_core.user_interface.ClimateData`](../climate-data-interface/index.md).
+  This page documents the legacy `climakitae.core.data_interface` module. Its public data-access methods are deprecated and scheduled for removal in `2.0.0`, targeting late Q1 2027. New code should use [`climakitae.new_core.user_interface.ClimateData`](../climate-data-interface/index.md).
 
 ## On this page
 

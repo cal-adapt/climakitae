@@ -138,6 +138,7 @@ nav:
               - Util: api/util.md
               - Derived Variables: api/derived-variables.md
   - Migration:
+      - Why we are moving to ClimateData: migration/legacy-api-sunset.md
       - Legacy to ClimateData: migration/legacy-to-climate-data.md
   - Legacy API:
       - Overview: legacy/index.md
