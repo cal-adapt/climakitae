@@ -1,6 +1,6 @@
-# Bias Correction: Localize WRF to Weather Stations
+# Bias Adjustment: Localize WRF to Weather Stations
 
-Use historical weather station observations to correct WRF model bias locally.
+Use historical weather station observations to adjust WRF model bias locally.
 
 ## Basic Localization
 
@@ -18,7 +18,7 @@ data = (cd
     })
     .get())
 
-# Data now bias-corrected to observations
+# Data now bias-adjusted to observations
 ```
 
 ## Available Weather Stations
@@ -37,7 +37,7 @@ data = (cd
     .get())
 ```
 
-## How Bias Correction Works
+## How Bias Adjustment Works
 
 - **Training**: Uses historical station observations (1981-2010 baseline)
 - **Method**: Quantile delta mapping (preserves model trends while matching observations)
@@ -53,15 +53,15 @@ data = (cd
 
 **Why these limitations?**
 
-Bias correction requires:  
+Bias Adjustment requires:  
 - **High-frequency observations** (hourly) to capture temperature variability that drives quantile mapping  
 - **WRF hourly data** because WRF's fast-varying dynamics need point-wise calibration  
-- **LOCA2 is already bias-corrected** by design using quantile mapping to observations during downscaling (no bias correction needed)  
+- **LOCA2 is already bias-adjusted** by design using quantile mapping to observations during downscaling (no bias adjustment needed)  
 - **Weather station coverage** — only HadISD provides consistent historical hourly data  
 
 **For other scenarios:**  
-- Use direct model output (LOCA2 is already bias-corrected)  
-- Implement alternative bias correction method for daily/monthly aggregates  
+- Use direct model output (LOCA2 is already bias-adjusted)  
+- Implement alternative bias adjustment method for daily/monthly aggregates  
 - Contact support for custom approaches  
 
 ---
