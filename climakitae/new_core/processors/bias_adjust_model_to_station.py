@@ -845,6 +845,10 @@ class BiasAdjustModelToStation(DataProcessor):
 
         apply_output = output_da.to_dataset()
 
+        # Coping over any global attributes from the input Dataset if present
+        if isinstance(result, xr.Dataset):
+            apply_output.attrs = dict(result.attrs)
+
         logger.info(
             "Station bias adjustment complete. Output shape: %s", apply_output.dims
         )

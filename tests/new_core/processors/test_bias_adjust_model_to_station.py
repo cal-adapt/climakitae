@@ -989,3 +989,50 @@ class TestBiasCorrectUnitsPreservation:
         assert result["lon"].values[station_idx] == pytest.approx(-121.4944)
         assert result["elevation"].values[station_idx] == "10 m"
         assert "units" in result["t2"].attrs
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_closest_gridcell"
+    )
+    @patch.object(BiasAdjustModelToStation, "_load_station_data")
+    def test_output_preserves_input_dataset_attrs(self, mock_load, mock_get_closest):
+        """Test that the input Dataset's global attrs carry through to the output."""
+        times = pd.date_range("2000-01-01", periods=10)
+        input_da = xr.DataArray(
+            np.random.rand(10) + 273.15,
+            dims=("time",),
+            coords={"time": times},
+            name="t2",
+            attrs={"units": "K"},
+        )
+        dataset_attrs = {
+            "institution": "UCLA",
+            "source_id": "WRF",
+            "frequency": "day",
+            "resolution": "9 km",
+        }
+        input_ds = input_da.to_dataset()
+        input_ds.attrs = dict(dataset_attrs)
+
+        station_da = xr.DataArray(
+            np.random.rand(10) + 273.15,
+            dims=("time",),
+            coords={"time": times},
+            name="KSAC",
+            attrs={"units": "K", "coordinates": (38.5, -121.5), "elevation": "10 m"},
+        )
+        mock_load.return_value = xr.Dataset({"KSAC": station_da})
+        mock_get_closest.return_value = input_da
+
+        with patch.object(
+            self.processor, "_bias_adjust_model_data"
+        ) as mock_bias_adjust:
+            mock_bias_adjust.return_value = xr.DataArray(
+                np.random.rand(1, 10) + 273.15,
+                dims=("station", "time"),
+                coords={"station": ["KSAC"], "time": times},
+                name="t2",
+            )
+            result = self.processor.execute(input_ds, {})
+
+        for key, value in dataset_attrs.items():
+            assert result.attrs.get(key) == value
