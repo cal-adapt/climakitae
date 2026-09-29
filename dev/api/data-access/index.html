@@ -5542,7 +5542,8 @@ Must contain entries for: 'states', 'counties', 'huc8',
 <span class="normal"><a href="#__codelineno-0-198">198</a></span>
 <span class="normal"><a href="#__codelineno-0-199">199</a></span>
 <span class="normal"><a href="#__codelineno-0-200">200</a></span>
-<span class="normal"><a href="#__codelineno-0-201">201</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-160" name="__codelineno-0-160"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">boundary_catalog</span><span class="p">:</span> <span class="n">intake</span><span class="o">.</span><span class="n">catalog</span><span class="o">.</span><span class="n">Catalog</span><span class="p">):</span>
+<span class="normal"><a href="#__codelineno-0-201">201</a></span>
+<span class="normal"><a href="#__codelineno-0-202">202</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-160" name="__codelineno-0-160"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">boundary_catalog</span><span class="p">:</span> <span class="n">intake</span><span class="o">.</span><span class="n">catalog</span><span class="o">.</span><span class="n">Catalog</span><span class="p">):</span>
 <a id="__codelineno-0-161" name="__codelineno-0-161"></a><span class="w">    </span><span class="sd">"""Initialize the Boundaries class with a boundary catalog.</span>
 <a id="__codelineno-0-162" name="__codelineno-0-162"></a>
 <a id="__codelineno-0-163" name="__codelineno-0-163"></a><span class="sd">    Sets up the lazy-loading infrastructure and validates the catalog</span>
@@ -5578,12 +5579,13 @@ Must contain entries for: 'states', 'counties', 'huc8',
 <a id="__codelineno-0-193" name="__codelineno-0-193"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_forecast_zones</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <a id="__codelineno-0-194" name="__codelineno-0-194"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_electric_balancing_areas</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <a id="__codelineno-0-195" name="__codelineno-0-195"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_census_tracts</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-196" name="__codelineno-0-196"></a>
-<a id="__codelineno-0-197" name="__codelineno-0-197"></a>    <span class="c1"># Cache for lookup dictionaries</span>
-<a id="__codelineno-0-198" name="__codelineno-0-198"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_cache</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
-<a id="__codelineno-0-199" name="__codelineno-0-199"></a>
-<a id="__codelineno-0-200" name="__codelineno-0-200"></a>    <span class="c1"># Validate catalog on initialization</span>
-<a id="__codelineno-0-201" name="__codelineno-0-201"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">validate_catalog</span><span class="p">()</span>
+<a id="__codelineno-0-196" name="__codelineno-0-196"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__tribal_areas</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-197" name="__codelineno-0-197"></a>
+<a id="__codelineno-0-198" name="__codelineno-0-198"></a>    <span class="c1"># Cache for lookup dictionaries</span>
+<a id="__codelineno-0-199" name="__codelineno-0-199"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_cache</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-0-200" name="__codelineno-0-200"></a>
+<a id="__codelineno-0-201" name="__codelineno-0-201"></a>    <span class="c1"># Validate catalog on initialization</span>
+<a id="__codelineno-0-202" name="__codelineno-0-202"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">validate_catalog</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
                   </details>
 
@@ -5654,8 +5656,7 @@ will list all missing entries.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-203">203</a></span>
-<span class="normal"><a href="#__codelineno-0-204">204</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-204">204</a></span>
 <span class="normal"><a href="#__codelineno-0-205">205</a></span>
 <span class="normal"><a href="#__codelineno-0-206">206</a></span>
 <span class="normal"><a href="#__codelineno-0-207">207</a></span>
@@ -5680,33 +5681,34 @@ will list all missing entries.</p>
 <span class="normal"><a href="#__codelineno-0-226">226</a></span>
 <span class="normal"><a href="#__codelineno-0-227">227</a></span>
 <span class="normal"><a href="#__codelineno-0-228">228</a></span>
-<span class="normal"><a href="#__codelineno-0-229">229</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-203" name="__codelineno-0-203"></a><span class="k">def</span><span class="w"> </span><span class="nf">validate_catalog</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-204" name="__codelineno-0-204"></a><span class="w">    </span><span class="sd">"""Validate that required catalog entries exist and are accessible.</span>
-<a id="__codelineno-0-205" name="__codelineno-0-205"></a>
-<a id="__codelineno-0-206" name="__codelineno-0-206"></a><span class="sd">    Checks for the presence of all required boundary datasets in the</span>
-<a id="__codelineno-0-207" name="__codelineno-0-207"></a><span class="sd">    catalog. This ensures that the boundary data can be loaded when</span>
-<a id="__codelineno-0-208" name="__codelineno-0-208"></a><span class="sd">    requested by the user.</span>
-<a id="__codelineno-0-209" name="__codelineno-0-209"></a>
-<a id="__codelineno-0-210" name="__codelineno-0-210"></a><span class="sd">    Raises</span>
-<a id="__codelineno-0-211" name="__codelineno-0-211"></a><span class="sd">    ------</span>
-<a id="__codelineno-0-212" name="__codelineno-0-212"></a><span class="sd">    ValueError</span>
-<a id="__codelineno-0-213" name="__codelineno-0-213"></a><span class="sd">        If any required catalog entries are missing. The error message</span>
-<a id="__codelineno-0-214" name="__codelineno-0-214"></a><span class="sd">        will list all missing entries.</span>
-<a id="__codelineno-0-215" name="__codelineno-0-215"></a>
-<a id="__codelineno-0-216" name="__codelineno-0-216"></a><span class="sd">    Notes</span>
-<a id="__codelineno-0-217" name="__codelineno-0-217"></a><span class="sd">    -----</span>
-<a id="__codelineno-0-218" name="__codelineno-0-218"></a><span class="sd">    Required catalog entries:</span>
-<a id="__codelineno-0-219" name="__codelineno-0-219"></a><span class="sd">    - 'states': US state boundaries</span>
-<a id="__codelineno-0-220" name="__codelineno-0-220"></a><span class="sd">    - 'counties': California county boundaries</span>
-<a id="__codelineno-0-221" name="__codelineno-0-221"></a><span class="sd">    - 'huc8': California watershed boundaries (HUC8 level)</span>
-<a id="__codelineno-0-222" name="__codelineno-0-222"></a><span class="sd">    - 'utilities': California electric utility boundaries</span>
-<a id="__codelineno-0-223" name="__codelineno-0-223"></a><span class="sd">    - 'dfz': California demand forecast zones</span>
-<a id="__codelineno-0-224" name="__codelineno-0-224"></a><span class="sd">    - 'eba': Electric balancing authority areas</span>
-<a id="__codelineno-0-225" name="__codelineno-0-225"></a><span class="sd">    """</span>
-<a id="__codelineno-0-226" name="__codelineno-0-226"></a>    <span class="n">required_entries</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"states"</span><span class="p">,</span> <span class="s2">"counties"</span><span class="p">,</span> <span class="s2">"huc8"</span><span class="p">,</span> <span class="s2">"utilities"</span><span class="p">,</span> <span class="s2">"dfz"</span><span class="p">,</span> <span class="s2">"eba"</span><span class="p">]</span>
-<a id="__codelineno-0-227" name="__codelineno-0-227"></a>    <span class="n">missing</span> <span class="o">=</span> <span class="p">[</span><span class="n">entry</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">required_entries</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="p">,</span> <span class="n">entry</span><span class="p">)]</span>
-<a id="__codelineno-0-228" name="__codelineno-0-228"></a>    <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
-<a id="__codelineno-0-229" name="__codelineno-0-229"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Missing required catalog entries: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-229">229</a></span>
+<span class="normal"><a href="#__codelineno-0-230">230</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-204" name="__codelineno-0-204"></a><span class="k">def</span><span class="w"> </span><span class="nf">validate_catalog</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-205" name="__codelineno-0-205"></a><span class="w">    </span><span class="sd">"""Validate that required catalog entries exist and are accessible.</span>
+<a id="__codelineno-0-206" name="__codelineno-0-206"></a>
+<a id="__codelineno-0-207" name="__codelineno-0-207"></a><span class="sd">    Checks for the presence of all required boundary datasets in the</span>
+<a id="__codelineno-0-208" name="__codelineno-0-208"></a><span class="sd">    catalog. This ensures that the boundary data can be loaded when</span>
+<a id="__codelineno-0-209" name="__codelineno-0-209"></a><span class="sd">    requested by the user.</span>
+<a id="__codelineno-0-210" name="__codelineno-0-210"></a>
+<a id="__codelineno-0-211" name="__codelineno-0-211"></a><span class="sd">    Raises</span>
+<a id="__codelineno-0-212" name="__codelineno-0-212"></a><span class="sd">    ------</span>
+<a id="__codelineno-0-213" name="__codelineno-0-213"></a><span class="sd">    ValueError</span>
+<a id="__codelineno-0-214" name="__codelineno-0-214"></a><span class="sd">        If any required catalog entries are missing. The error message</span>
+<a id="__codelineno-0-215" name="__codelineno-0-215"></a><span class="sd">        will list all missing entries.</span>
+<a id="__codelineno-0-216" name="__codelineno-0-216"></a>
+<a id="__codelineno-0-217" name="__codelineno-0-217"></a><span class="sd">    Notes</span>
+<a id="__codelineno-0-218" name="__codelineno-0-218"></a><span class="sd">    -----</span>
+<a id="__codelineno-0-219" name="__codelineno-0-219"></a><span class="sd">    Required catalog entries:</span>
+<a id="__codelineno-0-220" name="__codelineno-0-220"></a><span class="sd">    - 'states': US state boundaries</span>
+<a id="__codelineno-0-221" name="__codelineno-0-221"></a><span class="sd">    - 'counties': California county boundaries</span>
+<a id="__codelineno-0-222" name="__codelineno-0-222"></a><span class="sd">    - 'huc8': California watershed boundaries (HUC8 level)</span>
+<a id="__codelineno-0-223" name="__codelineno-0-223"></a><span class="sd">    - 'utilities': California electric utility boundaries</span>
+<a id="__codelineno-0-224" name="__codelineno-0-224"></a><span class="sd">    - 'dfz': California demand forecast zones</span>
+<a id="__codelineno-0-225" name="__codelineno-0-225"></a><span class="sd">    - 'eba': Electric balancing authority areas</span>
+<a id="__codelineno-0-226" name="__codelineno-0-226"></a><span class="sd">    """</span>
+<a id="__codelineno-0-227" name="__codelineno-0-227"></a>    <span class="n">required_entries</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"states"</span><span class="p">,</span> <span class="s2">"counties"</span><span class="p">,</span> <span class="s2">"huc8"</span><span class="p">,</span> <span class="s2">"utilities"</span><span class="p">,</span> <span class="s2">"dfz"</span><span class="p">,</span> <span class="s2">"eba"</span><span class="p">]</span>
+<a id="__codelineno-0-228" name="__codelineno-0-228"></a>    <span class="n">missing</span> <span class="o">=</span> <span class="p">[</span><span class="n">entry</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">required_entries</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="p">,</span> <span class="n">entry</span><span class="p">)]</span>
+<a id="__codelineno-0-229" name="__codelineno-0-229"></a>    <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+<a id="__codelineno-0-230" name="__codelineno-0-230"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Missing required catalog entries: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -5798,37 +5800,7 @@ efficient boundary selection and data subsetting operations.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-593">593</a></span>
-<span class="normal"><a href="#__codelineno-0-594">594</a></span>
-<span class="normal"><a href="#__codelineno-0-595">595</a></span>
-<span class="normal"><a href="#__codelineno-0-596">596</a></span>
-<span class="normal"><a href="#__codelineno-0-597">597</a></span>
-<span class="normal"><a href="#__codelineno-0-598">598</a></span>
-<span class="normal"><a href="#__codelineno-0-599">599</a></span>
-<span class="normal"><a href="#__codelineno-0-600">600</a></span>
-<span class="normal"><a href="#__codelineno-0-601">601</a></span>
-<span class="normal"><a href="#__codelineno-0-602">602</a></span>
-<span class="normal"><a href="#__codelineno-0-603">603</a></span>
-<span class="normal"><a href="#__codelineno-0-604">604</a></span>
-<span class="normal"><a href="#__codelineno-0-605">605</a></span>
-<span class="normal"><a href="#__codelineno-0-606">606</a></span>
-<span class="normal"><a href="#__codelineno-0-607">607</a></span>
-<span class="normal"><a href="#__codelineno-0-608">608</a></span>
-<span class="normal"><a href="#__codelineno-0-609">609</a></span>
-<span class="normal"><a href="#__codelineno-0-610">610</a></span>
-<span class="normal"><a href="#__codelineno-0-611">611</a></span>
-<span class="normal"><a href="#__codelineno-0-612">612</a></span>
-<span class="normal"><a href="#__codelineno-0-613">613</a></span>
-<span class="normal"><a href="#__codelineno-0-614">614</a></span>
-<span class="normal"><a href="#__codelineno-0-615">615</a></span>
-<span class="normal"><a href="#__codelineno-0-616">616</a></span>
-<span class="normal"><a href="#__codelineno-0-617">617</a></span>
-<span class="normal"><a href="#__codelineno-0-618">618</a></span>
-<span class="normal"><a href="#__codelineno-0-619">619</a></span>
-<span class="normal"><a href="#__codelineno-0-620">620</a></span>
-<span class="normal"><a href="#__codelineno-0-621">621</a></span>
-<span class="normal"><a href="#__codelineno-0-622">622</a></span>
-<span class="normal"><a href="#__codelineno-0-623">623</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-623">623</a></span>
 <span class="normal"><a href="#__codelineno-0-624">624</a></span>
 <span class="normal"><a href="#__codelineno-0-625">625</a></span>
 <span class="normal"><a href="#__codelineno-0-626">626</a></span>
@@ -5862,71 +5834,107 @@ efficient boundary selection and data subsetting operations.</p>
 <span class="normal"><a href="#__codelineno-0-654">654</a></span>
 <span class="normal"><a href="#__codelineno-0-655">655</a></span>
 <span class="normal"><a href="#__codelineno-0-656">656</a></span>
-<span class="normal"><a href="#__codelineno-0-657">657</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-593" name="__codelineno-0-593"></a><span class="k">def</span><span class="w"> </span><span class="nf">boundary_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
-<a id="__codelineno-0-594" name="__codelineno-0-594"></a><span class="w">    </span><span class="sd">"""Return dictionary of all boundary lookup dictionaries for UI population.</span>
-<a id="__codelineno-0-595" name="__codelineno-0-595"></a>
-<a id="__codelineno-0-596" name="__codelineno-0-596"></a><span class="sd">    Creates a comprehensive dictionary of all available boundary datasets</span>
-<a id="__codelineno-0-597" name="__codelineno-0-597"></a><span class="sd">    with their corresponding lookup dictionaries. This is primarily used</span>
-<a id="__codelineno-0-598" name="__codelineno-0-598"></a><span class="sd">    to populate user interface components that allow boundary selection</span>
-<a id="__codelineno-0-599" name="__codelineno-0-599"></a><span class="sd">    for geographic subsetting of climate data.</span>
-<a id="__codelineno-0-600" name="__codelineno-0-600"></a>
-<a id="__codelineno-0-601" name="__codelineno-0-601"></a><span class="sd">    The returned dictionary maps boundary category names to lookup dictionaries</span>
-<a id="__codelineno-0-602" name="__codelineno-0-602"></a><span class="sd">    that map specific boundary names to their DataFrame indices. This enables</span>
-<a id="__codelineno-0-603" name="__codelineno-0-603"></a><span class="sd">    efficient boundary selection and data subsetting operations.</span>
-<a id="__codelineno-0-604" name="__codelineno-0-604"></a>
-<a id="__codelineno-0-605" name="__codelineno-0-605"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-606" name="__codelineno-0-606"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-607" name="__codelineno-0-607"></a><span class="sd">    Dict[str, Dict[str, int]]</span>
-<a id="__codelineno-0-608" name="__codelineno-0-608"></a><span class="sd">        Nested dictionary structure:</span>
-<a id="__codelineno-0-609" name="__codelineno-0-609"></a><span class="sd">        - Outer keys: boundary category names (e.g., 'states', 'CA counties')</span>
-<a id="__codelineno-0-610" name="__codelineno-0-610"></a><span class="sd">        - Inner dictionaries: map boundary names to DataFrame indices</span>
-<a id="__codelineno-0-611" name="__codelineno-0-611"></a>
-<a id="__codelineno-0-612" name="__codelineno-0-612"></a><span class="sd">        Available categories:</span>
-<a id="__codelineno-0-613" name="__codelineno-0-613"></a><span class="sd">        - 'none': No geographic subsetting</span>
-<a id="__codelineno-0-614" name="__codelineno-0-614"></a><span class="sd">        - 'lat/lon': Custom coordinate-based selection</span>
-<a id="__codelineno-0-615" name="__codelineno-0-615"></a><span class="sd">        - 'states': Western US states</span>
-<a id="__codelineno-0-616" name="__codelineno-0-616"></a><span class="sd">        - 'CA counties': California counties (alphabetical)</span>
-<a id="__codelineno-0-617" name="__codelineno-0-617"></a><span class="sd">        - 'CA watersheds': California HUC8 watersheds (alphabetical)</span>
-<a id="__codelineno-0-618" name="__codelineno-0-618"></a><span class="sd">        - 'CA Electric Load Serving Entities (IOU &amp; POU)': Electric utilities</span>
-<a id="__codelineno-0-619" name="__codelineno-0-619"></a><span class="sd">        - 'CA Electricity Demand Forecast Zones': Forecast zones</span>
-<a id="__codelineno-0-620" name="__codelineno-0-620"></a><span class="sd">        - 'CA Electric Balancing Authority Areas': Balancing areas</span>
-<a id="__codelineno-0-621" name="__codelineno-0-621"></a>
-<a id="__codelineno-0-622" name="__codelineno-0-622"></a><span class="sd">    Examples</span>
-<a id="__codelineno-0-623" name="__codelineno-0-623"></a><span class="sd">    --------</span>
-<a id="__codelineno-0-624" name="__codelineno-0-624"></a><span class="sd">    &gt;&gt;&gt; boundaries = Boundaries(catalog)</span>
-<a id="__codelineno-0-625" name="__codelineno-0-625"></a><span class="sd">    &gt;&gt;&gt; boundary_options = boundaries.boundary_dict()</span>
-<a id="__codelineno-0-626" name="__codelineno-0-626"></a><span class="sd">    &gt;&gt;&gt;</span>
-<a id="__codelineno-0-627" name="__codelineno-0-627"></a><span class="sd">    &gt;&gt;&gt; # Get available states</span>
-<a id="__codelineno-0-628" name="__codelineno-0-628"></a><span class="sd">    &gt;&gt;&gt; states = boundary_options['states']</span>
-<a id="__codelineno-0-629" name="__codelineno-0-629"></a><span class="sd">    &gt;&gt;&gt; print(states.keys())  # ['CA', 'OR', 'WA', ...]</span>
-<a id="__codelineno-0-630" name="__codelineno-0-630"></a><span class="sd">    &gt;&gt;&gt;</span>
-<a id="__codelineno-0-631" name="__codelineno-0-631"></a><span class="sd">    &gt;&gt;&gt; # Get available counties</span>
-<a id="__codelineno-0-632" name="__codelineno-0-632"></a><span class="sd">    &gt;&gt;&gt; counties = boundary_options['CA counties']</span>
-<a id="__codelineno-0-633" name="__codelineno-0-633"></a><span class="sd">    &gt;&gt;&gt; alameda_idx = counties['Alameda']</span>
-<a id="__codelineno-0-634" name="__codelineno-0-634"></a><span class="sd">    &gt;&gt;&gt;</span>
-<a id="__codelineno-0-635" name="__codelineno-0-635"></a><span class="sd">    &gt;&gt;&gt; # Use in UI dropdown population</span>
-<a id="__codelineno-0-636" name="__codelineno-0-636"></a><span class="sd">    &gt;&gt;&gt; for category, options in boundary_options.items():</span>
-<a id="__codelineno-0-637" name="__codelineno-0-637"></a><span class="sd">    &gt;&gt;&gt;     populate_dropdown(category, options.keys())</span>
-<a id="__codelineno-0-638" name="__codelineno-0-638"></a>
-<a id="__codelineno-0-639" name="__codelineno-0-639"></a><span class="sd">    Notes</span>
-<a id="__codelineno-0-640" name="__codelineno-0-640"></a><span class="sd">    -----</span>
-<a id="__codelineno-0-641" name="__codelineno-0-641"></a><span class="sd">    - Lookup dictionaries are cached for performance</span>
-<a id="__codelineno-0-642" name="__codelineno-0-642"></a><span class="sd">    - Western states follow ordering in WESTERN_STATES_LIST</span>
-<a id="__codelineno-0-643" name="__codelineno-0-643"></a><span class="sd">    - Utilities are ordered with priority utilities first</span>
-<a id="__codelineno-0-644" name="__codelineno-0-644"></a><span class="sd">    - All other boundaries are sorted alphabetically</span>
-<a id="__codelineno-0-645" name="__codelineno-0-645"></a>
-<a id="__codelineno-0-646" name="__codelineno-0-646"></a><span class="sd">    """</span>
-<a id="__codelineno-0-647" name="__codelineno-0-647"></a>    <span class="k">return</span> <span class="p">{</span>
-<a id="__codelineno-0-648" name="__codelineno-0-648"></a>        <span class="s2">"none"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"entire domain"</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
-<a id="__codelineno-0-649" name="__codelineno-0-649"></a>        <span class="s2">"lat/lon"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"coordinate selection"</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
-<a id="__codelineno-0-650" name="__codelineno-0-650"></a>        <span class="s2">"states"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_states</span><span class="p">(),</span>
-<a id="__codelineno-0-651" name="__codelineno-0-651"></a>        <span class="s2">"CA counties"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_counties</span><span class="p">(),</span>
-<a id="__codelineno-0-652" name="__codelineno-0-652"></a>        <span class="s2">"CA watersheds"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_watersheds</span><span class="p">(),</span>
-<a id="__codelineno-0-653" name="__codelineno-0-653"></a>        <span class="s2">"CA Electric Load Serving Entities (IOU &amp; POU)"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ious_pous</span><span class="p">(),</span>
-<a id="__codelineno-0-654" name="__codelineno-0-654"></a>        <span class="s2">"CA Electricity Demand Forecast Zones"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_forecast_zones</span><span class="p">(),</span>
-<a id="__codelineno-0-655" name="__codelineno-0-655"></a>        <span class="s2">"CA Electric Balancing Authority Areas"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_electric_balancing_areas</span><span class="p">(),</span>
-<a id="__codelineno-0-656" name="__codelineno-0-656"></a>        <span class="s2">"CA Census Tracts"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_census_tracts</span><span class="p">(),</span>
-<a id="__codelineno-0-657" name="__codelineno-0-657"></a>    <span class="p">}</span>
+<span class="normal"><a href="#__codelineno-0-657">657</a></span>
+<span class="normal"><a href="#__codelineno-0-658">658</a></span>
+<span class="normal"><a href="#__codelineno-0-659">659</a></span>
+<span class="normal"><a href="#__codelineno-0-660">660</a></span>
+<span class="normal"><a href="#__codelineno-0-661">661</a></span>
+<span class="normal"><a href="#__codelineno-0-662">662</a></span>
+<span class="normal"><a href="#__codelineno-0-663">663</a></span>
+<span class="normal"><a href="#__codelineno-0-664">664</a></span>
+<span class="normal"><a href="#__codelineno-0-665">665</a></span>
+<span class="normal"><a href="#__codelineno-0-666">666</a></span>
+<span class="normal"><a href="#__codelineno-0-667">667</a></span>
+<span class="normal"><a href="#__codelineno-0-668">668</a></span>
+<span class="normal"><a href="#__codelineno-0-669">669</a></span>
+<span class="normal"><a href="#__codelineno-0-670">670</a></span>
+<span class="normal"><a href="#__codelineno-0-671">671</a></span>
+<span class="normal"><a href="#__codelineno-0-672">672</a></span>
+<span class="normal"><a href="#__codelineno-0-673">673</a></span>
+<span class="normal"><a href="#__codelineno-0-674">674</a></span>
+<span class="normal"><a href="#__codelineno-0-675">675</a></span>
+<span class="normal"><a href="#__codelineno-0-676">676</a></span>
+<span class="normal"><a href="#__codelineno-0-677">677</a></span>
+<span class="normal"><a href="#__codelineno-0-678">678</a></span>
+<span class="normal"><a href="#__codelineno-0-679">679</a></span>
+<span class="normal"><a href="#__codelineno-0-680">680</a></span>
+<span class="normal"><a href="#__codelineno-0-681">681</a></span>
+<span class="normal"><a href="#__codelineno-0-682">682</a></span>
+<span class="normal"><a href="#__codelineno-0-683">683</a></span>
+<span class="normal"><a href="#__codelineno-0-684">684</a></span>
+<span class="normal"><a href="#__codelineno-0-685">685</a></span>
+<span class="normal"><a href="#__codelineno-0-686">686</a></span>
+<span class="normal"><a href="#__codelineno-0-687">687</a></span>
+<span class="normal"><a href="#__codelineno-0-688">688</a></span>
+<span class="normal"><a href="#__codelineno-0-689">689</a></span>
+<span class="normal"><a href="#__codelineno-0-690">690</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-623" name="__codelineno-0-623"></a><span class="k">def</span><span class="w"> </span><span class="nf">boundary_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
+<a id="__codelineno-0-624" name="__codelineno-0-624"></a><span class="w">    </span><span class="sd">"""Return dictionary of all boundary lookup dictionaries for UI population.</span>
+<a id="__codelineno-0-625" name="__codelineno-0-625"></a>
+<a id="__codelineno-0-626" name="__codelineno-0-626"></a><span class="sd">    Creates a comprehensive dictionary of all available boundary datasets</span>
+<a id="__codelineno-0-627" name="__codelineno-0-627"></a><span class="sd">    with their corresponding lookup dictionaries. This is primarily used</span>
+<a id="__codelineno-0-628" name="__codelineno-0-628"></a><span class="sd">    to populate user interface components that allow boundary selection</span>
+<a id="__codelineno-0-629" name="__codelineno-0-629"></a><span class="sd">    for geographic subsetting of climate data.</span>
+<a id="__codelineno-0-630" name="__codelineno-0-630"></a>
+<a id="__codelineno-0-631" name="__codelineno-0-631"></a><span class="sd">    The returned dictionary maps boundary category names to lookup dictionaries</span>
+<a id="__codelineno-0-632" name="__codelineno-0-632"></a><span class="sd">    that map specific boundary names to their DataFrame indices. This enables</span>
+<a id="__codelineno-0-633" name="__codelineno-0-633"></a><span class="sd">    efficient boundary selection and data subsetting operations.</span>
+<a id="__codelineno-0-634" name="__codelineno-0-634"></a>
+<a id="__codelineno-0-635" name="__codelineno-0-635"></a><span class="sd">    Returns</span>
+<a id="__codelineno-0-636" name="__codelineno-0-636"></a><span class="sd">    -------</span>
+<a id="__codelineno-0-637" name="__codelineno-0-637"></a><span class="sd">    Dict[str, Dict[str, int]]</span>
+<a id="__codelineno-0-638" name="__codelineno-0-638"></a><span class="sd">        Nested dictionary structure:</span>
+<a id="__codelineno-0-639" name="__codelineno-0-639"></a><span class="sd">        - Outer keys: boundary category names (e.g., 'states', 'CA counties')</span>
+<a id="__codelineno-0-640" name="__codelineno-0-640"></a><span class="sd">        - Inner dictionaries: map boundary names to DataFrame indices</span>
+<a id="__codelineno-0-641" name="__codelineno-0-641"></a>
+<a id="__codelineno-0-642" name="__codelineno-0-642"></a><span class="sd">        Available categories:</span>
+<a id="__codelineno-0-643" name="__codelineno-0-643"></a><span class="sd">        - 'none': No geographic subsetting</span>
+<a id="__codelineno-0-644" name="__codelineno-0-644"></a><span class="sd">        - 'lat/lon': Custom coordinate-based selection</span>
+<a id="__codelineno-0-645" name="__codelineno-0-645"></a><span class="sd">        - 'states': Western US states</span>
+<a id="__codelineno-0-646" name="__codelineno-0-646"></a><span class="sd">        - 'CA counties': California counties (alphabetical)</span>
+<a id="__codelineno-0-647" name="__codelineno-0-647"></a><span class="sd">        - 'CA watersheds': California HUC8 watersheds (alphabetical)</span>
+<a id="__codelineno-0-648" name="__codelineno-0-648"></a><span class="sd">        - 'CA Electric Load Serving Entities (IOU &amp; POU)': Electric utilities</span>
+<a id="__codelineno-0-649" name="__codelineno-0-649"></a><span class="sd">        - 'CA Electricity Demand Forecast Zones': Forecast zones</span>
+<a id="__codelineno-0-650" name="__codelineno-0-650"></a><span class="sd">        - 'CA Electric Balancing Authority Areas': Balancing areas</span>
+<a id="__codelineno-0-651" name="__codelineno-0-651"></a>
+<a id="__codelineno-0-652" name="__codelineno-0-652"></a><span class="sd">    Examples</span>
+<a id="__codelineno-0-653" name="__codelineno-0-653"></a><span class="sd">    --------</span>
+<a id="__codelineno-0-654" name="__codelineno-0-654"></a><span class="sd">    &gt;&gt;&gt; boundaries = Boundaries(catalog)</span>
+<a id="__codelineno-0-655" name="__codelineno-0-655"></a><span class="sd">    &gt;&gt;&gt; boundary_options = boundaries.boundary_dict()</span>
+<a id="__codelineno-0-656" name="__codelineno-0-656"></a><span class="sd">    &gt;&gt;&gt;</span>
+<a id="__codelineno-0-657" name="__codelineno-0-657"></a><span class="sd">    &gt;&gt;&gt; # Get available states</span>
+<a id="__codelineno-0-658" name="__codelineno-0-658"></a><span class="sd">    &gt;&gt;&gt; states = boundary_options['states']</span>
+<a id="__codelineno-0-659" name="__codelineno-0-659"></a><span class="sd">    &gt;&gt;&gt; print(states.keys())  # ['CA', 'OR', 'WA', ...]</span>
+<a id="__codelineno-0-660" name="__codelineno-0-660"></a><span class="sd">    &gt;&gt;&gt;</span>
+<a id="__codelineno-0-661" name="__codelineno-0-661"></a><span class="sd">    &gt;&gt;&gt; # Get available counties</span>
+<a id="__codelineno-0-662" name="__codelineno-0-662"></a><span class="sd">    &gt;&gt;&gt; counties = boundary_options['CA counties']</span>
+<a id="__codelineno-0-663" name="__codelineno-0-663"></a><span class="sd">    &gt;&gt;&gt; alameda_idx = counties['Alameda']</span>
+<a id="__codelineno-0-664" name="__codelineno-0-664"></a><span class="sd">    &gt;&gt;&gt;</span>
+<a id="__codelineno-0-665" name="__codelineno-0-665"></a><span class="sd">    &gt;&gt;&gt; # Use in UI dropdown population</span>
+<a id="__codelineno-0-666" name="__codelineno-0-666"></a><span class="sd">    &gt;&gt;&gt; for category, options in boundary_options.items():</span>
+<a id="__codelineno-0-667" name="__codelineno-0-667"></a><span class="sd">    &gt;&gt;&gt;     populate_dropdown(category, options.keys())</span>
+<a id="__codelineno-0-668" name="__codelineno-0-668"></a>
+<a id="__codelineno-0-669" name="__codelineno-0-669"></a><span class="sd">    Notes</span>
+<a id="__codelineno-0-670" name="__codelineno-0-670"></a><span class="sd">    -----</span>
+<a id="__codelineno-0-671" name="__codelineno-0-671"></a><span class="sd">    - Lookup dictionaries are cached for performance</span>
+<a id="__codelineno-0-672" name="__codelineno-0-672"></a><span class="sd">    - Western states follow ordering in WESTERN_STATES_LIST</span>
+<a id="__codelineno-0-673" name="__codelineno-0-673"></a><span class="sd">    - Utilities are ordered with priority utilities first</span>
+<a id="__codelineno-0-674" name="__codelineno-0-674"></a><span class="sd">    - All other boundaries are sorted alphabetically</span>
+<a id="__codelineno-0-675" name="__codelineno-0-675"></a>
+<a id="__codelineno-0-676" name="__codelineno-0-676"></a><span class="sd">    """</span>
+<a id="__codelineno-0-677" name="__codelineno-0-677"></a>    <span class="n">boundary_options</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-0-678" name="__codelineno-0-678"></a>        <span class="s2">"none"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"entire domain"</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+<a id="__codelineno-0-679" name="__codelineno-0-679"></a>        <span class="s2">"lat/lon"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"coordinate selection"</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+<a id="__codelineno-0-680" name="__codelineno-0-680"></a>        <span class="s2">"states"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_states</span><span class="p">(),</span>
+<a id="__codelineno-0-681" name="__codelineno-0-681"></a>        <span class="s2">"CA counties"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_counties</span><span class="p">(),</span>
+<a id="__codelineno-0-682" name="__codelineno-0-682"></a>        <span class="s2">"CA watersheds"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_watersheds</span><span class="p">(),</span>
+<a id="__codelineno-0-683" name="__codelineno-0-683"></a>        <span class="s2">"CA Electric Load Serving Entities (IOU &amp; POU)"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ious_pous</span><span class="p">(),</span>
+<a id="__codelineno-0-684" name="__codelineno-0-684"></a>        <span class="s2">"CA Electricity Demand Forecast Zones"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_forecast_zones</span><span class="p">(),</span>
+<a id="__codelineno-0-685" name="__codelineno-0-685"></a>        <span class="s2">"CA Electric Balancing Authority Areas"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_electric_balancing_areas</span><span class="p">(),</span>
+<a id="__codelineno-0-686" name="__codelineno-0-686"></a>        <span class="s2">"CA Census Tracts"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_census_tracts</span><span class="p">(),</span>
+<a id="__codelineno-0-687" name="__codelineno-0-687"></a>    <span class="p">}</span>
+<a id="__codelineno-0-688" name="__codelineno-0-688"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_catalog_has_entry</span><span class="p">(</span><span class="s2">"tribalareas"</span><span class="p">):</span>
+<a id="__codelineno-0-689" name="__codelineno-0-689"></a>        <span class="n">boundary_options</span><span class="p">[</span><span class="s2">"Tribal Areas"</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_tribal_areas</span><span class="p">()</span>
+<a id="__codelineno-0-690" name="__codelineno-0-690"></a>    <span class="k">return</span> <span class="n">boundary_options</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -5949,11 +5957,11 @@ efficient boundary selection and data subsetting operations.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-696">696</a></span>
-<span class="normal"><a href="#__codelineno-0-697">697</a></span>
-<span class="normal"><a href="#__codelineno-0-698">698</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-696" name="__codelineno-0-696"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_states</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
-<a id="__codelineno-0-697" name="__codelineno-0-697"></a><span class="w">    </span><span class="sd">"""Return US western states boundary data."""</span>
-<a id="__codelineno-0-698" name="__codelineno-0-698"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_boundary</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_states</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_states</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"State"</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-729">729</a></span>
+<span class="normal"><a href="#__codelineno-0-730">730</a></span>
+<span class="normal"><a href="#__codelineno-0-731">731</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-729" name="__codelineno-0-729"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_states</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<a id="__codelineno-0-730" name="__codelineno-0-730"></a><span class="w">    </span><span class="sd">"""Return US western states boundary data."""</span>
+<a id="__codelineno-0-731" name="__codelineno-0-731"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_boundary</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_states</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_states</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"State"</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -5976,15 +5984,15 @@ efficient boundary selection and data subsetting operations.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-700">700</a></span>
-<span class="normal"><a href="#__codelineno-0-701">701</a></span>
-<span class="normal"><a href="#__codelineno-0-702">702</a></span>
-<span class="normal"><a href="#__codelineno-0-703">703</a></span>
-<span class="normal"><a href="#__codelineno-0-704">704</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-700" name="__codelineno-0-700"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_counties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
-<a id="__codelineno-0-701" name="__codelineno-0-701"></a><span class="w">    </span><span class="sd">"""Return California county boundary data."""</span>
-<a id="__codelineno-0-702" name="__codelineno-0-702"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_boundary</span><span class="p">(</span>
-<a id="__codelineno-0-703" name="__codelineno-0-703"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_counties</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_counties</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"County"</span>
-<a id="__codelineno-0-704" name="__codelineno-0-704"></a>    <span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-733">733</a></span>
+<span class="normal"><a href="#__codelineno-0-734">734</a></span>
+<span class="normal"><a href="#__codelineno-0-735">735</a></span>
+<span class="normal"><a href="#__codelineno-0-736">736</a></span>
+<span class="normal"><a href="#__codelineno-0-737">737</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-733" name="__codelineno-0-733"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_counties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<a id="__codelineno-0-734" name="__codelineno-0-734"></a><span class="w">    </span><span class="sd">"""Return California county boundary data."""</span>
+<a id="__codelineno-0-735" name="__codelineno-0-735"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_boundary</span><span class="p">(</span>
+<a id="__codelineno-0-736" name="__codelineno-0-736"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_counties</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_counties</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"County"</span>
+<a id="__codelineno-0-737" name="__codelineno-0-737"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -6007,15 +6015,15 @@ efficient boundary selection and data subsetting operations.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-706">706</a></span>
-<span class="normal"><a href="#__codelineno-0-707">707</a></span>
-<span class="normal"><a href="#__codelineno-0-708">708</a></span>
-<span class="normal"><a href="#__codelineno-0-709">709</a></span>
-<span class="normal"><a href="#__codelineno-0-710">710</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-706" name="__codelineno-0-706"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_watersheds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
-<a id="__codelineno-0-707" name="__codelineno-0-707"></a><span class="w">    </span><span class="sd">"""Return California HUC8 watershed boundary data."""</span>
-<a id="__codelineno-0-708" name="__codelineno-0-708"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_boundary</span><span class="p">(</span>
-<a id="__codelineno-0-709" name="__codelineno-0-709"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_watersheds</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_watersheds</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"Watershed"</span>
-<a id="__codelineno-0-710" name="__codelineno-0-710"></a>    <span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-739">739</a></span>
+<span class="normal"><a href="#__codelineno-0-740">740</a></span>
+<span class="normal"><a href="#__codelineno-0-741">741</a></span>
+<span class="normal"><a href="#__codelineno-0-742">742</a></span>
+<span class="normal"><a href="#__codelineno-0-743">743</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-739" name="__codelineno-0-739"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_watersheds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<a id="__codelineno-0-740" name="__codelineno-0-740"></a><span class="w">    </span><span class="sd">"""Return California HUC8 watershed boundary data."""</span>
+<a id="__codelineno-0-741" name="__codelineno-0-741"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_boundary</span><span class="p">(</span>
+<a id="__codelineno-0-742" name="__codelineno-0-742"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_watersheds</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_watersheds</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"Watershed"</span>
+<a id="__codelineno-0-743" name="__codelineno-0-743"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -6038,15 +6046,15 @@ efficient boundary selection and data subsetting operations.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-712">712</a></span>
-<span class="normal"><a href="#__codelineno-0-713">713</a></span>
-<span class="normal"><a href="#__codelineno-0-714">714</a></span>
-<span class="normal"><a href="#__codelineno-0-715">715</a></span>
-<span class="normal"><a href="#__codelineno-0-716">716</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-712" name="__codelineno-0-712"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_utilities</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
-<a id="__codelineno-0-713" name="__codelineno-0-713"></a><span class="w">    </span><span class="sd">"""Return California electric utility (IOU &amp; POU) boundary data."""</span>
-<a id="__codelineno-0-714" name="__codelineno-0-714"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_boundary</span><span class="p">(</span>
-<a id="__codelineno-0-715" name="__codelineno-0-715"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_utilities</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ious_pous</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"Utility"</span>
-<a id="__codelineno-0-716" name="__codelineno-0-716"></a>    <span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-745">745</a></span>
+<span class="normal"><a href="#__codelineno-0-746">746</a></span>
+<span class="normal"><a href="#__codelineno-0-747">747</a></span>
+<span class="normal"><a href="#__codelineno-0-748">748</a></span>
+<span class="normal"><a href="#__codelineno-0-749">749</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-745" name="__codelineno-0-745"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_utilities</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<a id="__codelineno-0-746" name="__codelineno-0-746"></a><span class="w">    </span><span class="sd">"""Return California electric utility (IOU &amp; POU) boundary data."""</span>
+<a id="__codelineno-0-747" name="__codelineno-0-747"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_boundary</span><span class="p">(</span>
+<a id="__codelineno-0-748" name="__codelineno-0-748"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_utilities</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ious_pous</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"Utility"</span>
+<a id="__codelineno-0-749" name="__codelineno-0-749"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -6069,15 +6077,15 @@ efficient boundary selection and data subsetting operations.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-718">718</a></span>
-<span class="normal"><a href="#__codelineno-0-719">719</a></span>
-<span class="normal"><a href="#__codelineno-0-720">720</a></span>
-<span class="normal"><a href="#__codelineno-0-721">721</a></span>
-<span class="normal"><a href="#__codelineno-0-722">722</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-718" name="__codelineno-0-718"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_forecast_zones</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
-<a id="__codelineno-0-719" name="__codelineno-0-719"></a><span class="w">    </span><span class="sd">"""Return California electricity demand forecast zone boundary data."""</span>
-<a id="__codelineno-0-720" name="__codelineno-0-720"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_boundary</span><span class="p">(</span>
-<a id="__codelineno-0-721" name="__codelineno-0-721"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_forecast_zones</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"Forecast zone"</span>
-<a id="__codelineno-0-722" name="__codelineno-0-722"></a>    <span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-751">751</a></span>
+<span class="normal"><a href="#__codelineno-0-752">752</a></span>
+<span class="normal"><a href="#__codelineno-0-753">753</a></span>
+<span class="normal"><a href="#__codelineno-0-754">754</a></span>
+<span class="normal"><a href="#__codelineno-0-755">755</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-751" name="__codelineno-0-751"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_forecast_zones</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<a id="__codelineno-0-752" name="__codelineno-0-752"></a><span class="w">    </span><span class="sd">"""Return California electricity demand forecast zone boundary data."""</span>
+<a id="__codelineno-0-753" name="__codelineno-0-753"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_boundary</span><span class="p">(</span>
+<a id="__codelineno-0-754" name="__codelineno-0-754"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_forecast_zones</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"Forecast zone"</span>
+<a id="__codelineno-0-755" name="__codelineno-0-755"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -6100,25 +6108,25 @@ efficient boundary selection and data subsetting operations.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-724">724</a></span>
-<span class="normal"><a href="#__codelineno-0-725">725</a></span>
-<span class="normal"><a href="#__codelineno-0-726">726</a></span>
-<span class="normal"><a href="#__codelineno-0-727">727</a></span>
-<span class="normal"><a href="#__codelineno-0-728">728</a></span>
-<span class="normal"><a href="#__codelineno-0-729">729</a></span>
-<span class="normal"><a href="#__codelineno-0-730">730</a></span>
-<span class="normal"><a href="#__codelineno-0-731">731</a></span>
-<span class="normal"><a href="#__codelineno-0-732">732</a></span>
-<span class="normal"><a href="#__codelineno-0-733">733</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-724" name="__codelineno-0-724"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_electric_balancing_areas</span><span class="p">(</span>
-<a id="__codelineno-0-725" name="__codelineno-0-725"></a>    <span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-726" name="__codelineno-0-726"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
-<a id="__codelineno-0-727" name="__codelineno-0-727"></a><span class="w">    </span><span class="sd">"""Return California electric balancing authority area boundary data."""</span>
-<a id="__codelineno-0-728" name="__codelineno-0-728"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_boundary</span><span class="p">(</span>
-<a id="__codelineno-0-729" name="__codelineno-0-729"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="p">,</span>
-<a id="__codelineno-0-730" name="__codelineno-0-730"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_electric_balancing_areas</span><span class="p">,</span>
-<a id="__codelineno-0-731" name="__codelineno-0-731"></a>        <span class="n">name</span><span class="p">,</span>
-<a id="__codelineno-0-732" name="__codelineno-0-732"></a>        <span class="s2">"Balancing area"</span><span class="p">,</span>
-<a id="__codelineno-0-733" name="__codelineno-0-733"></a>    <span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-757">757</a></span>
+<span class="normal"><a href="#__codelineno-0-758">758</a></span>
+<span class="normal"><a href="#__codelineno-0-759">759</a></span>
+<span class="normal"><a href="#__codelineno-0-760">760</a></span>
+<span class="normal"><a href="#__codelineno-0-761">761</a></span>
+<span class="normal"><a href="#__codelineno-0-762">762</a></span>
+<span class="normal"><a href="#__codelineno-0-763">763</a></span>
+<span class="normal"><a href="#__codelineno-0-764">764</a></span>
+<span class="normal"><a href="#__codelineno-0-765">765</a></span>
+<span class="normal"><a href="#__codelineno-0-766">766</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-757" name="__codelineno-0-757"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_electric_balancing_areas</span><span class="p">(</span>
+<a id="__codelineno-0-758" name="__codelineno-0-758"></a>    <span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-759" name="__codelineno-0-759"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<a id="__codelineno-0-760" name="__codelineno-0-760"></a><span class="w">    </span><span class="sd">"""Return California electric balancing authority area boundary data."""</span>
+<a id="__codelineno-0-761" name="__codelineno-0-761"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_boundary</span><span class="p">(</span>
+<a id="__codelineno-0-762" name="__codelineno-0-762"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="p">,</span>
+<a id="__codelineno-0-763" name="__codelineno-0-763"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_electric_balancing_areas</span><span class="p">,</span>
+<a id="__codelineno-0-764" name="__codelineno-0-764"></a>        <span class="n">name</span><span class="p">,</span>
+<a id="__codelineno-0-765" name="__codelineno-0-765"></a>        <span class="s2">"Balancing area"</span><span class="p">,</span>
+<a id="__codelineno-0-766" name="__codelineno-0-766"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -6141,21 +6149,21 @@ efficient boundary selection and data subsetting operations.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-735">735</a></span>
-<span class="normal"><a href="#__codelineno-0-736">736</a></span>
-<span class="normal"><a href="#__codelineno-0-737">737</a></span>
-<span class="normal"><a href="#__codelineno-0-738">738</a></span>
-<span class="normal"><a href="#__codelineno-0-739">739</a></span>
-<span class="normal"><a href="#__codelineno-0-740">740</a></span>
-<span class="normal"><a href="#__codelineno-0-741">741</a></span>
-<span class="normal"><a href="#__codelineno-0-742">742</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-735" name="__codelineno-0-735"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_census_tracts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">geoid</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
-<a id="__codelineno-0-736" name="__codelineno-0-736"></a><span class="w">    </span><span class="sd">"""Return California census tract boundary data."""</span>
-<a id="__codelineno-0-737" name="__codelineno-0-737"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_boundary</span><span class="p">(</span>
-<a id="__codelineno-0-738" name="__codelineno-0-738"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_census_tracts</span><span class="p">,</span>
-<a id="__codelineno-0-739" name="__codelineno-0-739"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_census_tracts</span><span class="p">,</span>
-<a id="__codelineno-0-740" name="__codelineno-0-740"></a>        <span class="n">geoid</span><span class="p">,</span>
-<a id="__codelineno-0-741" name="__codelineno-0-741"></a>        <span class="s2">"Census tract GEOID"</span><span class="p">,</span>
-<a id="__codelineno-0-742" name="__codelineno-0-742"></a>    <span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-768">768</a></span>
+<span class="normal"><a href="#__codelineno-0-769">769</a></span>
+<span class="normal"><a href="#__codelineno-0-770">770</a></span>
+<span class="normal"><a href="#__codelineno-0-771">771</a></span>
+<span class="normal"><a href="#__codelineno-0-772">772</a></span>
+<span class="normal"><a href="#__codelineno-0-773">773</a></span>
+<span class="normal"><a href="#__codelineno-0-774">774</a></span>
+<span class="normal"><a href="#__codelineno-0-775">775</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-768" name="__codelineno-0-768"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_census_tracts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">geoid</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<a id="__codelineno-0-769" name="__codelineno-0-769"></a><span class="w">    </span><span class="sd">"""Return California census tract boundary data."""</span>
+<a id="__codelineno-0-770" name="__codelineno-0-770"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_boundary</span><span class="p">(</span>
+<a id="__codelineno-0-771" name="__codelineno-0-771"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_census_tracts</span><span class="p">,</span>
+<a id="__codelineno-0-772" name="__codelineno-0-772"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_census_tracts</span><span class="p">,</span>
+<a id="__codelineno-0-773" name="__codelineno-0-773"></a>        <span class="n">geoid</span><span class="p">,</span>
+<a id="__codelineno-0-774" name="__codelineno-0-774"></a>        <span class="s2">"Census tract GEOID"</span><span class="p">,</span>
+<a id="__codelineno-0-775" name="__codelineno-0-775"></a>    <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -6180,41 +6188,41 @@ when first accessed through the property system.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-744">744</a></span>
-<span class="normal"><a href="#__codelineno-0-745">745</a></span>
-<span class="normal"><a href="#__codelineno-0-746">746</a></span>
-<span class="normal"><a href="#__codelineno-0-747">747</a></span>
-<span class="normal"><a href="#__codelineno-0-748">748</a></span>
-<span class="normal"><a href="#__codelineno-0-749">749</a></span>
-<span class="normal"><a href="#__codelineno-0-750">750</a></span>
-<span class="normal"><a href="#__codelineno-0-751">751</a></span>
-<span class="normal"><a href="#__codelineno-0-752">752</a></span>
-<span class="normal"><a href="#__codelineno-0-753">753</a></span>
-<span class="normal"><a href="#__codelineno-0-754">754</a></span>
-<span class="normal"><a href="#__codelineno-0-755">755</a></span>
-<span class="normal"><a href="#__codelineno-0-756">756</a></span>
-<span class="normal"><a href="#__codelineno-0-757">757</a></span>
-<span class="normal"><a href="#__codelineno-0-758">758</a></span>
-<span class="normal"><a href="#__codelineno-0-759">759</a></span>
-<span class="normal"><a href="#__codelineno-0-760">760</a></span>
-<span class="normal"><a href="#__codelineno-0-761">761</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-744" name="__codelineno-0-744"></a><span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-745" name="__codelineno-0-745"></a><span class="w">    </span><span class="sd">"""Preload all boundary data (deprecated - data loads automatically when accessed).</span>
-<a id="__codelineno-0-746" name="__codelineno-0-746"></a>
-<a id="__codelineno-0-747" name="__codelineno-0-747"></a><span class="sd">    This method is kept for backward compatibility. Data now loads automatically</span>
-<a id="__codelineno-0-748" name="__codelineno-0-748"></a><span class="sd">    when first accessed through the property system.</span>
-<a id="__codelineno-0-749" name="__codelineno-0-749"></a>
-<a id="__codelineno-0-750" name="__codelineno-0-750"></a><span class="sd">    Deprecated</span>
-<a id="__codelineno-0-751" name="__codelineno-0-751"></a><span class="sd">    ----------</span>
-<a id="__codelineno-0-752" name="__codelineno-0-752"></a><span class="sd">    1.5.0</span>
-<a id="__codelineno-0-753" name="__codelineno-0-753"></a><span class="sd">        Use ``preload_all()`` instead for explicit preloading, or simply</span>
-<a id="__codelineno-0-754" name="__codelineno-0-754"></a><span class="sd">        access data normally for automatic lazy loading.</span>
-<a id="__codelineno-0-755" name="__codelineno-0-755"></a>
-<a id="__codelineno-0-756" name="__codelineno-0-756"></a><span class="sd">    """</span>
-<a id="__codelineno-0-757" name="__codelineno-0-757"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-<a id="__codelineno-0-758" name="__codelineno-0-758"></a>        <span class="s2">"The load() method is deprecated. Data now loads automatically when accessed. "</span>
-<a id="__codelineno-0-759" name="__codelineno-0-759"></a>        <span class="s2">"Use preload_all() for explicit preloading."</span>
-<a id="__codelineno-0-760" name="__codelineno-0-760"></a>    <span class="p">)</span>
-<a id="__codelineno-0-761" name="__codelineno-0-761"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">preload_all</span><span class="p">()</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-777">777</a></span>
+<span class="normal"><a href="#__codelineno-0-778">778</a></span>
+<span class="normal"><a href="#__codelineno-0-779">779</a></span>
+<span class="normal"><a href="#__codelineno-0-780">780</a></span>
+<span class="normal"><a href="#__codelineno-0-781">781</a></span>
+<span class="normal"><a href="#__codelineno-0-782">782</a></span>
+<span class="normal"><a href="#__codelineno-0-783">783</a></span>
+<span class="normal"><a href="#__codelineno-0-784">784</a></span>
+<span class="normal"><a href="#__codelineno-0-785">785</a></span>
+<span class="normal"><a href="#__codelineno-0-786">786</a></span>
+<span class="normal"><a href="#__codelineno-0-787">787</a></span>
+<span class="normal"><a href="#__codelineno-0-788">788</a></span>
+<span class="normal"><a href="#__codelineno-0-789">789</a></span>
+<span class="normal"><a href="#__codelineno-0-790">790</a></span>
+<span class="normal"><a href="#__codelineno-0-791">791</a></span>
+<span class="normal"><a href="#__codelineno-0-792">792</a></span>
+<span class="normal"><a href="#__codelineno-0-793">793</a></span>
+<span class="normal"><a href="#__codelineno-0-794">794</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-777" name="__codelineno-0-777"></a><span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-778" name="__codelineno-0-778"></a><span class="w">    </span><span class="sd">"""Preload all boundary data (deprecated - data loads automatically when accessed).</span>
+<a id="__codelineno-0-779" name="__codelineno-0-779"></a>
+<a id="__codelineno-0-780" name="__codelineno-0-780"></a><span class="sd">    This method is kept for backward compatibility. Data now loads automatically</span>
+<a id="__codelineno-0-781" name="__codelineno-0-781"></a><span class="sd">    when first accessed through the property system.</span>
+<a id="__codelineno-0-782" name="__codelineno-0-782"></a>
+<a id="__codelineno-0-783" name="__codelineno-0-783"></a><span class="sd">    Deprecated</span>
+<a id="__codelineno-0-784" name="__codelineno-0-784"></a><span class="sd">    ----------</span>
+<a id="__codelineno-0-785" name="__codelineno-0-785"></a><span class="sd">    1.5.0</span>
+<a id="__codelineno-0-786" name="__codelineno-0-786"></a><span class="sd">        Use ``preload_all()`` instead for explicit preloading, or simply</span>
+<a id="__codelineno-0-787" name="__codelineno-0-787"></a><span class="sd">        access data normally for automatic lazy loading.</span>
+<a id="__codelineno-0-788" name="__codelineno-0-788"></a>
+<a id="__codelineno-0-789" name="__codelineno-0-789"></a><span class="sd">    """</span>
+<a id="__codelineno-0-790" name="__codelineno-0-790"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+<a id="__codelineno-0-791" name="__codelineno-0-791"></a>        <span class="s2">"The load() method is deprecated. Data now loads automatically when accessed. "</span>
+<a id="__codelineno-0-792" name="__codelineno-0-792"></a>        <span class="s2">"Use preload_all() for explicit preloading."</span>
+<a id="__codelineno-0-793" name="__codelineno-0-793"></a>    <span class="p">)</span>
+<a id="__codelineno-0-794" name="__codelineno-0-794"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">preload_all</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -6272,40 +6280,7 @@ selection operations.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-763">763</a></span>
-<span class="normal"><a href="#__codelineno-0-764">764</a></span>
-<span class="normal"><a href="#__codelineno-0-765">765</a></span>
-<span class="normal"><a href="#__codelineno-0-766">766</a></span>
-<span class="normal"><a href="#__codelineno-0-767">767</a></span>
-<span class="normal"><a href="#__codelineno-0-768">768</a></span>
-<span class="normal"><a href="#__codelineno-0-769">769</a></span>
-<span class="normal"><a href="#__codelineno-0-770">770</a></span>
-<span class="normal"><a href="#__codelineno-0-771">771</a></span>
-<span class="normal"><a href="#__codelineno-0-772">772</a></span>
-<span class="normal"><a href="#__codelineno-0-773">773</a></span>
-<span class="normal"><a href="#__codelineno-0-774">774</a></span>
-<span class="normal"><a href="#__codelineno-0-775">775</a></span>
-<span class="normal"><a href="#__codelineno-0-776">776</a></span>
-<span class="normal"><a href="#__codelineno-0-777">777</a></span>
-<span class="normal"><a href="#__codelineno-0-778">778</a></span>
-<span class="normal"><a href="#__codelineno-0-779">779</a></span>
-<span class="normal"><a href="#__codelineno-0-780">780</a></span>
-<span class="normal"><a href="#__codelineno-0-781">781</a></span>
-<span class="normal"><a href="#__codelineno-0-782">782</a></span>
-<span class="normal"><a href="#__codelineno-0-783">783</a></span>
-<span class="normal"><a href="#__codelineno-0-784">784</a></span>
-<span class="normal"><a href="#__codelineno-0-785">785</a></span>
-<span class="normal"><a href="#__codelineno-0-786">786</a></span>
-<span class="normal"><a href="#__codelineno-0-787">787</a></span>
-<span class="normal"><a href="#__codelineno-0-788">788</a></span>
-<span class="normal"><a href="#__codelineno-0-789">789</a></span>
-<span class="normal"><a href="#__codelineno-0-790">790</a></span>
-<span class="normal"><a href="#__codelineno-0-791">791</a></span>
-<span class="normal"><a href="#__codelineno-0-792">792</a></span>
-<span class="normal"><a href="#__codelineno-0-793">793</a></span>
-<span class="normal"><a href="#__codelineno-0-794">794</a></span>
-<span class="normal"><a href="#__codelineno-0-795">795</a></span>
-<span class="normal"><a href="#__codelineno-0-796">796</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-796">796</a></span>
 <span class="normal"><a href="#__codelineno-0-797">797</a></span>
 <span class="normal"><a href="#__codelineno-0-798">798</a></span>
 <span class="normal"><a href="#__codelineno-0-799">799</a></span>
@@ -6330,65 +6305,102 @@ selection operations.</p>
 <span class="normal"><a href="#__codelineno-0-818">818</a></span>
 <span class="normal"><a href="#__codelineno-0-819">819</a></span>
 <span class="normal"><a href="#__codelineno-0-820">820</a></span>
-<span class="normal"><a href="#__codelineno-0-821">821</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-763" name="__codelineno-0-763"></a><span class="k">def</span><span class="w"> </span><span class="nf">preload_all</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-764" name="__codelineno-0-764"></a><span class="w">    </span><span class="sd">"""Preload all boundary data for performance-critical scenarios.</span>
-<a id="__codelineno-0-765" name="__codelineno-0-765"></a>
-<a id="__codelineno-0-766" name="__codelineno-0-766"></a><span class="sd">    Forces immediate loading of all boundary datasets and builds all</span>
-<a id="__codelineno-0-767" name="__codelineno-0-767"></a><span class="sd">    lookup caches. This eliminates lazy loading delays for subsequent</span>
-<a id="__codelineno-0-768" name="__codelineno-0-768"></a><span class="sd">    data access operations, making it ideal for performance-critical</span>
-<a id="__codelineno-0-769" name="__codelineno-0-769"></a><span class="sd">    scenarios or when you know all boundary data will be needed.</span>
-<a id="__codelineno-0-770" name="__codelineno-0-770"></a>
-<a id="__codelineno-0-771" name="__codelineno-0-771"></a><span class="sd">    The method loads all six boundary datasets:</span>
-<a id="__codelineno-0-772" name="__codelineno-0-772"></a><span class="sd">    - US western states</span>
-<a id="__codelineno-0-773" name="__codelineno-0-773"></a><span class="sd">    - California counties</span>
-<a id="__codelineno-0-774" name="__codelineno-0-774"></a><span class="sd">    - California watersheds</span>
-<a id="__codelineno-0-775" name="__codelineno-0-775"></a><span class="sd">    - California utilities</span>
-<a id="__codelineno-0-776" name="__codelineno-0-776"></a><span class="sd">    - California forecast zones</span>
-<a id="__codelineno-0-777" name="__codelineno-0-777"></a><span class="sd">    - California electric balancing areas</span>
-<a id="__codelineno-0-778" name="__codelineno-0-778"></a>
-<a id="__codelineno-0-779" name="__codelineno-0-779"></a><span class="sd">    And builds all corresponding lookup dictionaries for fast boundary</span>
-<a id="__codelineno-0-780" name="__codelineno-0-780"></a><span class="sd">    selection operations.</span>
-<a id="__codelineno-0-781" name="__codelineno-0-781"></a>
-<a id="__codelineno-0-782" name="__codelineno-0-782"></a><span class="sd">    Examples</span>
-<a id="__codelineno-0-783" name="__codelineno-0-783"></a><span class="sd">    --------</span>
-<a id="__codelineno-0-784" name="__codelineno-0-784"></a><span class="sd">    &gt;&gt;&gt; boundaries = Boundaries(catalog)</span>
-<a id="__codelineno-0-785" name="__codelineno-0-785"></a><span class="sd">    &gt;&gt;&gt;</span>
-<a id="__codelineno-0-786" name="__codelineno-0-786"></a><span class="sd">    &gt;&gt;&gt; # Preload for performance-critical batch processing</span>
-<a id="__codelineno-0-787" name="__codelineno-0-787"></a><span class="sd">    &gt;&gt;&gt; boundaries.preload_all()</span>
-<a id="__codelineno-0-788" name="__codelineno-0-788"></a><span class="sd">    &gt;&gt;&gt;</span>
-<a id="__codelineno-0-789" name="__codelineno-0-789"></a><span class="sd">    &gt;&gt;&gt; # All subsequent access is now immediate</span>
-<a id="__codelineno-0-790" name="__codelineno-0-790"></a><span class="sd">    &gt;&gt;&gt; for county in boundaries._ca_counties.itertuples():</span>
-<a id="__codelineno-0-791" name="__codelineno-0-791"></a><span class="sd">    &gt;&gt;&gt;     process_county_data(county)</span>
-<a id="__codelineno-0-792" name="__codelineno-0-792"></a>
-<a id="__codelineno-0-793" name="__codelineno-0-793"></a><span class="sd">    Notes</span>
-<a id="__codelineno-0-794" name="__codelineno-0-794"></a><span class="sd">    -----</span>
-<a id="__codelineno-0-795" name="__codelineno-0-795"></a><span class="sd">    - Increases initial memory usage but eliminates loading delays</span>
-<a id="__codelineno-0-796" name="__codelineno-0-796"></a><span class="sd">    - Useful for batch processing or repeated boundary access</span>
-<a id="__codelineno-0-797" name="__codelineno-0-797"></a><span class="sd">    - Data remains cached until clear_cache() is called</span>
-<a id="__codelineno-0-798" name="__codelineno-0-798"></a><span class="sd">    - Memory usage can be monitored with get_memory_usage()</span>
-<a id="__codelineno-0-799" name="__codelineno-0-799"></a>
-<a id="__codelineno-0-800" name="__codelineno-0-800"></a><span class="sd">    """</span>
-<a id="__codelineno-0-801" name="__codelineno-0-801"></a>    <span class="c1"># Force loading of all properties</span>
-<a id="__codelineno-0-802" name="__codelineno-0-802"></a>    <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
-<a id="__codelineno-0-803" name="__codelineno-0-803"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_states</span><span class="p">,</span>
-<a id="__codelineno-0-804" name="__codelineno-0-804"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_counties</span><span class="p">,</span>
-<a id="__codelineno-0-805" name="__codelineno-0-805"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_watersheds</span><span class="p">,</span>
-<a id="__codelineno-0-806" name="__codelineno-0-806"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_utilities</span><span class="p">,</span>
-<a id="__codelineno-0-807" name="__codelineno-0-807"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span><span class="p">,</span>
-<a id="__codelineno-0-808" name="__codelineno-0-808"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="p">,</span>
-<a id="__codelineno-0-809" name="__codelineno-0-809"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_census_tracts</span><span class="p">,</span>
-<a id="__codelineno-0-810" name="__codelineno-0-810"></a>    <span class="p">)</span>
+<span class="normal"><a href="#__codelineno-0-821">821</a></span>
+<span class="normal"><a href="#__codelineno-0-822">822</a></span>
+<span class="normal"><a href="#__codelineno-0-823">823</a></span>
+<span class="normal"><a href="#__codelineno-0-824">824</a></span>
+<span class="normal"><a href="#__codelineno-0-825">825</a></span>
+<span class="normal"><a href="#__codelineno-0-826">826</a></span>
+<span class="normal"><a href="#__codelineno-0-827">827</a></span>
+<span class="normal"><a href="#__codelineno-0-828">828</a></span>
+<span class="normal"><a href="#__codelineno-0-829">829</a></span>
+<span class="normal"><a href="#__codelineno-0-830">830</a></span>
+<span class="normal"><a href="#__codelineno-0-831">831</a></span>
+<span class="normal"><a href="#__codelineno-0-832">832</a></span>
+<span class="normal"><a href="#__codelineno-0-833">833</a></span>
+<span class="normal"><a href="#__codelineno-0-834">834</a></span>
+<span class="normal"><a href="#__codelineno-0-835">835</a></span>
+<span class="normal"><a href="#__codelineno-0-836">836</a></span>
+<span class="normal"><a href="#__codelineno-0-837">837</a></span>
+<span class="normal"><a href="#__codelineno-0-838">838</a></span>
+<span class="normal"><a href="#__codelineno-0-839">839</a></span>
+<span class="normal"><a href="#__codelineno-0-840">840</a></span>
+<span class="normal"><a href="#__codelineno-0-841">841</a></span>
+<span class="normal"><a href="#__codelineno-0-842">842</a></span>
+<span class="normal"><a href="#__codelineno-0-843">843</a></span>
+<span class="normal"><a href="#__codelineno-0-844">844</a></span>
+<span class="normal"><a href="#__codelineno-0-845">845</a></span>
+<span class="normal"><a href="#__codelineno-0-846">846</a></span>
+<span class="normal"><a href="#__codelineno-0-847">847</a></span>
+<span class="normal"><a href="#__codelineno-0-848">848</a></span>
+<span class="normal"><a href="#__codelineno-0-849">849</a></span>
+<span class="normal"><a href="#__codelineno-0-850">850</a></span>
+<span class="normal"><a href="#__codelineno-0-851">851</a></span>
+<span class="normal"><a href="#__codelineno-0-852">852</a></span>
+<span class="normal"><a href="#__codelineno-0-853">853</a></span>
+<span class="normal"><a href="#__codelineno-0-854">854</a></span>
+<span class="normal"><a href="#__codelineno-0-855">855</a></span>
+<span class="normal"><a href="#__codelineno-0-856">856</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-796" name="__codelineno-0-796"></a><span class="k">def</span><span class="w"> </span><span class="nf">preload_all</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-797" name="__codelineno-0-797"></a><span class="w">    </span><span class="sd">"""Preload all boundary data for performance-critical scenarios.</span>
+<a id="__codelineno-0-798" name="__codelineno-0-798"></a>
+<a id="__codelineno-0-799" name="__codelineno-0-799"></a><span class="sd">    Forces immediate loading of all boundary datasets and builds all</span>
+<a id="__codelineno-0-800" name="__codelineno-0-800"></a><span class="sd">    lookup caches. This eliminates lazy loading delays for subsequent</span>
+<a id="__codelineno-0-801" name="__codelineno-0-801"></a><span class="sd">    data access operations, making it ideal for performance-critical</span>
+<a id="__codelineno-0-802" name="__codelineno-0-802"></a><span class="sd">    scenarios or when you know all boundary data will be needed.</span>
+<a id="__codelineno-0-803" name="__codelineno-0-803"></a>
+<a id="__codelineno-0-804" name="__codelineno-0-804"></a><span class="sd">    The method loads all six boundary datasets:</span>
+<a id="__codelineno-0-805" name="__codelineno-0-805"></a><span class="sd">    - US western states</span>
+<a id="__codelineno-0-806" name="__codelineno-0-806"></a><span class="sd">    - California counties</span>
+<a id="__codelineno-0-807" name="__codelineno-0-807"></a><span class="sd">    - California watersheds</span>
+<a id="__codelineno-0-808" name="__codelineno-0-808"></a><span class="sd">    - California utilities</span>
+<a id="__codelineno-0-809" name="__codelineno-0-809"></a><span class="sd">    - California forecast zones</span>
+<a id="__codelineno-0-810" name="__codelineno-0-810"></a><span class="sd">    - California electric balancing areas</span>
 <a id="__codelineno-0-811" name="__codelineno-0-811"></a>
-<a id="__codelineno-0-812" name="__codelineno-0-812"></a>    <span class="c1"># Build all lookup caches</span>
-<a id="__codelineno-0-813" name="__codelineno-0-813"></a>    <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
-<a id="__codelineno-0-814" name="__codelineno-0-814"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_states</span><span class="p">(),</span>
-<a id="__codelineno-0-815" name="__codelineno-0-815"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_counties</span><span class="p">(),</span>
-<a id="__codelineno-0-816" name="__codelineno-0-816"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_watersheds</span><span class="p">(),</span>
-<a id="__codelineno-0-817" name="__codelineno-0-817"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_forecast_zones</span><span class="p">(),</span>
-<a id="__codelineno-0-818" name="__codelineno-0-818"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_ious_pous</span><span class="p">(),</span>
-<a id="__codelineno-0-819" name="__codelineno-0-819"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_electric_balancing_areas</span><span class="p">(),</span>
-<a id="__codelineno-0-820" name="__codelineno-0-820"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_census_tracts</span><span class="p">(),</span>
-<a id="__codelineno-0-821" name="__codelineno-0-821"></a>    <span class="p">)</span>
+<a id="__codelineno-0-812" name="__codelineno-0-812"></a><span class="sd">    And builds all corresponding lookup dictionaries for fast boundary</span>
+<a id="__codelineno-0-813" name="__codelineno-0-813"></a><span class="sd">    selection operations.</span>
+<a id="__codelineno-0-814" name="__codelineno-0-814"></a>
+<a id="__codelineno-0-815" name="__codelineno-0-815"></a><span class="sd">    Examples</span>
+<a id="__codelineno-0-816" name="__codelineno-0-816"></a><span class="sd">    --------</span>
+<a id="__codelineno-0-817" name="__codelineno-0-817"></a><span class="sd">    &gt;&gt;&gt; boundaries = Boundaries(catalog)</span>
+<a id="__codelineno-0-818" name="__codelineno-0-818"></a><span class="sd">    &gt;&gt;&gt;</span>
+<a id="__codelineno-0-819" name="__codelineno-0-819"></a><span class="sd">    &gt;&gt;&gt; # Preload for performance-critical batch processing</span>
+<a id="__codelineno-0-820" name="__codelineno-0-820"></a><span class="sd">    &gt;&gt;&gt; boundaries.preload_all()</span>
+<a id="__codelineno-0-821" name="__codelineno-0-821"></a><span class="sd">    &gt;&gt;&gt;</span>
+<a id="__codelineno-0-822" name="__codelineno-0-822"></a><span class="sd">    &gt;&gt;&gt; # All subsequent access is now immediate</span>
+<a id="__codelineno-0-823" name="__codelineno-0-823"></a><span class="sd">    &gt;&gt;&gt; for county in boundaries._ca_counties.itertuples():</span>
+<a id="__codelineno-0-824" name="__codelineno-0-824"></a><span class="sd">    &gt;&gt;&gt;     process_county_data(county)</span>
+<a id="__codelineno-0-825" name="__codelineno-0-825"></a>
+<a id="__codelineno-0-826" name="__codelineno-0-826"></a><span class="sd">    Notes</span>
+<a id="__codelineno-0-827" name="__codelineno-0-827"></a><span class="sd">    -----</span>
+<a id="__codelineno-0-828" name="__codelineno-0-828"></a><span class="sd">    - Increases initial memory usage but eliminates loading delays</span>
+<a id="__codelineno-0-829" name="__codelineno-0-829"></a><span class="sd">    - Useful for batch processing or repeated boundary access</span>
+<a id="__codelineno-0-830" name="__codelineno-0-830"></a><span class="sd">    - Data remains cached until clear_cache() is called</span>
+<a id="__codelineno-0-831" name="__codelineno-0-831"></a><span class="sd">    - Memory usage can be monitored with get_memory_usage()</span>
+<a id="__codelineno-0-832" name="__codelineno-0-832"></a>
+<a id="__codelineno-0-833" name="__codelineno-0-833"></a><span class="sd">    """</span>
+<a id="__codelineno-0-834" name="__codelineno-0-834"></a>    <span class="c1"># Force loading of all properties</span>
+<a id="__codelineno-0-835" name="__codelineno-0-835"></a>    <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-836" name="__codelineno-0-836"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_states</span><span class="p">,</span>
+<a id="__codelineno-0-837" name="__codelineno-0-837"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_counties</span><span class="p">,</span>
+<a id="__codelineno-0-838" name="__codelineno-0-838"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_watersheds</span><span class="p">,</span>
+<a id="__codelineno-0-839" name="__codelineno-0-839"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_utilities</span><span class="p">,</span>
+<a id="__codelineno-0-840" name="__codelineno-0-840"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span><span class="p">,</span>
+<a id="__codelineno-0-841" name="__codelineno-0-841"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="p">,</span>
+<a id="__codelineno-0-842" name="__codelineno-0-842"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_census_tracts</span><span class="p">,</span>
+<a id="__codelineno-0-843" name="__codelineno-0-843"></a>    <span class="p">)</span>
+<a id="__codelineno-0-844" name="__codelineno-0-844"></a>
+<a id="__codelineno-0-845" name="__codelineno-0-845"></a>    <span class="c1"># Build all lookup caches</span>
+<a id="__codelineno-0-846" name="__codelineno-0-846"></a>    <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-847" name="__codelineno-0-847"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_states</span><span class="p">(),</span>
+<a id="__codelineno-0-848" name="__codelineno-0-848"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_counties</span><span class="p">(),</span>
+<a id="__codelineno-0-849" name="__codelineno-0-849"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_watersheds</span><span class="p">(),</span>
+<a id="__codelineno-0-850" name="__codelineno-0-850"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_forecast_zones</span><span class="p">(),</span>
+<a id="__codelineno-0-851" name="__codelineno-0-851"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_ious_pous</span><span class="p">(),</span>
+<a id="__codelineno-0-852" name="__codelineno-0-852"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_electric_balancing_areas</span><span class="p">(),</span>
+<a id="__codelineno-0-853" name="__codelineno-0-853"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_census_tracts</span><span class="p">(),</span>
+<a id="__codelineno-0-854" name="__codelineno-0-854"></a>    <span class="p">)</span>
+<a id="__codelineno-0-855" name="__codelineno-0-855"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_catalog_has_entry</span><span class="p">(</span><span class="s2">"tribalareas"</span><span class="p">):</span>
+<a id="__codelineno-0-856" name="__codelineno-0-856"></a>        <span class="n">_</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tribal_areas</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_tribal_areas</span><span class="p">())</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -6443,42 +6455,7 @@ will be reloaded on next access through the lazy loading mechanism.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-823">823</a></span>
-<span class="normal"><a href="#__codelineno-0-824">824</a></span>
-<span class="normal"><a href="#__codelineno-0-825">825</a></span>
-<span class="normal"><a href="#__codelineno-0-826">826</a></span>
-<span class="normal"><a href="#__codelineno-0-827">827</a></span>
-<span class="normal"><a href="#__codelineno-0-828">828</a></span>
-<span class="normal"><a href="#__codelineno-0-829">829</a></span>
-<span class="normal"><a href="#__codelineno-0-830">830</a></span>
-<span class="normal"><a href="#__codelineno-0-831">831</a></span>
-<span class="normal"><a href="#__codelineno-0-832">832</a></span>
-<span class="normal"><a href="#__codelineno-0-833">833</a></span>
-<span class="normal"><a href="#__codelineno-0-834">834</a></span>
-<span class="normal"><a href="#__codelineno-0-835">835</a></span>
-<span class="normal"><a href="#__codelineno-0-836">836</a></span>
-<span class="normal"><a href="#__codelineno-0-837">837</a></span>
-<span class="normal"><a href="#__codelineno-0-838">838</a></span>
-<span class="normal"><a href="#__codelineno-0-839">839</a></span>
-<span class="normal"><a href="#__codelineno-0-840">840</a></span>
-<span class="normal"><a href="#__codelineno-0-841">841</a></span>
-<span class="normal"><a href="#__codelineno-0-842">842</a></span>
-<span class="normal"><a href="#__codelineno-0-843">843</a></span>
-<span class="normal"><a href="#__codelineno-0-844">844</a></span>
-<span class="normal"><a href="#__codelineno-0-845">845</a></span>
-<span class="normal"><a href="#__codelineno-0-846">846</a></span>
-<span class="normal"><a href="#__codelineno-0-847">847</a></span>
-<span class="normal"><a href="#__codelineno-0-848">848</a></span>
-<span class="normal"><a href="#__codelineno-0-849">849</a></span>
-<span class="normal"><a href="#__codelineno-0-850">850</a></span>
-<span class="normal"><a href="#__codelineno-0-851">851</a></span>
-<span class="normal"><a href="#__codelineno-0-852">852</a></span>
-<span class="normal"><a href="#__codelineno-0-853">853</a></span>
-<span class="normal"><a href="#__codelineno-0-854">854</a></span>
-<span class="normal"><a href="#__codelineno-0-855">855</a></span>
-<span class="normal"><a href="#__codelineno-0-856">856</a></span>
-<span class="normal"><a href="#__codelineno-0-857">857</a></span>
-<span class="normal"><a href="#__codelineno-0-858">858</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-858">858</a></span>
 <span class="normal"><a href="#__codelineno-0-859">859</a></span>
 <span class="normal"><a href="#__codelineno-0-860">860</a></span>
 <span class="normal"><a href="#__codelineno-0-861">861</a></span>
@@ -6487,51 +6464,88 @@ will be reloaded on next access through the lazy loading mechanism.</p>
 <span class="normal"><a href="#__codelineno-0-864">864</a></span>
 <span class="normal"><a href="#__codelineno-0-865">865</a></span>
 <span class="normal"><a href="#__codelineno-0-866">866</a></span>
-<span class="normal"><a href="#__codelineno-0-867">867</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-823" name="__codelineno-0-823"></a><span class="k">def</span><span class="w"> </span><span class="nf">clear_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-824" name="__codelineno-0-824"></a><span class="w">    </span><span class="sd">"""Clear all cached data and lookup dictionaries to free memory.</span>
-<a id="__codelineno-0-825" name="__codelineno-0-825"></a>
-<a id="__codelineno-0-826" name="__codelineno-0-826"></a><span class="sd">    Removes all loaded boundary DataFrames and lookup dictionaries from</span>
-<a id="__codelineno-0-827" name="__codelineno-0-827"></a><span class="sd">    memory, returning the Boundaries instance to its initial state. Data</span>
-<a id="__codelineno-0-828" name="__codelineno-0-828"></a><span class="sd">    will be reloaded on next access through the lazy loading mechanism.</span>
-<a id="__codelineno-0-829" name="__codelineno-0-829"></a>
-<a id="__codelineno-0-830" name="__codelineno-0-830"></a><span class="sd">    This is useful for:</span>
-<a id="__codelineno-0-831" name="__codelineno-0-831"></a><span class="sd">    - Memory management in long-running applications</span>
-<a id="__codelineno-0-832" name="__codelineno-0-832"></a><span class="sd">    - Forcing fresh data loads after catalog updates</span>
-<a id="__codelineno-0-833" name="__codelineno-0-833"></a><span class="sd">    - Resetting state during testing or debugging</span>
-<a id="__codelineno-0-834" name="__codelineno-0-834"></a>
-<a id="__codelineno-0-835" name="__codelineno-0-835"></a><span class="sd">    Examples</span>
-<a id="__codelineno-0-836" name="__codelineno-0-836"></a><span class="sd">    --------</span>
-<a id="__codelineno-0-837" name="__codelineno-0-837"></a><span class="sd">    &gt;&gt;&gt; boundaries = Boundaries(catalog)</span>
-<a id="__codelineno-0-838" name="__codelineno-0-838"></a><span class="sd">    &gt;&gt;&gt; boundaries.preload_all()</span>
-<a id="__codelineno-0-839" name="__codelineno-0-839"></a><span class="sd">    &gt;&gt;&gt; usage_before = boundaries.get_memory_usage()</span>
-<a id="__codelineno-0-840" name="__codelineno-0-840"></a><span class="sd">    &gt;&gt;&gt; print(f"Memory before: {usage_before['total_human']}")</span>
-<a id="__codelineno-0-841" name="__codelineno-0-841"></a><span class="sd">    &gt;&gt;&gt;</span>
-<a id="__codelineno-0-842" name="__codelineno-0-842"></a><span class="sd">    &gt;&gt;&gt; boundaries.clear_cache()</span>
-<a id="__codelineno-0-843" name="__codelineno-0-843"></a><span class="sd">    &gt;&gt;&gt; usage_after = boundaries.get_memory_usage()</span>
-<a id="__codelineno-0-844" name="__codelineno-0-844"></a><span class="sd">    &gt;&gt;&gt; print(f"Memory after: {usage_after['total_human']}")  # Much lower</span>
-<a id="__codelineno-0-845" name="__codelineno-0-845"></a><span class="sd">    &gt;&gt;&gt;</span>
-<a id="__codelineno-0-846" name="__codelineno-0-846"></a><span class="sd">    &gt;&gt;&gt; # Data loads again on next access</span>
-<a id="__codelineno-0-847" name="__codelineno-0-847"></a><span class="sd">    &gt;&gt;&gt; counties = boundaries._ca_counties  # Triggers reload</span>
-<a id="__codelineno-0-848" name="__codelineno-0-848"></a>
-<a id="__codelineno-0-849" name="__codelineno-0-849"></a><span class="sd">    Notes</span>
-<a id="__codelineno-0-850" name="__codelineno-0-850"></a><span class="sd">    -----</span>
-<a id="__codelineno-0-851" name="__codelineno-0-851"></a><span class="sd">    - All subsequent data access will trigger fresh loads from catalog</span>
-<a id="__codelineno-0-852" name="__codelineno-0-852"></a><span class="sd">    - Lookup dictionaries will be rebuilt as needed</span>
-<a id="__codelineno-0-853" name="__codelineno-0-853"></a><span class="sd">    - Does not affect the underlying catalog or data sources</span>
-<a id="__codelineno-0-854" name="__codelineno-0-854"></a><span class="sd">    - Memory savings are immediate and substantial for loaded datasets</span>
-<a id="__codelineno-0-855" name="__codelineno-0-855"></a>
-<a id="__codelineno-0-856" name="__codelineno-0-856"></a><span class="sd">    """</span>
-<a id="__codelineno-0-857" name="__codelineno-0-857"></a>    <span class="c1"># Clear raw DataFrames</span>
-<a id="__codelineno-0-858" name="__codelineno-0-858"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__states</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-859" name="__codelineno-0-859"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_counties</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-860" name="__codelineno-0-860"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_watersheds</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-861" name="__codelineno-0-861"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_utilities</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-862" name="__codelineno-0-862"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_forecast_zones</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-863" name="__codelineno-0-863"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_electric_balancing_areas</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-864" name="__codelineno-0-864"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_census_tracts</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-865" name="__codelineno-0-865"></a>
-<a id="__codelineno-0-866" name="__codelineno-0-866"></a>    <span class="c1"># Clear lookup cache</span>
-<a id="__codelineno-0-867" name="__codelineno-0-867"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+<span class="normal"><a href="#__codelineno-0-867">867</a></span>
+<span class="normal"><a href="#__codelineno-0-868">868</a></span>
+<span class="normal"><a href="#__codelineno-0-869">869</a></span>
+<span class="normal"><a href="#__codelineno-0-870">870</a></span>
+<span class="normal"><a href="#__codelineno-0-871">871</a></span>
+<span class="normal"><a href="#__codelineno-0-872">872</a></span>
+<span class="normal"><a href="#__codelineno-0-873">873</a></span>
+<span class="normal"><a href="#__codelineno-0-874">874</a></span>
+<span class="normal"><a href="#__codelineno-0-875">875</a></span>
+<span class="normal"><a href="#__codelineno-0-876">876</a></span>
+<span class="normal"><a href="#__codelineno-0-877">877</a></span>
+<span class="normal"><a href="#__codelineno-0-878">878</a></span>
+<span class="normal"><a href="#__codelineno-0-879">879</a></span>
+<span class="normal"><a href="#__codelineno-0-880">880</a></span>
+<span class="normal"><a href="#__codelineno-0-881">881</a></span>
+<span class="normal"><a href="#__codelineno-0-882">882</a></span>
+<span class="normal"><a href="#__codelineno-0-883">883</a></span>
+<span class="normal"><a href="#__codelineno-0-884">884</a></span>
+<span class="normal"><a href="#__codelineno-0-885">885</a></span>
+<span class="normal"><a href="#__codelineno-0-886">886</a></span>
+<span class="normal"><a href="#__codelineno-0-887">887</a></span>
+<span class="normal"><a href="#__codelineno-0-888">888</a></span>
+<span class="normal"><a href="#__codelineno-0-889">889</a></span>
+<span class="normal"><a href="#__codelineno-0-890">890</a></span>
+<span class="normal"><a href="#__codelineno-0-891">891</a></span>
+<span class="normal"><a href="#__codelineno-0-892">892</a></span>
+<span class="normal"><a href="#__codelineno-0-893">893</a></span>
+<span class="normal"><a href="#__codelineno-0-894">894</a></span>
+<span class="normal"><a href="#__codelineno-0-895">895</a></span>
+<span class="normal"><a href="#__codelineno-0-896">896</a></span>
+<span class="normal"><a href="#__codelineno-0-897">897</a></span>
+<span class="normal"><a href="#__codelineno-0-898">898</a></span>
+<span class="normal"><a href="#__codelineno-0-899">899</a></span>
+<span class="normal"><a href="#__codelineno-0-900">900</a></span>
+<span class="normal"><a href="#__codelineno-0-901">901</a></span>
+<span class="normal"><a href="#__codelineno-0-902">902</a></span>
+<span class="normal"><a href="#__codelineno-0-903">903</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-858" name="__codelineno-0-858"></a><span class="k">def</span><span class="w"> </span><span class="nf">clear_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-859" name="__codelineno-0-859"></a><span class="w">    </span><span class="sd">"""Clear all cached data and lookup dictionaries to free memory.</span>
+<a id="__codelineno-0-860" name="__codelineno-0-860"></a>
+<a id="__codelineno-0-861" name="__codelineno-0-861"></a><span class="sd">    Removes all loaded boundary DataFrames and lookup dictionaries from</span>
+<a id="__codelineno-0-862" name="__codelineno-0-862"></a><span class="sd">    memory, returning the Boundaries instance to its initial state. Data</span>
+<a id="__codelineno-0-863" name="__codelineno-0-863"></a><span class="sd">    will be reloaded on next access through the lazy loading mechanism.</span>
+<a id="__codelineno-0-864" name="__codelineno-0-864"></a>
+<a id="__codelineno-0-865" name="__codelineno-0-865"></a><span class="sd">    This is useful for:</span>
+<a id="__codelineno-0-866" name="__codelineno-0-866"></a><span class="sd">    - Memory management in long-running applications</span>
+<a id="__codelineno-0-867" name="__codelineno-0-867"></a><span class="sd">    - Forcing fresh data loads after catalog updates</span>
+<a id="__codelineno-0-868" name="__codelineno-0-868"></a><span class="sd">    - Resetting state during testing or debugging</span>
+<a id="__codelineno-0-869" name="__codelineno-0-869"></a>
+<a id="__codelineno-0-870" name="__codelineno-0-870"></a><span class="sd">    Examples</span>
+<a id="__codelineno-0-871" name="__codelineno-0-871"></a><span class="sd">    --------</span>
+<a id="__codelineno-0-872" name="__codelineno-0-872"></a><span class="sd">    &gt;&gt;&gt; boundaries = Boundaries(catalog)</span>
+<a id="__codelineno-0-873" name="__codelineno-0-873"></a><span class="sd">    &gt;&gt;&gt; boundaries.preload_all()</span>
+<a id="__codelineno-0-874" name="__codelineno-0-874"></a><span class="sd">    &gt;&gt;&gt; usage_before = boundaries.get_memory_usage()</span>
+<a id="__codelineno-0-875" name="__codelineno-0-875"></a><span class="sd">    &gt;&gt;&gt; print(f"Memory before: {usage_before['total_human']}")</span>
+<a id="__codelineno-0-876" name="__codelineno-0-876"></a><span class="sd">    &gt;&gt;&gt;</span>
+<a id="__codelineno-0-877" name="__codelineno-0-877"></a><span class="sd">    &gt;&gt;&gt; boundaries.clear_cache()</span>
+<a id="__codelineno-0-878" name="__codelineno-0-878"></a><span class="sd">    &gt;&gt;&gt; usage_after = boundaries.get_memory_usage()</span>
+<a id="__codelineno-0-879" name="__codelineno-0-879"></a><span class="sd">    &gt;&gt;&gt; print(f"Memory after: {usage_after['total_human']}")  # Much lower</span>
+<a id="__codelineno-0-880" name="__codelineno-0-880"></a><span class="sd">    &gt;&gt;&gt;</span>
+<a id="__codelineno-0-881" name="__codelineno-0-881"></a><span class="sd">    &gt;&gt;&gt; # Data loads again on next access</span>
+<a id="__codelineno-0-882" name="__codelineno-0-882"></a><span class="sd">    &gt;&gt;&gt; counties = boundaries._ca_counties  # Triggers reload</span>
+<a id="__codelineno-0-883" name="__codelineno-0-883"></a>
+<a id="__codelineno-0-884" name="__codelineno-0-884"></a><span class="sd">    Notes</span>
+<a id="__codelineno-0-885" name="__codelineno-0-885"></a><span class="sd">    -----</span>
+<a id="__codelineno-0-886" name="__codelineno-0-886"></a><span class="sd">    - All subsequent data access will trigger fresh loads from catalog</span>
+<a id="__codelineno-0-887" name="__codelineno-0-887"></a><span class="sd">    - Lookup dictionaries will be rebuilt as needed</span>
+<a id="__codelineno-0-888" name="__codelineno-0-888"></a><span class="sd">    - Does not affect the underlying catalog or data sources</span>
+<a id="__codelineno-0-889" name="__codelineno-0-889"></a><span class="sd">    - Memory savings are immediate and substantial for loaded datasets</span>
+<a id="__codelineno-0-890" name="__codelineno-0-890"></a>
+<a id="__codelineno-0-891" name="__codelineno-0-891"></a><span class="sd">    """</span>
+<a id="__codelineno-0-892" name="__codelineno-0-892"></a>    <span class="c1"># Clear raw DataFrames</span>
+<a id="__codelineno-0-893" name="__codelineno-0-893"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__states</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-894" name="__codelineno-0-894"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_counties</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-895" name="__codelineno-0-895"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_watersheds</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-896" name="__codelineno-0-896"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_utilities</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-897" name="__codelineno-0-897"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_forecast_zones</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-898" name="__codelineno-0-898"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_electric_balancing_areas</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-899" name="__codelineno-0-899"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__ca_census_tracts</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-900" name="__codelineno-0-900"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">__tribal_areas</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-901" name="__codelineno-0-901"></a>
+<a id="__codelineno-0-902" name="__codelineno-0-902"></a>    <span class="c1"># Clear lookup cache</span>
+<a id="__codelineno-0-903" name="__codelineno-0-903"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_lookup_cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -6624,43 +6638,7 @@ Useful for memory monitoring and optimization decisions.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/new_core/data_access/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-869">869</a></span>
-<span class="normal"><a href="#__codelineno-0-870">870</a></span>
-<span class="normal"><a href="#__codelineno-0-871">871</a></span>
-<span class="normal"><a href="#__codelineno-0-872">872</a></span>
-<span class="normal"><a href="#__codelineno-0-873">873</a></span>
-<span class="normal"><a href="#__codelineno-0-874">874</a></span>
-<span class="normal"><a href="#__codelineno-0-875">875</a></span>
-<span class="normal"><a href="#__codelineno-0-876">876</a></span>
-<span class="normal"><a href="#__codelineno-0-877">877</a></span>
-<span class="normal"><a href="#__codelineno-0-878">878</a></span>
-<span class="normal"><a href="#__codelineno-0-879">879</a></span>
-<span class="normal"><a href="#__codelineno-0-880">880</a></span>
-<span class="normal"><a href="#__codelineno-0-881">881</a></span>
-<span class="normal"><a href="#__codelineno-0-882">882</a></span>
-<span class="normal"><a href="#__codelineno-0-883">883</a></span>
-<span class="normal"><a href="#__codelineno-0-884">884</a></span>
-<span class="normal"><a href="#__codelineno-0-885">885</a></span>
-<span class="normal"><a href="#__codelineno-0-886">886</a></span>
-<span class="normal"><a href="#__codelineno-0-887">887</a></span>
-<span class="normal"><a href="#__codelineno-0-888">888</a></span>
-<span class="normal"><a href="#__codelineno-0-889">889</a></span>
-<span class="normal"><a href="#__codelineno-0-890">890</a></span>
-<span class="normal"><a href="#__codelineno-0-891">891</a></span>
-<span class="normal"><a href="#__codelineno-0-892">892</a></span>
-<span class="normal"><a href="#__codelineno-0-893">893</a></span>
-<span class="normal"><a href="#__codelineno-0-894">894</a></span>
-<span class="normal"><a href="#__codelineno-0-895">895</a></span>
-<span class="normal"><a href="#__codelineno-0-896">896</a></span>
-<span class="normal"><a href="#__codelineno-0-897">897</a></span>
-<span class="normal"><a href="#__codelineno-0-898">898</a></span>
-<span class="normal"><a href="#__codelineno-0-899">899</a></span>
-<span class="normal"><a href="#__codelineno-0-900">900</a></span>
-<span class="normal"><a href="#__codelineno-0-901">901</a></span>
-<span class="normal"><a href="#__codelineno-0-902">902</a></span>
-<span class="normal"><a href="#__codelineno-0-903">903</a></span>
-<span class="normal"><a href="#__codelineno-0-904">904</a></span>
-<span class="normal"><a href="#__codelineno-0-905">905</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-905">905</a></span>
 <span class="normal"><a href="#__codelineno-0-906">906</a></span>
 <span class="normal"><a href="#__codelineno-0-907">907</a></span>
 <span class="normal"><a href="#__codelineno-0-908">908</a></span>
@@ -6707,90 +6685,128 @@ Useful for memory monitoring and optimization decisions.</p>
 <span class="normal"><a href="#__codelineno-0-949">949</a></span>
 <span class="normal"><a href="#__codelineno-0-950">950</a></span>
 <span class="normal"><a href="#__codelineno-0-951">951</a></span>
-<span class="normal"><a href="#__codelineno-0-952">952</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-869" name="__codelineno-0-869"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_memory_usage</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
-<a id="__codelineno-0-870" name="__codelineno-0-870"></a><span class="w">    </span><span class="sd">"""Get detailed memory usage information for loaded boundary datasets.</span>
-<a id="__codelineno-0-871" name="__codelineno-0-871"></a>
-<a id="__codelineno-0-872" name="__codelineno-0-872"></a><span class="sd">    Analyzes memory consumption of all loaded boundary DataFrames and</span>
-<a id="__codelineno-0-873" name="__codelineno-0-873"></a><span class="sd">    provides both detailed per-dataset usage and summary statistics.</span>
-<a id="__codelineno-0-874" name="__codelineno-0-874"></a><span class="sd">    Useful for memory monitoring and optimization decisions.</span>
-<a id="__codelineno-0-875" name="__codelineno-0-875"></a>
-<a id="__codelineno-0-876" name="__codelineno-0-876"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-877" name="__codelineno-0-877"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-878" name="__codelineno-0-878"></a><span class="sd">    Dict[str, Union[int, str]]</span>
-<a id="__codelineno-0-879" name="__codelineno-0-879"></a><span class="sd">        Comprehensive memory usage information:</span>
-<a id="__codelineno-0-880" name="__codelineno-0-880"></a>
-<a id="__codelineno-0-881" name="__codelineno-0-881"></a><span class="sd">        Per-dataset usage (bytes):</span>
-<a id="__codelineno-0-882" name="__codelineno-0-882"></a><span class="sd">        - 'states': Memory used by US states DataFrame (0 if not loaded)</span>
-<a id="__codelineno-0-883" name="__codelineno-0-883"></a><span class="sd">        - 'ca_counties': Memory used by CA counties DataFrame (0 if not loaded)</span>
-<a id="__codelineno-0-884" name="__codelineno-0-884"></a><span class="sd">        - 'ca_watersheds': Memory used by CA watersheds DataFrame (0 if not loaded)</span>
-<a id="__codelineno-0-885" name="__codelineno-0-885"></a><span class="sd">        - 'ca_utilities': Memory used by CA utilities DataFrame (0 if not loaded)</span>
-<a id="__codelineno-0-886" name="__codelineno-0-886"></a><span class="sd">        - 'ca_forecast_zones': Memory used by forecast zones DataFrame (0 if not loaded)</span>
-<a id="__codelineno-0-887" name="__codelineno-0-887"></a><span class="sd">        - 'ca_electric_balancing_areas': Memory used by balancing areas DataFrame (0 if not loaded)</span>
-<a id="__codelineno-0-888" name="__codelineno-0-888"></a>
-<a id="__codelineno-0-889" name="__codelineno-0-889"></a><span class="sd">        Summary statistics:</span>
-<a id="__codelineno-0-890" name="__codelineno-0-890"></a><span class="sd">        - 'total_bytes': Total memory usage in bytes</span>
-<a id="__codelineno-0-891" name="__codelineno-0-891"></a><span class="sd">        - 'total_human': Human-readable total memory usage (e.g., '15.2 MB')</span>
-<a id="__codelineno-0-892" name="__codelineno-0-892"></a><span class="sd">        - 'loaded_datasets': Count of currently loaded datasets</span>
-<a id="__codelineno-0-893" name="__codelineno-0-893"></a><span class="sd">        - 'cached_lookups': Count of cached lookup dictionaries</span>
-<a id="__codelineno-0-894" name="__codelineno-0-894"></a>
-<a id="__codelineno-0-895" name="__codelineno-0-895"></a><span class="sd">    Examples</span>
-<a id="__codelineno-0-896" name="__codelineno-0-896"></a><span class="sd">    --------</span>
-<a id="__codelineno-0-897" name="__codelineno-0-897"></a><span class="sd">    &gt;&gt;&gt; boundaries = Boundaries(catalog)</span>
-<a id="__codelineno-0-898" name="__codelineno-0-898"></a><span class="sd">    &gt;&gt;&gt; boundaries.preload_all()</span>
-<a id="__codelineno-0-899" name="__codelineno-0-899"></a><span class="sd">    &gt;&gt;&gt; usage = boundaries.get_memory_usage()</span>
-<a id="__codelineno-0-900" name="__codelineno-0-900"></a><span class="sd">    &gt;&gt;&gt;</span>
-<a id="__codelineno-0-901" name="__codelineno-0-901"></a><span class="sd">    &gt;&gt;&gt; print(f"Total memory: {usage['total_human']}")</span>
-<a id="__codelineno-0-902" name="__codelineno-0-902"></a><span class="sd">    &gt;&gt;&gt; print(f"Loaded datasets: {usage['loaded_datasets']}/6")</span>
-<a id="__codelineno-0-903" name="__codelineno-0-903"></a><span class="sd">    &gt;&gt;&gt; print(f"Largest dataset: {max(usage['states'], usage['ca_counties'])}")</span>
-<a id="__codelineno-0-904" name="__codelineno-0-904"></a><span class="sd">    &gt;&gt;&gt;</span>
-<a id="__codelineno-0-905" name="__codelineno-0-905"></a><span class="sd">    &gt;&gt;&gt; # Check if specific dataset is loaded</span>
-<a id="__codelineno-0-906" name="__codelineno-0-906"></a><span class="sd">    &gt;&gt;&gt; if usage['ca_counties'] &gt; 0:</span>
-<a id="__codelineno-0-907" name="__codelineno-0-907"></a><span class="sd">    &gt;&gt;&gt;     print("Counties data is loaded")</span>
-<a id="__codelineno-0-908" name="__codelineno-0-908"></a>
-<a id="__codelineno-0-909" name="__codelineno-0-909"></a><span class="sd">    &gt;&gt;&gt; # Monitor memory before/after operations</span>
-<a id="__codelineno-0-910" name="__codelineno-0-910"></a><span class="sd">    &gt;&gt;&gt; usage_before = boundaries.get_memory_usage()</span>
-<a id="__codelineno-0-911" name="__codelineno-0-911"></a><span class="sd">    &gt;&gt;&gt; boundaries.clear_cache()</span>
-<a id="__codelineno-0-912" name="__codelineno-0-912"></a><span class="sd">    &gt;&gt;&gt; usage_after = boundaries.get_memory_usage()</span>
-<a id="__codelineno-0-913" name="__codelineno-0-913"></a><span class="sd">    &gt;&gt;&gt; saved = usage_before['total_bytes'] - usage_after['total_bytes']</span>
-<a id="__codelineno-0-914" name="__codelineno-0-914"></a><span class="sd">    &gt;&gt;&gt; print(f"Memory freed: {boundaries._format_bytes(saved)}")</span>
-<a id="__codelineno-0-915" name="__codelineno-0-915"></a>
-<a id="__codelineno-0-916" name="__codelineno-0-916"></a><span class="sd">    Notes</span>
-<a id="__codelineno-0-917" name="__codelineno-0-917"></a><span class="sd">    -----</span>
-<a id="__codelineno-0-918" name="__codelineno-0-918"></a><span class="sd">    - Memory usage includes deep analysis of DataFrame contents</span>
-<a id="__codelineno-0-919" name="__codelineno-0-919"></a><span class="sd">    - Unloaded datasets report 0 bytes usage</span>
-<a id="__codelineno-0-920" name="__codelineno-0-920"></a><span class="sd">    - Lookup dictionary cache usage is counted separately</span>
-<a id="__codelineno-0-921" name="__codelineno-0-921"></a><span class="sd">    - Total includes all loaded DataFrames but not lookup dictionaries</span>
-<a id="__codelineno-0-922" name="__codelineno-0-922"></a>
-<a id="__codelineno-0-923" name="__codelineno-0-923"></a><span class="sd">    """</span>
-<a id="__codelineno-0-924" name="__codelineno-0-924"></a>    <span class="n">usage</span> <span class="o">=</span> <span class="p">{}</span>
-<a id="__codelineno-0-925" name="__codelineno-0-925"></a>    <span class="n">total_bytes</span> <span class="o">=</span> <span class="mi">0</span>
-<a id="__codelineno-0-926" name="__codelineno-0-926"></a>
-<a id="__codelineno-0-927" name="__codelineno-0-927"></a>    <span class="n">datasets</span> <span class="o">=</span> <span class="p">{</span>
-<a id="__codelineno-0-928" name="__codelineno-0-928"></a>        <span class="s2">"states"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__states</span><span class="p">,</span>
-<a id="__codelineno-0-929" name="__codelineno-0-929"></a>        <span class="s2">"ca_counties"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__ca_counties</span><span class="p">,</span>
-<a id="__codelineno-0-930" name="__codelineno-0-930"></a>        <span class="s2">"ca_watersheds"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__ca_watersheds</span><span class="p">,</span>
-<a id="__codelineno-0-931" name="__codelineno-0-931"></a>        <span class="s2">"ca_utilities"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__ca_utilities</span><span class="p">,</span>
-<a id="__codelineno-0-932" name="__codelineno-0-932"></a>        <span class="s2">"ca_forecast_zones"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__ca_forecast_zones</span><span class="p">,</span>
-<a id="__codelineno-0-933" name="__codelineno-0-933"></a>        <span class="s2">"ca_electric_balancing_areas"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__ca_electric_balancing_areas</span><span class="p">,</span>
-<a id="__codelineno-0-934" name="__codelineno-0-934"></a>        <span class="s2">"ca_census_tracts"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__ca_census_tracts</span><span class="p">,</span>
-<a id="__codelineno-0-935" name="__codelineno-0-935"></a>    <span class="p">}</span>
-<a id="__codelineno-0-936" name="__codelineno-0-936"></a>
-<a id="__codelineno-0-937" name="__codelineno-0-937"></a>    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">df</span> <span class="ow">in</span> <span class="n">datasets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-<a id="__codelineno-0-938" name="__codelineno-0-938"></a>        <span class="k">if</span> <span class="n">df</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-939" name="__codelineno-0-939"></a>            <span class="n">memory_bytes</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">memory_usage</span><span class="p">(</span><span class="n">deep</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
-<a id="__codelineno-0-940" name="__codelineno-0-940"></a>            <span class="n">usage</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">memory_bytes</span>
-<a id="__codelineno-0-941" name="__codelineno-0-941"></a>            <span class="n">total_bytes</span> <span class="o">+=</span> <span class="n">memory_bytes</span>
-<a id="__codelineno-0-942" name="__codelineno-0-942"></a>        <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-943" name="__codelineno-0-943"></a>            <span class="n">usage</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="normal"><a href="#__codelineno-0-952">952</a></span>
+<span class="normal"><a href="#__codelineno-0-953">953</a></span>
+<span class="normal"><a href="#__codelineno-0-954">954</a></span>
+<span class="normal"><a href="#__codelineno-0-955">955</a></span>
+<span class="normal"><a href="#__codelineno-0-956">956</a></span>
+<span class="normal"><a href="#__codelineno-0-957">957</a></span>
+<span class="normal"><a href="#__codelineno-0-958">958</a></span>
+<span class="normal"><a href="#__codelineno-0-959">959</a></span>
+<span class="normal"><a href="#__codelineno-0-960">960</a></span>
+<span class="normal"><a href="#__codelineno-0-961">961</a></span>
+<span class="normal"><a href="#__codelineno-0-962">962</a></span>
+<span class="normal"><a href="#__codelineno-0-963">963</a></span>
+<span class="normal"><a href="#__codelineno-0-964">964</a></span>
+<span class="normal"><a href="#__codelineno-0-965">965</a></span>
+<span class="normal"><a href="#__codelineno-0-966">966</a></span>
+<span class="normal"><a href="#__codelineno-0-967">967</a></span>
+<span class="normal"><a href="#__codelineno-0-968">968</a></span>
+<span class="normal"><a href="#__codelineno-0-969">969</a></span>
+<span class="normal"><a href="#__codelineno-0-970">970</a></span>
+<span class="normal"><a href="#__codelineno-0-971">971</a></span>
+<span class="normal"><a href="#__codelineno-0-972">972</a></span>
+<span class="normal"><a href="#__codelineno-0-973">973</a></span>
+<span class="normal"><a href="#__codelineno-0-974">974</a></span>
+<span class="normal"><a href="#__codelineno-0-975">975</a></span>
+<span class="normal"><a href="#__codelineno-0-976">976</a></span>
+<span class="normal"><a href="#__codelineno-0-977">977</a></span>
+<span class="normal"><a href="#__codelineno-0-978">978</a></span>
+<span class="normal"><a href="#__codelineno-0-979">979</a></span>
+<span class="normal"><a href="#__codelineno-0-980">980</a></span>
+<span class="normal"><a href="#__codelineno-0-981">981</a></span>
+<span class="normal"><a href="#__codelineno-0-982">982</a></span>
+<span class="normal"><a href="#__codelineno-0-983">983</a></span>
+<span class="normal"><a href="#__codelineno-0-984">984</a></span>
+<span class="normal"><a href="#__codelineno-0-985">985</a></span>
+<span class="normal"><a href="#__codelineno-0-986">986</a></span>
+<span class="normal"><a href="#__codelineno-0-987">987</a></span>
+<span class="normal"><a href="#__codelineno-0-988">988</a></span>
+<span class="normal"><a href="#__codelineno-0-989">989</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-905" name="__codelineno-0-905"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_memory_usage</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+<a id="__codelineno-0-906" name="__codelineno-0-906"></a><span class="w">    </span><span class="sd">"""Get detailed memory usage information for loaded boundary datasets.</span>
+<a id="__codelineno-0-907" name="__codelineno-0-907"></a>
+<a id="__codelineno-0-908" name="__codelineno-0-908"></a><span class="sd">    Analyzes memory consumption of all loaded boundary DataFrames and</span>
+<a id="__codelineno-0-909" name="__codelineno-0-909"></a><span class="sd">    provides both detailed per-dataset usage and summary statistics.</span>
+<a id="__codelineno-0-910" name="__codelineno-0-910"></a><span class="sd">    Useful for memory monitoring and optimization decisions.</span>
+<a id="__codelineno-0-911" name="__codelineno-0-911"></a>
+<a id="__codelineno-0-912" name="__codelineno-0-912"></a><span class="sd">    Returns</span>
+<a id="__codelineno-0-913" name="__codelineno-0-913"></a><span class="sd">    -------</span>
+<a id="__codelineno-0-914" name="__codelineno-0-914"></a><span class="sd">    Dict[str, Union[int, str]]</span>
+<a id="__codelineno-0-915" name="__codelineno-0-915"></a><span class="sd">        Comprehensive memory usage information:</span>
+<a id="__codelineno-0-916" name="__codelineno-0-916"></a>
+<a id="__codelineno-0-917" name="__codelineno-0-917"></a><span class="sd">        Per-dataset usage (bytes):</span>
+<a id="__codelineno-0-918" name="__codelineno-0-918"></a><span class="sd">        - 'states': Memory used by US states DataFrame (0 if not loaded)</span>
+<a id="__codelineno-0-919" name="__codelineno-0-919"></a><span class="sd">        - 'ca_counties': Memory used by CA counties DataFrame (0 if not loaded)</span>
+<a id="__codelineno-0-920" name="__codelineno-0-920"></a><span class="sd">        - 'ca_watersheds': Memory used by CA watersheds DataFrame (0 if not loaded)</span>
+<a id="__codelineno-0-921" name="__codelineno-0-921"></a><span class="sd">        - 'ca_utilities': Memory used by CA utilities DataFrame (0 if not loaded)</span>
+<a id="__codelineno-0-922" name="__codelineno-0-922"></a><span class="sd">        - 'ca_forecast_zones': Memory used by forecast zones DataFrame (0 if not loaded)</span>
+<a id="__codelineno-0-923" name="__codelineno-0-923"></a><span class="sd">        - 'ca_electric_balancing_areas': Memory used by balancing areas DataFrame (0 if not loaded)</span>
+<a id="__codelineno-0-924" name="__codelineno-0-924"></a>
+<a id="__codelineno-0-925" name="__codelineno-0-925"></a><span class="sd">        Summary statistics:</span>
+<a id="__codelineno-0-926" name="__codelineno-0-926"></a><span class="sd">        - 'total_bytes': Total memory usage in bytes</span>
+<a id="__codelineno-0-927" name="__codelineno-0-927"></a><span class="sd">        - 'total_human': Human-readable total memory usage (e.g., '15.2 MB')</span>
+<a id="__codelineno-0-928" name="__codelineno-0-928"></a><span class="sd">        - 'loaded_datasets': Count of currently loaded datasets</span>
+<a id="__codelineno-0-929" name="__codelineno-0-929"></a><span class="sd">        - 'cached_lookups': Count of cached lookup dictionaries</span>
+<a id="__codelineno-0-930" name="__codelineno-0-930"></a>
+<a id="__codelineno-0-931" name="__codelineno-0-931"></a><span class="sd">    Examples</span>
+<a id="__codelineno-0-932" name="__codelineno-0-932"></a><span class="sd">    --------</span>
+<a id="__codelineno-0-933" name="__codelineno-0-933"></a><span class="sd">    &gt;&gt;&gt; boundaries = Boundaries(catalog)</span>
+<a id="__codelineno-0-934" name="__codelineno-0-934"></a><span class="sd">    &gt;&gt;&gt; boundaries.preload_all()</span>
+<a id="__codelineno-0-935" name="__codelineno-0-935"></a><span class="sd">    &gt;&gt;&gt; usage = boundaries.get_memory_usage()</span>
+<a id="__codelineno-0-936" name="__codelineno-0-936"></a><span class="sd">    &gt;&gt;&gt;</span>
+<a id="__codelineno-0-937" name="__codelineno-0-937"></a><span class="sd">    &gt;&gt;&gt; print(f"Total memory: {usage['total_human']}")</span>
+<a id="__codelineno-0-938" name="__codelineno-0-938"></a><span class="sd">    &gt;&gt;&gt; print(f"Loaded datasets: {usage['loaded_datasets']}/6")</span>
+<a id="__codelineno-0-939" name="__codelineno-0-939"></a><span class="sd">    &gt;&gt;&gt; print(f"Largest dataset: {max(usage['states'], usage['ca_counties'])}")</span>
+<a id="__codelineno-0-940" name="__codelineno-0-940"></a><span class="sd">    &gt;&gt;&gt;</span>
+<a id="__codelineno-0-941" name="__codelineno-0-941"></a><span class="sd">    &gt;&gt;&gt; # Check if specific dataset is loaded</span>
+<a id="__codelineno-0-942" name="__codelineno-0-942"></a><span class="sd">    &gt;&gt;&gt; if usage['ca_counties'] &gt; 0:</span>
+<a id="__codelineno-0-943" name="__codelineno-0-943"></a><span class="sd">    &gt;&gt;&gt;     print("Counties data is loaded")</span>
 <a id="__codelineno-0-944" name="__codelineno-0-944"></a>
-<a id="__codelineno-0-945" name="__codelineno-0-945"></a>    <span class="n">usage</span><span class="p">[</span><span class="s2">"total_bytes"</span><span class="p">]</span> <span class="o">=</span> <span class="n">total_bytes</span>
-<a id="__codelineno-0-946" name="__codelineno-0-946"></a>    <span class="n">usage</span><span class="p">[</span><span class="s2">"total_human"</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_bytes</span><span class="p">(</span><span class="n">total_bytes</span><span class="p">)</span>
-<a id="__codelineno-0-947" name="__codelineno-0-947"></a>    <span class="n">usage</span><span class="p">[</span><span class="s2">"loaded_datasets"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
-<a id="__codelineno-0-948" name="__codelineno-0-948"></a>        <span class="p">[</span><span class="n">df</span> <span class="k">for</span> <span class="n">df</span> <span class="ow">in</span> <span class="n">datasets</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="n">df</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
-<a id="__codelineno-0-949" name="__codelineno-0-949"></a>    <span class="p">)</span>
-<a id="__codelineno-0-950" name="__codelineno-0-950"></a>    <span class="n">usage</span><span class="p">[</span><span class="s2">"cached_lookups"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lookup_cache</span><span class="p">)</span>
+<a id="__codelineno-0-945" name="__codelineno-0-945"></a><span class="sd">    &gt;&gt;&gt; # Monitor memory before/after operations</span>
+<a id="__codelineno-0-946" name="__codelineno-0-946"></a><span class="sd">    &gt;&gt;&gt; usage_before = boundaries.get_memory_usage()</span>
+<a id="__codelineno-0-947" name="__codelineno-0-947"></a><span class="sd">    &gt;&gt;&gt; boundaries.clear_cache()</span>
+<a id="__codelineno-0-948" name="__codelineno-0-948"></a><span class="sd">    &gt;&gt;&gt; usage_after = boundaries.get_memory_usage()</span>
+<a id="__codelineno-0-949" name="__codelineno-0-949"></a><span class="sd">    &gt;&gt;&gt; saved = usage_before['total_bytes'] - usage_after['total_bytes']</span>
+<a id="__codelineno-0-950" name="__codelineno-0-950"></a><span class="sd">    &gt;&gt;&gt; print(f"Memory freed: {boundaries._format_bytes(saved)}")</span>
 <a id="__codelineno-0-951" name="__codelineno-0-951"></a>
-<a id="__codelineno-0-952" name="__codelineno-0-952"></a>    <span class="k">return</span> <span class="n">usage</span>
+<a id="__codelineno-0-952" name="__codelineno-0-952"></a><span class="sd">    Notes</span>
+<a id="__codelineno-0-953" name="__codelineno-0-953"></a><span class="sd">    -----</span>
+<a id="__codelineno-0-954" name="__codelineno-0-954"></a><span class="sd">    - Memory usage includes deep analysis of DataFrame contents</span>
+<a id="__codelineno-0-955" name="__codelineno-0-955"></a><span class="sd">    - Unloaded datasets report 0 bytes usage</span>
+<a id="__codelineno-0-956" name="__codelineno-0-956"></a><span class="sd">    - Lookup dictionary cache usage is counted separately</span>
+<a id="__codelineno-0-957" name="__codelineno-0-957"></a><span class="sd">    - Total includes all loaded DataFrames but not lookup dictionaries</span>
+<a id="__codelineno-0-958" name="__codelineno-0-958"></a>
+<a id="__codelineno-0-959" name="__codelineno-0-959"></a><span class="sd">    """</span>
+<a id="__codelineno-0-960" name="__codelineno-0-960"></a>    <span class="n">usage</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-0-961" name="__codelineno-0-961"></a>    <span class="n">total_bytes</span> <span class="o">=</span> <span class="mi">0</span>
+<a id="__codelineno-0-962" name="__codelineno-0-962"></a>
+<a id="__codelineno-0-963" name="__codelineno-0-963"></a>    <span class="n">datasets</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-0-964" name="__codelineno-0-964"></a>        <span class="s2">"states"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__states</span><span class="p">,</span>
+<a id="__codelineno-0-965" name="__codelineno-0-965"></a>        <span class="s2">"ca_counties"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__ca_counties</span><span class="p">,</span>
+<a id="__codelineno-0-966" name="__codelineno-0-966"></a>        <span class="s2">"ca_watersheds"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__ca_watersheds</span><span class="p">,</span>
+<a id="__codelineno-0-967" name="__codelineno-0-967"></a>        <span class="s2">"ca_utilities"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__ca_utilities</span><span class="p">,</span>
+<a id="__codelineno-0-968" name="__codelineno-0-968"></a>        <span class="s2">"ca_forecast_zones"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__ca_forecast_zones</span><span class="p">,</span>
+<a id="__codelineno-0-969" name="__codelineno-0-969"></a>        <span class="s2">"ca_electric_balancing_areas"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__ca_electric_balancing_areas</span><span class="p">,</span>
+<a id="__codelineno-0-970" name="__codelineno-0-970"></a>        <span class="s2">"ca_census_tracts"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__ca_census_tracts</span><span class="p">,</span>
+<a id="__codelineno-0-971" name="__codelineno-0-971"></a>        <span class="s2">"tribal_areas"</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"_Boundaries__tribal_areas"</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+<a id="__codelineno-0-972" name="__codelineno-0-972"></a>    <span class="p">}</span>
+<a id="__codelineno-0-973" name="__codelineno-0-973"></a>
+<a id="__codelineno-0-974" name="__codelineno-0-974"></a>    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">df</span> <span class="ow">in</span> <span class="n">datasets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-0-975" name="__codelineno-0-975"></a>        <span class="k">if</span> <span class="n">df</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-976" name="__codelineno-0-976"></a>            <span class="n">memory_bytes</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">memory_usage</span><span class="p">(</span><span class="n">deep</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<a id="__codelineno-0-977" name="__codelineno-0-977"></a>            <span class="n">usage</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">memory_bytes</span>
+<a id="__codelineno-0-978" name="__codelineno-0-978"></a>            <span class="n">total_bytes</span> <span class="o">+=</span> <span class="n">memory_bytes</span>
+<a id="__codelineno-0-979" name="__codelineno-0-979"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-980" name="__codelineno-0-980"></a>            <span class="n">usage</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+<a id="__codelineno-0-981" name="__codelineno-0-981"></a>
+<a id="__codelineno-0-982" name="__codelineno-0-982"></a>    <span class="n">usage</span><span class="p">[</span><span class="s2">"total_bytes"</span><span class="p">]</span> <span class="o">=</span> <span class="n">total_bytes</span>
+<a id="__codelineno-0-983" name="__codelineno-0-983"></a>    <span class="n">usage</span><span class="p">[</span><span class="s2">"total_human"</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_bytes</span><span class="p">(</span><span class="n">total_bytes</span><span class="p">)</span>
+<a id="__codelineno-0-984" name="__codelineno-0-984"></a>    <span class="n">usage</span><span class="p">[</span><span class="s2">"loaded_datasets"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
+<a id="__codelineno-0-985" name="__codelineno-0-985"></a>        <span class="p">[</span><span class="n">df</span> <span class="k">for</span> <span class="n">df</span> <span class="ow">in</span> <span class="n">datasets</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="n">df</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+<a id="__codelineno-0-986" name="__codelineno-0-986"></a>    <span class="p">)</span>
+<a id="__codelineno-0-987" name="__codelineno-0-987"></a>    <span class="n">usage</span><span class="p">[</span><span class="s2">"cached_lookups"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lookup_cache</span><span class="p">)</span>
+<a id="__codelineno-0-988" name="__codelineno-0-988"></a>
+<a id="__codelineno-0-989" name="__codelineno-0-989"></a>    <span class="k">return</span> <span class="n">usage</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
