@@ -256,7 +256,7 @@ class ConvertToLocalTime(DataProcessor):
             lat = obj.lat[0]
             lon = obj.lon[0]
         elif obj.lat.ndim < 2:
-            if (len(obj.lat.values) > 1) or (len(obj.lon.values) > 1):
+            if (obj.lat.values.size > 1) or (obj.lon.values.size > 1):
                 lat = float((obj.lat[0] + obj.lat[-1]) / 2)
                 lon = float((obj.lon[0] + obj.lon[-1]) / 2)
             else:
