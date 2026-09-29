@@ -37,7 +37,8 @@ data = (cd
             "stations": ["KSAC", "ASOSAWOS_69007093217"]
         }
     })
-    .get())
+    .get()
+)
 ```
 
 ## How Bias Adjustment Works
