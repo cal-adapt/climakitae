@@ -88,6 +88,94 @@ class TestMetricCalcProcessorInit:
         assert processor.skipna == value["skipna"]
 
 
+class TestOneInXRollingAgg:
+    """Unit tests for the `rolling_agg` option on one_in_x (1-in-X) configs."""
+
+    def test_default_rolling_agg_is_sustained(self):
+        """rolling_agg defaults to 'sustained' when not specified."""
+        processor = MetricCalc(value={"one_in_x": {"return_periods": [10, 25]}})
+        assert processor.rolling_agg == "sustained"
+
+    def test_custom_rolling_agg_cumulative(self):
+        """rolling_agg='cumulative' is picked up from the one_in_x config."""
+        processor = MetricCalc(
+            value={
+                "one_in_x": {
+                    "return_periods": [10, 25],
+                    "rolling_agg": "cumulative",
+                }
+            }
+        )
+        assert processor.rolling_agg == "cumulative"
+
+    def test_custom_rolling_agg_average(self):
+        """rolling_agg='average' is picked up from the one_in_x config."""
+        processor = MetricCalc(
+            value={
+                "one_in_x": {
+                    "return_periods": [10, 25],
+                    "rolling_agg": "average",
+                }
+            }
+        )
+        assert processor.rolling_agg == "average"
+
+    def test_invalid_rolling_agg_raises(self):
+        """An invalid rolling_agg value raises ValueError at construction time."""
+        with pytest.raises(ValueError, match="invalid rolling_agg"):
+            MetricCalc(
+                value={
+                    "one_in_x": {
+                        "return_periods": [10, 25],
+                        "rolling_agg": "invalid",
+                    }
+                }
+            )
+
+    def test_rolling_agg_passed_to_block_maxima_kwargs(self):
+        """_calculate_one_in_x_vectorized must thread rolling_agg through to
+        the _get_block_maxima_optimized kwargs, since that's what actually
+        applies the cumulative/average/sustained aggregation.
+        """
+        processor = MetricCalc(
+            value={
+                "one_in_x": {
+                    "return_periods": [10, 25],
+                    "rolling_agg": "cumulative",
+                    "check_ess": False,
+                }
+            }
+        )
+
+        captured_kwargs = {}
+        original = processor._process_simulation_batch
+
+        def _capture(batch_data, block_maxima_kwargs, *args, **kwargs):
+            captured_kwargs.update(block_maxima_kwargs)
+            return original(batch_data, block_maxima_kwargs, *args, **kwargs)
+
+        with patch.object(processor, "_process_simulation_batch", side_effect=_capture):
+            data = xr.DataArray(
+                np.random.rand(3, 365 * 5),
+                dims=["sim", "time"],
+                coords={
+                    "sim": ["a", "b", "c"],
+                    "time": xr.date_range("2000-01-01", periods=365 * 5, freq="D"),
+                },
+                attrs={"frequency": "daily"},
+                name="pr",
+            )
+            try:
+                processor._calculate_one_in_x_vectorized(data)
+            except Exception:
+                # Distribution fitting on random data may fail/warn; we only
+                # care that the block-maxima kwargs were built correctly
+                # before that point.
+                pass
+
+        assert captured_kwargs.get("rolling_agg") == "cumulative"
+
+
 class TestMetricCalcCalculateMetricsSingle:
     """Unit tests for the MetricCalc processor's calculate_metrics method (single metric)."""
 

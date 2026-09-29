@@ -65,18 +65,22 @@ NON_WRF_BA_MODELS = [
     "WRF_ENSMEAN_r11i1p1f1",
 ]
 
-# WRF models that do not reach 0.8°C GWL
-WRF_NO_0PT8_GWL_MODELS = ["WRF_EC-Earth3-Veg_r1i1p1f1_historical+ssp370"]
+# WRF/LOCA models that do not reach 0.8°C GWL. Formatted as
+# "{activity_id}_{institution_id}_{source_id}_{experiment_id}_{member_id}"
+# (lowercase, "_"-joined) to match new_core's Concat processor `sim` coordinate
+# naming (see climakitae/new_core/processors/concatenate.py:_execute_gridded_concat),
+# which is what climakitae.explore.vulnerability._filter_hist_gwl_models matches
+# these against.
+WRF_NO_0PT8_GWL_MODELS = ["wrf_ucla_ec-earth3-veg_ssp370_r1i1p1f1"]
 
-# LOCA models that do not reach 0.8°C GWL
 LOCA_NO_0PT8_GWL_MODELS = [
-    "LOCA2_EC-Earth3_r4i1p1f1_historical+ssp245",
-    "LOCA2_EC-Earth3_r4i1p1f1_historical+ssp370",
-    "LOCA2_EC-Earth3_r4i1p1f1_historical+ssp585",
-    "LOCA2_EC-Earth3-Veg_r3i1p1f1_historical+ssp245",
-    "LOCA2_EC-Earth3-Veg_r3i1p1f1_historical+ssp370",
-    "LOCA2_EC-Earth3-Veg_r3i1p1f1_historical+ssp585",
-    "LOCA2_EC-Earth3-Veg_r5i1p1f1_historical+ssp245",
+    "loca2_ucsd_ec-earth3_ssp245_r4i1p1f1",
+    "loca2_ucsd_ec-earth3_ssp370_r4i1p1f1",
+    "loca2_ucsd_ec-earth3_ssp585_r4i1p1f1",
+    "loca2_ucsd_ec-earth3-veg_ssp245_r3i1p1f1",
+    "loca2_ucsd_ec-earth3-veg_ssp370_r3i1p1f1",
+    "loca2_ucsd_ec-earth3-veg_ssp585_r3i1p1f1",
+    "loca2_ucsd_ec-earth3-veg_ssp245_r5i1p1f1",
 ]
 
 # Constant Keys for User Interface
