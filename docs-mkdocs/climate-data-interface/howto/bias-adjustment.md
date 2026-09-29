@@ -2,6 +2,7 @@
 
 Use historical weather station observations to correct WRF model bias locally. Historical weather station data has gone through quality assurance (QA) and quality control (QC) protocols. More details about the data itself can be found at the [**Historical Data Platform (HDP)**](https://github.com/Eagle-Rock-Analytics/historical-obs-platform) repository.
 
+
 ## Basic Localization
 
 ```python
@@ -33,7 +34,7 @@ DataCatalog().hdp.df[["network_id", "station_id"]]
 data = (cd
     .processes({
         "bias_adjust_model_to_station": {
-            "stations": ["KSAC"]
+            "stations": ["KSAC", "ASOSAWOS_69007093217"]
         }
     })
     .get())
