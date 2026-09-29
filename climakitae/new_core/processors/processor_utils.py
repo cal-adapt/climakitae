@@ -1317,14 +1317,21 @@ def resolve_hdp_stations(station_identifiers: list, hdp_df) -> tuple:
     return station_ids, all_networks
 
 
-def resolve_airport_code_to_hdp_station_id(identifier: str, stations_df) -> str:
+def resolve_airport_code_to_hdp_station_id(
+    identifier: str, stations_df, hdp_df=None
+) -> str:
     """Translate a legacy airport code/name into its HDP ASOSAWOS `station_id`.
 
     HDP's numeric `station_id` suffix for the `ASOSAWOS` network is the same
     USAF/WBAN identifier used by the legacy HadISD station lookup table
     (`catalog["stations"]`), so that table still doubles as an airport-code
     lookup for ASOS stations, e.g. "KSAC" or "Sacramento (KSAC)" resolves to
-    "ASOSAWOS_72483023225".
+    "ASOSAWOS_72483023232".
+
+    Some legacy stations (those with a placeholder WBAN of 99999) are not in
+    HDP's ASOSAWOS network but are in OtherISD under the same numeric id.
+    When `hdp_df` is provided and the ASOSAWOS id isn't in it, the OtherISD
+    id is returned instead if it exists.
 
     Only strings that look like a legacy airport code/name (per
     `is_station_identifier`) are translated; anything else (an already-formed
@@ -1338,6 +1345,9 @@ def resolve_airport_code_to_hdp_station_id(identifier: str, stations_df) -> str:
     stations_df : pd.DataFrame
         The legacy HadISD station lookup table (`catalog["stations"]`), with
         `ID`, `station`, and `station id` columns.
+    hdp_df : pd.DataFrame, optional
+        The HDP catalog dataframe (e.g. `DataCatalog().hdp.df`), with a
+        `station_id` column. Used to fall back to the OtherISD network.
 
     Returns
     -------
@@ -1353,7 +1363,7 @@ def resolve_airport_code_to_hdp_station_id(identifier: str, stations_df) -> str:
     Examples
     --------
     >>> resolve_airport_code_to_hdp_station_id("KSAC", stations_df)
-    'ASOSAWOS_72483023225'
+    'ASOSAWOS_72483023232'
     >>> resolve_airport_code_to_hdp_station_id("ASOSAWOS_69007093217", stations_df)
     'ASOSAWOS_69007093217'
     """
@@ -1379,4 +1389,11 @@ def resolve_airport_code_to_hdp_station_id(identifier: str, stations_df) -> str:
     if numeric_id is None or (isinstance(numeric_id, float) and pd.isna(numeric_id)):
         return identifier
 
-    return f"ASOSAWOS_{numeric_id}"
+    asos_id = f"ASOSAWOS_{numeric_id}"
+    if hdp_df is not None:
+        hdp_station_ids = set(hdp_df["station_id"])
+        other_isd_id = f"OtherISD_{numeric_id}"
+        if asos_id not in hdp_station_ids and other_isd_id in hdp_station_ids:
+            return other_isd_id
+
+    return asos_id

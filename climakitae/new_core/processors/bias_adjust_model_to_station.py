@@ -85,6 +85,10 @@ _VARIABLE_ID_TO_HDP_VARIABLE = {"t2": "tas", "dew_point": "tdps"}
 # names to look for in a station's dataset, in priority order.
 _HDP_VARIABLE_ALIASES = {"tdps": ["tdps", "tdps_derived"]}
 
+# Unit labels HDP networks use for Kelvin (most use 'degree_Kelvin'; some,
+# e.g. CW3E's 'tdps_derived', use 'K').
+_KELVIN_UNITS = {"degree_Kelvin", "K"}
+
 # Spelled-out reminder of what "QDM" means, for the one user-facing
 # (INFO-level) log line that announces a bias adjustment run.
 _QDM_LOG_REFERENCE = (
@@ -233,7 +237,7 @@ class BiasAdjustModelToStation(DataProcessor):
         This method prepares a single station's raw HDP dataset by:
         - Reading the station_id from the 'station' dimension coordinate
         - Looking up station name from metadata
-        - Renaming data variable to station name
+        - Renaming data variable to the station_id
         - Converting temperature to Kelvin
         - Adding descriptive attributes (coordinates, elevation)
         - Dropping the station dimension
@@ -251,8 +255,8 @@ class BiasAdjustModelToStation(DataProcessor):
         Returns
         -------
         xr.Dataset
-            Preprocessed station dataset with the display name as its
-            only data variable.
+            Preprocessed station dataset with the station_id as its only
+            data variable (display name kept in its 'station_name' attr).
 
         Raises
         ------
@@ -283,10 +287,9 @@ class BiasAdjustModelToStation(DataProcessor):
 
         # Validate/normalize units to Kelvin. HDP data is expected to
         # already be in Kelvin, but convert if a network reports Celsius.
-        if ds[source_variable].attrs.get("units") != "degree_Kelvin":
+        if ds[source_variable].attrs.get("units") not in _KELVIN_UNITS:
             logger.warning(
-                "HDP station '%s' %s units are '%s', expected 'degree_Kelvin'; "
-                "converting.",
+                "HDP station '%s' %s units are '%s', expected Kelvin; converting.",
                 station_id,
                 source_variable,
                 ds[source_variable].attrs.get("units"),
@@ -302,12 +305,14 @@ class BiasAdjustModelToStation(DataProcessor):
         elevation = float(ds["elevation"].isel(time=0).values.item())
         elevation_units = ds["elevation"].attrs.get("units", "m")
 
-        # Rename data variable to the station display name
-        ds = ds.rename({source_variable: display_name})
+        # Rename data variable to the station_id, which is unique across HDP
+        # (display names are not guaranteed to be)
+        ds = ds.rename({source_variable: station_id})
 
         # Assign descriptive attributes to the data variable
-        ds[display_name] = ds[display_name].assign_attrs(
+        ds[station_id] = ds[station_id].assign_attrs(
             {
+                "station_name": display_name,
                 "coordinates": (lat, lon),
                 "elevation": f"{elevation} {elevation_units}",
                 "units": "K",
@@ -315,7 +320,7 @@ class BiasAdjustModelToStation(DataProcessor):
         )
 
         # Drop the station dimension (single station per file)
-        ds = ds.squeeze("station", drop=True)[[display_name]]
+        ds = ds.squeeze("station", drop=True)[[station_id]]
 
         return ds
 
@@ -385,7 +390,9 @@ class BiasAdjustModelToStation(DataProcessor):
         if any(is_station_identifier(s) for s in self.stations):
             legacy_stations_df = self.catalog["stations"]
             station_identifiers = [
-                resolve_airport_code_to_hdp_station_id(s, legacy_stations_df)
+                resolve_airport_code_to_hdp_station_id(
+                    s, legacy_stations_df, hdp_catalog.df
+                )
                 for s in self.stations
             ]
         else:
@@ -743,6 +750,7 @@ class BiasAdjustModelToStation(DataProcessor):
             station_metadata[station_name] = {
                 "coordinates": (station_lat, station_lon),
                 "elevation": station_da.attrs.get("elevation", "N/A"),
+                "station_name": station_da.attrs.get("station_name", station_name),
             }
 
             # Extract model data
@@ -825,10 +833,17 @@ class BiasAdjustModelToStation(DataProcessor):
                 "station",
                 [station_metadata[s]["elevation"] for s in station_names],
             ),
+            station_name=(
+                "station",
+                [station_metadata[s]["station_name"] for s in station_names],
+            ),
         )
         output_da["station"].attrs = {
             "standard_name": "Historical Data Platform (HDP) weather station identifier",
             "units": "",
+        }
+        output_da["station_name"].attrs = {
+            "long_name": "Historical Data Platform (HDP) weather station name",
         }
         output_da["lat"].attrs["units"] = "degrees_north"
         output_da["lon"].attrs["units"] = "degrees_east"

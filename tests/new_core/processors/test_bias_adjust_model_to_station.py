@@ -76,14 +76,15 @@ class TestPreprocessHDP:
 
         out = proc._preprocess_hdp(ds)
 
-        # After preprocessing, station display name should be the only data var
-        assert "TEST STATION" in out.data_vars
-        assert list(out.data_vars) == ["TEST STATION"]
+        # After preprocessing, the station_id should be the only data var,
+        # with the display name kept as an attr
+        assert list(out.data_vars) == ["ASOSAWOS_1234"]
+        assert out["ASOSAWOS_1234"].attrs.get("station_name") == "TEST STATION"
         # Units should already be Kelvin (no conversion needed)
-        assert out["TEST STATION"].attrs.get("units") == "K"
+        assert out["ASOSAWOS_1234"].attrs.get("units") == "K"
         # Coordinates and elevation attributes set
-        assert out["TEST STATION"].attrs.get("coordinates") == (38.5, -121.5)
-        assert "m" in str(out["TEST STATION"].attrs.get("elevation", ""))
+        assert out["ASOSAWOS_1234"].attrs.get("coordinates") == (38.5, -121.5)
+        assert "m" in str(out["ASOSAWOS_1234"].attrs.get("elevation", ""))
         # Station dimension and all other variables dropped
         assert "station" not in out.dims
         assert "lat" not in out.variables
@@ -99,6 +100,7 @@ class TestPreprocessHDP:
         out = proc._preprocess_hdp(ds)
 
         assert "NDBC_9999" in out.data_vars
+        assert out["NDBC_9999"].attrs.get("station_name") == "NDBC_9999"
 
     def test_preprocess_hdp_converts_non_kelvin_units(self):
         """Test that non-Kelvin tas units are converted defensively."""
@@ -109,8 +111,18 @@ class TestPreprocessHDP:
 
         out = proc._preprocess_hdp(ds)
 
-        assert out["TEST STATION"].values[0] == pytest.approx(283.15)
-        assert out["TEST STATION"].attrs.get("units") == "K"
+        assert out["ASOSAWOS_1234"].values[0] == pytest.approx(283.15)
+        assert out["ASOSAWOS_1234"].attrs.get("units") == "K"
+
+    def test_preprocess_hdp_k_units_not_converted(self):
+        """Test that data labeled 'K' (e.g. CW3E tdps_derived) is treated as Kelvin."""
+        proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
+        ds = self._build_raw_hdp_dataset()
+        ds["tas"].attrs["units"] = "K"
+
+        out = proc._preprocess_hdp(ds)
+
+        assert out["ASOSAWOS_1234"].values[0] == pytest.approx(283.15)
 
     def test_preprocess_hdp_missing_tas_raises(self):
         """Test that a station without a 'tas' variable raises ValueError."""
@@ -143,8 +155,8 @@ class TestPreprocessHDP:
 
         out = proc._preprocess_hdp(ds, hdp_variable="tdps")
 
-        assert list(out.data_vars) == ["TEST STATION"]
-        assert out["TEST STATION"].attrs.get("units") == "K"
+        assert list(out.data_vars) == ["ASOSAWOS_1234"]
+        assert out["ASOSAWOS_1234"].attrs.get("units") == "K"
 
     def test_preprocess_hdp_tdps_derived_fallback(self):
         """Test that 'tdps_derived' is used when 'tdps' is not available."""
@@ -165,8 +177,8 @@ class TestPreprocessHDP:
 
         out = proc._preprocess_hdp(ds, hdp_variable="tdps")
 
-        assert list(out.data_vars) == ["TEST STATION"]
-        assert out["TEST STATION"].attrs.get("units") == "K"
+        assert list(out.data_vars) == ["CIMIS_1234"]
+        assert out["CIMIS_1234"].attrs.get("units") == "K"
 
 
 class TestResolveHDPVariable:
@@ -236,7 +248,7 @@ class TestLoadHDPStationData:
         station_ds = proc._load_station_data()
 
         assert isinstance(station_ds, xr.Dataset)
-        assert "TEST STATION" in station_ds.data_vars
+        assert "ASOSAWOS_1234" in station_ds.data_vars
         mock_hdp_catalog.search.assert_called_once_with(station_id=["ASOSAWOS_1234"])
 
     def test_load_station_data_missing_station_raises(self):
@@ -283,8 +295,8 @@ class TestLoadHDPStationData:
         station_ds = proc._load_station_data()
 
         assert isinstance(station_ds, xr.Dataset)
-        assert "STATION ONE" in station_ds.data_vars
-        assert "STATION TWO" in station_ds.data_vars
+        assert "ASOSAWOS_1" in station_ds.data_vars
+        assert "SNOTEL_1" in station_ds.data_vars
 
     def test_load_station_data_translates_airport_code(self):
         """Test that a legacy airport code is translated to its HDP station_id."""
@@ -958,6 +970,7 @@ class TestBiasCorrectUnitsPreservation:
                 "units": "K",
                 "coordinates": (38.5816, -121.4944),
                 "elevation": "10 m",
+                "station_name": "SACRAMENTO EXECUTIVE AIRPORT",
             },
         )
         station_ds = xr.Dataset({"KSAC": station_da})
@@ -988,6 +1001,9 @@ class TestBiasCorrectUnitsPreservation:
         assert result["lat"].values[station_idx] == pytest.approx(38.5816)
         assert result["lon"].values[station_idx] == pytest.approx(-121.4944)
         assert result["elevation"].values[station_idx] == "10 m"
+        assert (
+            result["station_name"].values[station_idx] == "SACRAMENTO EXECUTIVE AIRPORT"
+        )
         assert "units" in result["t2"].attrs
 
     @patch(

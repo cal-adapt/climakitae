@@ -178,13 +178,19 @@ class TestValidateStations:
         """Set up test fixtures."""
         self.mock_station_metadata = pd.DataFrame(
             {
-                "network_id": ["ASOSAWOS", "ASOSAWOS", "ASOSAWOS", "SNOTEL", "CDEC"],
+                "network_id": [
+                    "ASOSAWOS",
+                    "ASOSAWOS",
+                    "ASOSAWOS",
+                    "SNOTEL",
+                    "VALLEYWATER",
+                ],
                 "station_id": [
                     "ASOSAWOS_72483023225",
                     "ASOSAWOS_72494023234",
                     "ASOSAWOS_72273003124",
                     "SNOTEL_1000",
-                    "CDEC_BLB",
+                    "VALLEYWATER_BLB",
                 ],
             }
         )
@@ -277,7 +283,7 @@ class TestValidateStations:
         mock_get_metadata.return_value = self.mock_station_metadata
 
         with pytest.warns(UserWarning, match="do not provide 'tas'"):
-            result = _validate_stations(["CDEC_BLB"], {"variable_id": "t2"})
+            result = _validate_stations(["VALLEYWATER_BLB"], {"variable_id": "t2"})
         assert result is False
 
     @patch(
@@ -315,7 +321,7 @@ class TestValidateStations:
 
         with pytest.warns(UserWarning, match="do not provide 'tas'"):
             result = _validate_stations(
-                ["ASOSAWOS_72483023225", "CDEC_BLB"], {"variable_id": "t2"}
+                ["ASOSAWOS_72483023225", "VALLEYWATER_BLB"], {"variable_id": "t2"}
             )
         assert result is False
 
@@ -326,8 +332,8 @@ class TestValidateStations:
         """Test that omitting query skips the network/variable compatibility check."""
         mock_get_metadata.return_value = self.mock_station_metadata
 
-        assert _validate_stations(["CDEC_BLB"]) is True
-        assert _validate_stations(["CDEC_BLB"], {}) is True
+        assert _validate_stations(["VALLEYWATER_BLB"]) is True
+        assert _validate_stations(["VALLEYWATER_BLB"], {}) is True
 
     @patch(
         "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_airport_code_lookup_table"

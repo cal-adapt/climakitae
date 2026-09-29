@@ -35,6 +35,7 @@ from climakitae.new_core.processors.processor_utils import (
     _set_block_maxima_attributes,
     extend_time_domain,
     find_station_match,
+    resolve_airport_code_to_hdp_station_id,
 )
 
 
@@ -1590,3 +1591,49 @@ class TestFindStationMatch:
         match = find_station_match("   ", self.stations_df)
 
         assert len(match) == 0
+
+
+class TestResolveAirportCodeToHDPStationId:
+    """Tests for resolve_airport_code_to_hdp_station_id."""
+
+    def setup_method(self):
+        """Set up a legacy lookup table and HDP catalog dataframe."""
+        self.stations_df = pd.DataFrame(
+            {
+                "ID": ["KSAC", "KPSP"],
+                "station": ["Sacramento (KSAC)", "Palm Springs (KPSP)"],
+                "station id": [72483023232, 72286899999],
+            }
+        )
+        self.hdp_df = pd.DataFrame(
+            {
+                "network_id": ["ASOSAWOS", "OtherISD"],
+                "station_id": ["ASOSAWOS_72483023232", "OtherISD_72286899999"],
+            }
+        )
+
+    def test_resolves_to_asosawos(self):
+        """Test an airport code in ASOSAWOS resolves to its ASOSAWOS id."""
+        result = resolve_airport_code_to_hdp_station_id(
+            "KSAC", self.stations_df, self.hdp_df
+        )
+        assert result == "ASOSAWOS_72483023232"
+
+    def test_falls_back_to_other_isd(self):
+        """Test an airport code missing from ASOSAWOS falls back to OtherISD."""
+        result = resolve_airport_code_to_hdp_station_id(
+            "KPSP", self.stations_df, self.hdp_df
+        )
+        assert result == "OtherISD_72286899999"
+
+    def test_without_hdp_df_returns_asosawos(self):
+        """Test the ASOSAWOS id is returned when no HDP catalog is given."""
+        result = resolve_airport_code_to_hdp_station_id("KPSP", self.stations_df)
+        assert result == "ASOSAWOS_72286899999"
+
+    def test_hdp_station_id_passes_through(self):
+        """Test an HDP station_id is returned unchanged."""
+        result = resolve_airport_code_to_hdp_station_id(
+            "ASOSAWOS_72483023232", self.stations_df, self.hdp_df
+        )
+        assert result == "ASOSAWOS_72483023232"

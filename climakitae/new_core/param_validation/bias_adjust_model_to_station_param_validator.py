@@ -287,11 +287,14 @@ def _validate_stations(stations: Any, query: Dict[str, Any] | None = None) -> bo
     # Translate any legacy airport code / name identifiers (e.g. "KSAC") to
     # their HDP ASOSAWOS station_id equivalent. Only fetch the legacy lookup
     # table if it's actually needed.
+    # Load HDP catalog metadata
+    hdp_df = _get_station_metadata()
+
     if any(is_station_identifier(s) for s in stations):
         legacy_stations_df = _get_airport_code_lookup_table()
         try:
             resolved_stations = [
-                resolve_airport_code_to_hdp_station_id(s, legacy_stations_df)
+                resolve_airport_code_to_hdp_station_id(s, legacy_stations_df, hdp_df)
                 for s in stations
             ]
         except ValueError as e:
@@ -299,9 +302,6 @@ def _validate_stations(stations: Any, query: Dict[str, Any] | None = None) -> bo
             return False
     else:
         resolved_stations = stations
-
-    # Load HDP catalog metadata
-    hdp_df = _get_station_metadata()
 
     try:
         _, network_ids = resolve_hdp_stations(resolved_stations, hdp_df)
