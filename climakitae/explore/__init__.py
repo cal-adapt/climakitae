@@ -1,6 +1,5 @@
-from climakitae.explore.warming import WarmingLevels
+"""Legacy exploratory analysis APIs.
 
-
-def warming_levels():
-    """Top level alias for the WarmingLevels class. Typical way to call class."""
-    return WarmingLevels()
+The top-level ``warming_levels`` convenience alias was removed. Use the
+new-core ``ClimateData`` interface for warming-level data access.
+"""

@@ -56,7 +56,7 @@ flowchart TD
 Basic usage via `ClimateData.processes()`:
 
 \`\`\`python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 data = (ClimateData()
     .catalog("cadcat")

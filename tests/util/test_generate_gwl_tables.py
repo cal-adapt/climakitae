@@ -414,7 +414,7 @@ class TestGWLGenerator:
     def test_build_timeseries_no_historical_data(self, mock_generator: GWLGenerator):
         """
         Test build_timeseries returns empty Dataset if no historical data is found.
-        Tests that lines 236-237 in generate_gwl_tables_unc.py work correctly.
+        Tests the no-historical-data branch in generate_gwl_tables.py.
         """
         # Use an existing model but with a non-existent ensemble member
         model_config = {
@@ -470,13 +470,7 @@ class TestGWLGenerator:
             else:  # scenario paths
                 raise Exception("Simulated scenario data error")
 
-        with (
-            patch("xarray.open_zarr", side_effect=side_effect_open_zarr),
-            patch(
-                "climakitae.util.generate_gwl_tables_unc.make_weighted_timeseries",
-                return_value=historical_array,
-            ),
-        ):
+        with patch("xarray.open_zarr", side_effect=side_effect_open_zarr):
             result = mock_generator.build_timeseries(model_config)
 
             # Should return a Dataset with no data vars since all scenarios failed
@@ -640,7 +634,7 @@ class TestGWLGenerator:
     ):
         """
         Test error handling when reference period selection fails with calendar issues.
-        This covers lines 413-416 in generate_gwl_tables_unc.py.
+        This covers the reference-period error branch in generate_gwl_tables.py.
         """
         model_config = {
             "variable": "tas",
@@ -1149,7 +1143,7 @@ class TestGWLGenerator:
     def test_generate_gwl_file_error_handling(self, mock_generator: GWLGenerator):
         """
         Test error handling in generate_gwl_file method.
-        This covers line 501 in generate_gwl_tables_unc.py.
+        This covers the generate_gwl_file error branch.
         """
         models_list = [TEST_MODEL]
         scenarios_list = ["ssp370"]
@@ -1193,7 +1187,7 @@ class TestGWLGenerator:
     ):
         """
         Test specific CSV writing error in generate_gwl_file.
-        This covers lines 532-534 in generate_gwl_tables_unc.py.
+        This covers the CSV writing error branch.
         """
         models_list = [TEST_MODEL]
         scenarios_list = ["ssp370"]
@@ -1365,7 +1359,7 @@ class TestMainGWLGenerator:
     ):
         """
         Test edge case error in main function where the catalog fails to load.
-        This covers line 673 in generate_gwl_tables_unc.py.
+        This covers the catalog-load error branch in generate_gwl_tables.py.
         """
         # When the CSV load raises a specific exception (IOError)
         mock_read_csv.side_effect = IOError("Failed to connect to S3")

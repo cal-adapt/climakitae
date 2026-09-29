@@ -3,7 +3,7 @@
 The **`ClimateData` interface** is the primary, actively developed interface for `climakitae`. It exposes a fluent / builder API rooted in the `ClimateData` class and a registry-based processor pipeline.
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 data = (ClimateData()
     .catalog("cadcat")

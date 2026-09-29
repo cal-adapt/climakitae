@@ -1522,12 +1522,12 @@ def convert_to_local_time(
 
 
 def add_dummy_time_to_wl(wl_da: xr.DataArray, freq_name="daily") -> xr.DataArray:
-    """Replace the [hours/days/months]_from_center or time_delta dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a time dimension.
+    """Replace the [hours/days/months]_from_center or time_delta dimension in a DataArray returned from a warming-level query with a dummy time index for calculations with tools that require a time dimension.
 
     Parameters
     ----------
     wl_da : xr.DataArray
-        The input Warming Levels DataArray. It is expected to have a time-based dimension which typically includes "from_center"
+        The input warming-level DataArray. It is expected to have a time-based dimension which typically includes "from_center"
         in its name or time_delta indicating the time dimension in relation to the year that the given warming level is reached per simulation.
     freq_name : str, optional
         The frequency name to use when time_delta is the time dimension. Options are "hourly", "daily", or "monthly". Default is "daily".

@@ -71,7 +71,7 @@ Pairs registered in `UNIT_CONVERSIONS` (see source for the full table):
 ### Temperature: Kelvin → Fahrenheit
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 data = (ClimateData()
     .catalog("cadcat")

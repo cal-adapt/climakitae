@@ -27,7 +27,7 @@ the [Installation Guide on the wiki](https://github.com/cal-adapt/climakitae/wik
 Import and create a `ClimateData` instance:
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 import matplotlib.pyplot as plt
 
 # Initialize the climate data interface
