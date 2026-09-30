@@ -640,14 +640,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../howto/bias-correction.md" class="md-nav__link">
+      <a href="../howto/bias-adjustment/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Bias Correction
+    Bias Adjustment
   
 
     
@@ -3324,7 +3324,8 @@ the ClimateData interface, start with <a href="../concepts/">Core Concepts</a> o
 <p><strong>Key Property: Catalog Mapping</strong>
 - <code>cadcat</code> → main climate data (LOCA2, WRF)
 - <code>renewable energy generation</code> → wind/solar capacity factors
-- <code>hdp</code> → historical data platform (weather stations)</p>
+- <code>hdp</code> → historical data platform (weather stations)
+- <code>sup3rcc</code> → NLR Sup3rCC climate-model data</p>
 <hr />
 <h3 id="3-dataset-pipeline-executor">3. Dataset (Pipeline Executor)</h3>
 <p><strong>File</strong>: <code>climakitae/new_core/dataset.py</code> (~380 lines)</p>
@@ -3378,8 +3379,9 @@ the ClimateData interface, start with <a href="../concepts/">Core Concepts</a> o
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">catalog</span><span class="o">.</span><span class="n">boundary</span>    <span class="c1"># intake for geographic boundaries</span>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">catalog</span><span class="o">.</span><span class="n">renewables</span>  <span class="c1"># intake_esm for renewable energy</span>
 <a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">catalog</span><span class="o">.</span><span class="n">hdp</span>         <span class="c1"># intake_esm for historical data platform</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">catalog</span><span class="o">.</span><span class="n">catalog_df</span>  <span class="c1"># Merged DataFrame of all ESM catalogs</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">catalog</span><span class="o">.</span><span class="n">boundaries</span>  <span class="c1"># Lazy-loading Boundaries manager</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">catalog</span><span class="o">.</span><span class="n">sup3rcc</span>     <span class="c1"># intake_esm for Sup3rCC climate-model data</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">catalog</span><span class="o">.</span><span class="n">catalog_df</span>  <span class="c1"># Merged DataFrame of all ESM catalogs</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="n">catalog</span><span class="o">.</span><span class="n">boundaries</span>  <span class="c1"># Lazy-loading Boundaries manager</span>
 </code></pre></div></p>
 <p><strong>Key Methods</strong>:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Get data with explicit catalog key (thread-safe)</span>
