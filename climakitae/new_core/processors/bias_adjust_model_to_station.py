@@ -82,17 +82,12 @@ logger = logging.getLogger(__name__)
 # own list.
 _VARIABLE_REGISTRY = {
     "t2": {
-        # WRF's native 2m temperature, matched to HDP's 'tas'.
         "hdp_variable": "tas",
         "hdp_aliases": ["tas"],
         "standard_name": "air_temperature",
         "long_name": "Bias-Adjusted Air Temperature at 2m",
     },
     "dew_point": {
-        # WRF's native dewpoint, matched to HDP's 'tdps'. Some HDP networks
-        # report dewpoint under a different variable name (e.g. a derived
-        # 'tdps_derived' instead of a directly-observed 'tdps'); aliases are
-        # tried in priority order.
         "hdp_variable": "tdps",
         "hdp_aliases": ["tdps", "tdps_derived"],
         "standard_name": "dew_point_temperature",
