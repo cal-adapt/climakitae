@@ -16,6 +16,7 @@ Key Components
 - ``ParameterValidator``: Abstract base class for catalog validators
 - ``DataValidator``: Validator for the main cadcat catalog
 - ``RenewablesValidator``: Validator for renewable energy data
+- ``Sup3rCCValidator``: Validator for Sup3rCC data
 
 See Also
 --------
@@ -39,6 +40,7 @@ from .filter_unadjusted_models_param_validator import (
 from .hdp_param_validator import HDPValidator
 from .metric_calc_param_validator import validate_metric_calc_param
 from .renewables_param_validator import RenewablesValidator
+from .sup3rcc_param_validator import Sup3rCCValidator
 from .time_slice_param_validator import validate_time_slice_param
 from .update_attributes_param_validator import validate_update_attributes_param
 from .warming_param_validator import validate_warming_level_param
@@ -46,6 +48,7 @@ from .warming_param_validator import validate_warming_level_param
 __all__ = [
     "DataValidator",
     "RenewablesValidator",
+    "Sup3rCCValidator",
     "validate_bias_correction_station_data_param",
     "validate_clip_param",
     "validate_concat_param",
