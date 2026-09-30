@@ -88,6 +88,7 @@ CATALOG_CADCAT = "cadcat"
 CATALOG_REN_ENERGY_GEN = "renewable energy generation"
 CATALOG_BOUNDARY = "boundary"
 CATALOG_HDP = "hdp"
+CATALOG_SUP3RCC = "sup3rcc"
 
 # HDP networks known to provide temperature ('tas') observations.
 HAS_TAS_NETWORKS = [

@@ -23,9 +23,13 @@ DataCatalog
 """
 
 import difflib
+import json
 import logging
 import threading
 from typing import Any, Dict, Optional
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
+from urllib.request import urlopen
 
 import dask
 import geopandas as gpd
@@ -39,6 +43,7 @@ from climakitae.core.constants import (
     CATALOG_CADCAT,
     CATALOG_HDP,
     CATALOG_REN_ENERGY_GEN,
+    CATALOG_SUP3RCC,
     UNSET,
 )
 
@@ -50,9 +55,10 @@ from climakitae.core.paths import (
     HADISD_STATIONS_URL,
     HDP_CATALOG_URL,
     RENEWABLES_CATALOG_URL,
+    SUP3RCC_CATALOG_URL,
 )
 from climakitae.new_core.data_access.boundaries import Boundaries
-from climakitae.util.utils import read_csv_file, add_crs_to_downscaled_data
+from climakitae.util.utils import add_crs_to_downscaled_data, read_csv_file
 
 
 class DataCatalog(dict):
@@ -119,6 +125,59 @@ class DataCatalog(dict):
 
     """
 
+    @staticmethod
+    def _load_esm_catalog_with_compatible_s3_url(
+        catalog_url: str, *, registry: Optional[Any] = None
+    ) -> intake_esm.core.esm_datastore:
+        """Open an ESM catalog while normalizing S3-based catalog_file URLs.
+
+        intake-esm does not reliably handle the public Sup3rCC JSON when the
+        embedded ``catalog_file`` is a raw ``s3://`` URI. Normalize that value to
+        the corresponding public HTTPS URL and build the intake catalog from a
+        dict that includes both the catalog metadata and the CSV dataframe.
+
+        Parameters
+        ----------
+        catalog_url : str
+            URL to the ESM catalog JSON.
+        registry : Any, optional
+            Derived-variable registry to attach to the catalog.
+
+        Returns
+        -------
+        intake_esm.core.esm_datastore
+            The loaded ESM datastore.
+
+        """
+        try:
+            return intake.open_esm_datastore(catalog_url, registry=registry)
+        except (HTTPError, OSError, ValueError, URLError) as exc:
+            if "sup3rcc" not in catalog_url.lower():
+                raise
+
+            try:
+                with urlopen(catalog_url) as response:
+                    catalog_json = json.loads(response.read().decode("utf-8"))
+            except Exception:
+                raise exc
+
+            catalog_file = catalog_json.get("catalog_file")
+            if catalog_file is None:
+                raise exc
+
+            parsed = urlparse(catalog_file)
+            if parsed.scheme != "s3":
+                raise exc
+
+            catalog_file = f"https://{parsed.netloc}.s3.amazonaws.com{parsed.path}"
+            catalog_json["catalog_file"] = catalog_file
+
+            df = pd.read_csv(catalog_file)
+            return intake.open_esm_datastore(
+                {"esmcat": catalog_json, "df": df},
+                registry=registry,
+            )
+
     _instance = UNSET
     _lock = threading.Lock()
 
@@ -172,6 +231,16 @@ class DataCatalog(dict):
                 DATA_CATALOG_URL, registry=self._derived_registry
             )
             self[CATALOG_BOUNDARY] = intake.open_catalog(BOUNDARY_CATALOG_URL)
+            try:
+                self[CATALOG_SUP3RCC] = self._load_esm_catalog_with_compatible_s3_url(
+                    SUP3RCC_CATALOG_URL, registry=self._derived_registry
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to load Sup3rCC catalog: %s. Sup3rCC data will be unavailable.",
+                    e,
+                )
+                self[CATALOG_SUP3RCC] = None
             try:
                 self[CATALOG_REN_ENERGY_GEN] = intake.open_esm_datastore(
                     RENEWABLES_CATALOG_URL, registry=self._derived_registry
@@ -268,6 +337,23 @@ class DataCatalog(dict):
         return catalog
 
     @property
+    def sup3rcc(self) -> intake_esm.core.esm_datastore:
+        """Access Sup3rCC catalog.
+
+        Returns
+        -------
+        intake_esm.core.esm_datastore
+            The main climate data catalog.
+
+        """
+        catalog = self[CATALOG_SUP3RCC]
+        if catalog is None:
+            raise RuntimeError(
+                "Sup3rCC catalog failed to load during initialization and is unavailable."
+            )
+        return catalog
+
+    @property
     def boundaries(self) -> Boundaries:
         """Access boundaries data with lazy loading (thread-safe).
 
@@ -334,6 +420,10 @@ class DataCatalog(dict):
             hdp_df = self.hdp.df
             hdp_df["catalog"] = CATALOG_HDP
             dfs.append(hdp_df)
+        if self[CATALOG_SUP3RCC] is not None:
+            sup3rcc_df = self.sup3rcc.df
+            sup3rcc_df["catalog"] = CATALOG_SUP3RCC
+            dfs.append(sup3rcc_df)
 
         ret = pd.concat(dfs, ignore_index=True)
 
@@ -658,8 +748,8 @@ class DataCatalog(dict):
             # or from the registry metadata as a fallback.
             try:
                 from climakitae.new_core.derived_variables.registry import (
-                    preserve_spatial_metadata,
                     get_derived_variable_info,
+                    preserve_spatial_metadata,
                 )
 
                 source_vars_from_query = query.get("_source_variables") or []
