@@ -73,21 +73,55 @@ from climakitae.util.utils import get_closest_gridcell
 # Module logger
 logger = logging.getLogger(__name__)
 
-# Maps the gridded model's variable_id to the HDP station variable it should
-# be bias-corrected against: 't2' (WRF's native 2m temperature) is matched
-# to HDP's 'tas', and 'dew_point' (WRF's native dewpoint) is matched to
-# HDP's 'tdps'.
-_VARIABLE_ID_TO_HDP_VARIABLE = {"t2": "tas", "dew_point": "tdps"}
+# Single source of truth for every gridded variable_id this processor
+# supports: how it maps to its HDP station-side counterpart (and any
+# alternate variable names a network may use for that counterpart), and the
+# CF attrs to apply to the bias-adjusted output. Keep this in sync with the
+# param validator's variable-compatibility check, which imports
+# _VARIABLE_ID_TO_HDP_VARIABLE (derived below) rather than hardcoding its
+# own list.
+_VARIABLE_REGISTRY = {
+    "t2": {
+        # WRF's native 2m temperature, matched to HDP's 'tas'.
+        "hdp_variable": "tas",
+        "hdp_aliases": ["tas"],
+        "standard_name": "air_temperature",
+        "long_name": "Bias-Adjusted Air Temperature at 2m",
+    },
+    "dew_point": {
+        # WRF's native dewpoint, matched to HDP's 'tdps'. Some HDP networks
+        # report dewpoint under a different variable name (e.g. a derived
+        # 'tdps_derived' instead of a directly-observed 'tdps'); aliases are
+        # tried in priority order.
+        "hdp_variable": "tdps",
+        "hdp_aliases": ["tdps", "tdps_derived"],
+        "standard_name": "dew_point_temperature",
+        "long_name": "Bias-Adjusted Dewpoint Temperature at 2m",
+    },
+}
 
-# Some HDP networks report dewpoint under a different variable name than
-# 'tdps' (e.g. a derived 'tdps_derived' instead of a directly-observed
-# 'tdps'). This lists, per HDP variable, the acceptable source variable
-# names to look for in a station's dataset, in priority order.
-_HDP_VARIABLE_ALIASES = {"tdps": ["tdps", "tdps_derived"]}
+_VARIABLE_ID_TO_HDP_VARIABLE = {
+    variable_id: meta["hdp_variable"]
+    for variable_id, meta in _VARIABLE_REGISTRY.items()
+}
+_HDP_VARIABLE_ALIASES = {
+    meta["hdp_variable"]: meta["hdp_aliases"]
+    for meta in _VARIABLE_REGISTRY.values()
+    if len(meta["hdp_aliases"]) > 1
+}
+_OUTPUT_VARIABLE_METADATA = {
+    variable_id: {
+        "standard_name": meta["standard_name"],
+        "long_name": meta["long_name"],
+    }
+    for variable_id, meta in _VARIABLE_REGISTRY.items()
+}
 
 # Unit labels HDP networks use for Kelvin (most use 'degree_Kelvin'; some,
-# e.g. CW3E's 'tdps_derived', use 'K').
+# e.g. CW3E's 'tdps_derived', use 'K') and Celsius. Any units label outside
+# both sets is unrecognized and rejected rather than assumed to be Celsius.
 _KELVIN_UNITS = {"degree_Kelvin", "K"}
+_CELSIUS_UNITS = {"degree_Celsius", "degC"}
 
 # Spelled-out reminder of what "QDM" means, for the one user-facing
 # (INFO-level) log line that announces a bias adjustment run.
@@ -95,20 +129,6 @@ _QDM_LOG_REFERENCE = (
     "QDM (Quantile Delta Mapping, see Cal-Adapt Guidance on Bias Adjustment "
     "for more info)"
 )
-
-# Metadata for the output data variable, keyed by the gridded variable_id
-# it retains through bias adjustment (see _bias_adjust_model_data, which
-# names the result after the gridded variable).
-_OUTPUT_VARIABLE_METADATA = {
-    "t2": {
-        "standard_name": "air_temperature",
-        "long_name": "Bias-Adjusted Air Temperature at 2m",
-    },
-    "dew_point": {
-        "standard_name": "dew_point_temperature",
-        "long_name": "Bias-Adjusted Dewpoint Temperature at 2m",
-    },
-}
 
 
 @register_processor("bias_adjust_model_to_station", priority=60)
@@ -287,14 +307,22 @@ class BiasAdjustModelToStation(DataProcessor):
 
         # Validate/normalize units to Kelvin. HDP data is expected to
         # already be in Kelvin, but convert if a network reports Celsius.
-        if ds[source_variable].attrs.get("units") not in _KELVIN_UNITS:
+        # Anything else (Fahrenheit, missing/unrecognized units) is rejected
+        # rather than silently treated as Celsius.
+        units = ds[source_variable].attrs.get("units")
+        if units in _CELSIUS_UNITS:
             logger.warning(
                 "HDP station '%s' %s units are '%s', expected Kelvin; converting.",
                 station_id,
                 source_variable,
-                ds[source_variable].attrs.get("units"),
+                units,
             )
             ds[source_variable] = ds[source_variable] + 273.15
+        elif units not in _KELVIN_UNITS:
+            raise ValueError(
+                f"HDP station '{station_id}' {source_variable} units are "
+                f"'{units}', expected Kelvin or Celsius."
+            )
 
         # Capture coordinates/elevation before renaming/dropping variables.
         # `.values` computes any still-dask-backed data to numpy first
@@ -416,11 +444,9 @@ class BiasAdjustModelToStation(DataProcessor):
             progressbar=False,
         )
 
-        if len(station_datasets) != len(station_ids):
-            found = {
-                str(ds["station"].values.item()) for ds in station_datasets.values()
-            }
-            missing = set(station_ids) - found
+        found = {str(ds["station"].values.item()) for ds in station_datasets.values()}
+        missing = set(station_ids) - found
+        if missing:
             raise ValueError(
                 f"Could not load HDP data for the following station(s): "
                 f"{', '.join(sorted(missing))}."

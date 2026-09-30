@@ -542,8 +542,9 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
     """
     # Station bias adjustment supports WRF's 't2' (2m temperature, matched
     # to HDP's 'tas') and 'dew_point' (WRF's native dewpoint, matched to
-    # HDP's 'tdps').
-    supported_variables = ["t2", "dew_point"]
+    # HDP's 'tdps'). Derived from the processor's variable registry so the
+    # two stay in sync.
+    supported_variables = list(_VARIABLE_ID_TO_HDP_VARIABLE)
 
     variable_id = query.get("variable_id", None)
     if variable_id is None:

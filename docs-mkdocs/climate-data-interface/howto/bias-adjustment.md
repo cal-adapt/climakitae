@@ -6,7 +6,7 @@ Use historical weather station observations to correct WRF model bias locally. H
 ## Basic Localization
 
 ```python
-# ⚠️  Currently WRF + hourly temperature only
+# ⚠️  Currently WRF + hourly temperature or dewpoint only
 data = (cd
     .activity_id("WRF")
     .institution_id("UCLA")      # Specify WRF producer
@@ -52,7 +52,7 @@ data = (cd
 
 **Currently available for:**  
 - ✅ WRF data only (not LOCA2 statistical downscaling)  
-- ✅ Hourly temperature (t2) only  
+- ✅ Hourly temperature (t2) or dewpoint (dew_point)  
 - ✅ HDP weather stations (not every network provides temperature)  
 
 **Why these limitations?**
