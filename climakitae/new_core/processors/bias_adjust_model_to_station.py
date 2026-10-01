@@ -543,25 +543,20 @@ class BiasAdjustModelToStation(DataProcessor):
             gridded_da_historical.shape,
         )
 
-        # Now slice obs data to match the gridded historical data exactly
-        # This handles any edge cases where times don't align perfectly
-        # We need to access values here for slicing, but we can do it efficiently
-        # obs_da is in memory (loaded from zarr), so accessing values is fast
-        # gridded_da_historical might be lazy.
-        # However, we need the time bounds.
-        # If gridded_da_historical is lazy, accessing time.values triggers computation.
-        # But we need it for the slice.
-        # Let's try to use the time coordinate directly if possible, or accept the cost here.
-        # But we can avoid printing it in the log if we already accessed it.
-
-        # Optimization: Use min/max of time coordinate if available without loading all values?
-        # For now, we assume we need the start/end.
-        # But we can avoid the logger call accessing it AGAIN.
-
+        # Narrow obs data to roughly the gridded historical period first, so
+        # the alignment below only has to compare a similarly-sized range.
         t_start = str(gridded_da_historical.time.values[0])
         t_end = str(gridded_da_historical.time.values[-1])
-
         obs_da = obs_da.sel(time=slice(t_start, t_end))
+
+        # QDM requires `ref` (obs) and `hist` (gridded historical) to have
+        # identical time coordinates (xsdba checks this with an elementwise
+        # comparison, which itself raises a confusing numpy broadcast error
+        # if the lengths differ). Align the two datasets to ensure they have
+        # the same time coordinates.
+        obs_da, gridded_da_historical = xr.align(
+            obs_da, gridded_da_historical, join="inner"
+        )
         logger.debug(
             "Final obs period shape: %s",
             obs_da.shape,

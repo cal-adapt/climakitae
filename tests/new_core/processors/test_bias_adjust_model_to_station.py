@@ -505,6 +505,52 @@ class TestBiasCorrectStationDataBiasAdjustment:
         )  # Allow flexibility for calendar conversion
 
     @pytest.mark.advanced
+    def test_bias_adjust_model_data_with_obs_time_gaps(self):
+        """Regression test: a gap in the obs (station) record must not crash
+        QDM training with a raw numpy broadcast error.
+
+        HDP stations can have missing days/hours in their raw record (the
+        station was offline, etc.), unlike the model's dense regular grid.
+        Slicing obs to [gridded_start, gridded_end] alone does not guarantee
+        the same number of timestamps as the gridded data over that range,
+        which used to reach xsdba's `ref.time.values == hist.time.values`
+        check with mismatched lengths and raise "operands could not be
+        broadcast together with shapes ...".
+        """
+        proc = self.ProcClass({"stations": ["KSAC"]})
+
+        obs_times = pd.date_range("1980-01-01", "1984-12-31", freq="D")
+        # Drop a 30-day chunk out of the middle of the obs record, leaving a
+        # gap that isn't present in the (dense) gridded time index.
+        gap = (obs_times >= "1982-06-01") & (obs_times <= "1982-06-30")
+        obs_times = obs_times[~gap]
+
+        dayofyear = obs_times.dayofyear
+        seasonal_temp = 15 + 10 * np.sin(2 * np.pi * (dayofyear - 80) / 365)
+        np.random.seed(42)
+        obs_values = seasonal_temp + np.random.randn(len(obs_times)) * 2
+
+        obs_da = xr.DataArray(obs_values, dims=("time",), coords={"time": obs_times})
+        obs_da.name = "obs"
+        obs_da.attrs["units"] = "K"
+
+        gr_times = pd.date_range("1980-01-01", "2014-12-31", freq="D")
+        gr_dayofyear = gr_times.dayofyear
+        gr_seasonal_temp = 17 + 10 * np.sin(2 * np.pi * (gr_dayofyear - 80) / 365)
+        np.random.seed(43)
+        gr_values = gr_seasonal_temp + np.random.randn(len(gr_times)) * 2
+
+        gr_da = xr.DataArray(gr_values, dims=("time",), coords={"time": gr_times})
+        gr_da.name = "tas"
+        gr_da.attrs["units"] = "K"
+
+        out = proc._bias_adjust_model_data(obs_da, gr_da)
+
+        assert isinstance(out, xr.DataArray)
+        assert not out.isnull().any().compute()
+        assert np.isfinite(out.values).all()
+
+    @pytest.mark.advanced
     def test_bias_adjust_model_data_preserves_obs_past_2014(self):
         """Regression test: obs data extending past 2014-08-31 must not be
         silently truncated. This was a HadISD-specific hardcoded clip that
