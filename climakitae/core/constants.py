@@ -90,6 +90,66 @@ CATALOG_BOUNDARY = "boundary"
 CATALOG_HDP = "hdp"
 CATALOG_SUP3RCC = "sup3rcc"
 
+# HDP networks known to provide temperature ('tas') observations.
+HAS_TAS_NETWORKS = [
+    "ASOSAWOS",
+    "CAHYDRO",
+    "CDEC",
+    "CIMIS",
+    "CNRFC",
+    "CRN",
+    "CW3E",
+    "CWOP",
+    "HADS",
+    "HNXWFO",
+    "HOLFUY",
+    "HPWREN",
+    "LOXWFO",
+    "MAP",
+    "MARITIME",
+    "MTRWFO",
+    "NCAWOS",
+    "NDBC",
+    "NOS-NWLON",
+    "NOS-PORTS",
+    "OtherISD",
+    "RAWS",
+    "SCAN",
+    "SGXWFO",
+    "SHASAVAL",
+    "SNOTEL",
+    "VCAPCD",
+]
+
+# HDP networks known to provide dewpoint observations, either as 'tdps' or
+# 'tdps_derived'.
+HAS_TDPS_NETWORKS = [
+    "ASOSAWOS",
+    "CAHYDRO",
+    "CDEC",
+    "CIMIS",
+    "CRN",
+    "CW3E",
+    "CWOP",
+    "HADS",
+    "HNXWFO",
+    "HOLFUY",
+    "HPWREN",
+    "LOXWFO",
+    "MAP",
+    "MARITIME",
+    "MTRWFO",
+    "NCAWOS",
+    "NDBC",
+    "NOS-NWLON",
+    "OtherISD",
+    "RAWS",
+    "SCAN",
+    "SGXWFO",
+    "SHASAVAL",
+    "VCAPCD",
+]
+
 # Boundary Data Constants
 WESTERN_STATES_LIST = ["CA", "NV", "OR", "WA", "UT", "MT", "ID", "AZ", "CO", "NM", "WY"]
 

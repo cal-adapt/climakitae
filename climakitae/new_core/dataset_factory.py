@@ -181,7 +181,7 @@ class DatasetFactory:
         concatenation and attribute updates even if not specified in the query.
 
         Processing steps are applied in priority order, with preprocessing
-        steps (like bias correction) applied before postprocessing steps.
+        steps (like bias adjustment) applied before postprocessing steps.
 
         See Also
         --------
@@ -264,7 +264,7 @@ class DatasetFactory:
         Notes
         -----
         Processing step priority determines execution order:
-        - Priority 0-10: Preprocessing (bias correction, warming level)
+        - Priority 0-10: Preprocessing (bias adjustment, warming level)
         - Priority 11-20: Core processing (variable calculations)
         - Priority 21-30: Postprocessing (concatenation, attribute updates)
 

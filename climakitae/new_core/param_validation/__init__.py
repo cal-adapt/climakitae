@@ -25,7 +25,7 @@ climakitae.new_core.processors : Processing steps with their validators
 """
 
 from .bias_adjust_model_to_station_param_validator import (
-    validate_bias_correction_station_data_param,
+    validate_bias_adjustment_station_data_param,
 )
 from .cadcat_param_validator import DataValidator
 from .clip_param_validator import validate_clip_param
