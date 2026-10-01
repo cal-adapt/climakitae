@@ -102,17 +102,20 @@ class TestPreprocessHDP:
         assert "NDBC_9999" in out.data_vars
         assert out["NDBC_9999"].attrs.get("station_name") == "NDBC_9999"
 
-    def test_preprocess_hdp_converts_non_kelvin_units(self):
-        """Test that non-Kelvin tas units are converted defensively."""
+    def test_preprocess_hdp_rejects_non_kelvin_units(self):
+        """Test that non-Kelvin tas units raise rather than being guessed at.
+
+        No HDP network has been observed reporting Celsius or Fahrenheit
+        (checked across all 28 HDP networks' catalogs), so an unrecognized
+        units label is rejected instead of silently assumed to be Celsius.
+        """
         proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
         ds = self._build_raw_hdp_dataset()
         ds["tas"] = ds["tas"] - 273.15
         ds["tas"].attrs["units"] = "degree_Celsius"
 
-        out = proc._preprocess_hdp(ds)
-
-        assert out["ASOSAWOS_1234"].values[0] == pytest.approx(283.15)
-        assert out["ASOSAWOS_1234"].attrs.get("units") == "K"
+        with pytest.raises(ValueError, match="expected Kelvin"):
+            proc._preprocess_hdp(ds)
 
     def test_preprocess_hdp_k_units_not_converted(self):
         """Test that data labeled 'K' (e.g. CW3E tdps_derived) is treated as Kelvin."""

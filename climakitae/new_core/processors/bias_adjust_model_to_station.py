@@ -112,11 +112,11 @@ _OUTPUT_VARIABLE_METADATA = {
     for variable_id, meta in _VARIABLE_REGISTRY.items()
 }
 
-# Unit labels HDP networks use for Kelvin (most use 'degree_Kelvin'; some,
-# e.g. CW3E's 'tdps_derived', use 'K') and Celsius. Any units label outside
-# both sets is unrecognized and rejected rather than assumed to be Celsius.
-_KELVIN_UNITS = {"degree_Kelvin", "K"}
-_CELSIUS_UNITS = {"degree_Celsius", "degC"}
+# HDP networks label Kelvin inconsistently (most use 'degree_Kelvin'; some,
+# e.g. CW3E's 'tdps_derived', use the shorter 'K'). Checked against the live
+# HDP catalog across all 28 networks: none report Celsius or Fahrenheit, so
+# anything that doesn't map to Kelvin is rejected rather than guessed at.
+_HDP_UNIT_ALIASES = {"degree_Kelvin": "K"}
 
 # Spelled-out reminder of what "QDM" means, for the one user-facing
 # (INFO-level) log line that announces a bias adjustment run.
@@ -300,24 +300,19 @@ class BiasAdjustModelToStation(DataProcessor):
         ):
             display_name = station_id
 
-        # Validate/normalize units to Kelvin. HDP data is expected to
-        # already be in Kelvin, but convert if a network reports Celsius.
-        # Anything else (Fahrenheit, missing/unrecognized units) is rejected
-        # rather than silently treated as Celsius.
+        # Normalize HDP's units label to Kelvin's canonical label. Anything
+        # that doesn't map to Kelvin is rejected -- no HDP network has been
+        # observed reporting Celsius or Fahrenheit, so there's nothing to
+        # convert; guessing at an unverified label risks silently producing
+        # wrong temperatures.
         units = ds[source_variable].attrs.get("units")
-        if units in _CELSIUS_UNITS:
-            logger.warning(
-                "HDP station '%s' %s units are '%s', expected Kelvin; converting.",
-                station_id,
-                source_variable,
-                units,
-            )
-            ds[source_variable] = ds[source_variable] + 273.15
-        elif units not in _KELVIN_UNITS:
+        normalized_units = _HDP_UNIT_ALIASES.get(units, units)
+        if normalized_units != "K":
             raise ValueError(
                 f"HDP station '{station_id}' {source_variable} units are "
-                f"'{units}', expected Kelvin or Celsius."
+                f"'{units}', expected Kelvin."
             )
+        ds[source_variable].attrs["units"] = normalized_units
 
         # Capture coordinates/elevation before renaming/dropping variables.
         # `.values` computes any still-dask-backed data to numpy first
