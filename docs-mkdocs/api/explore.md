@@ -41,6 +41,20 @@ The `climakitae.explore` module provides user-friendly classes and functions for
       docstring_style: numpy
       show_source: true
 
+## Extreme Meteorological Year
+
+::: climakitae.explore.extreme_meteorological_year
+    options:
+      docstring_style: numpy
+      show_source: true
+
+## Standard Year Profile
+
+::: climakitae.explore.standard_year_profile
+    options:
+      docstring_style: numpy
+      show_source: true
+
 ## Climate Vulnerability Assessment
 
 ::: climakitae.explore.vulnerability.CavaParams

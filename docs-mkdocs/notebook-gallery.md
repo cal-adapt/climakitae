@@ -196,8 +196,8 @@ source .venv/bin/activate
 uv pip install -r requirements.txt
 
 # Or install with conda
-conda create -n cae -f conda-linux-64.lock
-conda activate cae
+conda env create -f environment.yml
+conda activate notebook
 
 # Start Jupyter
 jupyter lab

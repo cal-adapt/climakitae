@@ -59,7 +59,7 @@ cd.table_id("mon")             # Monthly (vs. "day", "1hr")
 cd.grid_label("d03")           # 3km fine-scale (vs. "d02" 9km, "d01" 45km)
 
 # Step 7: Choose variable
-cd.variable("t2max")           # Daily maximum temperature
+cd.variable_id("t2max")           # Daily maximum temperature
 
 # Execute the query
 data = cd.get()
@@ -69,7 +69,7 @@ data = cd.get()
 
 | Level | Purpose | Examples | Impact |
 |-------|---------|----------|--------|
-| **Catalog** | Data source collection | `"cadcat"`, `"renewable energy generation"`, `"hdp"` | Determines what datasets exist |
+| **Catalog** | Data source collection | `"cadcat"`, `"renewable energy generation"`, `"hdp"`, `"sup3rcc"` | Determines what datasets exist |
 | **Activity ID** | Downscaling method | `"WRF"` (dynamical), `"LOCA2"` (statistical) | Different variable names, coverage, bias |
 | **Institution** | Data producer | `"UCLA"` (WRF), `"UCSD"` (LOCA2-Hybrid), `"ERA"` (ERA5 forcing) | Different model implementations, bias characteristics |
 | **Source ID** | Climate model | `"CESM2"`, `"EC-Earth3"`, `"MIROC6"`, `"CNRM-ESM2-1"`, … | Different model physics; skill varies by region/variable |
@@ -121,7 +121,7 @@ ClimateData returns **lazy-loaded datasets** that don't consume memory or downlo
 ```python
 # This line does NOT download or load data into memory
 data = (cd
-    .variable("tasmax")
+    .variable_id("tasmax")
     .processes({"time_slice": ("2015-01-01", "2050-12-31")})
     .get())
 
@@ -165,7 +165,7 @@ data_full = data["tasmax"].compute()
 temp_mean = data_full.sel(lat=slice(34, 36), lon=slice(-120, -118)).mean()
 
 # ✅ GOOD: Use processors to subset in the query
-data = (cd.variable("tasmax")
+data = (cd.variable_id("tasmax")
     .processes({"clip": ((34, 36), (-120, -118))})
     .get())
 temp_mean = data["tasmax"].mean().compute()
@@ -188,7 +188,7 @@ ClimateData uses two complementary libraries:
 
 ```python
 # Both use the same API
-data = cd.variable("tasmax").get()
+data = cd.variable_id("tasmax").get()
 
 # Inspect the task graph (shows pending operations)
 print(data["tasmax"].dask)
@@ -242,7 +242,7 @@ cd = ClimateData()
 
 # Query data around 2°C global warming
 data = (cd
-    .variable("tasmax")
+    .variable_id("tasmax")
     .processes({
         "warming_level": {
             "warming_levels": [1.5, 2.0, 3.0],  # Multiple levels
@@ -315,7 +315,7 @@ data = (cd
     .experiment_id("ssp370")     # High emissions scenario
     .table_id("day")             # Daily data
     .grid_label("d03")           # 3km resolution
-    .variable("t2max")           # WRF max temperature (LOCA2 uses 'tasmax')
+    .variable_id("t2max")           # WRF max temperature (LOCA2 uses 'tasmax')
     
     # 2. Use processors to subset (maintains lazy eval)
     .processes({

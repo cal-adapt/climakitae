@@ -117,3 +117,8 @@ filterwarnings = [
     "ignore::DeprecationWarning:shapely.geos",
     "ignore:pkg_resources is deprecated:DeprecationWarning:pkg_resources",
 ]
+
+[dependency-groups]
+dev = [
+    "fastmcp>=4.0.3",
+]

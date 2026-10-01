@@ -415,16 +415,18 @@ class Concat(DataProcessor):
                             break
 
                     if matching_key and matching_key in sim_centered_years:
-                        cy_values = sim_centered_years[matching_key]
-                        # Fill in the values for this simulation
-                        for j, cy_val in enumerate(cy_values):
-                            if j < len(warming_levels):
-                                cy_2d[i, j] = cy_val
+                        cy_by_wl = sim_centered_years[matching_key]
+                        # Fill in by matching the actual warming_level label, not by
+                        # position — a sim missing one WL must not shift the rest
+                        # into the wrong column.
+                        for j, wl in enumerate(warming_levels):
+                            if wl in cy_by_wl:
+                                cy_2d[i, j] = cy_by_wl[wl]
                         logger.debug(
                             "Assigned centered_years for sim %s (key=%s): %s",
                             sim_name,
                             matching_key,
-                            cy_values,
+                            cy_by_wl,
                         )
                     else:
                         logger.debug(

@@ -7,7 +7,7 @@ Query climate data relative to global warming thresholds instead of calendar yea
 ```python
 # Get data around 1.5°C, 2°C, and 3°C warming
 data = (cd
-    .variable("tasmax")
+    .variable_id("tasmax")
     .experiment_id("ssp245")
     .processes({
         "warming_level": {
@@ -36,7 +36,7 @@ for model in models:
         .activity_id("WRF")
         .institution_id("UCLA")
         .source_id(model)
-        .variable("prec")  # WRF precipitation (LOCA2 uses 'pr')
+        .variable_id("prec")  # WRF precipitation (LOCA2 uses 'pr')
         .processes({
             "warming_level": {
                 "warming_levels": [2.0],
@@ -62,7 +62,7 @@ data = (cd
     .activity_id("WRF")
     .institution_id("UCLA")
     .experiment_id("ssp245")  # Moderate emissions
-    .variable("t2max")
+    .variable_id("t2max")
     .processes({
         "warming_level": {"warming_levels": [4.0]}  # Very high warming
     })
@@ -85,7 +85,7 @@ else:
 data = (cd
     .activity_id("WRF")
     .institution_id("UCLA")
-    .variable("t2max")
+    .variable_id("t2max")
     .processes({
         "warming_level": {"warming_levels": [1.5, 2.0]}
     })

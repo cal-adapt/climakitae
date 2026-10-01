@@ -7,7 +7,7 @@ Save your climate data in multiple formats for external analysis, GIS, or archiv
 ```python
 # Simple export during query
 data = (cd
-    .variable("tasmax")
+    .variable_id("tasmax")
     .processes({
         "time_slice": ("2015-01-01", "2015-12-31"),
         "export": {
@@ -26,7 +26,7 @@ data = (cd
 ```python
 # Zarr format: excellent for large datasets, cloud-native
 data = (cd
-    .variable("t2max")
+    .variable_id("t2max")
     .activity_id("WRF")
     .institution_id("UCLA")  # Specify WRF producer
     .processes({
@@ -47,7 +47,7 @@ data = (cd
 ```python
 # CSV export: for time series or point data
 data = (cd
-    .variable("tasmax")
+    .variable_id("tasmax")
     .processes({
         "clip": [(34.05, -118.25), (37.77, -122.42)],  # Two points
         "time_slice": ("2015-01-01", "2015-12-31"),
@@ -68,7 +68,7 @@ data = (cd
 ```python
 # GeoTIFF: for single time slice or aggregated spatial rasters
 data = (cd
-    .variable("tasmax")
+    .variable_id("tasmax")
     .processes({
         "time_slice": ("2015-01-01", "2015-01-01"),  # Single day
         "export": {
@@ -87,7 +87,7 @@ data = (cd
 ```python
 # Skip re-processing if file exists
 data = (cd
-    .variable("tasmax")
+    .variable_id("tasmax")
     .processes({
         "time_slice": ("2015-01-01", "2050-12-31"),
         "export": {
@@ -104,7 +104,7 @@ data = (cd
 ```python
 # Export intermediate results for different use cases
 data = (cd
-    .variable("tasmax")
+    .variable_id("tasmax")
     .processes({
         "time_slice": ("2015-01-01", "2050-12-31"),
         "clip": "Los Angeles",

@@ -28,7 +28,7 @@ for region_name, counties in regions.items():
             .activity_id("WRF")
             .institution_id("UCLA")  # UCLA WRF model: recommended for California
             .experiment_id("ssp245")
-            .variable("tasmax")
+            .variable_id("tasmax")
             .table_id("day")
             .grid_label("d03")
             .processes({

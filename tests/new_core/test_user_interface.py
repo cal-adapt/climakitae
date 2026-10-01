@@ -168,19 +168,40 @@ class TestClimateDataParameterSetters:
         except ValueError as e:
             assert "Grid label must be a non-empty string" in str(e)
 
-    def test_variable_valid(self):
-        """Test variable setter with valid input."""
-        result = self.climate_data.variable("tasmax")
+    def test_variable_id_valid(self):
+        """Test variable_id setter with valid input."""
+        result = self.climate_data.variable_id("tasmax")
         assert self.climate_data._query["variable_id"] == "tasmax"
         assert result is self.climate_data
 
-    def test_variable_invalid(self):
-        """Test variable setter with invalid input."""
+    def test_variable_id_invalid(self):
+        """Test variable_id setter with invalid input."""
         try:
-            self.climate_data.variable("")
+            self.climate_data.variable_id("")
             assert False, "Should have raised ValueError"
         except ValueError as e:
-            assert "Variable must be a non-empty string" in str(e)
+            assert "Variable ID must be a non-empty string" in str(e)
+
+    def test_variable_deprecated_alias(self):
+        """Test that the deprecated variable() alias still works and logs an error."""
+        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
+            result = self.climate_data.variable("tasmax")
+        assert self.climate_data._query["variable_id"] == "tasmax"
+        assert result is self.climate_data
+        mock_logger.error.assert_called_once()
+        assert "variable_id" in mock_logger.error.call_args[0][0]
+
+    def test_variable_deprecated_alias_invalid(self):
+        """Test that the deprecated variable() alias still validates input."""
+        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
+            try:
+                self.climate_data.variable("")
+                assert False, "Should have raised ValueError"
+            except ValueError as e:
+                assert "Variable ID must be a non-empty string" in str(e)
+        # One error log for the deprecation notice, one for the invalid parameter
+        assert mock_logger.error.call_count == 2
+        assert "variable_id" in mock_logger.error.call_args_list[0][0][0]
 
     def test_experiment_id_string_valid(self):
         """Test experiment_id setter with valid string."""
@@ -492,7 +513,7 @@ class TestClimateDataChaining:
         """Test that methods can be chained together."""
         result = (
             self.climate_data.catalog("climate")
-            .variable("tas")
+            .variable_id("tas")
             .table_id("day")
             .grid_label("d03")
         )
@@ -608,13 +629,24 @@ class TestClimateDataAdditionalShowMethods:
                 limit_per_group=None,
             )
 
-    def test_show_variable_options(self):
-        """Test show_variable_options method."""
+    def test_show_variable_id_options(self):
+        """Test show_variable_id_options method."""
         with patch.object(self.climate_data, "_show_options") as mock_show:
-            self.climate_data.show_variable_options()
+            self.climate_data.show_variable_id_options()
             mock_show.assert_called_once_with(
                 "variable_id", "Variables", limit_per_group=None
             )
+
+    def test_show_variable_options_deprecated_alias(self):
+        """Test that the deprecated show_variable_options() alias still works and logs an error."""
+        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
+            with patch.object(self.climate_data, "_show_options") as mock_show:
+                self.climate_data.show_variable_options()
+                mock_show.assert_called_once_with(
+                    "variable_id", "Variables", limit_per_group=None
+                )
+        mock_logger.error.assert_called_once()
+        assert "show_variable_id_options" in mock_logger.error.call_args[0][0]
 
     def test_show_station_options(self):
         """Test show_station_options method."""
@@ -659,7 +691,9 @@ class TestClimateDataAdditionalShowMethods:
             ) as mock_experiment,
             patch.object(self.climate_data, "show_table_id_options") as mock_table,
             patch.object(self.climate_data, "show_grid_label_options") as mock_grid,
-            patch.object(self.climate_data, "show_variable_options") as mock_variable,
+            patch.object(
+                self.climate_data, "show_variable_id_options"
+            ) as mock_variable,
             patch.object(
                 self.climate_data, "show_station_id_options"
             ) as mock_station_id,
@@ -1050,12 +1084,12 @@ class TestClimateDataShowOptionsExceptionHandling:
         with patch("builtins.print"):
             self.climate_data._show_options("catalog", "Test Options")
 
-    def test_show_variable_options_with_query(self):
-        """Test show_variable_options with existing query parameters."""
+    def test_show_variable_id_options_with_query(self):
+        """Test show_variable_id_options with existing query parameters."""
         self.climate_data._query["catalog"] = "cadcat"
 
         with patch.object(self.climate_data, "_show_options") as mock_show:
-            self.climate_data.show_variable_options()
+            self.climate_data.show_variable_id_options()
 
         mock_show.assert_called_once_with(
             "variable_id",

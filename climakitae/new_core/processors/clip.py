@@ -761,11 +761,13 @@ class Clip(DataProcessor):
                 coord2_target = lon
             else:
                 # For x/y dims transform lat/lon -> x/y coordinates
+                # dim1_name is "x", dim2_name is "y" here, so keep transform
+                # output (x, y) in that same order.
                 try:
                     fwd_transformer = pyproj.Transformer.from_crs(
                         "epsg:4326", dataset.rio.crs, always_xy=True
                     )
-                    coord2_target, coord1_target = fwd_transformer.transform(lon, lat)
+                    coord1_target, coord2_target = fwd_transformer.transform(lon, lat)
                 except Exception:
                     # Fall back to lat/lon if transform fails
                     coord1_target = lat
@@ -1520,6 +1522,7 @@ class Clip(DataProcessor):
             "CA Electricity Demand Forecast Zones": boundaries._ca_forecast_zones,
             "CA Electric Balancing Authority Areas": boundaries._ca_electric_balancing_areas,
             "CA Census Tracts": boundaries._ca_census_tracts,
+            "Tribal Areas": boundaries._tribal_areas,
         }
 
         if category not in category_map:
@@ -1572,6 +1575,7 @@ class Clip(DataProcessor):
             "CA Electricity Demand Forecast Zones": "forecast_zone",
             "CA Electric Balancing Authority Areas": "balancing_area",
             "CA Census Tracts": "census_tract",
+            "Tribal Areas": "tribal_area",
         }
 
         # Get the category for this boundary key

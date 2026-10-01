@@ -26,7 +26,7 @@ flowchart TD
 ## Input Modes
 
 ### Mode 1: Named Boundaries
-Clip using predefined administrative or utility boundaries from the Cal-Adapt boundary catalog.
+Clip using predefined administrative, utility, or BIA tribal-area boundaries from the Cal-Adapt boundary catalog.
 
 **Examples:**
 ```python
@@ -34,7 +34,14 @@ Clip using predefined administrative or utility boundaries from the Cal-Adapt bo
 "San Francisco Bay"        # Watershed
 "CA"                       # State-wide
 "CA_IOU"                   # Utility (IOU = Investor-Owned Utility)
+"Tribal Area: Shingle Springs"  # BIA tribal area representation
 ```
+
+The optional `Tribal Areas` category contains western-US BIA land-area
+representations, supplemental representations, and Tribal statistical areas.
+Selectors are qualified by area type, for example `Tribal Area: Shingle Springs`.
+These source geometries are intended for illustrative, reference, statistical, and
+consultation purposes; they are not legal or ownership boundaries.
 
 ### Mode 2: Weather Stations
 Clip to specific weather station locations from the HadISD station network.
@@ -173,11 +180,31 @@ from climakitae.new_core.user_interface import ClimateData
 data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
-    .variable("t2max")
+    .variable_id("t2max")
     .table_id("day")
     .grid_label("d03")
     .processes({
         "clip": "Alameda"
+    })
+    .get())
+```
+
+### Single Tribal Area
+
+```python
+from climakitae.new_core.user_interface import ClimateData
+
+cd = ClimateData()
+cd.show_boundary_options("Tribal Areas", show_n=10)
+
+data = (cd
+    .catalog("cadcat")
+    .activity_id("LOCA2")
+    .variable_id("tasmax")
+    .table_id("mon")
+    .grid_label("d03")
+    .processes({
+        "clip": "Tribal Area: Shingle Springs"
     })
     .get())
 ```
@@ -189,7 +216,7 @@ data = (ClimateData()
 data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
-    .variable("pr")
+    .variable_id("pr")
     .table_id("mon")
     .grid_label("d02")
     .processes({
@@ -210,7 +237,7 @@ data = (ClimateData()
 data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
-    .variable("t2max")
+    .variable_id("t2max")
     .table_id("day")
     .grid_label("d03")
     .processes({
@@ -234,7 +261,7 @@ locations = [
 data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
-    .variable("t2max")
+    .variable_id("t2max")
     .table_id("day")
     .grid_label("d03")
     .processes({
@@ -256,7 +283,7 @@ data = (ClimateData()
 data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
-    .variable("pr")
+    .variable_id("pr")
     .table_id("mon")
     .grid_label("d03")
     .processes({
@@ -272,7 +299,7 @@ data = (ClimateData()
 data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
-    .variable("t2max")
+    .variable_id("t2max")
     .table_id("day")
     .grid_label("d03")
     .processes({
@@ -288,7 +315,7 @@ data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
     .experiment_id("ssp245")
-    .variable("t2max")
+    .variable_id("t2max")
     .table_id("day")
     .grid_label("d03")
     .processes({
@@ -344,7 +371,7 @@ for county in counties:
     data_by_county[county] = (ClimateData()
         .catalog("cadcat")
         .activity_id("WRF")
-        .variable("t2max")
+        .variable_id("t2max")
         .table_id("day")
         .grid_label("d03")
         .processes({"clip": county})
@@ -361,7 +388,7 @@ rural_point = (37.5, -122.0)            # Sierra foothills
 data = (ClimateData()
     .catalog("cadcat")
     .activity_id("WRF")
-    .variable("t2max")
+    .variable_id("t2max")
     .table_id("day")
     .grid_label("d03")
     .processes({

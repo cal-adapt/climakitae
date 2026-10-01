@@ -1839,6 +1839,9 @@ class TestGetBoundaryGeometry:
                 "Sacramento River": 0,
                 "San Joaquin River": 1,
             },
+            "Tribal Areas": {
+                "Tribal Area: Acoma": 0,
+            },
             "CA Electric Load Serving Entities (IOU & POU)": {
                 "PG&E": 0,
                 "SCE": 1,
@@ -1916,6 +1919,20 @@ class TestGetBoundaryGeometry:
             assert result is self.mock_geodataframe
             assert isinstance(result, gpd.GeoDataFrame)
 
+    def test_get_boundary_geometry_valid_tribal_area(self):
+        """Test a qualified Tribal area selector resolves to its geometry."""
+        self.mock_boundaries.boundary_dict.return_value = self.sample_boundary_dict
+
+        with patch.object(
+            self.clip,
+            "_extract_geometry_from_category",
+            return_value=self.mock_geodataframe,
+        ) as mock_extract:
+            result = self.clip._get_boundary_geometry("Tribal Area: Acoma")
+
+        mock_extract.assert_called_once_with("Tribal Areas", 0)
+        assert result is self.mock_geodataframe
+
     def test_get_boundary_geometry_invalid_key(self):
         """Test _get_boundary_geometry with invalid boundary key - outcome: raises ValueError with suggestions."""
         # Setup mock to return boundary dict
@@ -1965,6 +1982,20 @@ class TestGetBoundaryGeometry:
         assert len(result) == 1
         assert result.index[0] == 5
         assert result.crs is not None
+
+    def test_extract_geometry_from_category_tribal_areas(self):
+        """Test Tribal Areas extract from the optional boundary dataset."""
+        tribal_areas = gpd.GeoDataFrame(
+            {"selector": ["Tribal Area: Acoma"]},
+            geometry=[box(-107, 34, -106, 35)],
+            crs="EPSG:4269",
+        )
+        self.mock_boundaries._tribal_areas = tribal_areas
+
+        result = self.clip._extract_geometry_from_category("Tribal Areas", 0)
+
+        assert result.iloc[0]["selector"] == "Tribal Area: Acoma"
+        assert result.crs.to_epsg() == 4269
 
     def test_extract_geometry_from_category_unknown_category(self):
         """Test _extract_geometry_from_category with unknown category - outcome: raises ValueError."""
@@ -2320,6 +2351,75 @@ class TestClipDataToPointNaNSearchExpansion:
         assert result is not None
         # Verify the result has valid (non-NaN) data
         assert not np.isnan(result["temp"].isel(time=0).values)
+
+
+class TestClipDataToPointXYTransformOrder:
+    """Regression test for x/y transform ordering bug in the NaN-search fallback.
+
+    The nearest-cell fallback in `_clip_data_to_point` used to swap the
+    projected x/y values returned by `pyproj.Transformer.transform` before
+    matching them against the "x" and "y" dimension coordinates. On grids
+    where the x and y coordinate ranges don't overlap (e.g. real projected
+    WRF Lambert Conformal grids), this caused the search to look in the
+    wrong part of the domain, sometimes finding a "valid" cell hundreds of
+    kilometers from the requested point.
+    """
+
+    def setup_method(self):
+        """Build a small projected (non-lat/lon) grid with non-overlapping x/y ranges."""
+        self.crs = pyproj.CRS.from_proj4(
+            "+proj=lcc +lat_1=30 +lat_2=60 +lat_0=38 +lon_0=-120 "
+            "+x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
+        )
+        self.transformer = pyproj.Transformer.from_crs(
+            "epsg:4326", self.crs, always_xy=True
+        )
+
+        # Non-overlapping x/y ranges: a coordinate swap lands far outside
+        # the domain instead of coincidentally landing on a valid cell.
+        self.x_vals = np.linspace(0, 100_000, 11)
+        self.y_vals = np.linspace(200_000, 300_000, 11)
+
+        self.target_lat = 39.0
+        self.target_lon = -119.5
+        target_x, target_y = self.transformer.transform(
+            self.target_lon, self.target_lat
+        )
+        self.true_x_idx = int(np.abs(self.x_vals - target_x).argmin())
+        self.true_y_idx = int(np.abs(self.y_vals - target_y).argmin())
+
+        # All-NaN grid except the one cell nearest the true projected target.
+        data = np.full((1, 11, 11), np.nan)
+        data[0, self.true_y_idx, self.true_x_idx] = 25.0
+        self.dataset = xr.Dataset(
+            {"temp": (["time", "y", "x"], data)},
+            coords={
+                "time": pd.date_range("2020-01-01", periods=1),
+                "y": self.y_vals,
+                "x": self.x_vals,
+            },
+        )
+        self.dataset = self.dataset.rio.write_crs(self.crs)
+
+        # A NaN cell far from the true index to force the fallback path.
+        nan_x_idx = 0 if self.true_x_idx != 0 else 1
+        nan_y_idx = 0 if self.true_y_idx != 0 else 1
+        self.nan_cell = self.dataset.isel(x=nan_x_idx, y=nan_y_idx)
+
+    def test_neighbor_search_finds_cell_near_true_projected_target(self):
+        """Fallback search must use (x, y) in the correct order, not swapped."""
+        with patch(
+            "climakitae.new_core.processors.clip.get_closest_gridcell",
+            return_value=self.nan_cell,
+        ):
+            result = Clip._clip_data_to_point(
+                self.dataset, self.target_lat, self.target_lon
+            )
+
+        # With the coordinate swap bug, the 3x3 search centers on a location
+        # derived from mismatched x/y ranges, misses the only valid cell,
+        # and returns None. The fix must find it.
+        assert result is not None
 
 
 class TestGetMultiBoundaryGeometry:

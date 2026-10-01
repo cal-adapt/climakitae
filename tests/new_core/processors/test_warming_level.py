@@ -433,8 +433,9 @@ class TestWarmingLevelExecute:
         sim_centered_years = context["_sim_centered_years"]
         assert ret_key in sim_centered_years
         center_years = sim_centered_years[ret_key]
-        assert len(center_years) == len(full_processor.warming_levels)
-        for cy in center_years:
+        assert isinstance(center_years, dict)
+        assert set(center_years.keys()) == set(full_processor.warming_levels)
+        for cy in center_years.values():
             assert isinstance(cy, (int, np.integer))
             assert 1981 <= cy <= 2100
 
@@ -524,8 +525,9 @@ class TestWarmingLevelExecute:
         sim_centered_years = context["_sim_centered_years"]
         assert ret_key in sim_centered_years
         center_years = sim_centered_years[ret_key]
-        assert len(center_years) == len(full_processor.warming_levels)
-        for cy in center_years:
+        assert isinstance(center_years, dict)
+        assert set(center_years.keys()) == set(full_processor.warming_levels)
+        for cy in center_years.values():
             assert isinstance(cy, (int, np.integer))
             # Check that the centered_year is within expected range
             assert 1981 <= cy <= 2100

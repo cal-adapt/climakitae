@@ -11,7 +11,7 @@ cd = ClimateData()
 
 # Specify exact date range
 data = (cd
-    .variable("tasmax")
+    .variable_id("tasmax")
     .processes({
         "time_slice": ("2030-01-01", "2060-12-31")  # 30-year period
     })
@@ -19,7 +19,7 @@ data = (cd
 
 # Query by years only
 data = (cd
-    .variable("pr")
+    .variable_id("pr")
     .processes({
         "time_slice": (2050, 2100)  # 2050-2100
     })
@@ -27,7 +27,7 @@ data = (cd
 
 # Single time point
 data = (cd
-    .variable("tasmax")
+    .variable_id("tasmax")
     .processes({
         "time_slice": ("2050-07-15", "2050-07-15")  # One day
     })
