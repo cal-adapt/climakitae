@@ -194,13 +194,29 @@ class TestResolveHDPVariable:
     @pytest.mark.parametrize(
         "context,expected",
         [
+            # Real production shape: Dataset.execute() passes the flat query
+            # dict itself as context (see dataset.py), not nested under "query".
+            ({"variable_id": "t2"}, "tas"),
+            ({"variable_id": "dew_point"}, "tdps"),
+            ({"variable_id": ["dew_point"]}, "tdps"),
+            ({}, "tas"),
+            # Nested "query" shape is also accepted, for callers/tests that
+            # pass it that way.
             ({"query": {"variable_id": "t2"}}, "tas"),
             ({"query": {"variable_id": "dew_point"}}, "tdps"),
             ({"query": {"variable_id": ["dew_point"]}}, "tdps"),
             ({"query": {}}, "tas"),
-            ({}, "tas"),
         ],
-        ids=["t2", "dew_point", "list_dew_point", "no_variable_id", "no_query"],
+        ids=[
+            "flat_t2",
+            "flat_dew_point",
+            "flat_list_dew_point",
+            "no_variable_id",
+            "nested_t2",
+            "nested_dew_point",
+            "nested_list_dew_point",
+            "nested_no_variable_id",
+        ],
     )
     def test_resolve_hdp_variable(self, context, expected):
         """Test resolving the HDP variable name from query variable_id."""

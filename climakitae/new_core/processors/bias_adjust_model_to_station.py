@@ -349,8 +349,10 @@ class BiasAdjustModelToStation(DataProcessor):
         Parameters
         ----------
         context : dict
-            Processing context, expected to contain `context["query"]
-            ["variable_id"]`.
+            Processing context. In production this is the flat query
+            dict itself (`context["variable_id"]`), as built by
+            `Dataset.execute()`; a nested `context["query"]["variable_id"]`
+            shape is also accepted for callers/tests that pass it that way.
 
         Returns
         -------
@@ -358,7 +360,12 @@ class BiasAdjustModelToStation(DataProcessor):
             The HDP variable name to load (default: "tas" if variable_id is
             missing or unrecognized). See `_VARIABLE_ID_TO_HDP_VARIABLE`.
         """
-        variable_id = (context or {}).get("query", {}).get("variable_id")
+        context = context or {}
+        variable_id = None
+        if isinstance(context.get("query"), dict):
+            variable_id = context["query"].get("variable_id")
+        if variable_id is None:
+            variable_id = context.get("variable_id")
         if isinstance(variable_id, list):
             variable_id = variable_id[0] if variable_id else None
         return _VARIABLE_ID_TO_HDP_VARIABLE.get(variable_id, "tas")
