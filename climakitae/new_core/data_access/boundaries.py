@@ -229,7 +229,15 @@ class Boundaries:
         - 'dfz': California demand forecast zones
         - 'eba': Electric balancing authority areas
         """
-        required_entries = ["states", "counties", "cities", "huc8", "utilities", "dfz", "eba"]
+        required_entries = [
+            "states",
+            "counties",
+            "cities",
+            "huc8",
+            "utilities",
+            "dfz",
+            "eba",
+        ]
         missing = [entry for entry in required_entries if not hasattr(self._cat, entry)]
         if missing:
             raise ValueError(f"Missing required catalog entries: {missing}")
