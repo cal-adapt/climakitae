@@ -1190,12 +1190,15 @@ class ClimateData:
         show_n : int, optional
             Maximum number of options to display. If None (default), shows all options.
         """
+        print("whats going on?")
         current_query = {k: v for k, v in self._query.items() if v is not UNSET}
         msg = ""
+        print("how about this?")
         if current_query:
             msg = "Variables (constrained by current query):"
         else:
             msg = "Variables"
+        print("what about now?")
 
         self._show_options("variable_id", msg, limit_per_group=show_n)
 
