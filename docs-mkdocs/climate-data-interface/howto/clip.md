@@ -45,6 +45,7 @@ cd.show_boundary_options("Tribal Areas")  # Western US BIA tribal areas
 | Boundary Type | Description |
 |---------------|-------------|
 | `ca_counties` | California counties (58 total) |
+| `cities` | California cities (483 total) |
 | `ca_watersheds` | Hydrologic units (HUC8) |
 | `ca_census_tracts` | Census geography |
 | `states` | Western US states (11 states) |

@@ -739,7 +739,7 @@ class Boundaries:
             "lat/lon": {"coordinate selection": 0},
             "states": self._get_states(),
             "CA counties": self._get_ca_counties(),
-            "CA cities": self._get_ca_cities(),
+            "cities": self._get_ca_cities(),
             "CA watersheds": self._get_ca_watersheds(),
             "CA Electric Load Serving Entities (IOU & POU)": self._get_ious_pous(),
             "CA Electricity Demand Forecast Zones": self._get_forecast_zones(),
