@@ -20,7 +20,7 @@ Clipping Modes
 1. **Boundary Clipping**: Clip data using predefined administrative or utility boundaries
    - Single boundary: `Clip("CA")` or `Clip("Los Angeles County")`
    - Multiple boundaries: `Clip(["CA", "OR", "WA"])` (combined using union)
-   - Supports states, counties, watersheds, utilities, and forecast zones
+   - Supports states, counties, cities, watersheds, utilities, and forecast zones
 
 2. **Station Clipping**: Clip data to weather station locations
    - Single station by code: `Clip("KSAC")` - Sacramento station
@@ -69,6 +69,10 @@ Examples
 --------
 >>> # Single state boundary
 >>> processor = Clip("CA")
+>>> clipped_data = processor.execute(dataset, context)
+
+>>> # Single city boundary
+>>> processor = Clip("Los Angeles")
 >>> clipped_data = processor.execute(dataset, context)
 
 >>> # Multiple state boundaries (union)
