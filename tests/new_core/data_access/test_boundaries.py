@@ -613,7 +613,7 @@ class TestBoundariesPublicMethods:
             "lat/lon",
             "states",
             "CA counties",
-            "CA cities",
+            "cities",
             "CA watersheds",
             "CA Electric Load Serving Entities (IOU & POU)",
             "CA Electricity Demand Forecast Zones",
