@@ -136,7 +136,7 @@ class TestPreprocessHDP:
             coords={"time": times, "station": ["CDEC_BLB"]},
         )
 
-        with pytest.raises(ValueError, match="does not have a 'tas'"):
+        with pytest.raises(ValueError, match="does not have 't2'"):
             proc._preprocess_hdp(ds)
 
     def test_preprocess_hdp_tdps_variable(self):

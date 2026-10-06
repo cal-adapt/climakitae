@@ -289,8 +289,13 @@ class BiasAdjustModelToStation(DataProcessor):
             None,
         )
         if source_variable is None:
+            requested_variable = next(
+                vid
+                for vid, hdp_name in _VARIABLE_ID_TO_HDP_VARIABLE.items()
+                if hdp_name == hdp_variable
+            )
             raise ValueError(
-                f"HDP station '{station_id}' does not have a '{hdp_variable}' "
+                f"HDP station '{station_id}' does not have a '{requested_variable}' "
                 "variable available for bias adjustment."
             )
 
