@@ -2604,7 +2604,7 @@ is registered under the key <strong><code>"concat"</code></strong>. Always use <
 <p>For the <code>hdp</code> catalog, <code>concat</code> produces a station-dimension stack:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">stations</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="o">.</span><span class="n">catalog</span><span class="p">(</span><span class="s2">"hdp"</span><span class="p">)</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="o">.</span><span class="n">network_id</span><span class="p">(</span><span class="s2">"hadisd"</span><span class="p">)</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="o">.</span><span class="n">network_id</span><span class="p">(</span><span class="s2">"ASOSAWOS"</span><span class="p">)</span>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="o">.</span><span class="n">processes</span><span class="p">({</span><span class="s2">"concat"</span><span class="p">:</span> <span class="s2">"station"</span><span class="p">})</span>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="o">.</span><span class="n">get</span><span class="p">())</span>
 </code></pre></div>
