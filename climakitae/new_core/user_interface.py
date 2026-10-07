@@ -662,19 +662,25 @@ class ClimateData:
 
         #!
         print(f"hello there!:{variable_id}")
-        if isinstance(variable_id, list):
-            if not all(isinstance(s, str) for s in variable_id):
-                logger.error(
-                    "Invalid variable_id parameter: must be non-empty list or string"
-                )
-                raise ValueError("Variable ID must be a non-empty list or string")
-            else:
-                return self
-        elif not isinstance(variable_id, str) or not variable_id.strip():
+        if isinstance(variable_id, list) and all(isinstance(s, str) for s in variable_id):
+            #!
+            print(f"list of strings?:{all(isinstance(s, str) for s in variable_id)}")
+            variable_id_cleaned = []
+            for var in variable_id:
+                variable_id_cleaned.append(var.strip())
+            self._query["variable_id"] = variable_id_cleaned
+            logger.info("Variable ID set to: %s", variable_id_cleaned)
+        elif isinstance(variable_id, str) or variable_id.strip():
+            self._query["variable_id"] = variable_id.strip()
+            logger.info("Variable ID set to: %s", variable_id.strip())
+        else:
+            #!
+            print(f"variable_id_cleaned:{variable_id_cleaned}")
             logger.error("Invalid variable_id parameter: must be non-empty string")
             raise ValueError("Variable ID must be a non-empty string")
-        self._query["variable_id"] = variable_id.strip()
-        logger.info("Variable ID set to: %s", variable_id.strip())
+        #!
+        print(f"variable_id_cleaned:{variable_id_cleaned}")
+
         return self
 
     def variable(self, variable: str) -> "ClimateData":
