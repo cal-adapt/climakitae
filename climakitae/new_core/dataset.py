@@ -196,17 +196,21 @@ class Dataset:
 
         # Extract catalog_key from context for thread-safe data access
         catalog_key = context.get("_catalog_key")
+        #! test
+        print(f"catalog_key: {catalog_key}")
         if catalog_key is None:
             logger.error("No catalog_key found in context")
             raise ValueError(
                 "catalog_key must be provided in the query context. "
                 "This is typically set by DatasetFactory.create_dataset()."
             )
-
+        #! test
+        print(f"valid_query: {valid_query}")
         # Initialize the processing result - will be updated through pipeline steps
         logger.debug(
             "Retrieving data from data accessor with catalog_key=%s", catalog_key
         )
+        #! this where the change needs to happen
         current_result = self.data_access.get_data(valid_query, catalog_key=catalog_key)
         logger.info("Data retrieved successfully")
 
