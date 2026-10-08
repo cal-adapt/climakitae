@@ -517,7 +517,7 @@ class TestBoundariesLookupMethods:
         boundaries = mock_boundaries_with_data
 
         result1 = boundaries._get_ca_cities()
-        assert "ca_cities" in boundaries._lookup_cache
+        assert "cities" in boundaries._lookup_cache
 
         result2 = boundaries._get_ca_cities()
         assert result1 is result2
@@ -785,7 +785,7 @@ class TestBoundariesMemoryManagement:
 
         assert result["states"] == 1024
         assert result["ca_counties"] == 2048
-        assert result["ca_cities"] == 0
+        assert result["cities"] == 0
         assert result["ca_watersheds"] == 0
         assert result["ca_census_tracts"] == 0
         assert result["total_bytes"] == 3072
