@@ -23,7 +23,15 @@ class TestBoundariesInitialization:
         """Test initialization with a valid catalog."""
         mock_catalog = Mock()
         # Add required attributes
-        for attr in ["states", "counties", "cities", "huc8", "utilities", "dfz", "eba"]:
+        for attr in [
+            "states",
+            "counties",
+            "ca_cities",
+            "huc8",
+            "utilities",
+            "dfz",
+            "eba",
+        ]:
             setattr(mock_catalog, attr, Mock())
 
         boundaries = Boundaries(mock_catalog)
@@ -50,12 +58,20 @@ class TestBoundariesInitialization:
         assert "utilities" in str(excinfo.value)
         assert "dfz" in str(excinfo.value)
         assert "eba" in str(excinfo.value)
-        assert "cities" in str(excinfo.value)
+        assert "ca_cities" in str(excinfo.value)
 
     def test_validate_catalog_success(self):
         """Test successful catalog validation."""
         mock_catalog = Mock()
-        for attr in ["states", "counties", "cities", "huc8", "utilities", "dfz", "eba"]:
+        for attr in [
+            "states",
+            "counties",
+            "ca_cities",
+            "huc8",
+            "utilities",
+            "dfz",
+            "eba",
+        ]:
             setattr(mock_catalog, attr, Mock())
 
         boundaries = Boundaries(mock_catalog)
@@ -84,7 +100,15 @@ class TestBoundariesProperties:
     def mock_boundaries(self):
         """Create a Boundaries instance with mocked catalog."""
         mock_catalog = Mock()
-        for attr in ["states", "counties", "cities", "huc8", "utilities", "dfz", "eba"]:
+        for attr in [
+            "states",
+            "counties",
+            "ca_cities",
+            "huc8",
+            "utilities",
+            "dfz",
+            "eba",
+        ]:
             catalog_entry = Mock()
             catalog_entry.read.return_value = self._create_mock_dataframe(attr)
             setattr(mock_catalog, attr, catalog_entry)
@@ -120,7 +144,7 @@ class TestBoundariesProperties:
                     "geometry": [f"POLYGON_{i}" for i in range(4)],
                 }
             )
-        elif dataset_type == "cities":
+        elif dataset_type == "ca_cities":
             return pd.DataFrame(
                 {
                     "CDT_NAME_S": [
@@ -249,7 +273,7 @@ class TestBoundariesProperties:
         mock_catalog = Mock()
         catalog_entry = Mock()
         catalog_entry.read.side_effect = Exception("Catalog read error")
-        setattr(mock_catalog, "cities", catalog_entry)
+        setattr(mock_catalog, "ca_cities", catalog_entry)
 
         # Set other required attributes
         for attr in ["states", "counties", "huc8", "utilities", "dfz", "eba"]:
@@ -517,7 +541,7 @@ class TestBoundariesLookupMethods:
         boundaries = mock_boundaries_with_data
 
         result1 = boundaries._get_ca_cities()
-        assert "cities" in boundaries._lookup_cache
+        assert "ca_cities" in boundaries._lookup_cache
 
         result2 = boundaries._get_ca_cities()
         assert result1 is result2
@@ -583,7 +607,15 @@ class TestBoundariesPublicMethods:
     def mock_boundaries_public(self):
         """Create boundaries for testing public methods."""
         mock_catalog = Mock()
-        for attr in ["states", "counties", "cities", "huc8", "utilities", "dfz", "eba"]:
+        for attr in [
+            "states",
+            "counties",
+            "ca_cities",
+            "huc8",
+            "utilities",
+            "dfz",
+            "eba",
+        ]:
             catalog_entry = Mock()
             catalog_entry.read.return_value = pd.DataFrame({"test": [1, 2, 3]})
             setattr(mock_catalog, attr, catalog_entry)
@@ -613,7 +645,7 @@ class TestBoundariesPublicMethods:
             "lat/lon",
             "states",
             "CA counties",
-            "cities",
+            "ca_cities",
             "CA watersheds",
             "CA Electric Load Serving Entities (IOU & POU)",
             "CA Electricity Demand Forecast Zones",
@@ -745,7 +777,7 @@ class TestBoundariesMemoryManagement:
         # All dataset usage should be 0
         assert result["states"] == 0
         assert result["ca_counties"] == 0
-        assert result["cities"] == 0
+        assert result["ca_cities"] == 0
         assert result["ca_watersheds"] == 0
         assert result["ca_utilities"] == 0
         assert result["ca_forecast_zones"] == 0
@@ -785,7 +817,7 @@ class TestBoundariesMemoryManagement:
 
         assert result["states"] == 1024
         assert result["ca_counties"] == 2048
-        assert result["cities"] == 0
+        assert result["ca_cities"] == 0
         assert result["ca_watersheds"] == 0
         assert result["ca_census_tracts"] == 0
         assert result["total_bytes"] == 3072
