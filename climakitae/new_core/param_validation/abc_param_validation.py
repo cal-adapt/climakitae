@@ -287,7 +287,7 @@ class ParameterValidator(ABC):
         """
 
     def _check_derived_variable(
-        self, variable_id: str
+        self, variable_id: str | List[str]
     ) -> Tuple[bool, Optional[List[str]], Optional[str]]:
         """Check if a variable_id is a derived variable.
 
@@ -309,9 +309,15 @@ class ParameterValidator(ABC):
             from climakitae.new_core.derived_variables import list_derived_variables
 
             derived_vars = list_derived_variables()
-            if variable_id in derived_vars:
-                info = derived_vars[variable_id]
-                return True, info.depends_on, variable_id
+            if isinstance(variable_id, str):
+                if variable_id in derived_vars:
+                    info = derived_vars[variable_id]
+                    return True, info.depends_on, variable_id
+            else:
+                if all(var in derived_vars for var in variable_id):
+                    #! test
+                    print("return to derived var check")
+
         except ImportError:
             pass
         return False, None, None

@@ -282,6 +282,7 @@ class ClimateData:
             "table_id": UNSET,
             "grid_label": UNSET,
             "variable_id": UNSET,
+            "variable_id_type": UNSET,
             "station_id": UNSET,
             "network_id": UNSET,
             "processes": UNSET,
@@ -660,26 +661,31 @@ class ClimateData:
         """
         logger.debug("Setting variable_id to: %s", variable_id)
 
-        #!
+        #! test
         print(f"hello there!:{variable_id}")
-        if isinstance(variable_id, list) and all(isinstance(s, str) for s in variable_id):
-            #!
+        if isinstance(variable_id, list) and all(
+            isinstance(s, str) for s in variable_id
+        ):
+            #! test
             print(f"list of strings?:{all(isinstance(s, str) for s in variable_id)}")
             variable_id_cleaned = []
             for var in variable_id:
                 variable_id_cleaned.append(var.strip())
             self._query["variable_id"] = variable_id_cleaned
+            self.variable_id_type = "list"
             logger.info("Variable ID set to: %s", variable_id_cleaned)
         elif isinstance(variable_id, str) or variable_id.strip():
             self._query["variable_id"] = variable_id.strip()
+            self.variable_id_type = "string"
             logger.info("Variable ID set to: %s", variable_id.strip())
         else:
-            #!
+            #! test
             print(f"variable_id_cleaned:{variable_id_cleaned}")
             logger.error("Invalid variable_id parameter: must be non-empty string")
             raise ValueError("Variable ID must be a non-empty string")
-        #!
+        #! test
         print(f"variable_id_cleaned:{variable_id_cleaned}")
+        print(f"variable_id_type:{self.variable_id_type}")
 
         return self
 
