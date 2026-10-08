@@ -557,11 +557,11 @@ class Boundaries:
 
         """
         #!! ?? is that correct? not sure what this does tbh
-        if "ca_cities" not in self._lookup_cache:
-            self._lookup_cache["ca_cities"] = pd.Series(
+        if "cities" not in self._lookup_cache:
+            self._lookup_cache["cities"] = pd.Series(
                 self._ca_cities.index, index=self._ca_cities["CDT_NAME_S"]
             ).to_dict()
-        return self._lookup_cache["ca_cities"]
+        return self._lookup_cache["cities"]
 
     def _get_ca_watersheds(self) -> Dict[str, int]:
         """Get cached lookup dictionary for California watersheds.
@@ -1033,7 +1033,7 @@ class Boundaries:
         datasets = {
             "states": self.__states,
             "ca_counties": self.__ca_counties,
-            "ca_cities": self.__ca_cities,
+            "cities": self.__ca_cities,
             "ca_watersheds": self.__ca_watersheds,
             "ca_utilities": self.__ca_utilities,
             "ca_forecast_zones": self.__ca_forecast_zones,

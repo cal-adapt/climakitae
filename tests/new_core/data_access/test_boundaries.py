@@ -745,7 +745,7 @@ class TestBoundariesMemoryManagement:
         # All dataset usage should be 0
         assert result["states"] == 0
         assert result["ca_counties"] == 0
-        assert result["ca_cities"] == 0
+        assert result["cities"] == 0
         assert result["ca_watersheds"] == 0
         assert result["ca_utilities"] == 0
         assert result["ca_forecast_zones"] == 0
