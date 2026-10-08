@@ -119,3 +119,23 @@ This project is licensed under the BSD 3-Clause License - see the [LICENSE](LICE
 ## Contributors
 
 [![Contributors](https://contrib.rocks/image?repo=cal-adapt/climakitae)](https://github.com/cal-adapt/climakitae/graphs/contributors)
+
+
+---
+
+## General External Boundary Datasets Disclaimer
+Climakitae includes multiple external boundary datasets from government and institutional sources to provide geographic context and geospatial clipping for climate analysis. These datasets are reference information and have limitations. 
+### Data Sources & Currency
+Boundary data in climakitae comes from various official sources and reflects information available at the time of integration. Source agencies update their boundaries periodically, so this data may not capture the most recent changes or all contemporary territorial claims and interests.For more information about each boundary dataset, please reference the README file in our AWS bucket. 
+### Representation & Authority
+Equal representation of all communities, and equal capacity for advocacy and participation in decision-making, requires more than the availability of geographic boundary data. Boundaries shown in climakitae are one source of information and do not fully capture the complexity of governance, jurisdictional authority, or community interests. 
+### Reference Layer Only
+External boundary data should be used as a reference layer for geographic analysis and context. 
+### Data Verification
+Climakitae does not independently verify external boundary information. For critical applications, authoritative sources, official documentation, and representatives of relevant organizations and communities are the primary references. 
+### Feedback
+If you have feedback or notice an issue with the boundary data, please email us at support@cal-adaport.org or report an issue on climakitae’s Github repository. 
+
+
+## Tribal Boundaries Disclaimer
+Climakitae tribal boundary data comes from the U.S. Department of Interior Bureau of Indian Affairs (BIA) GeoSpatial Data Repository (https://biamaps.geoplatform.gov/server/rest/services/BOGS/RTV_VIEWER/MapServer).  Equal representation of all tribal perspectives, and equal capacity for advocacy in decision-making, requires more than the availability of this data.
