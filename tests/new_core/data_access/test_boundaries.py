@@ -26,7 +26,7 @@ class TestBoundariesInitialization:
         for attr in [
             "states",
             "counties",
-            "ca_cities",
+            "cities",
             "huc8",
             "utilities",
             "dfz",
@@ -58,7 +58,7 @@ class TestBoundariesInitialization:
         assert "utilities" in str(excinfo.value)
         assert "dfz" in str(excinfo.value)
         assert "eba" in str(excinfo.value)
-        assert "ca_cities" in str(excinfo.value)
+        assert "cities" in str(excinfo.value)
 
     def test_validate_catalog_success(self):
         """Test successful catalog validation."""
@@ -66,7 +66,7 @@ class TestBoundariesInitialization:
         for attr in [
             "states",
             "counties",
-            "ca_cities",
+            "cities",
             "huc8",
             "utilities",
             "dfz",
@@ -103,7 +103,7 @@ class TestBoundariesProperties:
         for attr in [
             "states",
             "counties",
-            "ca_cities",
+            "cities",
             "huc8",
             "utilities",
             "dfz",
@@ -144,7 +144,7 @@ class TestBoundariesProperties:
                     "geometry": [f"POLYGON_{i}" for i in range(4)],
                 }
             )
-        elif dataset_type == "ca_cities":
+        elif dataset_type == "cities":
             return pd.DataFrame(
                 {
                     "CDT_NAME_S": [
@@ -247,7 +247,7 @@ class TestBoundariesProperties:
         setattr(mock_catalog, "counties", catalog_entry)
 
         # Set other required attributes
-        for attr in ["states", "huc8", "utilities", "dfz", "eba"]:
+        for attr in ["states", "cities", "huc8", "utilities", "dfz", "eba"]:
             setattr(mock_catalog, attr, Mock())
 
         boundaries = Boundaries(mock_catalog)
@@ -268,12 +268,12 @@ class TestBoundariesProperties:
         assert isinstance(cities, pd.DataFrame)
         assert getattr(mock_boundaries, "_Boundaries__ca_cities", None) is not None
 
-    def test_ca_counties_loading_error(self):
+    def test_ca_cities_loading_error(self):
         """Test error handling during CA cities loading."""
         mock_catalog = Mock()
         catalog_entry = Mock()
         catalog_entry.read.side_effect = Exception("Catalog read error")
-        setattr(mock_catalog, "ca_cities", catalog_entry)
+        setattr(mock_catalog, "cities", catalog_entry)
 
         # Set other required attributes
         for attr in ["states", "counties", "huc8", "utilities", "dfz", "eba"]:
@@ -610,7 +610,7 @@ class TestBoundariesPublicMethods:
         for attr in [
             "states",
             "counties",
-            "ca_cities",
+            "cities",
             "huc8",
             "utilities",
             "dfz",
@@ -645,7 +645,7 @@ class TestBoundariesPublicMethods:
             "lat/lon",
             "states",
             "CA counties",
-            "ca_cities",
+            "CA cities",
             "CA watersheds",
             "CA Electric Load Serving Entities (IOU & POU)",
             "CA Electricity Demand Forecast Zones",
@@ -670,7 +670,7 @@ class TestBoundariesPublicMethods:
     def test_boundary_dict_includes_optional_tribal_areas(self):
         """Test optional Tribal areas are exposed by their selectors."""
         mock_catalog = MagicMock()
-        for attr in ["states", "counties", "huc8", "utilities", "dfz", "eba"]:
+        for attr in ["states", "counties", "cities", "huc8", "utilities", "dfz", "eba"]:
             setattr(mock_catalog, attr, Mock())
         mock_catalog.__contains__.side_effect = lambda name: name == "tribalareas"
         mock_catalog.tribalareas.read.return_value = pd.DataFrame(
@@ -685,6 +685,7 @@ class TestBoundariesPublicMethods:
         boundaries = Boundaries(mock_catalog)
         boundaries._get_states = Mock(return_value={})
         boundaries._get_ca_counties = Mock(return_value={})
+        boundaries._get_ca_cities = Mock(return_value={})
         boundaries._get_ca_watersheds = Mock(return_value={})
         boundaries._get_ious_pous = Mock(return_value={})
         boundaries._get_forecast_zones = Mock(return_value={})

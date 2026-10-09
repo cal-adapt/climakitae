@@ -556,11 +556,11 @@ class Boundaries:
             Dictionary mapping city names to DataFrame indices
 
         """
-        if "cities" not in self._lookup_cache:
-            self._lookup_cache["cities"] = pd.Series(
+        if "ca_cities" not in self._lookup_cache:
+            self._lookup_cache["ca_cities"] = pd.Series(
                 self._ca_cities.index, index=self._ca_cities["CDT_NAME_S"]
             ).to_dict()
-        return self._lookup_cache["cities"]
+        return self._lookup_cache["ca_cities"]
 
     def _get_ca_watersheds(self) -> Dict[str, int]:
         """Get cached lookup dictionary for California watersheds.
@@ -738,7 +738,7 @@ class Boundaries:
             "lat/lon": {"coordinate selection": 0},
             "states": self._get_states(),
             "CA counties": self._get_ca_counties(),
-            "cities": self._get_ca_cities(),
+            "CA cities": self._get_ca_cities(),
             "CA watersheds": self._get_ca_watersheds(),
             "CA Electric Load Serving Entities (IOU & POU)": self._get_ious_pous(),
             "CA Electricity Demand Forecast Zones": self._get_forecast_zones(),
@@ -985,7 +985,7 @@ class Boundaries:
             Per-dataset usage (bytes):
             - 'states': Memory used by US states DataFrame (0 if not loaded)
             - 'ca_counties': Memory used by CA counties DataFrame (0 if not loaded)
-            - 'cities': Memory used by CA cities DataFrame (0 if not loaded)
+            - 'ca_cities': Memory used by CA cities DataFrame (0 if not loaded)
             - 'ca_watersheds': Memory used by CA watersheds DataFrame (0 if not loaded)
             - 'ca_utilities': Memory used by CA utilities DataFrame (0 if not loaded)
             - 'ca_forecast_zones': Memory used by forecast zones DataFrame (0 if not loaded)
@@ -1032,7 +1032,7 @@ class Boundaries:
         datasets = {
             "states": self.__states,
             "ca_counties": self.__ca_counties,
-            "cities": self.__ca_cities,
+            "ca_cities": self.__ca_cities,
             "ca_watersheds": self.__ca_watersheds,
             "ca_utilities": self.__ca_utilities,
             "ca_forecast_zones": self.__ca_forecast_zones,
