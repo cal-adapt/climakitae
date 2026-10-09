@@ -3,7 +3,6 @@
 This module provides a high-level interface for accessing climate data through
 the ClimateData class. It implements a fluent interface pattern that allows users
 to chain method calls to configure data queries.
-
 The module facilitates retrieving climate data with various parameters such as
 catalogs, installations, activities, institutions, sources, experiments, variables,
 and processing options. It implements a factory pattern for creating appropriate
@@ -1190,12 +1189,15 @@ class ClimateData:
         show_n : int, optional
             Maximum number of options to display. If None (default), shows all options.
         """
+        print("whats going on?")
         current_query = {k: v for k, v in self._query.items() if v is not UNSET}
         msg = ""
+        print("how about this?")
         if current_query:
             msg = "Variables (constrained by current query):"
         else:
             msg = "Variables"
+        print("what about now?")
 
         self._show_options("variable_id", msg, limit_per_group=show_n)
 

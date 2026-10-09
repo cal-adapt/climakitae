@@ -36,6 +36,7 @@ data = (cd
 # Discover available regions
 cd.show_boundary_options()  # All boundary types
 cd.show_boundary_options("ca_counties")  # All California counties
+cd.show_boundary_options("CA cities")  # All California cities
 cd.show_boundary_options("Tribal Areas")  # Western US BIA tribal areas
 ```
 
@@ -45,6 +46,7 @@ cd.show_boundary_options("Tribal Areas")  # Western US BIA tribal areas
 | Boundary Type | Description |
 |---------------|-------------|
 | `ca_counties` | California counties (58 total) |
+| `CA cities` | California cities (483 total) |
 | `ca_watersheds` | Hydrologic units (HUC8) |
 | `ca_census_tracts` | Census geography |
 | `states` | Western US states (11 states) |
