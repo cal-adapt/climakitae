@@ -171,7 +171,7 @@ class Boundaries:
         ----------
         boundary_catalog : intake.catalog.Catalog
             Intake catalog instance for accessing boundary parquet files.
-            Must contain entries for: 'states', 'counties', 'ca_cities', 'huc8',
+            Must contain entries for: 'states', 'counties', 'cities', 'huc8',
             'utilities', 'dfz', and 'eba'.
 
         Raises
@@ -223,7 +223,7 @@ class Boundaries:
         Required catalog entries:
         - 'states': US state boundaries
         - 'counties': California county boundaries
-        - 'ca_cities' : CA city boundaries
+        - 'cities' : CA city boundaries
         - 'huc8': California watershed boundaries (HUC8 level)
         - 'utilities': California electric utility boundaries
         - 'dfz': California demand forecast zones
@@ -232,7 +232,7 @@ class Boundaries:
         required_entries = [
             "states",
             "counties",
-            "ca_cities",
+            "cities",
             "huc8",
             "utilities",
             "dfz",
@@ -556,12 +556,11 @@ class Boundaries:
             Dictionary mapping city names to DataFrame indices
 
         """
-        #!! ?? is that correct? not sure what this does tbh
-        if "ca_cities" not in self._lookup_cache:
-            self._lookup_cache["ca_cities"] = pd.Series(
+        if "cities" not in self._lookup_cache:
+            self._lookup_cache["cities"] = pd.Series(
                 self._ca_cities.index, index=self._ca_cities["CDT_NAME_S"]
             ).to_dict()
-        return self._lookup_cache["ca_cities"]
+        return self._lookup_cache["cities"]
 
     def _get_ca_watersheds(self) -> Dict[str, int]:
         """Get cached lookup dictionary for California watersheds.
@@ -739,7 +738,7 @@ class Boundaries:
             "lat/lon": {"coordinate selection": 0},
             "states": self._get_states(),
             "CA counties": self._get_ca_counties(),
-            "ca_cities": self._get_ca_cities(),
+            "cities": self._get_ca_cities(),
             "CA watersheds": self._get_ca_watersheds(),
             "CA Electric Load Serving Entities (IOU & POU)": self._get_ious_pous(),
             "CA Electricity Demand Forecast Zones": self._get_forecast_zones(),
@@ -986,7 +985,7 @@ class Boundaries:
             Per-dataset usage (bytes):
             - 'states': Memory used by US states DataFrame (0 if not loaded)
             - 'ca_counties': Memory used by CA counties DataFrame (0 if not loaded)
-            - 'ca_cities': Memory used by CA cities DataFrame (0 if not loaded)
+            - 'cities': Memory used by CA cities DataFrame (0 if not loaded)
             - 'ca_watersheds': Memory used by CA watersheds DataFrame (0 if not loaded)
             - 'ca_utilities': Memory used by CA utilities DataFrame (0 if not loaded)
             - 'ca_forecast_zones': Memory used by forecast zones DataFrame (0 if not loaded)
@@ -1033,7 +1032,7 @@ class Boundaries:
         datasets = {
             "states": self.__states,
             "ca_counties": self.__ca_counties,
-            "ca_cities": self.__ca_cities,
+            "cities": self.__ca_cities,
             "ca_watersheds": self.__ca_watersheds,
             "ca_utilities": self.__ca_utilities,
             "ca_forecast_zones": self.__ca_forecast_zones,
