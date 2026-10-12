@@ -448,6 +448,16 @@ class TestBoundariesLookupMethods:
         result2 = boundaries._get_ca_counties()
         assert result1 is result2
 
+    def test_get_ca_cities_caching(self, mock_boundaries_with_data):
+        """Test CA cities lookup dictionary caching."""
+        boundaries = mock_boundaries_with_data
+
+        result1 = boundaries._get_ca_cities()
+        assert "cities" in boundaries._lookup_cache
+
+        result2 = boundaries._get_ca_cities()
+        assert result1 is result2
+
     def test_get_ca_watersheds_caching(self, mock_boundaries_with_data):
         """Test CA watersheds lookup dictionary caching."""
         boundaries = mock_boundaries_with_data
@@ -509,7 +519,7 @@ class TestBoundariesPublicMethods:
     def mock_boundaries_public(self):
         """Create boundaries for testing public methods."""
         mock_catalog = Mock()
-        for attr in ["states", "counties", "huc8", "utilities", "dfz", "eba"]:
+        for attr in ["states", "counties", "cities", "huc8", "utilities", "dfz", "eba"]:
             catalog_entry = Mock()
             catalog_entry.read.return_value = pd.DataFrame({"test": [1, 2, 3]})
             setattr(mock_catalog, attr, catalog_entry)
