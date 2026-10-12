@@ -1516,7 +1516,7 @@ class Clip(DataProcessor):
         category_map = {
             "states": boundaries._states,
             "CA counties": boundaries._ca_counties,
-            "cties": boundaries._ca_cities,
+            "cities": boundaries._ca_cities,
             "CA watersheds": boundaries._ca_watersheds,
             "CA Electric Load Serving Entities (IOU & POU)": boundaries._ca_utilities,
             "CA Electricity Demand Forecast Zones": boundaries._ca_forecast_zones,
@@ -1524,6 +1524,9 @@ class Clip(DataProcessor):
             "CA Census Tracts": boundaries._ca_census_tracts,
             "Tribal Areas": boundaries._tribal_areas,
         }
+        #! test
+        print(f"category: {category}")
+        print(f"category_map: {category_map}")
 
         if category not in category_map:
             raise ValueError(f"Unknown boundary category: {category}")
