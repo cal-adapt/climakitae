@@ -1012,18 +1012,11 @@ class ClimateData:
         elif catalog == "hdp":
             required_params.extend(["network_id"])
 
-        #! test
-        print(f"required_params:{required_params}")
-
         missing_params = []
 
         for param in required_params:
-            #! test
-            print(query[param])
             if query[param] is UNSET:
                 missing_params.append(param)
-        #! test
-        print(missing_params)
 
         if missing_params:
             logger.error("Missing required parameters: %s", ", ".join(missing_params))
