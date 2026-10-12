@@ -555,7 +555,7 @@ class Boundaries:
             Dictionary mapping county names to DataFrame indices
 
         """
-        if "ca_cinties" not in self._lookup_cache:
+        if "cities" not in self._lookup_cache:
             self._lookup_cache["cities"] = pd.Series(
                 self._ca_cities.index, index=self._ca_cities["CDT_NAME_S"]
             ).to_dict()
