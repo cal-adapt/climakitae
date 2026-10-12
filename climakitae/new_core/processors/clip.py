@@ -1524,9 +1524,6 @@ class Clip(DataProcessor):
             "CA Census Tracts": boundaries._ca_census_tracts,
             "Tribal Areas": boundaries._tribal_areas,
         }
-        #! test
-        print(f"category: {category}")
-        print(f"category_map: {category_map}")
 
         if category not in category_map:
             raise ValueError(f"Unknown boundary category: {category}")
