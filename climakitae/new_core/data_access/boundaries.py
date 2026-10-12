@@ -87,6 +87,8 @@ class Boundaries:
         US western states with names, abbreviations, and geometries (lazy-loaded)
     _ca_counties : pd.DataFrame
         California counties with names and geometries, sorted alphabetically (lazy-loaded)
+    _ca_cities : pd.DataFrame
+        California cities with names and geometries, sorted alphabetically (lazy-loaded)
     _ca_watersheds : pd.DataFrame
         California HUC8 watersheds with names and geometries, sorted alphabetically (lazy-loaded)
     _ca_utilities : pd.DataFrame
@@ -188,6 +190,7 @@ class Boundaries:
         # Private storage for lazy-loaded DataFrames
         self.__states: Optional[pd.DataFrame] = None
         self.__ca_counties: Optional[pd.DataFrame] = None
+        self.__ca_cities: Optional[pd.DataFrame] = None
         self.__ca_watersheds: Optional[pd.DataFrame] = None
         self.__ca_utilities: Optional[pd.DataFrame] = None
         self.__ca_forecast_zones: Optional[pd.DataFrame] = None
@@ -219,12 +222,13 @@ class Boundaries:
         Required catalog entries:
         - 'states': US state boundaries
         - 'counties': California county boundaries
+        - 'cities': California city boundaries
         - 'huc8': California watershed boundaries (HUC8 level)
         - 'utilities': California electric utility boundaries
         - 'dfz': California demand forecast zones
         - 'eba': Electric balancing authority areas
         """
-        required_entries = ["states", "counties", "huc8", "utilities", "dfz", "eba"]
+        required_entries = ["states", "counties", "cities", "huc8", "utilities", "dfz", "eba"]
         missing = [entry for entry in required_entries if not hasattr(self._cat, entry)]
         if missing:
             raise ValueError(f"Missing required catalog entries: {missing}")
@@ -258,6 +262,22 @@ class Boundaries:
     @_ca_counties.setter
     def _ca_counties(self, value: pd.DataFrame) -> None:
         self.__ca_counties = value
+
+    @property
+    def _ca_cities(self) -> pd.DataFrame:
+        """Lazy-loaded California cities data."""
+        if self.__ca_cities is None:
+            try:
+                self.__ca_cities = self._process_ca_cities(
+                    self._cat.cities.read()
+                )
+            except Exception as e:
+                raise RuntimeError(f"Failed to load CA cities data: {e}") from e
+        return self.__ca_cities
+
+    @_ca_cities.setter
+    def _ca_cities(self, value: pd.DataFrame) -> None:
+        self.__ca_cities = value
 
     @property
     def _ca_watersheds(self) -> pd.DataFrame:
@@ -385,6 +405,21 @@ class Boundaries:
 
         """
         return df.sort_values("NAME")
+    def _process_ca_counties(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Process raw CA cuties data.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Raw CA cities DataFrame
+
+        Returns
+        -------
+        pd.DataFrame
+            Processed CA cities DataFrame sorted by name
+
+        """
+        return df.sort_values("CDT_NAME_S")
 
     def _process_ca_watersheds(self, df: pd.DataFrame) -> pd.DataFrame:
         """Process raw CA watersheds data.
