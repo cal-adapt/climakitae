@@ -660,13 +660,9 @@ class ClimateData:
         """
         logger.debug("Setting variable_id to: %s", variable_id)
 
-        #! test
-        print(f"hello there!:{variable_id}")
-        if isinstance(variable_id, list) and all(
+        if isinstance(variable_id, list | tuple) and all(
             isinstance(s, str) for s in variable_id
         ):
-            #! test
-            print(f"list of strings?:{all(isinstance(s, str) for s in variable_id)}")
             variable_id_cleaned = []
             for var in variable_id:
                 variable_id_cleaned.append(var.strip())
@@ -676,12 +672,8 @@ class ClimateData:
             self._query["variable_id"] = variable_id.strip()
             logger.info("Variable ID set to: %s", variable_id.strip())
         else:
-            #! test
-            print(f"variable_id_cleaned:{variable_id_cleaned}")
             logger.error("Invalid variable_id parameter: must be non-empty string")
             raise ValueError("Variable ID must be a non-empty string")
-        #! test
-        print(f"variable_id_cleaned:{variable_id_cleaned}")
 
         return self
 
