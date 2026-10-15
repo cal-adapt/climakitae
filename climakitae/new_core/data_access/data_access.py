@@ -608,6 +608,9 @@ class DataCatalog(dict):
         internal_keys = {"_derived_variable", "_source_variables", "_catalog_key"}
         search_query = {k: v for k, v in query.items() if k not in internal_keys}
 
+        #! test
+        print(f"search_query: {search_query}")
+        print(f"effective_key: {effective_key}")
         logger.debug("Querying %s catalog with query: %s", effective_key, search_query)
 
         logger.debug("Executing catalog search")
