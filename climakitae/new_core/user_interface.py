@@ -282,7 +282,6 @@ class ClimateData:
             "table_id": UNSET,
             "grid_label": UNSET,
             "variable_id": UNSET,
-            "variable_id_type": UNSET,
             "station_id": UNSET,
             "network_id": UNSET,
             "processes": UNSET,
@@ -672,11 +671,9 @@ class ClimateData:
             for var in variable_id:
                 variable_id_cleaned.append(var.strip())
             self._query["variable_id"] = variable_id_cleaned
-            self.variable_id_type = "list"
             logger.info("Variable ID set to: %s", variable_id_cleaned)
         elif isinstance(variable_id, str) or variable_id.strip():
             self._query["variable_id"] = variable_id.strip()
-            self.variable_id_type = "string"
             logger.info("Variable ID set to: %s", variable_id.strip())
         else:
             #! test
@@ -685,7 +682,6 @@ class ClimateData:
             raise ValueError("Variable ID must be a non-empty string")
         #! test
         print(f"variable_id_cleaned:{variable_id_cleaned}")
-        print(f"variable_id_type:{self.variable_id_type}")
 
         return self
 
