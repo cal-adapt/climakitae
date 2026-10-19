@@ -2771,11 +2771,11 @@ Sorted by watershed name alphabetical order</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>climakitae/core/boundaries.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-52">52</a></span>
-<span class="normal"><a href="#__codelineno-0-53">53</a></span>
-<span class="normal"><a href="#__codelineno-0-54">54</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">boundary_catalog</span><span class="p">):</span>
-<a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="c1"># Connect intake Catalog to class</span>
-<a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span> <span class="o">=</span> <span class="n">boundary_catalog</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#climakitae.core.boundaries.Boundaries--source--__codelineno-0-52">52</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries--source--__codelineno-0-53">53</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries--source--__codelineno-0-54">54</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="climakitae.core.boundaries.Boundaries--source--__codelineno-0-52" name="climakitae.core.boundaries.Boundaries--source--__codelineno-0-52"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">boundary_catalog</span><span class="p">):</span>
+<a id="climakitae.core.boundaries.Boundaries--source--__codelineno-0-53" name="climakitae.core.boundaries.Boundaries--source--__codelineno-0-53"></a>    <span class="c1"># Connect intake Catalog to class</span>
+<a id="climakitae.core.boundaries.Boundaries--source--__codelineno-0-54" name="climakitae.core.boundaries.Boundaries--source--__codelineno-0-54"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span> <span class="o">=</span> <span class="n">boundary_catalog</span>
 </code></pre></div></td></tr></table></div>
                   </details>
 
@@ -2808,55 +2808,55 @@ Sorted by watershed name alphabetical order</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/core/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-56">56</a></span>
-<span class="normal"><a href="#__codelineno-0-57">57</a></span>
-<span class="normal"><a href="#__codelineno-0-58">58</a></span>
-<span class="normal"><a href="#__codelineno-0-59">59</a></span>
-<span class="normal"><a href="#__codelineno-0-60">60</a></span>
-<span class="normal"><a href="#__codelineno-0-61">61</a></span>
-<span class="normal"><a href="#__codelineno-0-62">62</a></span>
-<span class="normal"><a href="#__codelineno-0-63">63</a></span>
-<span class="normal"><a href="#__codelineno-0-64">64</a></span>
-<span class="normal"><a href="#__codelineno-0-65">65</a></span>
-<span class="normal"><a href="#__codelineno-0-66">66</a></span>
-<span class="normal"><a href="#__codelineno-0-67">67</a></span>
-<span class="normal"><a href="#__codelineno-0-68">68</a></span>
-<span class="normal"><a href="#__codelineno-0-69">69</a></span>
-<span class="normal"><a href="#__codelineno-0-70">70</a></span>
-<span class="normal"><a href="#__codelineno-0-71">71</a></span>
-<span class="normal"><a href="#__codelineno-0-72">72</a></span>
-<span class="normal"><a href="#__codelineno-0-73">73</a></span>
-<span class="normal"><a href="#__codelineno-0-74">74</a></span>
-<span class="normal"><a href="#__codelineno-0-75">75</a></span>
-<span class="normal"><a href="#__codelineno-0-76">76</a></span>
-<span class="normal"><a href="#__codelineno-0-77">77</a></span>
-<span class="normal"><a href="#__codelineno-0-78">78</a></span>
-<span class="normal"><a href="#__codelineno-0-79">79</a></span>
-<span class="normal"><a href="#__codelineno-0-80">80</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-56" name="__codelineno-0-56"></a><span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a><span class="w">    </span><span class="sd">"""Read parquet files and sets class attributes."""</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_us_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">states</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-<a id="__codelineno-0-59" name="__codelineno-0-59"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_counties</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">counties</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s2">"NAME"</span><span class="p">)</span>
-<a id="__codelineno-0-60" name="__codelineno-0-60"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_watersheds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">huc8</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s2">"Name"</span><span class="p">)</span>
-<a id="__codelineno-0-61" name="__codelineno-0-61"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_utilities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">utilities</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-<a id="__codelineno-0-62" name="__codelineno-0-62"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">dfz</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-<a id="__codelineno-0-63" name="__codelineno-0-63"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">eba</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-<a id="__codelineno-0-64" name="__codelineno-0-64"></a>
-<a id="__codelineno-0-65" name="__codelineno-0-65"></a>    <span class="c1"># EBA CALISO polygon has two options</span>
-<a id="__codelineno-0-66" name="__codelineno-0-66"></a>    <span class="c1"># One of the polygons is super tiny, with a negligible area</span>
-<a id="__codelineno-0-67" name="__codelineno-0-67"></a>    <span class="c1"># Perhaps this is an error from the producers of the data</span>
-<a id="__codelineno-0-68" name="__codelineno-0-68"></a>    <span class="c1"># Just grab the CALISO polygon with the large area</span>
-<a id="__codelineno-0-69" name="__codelineno-0-69"></a>    <span class="n">tiny_caliso</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
-<a id="__codelineno-0-70" name="__codelineno-0-70"></a>        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="p">[</span><span class="s2">"NAME"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"CALISO"</span><span class="p">)</span>
-<a id="__codelineno-0-71" name="__codelineno-0-71"></a>        <span class="o">&amp;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="p">[</span><span class="s2">"SHAPE_Area"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">100</span><span class="p">)</span>
-<a id="__codelineno-0-72" name="__codelineno-0-72"></a>    <span class="p">]</span><span class="o">.</span><span class="n">index</span>
-<a id="__codelineno-0-73" name="__codelineno-0-73"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span>
-<a id="__codelineno-0-74" name="__codelineno-0-74"></a>        <span class="n">tiny_caliso</span>
-<a id="__codelineno-0-75" name="__codelineno-0-75"></a>    <span class="p">)</span>
-<a id="__codelineno-0-76" name="__codelineno-0-76"></a>
-<a id="__codelineno-0-77" name="__codelineno-0-77"></a>    <span class="c1"># For Forecast Zones named "Other", replace that with the name of the county</span>
-<a id="__codelineno-0-78" name="__codelineno-0-78"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
-<a id="__codelineno-0-79" name="__codelineno-0-79"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span><span class="p">[</span><span class="s2">"FZ_Name"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"Other"</span><span class="p">,</span> <span class="s2">"FZ_Name"</span>
-<a id="__codelineno-0-80" name="__codelineno-0-80"></a>    <span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span><span class="p">[</span><span class="s2">"FZ_Def"</span><span class="p">]</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-56">56</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-57">57</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-58">58</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-59">59</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-60">60</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-61">61</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-62">62</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-63">63</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-64">64</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-65">65</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-66">66</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-67">67</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-68">68</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-69">69</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-70">70</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-71">71</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-72">72</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-73">73</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-74">74</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-75">75</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-76">76</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-77">77</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-78">78</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-79">79</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-80">80</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-56" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-56"></a><span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-57" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-57"></a><span class="w">    </span><span class="sd">"""Read parquet files and sets class attributes."""</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-58" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-58"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_us_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">states</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-59" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-59"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_counties</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">counties</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s2">"NAME"</span><span class="p">)</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-60" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-60"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_watersheds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">huc8</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s2">"Name"</span><span class="p">)</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-61" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-61"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_utilities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">utilities</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-62" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-62"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">dfz</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-63" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-63"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat</span><span class="o">.</span><span class="n">eba</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-64" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-64"></a>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-65" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-65"></a>    <span class="c1"># EBA CALISO polygon has two options</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-66" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-66"></a>    <span class="c1"># One of the polygons is super tiny, with a negligible area</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-67" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-67"></a>    <span class="c1"># Perhaps this is an error from the producers of the data</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-68" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-68"></a>    <span class="c1"># Just grab the CALISO polygon with the large area</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-69" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-69"></a>    <span class="n">tiny_caliso</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-70" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-70"></a>        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="p">[</span><span class="s2">"NAME"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"CALISO"</span><span class="p">)</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-71" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-71"></a>        <span class="o">&amp;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="p">[</span><span class="s2">"SHAPE_Area"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">100</span><span class="p">)</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-72" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-72"></a>    <span class="p">]</span><span class="o">.</span><span class="n">index</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-73" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-73"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ca_electric_balancing_areas</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-74" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-74"></a>        <span class="n">tiny_caliso</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-75" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-75"></a>    <span class="p">)</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-76" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-76"></a>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-77" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-77"></a>    <span class="c1"># For Forecast Zones named "Other", replace that with the name of the county</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-78" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-78"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-79" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-79"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span><span class="p">[</span><span class="s2">"FZ_Name"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"Other"</span><span class="p">,</span> <span class="s2">"FZ_Name"</span>
+<a id="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-80" name="climakitae.core.boundaries.Boundaries.load--source--__codelineno-0-80"></a>    <span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ca_forecast_zones</span><span class="p">[</span><span class="s2">"FZ_Def"</span><span class="p">]</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2906,53 +2906,53 @@ in the area_subset parameter changes.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>climakitae/core/boundaries.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-191">191</a></span>
-<span class="normal"><a href="#__codelineno-0-192">192</a></span>
-<span class="normal"><a href="#__codelineno-0-193">193</a></span>
-<span class="normal"><a href="#__codelineno-0-194">194</a></span>
-<span class="normal"><a href="#__codelineno-0-195">195</a></span>
-<span class="normal"><a href="#__codelineno-0-196">196</a></span>
-<span class="normal"><a href="#__codelineno-0-197">197</a></span>
-<span class="normal"><a href="#__codelineno-0-198">198</a></span>
-<span class="normal"><a href="#__codelineno-0-199">199</a></span>
-<span class="normal"><a href="#__codelineno-0-200">200</a></span>
-<span class="normal"><a href="#__codelineno-0-201">201</a></span>
-<span class="normal"><a href="#__codelineno-0-202">202</a></span>
-<span class="normal"><a href="#__codelineno-0-203">203</a></span>
-<span class="normal"><a href="#__codelineno-0-204">204</a></span>
-<span class="normal"><a href="#__codelineno-0-205">205</a></span>
-<span class="normal"><a href="#__codelineno-0-206">206</a></span>
-<span class="normal"><a href="#__codelineno-0-207">207</a></span>
-<span class="normal"><a href="#__codelineno-0-208">208</a></span>
-<span class="normal"><a href="#__codelineno-0-209">209</a></span>
-<span class="normal"><a href="#__codelineno-0-210">210</a></span>
-<span class="normal"><a href="#__codelineno-0-211">211</a></span>
-<span class="normal"><a href="#__codelineno-0-212">212</a></span>
-<span class="normal"><a href="#__codelineno-0-213">213</a></span>
-<span class="normal"><a href="#__codelineno-0-214">214</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-191" name="__codelineno-0-191"></a><span class="k">def</span><span class="w"> </span><span class="nf">boundary_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<a id="__codelineno-0-192" name="__codelineno-0-192"></a><span class="w">    </span><span class="sd">"""Return a dict of the other boundary dicts, used to populate ck.Select.</span>
-<a id="__codelineno-0-193" name="__codelineno-0-193"></a>
-<a id="__codelineno-0-194" name="__codelineno-0-194"></a><span class="sd">    This returns a dictionary of lookup dictionaries for each set of</span>
-<a id="__codelineno-0-195" name="__codelineno-0-195"></a><span class="sd">    geoparquet files that the user might be choosing from. It is used to</span>
-<a id="__codelineno-0-196" name="__codelineno-0-196"></a><span class="sd">    populate the `DataParameters` cached_area dynamically as the category</span>
-<a id="__codelineno-0-197" name="__codelineno-0-197"></a><span class="sd">    in the area_subset parameter changes.</span>
-<a id="__codelineno-0-198" name="__codelineno-0-198"></a>
-<a id="__codelineno-0-199" name="__codelineno-0-199"></a><span class="sd">    Returns</span>
-<a id="__codelineno-0-200" name="__codelineno-0-200"></a><span class="sd">    -------</span>
-<a id="__codelineno-0-201" name="__codelineno-0-201"></a><span class="sd">    dict</span>
-<a id="__codelineno-0-202" name="__codelineno-0-202"></a>
-<a id="__codelineno-0-203" name="__codelineno-0-203"></a><span class="sd">    """</span>
-<a id="__codelineno-0-204" name="__codelineno-0-204"></a>    <span class="n">all_options</span> <span class="o">=</span> <span class="p">{</span>
-<a id="__codelineno-0-205" name="__codelineno-0-205"></a>        <span class="s2">"none"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"entire domain"</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
-<a id="__codelineno-0-206" name="__codelineno-0-206"></a>        <span class="s2">"lat/lon"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"coordinate selection"</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
-<a id="__codelineno-0-207" name="__codelineno-0-207"></a>        <span class="s2">"states"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_us_states</span><span class="p">(),</span>
-<a id="__codelineno-0-208" name="__codelineno-0-208"></a>        <span class="s2">"CA counties"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_counties</span><span class="p">(),</span>
-<a id="__codelineno-0-209" name="__codelineno-0-209"></a>        <span class="s2">"CA watersheds"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_watersheds</span><span class="p">(),</span>
-<a id="__codelineno-0-210" name="__codelineno-0-210"></a>        <span class="s2">"CA Electric Load Serving Entities (IOU &amp; POU)"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ious_pous</span><span class="p">(),</span>
-<a id="__codelineno-0-211" name="__codelineno-0-211"></a>        <span class="s2">"CA Electricity Demand Forecast Zones"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_forecast_zones</span><span class="p">(),</span>
-<a id="__codelineno-0-212" name="__codelineno-0-212"></a>        <span class="s2">"CA Electric Balancing Authority Areas"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_electric_balancing_areas</span><span class="p">(),</span>
-<a id="__codelineno-0-213" name="__codelineno-0-213"></a>    <span class="p">}</span>
-<a id="__codelineno-0-214" name="__codelineno-0-214"></a>    <span class="k">return</span> <span class="n">all_options</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-191">191</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-192">192</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-193">193</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-194">194</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-195">195</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-196">196</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-197">197</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-198">198</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-199">199</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-200">200</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-201">201</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-202">202</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-203">203</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-204">204</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-205">205</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-206">206</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-207">207</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-208">208</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-209">209</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-210">210</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-211">211</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-212">212</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-213">213</a></span>
+<span class="normal"><a href="#climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-214">214</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-191" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-191"></a><span class="k">def</span><span class="w"> </span><span class="nf">boundary_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-192" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-192"></a><span class="w">    </span><span class="sd">"""Return a dict of the other boundary dicts, used to populate ck.Select.</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-193" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-193"></a>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-194" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-194"></a><span class="sd">    This returns a dictionary of lookup dictionaries for each set of</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-195" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-195"></a><span class="sd">    geoparquet files that the user might be choosing from. It is used to</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-196" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-196"></a><span class="sd">    populate the `DataParameters` cached_area dynamically as the category</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-197" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-197"></a><span class="sd">    in the area_subset parameter changes.</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-198" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-198"></a>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-199" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-199"></a><span class="sd">    Returns</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-200" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-200"></a><span class="sd">    -------</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-201" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-201"></a><span class="sd">    dict</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-202" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-202"></a>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-203" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-203"></a><span class="sd">    """</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-204" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-204"></a>    <span class="n">all_options</span> <span class="o">=</span> <span class="p">{</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-205" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-205"></a>        <span class="s2">"none"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"entire domain"</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-206" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-206"></a>        <span class="s2">"lat/lon"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"coordinate selection"</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-207" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-207"></a>        <span class="s2">"states"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_us_states</span><span class="p">(),</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-208" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-208"></a>        <span class="s2">"CA counties"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_counties</span><span class="p">(),</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-209" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-209"></a>        <span class="s2">"CA watersheds"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ca_watersheds</span><span class="p">(),</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-210" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-210"></a>        <span class="s2">"CA Electric Load Serving Entities (IOU &amp; POU)"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ious_pous</span><span class="p">(),</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-211" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-211"></a>        <span class="s2">"CA Electricity Demand Forecast Zones"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_forecast_zones</span><span class="p">(),</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-212" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-212"></a>        <span class="s2">"CA Electric Balancing Authority Areas"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_electric_balancing_areas</span><span class="p">(),</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-213" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-213"></a>    <span class="p">}</span>
+<a id="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-214" name="climakitae.core.boundaries.Boundaries.boundary_dict--source--__codelineno-0-214"></a>    <span class="k">return</span> <span class="n">all_options</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
