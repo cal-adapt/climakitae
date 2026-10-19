@@ -745,6 +745,16 @@ class TestClipInferDimensionName:
             result = self.clip._infer_dimension_name("Los Angeles County")
             assert result == "county"
 
+    def test_infer_dimension_name_cities(self):
+        """Test dimension name inference for CA cities."""
+        with patch.object(
+            self.clip,
+            "validate_boundary_key",
+            return_value={"valid": True, "category": "CA cities"},
+        ):
+            result = self.clip._infer_dimension_name("Los Angeles")
+            assert result == "city"
+
     def test_infer_dimension_name_watersheds(self):
         """Test dimension name inference for CA watersheds."""
         with patch.object(
@@ -1835,6 +1845,9 @@ class TestGetBoundaryGeometry:
                 "San Diego County": 1,
                 "Orange County": 2,
             },
+            "CA cities": {
+                "Los Angeles": 3,
+            },
             "CA watersheds": {
                 "Sacramento River": 0,
                 "San Joaquin River": 1,
@@ -1898,6 +1911,20 @@ class TestGetBoundaryGeometry:
             # Verify result
             assert result is self.mock_geodataframe
             assert isinstance(result, gpd.GeoDataFrame)
+
+    def test_get_boundary_geometry_valid_city(self):
+        """Test a CA city key resolves through the CA cities category."""
+        self.mock_boundaries.boundary_dict.return_value = self.sample_boundary_dict
+
+        with patch.object(
+            self.clip,
+            "_extract_geometry_from_category",
+            return_value=self.mock_geodataframe,
+        ) as mock_extract:
+            result = self.clip._get_boundary_geometry("Los Angeles")
+
+        mock_extract.assert_called_once_with("CA cities", 3)
+        assert result is self.mock_geodataframe
 
     def test_get_boundary_geometry_valid_watershed(self):
         """Test _get_boundary_geometry with valid watershed boundary key - outcome: returns GeoDataFrame."""
