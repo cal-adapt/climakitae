@@ -658,22 +658,49 @@ class ClimateData:
             The current instance for method chaining.
 
         """
-        logger.debug("Setting variable_id to: %s", variable_id)
+        # logger.debug("Setting variable_id to: %s", variable_id)
 
-        if isinstance(variable_id, list | tuple) and all(
-            isinstance(s, str) for s in variable_id
-        ):
-            variable_id_cleaned = []
-            for var in variable_id:
-                variable_id_cleaned.append(var.strip())
-            self._query["variable_id"] = variable_id_cleaned
-            logger.info("Variable ID set to: %s", variable_id_cleaned)
-        elif isinstance(variable_id, str) or variable_id.strip():
-            self._query["variable_id"] = variable_id.strip()
-            logger.info("Variable ID set to: %s", variable_id.strip())
+        # # Acceptable variable_id types are list or tuple of strings, or string
+        # if isinstance(variable_id, list | tuple) and all(
+        #     isinstance(s, str) for s in variable_id
+        # ):
+        #     variable_id_cleaned = []
+        #     for var in variable_id:
+        #         variable_id_cleaned.append(var.strip())
+        #     self._query["variable_id"] = variable_id_cleaned
+        #     logger.info("Variable ID set to: %s", variable_id_cleaned)
+        # elif isinstance(variable_id, str) or variable_id.strip():
+        #     self._query["variable_id"] = variable_id.strip()
+        #     logger.info("Variable ID set to: %s", variable_id.strip())
+        # else:
+        #     logger.error("Invalid variable_id parameter: must be non-empty string")
+        #     raise ValueError("Variable ID must be a non-empty string")
+
+
+        logger.debug("Setting variable_id to: %s", variable_id)
+        var = []
+        if not isinstance(variable_id, (str, list)):
+            logger.error(
+                "Invalid variable_id parameter: must be string or list of strings"
+            )
+            raise ValueError(
+                "Variable ID must be a non-empty string or list of strings"
+            )
+        if isinstance(variable_id, str):
+            if not variable_id.strip():
+                logger.error("Invalid variable_id parameter: empty string")
+                raise ValueError("Variable ID must be a non-empty string")
+            var.append(variable_id.strip())
         else:
-            logger.error("Invalid variable_id parameter: must be non-empty string")
-            raise ValueError("Variable ID must be a non-empty string")
+            for var_id in variable_id:
+                if not isinstance(var_id, str) or not var_id.strip():
+                    logger.error(
+                        "Invalid variable_id in list: must be non-empty strings"
+                    )
+                    raise ValueError("Each variable ID must be a non-empty string")
+                var.append(var_id.strip())
+        self._query["variable_id"] = var
+        logger.info("Variable ID(s) set to: %s", var)
 
         return self
 
