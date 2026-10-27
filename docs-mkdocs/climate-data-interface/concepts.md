@@ -78,6 +78,33 @@ data = cd.get()
 | **Grid Label** | Spatial resolution | `"d01"` (45 km, WRF only), `"d02"` (9 km, WRF only), `"d03"` (3 km, both WRF and LOCA2-Hybrid) | Local detail vs. state-wide coverage |
 | **Variable** | Climate quantity | WRF: `"t2max"`, `"t2min"`, `"prec"`, `"dew_point"`. LOCA2: `"tasmax"`, `"tasmin"`, `"pr"`. | What you're analyzing |
 
+### Selecting Multiple Climate Models
+
+Use `.source_id()` with a string to select one model, or with a list or tuple
+of strings to include several models in one query. For example:
+
+```python
+from climakitae.new_core.user_interface import ClimateData
+
+data = (
+    ClimateData()
+    .catalog("cadcat")
+    .activity_id("LOCA2")
+    .institution_id("UCSD")
+    .source_id(["CESM2-LENS", "CNRM-ESM2-1", "MIROC6"])
+    .experiment_id(["historical", "ssp370"])
+    .table_id("day")
+    .grid_label("d03")
+    .variable_id("tasmax")
+    .get()
+)
+```
+
+Each selected source is included in the returned dataset as a simulation.
+`source_id()` rejects empty lists and any list or tuple containing an empty or
+non-string value. For available models, use `show_source_id_options()` on a
+`ClimateData` instance after setting the relevant catalog and activity.
+
 ### Why Hierarchy Matters
 
 1. **Type safety**: Not all combinations are valid (e.g., can't mix WRF variables with LOCA2 experiment_id)
