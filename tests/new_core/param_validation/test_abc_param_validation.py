@@ -378,6 +378,27 @@ class TestIsValidQuery:
         }
         mock_print.assert_any_call("Found 5 datasets matching your query.")
 
+    def test_is_valid_query_multiple_source_ids(self):
+        """Test _is_valid_query accepts multiple source IDs."""
+        source_ids = ["model1", "model2"]
+        query = {"source_id": source_ids}
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 2)
+
+        with patch("builtins.print"):
+            result = self.validator._is_valid_query(query)
+
+        assert result["source_id"] == source_ids
+        self.validator.catalog.search.assert_called_once_with(source_id=source_ids)
+
+    def test_is_valid_query_unknown_source_id_list(self):
+        """Test _is_valid_query rejects unknown source IDs in a list."""
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 0)
+
+        with patch("builtins.print"):
+            result = self.validator._is_valid_query({"source_id": ["unknown-model"]})
+
+        assert result is None
+
     def test_is_valid_query_no_matches(self):
         """Test _is_valid_query when no datasets match."""
         query = {"variable": "nonexistent"}

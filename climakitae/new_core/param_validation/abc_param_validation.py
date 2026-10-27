@@ -419,6 +419,7 @@ class ParameterValidator(ABC):
                 )
 
         # check if the catalog keys can be found
+        subset = []
         try:
             subset = self.catalog.search(**self.all_catalog_keys)
         except ValueError as e:
@@ -471,7 +472,10 @@ class ParameterValidator(ABC):
 
             # subset the dataframe to the key
             remaining_key_values = df[key].unique()
-            df = df[df[key] == value]
+            if key == "source_id" and isinstance(value, (list, tuple)):
+                df = df[df[key].isin(value)]
+            else:
+                df = df[df[key] == value]
             if df.empty:
                 # this means no datasets were found for this key.
                 # this can happen for two reasons:
@@ -479,27 +483,38 @@ class ParameterValidator(ABC):
                 # 2. the requested dataset does not exist in the catalog
 
                 # start by checking if the value is in the catalog
-                if value not in self.catalog.df[key].unique():
+                valid_values = self.catalog.df[key].unique()
+                requested_values = (
+                    value
+                    if key == "source_id" and isinstance(value, (list, tuple))
+                    else [value]
+                )
+                invalid_values = [
+                    requested_value
+                    for requested_value in requested_values
+                    if requested_value not in valid_values
+                ]
+                if invalid_values:
                     # the value is not in the catalog, check for closest options
-                    # Preserve original user-facing print for compatibility with tests
-                    logger.warning(
-                        "Could not find any datasets with %s = %s", key, value
-                    )
-                    closest_options = _get_closest_options(
-                        value, self.catalog.df[key].unique()
-                    )
-                    if closest_options is not None:
-                        # probably a typo in the value
+                    for invalid_value in invalid_values:
                         logger.warning(
-                            f"\n\nDid you mean one of these options for {key}: {closest_options}?"
+                            "Could not find any datasets with %s = %s",
+                            key,
+                            invalid_value,
                         )
-                    else:
-                        # no close matches found
-                        logger.warning(
-                            f"\n\nNo close matches found for {key} = {value}. "
-                            "\nBased on your query, the available options for this key are: "
-                            f"{remaining_key_values}."
+                        closest_options = _get_closest_options(
+                            invalid_value, valid_values
                         )
+                        if closest_options is not None:
+                            logger.warning(
+                                f"\n\nDid you mean one of these options for {key}: {closest_options}?"
+                            )
+                        else:
+                            logger.warning(
+                                f"\n\nNo close matches found for {key} = {invalid_value}. "
+                                "\nBased on your query, the available options for this key are: "
+                                f"{remaining_key_values}."
+                            )
                 else:
                     # the value is in the catalog, but no datasets were found
                     logger.warning(

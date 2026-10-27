@@ -132,6 +132,23 @@ class TestClimateDataParameterSetters:
         assert self.climate_data._query["source_id"] == "GCM"
         assert result is self.climate_data
 
+    @pytest.mark.parametrize(
+        "source_ids",
+        [
+            ["CESM2-LENS", "CNRM-ESM2-1"],
+            ("CESM2-LENS", "CNRM-ESM2-1"),
+        ],
+    )
+    def test_source_id_multiple_valid(self, source_ids):
+        """Test source_id setter with multiple valid IDs."""
+        result = self.climate_data.source_id(source_ids)
+
+        assert self.climate_data._query["source_id"] == [
+            "CESM2-LENS",
+            "CNRM-ESM2-1",
+        ]
+        assert result is self.climate_data
+
     def test_source_id_invalid(self):
         """Test source_id setter with invalid input."""
         try:
@@ -139,6 +156,14 @@ class TestClimateDataParameterSetters:
             assert False, "Should have raised ValueError"
         except ValueError as e:
             assert "Source ID must be a non-empty string" in str(e)
+
+    @pytest.mark.parametrize("source_ids", [[], ["GCM", ""], (" ",)])
+    def test_source_id_invalid_sequence(self, source_ids):
+        """Test source_id setter rejects empty or invalid sequences."""
+        with pytest.raises(
+            ValueError, match="Each source ID must be a non-empty string"
+        ):
+            self.climate_data.source_id(source_ids)
 
     def test_table_id_valid(self):
         """Test table_id setter with valid input."""

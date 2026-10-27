@@ -449,6 +449,20 @@ class TestDatasetFactoryGetCatalogKey:
 
         assert result == "renewables"
 
+    def test_get_catalog_key_from_source_id_list(self):
+        """Test catalog inference with multiple source IDs."""
+        self.factory._catalog_df = pd.DataFrame(
+            {
+                "catalog": ["climate", "renewables"],
+                "source_id": ["model1", "pv"],
+            }
+        )
+        query = {"catalog": UNSET, "source_id": ["model1"]}
+
+        result = self.factory._get_catalog_key_from_query(query)
+
+        assert result == "climate"
+
     def test_get_catalog_key_no_matches(self):
         """Test _get_catalog_key_from_query with no matching datasets."""
         query = {"catalog": UNSET, "variable_id": "nonexistent_var"}

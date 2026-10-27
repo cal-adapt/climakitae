@@ -95,8 +95,8 @@ class ClimateData:
         The activity identifier (e.g., ``"WRF"``, ``"LOCA2"``).
     institution_id : str
         The institution identifier (e.g., ``"CNRM"``, ``"DWD"``).
-    source_id : str
-        The source identifier (e.g., ``"GCM"``, ``"RCM"``, ``"Station"``).
+    source_id : str or list of str or tuple of str
+        One or more source identifiers (e.g., ``"GCM"``, ``"RCM"``, ``"Station"``).
     experiment_id : str or list of str
         The experiment identifier (e.g., ``"historical"``, ``"ssp245"``).
     table_id : str
@@ -530,13 +530,13 @@ class ClimateData:
         logger.info("Institution ID set to: %s", institution_id.strip())
         return self
 
-    def source_id(self, source_id: str) -> "ClimateData":
-        """Set the source identifier for the query.
+    def source_id(self, source_id: str | list[str] | tuple[str, ...]) -> "ClimateData":
+        """Set one or more source identifiers for the query.
 
         Parameters
         ----------
-        source_id : str
-            The source ID (e.g., "GCM", "RCM", "Station").
+        source_id : str or list of str or tuple of str
+            A source ID (e.g., "GCM", "RCM", "Station") or multiple source IDs.
 
         Returns
         -------
@@ -545,11 +545,30 @@ class ClimateData:
 
         """
         logger.debug("Setting source_id to: %s", source_id)
-        if not isinstance(source_id, str) or not source_id.strip():
+        if isinstance(source_id, str):
+            if not source_id.strip():
+                logger.error("Invalid source_id parameter: must be non-empty string")
+                raise ValueError("Source ID must be a non-empty string")
+            normalized_source_id: str | list[str] = source_id.strip()
+        elif isinstance(source_id, (list, tuple)):
+            if not source_id or any(
+                not isinstance(item, str) or not item.strip() for item in source_id
+            ):
+                logger.error(
+                    "Invalid source_id parameter: expected non-empty string values"
+                )
+                raise ValueError(
+                    "Each source ID must be a non-empty string; "
+                    "source ID lists and tuples must not be empty"
+                )
+            normalized_source_id = [item.strip() for item in source_id]
+        else:
             logger.error("Invalid source_id parameter: must be non-empty string")
-            raise ValueError("Source ID must be a non-empty string")
-        self._query["source_id"] = source_id.strip()
-        logger.info("Source ID set to: %s", source_id.strip())
+            raise ValueError(
+                "Source ID must be a non-empty string or a list/tuple of strings"
+            )
+        self._query["source_id"] = normalized_source_id
+        logger.info("Source ID set to: %s", normalized_source_id)
         return self
 
     def experiment_id(self, experiment_id: str | list[str]) -> "ClimateData":
