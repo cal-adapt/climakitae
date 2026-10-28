@@ -12,14 +12,14 @@
 
 **A powerful Python toolkit for climate data analysis and retrieval from the Cal-Adapt Analytics Engine (AE).**
 
-Climakitae provides intuitive tools for accessing, analyzing, and visualizing downscaled CMIP6 data, enabling researchers and practitioners to perform comprehensive climate impact assessments for California.
+Climakitae provides intuitive tools for accessing, analyzing, and visualizing California's Fifth Climate Change Assessment Dataset (downscaled CMIP6 data) and other state supported datasets, enabling researchers and practitioners to perform comprehensive climate impact assessments for California.
 
 > [!WARNING]
 > This package is under active development. APIs may change between versions.
 
 ## Key Features
 
-- 🌡️ **Comprehensive Climate Data Access**: Retrieve climate variables from hosted climate model, weather station, and renewable energy datasets 
+- 🌡️ **Comprehensive Climate Data Access**: Retrieve climate variables from hosted climate model, weather station, renewable energy, and Sup3rCC datasets
 - 📊 **Downscaled Climate Models**: Access dynamical (WRF) and statistical (LOCA2) downscaling methods  
 - 🗺️ **Spatial Analysis Tools**: Built-in support for geographic subsetting and spatial aggregation
 - 📈 **Climate Indices**: Calculate heat indices, warming levels, and extreme event metrics
