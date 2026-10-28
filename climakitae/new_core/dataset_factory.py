@@ -470,7 +470,7 @@ class DatasetFactory:
                 valid_keys.append(value)
         subset = self._catalog_df[
             self._catalog_df.isin(valid_keys).any(axis=1)
-        ]  # filter rows with matching keys
+        ].drop_duplicates(subset="catalog")
         match len(subset):
             case 0:
                 logger.warning("No matching catalogs found initially.")
