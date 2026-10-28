@@ -181,7 +181,8 @@ class TestFunctionsForTMY:
             test_ds["temperature"]
             .isel({"simulation": 1})
             .groupby("time.month")
-            .max()[6],
+            .max()[6]
+            .item(),
             abs=1e-6,
         )
 
