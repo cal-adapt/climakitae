@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../_static/cae-map.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -2413,6 +2413,10 @@
 <p class="admonition-title">Warning</p>
 <p><code>climakitae.core</code> is maintained for backward compatibility only. It still powers older notebooks and internal workflows, but it is no longer the home for new features. New processors, validators, catalogs, and analysis features land in <code>climakitae.new_core</code>.</p>
 </div>
+<div class="admonition danger">
+<p class="admonition-title">Removal target</p>
+<p>The legacy public data-access APIs are deprecated and scheduled for removal in <code>2.0.0</code>, targeting late Q1 2027. Calls to the legacy retrieval and option-discovery methods may emit <code>DeprecationWarning</code>. Use <a href="../climate-data-interface/"><code>ClimateData</code></a> and its processors for new work.</p>
+</div>
 <hr />
 <h2 id="what-belongs-here">What belongs here</h2>
 <p>The legacy API is centered on a small set of modules that work together. Each has a dedicated reference page:</p>
@@ -2514,12 +2518,13 @@ recommended path. See <a href="concepts/">Core Concepts</a> for the field-name
 conventions and the legacy → modern mapping.</p>
 <hr />
 <h2 id="status-and-roadmap">Status and roadmap</h2>
-<p>Legacy support remains available for backward compatibility, but the project
-direction is clear:</p>
+<p>Legacy support remains temporarily available for migration, but the project
+direction and removal target are clear:</p>
 <ul>
-<li>Existing code continues to work.</li>
+<li>Existing code may continue to work during the transition, with deprecation warnings on public legacy data-access methods.</li>
 <li>New documentation and tutorials use <code>ClimateData</code>.</li>
 <li>New feature work lands in <code>climakitae.new_core</code> only.</li>
+<li>The legacy data-access surface is targeted for removal in <code>2.0.0</code>, around late Q1 2027.</li>
 </ul>
 <p>If you are starting new code, use the modern interface and treat this section as
 a compatibility reference.</p>
@@ -2593,10 +2598,10 @@ a compatibility reference.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "content.code.copy", "content.action.edit", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "content.code.copy", "content.action.edit", "content.tabs.link"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@11/dist/mermaid.min.js"></script>
       

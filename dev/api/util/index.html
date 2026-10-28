@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../_static/cae-map.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -7265,7 +7265,7 @@ compute_multimodel_stats must be modified to update optionality.</li>
 
     <div class="doc doc-contents ">
 
-        <p>Replace the [hours/days/months]_from_center or time_delta dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a time dimension.</p>
+        <p>Replace the [hours/days/months]_from_center or time_delta dimension in a DataArray returned from a warming-level query with a dummy time index for calculations with tools that require a time dimension.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -7288,7 +7288,7 @@ compute_multimodel_stats must be modified to update optionality.</li>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The input Warming Levels DataArray. It is expected to have a time-based dimension which typically includes "from_center"
+                <p>The input warming-level DataArray. It is expected to have a time-based dimension which typically includes "from_center"
 in its name or time_delta indicating the time dimension in relation to the year that the given warming level is reached per simulation.</p>
               </div>
             </td>
@@ -7455,12 +7455,12 @@ will be named "time".</p>
 <span class="normal"><a href="#climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1625">1625</a></span>
 <span class="normal"><a href="#climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1626">1626</a></span>
 <span class="normal"><a href="#climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1627">1627</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1524" name="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1524"></a><span class="k">def</span><span class="w"> </span><span class="nf">add_dummy_time_to_wl</span><span class="p">(</span><span class="n">wl_da</span><span class="p">:</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">,</span> <span class="n">freq_name</span><span class="o">=</span><span class="s2">"daily"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
-<a id="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1525" name="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1525"></a><span class="w">    </span><span class="sd">"""Replace the [hours/days/months]_from_center or time_delta dimension in a DataArray returned from WarmingLevels with a dummy time index for calculations with tools that require a time dimension.</span>
+<a id="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1525" name="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1525"></a><span class="w">    </span><span class="sd">"""Replace the [hours/days/months]_from_center or time_delta dimension in a DataArray returned from a warming-level query with a dummy time index for calculations with tools that require a time dimension.</span>
 <a id="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1526" name="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1526"></a>
 <a id="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1527" name="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1527"></a><span class="sd">    Parameters</span>
 <a id="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1528" name="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1528"></a><span class="sd">    ----------</span>
 <a id="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1529" name="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1529"></a><span class="sd">    wl_da : xr.DataArray</span>
-<a id="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1530" name="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1530"></a><span class="sd">        The input Warming Levels DataArray. It is expected to have a time-based dimension which typically includes "from_center"</span>
+<a id="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1530" name="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1530"></a><span class="sd">        The input warming-level DataArray. It is expected to have a time-based dimension which typically includes "from_center"</span>
 <a id="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1531" name="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1531"></a><span class="sd">        in its name or time_delta indicating the time dimension in relation to the year that the given warming level is reached per simulation.</span>
 <a id="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1532" name="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1532"></a><span class="sd">    freq_name : str, optional</span>
 <a id="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1533" name="climakitae.util.utils.add_dummy_time_to_wl--source--__codelineno-0-1533"></a><span class="sd">        The frequency name to use when time_delta is the time dimension. Options are "hourly", "daily", or "monthly". Default is "daily".</span>
@@ -11560,10 +11560,10 @@ user cluster, and attempt to limit users to a single cluster.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "content.code.copy", "content.action.edit", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "content.code.copy", "content.action.edit", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@11/dist/mermaid.min.js"></script>
       

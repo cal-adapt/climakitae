@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../_static/cae-map.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -2858,9 +2858,9 @@
 <h2 id="migration-policy">Migration Policy</h2>
 <ul>
 <li><strong>New work</strong>: Always use <code>new_core</code> (fluent API)</li>
-<li><strong>Existing code</strong>: Legacy APIs remain available and functional during transition</li>
-<li><strong>Timeline</strong>: A multi-phase deprecation plan is published in <a href="../../legacy/#status-and-roadmap">Legacy API status</a>. No breaking changes in the current minor-release series.</li>
-<li><strong>Support</strong>: Both interfaces are maintained, but <code>new_core</code> is where all new features land.</li>
+<li><strong>Existing code</strong>: Legacy APIs remain available during the transition and emit deprecation warnings at their public entry points.</li>
+<li><strong>Timeline</strong>: Legacy data-access APIs are scheduled for removal in <code>2.0.0</code>, targeting late Q1 2027. See <a href="../../legacy/#status-and-roadmap">Legacy API status</a>.</li>
+<li><strong>Support</strong>: <code>new_core</code> is the supported interface and the only home for new data-access features.</li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">A note on field names</p>
@@ -2891,7 +2891,7 @@ porting a script.</p>
 <a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="n">data</span> <span class="o">=</span> <span class="n">get_data</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="climatedata-approach">✅ ClimateData Approach</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Fluent/builder pattern</span>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="n">ClimateData</span><span class="p">()</span>
@@ -2926,7 +2926,7 @@ porting a script.</p>
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="nb">print</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">grid_label</span><span class="p">)</span>  <span class="c1"># Check what's set</span>
 </code></pre></div>
 <h3 id="climatedata-approach_1">✅ ClimateData Approach</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">cd</span> <span class="o">=</span> <span class="n">ClimateData</span><span class="p">()</span>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
@@ -3018,7 +3018,7 @@ porting a script.</p>
 <a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>    <span class="n">results</span><span class="p">[</span><span class="n">scenario</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_data</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="climatedata-approach_4">✅ ClimateData Approach</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae.new_core.user_interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
 <a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">scenarios</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"ssp245"</span><span class="p">,</span> <span class="s2">"ssp370"</span><span class="p">,</span> <span class="s2">"ssp585"</span><span class="p">]</span>
 <a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
@@ -3101,7 +3101,7 @@ still written against the legacy API).</p>
 <hr />
 <h2 id="migration-checklist">Migration Checklist</h2>
 <ul>
-<li>Replace <code>from climakitae.core.data_interface import DataParameters, get_data</code> with <code>from climakitae.new_core.user_interface import ClimateData</code>.  </li>
+<li>Replace <code>from climakitae.core.data_interface import DataParameters, get_data</code> with <code>from climakitae import ClimateData</code>.  </li>
 <li>Translate field names:  <ul>
 <li><code>downscaling_method</code> ("Dynamical" / "Statistical") → <code>.activity_id("WRF" | "LOCA2")</code>  </li>
 <li><code>resolution</code> ("3 km" / "9 km" / "45 km") → <code>.grid_label("d03" | "d02" | "d01")</code>  </li>
@@ -3120,7 +3120,8 @@ still written against the legacy API).</p>
 <hr />
 <h2 id="still-using-legacy-questions">Still Using Legacy? Questions?</h2>
 <ul>
-<li>Legacy interface remains fully supported in <code>climakitae.core</code>  </li>
+<li>Legacy interface remains temporarily available in <code>climakitae.core</code> for migration purposes and may emit <code>DeprecationWarning</code>.  </li>
+<li>Plan migration before <code>2.0.0</code>; the current target for removal is late Q1 2027.  </li>
 <li>For new_core API details, see the <a href="../../api/climate-data/">API Reference section</a>  </li>
 <li>See <a href="../../legacy/#status-and-roadmap">Legacy API status</a> for deprecation timeline</li>
 </ul>
@@ -3185,10 +3186,10 @@ still written against the legacy API).</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "content.code.copy", "content.action.edit", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "content.code.copy", "content.action.edit", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@11/dist/mermaid.min.js"></script>
       

@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../_static/cae-map.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -2491,9 +2491,9 @@ validates a <code>DataParameters</code> object for you, and returns the data:</p
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">timescale</span><span class="o">=</span><span class="s2">"hourly"</span><span class="p">,</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span>
 </code></pre></div>
-<p>Driving a <code>DataParameters</code> instance directly and calling <code>.retrieve()</code> is still
-supported for GUI-style workflows, but <code>get_data()</code> is the preferred path for
-new and maintained code.</p>
+<p>Driving a <code>DataParameters</code> instance directly and calling <code>.retrieve()</code> will be 
+be supported until late Q1 2027 for GUI-style workflows. However, <code>ClimateData</code> is the 
+preferred path for new and maintained code.</p>
 <hr />
 <h2 id="gui-style-field-names">GUI-style field names</h2>
 <p>The most important thing to understand about the legacy interface is that its
@@ -2570,8 +2570,9 @@ walkthrough.</p>
 </ol>
 <p>Always prefer calling <code>get_data()</code> with keyword arguments — it handles the
 <code>DataParameters</code> construction and validation for you.</p>
-<p>Like the modern interface, the result is <strong>lazily loaded</strong> — data streams from
-S3 only when you compute, plot, or export it.</p>
+<p>Like the modern interface, the result is <em>usually</em> <strong>lazily loaded</strong> — data streams from
+S3 only when you compute, plot, or export it. However, in some cases the data is called
+into memory before returning to handle computational tasks. </p>
 <hr />
 <h2 id="named-boundaries">Named boundaries</h2>
 <p>Spatial subsetting in the legacy interface is driven by the
@@ -2654,10 +2655,10 @@ categories (<code>area_subset</code>) and, within each, a list of named regions
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "content.code.copy", "content.action.edit", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "content.code.copy", "content.action.edit", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@11/dist/mermaid.min.js"></script>
       
