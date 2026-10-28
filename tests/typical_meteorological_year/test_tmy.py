@@ -110,12 +110,12 @@ class TestFunctionsForTMY:
 
         # Max of first simulation matches
         assert result[0][0].max() == pytest.approx(
-            test_da.isel(simulation=0).max(), abs=1e-6
+            test_da.isel(simulation=0).max().item(), abs=1e-6
         )
 
         # Max of second simulation matches
         assert result[1][0].max() == pytest.approx(
-            test_da.isel(simulation=1).max(), abs=1e-6
+            test_da.isel(simulation=1).max().item(), abs=1e-6
         )
 
         # Simulation list contains all sims
