@@ -7,6 +7,7 @@ datasets when they are first accessed.
 
 The module supports various types of geographical boundaries including:
 - US western states
+- California cities
 - California counties
 - California watersheds (HUC8 level)
 - California electric utilities (IOUs and POUs)
@@ -87,6 +88,8 @@ class Boundaries:
         US western states with names, abbreviations, and geometries (lazy-loaded)
     _ca_counties : pd.DataFrame
         California counties with names and geometries, sorted alphabetically (lazy-loaded)
+    _ca_cities : pd.DataFrame
+        California cities with names and geometries, sorted alphabetically (lazy-loaded)
     _ca_watersheds : pd.DataFrame
         California HUC8 watersheds with names and geometries, sorted alphabetically (lazy-loaded)
     _ca_utilities : pd.DataFrame
@@ -168,7 +171,7 @@ class Boundaries:
         ----------
         boundary_catalog : intake.catalog.Catalog
             Intake catalog instance for accessing boundary parquet files.
-            Must contain entries for: 'states', 'counties', 'huc8',
+            Must contain entries for: 'states', 'counties', 'cities', 'huc8',
             'utilities', 'dfz', and 'eba'.
 
         Raises
@@ -188,11 +191,13 @@ class Boundaries:
         # Private storage for lazy-loaded DataFrames
         self.__states: Optional[pd.DataFrame] = None
         self.__ca_counties: Optional[pd.DataFrame] = None
+        self.__ca_cities: Optional[pd.DataFrame] = None
         self.__ca_watersheds: Optional[pd.DataFrame] = None
         self.__ca_utilities: Optional[pd.DataFrame] = None
         self.__ca_forecast_zones: Optional[pd.DataFrame] = None
         self.__ca_electric_balancing_areas: Optional[pd.DataFrame] = None
         self.__ca_census_tracts: Optional[pd.DataFrame] = None
+        self.__tribal_areas: Optional[gpd.GeoDataFrame] = None
 
         # Cache for lookup dictionaries
         self._lookup_cache: Dict[str, Dict[str, int]] = {}
@@ -218,12 +223,21 @@ class Boundaries:
         Required catalog entries:
         - 'states': US state boundaries
         - 'counties': California county boundaries
+        - 'cities' : CA city boundaries
         - 'huc8': California watershed boundaries (HUC8 level)
         - 'utilities': California electric utility boundaries
         - 'dfz': California demand forecast zones
         - 'eba': Electric balancing authority areas
         """
-        required_entries = ["states", "counties", "huc8", "utilities", "dfz", "eba"]
+        required_entries = [
+            "states",
+            "counties",
+            "cities",
+            "huc8",
+            "utilities",
+            "dfz",
+            "eba",
+        ]
         missing = [entry for entry in required_entries if not hasattr(self._cat, entry)]
         if missing:
             raise ValueError(f"Missing required catalog entries: {missing}")
@@ -257,6 +271,20 @@ class Boundaries:
     @_ca_counties.setter
     def _ca_counties(self, value: pd.DataFrame) -> None:
         self.__ca_counties = value
+
+    @property
+    def _ca_cities(self) -> pd.DataFrame:
+        """Lazy-loaded California cities data."""
+        if self.__ca_cities is None:
+            try:
+                self.__ca_cities = self._process_ca_cities(self._cat.cities.read())
+            except Exception as e:
+                raise RuntimeError(f"Failed to load CA cities data: {e}") from e
+        return self.__ca_cities
+
+    @_ca_cities.setter
+    def _ca_cities(self, value: pd.DataFrame) -> None:
+        self.__ca_cities = value
 
     @property
     def _ca_watersheds(self) -> pd.DataFrame:
@@ -339,6 +367,20 @@ class Boundaries:
     def _ca_census_tracts(self, value: gpd.GeoDataFrame) -> None:
         self.__ca_census_tracts = value
 
+    @property
+    def _tribal_areas(self) -> gpd.GeoDataFrame:
+        """Lazy-loaded western US Tribal areas data."""
+        if self.__tribal_areas is None:
+            try:
+                self.__tribal_areas = self._cat.tribalareas.read()
+            except Exception as e:
+                raise RuntimeError(f"Failed to load Tribal areas data: {e}") from e
+        return self.__tribal_areas
+
+    @_tribal_areas.setter
+    def _tribal_areas(self, value: gpd.GeoDataFrame) -> None:
+        self.__tribal_areas = value
+
     def _process_states(self, df: pd.DataFrame) -> pd.DataFrame:
         """Process raw US states data.
 
@@ -370,6 +412,22 @@ class Boundaries:
 
         """
         return df.sort_values("NAME")
+
+    def _process_ca_cities(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Process raw CA cities data.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Raw CA cities DataFrame
+
+        Returns
+        -------
+        pd.DataFrame
+            Processed CA cities DataFrame sorted by name
+
+        """
+        return df.sort_values("CDT_NAME_S")
 
     def _process_ca_watersheds(self, df: pd.DataFrame) -> pd.DataFrame:
         """Process raw CA watersheds data.
@@ -489,6 +547,21 @@ class Boundaries:
             ).to_dict()
         return self._lookup_cache["ca_counties"]
 
+    def _get_ca_cities(self) -> Dict[str, int]:
+        """Get cached lookup dictionary for California cities.
+
+        Returns
+        -------
+        Dict[str, int]
+            Dictionary mapping city names to DataFrame indices
+
+        """
+        if "ca_cities" not in self._lookup_cache:
+            self._lookup_cache["ca_cities"] = pd.Series(
+                self._ca_cities.index, index=self._ca_cities["CDT_NAME_S"]
+            ).to_dict()
+        return self._lookup_cache["ca_cities"]
+
     def _get_ca_watersheds(self) -> Dict[str, int]:
         """Get cached lookup dictionary for California watersheds.
 
@@ -590,6 +663,21 @@ class Boundaries:
             ).to_dict()
         return self._lookup_cache["ca_census_tracts"]
 
+    def _get_tribal_areas(self) -> Dict[str, int]:
+        """Get cached lookup dictionary for western US Tribal areas."""
+        if "tribal_areas" not in self._lookup_cache:
+            self._lookup_cache["tribal_areas"] = pd.Series(
+                self._tribal_areas.index, index=self._tribal_areas["selector"]
+            ).to_dict()
+        return self._lookup_cache["tribal_areas"]
+
+    def _catalog_has_entry(self, name: str) -> bool:
+        """Return whether the Intake catalog contains an optional entry."""
+        try:
+            return name in self._cat
+        except TypeError:
+            return False
+
     def boundary_dict(self) -> Dict[str, Dict[str, int]]:
         """Return dictionary of all boundary lookup dictionaries for UI population.
 
@@ -614,6 +702,7 @@ class Boundaries:
             - 'lat/lon': Custom coordinate-based selection
             - 'states': Western US states
             - 'CA counties': California counties (alphabetical)
+            - 'CA cities': California cities (alphabetical)
             - 'CA watersheds': California HUC8 watersheds (alphabetical)
             - 'CA Electric Load Serving Entities (IOU & POU)': Electric utilities
             - 'CA Electricity Demand Forecast Zones': Forecast zones
@@ -644,17 +733,21 @@ class Boundaries:
         - All other boundaries are sorted alphabetically
 
         """
-        return {
+        boundary_options = {
             "none": {"entire domain": 0},
             "lat/lon": {"coordinate selection": 0},
             "states": self._get_states(),
             "CA counties": self._get_ca_counties(),
+            "CA cities": self._get_ca_cities(),
             "CA watersheds": self._get_ca_watersheds(),
             "CA Electric Load Serving Entities (IOU & POU)": self._get_ious_pous(),
             "CA Electricity Demand Forecast Zones": self._get_forecast_zones(),
             "CA Electric Balancing Authority Areas": self._get_electric_balancing_areas(),
             "CA Census Tracts": self._get_ca_census_tracts(),
         }
+        if self._catalog_has_entry("tribalareas"):
+            boundary_options["Tribal Areas"] = self._get_tribal_areas()
+        return boundary_options
 
     def _lookup_boundary(
         self, df: gpd.GeoDataFrame, lookup_fn, name: Optional[str], label: str
@@ -702,6 +795,10 @@ class Boundaries:
         return self._lookup_boundary(
             self._ca_counties, self._get_ca_counties, name, "County"
         )
+
+    def get_cities(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
+        """Return California city boundary data."""
+        return self._lookup_boundary(self._ca_cities, self._get_ca_cities, name, "City")
 
     def get_watersheds(self, name: Optional[str] = None) -> gpd.GeoDataFrame:
         """Return California HUC8 watershed boundary data."""
@@ -771,6 +868,7 @@ class Boundaries:
         The method loads all six boundary datasets:
         - US western states
         - California counties
+        - California cities
         - California watersheds
         - California utilities
         - California forecast zones
@@ -802,6 +900,7 @@ class Boundaries:
         _ = (
             self._states,
             self._ca_counties,
+            self._ca_cities,
             self._ca_watersheds,
             self._ca_utilities,
             self._ca_forecast_zones,
@@ -813,12 +912,15 @@ class Boundaries:
         _ = (
             self._get_states(),
             self._get_ca_counties(),
+            self._get_ca_cities(),
             self._get_ca_watersheds(),
             self._get_forecast_zones(),
             self._get_ious_pous(),
             self._get_electric_balancing_areas(),
             self._get_ca_census_tracts(),
         )
+        if self._catalog_has_entry("tribalareas"):
+            _ = (self._tribal_areas, self._get_tribal_areas())
 
     def clear_cache(self) -> None:
         """Clear all cached data and lookup dictionaries to free memory.
@@ -857,11 +959,13 @@ class Boundaries:
         # Clear raw DataFrames
         self.__states = None
         self.__ca_counties = None
+        self.__ca_cities = None
         self.__ca_watersheds = None
         self.__ca_utilities = None
         self.__ca_forecast_zones = None
         self.__ca_electric_balancing_areas = None
         self.__ca_census_tracts = None
+        self.__tribal_areas = None
 
         # Clear lookup cache
         self._lookup_cache.clear()
@@ -881,6 +985,7 @@ class Boundaries:
             Per-dataset usage (bytes):
             - 'states': Memory used by US states DataFrame (0 if not loaded)
             - 'ca_counties': Memory used by CA counties DataFrame (0 if not loaded)
+            - 'ca_cities': Memory used by CA cities DataFrame (0 if not loaded)
             - 'ca_watersheds': Memory used by CA watersheds DataFrame (0 if not loaded)
             - 'ca_utilities': Memory used by CA utilities DataFrame (0 if not loaded)
             - 'ca_forecast_zones': Memory used by forecast zones DataFrame (0 if not loaded)
@@ -927,11 +1032,13 @@ class Boundaries:
         datasets = {
             "states": self.__states,
             "ca_counties": self.__ca_counties,
+            "ca_cities": self.__ca_cities,
             "ca_watersheds": self.__ca_watersheds,
             "ca_utilities": self.__ca_utilities,
             "ca_forecast_zones": self.__ca_forecast_zones,
             "ca_electric_balancing_areas": self.__ca_electric_balancing_areas,
             "ca_census_tracts": self.__ca_census_tracts,
+            "tribal_areas": getattr(self, "_Boundaries__tribal_areas", None),
         }
 
         for name, df in datasets.items():

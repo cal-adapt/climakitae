@@ -136,6 +136,7 @@ dataset = factory.create_dataset(query)
 - `cadcat` → main climate data (LOCA2, WRF)
 - `renewable energy generation` → wind/solar capacity factors
 - `hdp` → historical data platform (weather stations)
+- `sup3rcc` → NLR Sup3rCC climate-model data
 
 ---
 
@@ -194,6 +195,7 @@ catalog.data        # intake_esm for main climate data
 catalog.boundary    # intake for geographic boundaries
 catalog.renewables  # intake_esm for renewable energy
 catalog.hdp         # intake_esm for historical data platform
+catalog.sup3rcc     # intake_esm for Sup3rCC climate-model data
 catalog.catalog_df  # Merged DataFrame of all ESM catalogs
 catalog.boundaries  # Lazy-loading Boundaries manager
 ```
@@ -327,7 +329,7 @@ class MyProcessor(DataProcessor):
 ```
 0–10     : Pre-processing (filter_unadjusted_models=0, drop_leap_days=1,
           convert_units=5, warming_level=10) — catalog refinement & GWL subset
-50–70    : Combination + correction + spatial
+50–70    : Combination + adjustment + spatial
           (concat=50, bias_adjust_model_to_station=60, clip=65,
            convert_to_local_time=70)
 150–7500 : Temporal subsetting & metric computation
@@ -391,7 +393,7 @@ mean_temp = clipped["tasmax"].mean().compute()
 
 See [Processor: Clip](./processors/clip.md) for detailed API reference.
 
-### Understanding Processors: Bias Correction {#bias-correction}
+### Understanding Processors: Bias Adjustment {#bias-adjustment}
 
 WRF model output can be bias-corrected using historical weather station observations to improve local accuracy.
 
@@ -406,7 +408,7 @@ WRF model output can be bias-corrected using historical weather station observat
 **When to Use**:
 
 - Local impact assessment where historical accuracy matters
-- Building/infrastructure design requiring site-specific bias correction
+- Building/infrastructure design requiring site-specific bias adjustment
 - When observation-corrected distribution is important
 
 **When NOT to Use**:

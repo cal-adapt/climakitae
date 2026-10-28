@@ -64,6 +64,7 @@ UNIT_CONVERSIONS = {
     ("degF", "K"): lambda da: ((da - 32) / 1.8) + 273.15,
     # Relative humidity
     ("[0 to 100]", "fraction"): lambda da: da / 100.0,
+    ("%", "fraction"): lambda da: da / 100.0,
 }
 
 

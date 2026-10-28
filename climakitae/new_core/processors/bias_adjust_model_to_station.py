@@ -1,32 +1,40 @@
-"""Station Bias Correction Processor for ClimakitAE.
+"""Station Bias Adjustment Processor for ClimakitAE.
 
-This module provides the StationBiasCorrection processor for bias-correcting
+This module provides the BiasAdjustModelToStation processor for bias-adjusting
 gridded climate model data to weather station locations using Quantile Delta
-Mapping (QDM) with historical observational data from the HadISD dataset.
+Mapping (QDM) with historical observational data from the HDP (Historical
+Data Platform) weather station catalog.
 
 The processor performs the following operations:
-1. Loads HadISD weather station observations from S3 zarr stores
+1. Loads HDP weather station observations from the HDP intake-esm catalog
 2. Finds the closest gridcell in the climate model data to each station
-3. Applies quantile delta mapping bias correction using historical overlap period
-4. Returns bias-corrected data at station locations with station metadata
+3. Applies quantile delta mapping bias adjustment using historical overlap period
+4. Returns bias-adjusted data at station locations with station metadata
 
 Classes
 -------
-StationBiasCorrection : DataProcessor
-    Main processor for station-based bias correction using QDM method.
+BiasAdjustModelToStation : DataProcessor
+    Main processor for station-based bias adjustment using QDM method.
 
 Examples
 --------
 >>> # Create processor for single station
->>> processor = StationBiasCorrection(
-...     stations=["Sacramento (KSAC)"],
+>>> processor = BiasAdjustModelToStation(
+...     stations=["ASOSAWOS_69007093217"],
 ...     historical_slice=(1980, 2014)
 ... )
 >>> result = processor.execute(gridded_data, context)
 
->>> # Multiple stations with custom bias correction parameters
->>> processor = StationBiasCorrection(
-...     stations=["Sacramento (KSAC)", "San Francisco (KSFO)"],
+>>> # Legacy airport codes are also accepted for ASOSAWOS stations
+>>> processor = BiasAdjustModelToStation(
+...     stations=["KSAC"],
+...     historical_slice=(1980, 2014)
+... )
+>>> result = processor.execute(gridded_data, context)
+
+>>> # Multiple stations with custom bias adjustment parameters
+>>> processor = BiasAdjustModelToStation(
+...     stations=["ASOSAWOS_69007093217", "ASOSAWOS_72384023155"],
 ...     historical_slice=(1980, 2014),
 ...     window=60,  # 60-day window instead of default 90
 ...     nquantiles=30  # 30 quantiles instead of default 20
@@ -35,19 +43,19 @@ Examples
 
 Notes
 -----
-- Requires gridded data to include historical period (1980-2014) for bias correction
-- Station observational data is available through 2014-08-31
-- Uses xclim's QuantileDeltaMapping for bias correction
+- Requires gridded data to include the requested historical training period
+- Station observational coverage varies per HDP station; the historical
+  training period must overlap with the station's actual record
+- Requested stations may span multiple HDP networks in a single call
+- Uses xclim's QuantileDeltaMapping for bias adjustment
 - Converts all data to noleap calendar for consistency
-- Final output is time-sliced to user's requested period after bias correction
+- Final output is time-sliced to user's requested period after bias adjustment
 """
 
 import logging
 import re
-from functools import partial
 from typing import Any, Dict, Iterable, Optional, Union
 
-import geopandas as gpd
 import pandas as pd
 import xarray as xr
 from xsdba import Grouper
@@ -65,22 +73,75 @@ from climakitae.util.utils import get_closest_gridcell
 # Module logger
 logger = logging.getLogger(__name__)
 
+# Single source of truth for every gridded variable_id this processor
+# supports: how it maps to its HDP station-side counterpart (and any
+# alternate variable names a network may use for that counterpart), and the
+# CF attrs to apply to the bias-adjusted output. Keep this in sync with the
+# param validator's variable-compatibility check, which imports
+# _VARIABLE_ID_TO_HDP_VARIABLE (derived below) rather than hardcoding its
+# own list.
+_VARIABLE_REGISTRY = {
+    "t2": {
+        "hdp_variable": "tas",
+        "hdp_aliases": ["tas"],
+        "standard_name": "air_temperature",
+        "long_name": "Bias-Adjusted Air Temperature at 2m",
+    },
+    "dew_point": {
+        "hdp_variable": "tdps",
+        "hdp_aliases": ["tdps", "tdps_derived"],
+        "standard_name": "dew_point_temperature",
+        "long_name": "Bias-Adjusted Dewpoint Temperature at 2m",
+    },
+}
+
+_VARIABLE_ID_TO_HDP_VARIABLE = {
+    variable_id: meta["hdp_variable"]
+    for variable_id, meta in _VARIABLE_REGISTRY.items()
+}
+_HDP_VARIABLE_ALIASES = {
+    meta["hdp_variable"]: meta["hdp_aliases"]
+    for meta in _VARIABLE_REGISTRY.values()
+    if len(meta["hdp_aliases"]) > 1
+}
+_OUTPUT_VARIABLE_METADATA = {
+    variable_id: {
+        "standard_name": meta["standard_name"],
+        "long_name": meta["long_name"],
+    }
+    for variable_id, meta in _VARIABLE_REGISTRY.items()
+}
+
+# HDP networks label Kelvin inconsistently (most use 'degree_Kelvin'; some,
+# e.g. CW3E's 'tdps_derived', use the shorter 'K'). Checked against the live
+# HDP catalog across all 28 networks: none report Celsius or Fahrenheit, so
+# anything that doesn't map to Kelvin is rejected rather than guessed at.
+_HDP_UNIT_ALIASES = {"degree_Kelvin": "K"}
+
+# Spelled-out reminder of what "QDM" means, for the one user-facing
+# (INFO-level) log line that announces a bias adjustment run.
+_QDM_LOG_REFERENCE = (
+    "QDM (Quantile Delta Mapping, see Cal-Adapt Guidance on Bias Adjustment "
+    "for more info)"
+)
+
 
 @register_processor("bias_adjust_model_to_station", priority=60)
 class BiasAdjustModelToStation(DataProcessor):
-    """Bias-correct gridded climate data to weather station locations using QDM.
+    """Bias-adjust gridded climate data to weather station locations using QDM.
 
-    This processor applies Quantile Delta Mapping (QDM) bias correction to gridded
-    climate model data using historical observations from HadISD weather stations.
-    The method corrects for systematic biases in climate model output by matching
-    the statistical distribution of model data to observed data during a historical
-    training period, then applying these corrections to future projections.
+    This processor applies Quantile Delta Mapping (QDM) bias adjustment to gridded
+    climate model data using historical observations from HDP (Historical Data
+    Platform) weather stations. The method corrects for systematic biases in
+    climate model output by matching the statistical distribution of model data
+    to observed data during a historical training period, then applying these
+    corrections to future projections.
 
     The processor handles:
-    - Loading HadISD station observations from S3 zarr stores
-    - Preprocessing station data (unit conversions, calendar conversions)
+    - Loading HDP station observations from the HDP intake-esm catalog
+    - Preprocessing station data (unit validation, calendar conversions)
     - Finding closest gridcells to station locations
-    - Training QDM bias correction on historical overlap period (1980-2014)
+    - Training QDM bias adjustment on the historical overlap period
     - Applying corrections to user-specified time period
     - Preserving station metadata in output
 
@@ -92,7 +153,10 @@ class BiasAdjustModelToStation(DataProcessor):
     Parameters
     ----------
     stations : list[str]
-        List of station names to process (e.g., ["Sacramento (KSAC)", "San Francisco (KSFO)"])
+        List of HDP `station_id` values to process (e.g.,
+        ["ASOSAWOS_69007093217"]). Legacy airport codes/names (e.g. "KSAC",
+        "Sacramento (KSAC)") are also accepted and translated to their HDP
+        ASOSAWOS `station_id` equivalent.
     historical_slice : tuple[int, int], optional
         Start and end years for historical training period (default: (1980, 2014))
     window : int, optional
@@ -100,7 +164,7 @@ class BiasAdjustModelToStation(DataProcessor):
     nquantiles : int, optional
         Number of quantiles for QDM training (default: 20)
     group : str, optional
-        Temporal grouping strategy for bias correction (default: "time.dayofyear")
+        Temporal grouping strategy for bias adjustment (default: "time.dayofyear")
     kind : str, optional
         Adjustment kind: "+" for additive (temperature) or "*" for multiplicative
         (precipitation) (default: "+")
@@ -127,16 +191,16 @@ class BiasAdjustModelToStation(DataProcessor):
     Methods
     -------
     execute(result, context)
-        Apply station bias correction to gridded data
+        Apply station bias adjustment to gridded data
     update_context(context)
-        Update context with bias correction operation metadata
+        Update context with bias adjustment operation metadata
     set_data_accessor(catalog)
         Set data catalog accessor (not used in this processor)
 
     See Also
     --------
     climakitae.util.utils.get_closest_gridcell : Find closest gridcell to point
-    xsdba.adjustment.QuantileDeltaMapping : QDM bias correction implementation
+    xsdba.adjustment.QuantileDeltaMapping : QDM bias adjustment implementation
 
     References
     ----------
@@ -146,7 +210,7 @@ class BiasAdjustModelToStation(DataProcessor):
     """
 
     def __init__(self, value: Dict[str, Any]):
-        """Initialize the station bias correction processor.
+        """Initialize the station bias adjustment processor.
 
         Parameters
         ----------
@@ -168,7 +232,7 @@ class BiasAdjustModelToStation(DataProcessor):
         # Validate input
         if not isinstance(value, dict):
             raise TypeError(
-                "Expected dictionary for station bias correction configuration"
+                "Expected dictionary for station bias adjustment configuration"
             )
 
         # Extract configuration parameters with defaults
@@ -182,70 +246,146 @@ class BiasAdjustModelToStation(DataProcessor):
         self.catalog: Union[DataCatalog, object] = UNSET
         self.needs_catalog = True
 
-    def _preprocess_hadisd(
-        self, ds: xr.Dataset, stations_gdf: gpd.GeoDataFrame
-    ) -> xr.Dataset:
-        """Preprocess HadISD station data for bias correction.
+    def _preprocess_hdp(self, ds: xr.Dataset, hdp_variable: str = "tas") -> xr.Dataset:
+        """Preprocess HDP station data for bias adjustment.
 
-        This method prepares raw station data by:
-        - Extracting station ID from file path
+        This method prepares a single station's raw HDP dataset by:
+        - Reading the station_id from the 'station' dimension coordinate
         - Looking up station name from metadata
-        - Renaming data variable to station name
-        - Converting temperature from Celsius to Kelvin
+        - Renaming data variable to the station_id
+        - Converting temperature to Kelvin
         - Adding descriptive attributes (coordinates, elevation)
-        - Dropping non-time coordinates
+        - Dropping the station dimension
 
         Parameters
         ----------
         ds : xr.Dataset
-            Raw HadISD station dataset with 'tas' variable
-        stations_gdf : gpd.GeoDataFrame
-            Station metadata GeoDataFrame
+            Raw HDP station dataset with a `hdp_variable` variable (or one of
+            its accepted aliases, see `_HDP_VARIABLE_ALIASES`) and 'station'
+            dim.
+        hdp_variable : str, optional
+            Name of the HDP data variable to bias-adjust against (default:
+            "tas"). See `_VARIABLE_ID_TO_HDP_VARIABLE`.
 
         Returns
         -------
         xr.Dataset
-            Preprocessed station dataset with station name as variable
+            Preprocessed station dataset with the station_id as its only
+            data variable (display name kept in its 'station_name' attr).
+
+        Raises
+        ------
+        ValueError
+            If the station does not have the requested variable (or one of
+            its accepted aliases).
         """
-        # Get station ID from file name
-        station_id = ds.encoding["source"].split("HadISD_")[1].split(".zarr")[0]
+        station_id = str(ds["station"].values.item())
+        source_variable = next(
+            (
+                v
+                for v in _HDP_VARIABLE_ALIASES.get(hdp_variable, [hdp_variable])
+                if v in ds.data_vars
+            ),
+            None,
+        )
+        if source_variable is None:
+            requested_variable = next(
+                vid
+                for vid, hdp_name in _VARIABLE_ID_TO_HDP_VARIABLE.items()
+                if hdp_name == hdp_variable
+            )
+            raise ValueError(
+                f"HDP station '{station_id}' does not have a '{requested_variable}' "
+                "variable available for bias adjustment."
+            )
 
-        # Get name of station from station_id
-        station_name = stations_gdf.loc[stations_gdf["station id"] == int(station_id)][
-            "station"
-        ].item()
+        display_name = ds.attrs.get("station_name")
+        if not display_name or (
+            isinstance(display_name, float) and pd.isna(display_name)
+        ):
+            display_name = station_id
 
-        # Rename data variable to station name
-        ds = ds.rename({"tas": station_name})
+        # Normalize HDP's units label to Kelvin's canonical label. Anything
+        # that doesn't map to Kelvin is rejected -- no HDP network has been
+        # observed reporting Celsius or Fahrenheit, so there's nothing to
+        # convert; guessing at an unverified label risks silently producing
+        # wrong temperatures.
+        units = ds[source_variable].attrs.get("units")
+        normalized_units = _HDP_UNIT_ALIASES.get(units, units)
+        if normalized_units != "K":
+            raise ValueError(
+                f"HDP station '{station_id}' {source_variable} units are "
+                f"'{units}', expected Kelvin."
+            )
+        ds[source_variable].attrs["units"] = normalized_units
 
-        # Convert Celsius to Kelvin
-        ds[station_name] = ds[station_name] + 273.15
+        # Capture coordinates/elevation before renaming/dropping variables.
+        # `.values` computes any still-dask-backed data to numpy first
+        # (dask arrays don't support `.item()` directly), then `.item()`
+        # extracts the scalar.
+        lat = float(ds["lat"].isel(time=0).values.item())
+        lon = float(ds["lon"].isel(time=0).values.item())
+        elevation = float(ds["elevation"].isel(time=0).values.item())
+        elevation_units = ds["elevation"].attrs.get("units", "m")
+
+        # Rename data variable to the station_id, which is unique across HDP
+        # (display names are not guaranteed to be)
+        ds = ds.rename({source_variable: station_id})
 
         # Assign descriptive attributes to the data variable
-        ds[station_name] = ds[station_name].assign_attrs(
+        ds[station_id] = ds[station_id].assign_attrs(
             {
-                "coordinates": (
-                    ds.latitude.values.item(),
-                    ds.longitude.values.item(),
-                ),
-                "elevation": "{0} {1}".format(
-                    ds.elevation.item(), ds.elevation.attrs["units"]
-                ),
+                "station_name": display_name,
+                "coordinates": (lat, lon),
+                "elevation": f"{elevation} {elevation_units}",
                 "units": "K",
             }
         )
 
-        # Drop all coordinates except time
-        ds = ds.drop_vars(["elevation", "latitude", "longitude"])
+        # Drop the station dimension (single station per file)
+        ds = ds.squeeze("station", drop=True)[[station_id]]
 
         return ds
 
-    def _load_station_data(self) -> xr.Dataset:
-        """Load HadISD station data from S3 zarr stores.
+    @staticmethod
+    def _resolve_hdp_variable(context: Dict[str, Any]) -> str:
+        """Determine which HDP variable to load for this query's variable_id.
 
-        Constructs file paths for selected stations and loads them using
-        xarray's open_mfdataset with preprocessing for seamless integration.
-        Uses get_station_coordinates for robust station validation.
+        Parameters
+        ----------
+        context : dict
+            Processing context. In production this is the flat query
+            dict itself (`context["variable_id"]`), as built by
+            `Dataset.execute()`; a nested `context["query"]["variable_id"]`
+            shape is also accepted for callers/tests that pass it that way.
+
+        Returns
+        -------
+        str
+            The HDP variable name to load (default: "tas" if variable_id is
+            missing or unrecognized). See `_VARIABLE_ID_TO_HDP_VARIABLE`.
+        """
+        context = context or {}
+        variable_id = None
+        if isinstance(context.get("query"), dict):
+            variable_id = context["query"].get("variable_id")
+        if variable_id is None:
+            variable_id = context.get("variable_id")
+        if isinstance(variable_id, list):
+            variable_id = variable_id[0] if variable_id else None
+        return _VARIABLE_ID_TO_HDP_VARIABLE.get(variable_id, "tas")
+
+    def _load_station_data(self, hdp_variable: str = "tas") -> xr.Dataset:
+        """Load HDP station data from the HDP intake-esm catalog.
+
+        Resolves the requested station identifiers against the HDP catalog
+        and loads each station's hourly record for `hdp_variable`.
+
+        Parameters
+        ----------
+        hdp_variable : str, optional
+            Name of the HDP data variable to load (default: "tas"). See
+            `_VARIABLE_ID_TO_HDP_VARIABLE`.
 
         Returns
         -------
@@ -258,66 +398,82 @@ class BiasAdjustModelToStation(DataProcessor):
             If station data cannot be loaded or catalog is not available.
         ValueError
             If any station identifier is invalid or not found.
+
+        Notes
+        -----
+        Accepts legacy airport codes/names (e.g. "KSAC", "Sacramento (KSAC)")
+        in addition to HDP station identifiers; these are translated to their
+        HDP ASOSAWOS `station_id` equivalent via
+        `resolve_airport_code_to_hdp_station_id`.
         """
         from climakitae.new_core.processors.processor_utils import (
-            convert_stations_to_points,
+            is_station_identifier,
+            resolve_airport_code_to_hdp_station_id,
+            resolve_hdp_stations,
         )
 
-        # Validate all stations and get their metadata using the shared utility
-        # This will raise ValueError with suggestions if any station is invalid
-        _, metadata_list = convert_stations_to_points(self.stations, self.catalog)
+        hdp_catalog = self.catalog.hdp
 
-        # Get full station metadata DataFrame for preprocessing
-        station_metadata = self.catalog["stations"]
+        # Translate any legacy airport code / name identifiers (e.g. "KSAC")
+        # to their HDP ASOSAWOS station_id equivalent. Only fetch the legacy
+        # lookup table if it's actually needed.
+        if any(is_station_identifier(s) for s in self.stations):
+            legacy_stations_df = self.catalog["stations"]
+            station_identifiers = [
+                resolve_airport_code_to_hdp_station_id(
+                    s, legacy_stations_df, hdp_catalog.df
+                )
+                for s in self.stations
+            ]
+        else:
+            station_identifiers = self.stations
 
-        # Extract numeric station IDs from validated metadata for HadISD file paths
-        # The numeric ID is required for the HadISD zarr file naming convention
-        station_ids = [meta["station_id_numeric"] for meta in metadata_list]
+        # Validate all stations and resolve station_ids. Raises ValueError
+        # with details if any station is invalid.
+        station_ids, network_ids = resolve_hdp_stations(
+            station_identifiers, hdp_catalog.df
+        )
 
-        # Construct S3 zarr paths for each station using numeric IDs
-        filepaths = [
-            f"s3://cadcat/hadisd/HadISD_{station_id}.zarr" for station_id in station_ids
-        ]
-
-        # Create informative log message with station codes and names
-        station_info = [
-            f"{meta['station_id']} ({meta['station_name']})" for meta in metadata_list
-        ]
         logger.info(
-            "Loading station data for %d validated station(s): %s",
-            len(station_ids),
-            ", ".join(station_info),
+            "Loading HDP station data for network(s) '%s', station(s): %s",
+            ", ".join(network_ids),
+            ", ".join(station_ids),
         )
 
-        # Create partial function for preprocessing with station metadata
-        preprocess_func = partial(
-            self._preprocess_hadisd, stations_gdf=station_metadata
+        station_datasets = hdp_catalog.search(station_id=station_ids).to_dataset_dict(
+            zarr_kwargs={"consolidated": None},
+            storage_options={"anon": True},
+            progressbar=False,
         )
 
-        # Load all station data with preprocessing
-        station_ds = xr.open_mfdataset(
-            filepaths,
-            preprocess=preprocess_func,
-            engine="zarr",
-            consolidated=False,
-            parallel=True,
-            backend_kwargs=dict(storage_options={"anon": True}),
-        )
+        found = {str(ds["station"].values.item()) for ds in station_datasets.values()}
+        missing = set(station_ids) - found
+        if missing:
+            raise ValueError(
+                f"Could not load HDP data for the following station(s): "
+                f"{', '.join(sorted(missing))}."
+            )
+
+        processed = [
+            self._preprocess_hdp(ds, hdp_variable) for ds in station_datasets.values()
+        ]
+        station_ds = xr.merge(processed, join="outer")
 
         return station_ds
 
-    def _bias_correct_model_data(
+    def _bias_adjust_model_data(
         self,
         obs_da: xr.DataArray,
         gridded_da: xr.DataArray,
         historical_da: Optional[xr.DataArray] = None,
     ) -> xr.DataArray:
-        """Apply Quantile Delta Mapping bias correction to model data.
+        """Apply Quantile Delta Mapping bias adjustment to model data.
 
-        This method performs the core bias correction by:
+        This method performs the core bias adjustment by:
         1. Converting units to match gridded data
         2. Rechunking data (QDM requires unchunked time dimension)
-        3. Training QDM on historical overlap period (1980-2014)
+        3. Training QDM on the historical overlap period between the station's
+           actual observational record and the gridded historical data
         4. Applying correction to the input data
 
         Note: Data must be in noleap calendar before calling this method.
@@ -336,9 +492,9 @@ class BiasAdjustModelToStation(DataProcessor):
         Returns
         -------
         xr.DataArray
-            Bias-corrected data (noleap calendar)
+            Bias-adjusted data (noleap calendar)
         """
-        logger.debug("=== Starting bias correction for station: %s ===", obs_da.name)
+        logger.debug("=== Starting bias adjustment for station: %s ===", obs_da.name)
         # Avoid accessing .values for logging as it triggers computation
         logger.debug(
             "Input gridded_da time size: %s",
@@ -365,14 +521,6 @@ class BiasAdjustModelToStation(DataProcessor):
             "Converting obs units from %s to %s", obs_da.units, gridded_da.units
         )
         obs_da = convert_units(obs_da, gridded_da.units)
-
-        # Slice observational data to available period (through 2014-08-31)
-        obs_da = obs_da.sel(time=slice(obs_da.time.values[0], "2014-08-31"))
-        logger.debug(
-            "Sliced obs_da to available period: %s to %s",
-            obs_da.time.values[0],
-            obs_da.time.values[-1],
-        )
 
         # Rechunk data - cannot be chunked along time dimension
         # Error raised by xclim: ValueError: Multiple chunks along the main
@@ -402,25 +550,20 @@ class BiasAdjustModelToStation(DataProcessor):
             gridded_da_historical.shape,
         )
 
-        # Now slice obs data to match the gridded historical data exactly
-        # This handles any edge cases where times don't align perfectly
-        # We need to access values here for slicing, but we can do it efficiently
-        # obs_da is in memory (loaded from zarr), so accessing values is fast
-        # gridded_da_historical might be lazy.
-        # However, we need the time bounds.
-        # If gridded_da_historical is lazy, accessing time.values triggers computation.
-        # But we need it for the slice.
-        # Let's try to use the time coordinate directly if possible, or accept the cost here.
-        # But we can avoid printing it in the log if we already accessed it.
-
-        # Optimization: Use min/max of time coordinate if available without loading all values?
-        # For now, we assume we need the start/end.
-        # But we can avoid the logger call accessing it AGAIN.
-
+        # Narrow obs data to roughly the gridded historical period first, so
+        # the alignment below only has to compare a similarly-sized range.
         t_start = str(gridded_da_historical.time.values[0])
         t_end = str(gridded_da_historical.time.values[-1])
-
         obs_da = obs_da.sel(time=slice(t_start, t_end))
+
+        # QDM requires `ref` (obs) and `hist` (gridded historical) to have
+        # identical time coordinates (xsdba checks this with an elementwise
+        # comparison, which itself raises a confusing numpy broadcast error
+        # if the lengths differ). Align the two datasets to ensure they have
+        # the same time coordinates.
+        obs_da, gridded_da_historical = xr.align(
+            obs_da, gridded_da_historical, join="inner"
+        )
         logger.debug(
             "Final obs period shape: %s",
             obs_da.shape,
@@ -503,7 +646,7 @@ class BiasAdjustModelToStation(DataProcessor):
 
         # Rechunk to convert back to dask array for downstream processing
         # This maintains lazy evaluation for subsequent operations
-        logger.debug("=== Bias correction complete for %s ===", da_adj.name)
+        logger.debug("=== Bias adjustment complete for %s ===", da_adj.name)
 
         return da_adj  # type: ignore[return-value]
 
@@ -519,7 +662,7 @@ class BiasAdjustModelToStation(DataProcessor):
         Parameters
         ----------
         result : xr.Dataset or xr.DataArray
-            Input data to bias correct
+            Input data to bias adjust
         station_ds : xr.Dataset
             Loaded station data
         context : Dict[str, Any]
@@ -530,7 +673,7 @@ class BiasAdjustModelToStation(DataProcessor):
         Returns
         -------
         xr.Dataset or xr.DataArray
-            Bias corrected data
+            Bias-adjusted data
         """
         # Convert Dataset to DataArray if needed
         result_da: xr.DataArray
@@ -546,16 +689,12 @@ class BiasAdjustModelToStation(DataProcessor):
                     data_vars[0],
                 )
             result_da = result[data_vars[0]]
-            # Copy important attributes from Dataset to DataArray
-            # These are needed by utility functions like get_closest_gridcell
-            # We copy all attributes to be safe, as resolution and others are needed
-            result_da.attrs.update(result.attrs)
             logger.info("Converted Dataset to DataArray: %s", result_da.name)
         elif isinstance(result, xr.DataArray):
             result_da = result
         else:
             raise TypeError(
-                f"StationBiasCorrection requires xr.DataArray or xr.Dataset input, "
+                f"BiasAdjustModelToStation requires xr.DataArray or xr.Dataset input, "
                 f"got {type(result)}"
             )
 
@@ -609,7 +748,8 @@ class BiasAdjustModelToStation(DataProcessor):
                 historical_da.coords["lon"].load()
 
         logger.info(
-            "Applying QDM bias adjustment on models for %d station(s)",
+            "Applying %s bias adjustment on models for %d station(s)",
+            _QDM_LOG_REFERENCE,
             len(self.stations),
         )
         logger.debug("Input result_da name: %s", result_da.name)
@@ -633,6 +773,7 @@ class BiasAdjustModelToStation(DataProcessor):
             station_metadata[station_name] = {
                 "coordinates": (station_lat, station_lon),
                 "elevation": station_da.attrs.get("elevation", "N/A"),
+                "station_name": station_da.attrs.get("station_name", station_name),
             }
 
             # Extract model data
@@ -681,7 +822,7 @@ class BiasAdjustModelToStation(DataProcessor):
                 station_stacked.attrs["units"] = first_station.attrs["units"]
 
         # Preserve the model data units - these will be the output units
-        # (bias correction converts obs to match gridded, so output has gridded units)
+        # (bias adjustment converts obs to match gridded, so output has gridded units)
         output_units = gridded_stacked.attrs.get("units", "K")
 
         # Convert calendars to noleap (vectorized)
@@ -690,33 +831,66 @@ class BiasAdjustModelToStation(DataProcessor):
             historical_stacked = historical_stacked.convert_calendar("noleap")
         station_stacked = station_stacked.convert_calendar("noleap")
 
-        # Apply Bias Correction (Vectorized)
+        # Apply Bias Adjustment (Vectorized)
         # This applies QDM once across all stations (broadcasting over 'station' dim)
-        bias_corrected_stacked = self._bias_correct_model_data(
+        bias_adjusted_stacked = self._bias_adjust_model_data(
             station_stacked,
             gridded_stacked,
             historical_da=historical_stacked,
         )
 
-        # Unstack to Dataset
-        apply_output = bias_corrected_stacked.to_dataset(dim="station")
+        # Keep 'station' as an actual dimension on a single data variable,
+        # rather than unstacking into one data variable per station. Per-
+        # station metadata becomes coordinates along that dimension instead
+        # of being duplicated into per-variable attrs.
+        output_da = bias_adjusted_stacked.assign_coords(
+            lat=(
+                "station",
+                [station_metadata[s]["coordinates"][0] for s in station_names],
+            ),
+            lon=(
+                "station",
+                [station_metadata[s]["coordinates"][1] for s in station_names],
+            ),
+            elevation=(
+                "station",
+                [station_metadata[s]["elevation"] for s in station_names],
+            ),
+            station_name=(
+                "station",
+                [station_metadata[s]["station_name"] for s in station_names],
+            ),
+        )
+        output_da["station"].attrs = {
+            "standard_name": "Historical Data Platform (HDP) weather station identifier",
+            "units": "",
+        }
+        output_da["station_name"].attrs = {
+            "long_name": "Historical Data Platform (HDP) weather station name",
+        }
+        output_da["lat"].attrs["units"] = "degrees_north"
+        output_da["lon"].attrs["units"] = "degrees_east"
 
-        # Restore attributes including units
-        for station_name in station_names:
-            if station_name in apply_output:
-                apply_output[station_name].attrs["station_coordinates"] = (
-                    station_metadata[station_name]["coordinates"]
-                )
-                apply_output[station_name].attrs["station_elevation"] = (
-                    station_metadata[station_name]["elevation"]
-                )
-                # Preserve units from input model data for downstream processors
-                apply_output[station_name].attrs["units"] = output_units
+        # Preserve units from input model data for downstream processors, and
+        # add metadata describing the bias-adjusted variable.
+        output_da.attrs["units"] = output_units
+        output_da.attrs.update(_OUTPUT_VARIABLE_METADATA.get(output_da.name, {}))
+        output_da.attrs["description"] = (
+            f"Bias-adjusted '{output_da.name}' data at HDP station location(s), "
+            f"using QDM (Quantile Delta Mapping) trained on historical "
+            f"observations from: {', '.join(station_names)}."
+        )
+
+        apply_output = output_da.to_dataset()
+
+        # Coping over any global attributes from the input Dataset if present
+        if isinstance(result, xr.Dataset):
+            apply_output.attrs = dict(result.attrs)
 
         logger.info(
-            "Station bias correction complete. Output shape: %s", apply_output.dims
+            "Station bias adjustment complete. Output shape: %s", apply_output.dims
         )
-        logger.debug("Output variables: %s", list(apply_output.data_vars))
+        logger.debug("Output data variable: %s", output_da.name)
 
         return apply_output
 
@@ -725,10 +899,10 @@ class BiasAdjustModelToStation(DataProcessor):
         result: Dict[str, Union[xr.Dataset, xr.DataArray]],
         context: Dict[str, Any],
     ) -> Dict[str, Union[xr.Dataset, xr.DataArray]]:
-        """Execute bias correction on a dictionary of datasets.
+        """Execute bias adjustment on a dictionary of datasets.
 
         This method handles the pre-concatenation case where we have separate
-        historical and SSP datasets. It pairs them up and applies bias correction
+        historical and SSP datasets. It pairs them up and applies bias adjustment
         using the historical data for training.
 
         Parameters
@@ -741,10 +915,11 @@ class BiasAdjustModelToStation(DataProcessor):
         Returns
         -------
         Dict[str, Union[xr.Dataset, xr.DataArray]]
-            Dictionary of bias-corrected datasets
+            Dictionary of bias-adjusted datasets
         """
-        logger.debug("Loading station data from HadISD...")
-        station_ds = self._load_station_data()
+        logger.debug("Loading station data from HDP...")
+        hdp_variable = self._resolve_hdp_variable(context)
+        station_ds = self._load_station_data(hdp_variable)
         logger.debug("Station data loaded. Variables: %s", list(station_ds.data_vars))
 
         ret = {}
@@ -758,12 +933,10 @@ class BiasAdjustModelToStation(DataProcessor):
                     historical_da = result[hist_key]
                     # Convert to DataArray if needed
                     if isinstance(historical_da, xr.Dataset):
-                        # Preserve attributes from Dataset when extracting DataArray
                         historical_da_ds = historical_da
                         historical_da = historical_da_ds[
                             list(historical_da_ds.data_vars)[0]
                         ]
-                        historical_da.attrs.update(historical_da_ds.attrs)
                 else:
                     logger.warning(
                         f"No historical data found for {key} (expected {hist_key}). "
@@ -773,12 +946,10 @@ class BiasAdjustModelToStation(DataProcessor):
                 # Use itself as historical training data
                 historical_da = data
                 if isinstance(historical_da, xr.Dataset):
-                    # Preserve attributes from Dataset when extracting DataArray
                     historical_da_ds = historical_da
                     historical_da = historical_da_ds[
                         list(historical_da_ds.data_vars)[0]
                     ]
-                    historical_da.attrs.update(historical_da_ds.attrs)
 
             # Process
             ret[key] = self._process_single_dataset(
@@ -802,16 +973,17 @@ class BiasAdjustModelToStation(DataProcessor):
         Iterable[Union[xr.Dataset, xr.DataArray]],
         Dict[str, Union[xr.Dataset, xr.DataArray]],
     ]:
-        """Apply station bias correction to gridded climate data.
+        """Apply station bias adjustment to gridded climate data.
 
-        This method orchestrates the complete bias correction workflow:
+        This method orchestrates the complete bias adjustment workflow:
         1. Validates input data type (must be DataArray, Dataset, or Dict)
-        2. Loads HadISD station observational data
-        3. Applies bias correction to each station using xarray.map
-        4. Returns dataset with bias-corrected data at station locations
+        2. Loads HDP station observational data
+        3. Applies bias adjustment across all stations at once (vectorized QDM)
+        4. Returns dataset with bias-adjusted data at station locations
 
-        The output will have stations as data variables in the returned dataset,
-        with each variable containing bias-corrected time series for that location.
+        The output has a 'station' dimension (with 'lat'/'lon'/'elevation'
+        coordinates along it) and a single data variable containing the
+        bias-adjusted time series for every requested station.
 
         Parameters
         ----------
@@ -820,16 +992,16 @@ class BiasAdjustModelToStation(DataProcessor):
             - xr.DataArray with the climate variable
             - xr.Dataset (will extract first data variable)
             - Dict of Datasets/DataArrays (pre-concatenation)
-            Must have time dimension covering at least the historical period (1980-2014)
-            for training the bias correction.
+            Must have a time dimension overlapping the requested historical
+            training period and each station's actual observational coverage.
         context : dict
             Processing context dictionary. Updated with information about the
-            bias correction operation.
+            bias adjustment operation.
 
         Returns
         -------
         xr.Dataset or Dict
-            Bias-corrected data at station locations.
+            Bias-adjusted data at station locations.
 
         Raises
         ------
@@ -840,37 +1012,38 @@ class BiasAdjustModelToStation(DataProcessor):
 
         Notes
         -----
-        - Input data must include historical period (1980-2014) for bias correction training
-        - Station observational data is available through 2014-08-31
+        - Input data must overlap the requested historical training period
+        - Station observational coverage varies per HDP station
         - All data is converted to noleap calendar for consistency
         - Final output is time-sliced to the user's requested period
         """
         if isinstance(result, dict):
             return self._execute_dict(result, context)
 
-        # Load station observational data from HadISD
-        logger.debug("Loading station data from HadISD...")
-        station_ds = self._load_station_data()
+        # Load station observational data from HDP
+        logger.debug("Loading station data from HDP...")
+        hdp_variable = self._resolve_hdp_variable(context)
+        station_ds = self._load_station_data(hdp_variable)
         logger.debug("Station data loaded. Variables: %s", list(station_ds.data_vars))
 
         if isinstance(result, (xr.Dataset, xr.DataArray)):
             return self._process_single_dataset(result, station_ds, context)
         else:
             raise TypeError(
-                f"StationBiasCorrection requires xr.DataArray, xr.Dataset, or Dict input, "
+                f"BiasAdjustModelToStation requires xr.DataArray, xr.Dataset, or Dict input, "
                 f"got {type(result)}"
             )
 
     def update_context(self, context: Dict[str, Any]) -> None:
-        """Update the context with information about the bias correction operation.
+        """Update the context with information about the bias adjustment operation.
 
-        This method adds metadata about the bias correction to the processing context,
+        This method adds metadata about the bias adjustment to the processing context,
         documenting the stations processed, historical training period, and QDM parameters used.
 
         Parameters
         ----------
         context : dict[str, Any]
-            Processing context dictionary. Updated in place with bias correction metadata.
+            Processing context dictionary. Updated in place with bias adjustment metadata.
 
         Returns
         -------
@@ -882,19 +1055,18 @@ class BiasAdjustModelToStation(DataProcessor):
         # Build informative context message
         station_list = ", ".join(self.stations)
         context[_NEW_ATTRS_KEY][self.name] = (
-            f"Station bias correction applied using Quantile Delta Mapping (QDM). "
+            f"Station bias adjustment applied using Quantile Delta Mapping (QDM). "
             f"Stations: {station_list}. "
             f"Historical training period: {self.historical_slice[0]}-{self.historical_slice[1]}. "
             f"QDM parameters: window={self.window} days, "
             f"nquantiles={self.nquantiles}, group='{self.group}', kind='{self.kind}'. "
-            f"Observational data from HadISD weather stations."
+            f"Observational data from HDP weather stations."
         )
 
     def set_data_accessor(self, catalog: DataCatalog) -> None:
         """Set the data catalog accessor for the processor.
 
-        The processor requires access to station metadata through the DataCatalog.
-        Station observational data is loaded directly from S3 zarr stores.
+        The processor requires access to the HDP catalog through the DataCatalog.
 
         Parameters
         ----------

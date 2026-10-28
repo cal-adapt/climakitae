@@ -69,7 +69,7 @@ data = cd.get()
 
 | Level | Purpose | Examples | Impact |
 |-------|---------|----------|--------|
-| **Catalog** | Data source collection | `"cadcat"`, `"renewable energy generation"`, `"hdp"` | Determines what datasets exist |
+| **Catalog** | Data source collection | `"cadcat"`, `"renewable energy generation"`, `"hdp"`, `"sup3rcc"` | Determines what datasets exist |
 | **Activity ID** | Downscaling method | `"WRF"` (dynamical), `"LOCA2"` (statistical) | Different variable names, coverage, bias |
 | **Institution** | Data producer | `"UCLA"` (WRF), `"UCSD"` (LOCA2-Hybrid), `"ERA"` (ERA5 forcing) | Different model implementations, bias characteristics |
 | **Source ID** | Climate model | `"CESM2"`, `"EC-Earth3"`, `"MIROC6"`, `"CNRM-ESM2-1"`, … | Different model physics; skill varies by region/variable |

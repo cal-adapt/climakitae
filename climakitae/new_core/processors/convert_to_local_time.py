@@ -256,8 +256,12 @@ class ConvertToLocalTime(DataProcessor):
             lat = obj.lat[0]
             lon = obj.lon[0]
         elif obj.lat.ndim < 2:
-            lat = obj.lat.values.item()
-            lon = obj.lon.values.item()
+            if (obj.lat.values.size > 1) or (obj.lon.values.size > 1):
+                lat = float((obj.lat[0] + obj.lat[-1]) / 2)
+                lon = float((obj.lon[0] + obj.lon[-1]) / 2)
+            else:
+                lat = obj.lat.values.item()
+                lon = obj.lon.values.item()
         else:
             lat = float((obj.lat[0, 0] + obj.lat[-1, 0]) / 2)
             lon = float((obj.lon[0, 0] + obj.lon[0, -1]) / 2)
