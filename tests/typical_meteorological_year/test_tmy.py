@@ -146,7 +146,8 @@ class TestFunctionsForTMY:
 
         # Spot check the January max matches
         assert result[1][0][0].max() == pytest.approx(
-            test_da.isel({"simulation": 1}).groupby("time.month").max()[0], abs=1e-6
+            test_da.isel({"simulation": 1}).groupby("time.month").max()[0].item(),
+            abs=1e-6,
         )
 
     def test_get_cdf(self):
