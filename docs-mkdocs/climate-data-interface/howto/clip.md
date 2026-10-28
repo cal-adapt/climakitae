@@ -9,7 +9,7 @@ not legal or ownership boundaries.
 ## By Named Region (County, Watershed, etc.)
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 cd = ClimateData()
 

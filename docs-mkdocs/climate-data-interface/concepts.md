@@ -36,7 +36,7 @@ Variable ID
 For example, let's say you want monthly maximum temperature from WRF downscaling. Here's how that maps to the hierarchy:
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 cd = ClimateData()
 
@@ -236,7 +236,7 @@ warming_1850_ref = 2.0  # 2°C warming target (Paris Agreement)
 ### Using GWL in Queries
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 cd = ClimateData()
 
@@ -303,7 +303,7 @@ The `warming_level_window` parameter defines a time window around the warming le
 Here's how all three concepts work in a real query:
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 import matplotlib.pyplot as plt
 
 # 1. Use hierarchy to specify the exact dataset

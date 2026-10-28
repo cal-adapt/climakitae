@@ -53,7 +53,7 @@ Subset climate data by global warming level thresholds instead of calendar dates
 ### Single Warming Level
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 # Extract data at 1.5°C warming
 data = (ClimateData()

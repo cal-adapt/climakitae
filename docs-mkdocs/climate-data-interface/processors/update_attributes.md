@@ -44,7 +44,7 @@ flowchart TD
 You normally never reference this processor directly:
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 data = (ClimateData()
     .catalog("cadcat").activity_id("WRF").institution_id("UCLA")

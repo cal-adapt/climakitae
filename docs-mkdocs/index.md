@@ -23,7 +23,7 @@ pip install climakitae
 Run your first query:
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 cd = ClimateData()
 
