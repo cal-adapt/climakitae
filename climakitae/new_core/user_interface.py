@@ -3,7 +3,6 @@
 This module provides a high-level interface for accessing climate data through
 the ClimateData class. It implements a fluent interface pattern that allows users
 to chain method calls to configure data queries.
-
 The module facilitates retrieving climate data with various parameters such as
 catalogs, installations, activities, institutions, sources, experiments, variables,
 and processing options. It implements a factory pattern for creating appropriate

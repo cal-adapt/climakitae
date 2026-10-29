@@ -44,9 +44,9 @@ data = get_data(
 )
 ```
 
-Driving a `DataParameters` instance directly and calling `.retrieve()` is still
-supported for GUI-style workflows, but `get_data()` is the preferred path for
-new and maintained code.
+Driving a `DataParameters` instance directly and calling `.retrieve()` will be 
+be supported until late Q1 2027 for GUI-style workflows. However, `ClimateData` is the 
+preferred path for new and maintained code.
 
 ---
 
@@ -99,8 +99,9 @@ A legacy query moves through four stages:
 Always prefer calling `get_data()` with keyword arguments — it handles the
 `DataParameters` construction and validation for you.
 
-Like the modern interface, the result is **lazily loaded** — data streams from
-S3 only when you compute, plot, or export it.
+Like the modern interface, the result is _usually_ **lazily loaded** — data streams from
+S3 only when you compute, plot, or export it. However, in some cases the data is called
+into memory before returning to handle computational tasks. 
 
 ---
 

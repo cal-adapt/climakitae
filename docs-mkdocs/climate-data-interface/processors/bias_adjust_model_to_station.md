@@ -53,7 +53,7 @@ The processor takes a **dict**:
 ## Example
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 data = (ClimateData()
     .catalog("cadcat")
@@ -91,4 +91,8 @@ data = (ClimateData()
 
 - [Processor index](index.md)
 - [`climakitae/new_core/processors/bias_adjust_model_to_station.py`](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py)
+<<<<<<< HEAD
 - [How-To: bias correction](../howto/bias-adjustment.md)
+=======
+- [How-To: bias adjustment](../howto/bias-adjustment.md)
+>>>>>>> main
