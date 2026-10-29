@@ -202,7 +202,6 @@ class Dataset:
                 "catalog_key must be provided in the query context. "
                 "This is typically set by DatasetFactory.create_dataset()."
             )
-
         # Initialize the processing result - will be updated through pipeline steps
         logger.debug(
             "Retrieving data from data accessor with catalog_key=%s", catalog_key

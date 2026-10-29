@@ -6,7 +6,7 @@ Classes
 -------
 DataProcessor : Abstract base class for all data processors.
 RenameVariables : Example processor for renaming variables.
-ApplyBiasAdjustment : Example processor for bias adjustment.
+ApplyBiasCorrection : Example processor for bias correction.
 FilterData : Example processor for filtering data.
 
 Functions
