@@ -418,6 +418,44 @@ class ParameterValidator(ABC):
                     derived_name,
                 )
 
+        requested_sources = self.all_catalog_keys.get("source_id", UNSET)
+        if requested_sources is not UNSET:
+            requested_sources = (
+                [requested_sources]
+                if isinstance(requested_sources, str)
+                else requested_sources
+            )
+            available = self.catalog.df
+            for key, value in self.all_catalog_keys.items():
+                if key == "source_id" or key not in available.columns:
+                    continue
+                if key == "variable_id" and derived_var_name:
+                    continue
+                values = value if isinstance(value, (list, tuple)) else [value]
+                available = available[available[key].isin(values)]
+            available_sources = available["source_id"].unique().tolist()
+            missing_sources = [
+                source
+                for source in requested_sources
+                if source not in available_sources
+            ]
+            if missing_sources:
+                logger.warning(
+                    "Requested source_id values are unavailable under the selected "
+                    "catalog constraints: %s. Available source_id values: %s. "
+                    "Check spelling and activity_id (WRF/LOCA2), or use "
+                    "show_source_id_options(). The entire query has been rejected.",
+                    missing_sources,
+                    available_sources,
+                )
+                for source in missing_sources:
+                    closest = _get_closest_options(source, available_sources)
+                    if closest:
+                        logger.warning(
+                            "Did you mean one of these source IDs: %s?", closest
+                        )
+                return None
+
         # check if the catalog keys can be found
         subset = []
         try:

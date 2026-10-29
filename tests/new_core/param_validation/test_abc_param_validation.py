@@ -390,6 +390,38 @@ class TestIsValidQuery:
         assert result["source_id"] == source_ids
         self.validator.catalog.search.assert_called_once_with(source_id=source_ids)
 
+    @pytest.mark.parametrize(
+        "source_ids",
+        [
+            "typo",
+            ["model1", "typo"],
+            ("model1", "typo"),
+            ["model1", "wrf-only"],
+        ],
+    )
+    def test_is_valid_query_rejects_unavailable_sources(self, source_ids):
+        """Reject the entire query when any requested source is unavailable."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "source_id": ["model1", "model2", "wrf-only"],
+                "activity_id": ["LOCA2", "LOCA2", "WRF"],
+            }
+        )
+        self.validator.all_catalog_keys["activity_id"] = UNSET
+        query = {"source_id": source_ids, "activity_id": "LOCA2"}
+
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.logger"
+        ) as logger:
+            result = self.validator._is_valid_query(query)
+
+        assert result is None
+        warning = logger.warning.call_args_list[0]
+        assert "entire query has been rejected" in warning.args[0]
+        assert warning.args[1] == ["wrf-only" if "wrf-only" in source_ids else "typo"]
+        assert warning.args[2] == ["model1", "model2"]
+        self.validator.catalog.search.assert_not_called()
+
     def test_is_valid_query_unknown_source_id_list(self):
         """Test _is_valid_query rejects unknown source IDs in a list."""
         self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 0)
