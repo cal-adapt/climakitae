@@ -104,7 +104,7 @@ class ClimateData:
         The temporal resolution (e.g., ``"1hr"``, ``"day"``, ``"mon"``).
     grid_label : str
         The spatial resolution (e.g., ``"d01"``, ``"d02"``, ``"d03"``).
-    variable_id : str
+    variable_id : str | list[str]
         The climate variable (e.g., ``"tasmax"``, ``"pr"``, ``"cf"``).
     processes : dict
         Dictionary of data processing operations to apply.
@@ -129,8 +129,8 @@ class ClimateData:
         Set the temporal resolution.
     grid_label(grid_label: str) -> ClimateData
         Set the spatial resolution.
-    variable_id(variable_id: str) -> ClimateData
-        Set the climate variable to retrieve.
+    variable_id(variable_id: str | list[str]) -> ClimateData
+        Set the climate variable(s) to retrieve.
     variable(variable: str) -> ClimateData
         Deprecated alias for ``variable_id``. Use ``variable_id`` instead.
     station_id(station_id: str) --> ClimateData
@@ -643,13 +643,14 @@ class ClimateData:
         logger.info("Grid label set to: %s", grid_label.strip())
         return self
 
-    def variable_id(self, variable_id: str) -> "ClimateData":
+    def variable_id(self, variable_id: str | list[str]) -> "ClimateData":
         """Set the climate variable to retrieve.
 
         Parameters
         ----------
-        variable_id : str
-            The variable identifier (e.g., "tasmax", "pr", "cf").
+        variable_id : str | list[str]
+            The variable identifier (e.g., "tasmax", "pr", "cf") OR
+            list of variable identifiers (e.g., ["tasmax", "pr", "cf"])
             Can also be a registered derived variable name.
 
         Returns
@@ -658,23 +659,6 @@ class ClimateData:
             The current instance for method chaining.
 
         """
-        # logger.debug("Setting variable_id to: %s", variable_id)
-
-        # # Acceptable variable_id types are list or tuple of strings, or string
-        # if isinstance(variable_id, list | tuple) and all(
-        #     isinstance(s, str) for s in variable_id
-        # ):
-        #     variable_id_cleaned = []
-        #     for var in variable_id:
-        #         variable_id_cleaned.append(var.strip())
-        #     self._query["variable_id"] = variable_id_cleaned
-        #     logger.info("Variable ID set to: %s", variable_id_cleaned)
-        # elif isinstance(variable_id, str) or variable_id.strip():
-        #     self._query["variable_id"] = variable_id.strip()
-        #     logger.info("Variable ID set to: %s", variable_id.strip())
-        # else:
-        #     logger.error("Invalid variable_id parameter: must be non-empty string")
-        #     raise ValueError("Variable ID must be a non-empty string")
 
         logger.debug("Setting variable_id to: %s", variable_id)
         var = []
