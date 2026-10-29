@@ -676,7 +676,6 @@ class ClimateData:
         #     logger.error("Invalid variable_id parameter: must be non-empty string")
         #     raise ValueError("Variable ID must be a non-empty string")
 
-
         logger.debug("Setting variable_id to: %s", variable_id)
         var = []
         if not isinstance(variable_id, (str, list)):
