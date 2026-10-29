@@ -431,6 +431,20 @@ class TestIsValidQuery:
 
         assert result is None
 
+    @pytest.mark.parametrize("source_ids", ["model1", ["model1"], ("model1",)])
+    def test_is_valid_query_sources_available_under_constraints(self, source_ids):
+        """Accept source selections available under the remaining constraints."""
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 1)
+        query = {"source_id": source_ids, "grid_label": "gr2"}
+
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.logger"
+        ) as logger:
+            result = self.validator._is_valid_query(query)
+
+        assert result == query
+        logger.warning.assert_not_called()
+
     def test_is_valid_query_no_matches(self):
         """Test _is_valid_query when no datasets match."""
         query = {"variable": "nonexistent"}
