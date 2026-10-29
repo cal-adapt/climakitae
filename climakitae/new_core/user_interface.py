@@ -642,7 +642,7 @@ class ClimateData:
         logger.info("Grid label set to: %s", grid_label.strip())
         return self
 
-def variable_id(self, variable_id: str | list[str]) -> "ClimateData":
+    def variable_id(self, variable_id: str | list[str]) -> "ClimateData":
         """Set the climate variable to retrieve.
 
         Parameters
@@ -684,7 +684,7 @@ def variable_id(self, variable_id: str | list[str]) -> "ClimateData":
         self._query["variable_id"] = var
         logger.info("Variable ID(s) set to: %s", var)
 
-def variable(self, variable: str) -> "ClimateData":
+    def variable(self, variable: str) -> "ClimateData":
         """Set the climate variable to retrieve (DEPRECATED - use variable_id instead).
 
         .. deprecated::
@@ -709,7 +709,7 @@ def variable(self, variable: str) -> "ClimateData":
         )
         return self.variable_id(variable)
 
-def derived_variable(
+    def derived_variable(
         self,
         name: str,
         depends_on: list[str],
