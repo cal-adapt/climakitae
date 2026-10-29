@@ -709,7 +709,7 @@ def variable(self, variable: str) -> "ClimateData":
         )
         return self.variable_id(variable)
 
-    def derived_variable(
+def derived_variable(
         self,
         name: str,
         depends_on: list[str],
