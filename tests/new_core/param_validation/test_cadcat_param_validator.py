@@ -106,6 +106,30 @@ class TestDataValidator:
                 w[0].message
             )
 
+    @pytest.mark.parametrize(
+        "selection",
+        [
+            {
+                "source_id": ["MIROC6", "FGOALS-g3"],
+                "processes": {"filter_unadjusted_models": "no"},
+            },
+            {"source_id": "MIROC6"},
+            {},
+            {"activity_id": "LOCA2", "source_id": "FGOALS-g3"},
+            {"source_id": "ERA5"},
+        ],
+    )
+    def test_explicit_source_filter_compatible_queries(self, selection):
+        """Preserve opt-out, corrected, unspecified, LOCA2 and reanalysis queries."""
+        query = {"activity_id": "WRF", **selection}
+        with patch(
+            "climakitae.new_core.param_validation.cadcat_param_validator.logger"
+        ) as logger:
+            result = self.validator._check_explicit_unadjusted_sources(query)
+
+        assert result is True
+        logger.warning.assert_not_called()
+
     def test_check_query_for_wrf_and_localize_valid_no_localize(self):
         """Test _check_query_for_wrf_and_localize with no localize processor.
 
