@@ -624,6 +624,38 @@ class TestClimateDataAdditionalShowMethods:
                 limit_per_group=None,
             )
 
+    @pytest.mark.parametrize("show_n", [None, 1])
+    def test_show_wrf_sources_by_bias_adjustment(self, show_n):
+        """Separate adjusted, unadjusted and reanalysis options without hiding any."""
+        self.climate_data._query["activity_id"] = "WRF"
+        self.climate_data._factory.get_catalog_options.return_value = [
+            "MIROC6",
+            "EC-Earth3",
+            "FGOALS-g3",
+            "CESM2",
+            "ERA5",
+        ]
+        with patch("climakitae.new_core.user_interface.logger") as logger:
+            self.climate_data.show_source_id_options(show_n=show_n)
+
+        output = [
+            call.args[1]
+            for call in logger.info.call_args_list
+            if call.args[0] in ("%s:", "%s")
+        ]
+        adjusted = output.index("WRF with a-priori bias adjustment")
+        unadjusted = output.index(
+            "WRF without a-priori bias adjustment (requires filter_unadjusted_models='no')"
+        )
+        other = output.index("Other WRF sources (including reanalysis)")
+        assert output[adjusted + 1 : unadjusted] == (
+            ["EC-Earth3", "MIROC6"] if show_n is None else ["EC-Earth3"]
+        )
+        assert output[unadjusted + 1 : other] == (
+            ["CESM2", "FGOALS-g3"] if show_n is None else ["CESM2"]
+        )
+        assert output[other + 1 :] == ["ERA5"]
+
     def test_show_experiment_id_options(self):
         """Test show_experiment_id_options method."""
         with patch.object(self.climate_data, "_show_options") as mock_show:

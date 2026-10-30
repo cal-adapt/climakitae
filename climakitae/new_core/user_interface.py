@@ -27,7 +27,7 @@ import sys
 import traceback
 from typing import Any, Dict, Iterable, Optional, Union
 
-from climakitae.core.constants import UNSET
+from climakitae.core.constants import NON_WRF_BA_MODELS, UNSET, WRF_BA_MODELS
 from climakitae.core.paths import VARIABLE_DESCRIPTIONS_CSV_PATH
 from climakitae.new_core.dataset_factory import DatasetFactory
 from climakitae.util.utils import read_csv_file
@@ -1111,12 +1111,12 @@ class ClimateData:
 
     @_with_info_verbosity
     def show_source_id_options(self, show_n: Optional[int] = None) -> None:
-        """Display available source ID options.
+        """Display source options, grouped by bias adjustment for WRF.
 
         Parameters
         ----------
         show_n : int, optional
-            Maximum number of options to display. If None (default), shows all options.
+            Maximum number of options per group. If None (default), shows all options.
         """
         self._show_options(
             "source_id",
@@ -1528,6 +1528,37 @@ class ClimateData:
             options = self._factory.get_catalog_options(option_type, current_query)
             if not options:
                 logger.info("No options available with current parameters")
+
+            elif (
+                option_type == "source_id" and current_query.get("activity_id") == "WRF"
+            ):
+                adjusted = {model.split("_")[1] for model in WRF_BA_MODELS}
+                unadjusted = {model.split("_")[1] for model in NON_WRF_BA_MODELS}
+                groups = {
+                    "WRF with a-priori bias adjustment": adjusted,
+                    "WRF without a-priori bias adjustment (requires filter_unadjusted_models='no')": unadjusted,
+                    "Other WRF sources (including reanalysis)": set(options)
+                    - adjusted
+                    - unadjusted,
+                }
+                for label, sources in groups.items():
+                    available = sorted(set(options) & sources)
+                    if not available:
+                        continue
+                    logger.info("%s:", label)
+                    displayed = (
+                        available[:limit_per_group]
+                        if limit_per_group is not None
+                        else available
+                    )
+                    for option in displayed:
+                        logger.info("%s", self._format_option(option, option_type))
+                    if len(displayed) < len(available):
+                        logger.info(
+                            "Showing %s of %s options in this group",
+                            len(displayed),
+                            len(available),
+                        )
 
             else:
                 sorted_options = sorted(options)
