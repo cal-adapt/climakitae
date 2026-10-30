@@ -543,6 +543,12 @@ class ClimateData:
         ClimateData
             The current instance for method chaining.
 
+        Notes
+        -----
+        Explicitly selecting an unadjusted WRF source causes ``get()`` to
+        return None unless ``filter_unadjusted_models`` is set to ``"no"``.
+        Use ``show_source_id_options()`` to see WRF bias-adjustment groups.
+
         """
         logger.debug("Setting source_id to: %s", source_id)
         if isinstance(source_id, str):

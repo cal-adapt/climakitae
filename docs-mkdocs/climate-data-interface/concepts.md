@@ -113,6 +113,37 @@ Source-name validation is independent of variable, experiment and resolution
 selections. An invalid variable does not make otherwise valid source IDs invalid;
 the remaining query constraints are validated separately.
 
+#### WRF bias-adjustment status
+
+For WRF, `show_source_id_options()` separates sources with a-priori bias
+adjustment from those without it. Reanalysis and other sources outside the
+curated model groups appear separately.
+
+The default `filter_unadjusted_models` processor excludes unadjusted WRF models.
+If you explicitly request any of these sources, `.get()` rejects the entire
+query and returns `None`, rather than silently dropping a requested model.
+For example, `FGOALS-g3` is a valid WRF source, but it lacks a-priori bias
+adjustment. To include it, disable filtering explicitly:
+
+```python
+data = (
+    ClimateData()
+    .catalog("cadcat")
+    .activity_id("WRF")
+    .institution_id("UCLA")
+    .source_id(["MIROC6", "FGOALS-g3"])
+    .experiment_id("historical")
+    .table_id("1hr")
+    .grid_label("d03")
+    .variable_id("t2")
+    .processes({"filter_unadjusted_models": "no"})
+    .get()
+)
+```
+
+Queries without an explicit `source_id()` selection keep the existing behavior:
+unadjusted WRF models are removed by default. LOCA2 selections are unaffected.
+
 ### Why Hierarchy Matters
 
 1. **Type safety**: Not all combinations are valid (e.g., can't mix WRF variables with LOCA2 experiment_id)

@@ -118,6 +118,8 @@ class DataValidator(ParameterValidator):
 
         1. Check if the query contains the localize processor.
             Localize is not supported for LOCA2 datasets.
+        2. Reject explicitly requested unadjusted WRF sources unless
+            filter_unadjusted_models is set to "no".
 
         """
         logger.debug("Validating query: %s", query)
