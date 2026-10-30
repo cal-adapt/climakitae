@@ -2500,6 +2500,15 @@
 <p><code>ClimateData</code> inserts this processor automatically for bias-relevant WRF
 queries. To explicitly <em>include</em> unadjusted models, pass
 <code>"filter_unadjusted_models": "no"</code>.</p>
+<p>If <code>.source_id()</code> explicitly requests any unadjusted WRF model while
+filtering is enabled, query validation rejects the whole request and
+<code>.get()</code> returns <code>None</code>. The warning names the conflicting sources and
+shows how to disable filtering. This prevents a requested source from
+being silently removed while the remaining sources are returned.</p>
+<p>Without an explicit source selection, the processor continues to remove
+unadjusted entries from the retrieved ensemble. Use
+<code>.activity_id("WRF").show_source_id_options()</code> to see sources grouped by
+bias-adjustment status.</p>
 </div>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">climakitae</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateData</span>
