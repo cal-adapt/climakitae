@@ -130,7 +130,7 @@ class DataValidator(ParameterValidator):
             self._check_explicit_unadjusted_sources(query),
         ]
         if not all(initial_checks):
-            logger.warning("Initial validation checks failed: %s", initial_checks)
+            logger.debug("Initial validation checks failed: %s", initial_checks)
             return None
         result = super()._is_valid_query(query)
         logger.info("Query validation result: %s", bool(result))
