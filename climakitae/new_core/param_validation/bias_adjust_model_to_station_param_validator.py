@@ -52,6 +52,9 @@ from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     register_processor_validator,
 )
+from climakitae.new_core.param_validation.station_qa_validation import (
+    validate_station_qa_for_requested_years,
+)
 from climakitae.new_core.processors.bias_adjust_model_to_station import (
     _VARIABLE_ID_TO_HDP_VARIABLE,
 )
@@ -231,6 +234,8 @@ def validate_bias_adjustment_station_data_param(
     if not _validate_scenario_resolution_compatibility(query):
         return False
     if not _validate_institution_id_requirement(query):
+        return False
+    if not validate_station_qa_for_requested_years(query):
         return False
 
     logger.info(

@@ -41,6 +41,42 @@ data = (cd
 )
 ```
 
+## Year-Level Data Quality Checks
+
+If the query pins a specific year range — directly via `time_slice`, or indirectly via `warming_level` — each requested station/variable/year is checked against a QA sheet before anything runs. Overall-coverage problems are hard errors; per-month/diurnal coverage gaps are warnings that don't block the query.
+
+```python
+# Error: KSAN's dew_point record has an overall coverage gap in this range,
+# so the query is rejected before any data is fetched.
+data = (cd
+    .activity_id("WRF")
+    .institution_id("UCLA")
+    .variable_id("dew_point")
+    .table_id("1hr")
+    .processes({
+        "time_slice": (2000, 2003),
+        "bias_adjust_model_to_station": {"stations": ["KSAN"]},
+    })
+    .get())
+# -> None, with a logged error naming the station/variable/year and the
+#    nearest usable year(s) (or that none were found nearby).
+
+# Warning: KSAN's tas record is missing some summer months in this range,
+# but the query still runs.
+data = (cd
+    .activity_id("WRF")
+    .institution_id("UCLA")
+    .variable_id("t2")
+    .table_id("1hr")
+    .processes({
+        "time_slice": (2000, 2003),
+        "bias_adjust_model_to_station": {"stations": ["KSAN"]},
+    })
+    .get())
+# -> data is returned, with a logged warning naming the affected month(s)
+#    and noting the result may be biased.
+```
+
 ## How Bias Adjustment Works
 
 - **Training**: Uses each station's actual historical observational overlap with the model's historical period (coverage varies per HDP station)

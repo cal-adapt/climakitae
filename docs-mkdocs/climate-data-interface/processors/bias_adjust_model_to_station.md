@@ -50,6 +50,7 @@ The processor takes a **dict**:
 - **Time coverage**: Input must overlap the requested historical training period (default 1980–2014). HDP station coverage varies widely by station, from a few years to multiple decades.
 - **Multiple networks**: Requested stations may span multiple HDP networks in a single call.
 - **Calendar**: All inputs are converted to a `noleap` calendar internally for consistency.
+- **Year-level QA check**: if the query also pins a specific year range — via `time_slice`, or indirectly via `warming_level` (converted to a year with `get_year_at_gwl`) — each requested (station, variable, year) is checked against a QA sheet (`climakitae/data/station_qa_centered.csv`, keyed by station `source-id`; today covers `KSAN` only). Overall-coverage failures (`total-time-window`, `window_missing_nans`) are hard errors that block the query, with the nearest usable year(s) suggested. Per-month/diurnal coverage failures are warnings only — the query still runs, with a note that the data may be biased for the named month(s).
 
 ## Example
 
@@ -92,8 +93,4 @@ data = (ClimateData()
 
 - [Processor index](index.md)
 - [`climakitae/new_core/processors/bias_adjust_model_to_station.py`](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py)
-<<<<<<< HEAD
-- [How-To: bias correction](../howto/bias-adjustment.md)
-=======
 - [How-To: bias adjustment](../howto/bias-adjustment.md)
->>>>>>> main
