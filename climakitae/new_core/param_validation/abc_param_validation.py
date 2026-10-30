@@ -427,9 +427,10 @@ class ParameterValidator(ABC):
             )
             available = self.catalog.df
             for key, value in self.all_catalog_keys.items():
-                if key == "source_id" or key not in available.columns:
-                    continue
-                if key == "variable_id" and derived_var_name:
+                if (
+                    key not in ("activity_id", "institution_id")
+                    or key not in available.columns
+                ):
                     continue
                 values = value if isinstance(value, (list, tuple)) else [value]
                 available = available[available[key].isin(values)]
@@ -442,7 +443,7 @@ class ParameterValidator(ABC):
             if missing_sources:
                 logger.warning(
                     "Requested source_id values are unavailable under the selected "
-                    "catalog constraints: %s. Available source_id values: %s. "
+                    "catalog, activity_id and institution_id: %s. Available source_id values: %s. "
                     "Check spelling and activity_id (WRF/LOCA2), or use "
                     "show_source_id_options(). The entire query has been rejected.",
                     missing_sources,

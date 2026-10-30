@@ -431,6 +431,40 @@ class TestIsValidQuery:
 
         assert result is None
 
+    @pytest.mark.parametrize("invalid_key", ["variable_id", "table_id", "grid_label"])
+    def test_invalid_constraint_does_not_misidentify_sources(self, invalid_key):
+        """Report only invalid WRF sources despite an unrelated invalid constraint."""
+        wrf_sources = ["EC-Earth3-Veg", "EC-Earth3", "MIROC6"]
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "source_id": ["FGOALS-g3", *wrf_sources],
+                "activity_id": ["LOCA2", "WRF", "WRF", "WRF"],
+                "institution_id": ["UCSD", "UCLA", "UCLA", "UCLA"],
+                invalid_key: ["valid"] * 4,
+            }
+        )
+        self.validator.all_catalog_keys = {
+            "activity_id": UNSET,
+            "institution_id": UNSET,
+            "source_id": UNSET,
+            invalid_key: UNSET,
+        }
+        query = {
+            "activity_id": "WRF",
+            "institution_id": "UCLA",
+            "source_id": ["FGOALS-g3", *wrf_sources],
+            invalid_key: "keyboardsmash",
+        }
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.logger"
+        ) as logger:
+            result = self.validator._is_valid_query(query)
+
+        assert result is None
+        warning = logger.warning.call_args_list[0]
+        assert warning.args[1] == ["FGOALS-g3"]
+        assert warning.args[2] == wrf_sources
+
     @pytest.mark.parametrize("source_ids", ["model1", ["model1"], ("model1",)])
     def test_is_valid_query_sources_available_under_constraints(self, source_ids):
         """Accept source selections available under the remaining constraints."""
