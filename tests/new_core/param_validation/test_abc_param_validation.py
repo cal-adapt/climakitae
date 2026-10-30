@@ -378,6 +378,124 @@ class TestIsValidQuery:
         }
         mock_print.assert_any_call("Found 5 datasets matching your query.")
 
+    def test_is_valid_query_multiple_source_ids(self):
+        """Test _is_valid_query accepts multiple source IDs."""
+        source_ids = ["model1", "model2"]
+        query = {"source_id": source_ids}
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 2)
+
+        with patch("builtins.print"):
+            result = self.validator._is_valid_query(query)
+
+        assert result["source_id"] == source_ids
+        self.validator.catalog.search.assert_called_once_with(source_id=source_ids)
+
+    @pytest.mark.parametrize(
+        "source_ids",
+        [
+            "typo",
+            ["model1", "typo"],
+            ("model1", "typo"),
+            ["model1", "wrf-only"],
+        ],
+    )
+    def test_is_valid_query_rejects_unavailable_sources(self, source_ids):
+        """Reject the entire query when any requested source is unavailable."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "source_id": ["model1", "model2", "wrf-only"],
+                "activity_id": ["LOCA2", "LOCA2", "WRF"],
+            }
+        )
+        self.validator.all_catalog_keys["activity_id"] = UNSET
+        query = {"source_id": source_ids, "activity_id": "LOCA2"}
+
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.logger"
+        ) as logger:
+            result = self.validator._is_valid_query(query)
+
+        assert result is None
+        warning = logger.warning.call_args_list[0]
+        assert "entire query has been rejected" in warning.args[0]
+        assert warning.args[1] == ["wrf-only" if "wrf-only" in source_ids else "typo"]
+        assert warning.args[2] == ["model1", "model2"]
+        self.validator.catalog.search.assert_not_called()
+
+    def test_is_valid_query_unknown_source_id_list(self):
+        """Test _is_valid_query rejects unknown source IDs in a list."""
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 0)
+
+        with patch("builtins.print"):
+            result = self.validator._is_valid_query({"source_id": ["unknown-model"]})
+
+        assert result is None
+
+    @pytest.mark.parametrize("invalid_key", ["variable_id", "table_id", "grid_label"])
+    def test_invalid_constraint_does_not_misidentify_sources(self, invalid_key):
+        """Report only invalid WRF sources despite an unrelated invalid constraint."""
+        wrf_sources = ["EC-Earth3-Veg", "EC-Earth3", "MIROC6"]
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "source_id": ["FGOALS-g3", *wrf_sources],
+                "activity_id": ["LOCA2", "WRF", "WRF", "WRF"],
+                "institution_id": ["UCSD", "UCLA", "UCLA", "UCLA"],
+                invalid_key: ["valid"] * 4,
+            }
+        )
+        self.validator.all_catalog_keys = {
+            "activity_id": UNSET,
+            "institution_id": UNSET,
+            "source_id": UNSET,
+            invalid_key: UNSET,
+        }
+        query = {
+            "activity_id": "WRF",
+            "institution_id": "UCLA",
+            "source_id": ["FGOALS-g3", *wrf_sources],
+            invalid_key: "keyboardsmash",
+        }
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.logger"
+        ) as logger:
+            result = self.validator._is_valid_query(query)
+
+        assert result is None
+        warning = logger.warning.call_args_list[0]
+        assert warning.args[1] == ["FGOALS-g3"]
+        assert warning.args[2] == wrf_sources
+
+    @pytest.mark.parametrize("source_ids", ["model1", ["model1"], ("model1",)])
+    def test_is_valid_query_sources_available_under_constraints(self, source_ids):
+        """Accept source selections available under the remaining constraints."""
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 1)
+        query = {"source_id": source_ids, "grid_label": "gr2"}
+
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.logger"
+        ) as logger:
+            result = self.validator._is_valid_query(query)
+
+        assert result == query
+        logger.warning.assert_not_called()
+
+    def test_valid_sources_with_invalid_variable_reports_variable(self):
+        """Diagnose an invalid variable without blaming valid source IDs."""
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 0)
+        query = {"source_id": ["model1", "model2"], "variable": "keyboardsmash"}
+
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.logger"
+        ) as logger:
+            result = self.validator._is_valid_query(query)
+
+        assert result is None
+        warnings_text = " ".join(
+            str(call.args) for call in logger.warning.call_args_list
+        )
+        assert "keyboardsmash" in warnings_text
+        assert "unavailable" not in warnings_text
+
     def test_is_valid_query_no_matches(self):
         """Test _is_valid_query when no datasets match."""
         query = {"variable": "nonexistent"}

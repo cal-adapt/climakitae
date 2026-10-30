@@ -132,6 +132,23 @@ class TestClimateDataParameterSetters:
         assert self.climate_data._query["source_id"] == "GCM"
         assert result is self.climate_data
 
+    @pytest.mark.parametrize(
+        "source_ids",
+        [
+            ["CESM2-LENS", "CNRM-ESM2-1"],
+            ("CESM2-LENS", "CNRM-ESM2-1"),
+        ],
+    )
+    def test_source_id_multiple_valid(self, source_ids):
+        """Test source_id setter with multiple valid IDs."""
+        result = self.climate_data.source_id(source_ids)
+
+        assert self.climate_data._query["source_id"] == [
+            "CESM2-LENS",
+            "CNRM-ESM2-1",
+        ]
+        assert result is self.climate_data
+
     def test_source_id_invalid(self):
         """Test source_id setter with invalid input."""
         try:
@@ -139,6 +156,14 @@ class TestClimateDataParameterSetters:
             assert False, "Should have raised ValueError"
         except ValueError as e:
             assert "Source ID must be a non-empty string" in str(e)
+
+    @pytest.mark.parametrize("source_ids", [[], ["GCM", ""], (" ",)])
+    def test_source_id_invalid_sequence(self, source_ids):
+        """Test source_id setter rejects empty or invalid sequences."""
+        with pytest.raises(
+            ValueError, match="Each source ID must be a non-empty string"
+        ):
+            self.climate_data.source_id(source_ids)
 
     def test_table_id_valid(self):
         """Test table_id setter with valid input."""
@@ -598,6 +623,38 @@ class TestClimateDataAdditionalShowMethods:
                 "source_id options (Climate model simulations)",
                 limit_per_group=None,
             )
+
+    @pytest.mark.parametrize("show_n", [None, 1])
+    def test_show_wrf_sources_by_bias_adjustment(self, show_n):
+        """Separate adjusted, unadjusted and reanalysis options without hiding any."""
+        self.climate_data._query["activity_id"] = "WRF"
+        self.climate_data._factory.get_catalog_options.return_value = [
+            "MIROC6",
+            "EC-Earth3",
+            "FGOALS-g3",
+            "CESM2",
+            "ERA5",
+        ]
+        with patch("climakitae.new_core.user_interface.logger") as logger:
+            self.climate_data.show_source_id_options(show_n=show_n)
+
+        output = [
+            call.args[1]
+            for call in logger.info.call_args_list
+            if call.args[0] in ("%s:", "%s")
+        ]
+        adjusted = output.index("WRF with a-priori bias adjustment")
+        unadjusted = output.index(
+            "WRF without a-priori bias adjustment (requires filter_unadjusted_models='no')"
+        )
+        other = output.index("Other WRF sources (including reanalysis)")
+        assert output[adjusted + 1 : unadjusted] == (
+            ["EC-Earth3", "MIROC6"] if show_n is None else ["EC-Earth3"]
+        )
+        assert output[unadjusted + 1 : other] == (
+            ["CESM2", "FGOALS-g3"] if show_n is None else ["CESM2"]
+        )
+        assert output[other + 1 :] == ["ERA5"]
 
     def test_show_experiment_id_options(self):
         """Test show_experiment_id_options method."""

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-from climakitae.core.constants import CATALOG_CADCAT, UNSET
+from climakitae.core.constants import CATALOG_CADCAT, NON_WRF_BA_MODELS, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.abc_param_validation import (
     ParameterValidator,
@@ -118,6 +118,8 @@ class DataValidator(ParameterValidator):
 
         1. Check if the query contains the localize processor.
             Localize is not supported for LOCA2 datasets.
+        2. Reject explicitly requested unadjusted WRF sources unless
+            filter_unadjusted_models is set to "no".
 
         """
         logger.debug("Validating query: %s", query)
@@ -125,13 +127,45 @@ class DataValidator(ParameterValidator):
             self._check_query_for_wrf_and_localize(query),
             self._check_query_for_required_keys(query),
             self._check_wrf_requires_institution_id(query),
+            self._check_explicit_unadjusted_sources(query),
         ]
         if not all(initial_checks):
-            logger.warning("Initial validation checks failed: %s", initial_checks)
+            logger.debug("Initial validation checks failed: %s", initial_checks)
             return None
         result = super()._is_valid_query(query)
         logger.info("Query validation result: %s", bool(result))
         return result
+
+    def _check_explicit_unadjusted_sources(self, query: Dict[str, Any]) -> bool:
+        """Reject explicit unadjusted WRF sources while filtering is enabled.
+
+        Parameters
+        ----------
+        query : dict
+            User selections and processor settings.
+
+        Returns
+        -------
+        bool
+            Whether the requested sources are compatible with filtering.
+        """
+        sources = query.get("source_id", UNSET)
+        if query.get("activity_id") != "WRF" or sources is UNSET:
+            return True
+        if query.get("processes", {}).get("filter_unadjusted_models", "yes") == "no":
+            return True
+        sources = [sources] if isinstance(sources, str) else sources
+        unadjusted_sources = {model.split("_")[1] for model in NON_WRF_BA_MODELS}
+        blocked = [source for source in sources if source in unadjusted_sources]
+        if blocked:
+            logger.warning(
+                "Explicitly requested WRF source_id values lack a-priori bias "
+                "adjustment: %s. The entire query has been rejected. To include "
+                "these sources, use .processes({'filter_unadjusted_models': 'no'}).",
+                blocked,
+            )
+            return False
+        return True
 
     def _check_query_for_required_keys(self, query: Dict[str, Any]) -> bool:
         """Check if the query contains all required keys.

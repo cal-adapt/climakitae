@@ -459,14 +459,18 @@ class DatasetFactory:
 
         # otherwise, do a quick lookup in the dataframe
         # to find the catalog key
-        valid_keys = [
-            query[key]
-            for key in self._catalog_df.columns
-            if key in query and query[key] != UNSET
-        ]
+        valid_keys = []
+        for key in self._catalog_df.columns:
+            if key not in query or query[key] is UNSET:
+                continue
+            value = query[key]
+            if key == "source_id" and isinstance(value, (list, tuple)):
+                valid_keys.extend(value)
+            else:
+                valid_keys.append(value)
         subset = self._catalog_df[
             self._catalog_df.isin(valid_keys).any(axis=1)
-        ]  # filter rows with matching keys
+        ].drop_duplicates(subset="catalog")
         match len(subset):
             case 0:
                 logger.warning("No matching catalogs found initially.")

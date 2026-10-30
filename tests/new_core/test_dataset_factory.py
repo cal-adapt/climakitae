@@ -449,6 +449,34 @@ class TestDatasetFactoryGetCatalogKey:
 
         assert result == "renewables"
 
+    def test_get_catalog_key_from_source_id_list(self):
+        """Test catalog inference with multiple source IDs."""
+        self.factory._catalog_df = pd.DataFrame(
+            {
+                "catalog": ["climate", "renewables"],
+                "source_id": ["model1", "pv"],
+            }
+        )
+        query = {"catalog": UNSET, "source_id": ["model1"]}
+
+        result = self.factory._get_catalog_key_from_query(query)
+
+        assert result == "climate"
+
+    def test_get_catalog_key_from_multiple_sources_same_catalog(self):
+        """Test catalog inference with multiple sources from one catalog."""
+        self.factory._catalog_df = pd.DataFrame(
+            {
+                "catalog": ["climate", "climate", "renewables"],
+                "source_id": ["model1", "model2", "pv"],
+            }
+        )
+        query = {"catalog": UNSET, "source_id": ["model1", "model2"]}
+
+        result = self.factory._get_catalog_key_from_query(query)
+
+        assert result == "climate"
+
     def test_get_catalog_key_no_matches(self):
         """Test _get_catalog_key_from_query with no matching datasets."""
         query = {"catalog": UNSET, "variable_id": "nonexistent_var"}
@@ -461,17 +489,16 @@ class TestDatasetFactoryGetCatalogKey:
             assert len(w) == 1
             assert "No matching catalogs found" in str(w[0].message)
 
-    def test_get_catalog_key_multiple_matches(self):
-        """Test _get_catalog_key_from_query with multiple matching datasets."""
+    def test_get_catalog_key_multiple_rows_same_catalog(self):
+        """Test multiple matching rows from one catalog are not ambiguous."""
         query = {"catalog": UNSET, "activity_id": "LOCA2"}  # Matches multiple rows
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             result = self.factory._get_catalog_key_from_query(query)
 
-            assert result is None
-            assert len(w) == 1
-            assert "Multiple matching datasets found" in str(w[0].message)
+            assert result == "climate"
+            assert not w
 
 
 class TestDatasetFactoryGetOptions:

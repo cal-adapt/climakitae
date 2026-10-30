@@ -78,6 +78,72 @@ data = cd.get()
 | **Grid Label** | Spatial resolution | `"d01"` (45 km, WRF only), `"d02"` (9 km, WRF only), `"d03"` (3 km, both WRF and LOCA2-Hybrid) | Local detail vs. state-wide coverage |
 | **Variable** | Climate quantity | WRF: `"t2max"`, `"t2min"`, `"prec"`, `"dew_point"`. LOCA2: `"tasmax"`, `"tasmin"`, `"pr"`. | What you're analyzing |
 
+### Selecting Multiple Climate Models
+
+Use `.source_id()` with a string to select one model, or with a list or tuple
+of strings to include several models in one query. For example:
+
+```python
+from climakitae.new_core.user_interface import ClimateData
+
+data = (
+    ClimateData()
+    .catalog("cadcat")
+    .activity_id("LOCA2")
+    .institution_id("UCSD")
+    .source_id(["CESM2-LENS", "CNRM-ESM2-1", "MIROC6"])
+    .experiment_id(["historical", "ssp370"])
+    .table_id("day")
+    .grid_label("d03")
+    .variable_id("tasmax")
+    .get()
+)
+```
+
+Each selected source is included in the returned dataset as a simulation.
+`source_id()` rejects empty lists and any list or tuple containing an empty or
+non-string value. For available models, use `show_source_id_options()` on a
+`ClimateData` instance after setting the relevant catalog and activity.
+
+If any requested source is absent from the selected catalog, activity and institution,
+`.get()` returns `None` instead of returning only the matching models. A warning
+names the unavailable source IDs and lists available alternatives. Check for
+typos or a model that is available for WRF but not LOCA2 (or vice versa).
+Source-name validation is independent of variable, experiment and resolution
+selections. An invalid variable does not make otherwise valid source IDs invalid;
+the remaining query constraints are validated separately.
+
+#### WRF bias-adjustment status
+
+For WRF, `show_source_id_options()` separates sources with a-priori bias
+adjustment from those without it. Reanalysis and other sources outside the
+curated model groups appear separately.
+
+The default `filter_unadjusted_models` processor excludes unadjusted WRF models.
+If you explicitly request any of these sources, `.get()` rejects the entire
+query and returns `None`, rather than silently dropping a requested model.
+For example, `FGOALS-g3` is a valid WRF source, but it lacks a-priori bias
+adjustment. To include it, disable filtering explicitly:
+
+```python
+data = (
+    ClimateData()
+    .catalog("cadcat")
+    .activity_id("WRF")
+    .institution_id("UCLA")
+    .source_id(["MIROC6", "FGOALS-g3"])
+    .experiment_id("historical")
+    .table_id("1hr")
+    .grid_label("d03")
+    .variable_id("t2")
+    .processes({"filter_unadjusted_models": "no"})
+    .get()
+)
+```
+
+Queries without an explicit `source_id()` selection keep the existing behavior:
+unadjusted WRF models are removed by default. LOCA2 selections are unaffected.
+
 ### Why Hierarchy Matters
 
 1. **Type safety**: Not all combinations are valid (e.g., can't mix WRF variables with LOCA2 experiment_id)

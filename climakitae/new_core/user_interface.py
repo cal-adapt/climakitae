@@ -27,7 +27,7 @@ import sys
 import traceback
 from typing import Any, Dict, Iterable, Optional, Union
 
-from climakitae.core.constants import UNSET
+from climakitae.core.constants import NON_WRF_BA_MODELS, UNSET, WRF_BA_MODELS
 from climakitae.core.paths import VARIABLE_DESCRIPTIONS_CSV_PATH
 from climakitae.new_core.dataset_factory import DatasetFactory
 from climakitae.util.utils import read_csv_file
@@ -95,8 +95,8 @@ class ClimateData:
         The activity identifier (e.g., ``"WRF"``, ``"LOCA2"``).
     institution_id : str
         The institution identifier (e.g., ``"CNRM"``, ``"DWD"``).
-    source_id : str
-        The source identifier (e.g., ``"GCM"``, ``"RCM"``, ``"Station"``).
+    source_id : str or list of str or tuple of str
+        One or more source identifiers (e.g., ``"GCM"``, ``"RCM"``, ``"Station"``).
     experiment_id : str or list of str
         The experiment identifier (e.g., ``"historical"``, ``"ssp245"``).
     table_id : str
@@ -530,26 +530,51 @@ class ClimateData:
         logger.info("Institution ID set to: %s", institution_id.strip())
         return self
 
-    def source_id(self, source_id: str) -> "ClimateData":
-        """Set the source identifier for the query.
+    def source_id(self, source_id: str | list[str] | tuple[str, ...]) -> "ClimateData":
+        """Set one or more source identifiers for the query.
 
         Parameters
         ----------
-        source_id : str
-            The source ID (e.g., "GCM", "RCM", "Station").
+        source_id : str or list of str or tuple of str
+            A source ID (e.g., "GCM", "RCM", "Station") or multiple source IDs.
 
         Returns
         -------
         ClimateData
             The current instance for method chaining.
 
+        Notes
+        -----
+        Explicitly selecting an unadjusted WRF source causes ``get()`` to
+        return None unless ``filter_unadjusted_models`` is set to ``"no"``.
+        Use ``show_source_id_options()`` to see WRF bias-adjustment groups.
+
         """
         logger.debug("Setting source_id to: %s", source_id)
-        if not isinstance(source_id, str) or not source_id.strip():
+        if isinstance(source_id, str):
+            if not source_id.strip():
+                logger.error("Invalid source_id parameter: must be non-empty string")
+                raise ValueError("Source ID must be a non-empty string")
+            normalized_source_id: str | list[str] = source_id.strip()
+        elif isinstance(source_id, (list, tuple)):
+            if not source_id or any(
+                not isinstance(item, str) or not item.strip() for item in source_id
+            ):
+                logger.error(
+                    "Invalid source_id parameter: expected non-empty string values"
+                )
+                raise ValueError(
+                    "Each source ID must be a non-empty string; "
+                    "source ID lists and tuples must not be empty"
+                )
+            normalized_source_id = [item.strip() for item in source_id]
+        else:
             logger.error("Invalid source_id parameter: must be non-empty string")
-            raise ValueError("Source ID must be a non-empty string")
-        self._query["source_id"] = source_id.strip()
-        logger.info("Source ID set to: %s", source_id.strip())
+            raise ValueError(
+                "Source ID must be a non-empty string or a list/tuple of strings"
+            )
+        self._query["source_id"] = normalized_source_id
+        logger.info("Source ID set to: %s", normalized_source_id)
         return self
 
     def experiment_id(self, experiment_id: str | list[str]) -> "ClimateData":
@@ -1092,12 +1117,12 @@ class ClimateData:
 
     @_with_info_verbosity
     def show_source_id_options(self, show_n: Optional[int] = None) -> None:
-        """Display available source ID options.
+        """Display source options, grouped by bias adjustment for WRF.
 
         Parameters
         ----------
         show_n : int, optional
-            Maximum number of options to display. If None (default), shows all options.
+            Maximum number of options per group. If None (default), shows all options.
         """
         self._show_options(
             "source_id",
@@ -1509,6 +1534,37 @@ class ClimateData:
             options = self._factory.get_catalog_options(option_type, current_query)
             if not options:
                 logger.info("No options available with current parameters")
+
+            elif (
+                option_type == "source_id" and current_query.get("activity_id") == "WRF"
+            ):
+                adjusted = {model.split("_")[1] for model in WRF_BA_MODELS}
+                unadjusted = {model.split("_")[1] for model in NON_WRF_BA_MODELS}
+                groups = {
+                    "WRF with a-priori bias adjustment": adjusted,
+                    "WRF without a-priori bias adjustment (requires filter_unadjusted_models='no')": unadjusted,
+                    "Other WRF sources (including reanalysis)": set(options)
+                    - adjusted
+                    - unadjusted,
+                }
+                for label, sources in groups.items():
+                    available = sorted(set(options) & sources)
+                    if not available:
+                        continue
+                    logger.info("%s:", label)
+                    displayed = (
+                        available[:limit_per_group]
+                        if limit_per_group is not None
+                        else available
+                    )
+                    for option in displayed:
+                        logger.info("%s", self._format_option(option, option_type))
+                    if len(displayed) < len(available):
+                        logger.info(
+                            "Showing %s of %s options in this group",
+                            len(displayed),
+                            len(available),
+                        )
 
             else:
                 sorted_options = sorted(options)
