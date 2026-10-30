@@ -479,6 +479,23 @@ class TestIsValidQuery:
         assert result == query
         logger.warning.assert_not_called()
 
+    def test_valid_sources_with_invalid_variable_reports_variable(self):
+        """Diagnose an invalid variable without blaming valid source IDs."""
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 0)
+        query = {"source_id": ["model1", "model2"], "variable": "keyboardsmash"}
+
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.logger"
+        ) as logger:
+            result = self.validator._is_valid_query(query)
+
+        assert result is None
+        warnings_text = " ".join(
+            str(call.args) for call in logger.warning.call_args_list
+        )
+        assert "keyboardsmash" in warnings_text
+        assert "unavailable" not in warnings_text
+
     def test_is_valid_query_no_matches(self):
         """Test _is_valid_query when no datasets match."""
         query = {"variable": "nonexistent"}
