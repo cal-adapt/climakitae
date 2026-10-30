@@ -41,36 +41,43 @@ data = (cd
 )
 ```
 
-## Year-Level Data Quality Checks
+## Training-Window Data Quality Checks
 
-If the query pins a specific year range — directly via `time_slice`, or indirectly via `warming_level` — each requested station/variable/year is checked against a QA sheet before anything runs. Overall-coverage problems are hard errors; per-month/diurnal coverage gaps are warnings that don't block the query.
+The midpoint year of `historical_slice` (the training reference window) is checked against a QA sheet for each requested station/variable before anything runs — this is about the quality of the *historical station record used to train the adjustment*, not the output period `time_slice`/`warming_level` requests. Overall-coverage problems are hard errors; per-month/diurnal coverage gaps are warnings that don't block the query.
 
 ```python
-# Error: KSAN's dew_point record has an overall coverage gap in this range,
-# so the query is rejected before any data is fetched.
+# Error: historical_slice=(1980, 2010) centers on 1995, where KSAN's
+# dew_point record has an overall coverage gap, so the query is rejected
+# before any data is fetched -- regardless of the future time_slice.
 data = (cd
     .activity_id("WRF")
     .institution_id("UCLA")
     .variable_id("dew_point")
     .table_id("1hr")
     .processes({
-        "time_slice": (2000, 2003),
-        "bias_adjust_model_to_station": {"stations": ["KSAN"]},
+        "time_slice": (2060, 2070),
+        "bias_adjust_model_to_station": {
+            "stations": ["KSAN"],
+            "historical_slice": (1980, 2010),
+        },
     })
     .get())
-# -> None, with a logged error naming the station/variable/year and the
-#    nearest usable year(s) (or that none were found nearby).
+# -> None, with a logged error naming the station/variable/center year and
+#    the nearest usable year(s) (or that none were found nearby).
 
-# Warning: KSAN's tas record is missing some summer months in this range,
-# but the query still runs.
+# Warning: historical_slice=(2000, 2002) centers on 2001, where KSAN's tas
+# record is missing some summer months, but the query still runs.
 data = (cd
     .activity_id("WRF")
     .institution_id("UCLA")
     .variable_id("t2")
     .table_id("1hr")
     .processes({
-        "time_slice": (2000, 2003),
-        "bias_adjust_model_to_station": {"stations": ["KSAN"]},
+        "time_slice": (2060, 2070),
+        "bias_adjust_model_to_station": {
+            "stations": ["KSAN"],
+            "historical_slice": (2000, 2002),
+        },
     })
     .get())
 # -> data is returned, with a logged warning naming the affected month(s)

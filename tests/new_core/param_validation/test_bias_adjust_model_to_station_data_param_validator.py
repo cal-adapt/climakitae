@@ -874,7 +874,8 @@ class TestValidateStationQaHook:
         self, mock_get_metadata, mock_read_csv, mock_catalog, valid_query
     ):
         """Test the real (unmocked) QA check fires through the full
-        validator when a time_slice lands on an error-tier flagged year."""
+        validator when historical_slice's center year lands on an
+        error-tier flagged year."""
         mock_get_metadata.return_value = pd.DataFrame(
             {
                 "network_id": ["ASOSAWOS"],
@@ -901,10 +902,16 @@ class TestValidateStationQaHook:
 
         query = dict(valid_query)
         query["processes"] = {
-            "time_slice": (2030, 2030),
-            "bias_adjust_model_to_station": {"stations": ["ASOSAWOS_72483023225"]},
+            "bias_adjust_model_to_station": {
+                "stations": ["ASOSAWOS_72483023225"],
+                # center year = (2025 + 2035) // 2 = 2030, flagged above
+                "historical_slice": (2025, 2035),
+            },
         }
-        value = {"stations": ["ASOSAWOS_72483023225"]}
+        value = {
+            "stations": ["ASOSAWOS_72483023225"],
+            "historical_slice": (2025, 2035),
+        }
 
         with pytest.warns(UserWarning, match="too much missing data overall"):
             result = validate_bias_adjustment_station_data_param(value, query=query)

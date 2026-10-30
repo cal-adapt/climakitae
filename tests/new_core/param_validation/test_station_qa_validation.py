@@ -13,9 +13,9 @@ import pytest
 
 from climakitae.new_core.param_validation.station_qa_validation import (
     _describe_test,
+    _historical_slice_center_year,
     _load_qa_table,
     _nearest_clean_years,
-    _requested_years,
     _year_qa_status,
     resolve_station_to_source_id,
     validate_station_qa_for_requested_years,
@@ -152,43 +152,29 @@ class TestResolveStationToSourceId:
         assert resolve_station_to_source_id("not_a_valid_id", legacy_stations_df) is None
 
 
-class TestRequestedYears:
-    """Test class for _requested_years."""
+class TestHistoricalSliceCenterYear:
+    """Test class for _historical_slice_center_year."""
 
-    def test_time_slice_tuple(self):
-        query = {"processes": {"time_slice": (2000, 2003)}}
-        assert _requested_years(query) == {2000, 2001, 2002, 2003}
+    def test_even_span(self):
+        assert _historical_slice_center_year((1980, 2010)) == 1995
 
-    @patch(f"{MODULE}.get_year_at_gwl")
-    def test_warming_level_already_crossed_historically(self, mock_get_year):
-        mock_get_year.return_value = pd.DataFrame(
-            {"Mean": [2005]}, index=["Historical"]
-        )
-        query = {"processes": {"warming_level": {"warming_levels": [1.0]}}}
-        assert _requested_years(query) == {2005}
+    def test_default_historical_slice(self):
+        assert _historical_slice_center_year((1980, 2014)) == 1997
 
-    @patch(f"{MODULE}.get_year_at_gwl")
-    def test_warming_level_future_crossing(self, mock_get_year):
-        mock_get_year.return_value = pd.DataFrame(
-            {"Mean": [pd.NA, 2075]}, index=["Historical", "SSP 3-7.0"]
-        )
-        query = {"processes": {"warming_level": {"warming_levels": [2.0]}}}
-        assert _requested_years(query) == {2075}
-
-    def test_neither_processor_present(self):
-        assert _requested_years({"processes": {}}) == set()
+    def test_single_year_span(self):
+        assert _historical_slice_center_year((2000, 2000)) == 2000
 
 
 class TestValidateStationQaForRequestedYears:
     """Test class for validate_station_qa_for_requested_years."""
 
-    def _query(self, variable_id, time_slice, stations=("KTES",)):
+    def _query(self, variable_id, historical_slice=None, stations=("KTES",)):
+        bias_params = {"stations": list(stations)}
+        if historical_slice is not None:
+            bias_params["historical_slice"] = historical_slice
         return {
             "variable_id": variable_id,
-            "processes": {
-                "time_slice": time_slice,
-                "bias_adjust_model_to_station": {"stations": list(stations)},
-            },
+            "processes": {"bias_adjust_model_to_station": bias_params},
         }
 
     @patch(f"{MODULE}.read_csv_file")
@@ -196,7 +182,8 @@ class TestValidateStationQaForRequestedYears:
     def test_clean_combo_passes(self, mock_catalog, mock_read_csv, legacy_stations_df):
         mock_catalog.return_value.__getitem__.return_value = legacy_stations_df
         mock_read_csv.return_value = _synthetic_qa_df()
-        query = self._query("t2", (2000, 2000))
+        # center year = (1999 + 2001) // 2 = 2000, which is clean
+        query = self._query("t2", historical_slice=(1999, 2001))
         assert validate_station_qa_for_requested_years(query) is True
 
     @patch(f"{MODULE}.read_csv_file")
@@ -206,7 +193,8 @@ class TestValidateStationQaForRequestedYears:
     ):
         mock_catalog.return_value.__getitem__.return_value = legacy_stations_df
         mock_read_csv.return_value = _synthetic_qa_df()
-        query = self._query("t2", (2002, 2002))
+        # center year = (2001 + 2003) // 2 = 2002, which fails the error tier
+        query = self._query("t2", historical_slice=(2001, 2003))
         with pytest.warns(UserWarning, match="too much missing data overall"):
             result = validate_station_qa_for_requested_years(query)
         assert result is False
@@ -218,7 +206,10 @@ class TestValidateStationQaForRequestedYears:
     ):
         mock_catalog.return_value.__getitem__.return_value = legacy_stations_df
         mock_read_csv.return_value = _all_error_qa_df()
-        query = self._query("dew_point", (2001, 2001), stations=("KBAD",))
+        # center year = (2000 + 2002) // 2 = 2001
+        query = self._query(
+            "dew_point", historical_slice=(2000, 2002), stations=("KBAD",)
+        )
         with pytest.warns(UserWarning, match="No usable year was found nearby"):
             result = validate_station_qa_for_requested_years(query)
         assert result is False
@@ -230,21 +221,24 @@ class TestValidateStationQaForRequestedYears:
     ):
         mock_catalog.return_value.__getitem__.return_value = legacy_stations_df
         mock_read_csv.return_value = _synthetic_qa_df()
-        query = self._query("t2", (2001, 2001))
+        # center year = (2000 + 2002) // 2 = 2001, warning-tier only
+        query = self._query("t2", historical_slice=(2000, 2002))
         with pytest.warns(UserWarning, match="data may be biased"):
             result = validate_station_qa_for_requested_years(query)
         assert result is True
 
     @patch(f"{MODULE}.read_csv_file")
     @patch(f"{MODULE}.DataCatalog")
-    def test_mixed_range_blocks_overall(
+    def test_missing_historical_slice_uses_default(
         self, mock_catalog, mock_read_csv, legacy_stations_df
     ):
+        """No historical_slice given -> falls back to (1980, 2014) ->
+        center year 1997, which this sheet doesn't cover (passes as
+        'unknown')."""
         mock_catalog.return_value.__getitem__.return_value = legacy_stations_df
         mock_read_csv.return_value = _synthetic_qa_df()
-        query = self._query("t2", (2000, 2002))
-        result = validate_station_qa_for_requested_years(query)
-        assert result is False
+        query = self._query("t2")
+        assert validate_station_qa_for_requested_years(query) is True
 
     @patch(f"{MODULE}.read_csv_file")
     @patch(f"{MODULE}.DataCatalog")
@@ -254,7 +248,9 @@ class TestValidateStationQaForRequestedYears:
         mock_catalog.return_value.__getitem__.return_value = legacy_stations_df
         mock_read_csv.return_value = _synthetic_qa_df()
         query = self._query(
-            "t2", (2002, 2002), stations=("OtherISD_12345678901", "KTES")
+            "t2",
+            historical_slice=(2001, 2003),
+            stations=("OtherISD_12345678901", "KTES"),
         )
         result = validate_station_qa_for_requested_years(query)
         assert result is False
@@ -267,16 +263,3 @@ class TestValidateStationQaForRequestedYears:
         )
         assert result is True
         mock_read_csv.assert_not_called()
-
-    @patch(f"{MODULE}.read_csv_file")
-    @patch(f"{MODULE}.DataCatalog")
-    def test_no_time_slice_or_warming_level_is_noop(
-        self, mock_catalog, mock_read_csv, legacy_stations_df
-    ):
-        mock_catalog.return_value.__getitem__.return_value = legacy_stations_df
-        mock_read_csv.return_value = _synthetic_qa_df()
-        query = {
-            "variable_id": "t2",
-            "processes": {"bias_adjust_model_to_station": {"stations": ["KTES"]}},
-        }
-        assert validate_station_qa_for_requested_years(query) is True

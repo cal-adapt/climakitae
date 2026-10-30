@@ -1,11 +1,12 @@
-"""QA sheet validation for bias_adjust_model_to_station + requested years.
+"""QA sheet validation for bias_adjust_model_to_station's training window.
 
-Checks a requested (station, variable, year) combination for
+Checks a requested (station, variable, center year) combination for
 `bias_adjust_model_to_station` against a precomputed per-station/variable/year
-data-quality sheet (`STATION_QA_CENTERED_FILE`). The requested year(s) come
-from whichever other processor pins the query to a specific time window --
-`time_slice` directly, or `warming_level` indirectly (converted to a year via
-`get_year_at_gwl`).
+data-quality sheet (`STATION_QA_CENTERED_FILE`). The center year is the
+midpoint of `historical_slice` -- the training reference window the
+processor bias-adjusts against -- since that's the historical station record
+whose quality actually matters, independent of whatever future/output period
+`time_slice` or `warming_level` requests.
 
 The sheet's QA tests are split into two severity tiers:
 
@@ -34,9 +35,6 @@ import pandas as pd
 from climakitae.core.constants import PROC_KEY, UNSET
 from climakitae.core.paths import STATION_QA_CENTERED_FILE
 from climakitae.new_core.data_access.data_access import DataCatalog
-from climakitae.new_core.param_validation.param_validation_tools import (
-    _coerce_to_dates,
-)
 from climakitae.new_core.processors.bias_adjust_model_to_station import (
     _VARIABLE_ID_TO_HDP_VARIABLE,
 )
@@ -45,10 +43,12 @@ from climakitae.new_core.processors.processor_utils import (
     is_station_identifier,
 )
 from climakitae.util.utils import read_csv_file
-from climakitae.util.warming_levels import get_year_at_gwl
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+# Matches BiasAdjustModelToStation's own default historical_slice.
+_DEFAULT_HISTORICAL_SLICE = (1980, 2014)
 
 # Overall-coverage tests block the query outright; every other test name in
 # the sheet (per-month + diurnal) is a warning-only signal.
@@ -183,63 +183,33 @@ def resolve_station_to_source_id(
     return str(match.iloc[0]["ID"]).upper() if len(match) == 1 else None
 
 
-def _requested_years(query: dict[str, Any]) -> set[int]:
-    """Determine which calendar year(s) a query actually requests.
-
-    Reads `time_slice` directly if present; otherwise converts each
-    requested `warming_level` value to a year via `get_year_at_gwl`, using a
-    fixed default scenario ("SSP 3-7.0") since a `warming_level` query
-    carries no scenario of its own -- preferring the "Historical" row when
-    the level was already crossed historically, so an already-reached level
-    isn't pushed into a future SSP year.
+def _historical_slice_center_year(historical_slice: tuple[int, int]) -> int:
+    """Compute the center year of a `historical_slice` training window.
 
     Parameters
     ----------
-    query : dict[str, Any]
-        Full query dictionary.
+    historical_slice : tuple[int, int]
+        `(start_year, end_year)` of the training reference window.
 
     Returns
     -------
-    set[int]
-        The requested calendar year(s). Empty if neither `time_slice` nor
-        `warming_level` is present.
+    int
+        The midpoint year, via integer floor division.
     """
-    processes = query.get(PROC_KEY, {})
-
-    time_slice = processes.get("time_slice")
-    if time_slice is not None:
-        dates = (
-            time_slice.get("dates", time_slice)
-            if isinstance(time_slice, dict)
-            else time_slice
-        )
-        start, end = _coerce_to_dates(dates)
-        return set(range(start.year, end.year + 1))
-
-    wl_params = processes.get("warming_level", {})
-    years: set[int] = set()
-    for wl in wl_params.get("warming_levels", []):
-        gwl_df = get_year_at_gwl(wl, "all")
-        hist_year = (
-            gwl_df.loc["Historical", "Mean"] if "Historical" in gwl_df.index else pd.NA
-        )
-        if pd.notna(hist_year):
-            years.add(int(hist_year))
-            continue
-        if "SSP 3-7.0" in gwl_df.index:
-            mean_year = gwl_df.loc["SSP 3-7.0", "Mean"]
-            if pd.notna(mean_year):
-                years.add(int(mean_year))
-    return years
+    start, end = historical_slice
+    return (start + end) // 2
 
 
 def validate_station_qa_for_requested_years(query: dict[str, Any]) -> bool:
-    """Validate requested (station, variable, year) combinations against the
-    QA sheet.
+    """Validate requested (station, variable, center year) combinations
+    against the QA sheet.
 
     No-op (returns True) unless `bias_adjust_model_to_station` is present
-    with resolvable stations/variables, and the query requests specific
-    year(s) via `time_slice` or `warming_level`.
+    with resolvable stations/variables. The center year checked is always
+    the midpoint of `historical_slice` (the processor's own default,
+    `(1980, 2014)`, if not given) -- independent of `time_slice` or
+    `warming_level`, which only govern the output window that gets returned,
+    not what's checked here.
 
     Parameters
     ----------
@@ -249,10 +219,11 @@ def validate_station_qa_for_requested_years(query: dict[str, Any]) -> bool:
     Returns
     -------
     bool
-        False if any requested combination fails an error-tier QA test
-        (logged via `logger.error`, with a suggested alternative year).
-        True otherwise -- including when only warning-tier tests fail
-        (logged via `logger.warning`, but the query still proceeds).
+        False if any station/variable fails an error-tier QA test at the
+        center year (logged via `logger.error`, with a suggested
+        alternative year). True otherwise -- including when only
+        warning-tier tests fail (logged via `logger.warning`, but the query
+        still proceeds).
     """
     bias_params = query.get(PROC_KEY, {}).get("bias_adjust_model_to_station")
     if not bias_params:
@@ -285,41 +256,46 @@ def validate_station_qa_for_requested_years(query: dict[str, Any]) -> bool:
             continue
         source_ids.add(source_id)
 
-    years = _requested_years(query)
-    if not source_ids or not years:
+    if not source_ids:
         return True
+
+    historical_slice = bias_params.get("historical_slice", _DEFAULT_HISTORICAL_SLICE)
+    year = _historical_slice_center_year(historical_slice)
 
     has_any_error = False
     for source_id in sorted(source_ids):
         for hdp_variable in sorted(hdp_variables):
-            for year in sorted(years):
-                has_error, warn_tests = _year_qa_status(source_id, hdp_variable, year)
-                if has_error:
-                    has_any_error = True
-                    nearby = _nearest_clean_years(source_id, hdp_variable, year)
-                    hint = (
-                        f" Closest usable year(s): {' or '.join(map(str, nearby))}."
-                        if nearby
-                        else " No usable year was found nearby in the QA sheet "
-                        "for this station/variable."
-                    )
-                    logger.error(
-                        "error: too much missing data overall for station "
-                        "'%s', variable '%s', year %d.%s",
-                        source_id,
-                        hdp_variable,
-                        year,
-                        hint,
-                    )
-                elif warn_tests:
-                    described = ", ".join(_describe_test(t) for t in warn_tests)
-                    logger.warning(
-                        "warning: station '%s' variable '%s' year %d has "
-                        "missing-data flags for %s; data may be biased.",
-                        source_id,
-                        hdp_variable,
-                        year,
-                        described,
-                    )
+            has_error, warn_tests = _year_qa_status(source_id, hdp_variable, year)
+            if has_error:
+                has_any_error = True
+                nearby = _nearest_clean_years(source_id, hdp_variable, year)
+                hint = (
+                    f" Closest usable year(s): {' or '.join(map(str, nearby))}."
+                    if nearby
+                    else " No usable year was found nearby in the QA sheet "
+                    "for this station/variable."
+                )
+                logger.error(
+                    "error: too much missing data overall for station "
+                    "'%s', variable '%s', center year %d (historical_slice="
+                    "%s).%s",
+                    source_id,
+                    hdp_variable,
+                    year,
+                    historical_slice,
+                    hint,
+                )
+            elif warn_tests:
+                described = ", ".join(_describe_test(t) for t in warn_tests)
+                logger.warning(
+                    "warning: station '%s' variable '%s' center year %d "
+                    "(historical_slice=%s) has missing-data flags for %s; "
+                    "data may be biased.",
+                    source_id,
+                    hdp_variable,
+                    year,
+                    historical_slice,
+                    described,
+                )
 
     return not has_any_error

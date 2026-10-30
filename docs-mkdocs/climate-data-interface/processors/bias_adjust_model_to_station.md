@@ -37,7 +37,7 @@ The processor takes a **dict**:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `stations` | `list[str]` | `[]` | HDP `station_id` values to bias-adjust against (e.g. `"ASOSAWOS_69007093217"`). Required for non-trivial use. |
-| `historical_slice` | `tuple[int, int]` | `(1980, 2014)` | Years used as the training period. Must overlap each station's actual observational coverage, which varies per HDP station. |
+| `historical_slice` | `tuple[int, int]` | `(1980, 2014)` | Years used as the training period. Must overlap each station's actual observational coverage, which varies per HDP station. Its midpoint year is checked against the station QA sheet (see Requirements). |
 | `window` | `int` | `90` | Window size (days) for seasonal grouping in QDM. |
 | `nquantiles` | `int` | `20` | Number of quantiles for the QDM mapping. |
 | `group` | `str` | `"time.dayofyear"` | Temporal grouping passed to `xclim` QDM. |
@@ -50,7 +50,7 @@ The processor takes a **dict**:
 - **Time coverage**: Input must overlap the requested historical training period (default 1980–2014). HDP station coverage varies widely by station, from a few years to multiple decades.
 - **Multiple networks**: Requested stations may span multiple HDP networks in a single call.
 - **Calendar**: All inputs are converted to a `noleap` calendar internally for consistency.
-- **Year-level QA check**: if the query also pins a specific year range — via `time_slice`, or indirectly via `warming_level` (converted to a year with `get_year_at_gwl`) — each requested (station, variable, year) is checked against a QA sheet (`climakitae/data/station_qa_centered.csv`, keyed by station `source-id`; today covers `KSAN` only). Overall-coverage failures (`total-time-window`, `window_missing_nans`) are hard errors that block the query, with the nearest usable year(s) suggested. Per-month/diurnal coverage failures are warnings only — the query still runs, with a note that the data may be biased for the named month(s).
+- **Training-window QA check**: the midpoint year of `historical_slice` (e.g. `(1980, 2010)` → 1995) is checked against a QA sheet for each requested station/variable (`climakitae/data/station_qa_centered.csv`, keyed by station `source-id`; today covers `KSAN` only) — this reflects the quality of the *historical station record used to train the bias adjustment*, independent of whatever period `time_slice`/`warming_level` requests for the output. Overall-coverage failures (`total-time-window`, `window_missing_nans`) are hard errors that block the query, with the nearest usable center year(s) suggested. Per-month/diurnal coverage failures are warnings only — the query still runs, with a note that the data may be biased for the named month(s).
 
 ## Example
 
