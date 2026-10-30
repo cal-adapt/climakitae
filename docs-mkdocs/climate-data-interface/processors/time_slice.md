@@ -106,7 +106,7 @@ Valid season codes (climatological):
 ### Basic Time Slice (Date Range)
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 # Full year 2015
 data = (ClimateData()

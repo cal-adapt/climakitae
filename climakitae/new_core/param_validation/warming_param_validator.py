@@ -44,7 +44,7 @@ def validate_warming_level_param(
         - add_dummy_time: bool, optional
             Default: False
             If True, replace the [hours/days/months]_from_center or time_delta dimension
-                in a DataArray returned from WarmingLevels with a dummy time index for
+                in a DataArray returned from a warming-level query with a dummy time index for
                 calculations with tools that require a time dimension.
 
     Returns

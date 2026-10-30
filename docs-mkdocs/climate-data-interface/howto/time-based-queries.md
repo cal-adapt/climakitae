@@ -5,7 +5,7 @@ Query data using traditional calendar date ranges (alternative to warming level 
 ## Date Range Subsetting
 
 ```python
-from climakitae.new_core.user_interface import ClimateData
+from climakitae import ClimateData
 
 cd = ClimateData()
 
