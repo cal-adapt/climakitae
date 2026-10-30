@@ -105,10 +105,13 @@ Each selected source is included in the returned dataset as a simulation.
 non-string value. For available models, use `show_source_id_options()` on a
 `ClimateData` instance after setting the relevant catalog and activity.
 
-If any requested source is unavailable under the selected catalog constraints,
+If any requested source is absent from the selected catalog, activity and institution,
 `.get()` returns `None` instead of returning only the matching models. A warning
 names the unavailable source IDs and lists available alternatives. Check for
 typos or a model that is available for WRF but not LOCA2 (or vice versa).
+Source-name validation is independent of variable, experiment and resolution
+selections. An invalid variable does not make otherwise valid source IDs invalid;
+the remaining query constraints are validated separately.
 
 ### Why Hierarchy Matters
 
