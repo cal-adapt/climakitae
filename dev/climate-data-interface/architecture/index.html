@@ -3648,7 +3648,7 @@ for the full registry.</p>
 <a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="n">d2</span> <span class="o">=</span> <span class="n">cd</span><span class="o">.</span><span class="n">variable_id</span><span class="p">(</span><span class="s2">"pr"</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>  <span class="c1"># Lost context - create new instance</span>
 </code></pre></div>
 <p><strong>Implementation</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">variable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">variable_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
 <a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_variable_id</span> <span class="o">=</span> <span class="n">value</span>
 <a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>    <span class="k">return</span> <span class="bp">self</span>  <span class="c1"># Critical: return self</span>
 </code></pre></div></p>
