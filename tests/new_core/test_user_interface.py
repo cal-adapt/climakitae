@@ -207,26 +207,9 @@ class TestClimateDataParameterSetters:
         except ValueError as e:
             assert "Variable ID must be a non-empty string" in str(e)
 
-    def test_variable_deprecated_alias(self):
-        """Test that the deprecated variable() alias still works and logs an error."""
-        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
-            result = self.climate_data.variable("tasmax")
-        assert self.climate_data._query["variable_id"] == "tasmax"
-        assert result is self.climate_data
-        mock_logger.error.assert_called_once()
-        assert "variable_id" in mock_logger.error.call_args[0][0]
-
-    def test_variable_deprecated_alias_invalid(self):
-        """Test that the deprecated variable() alias still validates input."""
-        with patch("climakitae.new_core.user_interface.logger") as mock_logger:
-            try:
-                self.climate_data.variable("")
-                assert False, "Should have raised ValueError"
-            except ValueError as e:
-                assert "Variable ID must be a non-empty string" in str(e)
-        # One error log for the deprecation notice, one for the invalid parameter
-        assert mock_logger.error.call_count == 2
-        assert "variable_id" in mock_logger.error.call_args_list[0][0][0]
+    def test_variable_alias_removed(self):
+        """Test that the removed variable() alias is no longer available."""
+        assert not hasattr(self.climate_data, "variable")
 
     def test_experiment_id_string_valid(self):
         """Test experiment_id setter with valid string."""

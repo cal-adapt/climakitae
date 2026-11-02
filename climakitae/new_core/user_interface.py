@@ -690,31 +690,6 @@ class ClimateData:
         logger.info("Variable ID set to: %s", variable_id.strip())
         return self
 
-    def variable(self, variable: str) -> "ClimateData":
-        """Set the climate variable to retrieve (DEPRECATED - use variable_id instead).
-
-        .. deprecated::
-            Use :meth:`variable_id` instead. This alias exists only for
-            backward compatibility and will be removed in a future release.
-
-        Parameters
-        ----------
-        variable : str
-            The variable identifier (e.g., "tasmax", "pr", "cf").
-            Can also be a registered derived variable name.
-
-        Returns
-        -------
-        ClimateData
-            The current instance for method chaining.
-
-        """
-        logger.error(
-            "variable() is deprecated and will be removed in a future release. "
-            "Use variable_id() instead, which matches the catalog dictionary query."
-        )
-        return self.variable_id(variable)
-
     def derived_variable(
         self,
         name: str,
