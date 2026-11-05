@@ -15,7 +15,7 @@ from climakitae.new_core.param_validation.station_qa_validation import (
     _describe_test,
     _historical_slice_center_year,
     _load_qa_table,
-    _nearest_clean_years,
+    _nearest_passing_years,
     _year_qa_status,
     resolve_station_to_source_id,
     validate_station_qa_for_requested_years,
@@ -77,30 +77,30 @@ class TestYearQaStatus:
     @patch(f"{MODULE}.read_csv_file")
     def test_clean_year(self, mock_read_csv):
         mock_read_csv.return_value = _synthetic_qa_df()
-        assert _year_qa_status("KTES", "tas", 2000) == (False, [])
+        assert _year_qa_status("KTES", "tas", 2000) == ([], [])
 
     @patch(f"{MODULE}.read_csv_file")
     def test_warning_tier_only(self, mock_read_csv):
         mock_read_csv.return_value = _synthetic_qa_df()
-        assert _year_qa_status("KTES", "tas", 2001) == (False, ["month_01_nans"])
+        assert _year_qa_status("KTES", "tas", 2001) == ([], ["month_01_nans"])
 
     @patch(f"{MODULE}.read_csv_file")
     def test_error_tier(self, mock_read_csv):
         mock_read_csv.return_value = _synthetic_qa_df()
-        has_error, warn_tests = _year_qa_status("KTES", "tas", 2002)
-        assert has_error is True
+        error_tests, warn_tests = _year_qa_status("KTES", "tas", 2002)
+        assert error_tests == ["total-time-window"]
         assert warn_tests == []
 
     @patch(f"{MODULE}.read_csv_file")
     def test_unknown_station_variable_year_passes(self, mock_read_csv):
         mock_read_csv.return_value = _synthetic_qa_df()
-        assert _year_qa_status("KUNKNOWN", "tas", 2000) == (False, [])
-        assert _year_qa_status("KTES", "tas", 1999) == (False, [])
-        assert _year_qa_status("KTES", "tdps", 2000) == (False, [])
+        assert _year_qa_status("KUNKNOWN", "tas", 2000) == ([], [])
+        assert _year_qa_status("KTES", "tas", 1999) == ([], [])
+        assert _year_qa_status("KTES", "tdps", 2000) == ([], [])
 
 
-class TestNearestCleanYears:
-    """Test class for _nearest_clean_years."""
+class TestNearestPassingYears:
+    """Test class for _nearest_passing_years."""
 
     @patch(f"{MODULE}.read_csv_file")
     def test_finds_nearest_before_and_after(self, mock_read_csv):
@@ -111,12 +111,25 @@ class TestNearestCleanYears:
             ]
         )
         mock_read_csv.return_value = df
-        assert _nearest_clean_years("KTES", "tas", 1999) == [1998, 2001]
+        assert _nearest_passing_years("KTES", "tas", "total-time-window", 1999) == [1998, 2001]
 
     @patch(f"{MODULE}.read_csv_file")
-    def test_no_clean_year_returns_empty(self, mock_read_csv):
+    def test_different_test_not_conflated(self, mock_read_csv):
+        """window_missing_nans passes every year here, even though
+        total-time-window fails 1999-2000 -- the two rows are independent."""
+        df = pd.DataFrame(
+            [
+                {"source-id": "KTES", "variable": "tas", "test": "total-time-window", 1998: 0, 1999: 1, 2000: 1, 2001: 0},
+                {"source-id": "KTES", "variable": "tas", "test": "window_missing_nans", 1998: 0, 1999: 0, 2000: 0, 2001: 0},
+            ]
+        )
+        mock_read_csv.return_value = df
+        assert _nearest_passing_years("KTES", "tas", "window_missing_nans", 1999) == [1998, 2000]
+
+    @patch(f"{MODULE}.read_csv_file")
+    def test_no_passing_year_returns_empty(self, mock_read_csv):
         mock_read_csv.return_value = _all_error_qa_df()
-        assert _nearest_clean_years("KBAD", "tdps", 2001) == []
+        assert _nearest_passing_years("KBAD", "tdps", "window_missing_nans", 2001) == []
 
 
 class TestDescribeTest:
@@ -128,6 +141,10 @@ class TestDescribeTest:
     def test_diurnal_test(self):
         assert _describe_test("diurnal_day_nans") == "daytime coverage"
         assert _describe_test("diurnal_night_nans") == "nighttime coverage"
+
+    def test_error_tier_test(self):
+        assert _describe_test("total-time-window") == "overall time coverage"
+        assert _describe_test("window_missing_nans") == "overall missing-data window"
 
     def test_unknown_test_passthrough(self):
         assert _describe_test("some_other_test") == "some_other_test"
@@ -194,8 +211,9 @@ class TestValidateStationQaForRequestedYears:
         mock_catalog.return_value.__getitem__.return_value = legacy_stations_df
         mock_read_csv.return_value = _synthetic_qa_df()
         # center year = (2001 + 2003) // 2 = 2002, which fails the error tier
+        # (total-time-window); nearest clear year for that row is 2001.
         query = self._query("t2", historical_slice=(2001, 2003))
-        with pytest.warns(UserWarning, match="too much missing data overall"):
+        with pytest.warns(UserWarning, match=r"overall time coverage \(nearest clear year\(s\): 2001\)"):
             result = validate_station_qa_for_requested_years(query)
         assert result is False
 
@@ -206,11 +224,12 @@ class TestValidateStationQaForRequestedYears:
     ):
         mock_catalog.return_value.__getitem__.return_value = legacy_stations_df
         mock_read_csv.return_value = _all_error_qa_df()
-        # center year = (2000 + 2002) // 2 = 2001
+        # center year = (2000 + 2002) // 2 = 2001; window_missing_nans fails
+        # every year in this sheet, so no nearby year clears that row.
         query = self._query(
             "dew_point", historical_slice=(2000, 2002), stations=("KBAD",)
         )
-        with pytest.warns(UserWarning, match="No usable year was found nearby"):
+        with pytest.warns(UserWarning, match="no nearby year is clear of this"):
             result = validate_station_qa_for_requested_years(query)
         assert result is False
 
@@ -222,8 +241,12 @@ class TestValidateStationQaForRequestedYears:
         mock_catalog.return_value.__getitem__.return_value = legacy_stations_df
         mock_read_csv.return_value = _synthetic_qa_df()
         # center year = (2000 + 2002) // 2 = 2001, warning-tier only
+        # (month_01_nans); nearest clear years for that row are 2000 and 2002.
         query = self._query("t2", historical_slice=(2000, 2002))
-        with pytest.warns(UserWarning, match="data may be biased"):
+        with pytest.warns(
+            UserWarning,
+            match=r"January \(nearest clear year\(s\): 2000 or 2002\).*data may be biased",
+        ):
             result = validate_station_qa_for_requested_years(query)
         assert result is True
 

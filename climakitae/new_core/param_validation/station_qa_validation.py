@@ -11,12 +11,16 @@ whose quality actually matters, independent of whatever future/output period
 The sheet's QA tests are split into two severity tiers:
 
 - Error tier (`total-time-window`, `window_missing_nans`): an overall
-  coverage problem severe enough to block the query. The rejection message
-  names the offending year(s) and suggests the nearest year(s), from the
-  sheet's own coverage, where the error tier passes.
+  coverage problem severe enough to block the query.
 - Warning tier (everything else -- the twelve `month_NN_nans` tests and the
-  two diurnal tests): logged but non-blocking, naming the specific
-  month(s)/check(s) involved.
+  two diurnal tests): logged but non-blocking.
+
+Each row in the sheet is one `(source-id, variable, test)` combination, and
+each year column is a standalone 0/1 flag for *that one test* at that center
+year. So for any failing test (either tier), the suggested alternative year
+is the nearest year where *that specific row* is clear -- not a tier-wide
+"all tests pass" condition. A center year can carry both an error and a
+warning at once if different rows fail independently.
 
 A station/variable/year the sheet doesn't cover at all is treated as
 "unknown", not "failing" -- consistent with the rest of this validator
@@ -54,7 +58,9 @@ _DEFAULT_HISTORICAL_SLICE = (1980, 2014)
 # the sheet (per-month + diurnal) is a warning-only signal.
 _ERROR_TESTS = frozenset({"total-time-window", "window_missing_nans"})
 
-_DIURNAL_LABELS = {
+_TEST_LABELS = {
+    "total-time-window": "overall time coverage",
+    "window_missing_nans": "overall missing-data window",
     "diurnal_day_nans": "daytime coverage",
     "diurnal_night_nans": "nighttime coverage",
 }
@@ -83,8 +89,8 @@ def _load_qa_table() -> dict[tuple[str, str], dict[int, dict[str, bool]]]:
     return table
 
 
-def _year_qa_status(source_id: str, variable: str, year: int) -> tuple[bool, list[str]]:
-    """Determine whether a station/variable/year passes the QA sheet.
+def _year_qa_status(source_id: str, variable: str, year: int) -> tuple[list[str], list[str]]:
+    """Determine which tests a station/variable/year fails, per tier.
 
     Parameters
     ----------
@@ -97,22 +103,23 @@ def _year_qa_status(source_id: str, variable: str, year: int) -> tuple[bool, lis
 
     Returns
     -------
-    tuple[bool, list[str]]
-        `(has_error, warning_tests)`. Both are empty/False if the sheet
-        doesn't cover this station/variable/year at all.
+    tuple[list[str], list[str]]
+        `(error_tests, warning_tests)`: the names of the failing tests in
+        each tier. Both are empty if the sheet doesn't cover this
+        station/variable/year at all, or if nothing failed.
     """
     flags = _load_qa_table().get((source_id, variable), {}).get(year)
     if flags is None:
-        return False, []
-    has_error = any(flags.get(t, False) for t in _ERROR_TESTS)
+        return [], []
+    error_tests = sorted(t for t in _ERROR_TESTS if flags.get(t, False))
     warning_tests = sorted(
         t for t, failed in flags.items() if failed and t not in _ERROR_TESTS
     )
-    return has_error, warning_tests
+    return error_tests, warning_tests
 
 
-def _nearest_clean_years(source_id: str, variable: str, year: int) -> list[int]:
-    """Find the nearest year(s) around `year` where the error tier passes.
+def _nearest_passing_years(source_id: str, variable: str, test: str, year: int) -> list[int]:
+    """Find the nearest year(s) around `year` where one specific test passes.
 
     Parameters
     ----------
@@ -120,32 +127,39 @@ def _nearest_clean_years(source_id: str, variable: str, year: int) -> list[int]:
         Airport-code-style station identifier.
     variable : str
         HDP variable name.
+    test : str
+        The single test name (sheet row) to check -- not a tier.
     year : int
-        Calendar year the caller requested (and which failed the error tier).
+        Calendar year the caller requested (and where `test` failed).
 
     Returns
     -------
     list[int]
         Up to two years (the nearest before and after `year`) among the
-        sheet's own coverage for this station/variable where no error-tier
-        test is flagged. Empty if no such year exists.
+        sheet's own coverage for this station/variable where `test` is not
+        flagged. Empty if no such year exists.
     """
     year_map = _load_qa_table().get((source_id, variable), {})
-    clean_years = sorted(
-        y
-        for y, flags in year_map.items()
-        if not any(flags.get(t, False) for t in _ERROR_TESTS)
-    )
-    before = max((y for y in clean_years if y < year), default=None)
-    after = min((y for y in clean_years if y > year), default=None)
+    passing_years = sorted(y for y, flags in year_map.items() if not flags.get(test, False))
+    before = max((y for y in passing_years if y < year), default=None)
+    after = min((y for y in passing_years if y > year), default=None)
     return [y for y in (before, after) if y is not None]
 
 
 def _describe_test(test: str) -> str:
-    """Translate a warning-tier test name into a human-readable label."""
+    """Translate a test name into a human-readable label."""
     if test.startswith("month_"):
         return calendar.month_name[int(test.split("_")[1])]
-    return _DIURNAL_LABELS.get(test, test)
+    return _TEST_LABELS.get(test, test)
+
+
+def _format_test_hint(source_id: str, variable: str, test: str, year: int) -> str:
+    """Describe one failing test plus its own nearest passing year(s)."""
+    nearby = _nearest_passing_years(source_id, variable, test, year)
+    label = _describe_test(test)
+    if nearby:
+        return f"{label} (nearest clear year(s): {' or '.join(map(str, nearby))})"
+    return f"{label} (no nearby year is clear of this)"
 
 
 def resolve_station_to_source_id(
@@ -265,28 +279,28 @@ def validate_station_qa_for_requested_years(query: dict[str, Any]) -> bool:
     has_any_error = False
     for source_id in sorted(source_ids):
         for hdp_variable in sorted(hdp_variables):
-            has_error, warn_tests = _year_qa_status(source_id, hdp_variable, year)
-            if has_error:
+            error_tests, warn_tests = _year_qa_status(source_id, hdp_variable, year)
+            if error_tests:
                 has_any_error = True
-                nearby = _nearest_clean_years(source_id, hdp_variable, year)
-                hint = (
-                    f" Closest usable year(s): {' or '.join(map(str, nearby))}."
-                    if nearby
-                    else " No usable year was found nearby in the QA sheet "
-                    "for this station/variable."
+                hints = "; ".join(
+                    _format_test_hint(source_id, hdp_variable, t, year)
+                    for t in error_tests
                 )
                 logger.error(
                     "error: too much missing data overall for station "
                     "'%s', variable '%s', center year %d (historical_slice="
-                    "%s).%s",
+                    "%s): %s.",
                     source_id,
                     hdp_variable,
                     year,
                     historical_slice,
-                    hint,
+                    hints,
                 )
-            elif warn_tests:
-                described = ", ".join(_describe_test(t) for t in warn_tests)
+            if warn_tests:
+                hints = "; ".join(
+                    _format_test_hint(source_id, hdp_variable, t, year)
+                    for t in warn_tests
+                )
                 logger.warning(
                     "warning: station '%s' variable '%s' center year %d "
                     "(historical_slice=%s) has missing-data flags for %s; "
@@ -295,7 +309,7 @@ def validate_station_qa_for_requested_years(query: dict[str, Any]) -> bool:
                     hdp_variable,
                     year,
                     historical_slice,
-                    described,
+                    hints,
                 )
 
     return not has_any_error

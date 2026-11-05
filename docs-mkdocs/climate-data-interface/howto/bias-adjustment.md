@@ -43,7 +43,7 @@ data = (cd
 
 ## Training-Window Data Quality Checks
 
-The midpoint year of `historical_slice` (the training reference window) is checked against a QA sheet for each requested station/variable before anything runs — this is about the quality of the *historical station record used to train the adjustment*, not the output period `time_slice`/`warming_level` requests. Overall-coverage problems are hard errors; per-month/diurnal coverage gaps are warnings that don't block the query.
+The midpoint year of `historical_slice` (the training reference window) is checked against a QA sheet for each requested station/variable before anything runs — this is about the quality of the *historical station record used to train the adjustment*, not the output period `time_slice`/`warming_level` requests. The sheet's checks (overall coverage, per-month, diurnal) are each flagged independently per center year; overall-coverage problems are hard errors, per-month/diurnal gaps are warnings that don't block the query. Either way, a failing check comes with its own suggested alternative center year(s) — the nearest year(s) where *that specific check* passes.
 
 ```python
 # Error: historical_slice=(1980, 2010) centers on 1995, where KSAN's
@@ -62,8 +62,9 @@ data = (cd
         },
     })
     .get())
-# -> None, with a logged error naming the station/variable/center year and
-#    the nearest usable year(s) (or that none were found nearby).
+# -> None, with a logged error naming the station/variable/center year, the
+#    failing check, and the nearest year(s) where that check passes (or that
+#    none were found nearby).
 
 # Warning: historical_slice=(2000, 2002) centers on 2001, where KSAN's tas
 # record is missing some summer months, but the query still runs.
@@ -80,8 +81,9 @@ data = (cd
         },
     })
     .get())
-# -> data is returned, with a logged warning naming the affected month(s)
-#    and noting the result may be biased.
+# -> data is returned, with a logged warning naming the affected month(s),
+#    the nearest year(s) where each is clear, and noting the result may be
+#    biased.
 ```
 
 ## How Bias Adjustment Works
