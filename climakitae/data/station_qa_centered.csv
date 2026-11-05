@@ -8,7 +8,7 @@ KSAN,tas,month_03_nans,0,0,0,0,0,0,0,0,0,0,0,0,0
 KSAN,tas,month_04_nans,0,0,0,0,0,0,0,0,0,0,0,0,0
 KSAN,tas,month_05_nans,0,0,0,0,1,1,1,1,1,1,1,1,1
 KSAN,tas,month_06_nans,0,0,0,0,0,0,0,0,0,0,0,0,0
-KSAN,tas,month_07_nans,1,1,1,1,1,1,1,1,1,1,1,1,1t
+KSAN,tas,month_07_nans,1,1,1,1,1,1,1,1,1,1,1,1,1
 KSAN,tas,month_08_nans,1,1,1,1,1,1,1,1,1,1,1,1,1
 KSAN,tas,month_09_nans,1,1,1,1,1,1,1,1,1,1,1,1,1
 KSAN,tas,month_10_nans,0,0,0,0,0,0,0,0,0,0,0,0,0
