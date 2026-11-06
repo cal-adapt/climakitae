@@ -213,6 +213,23 @@ class TestClimateDataParameterSetters:
         assert self.climate_data._query["variable_id"] == ["tasmax", "pr"]
         assert result is self.climate_data
 
+    @pytest.mark.parametrize(
+        "variable_ids,error_message",
+        [
+            ([], "Variable ID collection must not be empty"),
+            ((), "Variable ID collection must not be empty"),
+            (["tasmax", " tasmax "], "unique after trimming"),
+            (["tasmax", ""], "Each variable ID must be a non-empty string"),
+            (("tasmax", None), "Each variable ID must be a non-empty string"),
+        ],
+    )
+    def test_variable_id_rejects_invalid_collections(
+        self, variable_ids, error_message
+    ):
+        """Test empty, duplicate, blank, and non-string selections are rejected."""
+        with pytest.raises(ValueError, match=error_message):
+            self.climate_data.variable_id(variable_ids)
+
     def test_variable_id_invalid(self):
         """Test variable_id setter with invalid input."""
         try:
