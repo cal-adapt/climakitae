@@ -213,6 +213,15 @@ class TestClimateDataParameterSetters:
         assert self.climate_data._query["variable_id"] == ["tasmax", "pr"]
         assert result is self.climate_data
 
+    @pytest.mark.parametrize("variable_ids", [[" tasmax "], (" tasmax ",)])
+    def test_variable_id_single_item_collection_preserves_scalar(
+        self, variable_ids
+    ):
+        """Test one-item selections retain single-variable query behavior."""
+        self.climate_data.variable_id(variable_ids)
+
+        assert self.climate_data._query["variable_id"] == "tasmax"
+
     @pytest.mark.parametrize(
         "variable_ids,error_message",
         [
