@@ -37,7 +37,7 @@ The processor takes a **dict**:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `stations` | `list[str]` | `[]` | HDP `station_id` values to bias-adjust against (e.g. `"ASOSAWOS_69007093217"`). Required for non-trivial use. |
-| `historical_slice` | `tuple[int, int]` | `(1980, 2014)` | Years used as the training period. Must overlap each station's actual observational coverage, which varies per HDP station. |
+| `historical_slice` | `tuple[int, int]` | `(1980, 2014)` | Years used as the training period. Must overlap each station's actual observational coverage, which varies per HDP station. Its midpoint year is checked against the station QA sheet (see Requirements). |
 | `window` | `int` | `90` | Window size (days) for seasonal grouping in QDM. |
 | `nquantiles` | `int` | `20` | Number of quantiles for the QDM mapping. |
 | `group` | `str` | `"time.dayofyear"` | Temporal grouping passed to `xclim` QDM. |
@@ -50,6 +50,15 @@ The processor takes a **dict**:
 - **Time coverage**: Input must overlap the requested historical training period (default 1980–2014). HDP station coverage varies widely by station, from a few years to multiple decades.
 - **Multiple networks**: Requested stations may span multiple HDP networks in a single call.
 - **Calendar**: All inputs are converted to a `noleap` calendar internally for consistency.
+- **Training-window QA check**: the midpoint year of `historical_slice` (e.g. `(1985, 2015)` → 2000) is checked against a QA sheet for each requested station/variable (`climakitae/data/weather_station_qa.csv`, keyed by station `source-id`. `total-time-window` is the sole row that blocks the query. If it's flagged for the requested center year, the query is rejected with a message like:
+
+    ```
+    Error: Too much missing data for station 'KSAN', variable 'tas', from 1985-2015.
+    Related issues: Too many missing station values for February, May, July, August, September, November, December.
+    Closest usable time ranges: 1984-2014 or 1986-2016
+    ```
+
+    naming any other flagged rows (`window_missing_nans`, the per-month/diurnal checks) as the likely reason — rows whose name ends in `_nans` are grouped under one "too many missing station values" phrase, since missing data is their common cause; any other kind of check (a future test type) is named on its own — and suggesting the nearest `historical_slice` range(s) of the same width, re-centered on the nearest year(s) where `total-time-window` itself is clear. If `total-time-window` passes but other rows are flagged, the query still proceeds with a warning naming those rows and their own nearest clear year(s). The resulting localized dataset may be biased but the query itself is not blocked.
 
 ## Example
 
@@ -92,8 +101,4 @@ data = (ClimateData()
 
 - [Processor index](index.md)
 - [`climakitae/new_core/processors/bias_adjust_model_to_station.py`](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py)
-<<<<<<< HEAD
-- [How-To: bias correction](../howto/bias-adjustment.md)
-=======
 - [How-To: bias adjustment](../howto/bias-adjustment.md)
->>>>>>> main
