@@ -103,8 +103,8 @@ class ClimateData:
         The temporal resolution (e.g., ``"1hr"``, ``"day"``, ``"mon"``).
     grid_label : str
         The spatial resolution (e.g., ``"d01"``, ``"d02"``, ``"d03"``).
-    variable_id : str | list[str]
-        The climate variable (e.g., ``"tasmax"``, ``"pr"``, ``"cf"``).
+    variable_id : str | list[str] | tuple[str, ...]
+        One or more climate variables (e.g., ``"tasmax"``, ``"pr"``, ``"cf"``).
     processes : dict
         Dictionary of data processing operations to apply.
 
@@ -128,10 +128,8 @@ class ClimateData:
         Set the temporal resolution.
     grid_label(grid_label: str) -> ClimateData
         Set the spatial resolution.
-    variable_id(variable_id: str | list[str]) -> ClimateData
+    variable_id(variable_id: str | list[str] | tuple[str, ...]) -> ClimateData
         Set the climate variable(s) to retrieve.
-    variable(variable: str) -> ClimateData
-        Deprecated alias for ``variable_id``. Use ``variable_id`` instead.
     station_id(station_id: str) --> ClimateData
         Set the station identifier
     network_id(network_id: str) --> ClimateData
@@ -687,6 +685,9 @@ class ClimateData:
 
         logger.debug("Setting variable_id to: %s", variable_id)
         if isinstance(variable_id, str):
+            if not variable_id.strip():
+                logger.error("Invalid variable_id parameter: empty string")
+                raise ValueError("Variable ID must be a non-empty string")
             variable_ids = [variable_id]
         elif isinstance(variable_id, (list, tuple)):
             variable_ids = variable_id
