@@ -76,6 +76,27 @@ print(data)
 
 > The legacy `climakitae.core.data_interface` APIs are deprecated and scheduled for removal in `2.0.0`, targeting late Q1 2027. Existing calls may emit `DeprecationWarning`; new work should use `ClimateData` from `climakitae.new_core`.
 
+`source_id()` accepts one model name as a string or several names as a list or
+tuple. For example, to request these LOCA2 models together:
+
+```python
+models = (
+    ClimateData()
+    .catalog("cadcat")
+    .activity_id("LOCA2")
+    .institution_id("UCSD")
+    .source_id(["CESM2-LENS", "CNRM-ESM2-1"])
+    .experiment_id(["historical", "ssp370"])
+    .table_id("day")
+    .grid_label("d03")
+    .variable_id("tasmax")
+    .get()
+)
+```
+
+Pass a single string to select one source, or a list or tuple of source IDs to
+select multiple sources in one query.
+
 ## Documentation
 
 | Resource | Description |

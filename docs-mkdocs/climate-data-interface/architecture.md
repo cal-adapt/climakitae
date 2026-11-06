@@ -525,7 +525,7 @@ d2 = cd.variable_id("pr").get()  # Lost context - create new instance
 
 **Implementation**:
 ```python
-def variable(self, value):
+def variable_id(self, value):
     self._variable_id = value
     return self  # Critical: return self
 ```

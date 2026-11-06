@@ -51,6 +51,17 @@ The processor takes a **single string** (case-insensitive):
     queries. To explicitly *include* unadjusted models, pass
     `"filter_unadjusted_models": "no"`.
 
+    If `.source_id()` explicitly requests any unadjusted WRF model while
+    filtering is enabled, query validation rejects the whole request and
+    `.get()` returns `None`. The warning names the conflicting sources and
+    shows how to disable filtering. This prevents a requested source from
+    being silently removed while the remaining sources are returned.
+
+    Without an explicit source selection, the processor continues to remove
+    unadjusted entries from the retrieved ensemble. Use
+    `.activity_id("WRF").show_source_id_options()` to see sources grouped by
+    bias-adjustment status.
+
 ## Examples
 
 ```python
