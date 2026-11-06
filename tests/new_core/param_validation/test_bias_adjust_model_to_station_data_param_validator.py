@@ -861,12 +861,8 @@ class TestValidateStationQaHook:
 
         assert result is True
 
-    @patch(
-        "climakitae.new_core.param_validation.station_qa_validation.DataCatalog"
-    )
-    @patch(
-        "climakitae.new_core.param_validation.station_qa_validation.read_csv_file"
-    )
+    @patch("climakitae.new_core.param_validation.station_qa_validation.DataCatalog")
+    @patch("climakitae.new_core.param_validation.station_qa_validation.read_csv_file")
     @patch(
         "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
     )

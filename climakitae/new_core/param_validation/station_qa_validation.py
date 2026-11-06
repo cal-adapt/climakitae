@@ -114,11 +114,15 @@ def _year_qa_status(source_id: str, variable: str, year: int) -> tuple[bool, lis
     if flags is None:
         return False, []
     has_error = flags.get(_ERROR_TEST, False)
-    other_tests = sorted(t for t, failed in flags.items() if failed and t != _ERROR_TEST)
+    other_tests = sorted(
+        t for t, failed in flags.items() if failed and t != _ERROR_TEST
+    )
     return has_error, other_tests
 
 
-def _nearest_passing_years(source_id: str, variable: str, test: str, year: int) -> list[int]:
+def _nearest_passing_years(
+    source_id: str, variable: str, test: str, year: int
+) -> list[int]:
     """Find the nearest year(s) around `year` where one specific test passes.
 
     Parameters
@@ -140,7 +144,9 @@ def _nearest_passing_years(source_id: str, variable: str, test: str, year: int) 
         flagged. Empty if no such year exists.
     """
     year_map = _load_qa_table().get((source_id, variable), {})
-    passing_years = sorted(y for y, flags in year_map.items() if not flags.get(test, False))
+    passing_years = sorted(
+        y for y, flags in year_map.items() if not flags.get(test, False)
+    )
     before = max((y for y in passing_years if y < year), default=None)
     after = min((y for y in passing_years if y > year), default=None)
     return [y for y in (before, after) if y is not None]
@@ -314,9 +320,8 @@ def validate_station_qa_for_requested_years(query: dict[str, Any]) -> bool:
                     ranges = (
                         _year_to_historical_slice(y, offsets) for y in nearby_years
                     )
-                    suggestion = (
-                        "Closest usable time ranges: "
-                        + " or ".join(f"{s}-{e}" for s, e in ranges)
+                    suggestion = "Closest usable time ranges: " + " or ".join(
+                        f"{s}-{e}" for s, e in ranges
                     )
                 else:
                     suggestion = (

@@ -36,10 +36,38 @@ def _synthetic_qa_df() -> pd.DataFrame:
     """
     return pd.DataFrame(
         [
-            {"source-id": "KTES", "variable": "tas", "test": "total-time-window", 2000: 0, 2001: 0, 2002: 1},
-            {"source-id": "KTES", "variable": "tas", "test": "window_missing_nans", 2000: 0, 2001: 0, 2002: 0},
-            {"source-id": "KTES", "variable": "tas", "test": "month_01_nans", 2000: 0, 2001: 1, 2002: 0},
-            {"source-id": "KTES", "variable": "tas", "test": "diurnal_day_nans", 2000: 0, 2001: 0, 2002: 0},
+            {
+                "source-id": "KTES",
+                "variable": "tas",
+                "test": "total-time-window",
+                2000: 0,
+                2001: 0,
+                2002: 1,
+            },
+            {
+                "source-id": "KTES",
+                "variable": "tas",
+                "test": "window_missing_nans",
+                2000: 0,
+                2001: 0,
+                2002: 0,
+            },
+            {
+                "source-id": "KTES",
+                "variable": "tas",
+                "test": "month_01_nans",
+                2000: 0,
+                2001: 1,
+                2002: 0,
+            },
+            {
+                "source-id": "KTES",
+                "variable": "tas",
+                "test": "diurnal_day_nans",
+                2000: 0,
+                2001: 0,
+                2002: 0,
+            },
         ]
     )
 
@@ -49,10 +77,38 @@ def _error_with_reasons_qa_df() -> pd.DataFrame:
     month_01_nans -- exercises the "reasons" list in the error message."""
     return pd.DataFrame(
         [
-            {"source-id": "KTES", "variable": "tas", "test": "total-time-window", 2000: 0, 2001: 0, 2002: 1},
-            {"source-id": "KTES", "variable": "tas", "test": "window_missing_nans", 2000: 0, 2001: 0, 2002: 1},
-            {"source-id": "KTES", "variable": "tas", "test": "month_01_nans", 2000: 0, 2001: 0, 2002: 1},
-            {"source-id": "KTES", "variable": "tas", "test": "diurnal_day_nans", 2000: 0, 2001: 0, 2002: 0},
+            {
+                "source-id": "KTES",
+                "variable": "tas",
+                "test": "total-time-window",
+                2000: 0,
+                2001: 0,
+                2002: 1,
+            },
+            {
+                "source-id": "KTES",
+                "variable": "tas",
+                "test": "window_missing_nans",
+                2000: 0,
+                2001: 0,
+                2002: 1,
+            },
+            {
+                "source-id": "KTES",
+                "variable": "tas",
+                "test": "month_01_nans",
+                2000: 0,
+                2001: 0,
+                2002: 1,
+            },
+            {
+                "source-id": "KTES",
+                "variable": "tas",
+                "test": "diurnal_day_nans",
+                2000: 0,
+                2001: 0,
+                2002: 0,
+            },
         ]
     )
 
@@ -62,8 +118,22 @@ def _all_error_qa_df() -> pd.DataFrame:
     at all for the sole blocking check."""
     return pd.DataFrame(
         [
-            {"source-id": "KBAD", "variable": "tdps", "test": "total-time-window", 2000: 1, 2001: 1, 2002: 1},
-            {"source-id": "KBAD", "variable": "tdps", "test": "window_missing_nans", 2000: 1, 2001: 1, 2002: 1},
+            {
+                "source-id": "KBAD",
+                "variable": "tdps",
+                "test": "total-time-window",
+                2000: 1,
+                2001: 1,
+                2002: 1,
+            },
+            {
+                "source-id": "KBAD",
+                "variable": "tdps",
+                "test": "window_missing_nans",
+                2000: 1,
+                2001: 1,
+                2002: 1,
+            },
         ]
     )
 
@@ -130,12 +200,31 @@ class TestNearestPassingYears:
     def test_finds_nearest_before_and_after(self, mock_read_csv):
         df = pd.DataFrame(
             [
-                {"source-id": "KTES", "variable": "tas", "test": "total-time-window", 1998: 0, 1999: 1, 2000: 1, 2001: 0},
-                {"source-id": "KTES", "variable": "tas", "test": "window_missing_nans", 1998: 0, 1999: 0, 2000: 0, 2001: 0},
+                {
+                    "source-id": "KTES",
+                    "variable": "tas",
+                    "test": "total-time-window",
+                    1998: 0,
+                    1999: 1,
+                    2000: 1,
+                    2001: 0,
+                },
+                {
+                    "source-id": "KTES",
+                    "variable": "tas",
+                    "test": "window_missing_nans",
+                    1998: 0,
+                    1999: 0,
+                    2000: 0,
+                    2001: 0,
+                },
             ]
         )
         mock_read_csv.return_value = df
-        assert _nearest_passing_years("KTES", "tas", "total-time-window", 1999) == [1998, 2001]
+        assert _nearest_passing_years("KTES", "tas", "total-time-window", 1999) == [
+            1998,
+            2001,
+        ]
 
     @patch(f"{MODULE}.read_csv_file")
     def test_different_test_not_conflated(self, mock_read_csv):
@@ -143,12 +232,31 @@ class TestNearestPassingYears:
         total-time-window fails 1999-2000 -- the two rows are independent."""
         df = pd.DataFrame(
             [
-                {"source-id": "KTES", "variable": "tas", "test": "total-time-window", 1998: 0, 1999: 1, 2000: 1, 2001: 0},
-                {"source-id": "KTES", "variable": "tas", "test": "window_missing_nans", 1998: 0, 1999: 0, 2000: 0, 2001: 0},
+                {
+                    "source-id": "KTES",
+                    "variable": "tas",
+                    "test": "total-time-window",
+                    1998: 0,
+                    1999: 1,
+                    2000: 1,
+                    2001: 0,
+                },
+                {
+                    "source-id": "KTES",
+                    "variable": "tas",
+                    "test": "window_missing_nans",
+                    1998: 0,
+                    1999: 0,
+                    2000: 0,
+                    2001: 0,
+                },
             ]
         )
         mock_read_csv.return_value = df
-        assert _nearest_passing_years("KTES", "tas", "window_missing_nans", 1999) == [1998, 2000]
+        assert _nearest_passing_years("KTES", "tas", "window_missing_nans", 1999) == [
+            1998,
+            2000,
+        ]
 
     @patch(f"{MODULE}.read_csv_file")
     def test_no_passing_year_returns_empty(self, mock_read_csv):
@@ -187,10 +295,15 @@ class TestResolveStationToSourceId:
         )
 
     def test_unmapped_hdp_station_id(self, legacy_stations_df):
-        assert resolve_station_to_source_id("OtherISD_99999999999", legacy_stations_df) is None
+        assert (
+            resolve_station_to_source_id("OtherISD_99999999999", legacy_stations_df)
+            is None
+        )
 
     def test_malformed_identifier(self, legacy_stations_df):
-        assert resolve_station_to_source_id("not_a_valid_id", legacy_stations_df) is None
+        assert (
+            resolve_station_to_source_id("not_a_valid_id", legacy_stations_df) is None
+        )
 
 
 class TestHistoricalSliceCenterYear:
