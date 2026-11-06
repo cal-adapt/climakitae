@@ -667,15 +667,16 @@ class ClimateData:
         logger.info("Grid label set to: %s", grid_label.strip())
         return self
 
-    def variable_id(self, variable_id: str | list[str]) -> "ClimateData":
-        """Set the climate variable to retrieve.
+    def variable_id(
+        self, variable_id: str | list[str] | tuple[str, ...]
+    ) -> "ClimateData":
+        """Set one or more climate variables to retrieve.
 
         Parameters
         ----------
-        variable_id : str | list[str]
-            The variable identifier (e.g., "tasmax", "pr", "cf") OR
-            list of variable identifiers (e.g., ["tasmax", "pr", "cf"])
-            Can also be a registered derived variable name.
+        variable_id : str | list[str] | tuple[str, ...]
+            One variable identifier or an ordered collection of identifiers.
+            Identifiers may include registered derived variable names.
 
         Returns
         -------
@@ -685,29 +686,39 @@ class ClimateData:
         """
 
         logger.debug("Setting variable_id to: %s", variable_id)
-        var = []
-        if not isinstance(variable_id, (str, list)):
+        if isinstance(variable_id, str):
+            variable_ids = [variable_id]
+        elif isinstance(variable_id, (list, tuple)):
+            variable_ids = variable_id
+            if not variable_ids:
+                logger.error("Invalid variable_id parameter: collection is empty")
+                raise ValueError("Variable ID collection must not be empty")
+        else:
             logger.error(
-                "Invalid variable_id parameter: must be string or list of strings"
+                "Invalid variable_id parameter: must be a string or list/tuple of strings"
             )
             raise ValueError(
-                "Variable ID must be a non-empty string or list of strings"
+                "Variable ID must be a non-empty string or list/tuple of strings"
             )
-        if isinstance(variable_id, str):
-            if not variable_id.strip():
-                logger.error("Invalid variable_id parameter: empty string")
-                raise ValueError("Variable ID must be a non-empty string")
-            var.append(variable_id.strip())
-        else:
-            for var_id in variable_id:
-                if not isinstance(var_id, str) or not var_id.strip():
-                    logger.error(
-                        "Invalid variable_id in list: must be non-empty strings"
-                    )
-                    raise ValueError("Each variable ID must be a non-empty string")
-                var.append(var_id.strip())
-        self._query["variable_id"] = var[0] if len(var) == 1 else var
-        logger.info("Variable ID(s) set to: %s", var)
+
+        normalized_ids = []
+        for var_id in variable_ids:
+            if not isinstance(var_id, str) or not var_id.strip():
+                logger.error(
+                    "Invalid variable_id: each value must be a non-empty string"
+                )
+                raise ValueError("Each variable ID must be a non-empty string")
+            normalized_ids.append(var_id.strip())
+
+        if len(normalized_ids) != len(set(normalized_ids)):
+            logger.error("Invalid variable_id parameter: duplicate values")
+            raise ValueError("Variable IDs must be unique after trimming")
+
+        normalized_value = (
+            normalized_ids[0] if len(normalized_ids) == 1 else normalized_ids
+        )
+        self._query["variable_id"] = normalized_value
+        logger.info("Variable ID(s) set to: %s", normalized_value)
 
         return self
 

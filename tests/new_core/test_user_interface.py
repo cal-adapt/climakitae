@@ -199,6 +199,20 @@ class TestClimateDataParameterSetters:
         assert self.climate_data._query["variable_id"] == "tasmax"
         assert result is self.climate_data
 
+    @pytest.mark.parametrize(
+        "variable_ids",
+        [
+            [" tasmax ", " pr "],
+            (" tasmax ", " pr "),
+        ],
+    )
+    def test_variable_id_multiple_values_preserve_order(self, variable_ids):
+        """Test multiple variable IDs are trimmed without changing their order."""
+        result = self.climate_data.variable_id(variable_ids)
+
+        assert self.climate_data._query["variable_id"] == ["tasmax", "pr"]
+        assert result is self.climate_data
+
     def test_variable_id_invalid(self):
         """Test variable_id setter with invalid input."""
         try:
