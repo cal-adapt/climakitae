@@ -201,7 +201,7 @@ def _check_source_variable(
             )
             logger.warning(
                 "warning: station '%s' variable '%s' center year %d "
-                "(historical_slice=%s): %s; data may be biased.",
+                "(historical_slice=%s): %s; resulting localized data may be biased.",
                 source_id,
                 variable,
                 year,

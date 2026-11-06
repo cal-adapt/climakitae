@@ -88,7 +88,7 @@ data = (cd
 # -> data is returned, with a logged warning: every flagged row
 #    (window_missing_nans plus the affected months) is grouped under one
 #    "Too many missing station values for ..." phrase, each with its own
-#    nearest clear year(s), noting the result may be biased.
+#    nearest clear year(s), noting the resulting localized data may be biased.
 ```
 
 ## How Bias Adjustment Works

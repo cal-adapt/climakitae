@@ -449,7 +449,7 @@ class TestCheckSourceVariable:
         mock_nearest.return_value = [1999]
         with pytest.warns(
             UserWarning,
-            match=r"January \(nearest clear year\(s\): 1999\).*data may be biased",
+            match=r"January \(nearest clear year\(s\): 1999\).*resulting localized data may be biased",
         ):
             result = _check_source_variable("KTES", "tas", 2000, (1985, 2015))
         assert result is False
@@ -613,7 +613,7 @@ class TestValidateStationRequestQa:
         query = self._query("t2", historical_slice=(2000, 2002))
         with pytest.warns(
             UserWarning,
-            match=r"January \(nearest clear year\(s\): 2000 or 2002\).*data may be biased",
+            match=r"January \(nearest clear year\(s\): 2000 or 2002\).*resulting localized data may be biased",
         ):
             result = validate_station_request_qa(query)
         assert result is True
