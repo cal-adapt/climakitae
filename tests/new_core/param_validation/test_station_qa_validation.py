@@ -14,9 +14,11 @@ import pytest
 from climakitae.new_core.param_validation.station_qa_validation import (
     _describe_test,
     _historical_slice_center_year,
+    _historical_slice_offsets,
     _load_qa_table,
     _nearest_passing_years,
     _year_qa_status,
+    _year_to_historical_slice,
     resolve_station_to_source_id,
     validate_station_qa_for_requested_years,
 )
@@ -204,6 +206,23 @@ class TestHistoricalSliceCenterYear:
         assert _historical_slice_center_year((2000, 2000)) == 2000
 
 
+class TestHistoricalSliceOffsets:
+    """Test class for _historical_slice_offsets and _year_to_historical_slice."""
+
+    def test_symmetric_offsets(self):
+        assert _historical_slice_offsets((1985, 2015)) == (15, 15)
+
+    def test_odd_span_offsets(self):
+        # center = (1980 + 2014) // 2 = 1997 -> 17 years back, 17 forward
+        assert _historical_slice_offsets((1980, 2014)) == (17, 17)
+
+    def test_year_to_historical_slice_round_trips(self):
+        offsets = _historical_slice_offsets((1985, 2015))
+        assert _year_to_historical_slice(1999, offsets) == (1984, 2014)
+        assert _year_to_historical_slice(2001, offsets) == (1986, 2016)
+        assert _year_to_historical_slice(2000, offsets) == (1985, 2015)
+
+
 class TestValidateStationQaForRequestedYears:
     """Test class for validate_station_qa_for_requested_years."""
 
@@ -232,13 +251,15 @@ class TestValidateStationQaForRequestedYears:
     ):
         mock_catalog.return_value.__getitem__.return_value = legacy_stations_df
         mock_read_csv.return_value = _synthetic_qa_df()
-        # center year = (2001 + 2003) // 2 = 2002: total-time-window fails
-        # alone, nothing else flagged; nearest clear year for it is 2001.
+        # historical_slice=(2001, 2003) centers on 2002: total-time-window
+        # fails alone, nothing else flagged; nearest clear year for it is
+        # 2001, re-expressed as a 2001-centered range of the same width.
         query = self._query("t2", historical_slice=(2001, 2003))
         with pytest.warns(
             UserWarning,
-            match=r"Related issues: no other checks are flagged for this year\. "
-            r"Closest usable year\(s\): 2001\.",
+            match=r"Too much missing data for station 'KTES', variable 'tas', "
+            r"from 2001-2003\. Related issues: no other checks are flagged "
+            r"for this time range\. Closest usable time ranges: 2000-2002",
         ):
             result = validate_station_qa_for_requested_years(query)
         assert result is False
@@ -252,12 +273,13 @@ class TestValidateStationQaForRequestedYears:
         mock_read_csv.return_value = _error_with_reasons_qa_df()
         # center year = 2002: total-time-window fails alongside
         # window_missing_nans and month_01_nans, which should be named as
-        # the reasons; nearest clear year for total-time-window is 2001.
+        # the reasons; nearest clear year for total-time-window is 2001,
+        # re-expressed as the 2000-2002 range.
         query = self._query("t2", historical_slice=(2001, 2003))
         with pytest.warns(
             UserWarning,
-            match=r"Related issues: January, overall missing-data window\. "
-            r"Closest usable year\(s\): 2001\.",
+            match=r"from 2001-2003\. Related issues: January, overall "
+            r"missing-data window\. Closest usable time ranges: 2000-2002",
         ):
             result = validate_station_qa_for_requested_years(query)
         assert result is False
@@ -276,7 +298,7 @@ class TestValidateStationQaForRequestedYears:
         )
         with pytest.warns(
             UserWarning,
-            match="No usable year was found nearby in the QA sheet",
+            match="No usable time range was found nearby in the QA sheet",
         ):
             result = validate_station_qa_for_requested_years(query)
         assert result is False

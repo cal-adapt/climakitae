@@ -214,6 +214,24 @@ def _historical_slice_center_year(historical_slice: tuple[int, int]) -> int:
     return (start + end) // 2
 
 
+def _historical_slice_offsets(historical_slice: tuple[int, int]) -> tuple[int, int]:
+    """Years from the center year back to `start` and forward to `end`.
+
+    Kept separate (rather than assuming a symmetric window) so re-centering
+    on a different year via `_year_to_historical_slice` always reproduces
+    the exact same window width, even for an odd total span.
+    """
+    start, end = historical_slice
+    center = _historical_slice_center_year(historical_slice)
+    return center - start, end - center
+
+
+def _year_to_historical_slice(year: int, offsets: tuple[int, int]) -> tuple[int, int]:
+    """Re-apply a `historical_slice`'s width/offsets, centered on `year`."""
+    before, after = offsets
+    return year - before, year + after
+
+
 def validate_station_qa_for_requested_years(query: dict[str, Any]) -> bool:
     """Validate requested (station, variable, center year) combinations
     against the QA sheet.
@@ -286,23 +304,33 @@ def validate_station_qa_for_requested_years(query: dict[str, Any]) -> bool:
                 reasons = (
                     ", ".join(_describe_test(t) for t in other_tests)
                     if other_tests
-                    else "no other checks are flagged for this year"
+                    else "no other checks are flagged for this time range"
                 )
-                nearby = _nearest_passing_years(source_id, hdp_variable, _ERROR_TEST, year)
-                suggestion = (
-                    f"Closest usable year(s): {' or '.join(map(str, nearby))}."
-                    if nearby
-                    else "No usable year was found nearby in the QA sheet "
-                    "for this station/variable."
+                nearby_years = _nearest_passing_years(
+                    source_id, hdp_variable, _ERROR_TEST, year
                 )
+                if nearby_years:
+                    offsets = _historical_slice_offsets(historical_slice)
+                    ranges = (
+                        _year_to_historical_slice(y, offsets) for y in nearby_years
+                    )
+                    suggestion = (
+                        "Closest usable time ranges: "
+                        + " or ".join(f"{s}-{e}" for s, e in ranges)
+                    )
+                else:
+                    suggestion = (
+                        "No usable time range was found nearby in the QA "
+                        "sheet for this station/variable."
+                    )
+                slice_start, slice_end = historical_slice
                 logger.error(
-                    "error: too much missing data overall for station "
-                    "'%s', variable '%s', center year %d (historical_slice="
-                    "%s). Related issues: %s. %s",
+                    "Error: Too much missing data for station '%s', "
+                    "variable '%s', from %d-%d. Related issues: %s. %s",
                     source_id,
                     hdp_variable,
-                    year,
-                    historical_slice,
+                    slice_start,
+                    slice_end,
                     reasons,
                     suggestion,
                 )

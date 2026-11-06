@@ -43,9 +43,30 @@ data = (cd
 
 ## Training-Window Data Quality Checks
 
-The midpoint year of `historical_slice` (the training reference window) is checked against a QA sheet for each requested station/variable before anything runs — this is about the quality of the *historical station record used to train the adjustment*, not the output period `time_slice`/`warming_level` requests. `total-time-window` is the only row that blocks the query; every other row (`window_missing_nans`, per-month, diurnal) is a non-blocking warning, named as the likely *reason* when `total-time-window` does fail. Either way, a failing row comes with its own suggested alternative center year(s) — the nearest year(s) where *that specific row* passes.
+The midpoint year of `historical_slice` (the training reference window) is checked against a QA sheet for each requested station/variable before anything runs — this is about the quality of the *historical station record used to train the adjustment*, not the output period `time_slice`/`warming_level` requests. `total-time-window` is the only row that blocks the query; every other row (`window_missing_nans`, per-month, diurnal) is a non-blocking warning, named as the likely *reason* when `total-time-window` does fail. Either way, the suggested alternative is `historical_slice`-shaped: the nearest year(s) where `total-time-window` itself passes, re-expressed as a range of the same width, centered on that year.
 
 ```python
+# Error: historical_slice=(1985, 2015) centers on 2000, where KSAN's tas
+# record fails total-time-window itself, so the query is rejected before
+# any data is fetched -- regardless of the future time_slice.
+data = (cd
+    .activity_id("WRF")
+    .institution_id("UCLA")
+    .variable_id("t2")
+    .table_id("1hr")
+    .processes({
+        "time_slice": (2060, 2070),
+        "bias_adjust_model_to_station": {
+            "stations": ["KSAN"],
+            "historical_slice": (1985, 2015),
+        },
+    })
+    .get())
+# -> None, with a logged error:
+#    "Error: Too much missing data for station 'KSAN', variable 'tas', from
+#    1985-2015. Related issues: February, May, July, August, September,
+#    November, December. Closest usable time ranges: 1984-2014 or 1986-2016"
+
 # Warning: historical_slice=(1980, 2010) centers on 1995, where KSAN's
 # dew_point record is missing several months plus its overall window
 # ("window_missing_nans"), but total-time-window itself is clear, so the
@@ -66,29 +87,6 @@ data = (cd
 # -> data is returned, with a logged warning naming every flagged row
 #    (window_missing_nans plus the affected months) and each one's own
 #    nearest clear year(s), noting the result may be biased.
-
-# Warning: historical_slice=(2000, 2002) centers on 2001, where KSAN's tas
-# record is missing some summer months, but the query still runs.
-data = (cd
-    .activity_id("WRF")
-    .institution_id("UCLA")
-    .variable_id("t2")
-    .table_id("1hr")
-    .processes({
-        "time_slice": (2060, 2070),
-        "bias_adjust_model_to_station": {
-            "stations": ["KSAN"],
-            "historical_slice": (2000, 2002),
-        },
-    })
-    .get())
-# -> data is returned, with a logged warning naming the affected month(s),
-#    the nearest year(s) where each is clear, and noting the result may be
-#    biased.
-
-# Today's shipped sheet has total-time-window=0 for every KSAN/year, so no
-# query against it actually blocks -- an error requires a sheet where
-# total-time-window is flagged for the requested center year.
 ```
 
 ## How Bias Adjustment Works

@@ -913,7 +913,7 @@ class TestValidateStationQaHook:
             "historical_slice": (2025, 2035),
         }
 
-        with pytest.warns(UserWarning, match="too much missing data overall"):
+        with pytest.warns(UserWarning, match="Too much missing data"):
             result = validate_bias_adjustment_station_data_param(value, query=query)
 
         assert result is False
