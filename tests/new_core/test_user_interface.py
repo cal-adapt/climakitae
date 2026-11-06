@@ -392,6 +392,28 @@ class TestClimateDataGet:
         # The implementation uses logger.info for success message
         mock_logger.info.assert_any_call("✅ Data retrieval successful!")
 
+    def test_get_preserves_multiple_variable_selection(self):
+        """Test the selected variables survive the get query snapshot."""
+        self.climate_data.catalog("cadcat")
+        self.climate_data.table_id("day")
+        self.climate_data.grid_label("d03")
+        self.climate_data.variable_id(["tasmax", "pr"])
+
+        mock_dataset = MagicMock()
+        expected_data = MagicMock()
+        expected_data.nbytes = 100
+        mock_dataset.execute.return_value = expected_data
+        self.climate_data._factory.create_dataset.return_value = mock_dataset
+
+        result = self.climate_data.get()
+
+        assert result is expected_data
+        factory_query = self.climate_data._factory.create_dataset.call_args.args[0]
+        execute_query = mock_dataset.execute.call_args.args[0]
+        assert factory_query["variable_id"] == ["tasmax", "pr"]
+        assert execute_query["variable_id"] == ["tasmax", "pr"]
+        assert self.climate_data._query["variable_id"] is UNSET
+
 
 class TestClimateDataValidation:
     """Test class for parameter validation."""
