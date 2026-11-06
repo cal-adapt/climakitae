@@ -214,9 +214,7 @@ class TestClimateDataParameterSetters:
         assert result is self.climate_data
 
     @pytest.mark.parametrize("variable_ids", [[" tasmax "], (" tasmax ",)])
-    def test_variable_id_single_item_collection_preserves_scalar(
-        self, variable_ids
-    ):
+    def test_variable_id_single_item_collection_preserves_scalar(self, variable_ids):
         """Test one-item selections retain single-variable query behavior."""
         self.climate_data.variable_id(variable_ids)
 
@@ -232,9 +230,7 @@ class TestClimateDataParameterSetters:
             (("tasmax", None), "Each variable ID must be a non-empty string"),
         ],
     )
-    def test_variable_id_rejects_invalid_collections(
-        self, variable_ids, error_message
-    ):
+    def test_variable_id_rejects_invalid_collections(self, variable_ids, error_message):
         """Test empty, duplicate, blank, and non-string selections are rejected."""
         with pytest.raises(ValueError, match=error_message):
             self.climate_data.variable_id(variable_ids)
@@ -893,9 +889,7 @@ class TestClimateDataAdditionalMethods:
 
     def test_load_query_normalizes_variable_id_tuple(self):
         """Test dictionary queries use the variable-ID normalization contract."""
-        self.climate_data.load_query(
-            {"variable_id": (" tasmax ", " pr ")}
-        )
+        self.climate_data.load_query({"variable_id": (" tasmax ", " pr ")})
 
         assert self.climate_data.copy_query()["variable_id"] == ["tasmax", "pr"]
 
