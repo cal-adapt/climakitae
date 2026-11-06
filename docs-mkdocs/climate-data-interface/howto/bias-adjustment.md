@@ -43,12 +43,12 @@ data = (cd
 
 ## Training-Window Data Quality Checks
 
-The midpoint year of `historical_slice` (the training reference window) is checked against a QA sheet for each requested station/variable before anything runs — this is about the quality of the *historical station record used to train the adjustment*, not the output period `time_slice`/`warming_level` requests. `total-time-window` is the only row that blocks the query; every other row (`window_missing_nans`, per-month, diurnal) is a non-blocking warning, named as the likely *reason* when `total-time-window` does fail. Either way, the suggested alternative is `historical_slice`-shaped: the nearest year(s) where `total-time-window` itself passes, re-expressed as a range of the same width, centered on that year.
+The midpoint year of `historical_slice` (the training reference window) is checked against a QA sheet for each requested station/variable before anything runs. This is focused on the quality of the *historical station record used to train the adjustment*, not the output period `time_slice`/`warming_level` requests. `total-time-window` is the only row that blocks the query; every other row (`window_missing_nans`, per-month, diurnal) is a non-blocking warning, named as the likely *reason* when `total-time-window` does fail. Either way, a suggested alternative year range where `total-time-window` passes is sent to the user.
 
 ```python
 # Error: historical_slice=(1985, 2015) centers on 2000, where KSAN's tas
 # record fails total-time-window itself, so the query is rejected before
-# any data is fetched -- regardless of the future time_slice.
+# any data is fetched.
 data = (cd
     .activity_id("WRF")
     .institution_id("UCLA")
@@ -64,8 +64,9 @@ data = (cd
     .get())
 # -> None, with a logged error:
 #    "Error: Too much missing data for station 'KSAN', variable 'tas', from
-#    1985-2015. Related issues: February, May, July, August, September,
-#    November, December. Closest usable time ranges: 1984-2014 or 1986-2016"
+#    1985-2015. Related issues: Too many missing station values for
+#    February, May, July, August, September, November, December. Closest
+#    usable time ranges: 1984-2014 or 1986-2016"
 
 # Warning: historical_slice=(1980, 2010) centers on 1995, where KSAN's
 # dew_point record is missing several months plus its overall window
@@ -84,8 +85,9 @@ data = (cd
         },
     })
     .get())
-# -> data is returned, with a logged warning naming every flagged row
-#    (window_missing_nans plus the affected months) and each one's own
+# -> data is returned, with a logged warning: every flagged row
+#    (window_missing_nans plus the affected months) is grouped under one
+#    "Too many missing station values for ..." phrase, each with its own
 #    nearest clear year(s), noting the result may be biased.
 ```
 

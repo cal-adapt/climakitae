@@ -34,7 +34,7 @@ GWL_1850_1900_TIMEIDX_FILE = "data/gwl_1850-1900ref_timeidx.csv"
 GWL_1981_2010_TIMEIDX_FILE = "data/gwl_1981-2010ref_timeidx.csv"
 
 # Station QA sheet: per-station/variable/year data-quality flags, keyed by source-id
-STATION_QA_CENTERED_FILE = "data/station_qa_centered.csv"
+WEATHER_STATION_QA_FILE = "data/weather_station_qa.csv"
 
 # GMT context plot files
 SSP119_FILE = "data/tas_global_SSP1_1_9.csv"

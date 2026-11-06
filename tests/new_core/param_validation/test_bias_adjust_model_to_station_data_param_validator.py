@@ -822,7 +822,7 @@ class TestValidateStationQaHook:
         "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
     )
     @patch(
-        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.validate_station_qa_for_requested_years"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.validate_station_request_qa"
     )
     def test_qa_failure_propagates(self, mock_qa, mock_get_metadata, valid_query):
         """Test that a QA sheet failure blocks the overall validation."""
@@ -844,7 +844,7 @@ class TestValidateStationQaHook:
         "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
     )
     @patch(
-        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.validate_station_qa_for_requested_years"
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.validate_station_request_qa"
     )
     def test_qa_pass_allows_validation(self, mock_qa, mock_get_metadata, valid_query):
         """Test that a passing QA check doesn't block the overall validation."""

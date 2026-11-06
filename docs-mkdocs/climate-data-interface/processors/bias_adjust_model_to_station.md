@@ -50,15 +50,15 @@ The processor takes a **dict**:
 - **Time coverage**: Input must overlap the requested historical training period (default 1980–2014). HDP station coverage varies widely by station, from a few years to multiple decades.
 - **Multiple networks**: Requested stations may span multiple HDP networks in a single call.
 - **Calendar**: All inputs are converted to a `noleap` calendar internally for consistency.
-- **Training-window QA check**: the midpoint year of `historical_slice` (e.g. `(1985, 2015)` → 2000) is checked against a QA sheet for each requested station/variable (`climakitae/data/station_qa_centered.csv`, keyed by station `source-id`; today covers `KSAN` only) — this reflects the quality of the *historical station record used to train the bias adjustment*, independent of whatever period `time_slice`/`warming_level` requests for the output. `total-time-window` is the sole row that blocks the query. If it's flagged for the requested center year, the query is rejected with a message like:
+- **Training-window QA check**: the midpoint year of `historical_slice` (e.g. `(1985, 2015)` → 2000) is checked against a QA sheet for each requested station/variable (`climakitae/data/weather_station_qa.csv`, keyed by station `source-id`. `total-time-window` is the sole row that blocks the query. If it's flagged for the requested center year, the query is rejected with a message like:
 
     ```
     Error: Too much missing data for station 'KSAN', variable 'tas', from 1985-2015.
-    Related issues: February, May, July, August, September, November, December.
+    Related issues: Too many missing station values for February, May, July, August, September, November, December.
     Closest usable time ranges: 1984-2014 or 1986-2016
     ```
 
-    naming any other flagged rows (`window_missing_nans`, the per-month/diurnal checks) as the likely reason, and suggesting the nearest `historical_slice` range(s) of the same width, re-centered on the nearest year(s) where `total-time-window` itself is clear. If `total-time-window` passes but other rows are flagged, the query still proceeds with a warning naming those rows and their own nearest clear year(s) — the data may be biased but isn't blocked.
+    naming any other flagged rows (`window_missing_nans`, the per-month/diurnal checks) as the likely reason — rows whose name ends in `_nans` are grouped under one "too many missing station values" phrase, since missing data is their common cause; any other kind of check (a future test type) is named on its own — and suggesting the nearest `historical_slice` range(s) of the same width, re-centered on the nearest year(s) where `total-time-window` itself is clear. If `total-time-window` passes but other rows are flagged, the query still proceeds with a warning naming those rows and their own nearest clear year(s). The resulting localized dataset may be biased but the query itself is not blocked.
 
 ## Example
 
