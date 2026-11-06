@@ -69,6 +69,11 @@ All validators inherit from the abstract base class:
       docstring_style: numpy
       show_source: true
 
+::: climakitae.new_core.param_validation.station_qa_validation
+    options:
+      docstring_style: numpy
+      show_source: true
+
 ::: climakitae.new_core.param_validation.filter_unadjusted_models_param_validator
     options:
       docstring_style: numpy
