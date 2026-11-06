@@ -869,6 +869,14 @@ class TestClimateDataAdditionalMethods:
         assert self.climate_data._query["variable_id"] == "tas"
         assert self.climate_data._query["experiment_id"] == ["historical"]
 
+    def test_load_query_normalizes_variable_id_tuple(self):
+        """Test dictionary queries use the variable-ID normalization contract."""
+        self.climate_data.load_query(
+            {"variable_id": (" tasmax ", " pr ")}
+        )
+
+        assert self.climate_data.copy_query()["variable_id"] == ["tasmax", "pr"]
+
     def test_load_query_empty_dict(self):
         """Test load_query with empty dictionary."""
         result = self.climate_data.load_query({})
