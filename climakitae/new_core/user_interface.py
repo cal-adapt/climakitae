@@ -706,7 +706,7 @@ class ClimateData:
                     )
                     raise ValueError("Each variable ID must be a non-empty string")
                 var.append(var_id.strip())
-        self._query["variable_id"] = var
+        self._query["variable_id"] = var[0] if len(var) == 1 else var
         logger.info("Variable ID(s) set to: %s", var)
 
         return self
