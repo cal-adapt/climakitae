@@ -43,12 +43,13 @@ data = (cd
 
 ## Training-Window Data Quality Checks
 
-The midpoint year of `historical_slice` (the training reference window) is checked against a QA sheet for each requested station/variable before anything runs — this is about the quality of the *historical station record used to train the adjustment*, not the output period `time_slice`/`warming_level` requests. The sheet's checks (overall coverage, per-month, diurnal) are each flagged independently per center year; overall-coverage problems are hard errors, per-month/diurnal gaps are warnings that don't block the query. Either way, a failing check comes with its own suggested alternative center year(s) — the nearest year(s) where *that specific check* passes.
+The midpoint year of `historical_slice` (the training reference window) is checked against a QA sheet for each requested station/variable before anything runs — this is about the quality of the *historical station record used to train the adjustment*, not the output period `time_slice`/`warming_level` requests. `total-time-window` is the only row that blocks the query; every other row (`window_missing_nans`, per-month, diurnal) is a non-blocking warning, named as the likely *reason* when `total-time-window` does fail. Either way, a failing row comes with its own suggested alternative center year(s) — the nearest year(s) where *that specific row* passes.
 
 ```python
-# Error: historical_slice=(1980, 2010) centers on 1995, where KSAN's
-# dew_point record has an overall coverage gap, so the query is rejected
-# before any data is fetched -- regardless of the future time_slice.
+# Warning: historical_slice=(1980, 2010) centers on 1995, where KSAN's
+# dew_point record is missing several months plus its overall window
+# ("window_missing_nans"), but total-time-window itself is clear, so the
+# query still runs.
 data = (cd
     .activity_id("WRF")
     .institution_id("UCLA")
@@ -62,9 +63,9 @@ data = (cd
         },
     })
     .get())
-# -> None, with a logged error naming the station/variable/center year, the
-#    failing check, and the nearest year(s) where that check passes (or that
-#    none were found nearby).
+# -> data is returned, with a logged warning naming every flagged row
+#    (window_missing_nans plus the affected months) and each one's own
+#    nearest clear year(s), noting the result may be biased.
 
 # Warning: historical_slice=(2000, 2002) centers on 2001, where KSAN's tas
 # record is missing some summer months, but the query still runs.
@@ -84,6 +85,10 @@ data = (cd
 # -> data is returned, with a logged warning naming the affected month(s),
 #    the nearest year(s) where each is clear, and noting the result may be
 #    biased.
+
+# Today's shipped sheet has total-time-window=0 for every KSAN/year, so no
+# query against it actually blocks -- an error requires a sheet where
+# total-time-window is flagged for the requested center year.
 ```
 
 ## How Bias Adjustment Works

@@ -874,8 +874,8 @@ class TestValidateStationQaHook:
         self, mock_get_metadata, mock_read_csv, mock_catalog, valid_query
     ):
         """Test the real (unmocked) QA check fires through the full
-        validator when historical_slice's center year lands on an
-        error-tier flagged year."""
+        validator when historical_slice's center year lands on a year
+        where total-time-window (the sole blocking check) is flagged."""
         mock_get_metadata.return_value = pd.DataFrame(
             {
                 "network_id": ["ASOSAWOS"],
@@ -894,7 +894,7 @@ class TestValidateStationQaHook:
                 {
                     "source-id": "KBAD",
                     "variable": "tas",
-                    "test": "window_missing_nans",
+                    "test": "total-time-window",
                     2030: 1,
                 },
             ]

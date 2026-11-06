@@ -8,19 +8,18 @@ processor bias-adjusts against -- since that's the historical station record
 whose quality actually matters, independent of whatever future/output period
 `time_slice` or `warming_level` requests.
 
-The sheet's QA tests are split into two severity tiers:
-
-- Error tier (`total-time-window`, `window_missing_nans`): an overall
-  coverage problem severe enough to block the query.
-- Warning tier (everything else -- the twelve `month_NN_nans` tests and the
-  two diurnal tests): logged but non-blocking.
+`total-time-window` is the sole blocking check -- a `1` there means a
+hard error. Every other row (`window_missing_nans`, the twelve
+`month_NN_nans` tests, and the two diurnal tests) is non-blocking: when
+`total-time-window` fails, the other flagged rows are surfaced as the
+*reasons* for that failure; when `total-time-window` passes, any of those
+other rows still flagged are surfaced as warnings instead.
 
 Each row in the sheet is one `(source-id, variable, test)` combination, and
 each year column is a standalone 0/1 flag for *that one test* at that center
-year. So for any failing test (either tier), the suggested alternative year
-is the nearest year where *that specific row* is clear -- not a tier-wide
-"all tests pass" condition. A center year can carry both an error and a
-warning at once if different rows fail independently.
+year. The suggested alternative year is always specific to
+`total-time-window` itself -- the nearest year(s) where *that* row is
+clear -- since that's the row that actually decides pass/fail.
 
 A station/variable/year the sheet doesn't cover at all is treated as
 "unknown", not "failing" -- consistent with the rest of this validator
@@ -54,9 +53,9 @@ logger = logging.getLogger(__name__)
 # Matches BiasAdjustModelToStation's own default historical_slice.
 _DEFAULT_HISTORICAL_SLICE = (1980, 2014)
 
-# Overall-coverage tests block the query outright; every other test name in
-# the sheet (per-month + diurnal) is a warning-only signal.
-_ERROR_TESTS = frozenset({"total-time-window", "window_missing_nans"})
+# The sole blocking check. Every other row in the sheet is informational --
+# a "reason" when this one fails, a plain warning when it doesn't.
+_ERROR_TEST = "total-time-window"
 
 _TEST_LABELS = {
     "total-time-window": "overall time coverage",
@@ -89,8 +88,10 @@ def _load_qa_table() -> dict[tuple[str, str], dict[int, dict[str, bool]]]:
     return table
 
 
-def _year_qa_status(source_id: str, variable: str, year: int) -> tuple[list[str], list[str]]:
-    """Determine which tests a station/variable/year fails, per tier.
+def _year_qa_status(source_id: str, variable: str, year: int) -> tuple[bool, list[str]]:
+    """Determine whether `total-time-window` fails, plus every other
+    flagged row at that same year (used as error "reasons" or as plain
+    warnings, depending on whether `total-time-window` itself failed).
 
     Parameters
     ----------
@@ -103,19 +104,18 @@ def _year_qa_status(source_id: str, variable: str, year: int) -> tuple[list[str]
 
     Returns
     -------
-    tuple[list[str], list[str]]
-        `(error_tests, warning_tests)`: the names of the failing tests in
-        each tier. Both are empty if the sheet doesn't cover this
-        station/variable/year at all, or if nothing failed.
+    tuple[bool, list[str]]
+        `(has_error, other_tests)`: whether `total-time-window` is flagged,
+        and the names of every *other* flagged row at that year. Both are
+        empty/False if the sheet doesn't cover this station/variable/year at
+        all, or if nothing failed.
     """
     flags = _load_qa_table().get((source_id, variable), {}).get(year)
     if flags is None:
-        return [], []
-    error_tests = sorted(t for t in _ERROR_TESTS if flags.get(t, False))
-    warning_tests = sorted(
-        t for t, failed in flags.items() if failed and t not in _ERROR_TESTS
-    )
-    return error_tests, warning_tests
+        return False, []
+    has_error = flags.get(_ERROR_TEST, False)
+    other_tests = sorted(t for t, failed in flags.items() if failed and t != _ERROR_TEST)
+    return has_error, other_tests
 
 
 def _nearest_passing_years(source_id: str, variable: str, test: str, year: int) -> list[int]:
@@ -233,11 +233,12 @@ def validate_station_qa_for_requested_years(query: dict[str, Any]) -> bool:
     Returns
     -------
     bool
-        False if any station/variable fails an error-tier QA test at the
-        center year (logged via `logger.error`, with a suggested
-        alternative year). True otherwise -- including when only
-        warning-tier tests fail (logged via `logger.warning`, but the query
-        still proceeds).
+        False if any station/variable fails `total-time-window` at the
+        center year (logged via `logger.error`, naming the other flagged
+        rows as the reason and suggesting the nearest year(s) where
+        `total-time-window` itself is clear). True otherwise -- including
+        when other rows are flagged but `total-time-window` passes (logged
+        via `logger.warning`, but the query still proceeds).
     """
     bias_params = query.get(PROC_KEY, {}).get("bias_adjust_model_to_station")
     if not bias_params:
@@ -279,27 +280,36 @@ def validate_station_qa_for_requested_years(query: dict[str, Any]) -> bool:
     has_any_error = False
     for source_id in sorted(source_ids):
         for hdp_variable in sorted(hdp_variables):
-            error_tests, warn_tests = _year_qa_status(source_id, hdp_variable, year)
-            if error_tests:
+            has_error, other_tests = _year_qa_status(source_id, hdp_variable, year)
+            if has_error:
                 has_any_error = True
-                hints = "; ".join(
-                    _format_test_hint(source_id, hdp_variable, t, year)
-                    for t in error_tests
+                reasons = (
+                    ", ".join(_describe_test(t) for t in other_tests)
+                    if other_tests
+                    else "no other checks are flagged for this year"
+                )
+                nearby = _nearest_passing_years(source_id, hdp_variable, _ERROR_TEST, year)
+                suggestion = (
+                    f"Closest usable year(s): {' or '.join(map(str, nearby))}."
+                    if nearby
+                    else "No usable year was found nearby in the QA sheet "
+                    "for this station/variable."
                 )
                 logger.error(
                     "error: too much missing data overall for station "
                     "'%s', variable '%s', center year %d (historical_slice="
-                    "%s): %s.",
+                    "%s). Related issues: %s. %s",
                     source_id,
                     hdp_variable,
                     year,
                     historical_slice,
-                    hints,
+                    reasons,
+                    suggestion,
                 )
-            if warn_tests:
+            elif other_tests:
                 hints = "; ".join(
                     _format_test_hint(source_id, hdp_variable, t, year)
-                    for t in warn_tests
+                    for t in other_tests
                 )
                 logger.warning(
                     "warning: station '%s' variable '%s' center year %d "

@@ -28,8 +28,9 @@ def _synthetic_qa_df() -> pd.DataFrame:
     """A small synthetic QA sheet, independent of the real shipped sheet.
 
     - 2000: everything clean.
-    - 2001: a warning-tier test fails (month_01_nans).
-    - 2002: an error-tier test fails (total-time-window).
+    - 2001: a non-blocking row fails (month_01_nans), total-time-window clear.
+    - 2002: total-time-window (the sole blocking check) fails, with no other
+      row flagged at that year.
     """
     return pd.DataFrame(
         [
@@ -41,12 +42,26 @@ def _synthetic_qa_df() -> pd.DataFrame:
     )
 
 
-def _all_error_qa_df() -> pd.DataFrame:
-    """A sheet where every year fails the error tier -- no clean year at all."""
+def _error_with_reasons_qa_df() -> pd.DataFrame:
+    """total-time-window fails at 2002, alongside window_missing_nans and
+    month_01_nans -- exercises the "reasons" list in the error message."""
     return pd.DataFrame(
         [
+            {"source-id": "KTES", "variable": "tas", "test": "total-time-window", 2000: 0, 2001: 0, 2002: 1},
+            {"source-id": "KTES", "variable": "tas", "test": "window_missing_nans", 2000: 0, 2001: 0, 2002: 1},
+            {"source-id": "KTES", "variable": "tas", "test": "month_01_nans", 2000: 0, 2001: 0, 2002: 1},
+            {"source-id": "KTES", "variable": "tas", "test": "diurnal_day_nans", 2000: 0, 2001: 0, 2002: 0},
+        ]
+    )
+
+
+def _all_error_qa_df() -> pd.DataFrame:
+    """A sheet where total-time-window fails every year -- no passing year
+    at all for the sole blocking check."""
+    return pd.DataFrame(
+        [
+            {"source-id": "KBAD", "variable": "tdps", "test": "total-time-window", 2000: 1, 2001: 1, 2002: 1},
             {"source-id": "KBAD", "variable": "tdps", "test": "window_missing_nans", 2000: 1, 2001: 1, 2002: 1},
-            {"source-id": "KBAD", "variable": "tdps", "test": "total-time-window", 2000: 0, 2001: 0, 2002: 0},
         ]
     )
 
@@ -77,26 +92,33 @@ class TestYearQaStatus:
     @patch(f"{MODULE}.read_csv_file")
     def test_clean_year(self, mock_read_csv):
         mock_read_csv.return_value = _synthetic_qa_df()
-        assert _year_qa_status("KTES", "tas", 2000) == ([], [])
+        assert _year_qa_status("KTES", "tas", 2000) == (False, [])
 
     @patch(f"{MODULE}.read_csv_file")
-    def test_warning_tier_only(self, mock_read_csv):
+    def test_other_row_flagged_total_time_window_clear(self, mock_read_csv):
         mock_read_csv.return_value = _synthetic_qa_df()
-        assert _year_qa_status("KTES", "tas", 2001) == ([], ["month_01_nans"])
+        assert _year_qa_status("KTES", "tas", 2001) == (False, ["month_01_nans"])
 
     @patch(f"{MODULE}.read_csv_file")
-    def test_error_tier(self, mock_read_csv):
+    def test_total_time_window_fails_alone(self, mock_read_csv):
         mock_read_csv.return_value = _synthetic_qa_df()
-        error_tests, warn_tests = _year_qa_status("KTES", "tas", 2002)
-        assert error_tests == ["total-time-window"]
-        assert warn_tests == []
+        has_error, other_tests = _year_qa_status("KTES", "tas", 2002)
+        assert has_error is True
+        assert other_tests == []
+
+    @patch(f"{MODULE}.read_csv_file")
+    def test_total_time_window_fails_with_reasons(self, mock_read_csv):
+        mock_read_csv.return_value = _error_with_reasons_qa_df()
+        has_error, other_tests = _year_qa_status("KTES", "tas", 2002)
+        assert has_error is True
+        assert other_tests == ["month_01_nans", "window_missing_nans"]
 
     @patch(f"{MODULE}.read_csv_file")
     def test_unknown_station_variable_year_passes(self, mock_read_csv):
         mock_read_csv.return_value = _synthetic_qa_df()
-        assert _year_qa_status("KUNKNOWN", "tas", 2000) == ([], [])
-        assert _year_qa_status("KTES", "tas", 1999) == ([], [])
-        assert _year_qa_status("KTES", "tdps", 2000) == ([], [])
+        assert _year_qa_status("KUNKNOWN", "tas", 2000) == (False, [])
+        assert _year_qa_status("KTES", "tas", 1999) == (False, [])
+        assert _year_qa_status("KTES", "tdps", 2000) == (False, [])
 
 
 class TestNearestPassingYears:
@@ -205,31 +227,57 @@ class TestValidateStationQaForRequestedYears:
 
     @patch(f"{MODULE}.read_csv_file")
     @patch(f"{MODULE}.DataCatalog")
-    def test_error_tier_blocks_with_message(
+    def test_error_blocks_with_no_other_reasons(
         self, mock_catalog, mock_read_csv, legacy_stations_df
     ):
         mock_catalog.return_value.__getitem__.return_value = legacy_stations_df
         mock_read_csv.return_value = _synthetic_qa_df()
-        # center year = (2001 + 2003) // 2 = 2002, which fails the error tier
-        # (total-time-window); nearest clear year for that row is 2001.
+        # center year = (2001 + 2003) // 2 = 2002: total-time-window fails
+        # alone, nothing else flagged; nearest clear year for it is 2001.
         query = self._query("t2", historical_slice=(2001, 2003))
-        with pytest.warns(UserWarning, match=r"overall time coverage \(nearest clear year\(s\): 2001\)"):
+        with pytest.warns(
+            UserWarning,
+            match=r"Related issues: no other checks are flagged for this year\. "
+            r"Closest usable year\(s\): 2001\.",
+        ):
             result = validate_station_qa_for_requested_years(query)
         assert result is False
 
     @patch(f"{MODULE}.read_csv_file")
     @patch(f"{MODULE}.DataCatalog")
-    def test_error_tier_with_no_nearby_year(
+    def test_error_blocks_with_reasons_from_other_rows(
+        self, mock_catalog, mock_read_csv, legacy_stations_df
+    ):
+        mock_catalog.return_value.__getitem__.return_value = legacy_stations_df
+        mock_read_csv.return_value = _error_with_reasons_qa_df()
+        # center year = 2002: total-time-window fails alongside
+        # window_missing_nans and month_01_nans, which should be named as
+        # the reasons; nearest clear year for total-time-window is 2001.
+        query = self._query("t2", historical_slice=(2001, 2003))
+        with pytest.warns(
+            UserWarning,
+            match=r"Related issues: January, overall missing-data window\. "
+            r"Closest usable year\(s\): 2001\.",
+        ):
+            result = validate_station_qa_for_requested_years(query)
+        assert result is False
+
+    @patch(f"{MODULE}.read_csv_file")
+    @patch(f"{MODULE}.DataCatalog")
+    def test_error_with_no_nearby_year(
         self, mock_catalog, mock_read_csv, legacy_stations_df
     ):
         mock_catalog.return_value.__getitem__.return_value = legacy_stations_df
         mock_read_csv.return_value = _all_error_qa_df()
-        # center year = (2000 + 2002) // 2 = 2001; window_missing_nans fails
-        # every year in this sheet, so no nearby year clears that row.
+        # center year = (2000 + 2002) // 2 = 2001; total-time-window fails
+        # every year in this sheet, so no nearby year clears it.
         query = self._query(
             "dew_point", historical_slice=(2000, 2002), stations=("KBAD",)
         )
-        with pytest.warns(UserWarning, match="no nearby year is clear of this"):
+        with pytest.warns(
+            UserWarning,
+            match="No usable year was found nearby in the QA sheet",
+        ):
             result = validate_station_qa_for_requested_years(query)
         assert result is False
 
