@@ -288,9 +288,13 @@ class TestDescribeTest:
         assert _describe_test("month_07_nans") == "July"
 
     def test_diurnal_test(self):
-        """Test _describe_test converts the two diurnal test names."""
+        """Test _describe_test converts the diurnal test names, including
+        the winter-specific variant."""
         assert _describe_test("diurnal_day_nans") == "daytime coverage"
         assert _describe_test("diurnal_night_nans") == "nighttime coverage"
+        assert (
+            _describe_test("diurnal_night_winter_nans") == "winter nighttime coverage"
+        )
 
     def test_error_tier_test(self):
         """Test _describe_test converts the two blocking/overall-coverage

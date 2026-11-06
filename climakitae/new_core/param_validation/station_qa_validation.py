@@ -54,6 +54,7 @@ _TEST_LABELS = {
     "window_missing_nans": "overall missing-data window",
     "diurnal_day_nans": "daytime coverage",
     "diurnal_night_nans": "nighttime coverage",
+    "diurnal_night_winter_nans": "winter nighttime coverage",
 }
 
 # Rows whose name ends in "_nans" are missing-value checks and get grouped
