@@ -8,6 +8,8 @@ that validates data catalog parameters for CADCAT catalog.
 import warnings
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.cadcat_param_validator import DataValidator
 
@@ -53,6 +55,34 @@ class TestDataValidator:
         assert self.validator.all_catalog_keys == expected_keys
         assert self.validator.catalog == self.mock_catalog.data
 
+    @pytest.mark.parametrize(
+        "sources",
+        ["FGOALS-g3", ["MIROC6", "FGOALS-g3"], ("CESM2", "CNRM-ESM2-1")],
+    )
+    @pytest.mark.parametrize("processes", [{}, {"filter_unadjusted_models": "yes"}])
+    def test_explicit_unadjusted_sources_reject_query(self, sources, processes):
+        """Reject explicit unadjusted selections instead of returning a subset."""
+        query = {
+            "activity_id": "WRF",
+            "institution_id": "UCLA",
+            "source_id": sources,
+            "table_id": "1hr",
+            "grid_label": "d03",
+            "variable_id": "t2",
+            "processes": processes,
+        }
+        with patch(
+            "climakitae.new_core.param_validation.cadcat_param_validator.logger"
+        ) as logger:
+            result = self.validator.is_valid_query(query)
+
+        assert result is None
+        warning = logger.warning.call_args_list[0]
+        assert ".processes({'filter_unadjusted_models': 'no'})" in warning.args[0]
+        expected = [sources] if isinstance(sources, str) else list(sources)
+        assert warning.args[1] == [source for source in expected if source != "MIROC6"]
+        self.mock_catalog.data.search.assert_not_called()
+
     def test_is_valid_query_with_localize_check_failure(self):
         """Test is_valid_query when initial checks fail.
 
@@ -75,6 +105,30 @@ class TestDataValidator:
             assert "Localize processor is not supported for LOCA2 datasets" in str(
                 w[0].message
             )
+
+    @pytest.mark.parametrize(
+        "selection",
+        [
+            {
+                "source_id": ["MIROC6", "FGOALS-g3"],
+                "processes": {"filter_unadjusted_models": "no"},
+            },
+            {"source_id": "MIROC6"},
+            {},
+            {"activity_id": "LOCA2", "source_id": "FGOALS-g3"},
+            {"source_id": "ERA5"},
+        ],
+    )
+    def test_explicit_source_filter_compatible_queries(self, selection):
+        """Preserve opt-out, corrected, unspecified, LOCA2 and reanalysis queries."""
+        query = {"activity_id": "WRF", **selection}
+        with patch(
+            "climakitae.new_core.param_validation.cadcat_param_validator.logger"
+        ) as logger:
+            result = self.validator._check_explicit_unadjusted_sources(query)
+
+        assert result is True
+        logger.warning.assert_not_called()
 
     def test_check_query_for_wrf_and_localize_valid_no_localize(self):
         """Test _check_query_for_wrf_and_localize with no localize processor.
