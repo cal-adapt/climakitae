@@ -943,6 +943,42 @@ class TestExportSingle:
         assert precip_rows["tasmax_percentile"].isna().all()
         assert temp_rows["pr_percentile"].isna().all()
 
+    def test_multi_variable_csv_preserves_separated_location_filenames(self, tmp_path):
+        """Keep location-based filenames when long-format output splits points."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("closest_cell", "time"), [[1.0], [2.0]]),
+                "pr": (("closest_cell", "time"), [[3.0], [4.0]]),
+            },
+            coords={
+                "time": [0],
+                "closest_cell": [0, 1],
+                "target_lats": ("closest_cell", [34.05, 37.77]),
+                "target_lons": ("closest_cell", [-118.25, -122.42]),
+            },
+        )
+        processor = Export(
+            {
+                "filename": "points",
+                "file_format": "CSV",
+                "separated": True,
+                "location_based_naming": True,
+            }
+        )
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.chdir(tmp_path)
+            processor.execute(data, context={"variable_id": ["tasmax", "pr"]})
+
+        output_files = sorted(path.name for path in tmp_path.glob("points_*.csv.gz"))
+        assert output_files == [
+            "points_34-05N_118-25W.csv.gz",
+            "points_37-77N_122-42W.csv.gz",
+        ]
+        for filename in output_files:
+            exported = pd.read_csv(tmp_path / filename)
+            assert exported["variable"].tolist() == ["tasmax", "pr"]
+
     @patch("os.path.exists", return_value=True)
     @patch("climakitae.new_core.processors.export._export_to_netcdf")
     def test_export_single_skip_existing(self, mock_export, mock_exists):
