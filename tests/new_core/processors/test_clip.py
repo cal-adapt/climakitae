@@ -3156,6 +3156,35 @@ class TestClipStationExecute:
     @patch(
         "climakitae.new_core.processors.clip.is_station_identifier", return_value=True
     )
+    def test_execute_multivariable_station_uses_common_cell(self, mock_is_station):
+        """Test station-coordinate clipping keeps the same cell for every field."""
+        dataset = self.sample_dataset.copy()
+        dataset["pr"] = xr.full_like(dataset["tas"], 5.0)
+        dataset["tas"][:, 2, 1] = np.nan
+        clip = Clip("KSAC")
+        clip.set_data_accessor(MagicMock())
+        station_info = {
+            "station_id": "KSAC",
+            "station_name": "Sacramento Executive Airport",
+            "city": "Sacramento",
+            "state": "CA",
+        }
+
+        with patch.object(
+            clip,
+            "_get_station_coordinates",
+            return_value=(37.0, -121.5, station_info),
+        ):
+            result = clip.execute(dataset, context={})
+
+        assert result.lat.item() == 37.0
+        assert result.lon.item() == -122.25
+        assert result["tas"].isnull().all()
+        assert result["pr"].values.tolist() == [5.0] * 10
+
+    @patch(
+        "climakitae.new_core.processors.clip.is_station_identifier", return_value=True
+    )
     def test_execute_single_station_error_handling(self, mock_is_station):
         """Test execute handles station coordinate lookup failure."""
         clip = Clip("INVALID_STATION")
