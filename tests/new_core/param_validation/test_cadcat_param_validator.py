@@ -257,6 +257,30 @@ class TestDataValidator:
         assert "table_id=day" in caplog.text
         assert "grid_label=d03" in caplog.text
 
+    def test_is_valid_query_rejects_variables_missing_under_constraints(self, caplog):
+        """Reject a field that exists only at a different temporal resolution."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["LOCA2", "LOCA2"],
+                "table_id": ["day", "mon"],
+                "grid_label": ["d03", "d03"],
+                "variable_id": ["tasmax", "pr"],
+            }
+        )
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 1)
+        query = {
+            "activity_id": "LOCA2",
+            "table_id": "day",
+            "grid_label": "d03",
+            "variable_id": ["tasmax", "pr"],
+        }
+
+        result = self.validator.is_valid_query(query)
+
+        assert result is None
+        assert "pr" in caplog.text
+        assert "table_id=day" in caplog.text
+
     def test_is_valid_query_plans_shared_derived_dependencies(self):
         """Plan unique catalog fields for multiple derived requests."""
         self.validator.catalog.df = pd.DataFrame(
