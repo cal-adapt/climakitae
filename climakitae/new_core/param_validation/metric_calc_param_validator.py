@@ -20,9 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @register_processor_validator("metric_calc")
-def validate_metric_calc_param(
-    value: dict[str, Any], **kwargs: Any
-) -> bool:  # noqa: ARG001
+def validate_metric_calc_param(value: dict[str, Any], **kwargs: Any) -> bool:
     """
     Validate the parameters provided to the MetricCalc Processor.
 
@@ -41,6 +39,9 @@ def validate_metric_calc_param(
         - dim (str or list, optional): Dimension(s) along which to calculate the metric/percentiles.
           Default: "time"
         - skipna (bool, optional): Whether to skip NaN values in calculations. Default: True
+        - by_variable (dict, optional): Basic metric settings keyed by selected
+          variable name, overriding shared settings.
+        - thresholds, one_in_x: Not supported for multi-variable queries.
 
     Returns
     -------
@@ -94,12 +95,24 @@ def validate_metric_calc_param(
             )
             return False
 
+        invalid_targets = [
+            target
+            for target in by_variable
+            if not isinstance(target, str) or not target.strip()
+        ]
+        if invalid_targets:
+            logger.warning(
+                "\n\n'by_variable' keys must be non-empty variable names: %s.",
+                sorted(invalid_targets, key=str),
+            )
+            return False
+
         if selected_variables is not None:
             unknown_targets = set(by_variable) - set(selected_variables)
             if unknown_targets:
                 logger.warning(
                     "\n\n'by_variable' targets are not selected variables: %s.",
-                    sorted(unknown_targets),
+                    sorted(unknown_targets, key=str),
                 )
                 return False
 
@@ -120,6 +133,16 @@ def validate_metric_calc_param(
             if not isinstance(variable_config, Mapping):
                 logger.warning(
                     "\n\nMetricCalc configuration for variable '%s' must be a mapping.",
+                    variable_name,
+                )
+                return False
+
+            invalid_settings = [
+                setting for setting in variable_config if not isinstance(setting, str)
+            ]
+            if invalid_settings:
+                logger.warning(
+                    "\n\nMetricCalc setting names for variable '%s' must be strings.",
                     variable_name,
                 )
                 return False

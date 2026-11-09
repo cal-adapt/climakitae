@@ -269,6 +269,17 @@ class TestValidateMetricCalcParam:
         assert result is False
         assert "'by_variable' targets are not selected variables" in caplog.text
 
+    def test_non_string_by_variable_target_is_rejected(self, caplog):
+        """Return a validation failure for non-string variable names."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {"by_variable": {"tasmax": {}, 1: {}}},
+                query={"variable_id": ["pr"]},
+            )
+
+        assert result is False
+        assert "'by_variable' keys must be non-empty variable names" in caplog.text
+
     @pytest.mark.parametrize(
         "mode, config",
         [
