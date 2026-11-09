@@ -420,6 +420,30 @@ def test_hdp_field_selection_excludes_incomplete_stations_with_diagnostics(tmp_p
     }
 
 
+def test_hdp_single_field_selection_preserves_station_compatibility(tmp_path):
+    """Test explicit single-field HDP queries still return per-station datasets."""
+    from climakitae.new_core.data_access.data_access import CATALOG_HDP, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_HDP] = _make_local_hdp_catalog(tmp_path)
+    query = {
+        "network_id": "ASOSAWOS",
+        "variable_id": "tas",
+        "_hdp_variable_query": True,
+        "_hdp_requested_fields": ["tas"],
+    }
+
+    result = data_catalog.get_data(query, catalog_key=CATALOG_HDP)
+
+    assert len(result) == 2
+    assert all(list(dataset.data_vars) == ["tas"] for dataset in result.values())
+    assert {dataset.station_id.item() for dataset in result.values()} == {
+        "station-1",
+        "station-2",
+    }
+
+
 def test_hdp_station_without_shared_timestamps_fails_entire_query(tmp_path):
     """Test a disjoint complete station fails despite another aligned station."""
     from climakitae.new_core.data_access.data_access import CATALOG_HDP, DataCatalog
