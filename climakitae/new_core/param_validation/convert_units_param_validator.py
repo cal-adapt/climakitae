@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
-from typing import Any, Iterable
+from typing import Any
 
 from climakitae.core.constants import UNIT_OPTIONS, UNSET
 from climakitae.new_core.param_validation.abc_param_validation import (
@@ -24,7 +24,7 @@ for unit_list in UNIT_OPTIONS.values():
 
 @register_processor_validator("convert_units")
 def validate_convert_units_param(
-    value: str | Mapping[str, str] | Iterable[str],
+    value: Any,
     **kwargs: Any,
 ) -> bool:
     """
@@ -36,8 +36,8 @@ def validate_convert_units_param(
 
     Parameters
     ----------
-    value : str | Iterable[str]
-        The unit(s) to convert to. Can be a single unit string or an iterable of unit strings.
+    value : str or mapping
+        A shared target unit, or ``{"by_variable": {variable_id: unit}}``.
         Valid units include temperature units (K, degC, degF), pressure units (Pa, hPa, mb, inHg),
         wind units (m/s, m s-1, mph, knots), precipitation units (mm, mm/d, mm/h, inches, inches/d, inches/h),
         moisture units (kg/kg, kg kg-1, g/kg, g kg-1), flux units (kg m-2 s-1), and relative humidity
@@ -64,14 +64,14 @@ def validate_convert_units_param(
     return True
 
 
-def _check_input_types(value: str | Mapping[str, str] | Iterable[str]) -> bool:
+def _check_input_types(value: Any) -> bool:
     """
     Check if the input value has the correct type.
 
     Parameters
     ----------
-    value : str | Iterable[str]
-        The value to check.
+    value : Any
+        The shared unit string or per-variable unit mapping to check.
 
     Returns
     -------
@@ -109,14 +109,14 @@ def _check_input_types(value: str | Mapping[str, str] | Iterable[str]) -> bool:
     return False
 
 
-def _check_unit_validity(value: str | Mapping[str, str] | Iterable[str]) -> bool:
+def _check_unit_validity(value: Any) -> bool:
     """
     Check if the provided unit(s) are supported.
 
     Parameters
     ----------
-    value : str | Iterable[str]
-        The unit(s) to validate.
+    value : Any
+        The unit target or targets to validate.
 
     Returns
     -------

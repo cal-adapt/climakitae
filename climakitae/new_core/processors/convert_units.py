@@ -123,7 +123,7 @@ class ConvertUnits(DataProcessor):
         Update the context with information about the unit conversion operation.
     set_data_accessor(catalog: DataCatalog)
         Set the data accessor for the processor.
-    _convert_units(data: Union[xr.Dataset, xr.DataArray], value: str | Iterable[str])
+    _convert_units(data: Union[xr.Dataset, xr.DataArray], value: str | Mapping)
         Convert the units of the data based on the specified value.
     """
 
@@ -151,6 +151,27 @@ class ConvertUnits(DataProcessor):
         ],
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        """Convert selected measurement fields and preserve container shape.
+
+        Parameters
+        ----------
+        result : xr.Dataset, xr.DataArray, dict, list, or tuple
+            Data returned by retrieval or an earlier processor.
+        context : dict
+            Query context, including selected variable IDs when available.
+
+        Returns
+        -------
+        xr.Dataset, xr.DataArray, dict, list, or tuple
+            Converted data in the same container shape. Invalid or incompatible
+            conversion requests return the original result with a warning.
+
+        Notes
+        -----
+        A string applies one target unit to all selected, unit-bearing climate
+        fields. A ``{"by_variable": {name: unit}}`` mapping targets only its
+        named fields. All conversions are validated before any field is changed.
+        """
         logger.debug(
             "ConvertUnits.execute called with target_units=%s, result_type=%s",
             self.value,
