@@ -453,6 +453,24 @@ def test_hdp_field_selection_excludes_incomplete_stations_with_diagnostics(tmp_p
     }
 
 
+def test_hdp_selection_fails_when_no_station_has_requested_fields(tmp_path):
+    """Test HDP selection fails with diagnostics when all stations are incomplete."""
+    from climakitae.new_core.data_access.data_access import CATALOG_HDP, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_HDP] = _make_local_hdp_catalog(tmp_path)
+    query = {
+        "network_id": "ASOSAWOS",
+        "variable_id": "missing_field",
+        "_hdp_variable_query": True,
+        "_hdp_requested_fields": ["missing_field"],
+    }
+
+    with pytest.raises(ValueError, match="No HDP stations contain all requested"):
+        data_catalog.get_data(query, catalog_key=CATALOG_HDP)
+
+
 def test_hdp_single_field_selection_preserves_station_compatibility(tmp_path):
     """Test explicit single-field HDP queries still return per-station datasets."""
     from climakitae.new_core.data_access.data_access import CATALOG_HDP, DataCatalog
