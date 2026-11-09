@@ -379,6 +379,19 @@ def test_hdp_station_assets_contain_observation_fields_not_variable_rows(tmp_pat
     }
 
 
+def test_hdp_observation_fields_are_discovered_from_station_assets(tmp_path):
+    """Test HDP option discovery returns time-varying fields from station assets."""
+    from climakitae.new_core.data_access.data_access import CATALOG_HDP, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_HDP] = _make_local_hdp_catalog(tmp_path)
+
+    fields = data_catalog.get_hdp_observation_fields({"network_id": "ASOSAWOS"})
+
+    assert fields == ["pr", "tas"]
+
+
 def test_hdp_field_selection_excludes_incomplete_stations_with_diagnostics(tmp_path):
     """Test HDP returns complete station fields and records excluded stations."""
     from climakitae.new_core.data_access.data_access import CATALOG_HDP, DataCatalog
