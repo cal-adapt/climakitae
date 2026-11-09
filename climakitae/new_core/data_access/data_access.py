@@ -941,8 +941,7 @@ class DataCatalog(dict):
                 "HDP field selection requires at least one requested field."
             )
 
-        diagnostics = {"stations": {}}
-        selected_datasets = {}
+        station_assets = {}
         for dataset_key, dataset in datasets.items():
             station_id = dataset.attrs.get("intake_esm_attrs:station_id")
             if station_id is None and "station" in dataset.coords:
@@ -957,12 +956,27 @@ class DataCatalog(dict):
                     f"metadata in dataset {dataset_key!r}."
                 )
             station_id = str(station_id)
+            station_assets.setdefault(station_id, []).append((dataset_key, dataset))
 
-            missing_fields = [
-                field
-                for field in requested_fields
-                if field not in dataset.data_vars or "time" not in dataset[field].dims
-            ]
+        diagnostics = {"stations": {}}
+        selected_datasets = {}
+        for station_id, assets in station_assets.items():
+            field_datasets = {}
+            missing_fields = []
+            for field in requested_fields:
+                field_sources = [
+                    dataset[[field]]
+                    for _, dataset in assets
+                    if field in dataset.data_vars and "time" in dataset[field].dims
+                ]
+                if not field_sources:
+                    missing_fields.append(field)
+                elif len(field_sources) == 1:
+                    field_datasets[field] = field_sources[0]
+                else:
+                    field_datasets[field] = xr.concat(field_sources, dim="time").sortby(
+                        "time"
+                    )
             if missing_fields:
                 logger.warning(
                     "Excluding HDP station %s: missing requested observation fields %s.",
@@ -975,10 +989,10 @@ class DataCatalog(dict):
                 }
                 continue
 
-            common_times = dataset[requested_fields[0]]["time"].values
+            common_times = field_datasets[requested_fields[0]]["time"].values
             for field in requested_fields[1:]:
                 common_times = np.intersect1d(
-                    common_times, dataset[field]["time"].values
+                    common_times, field_datasets[field]["time"].values
                 )
             if not len(common_times):
                 raise ValueError(
@@ -987,7 +1001,9 @@ class DataCatalog(dict):
                 )
 
             trimmed_counts = {
-                field: int(dataset[field].sizes["time"] - len(common_times))
+                field: int(
+                    field_datasets[field][field].sizes["time"] - len(common_times)
+                )
                 for field in requested_fields
             }
             if any(trimmed_counts.values()):
@@ -1002,9 +1018,25 @@ class DataCatalog(dict):
                 "common_timestamp_count": int(len(common_times)),
                 "trimmed_timestamp_counts": trimmed_counts,
             }
-            selected_datasets[dataset_key] = dataset[requested_fields].sel(
-                time=common_times
-            )
+            aligned_fields = [
+                field_datasets[field].sel(time=common_times)
+                for field in requested_fields
+            ]
+            try:
+                assembled = xr.merge(
+                    aligned_fields,
+                    join="exact",
+                    compat="equals",
+                    combine_attrs="override",
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    f"HDP station {station_id!r} has incompatible coordinates "
+                    "across requested fields."
+                ) from exc
+            assembled.attrs = dict(assets[0][1].attrs)
+            dataset_key = assets[0][0]
+            selected_datasets[dataset_key] = assembled[requested_fields]
 
         if not selected_datasets:
             raise ValueError(
@@ -1015,7 +1047,7 @@ class DataCatalog(dict):
         diagnostics_json = json.dumps(diagnostics)
         for dataset_key, dataset in selected_datasets.items():
             dataset.attrs = {
-                **datasets[dataset_key].attrs,
+                **dataset.attrs,
                 "multi_variable_diagnostics": diagnostics_json,
             }
         return selected_datasets

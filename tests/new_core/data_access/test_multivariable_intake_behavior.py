@@ -407,6 +407,39 @@ def test_hdp_field_selection_excludes_incomplete_stations_with_diagnostics(tmp_p
     }
 
 
+def test_hdp_station_without_shared_timestamps_fails_entire_query(tmp_path):
+    """Test a disjoint complete station fails despite another aligned station."""
+    from climakitae.new_core.data_access.data_access import CATALOG_HDP, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    early_times = pd.to_datetime(["2000-01-01", "2000-01-02"])
+    late_times = pd.to_datetime(["2000-01-03", "2000-01-04"])
+
+    def station_field(station_id, field, times, values):
+        return xr.Dataset(
+            {field: (("station", "time"), [values])},
+            coords={"station": [station_id], "time": times},
+            attrs={"intake_esm_attrs:station_id": station_id},
+        )
+
+    assets = {
+        "station-1-tas": station_field("station-1", "tas", early_times, [280.0, 281.0]),
+        "station-1-pr": station_field("station-1", "pr", late_times, [0.0, 1.0]),
+        "station-2-tas": station_field("station-2", "tas", early_times, [282.0, 283.0]),
+        "station-2-pr": station_field("station-2", "pr", early_times, [2.0, 3.0]),
+    }
+    query = {
+        "network_id": "ASOSAWOS",
+        "variable_id": ["tas", "pr"],
+        "_hdp_variable_query": True,
+        "_hdp_requested_fields": ["tas", "pr"],
+    }
+
+    with pytest.raises(ValueError, match="no timestamps shared"):
+        data_catalog._assemble_hdp_station_fields(assets, query)
+
+
 def test_catalog_keeps_historical_and_ssp_assets_in_separate_groups(tmp_path):
     """Test experiment grouping keeps historical and SSP assets separate."""
     catalog = _make_local_catalog(tmp_path, include_ssp=True).search(
