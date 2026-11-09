@@ -391,6 +391,22 @@ class TestMultiVariableMetricCalc:
         assert isinstance(result["tasmax_percentiles"].data, da.Array)
         assert isinstance(result["pr"].data, da.Array)
 
+    def test_percentile_output_name_collision_is_rejected(self):
+        """Do not overwrite an existing variable with a generated percentile name."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("time",), [1.0, 2.0]),
+                "pr": (("time",), [3.0, 4.0]),
+                "tasmax_percentiles": (("time",), [5.0, 6.0]),
+            }
+        )
+        processor = MetricCalc(
+            {"by_variable": {"tasmax": {"percentiles": [50], "percentiles_only": True}}}
+        )
+
+        with pytest.raises(ValueError, match="would overwrite an input variable"):
+            processor._calculate_metrics_single(data)
+
     def test_percentiles_use_independent_variable_dimensions(self):
         """Test multi-variable percentiles retain each variable's requested levels."""
         data = xr.Dataset(
