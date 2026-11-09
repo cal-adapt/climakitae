@@ -197,6 +197,39 @@ class TestMultiVariableProcessorCompatibility:
         assert result is None
         validator.catalog.search.assert_not_called()
 
+    @patch("climakitae.new_core.param_validation.abc_param_validation.DataCatalog")
+    def test_single_variable_threshold_mode_remains_supported(self, mock_data_catalog):
+        """Test the multi-variable gate leaves single-variable metric modes intact."""
+        catalog_df = pd.DataFrame({"variable_id": ["tasmax"], "activity_id": ["WRF"]})
+        mock_catalog_instance = MagicMock()
+        mock_catalog_instance.catalog_df = catalog_df
+        mock_data_catalog.return_value = mock_catalog_instance
+        validator = ConcreteValidator()
+        validator.catalog = MagicMock()
+        validator.catalog.df = catalog_df
+        search_result = MagicMock()
+        search_result.__len__.return_value = 1
+        validator.catalog.search.return_value = search_result
+        validator.all_catalog_keys = {"variable_id": UNSET}
+        validator._has_valid_processes = MagicMock(return_value=True)
+
+        result = validator.is_valid_query(
+            {
+                "variable_id": "tasmax",
+                "processes": {
+                    "metric_calc": {
+                        "thresholds": {
+                            "threshold_value": 305,
+                            "threshold_direction": "above",
+                        }
+                    }
+                },
+            }
+        )
+
+        assert result is not None
+        validator.catalog.search.assert_called_once_with(variable_id="tasmax")
+
 
 class TestParameterValidatorInit:
     """Test class for ParameterValidator initialization."""
