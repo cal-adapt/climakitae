@@ -357,6 +357,19 @@ class TestConvertUnitsExecute:
         assert result["pr"].attrs["units"] == "mm/d"
         assert "_new_attrs" not in context
 
+    def test_execute_unknown_variable_target_is_atomic(self, sample_dataset):
+        """Test unknown variable targets leave the input dataset unchanged."""
+        processor = ConvertUnits({"by_variable": {"unknown": "K"}})
+
+        with pytest.warns(UserWarning, match="not present in the data"):
+            result = processor.execute(sample_dataset, context={})
+
+        assert result is sample_dataset
+        assert processor.success is False
+        np.testing.assert_array_equal(
+            result["temperature"].values, sample_dataset["temperature"].values
+        )
+
 
 class TestHelperConversionFunctions:
     """Tests for helper conversion functions within ConvertUnits processor."""
