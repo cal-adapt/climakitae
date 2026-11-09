@@ -308,6 +308,32 @@ class TestConvertUnitsExecute:
         assert result["tasmax"].attrs["units"] == "degC"
         assert result["tasmin"].attrs["units"] == "degC"
 
+    def test_execute_by_variable_preserves_omitted_and_crs_variables(self):
+        """Test targeted conversion leaves omitted measurements and CRS fields intact."""
+        dataset = xr.Dataset(
+            {
+                "tasmax": ("time", [300.0]),
+                "pr": ("time", [2.0]),
+                "spatial_ref": xr.DataArray(0, attrs={"grid_mapping_name": "crs"}),
+            },
+            coords={"time": pd.date_range("2020-01-01", periods=1)},
+        )
+        dataset["tasmax"].attrs.update({"units": "K", "grid_mapping": "spatial_ref"})
+        dataset["pr"].attrs["units"] = "mm/d"
+        dataset["spatial_ref"].attrs["units"] = "K"
+
+        result = ConvertUnits({"by_variable": {"tasmax": "degC"}}).execute(
+            dataset,
+            context={"variable_id": ["tasmax", "pr"]},
+        )
+
+        np.testing.assert_allclose(result["tasmax"].values, [26.85])
+        np.testing.assert_array_equal(result["pr"].values, [2.0])
+        assert result["tasmax"].attrs["units"] == "degC"
+        assert result["pr"].attrs["units"] == "mm/d"
+        assert result["spatial_ref"].attrs["units"] == "K"
+        assert result["tasmax"].attrs["grid_mapping"] == "spatial_ref"
+
 
 class TestHelperConversionFunctions:
     """Tests for helper conversion functions within ConvertUnits processor."""
