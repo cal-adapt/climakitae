@@ -837,6 +837,26 @@ class TestExportSingle:
         args, _ = mock_export.call_args
         assert args[1] == "test_output.csv.gz"
 
+    @patch("climakitae.new_core.processors.export._export_to_csv")
+    def test_single_variable_query_keeps_legacy_csv_path(self, mock_export):
+        """Use legacy CSV formatting for scalar variable selections."""
+        multi_output_dataset = xr.Dataset(
+            {
+                "tasmax_p5": (("lat",), [1.0, 2.0]),
+                "tasmax_mean": (("lat",), [3.0, 4.0]),
+            },
+            coords={"lat": [34.0, 35.0]},
+        )
+
+        self.processor.file_format = "CSV"
+        result = self.processor.execute(
+            multi_output_dataset,
+            context={"variable_id": "tasmax"},
+        )
+
+        assert result is multi_output_dataset
+        mock_export.assert_called_once()
+
     def test_multi_variable_csv_keeps_independent_coordinate_rows(self, tmp_path):
         """Export each variable over its own percentile axis without Cartesian rows."""
         data = xr.Dataset(
