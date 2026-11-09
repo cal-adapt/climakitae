@@ -651,6 +651,7 @@ def test_data_catalog_computes_derived_and_native_variables_in_request_order(
     dataset = next(iter(result.values()))
     assert list(dataset.data_vars) == ["wind_speed_10m", "pr"]
     assert isinstance(dataset["wind_speed_10m"].data, da.Array)
+    assert dataset["wind_speed_10m"].attrs["units"] == "m/s"
     np.testing.assert_allclose(
         dataset["wind_speed_10m"].isel(member_id=0).values, [5.0, 5.0]
     )
