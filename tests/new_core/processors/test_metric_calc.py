@@ -12,6 +12,7 @@ import logging
 from typing import Any, Dict
 from unittest.mock import patch
 
+import dask.array as da
 import numpy as np
 import pytest
 import xarray as xr
@@ -366,6 +367,29 @@ class TestMultiVariableMetricCalc:
 
         with pytest.raises(ValueError, match="variable 'pr'"):
             processor._calculate_metrics_single(data)
+
+    def test_multi_variable_percentiles_preserve_lazy_arrays(self):
+        """Keep dask-backed arrays lazy through per-variable percentile calculation."""
+        data = xr.Dataset(
+            {
+                "tasmax": (
+                    ("time", "lat"),
+                    da.from_array([[1.0, 2.0], [3.0, 4.0]], chunks=(1, 2)),
+                ),
+                "pr": (
+                    ("time", "lat"),
+                    da.from_array([[5.0, 6.0], [7.0, 8.0]], chunks=(1, 2)),
+                ),
+            }
+        )
+        processor = MetricCalc(
+            {"by_variable": {"tasmax": {"percentiles": [50], "percentiles_only": True}}}
+        )
+
+        result = processor._calculate_metrics_single(data)
+
+        assert isinstance(result["tasmax_percentiles"].data, da.Array)
+        assert isinstance(result["pr"].data, da.Array)
 
     def test_percentiles_use_independent_variable_dimensions(self):
         """Test multi-variable percentiles retain each variable's requested levels."""
