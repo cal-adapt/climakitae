@@ -105,6 +105,20 @@ class TestValidateConvertUnitsParam:
         )
 
     @pytest.mark.parametrize(
+        "value,warning_match",
+        [
+            ({"by_variable": {}}, "expects a string"),
+            ({"by_variable": {"tasmax": "invalid_unit"}}, "Unsupported unit"),
+            ({"by_variable": {"": "K"}}, "non-empty variable names"),
+            ({"units": {"tasmax": "K"}}, "expects a string"),
+        ],
+    )
+    def test_validate_rejects_invalid_by_variable_mappings(self, value, warning_match):
+        """Test malformed mappings, variable names, and units are rejected."""
+        with pytest.warns(UserWarning, match=warning_match):
+            assert not validate_convert_units_param(value)
+
+    @pytest.mark.parametrize(
         "value,expected,warning_match",
         [
             ("K", True, None),
