@@ -926,7 +926,7 @@ class DataCatalog(dict):
                     assembled = xr.merge(
                         [assembled, computed[[variable]]],
                         join="exact",
-                        compat="no_conflicts",
+                        compat="equals",
                         combine_attrs="override",
                     )
                 except ValueError as exc:
@@ -1161,7 +1161,7 @@ class DataCatalog(dict):
                 assembled = xr.merge(
                     aligned_fields,
                     join="exact",
-                    compat="no_conflicts",
+                    compat="equals",
                     combine_attrs="override",
                 )
             except ValueError as exc:
