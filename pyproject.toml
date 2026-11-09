@@ -56,7 +56,7 @@ dependencies = [
     "timezonefinder",
     "tqdm",
     "xarray",
-    "xclim>0.56.0",
+    "xclim>0.56.0,<1.0",
     "xsdba",
     "xmip",
     "fastparquet==2025.12.0",
