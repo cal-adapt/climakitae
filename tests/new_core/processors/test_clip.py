@@ -1329,6 +1329,29 @@ class TestClipDataToMultiplePointsIntegration:
         assert float(result["target_lats"].values[0]) == 37.0
         assert float(result["target_lons"].values[0]) == -119.0
 
+    def test_multivariable_multiple_points_select_common_cells(self):
+        """Test the vectorized path uses common cells independent of field order."""
+        y = self.dataset_valid.y.values
+        x = self.dataset_valid.x.values
+        dataset = self.dataset_valid.drop_vars("temp")
+        dataset["tas"] = (("time", "y", "x"), np.ones((3, 10, 10)))
+        dataset["pr"] = (("time", "y", "x"), np.full((3, 10, 10), 5.0))
+        dataset["tas"][:, 5, 5] = np.nan
+        point = (float(y[5]), float(x[5]))
+
+        results = [
+            Clip._clip_data_to_multiple_points(candidate, [point])
+            for candidate in (dataset, dataset[["pr", "tas"]])
+        ]
+
+        for result in results:
+            assert result.sizes["closest_cell"] == 1
+            assert result.y.item() == point[0]
+            assert result.x.item() == point[1]
+            assert result["tas"].isnull().all()
+            assert result["pr"].values.tolist() == [[5.0], [5.0], [5.0]]
+            assert result.point_index.item() == 0
+
     def test_clip_data_to_multiple_points_preserves_time(self):
         """Test _clip_data_to_multiple_points preserves time dimension - outcome: time intact."""
         point_list = [(37.0, -119.0), (35.0, -121.0)]
