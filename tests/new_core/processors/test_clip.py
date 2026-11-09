@@ -1328,6 +1328,45 @@ class TestClipDataToPointIntegration:
         assert isinstance(result["tas"].data, da.Array)
         assert isinstance(result["pr"].data, da.Array)
 
+    def test_multivariable_point_preserves_projected_grid_coordinates(self):
+        """Test projected-grid cell selection retains geographic and grid coordinates."""
+        latitudes = np.array([34.0, 35.0, 36.0])
+        longitudes = np.array([-121.0, -120.0, -119.0])
+        transformer = pyproj.Transformer.from_crs(
+            "EPSG:4326", "EPSG:3857", always_xy=True
+        )
+        x_coords = transformer.transform(
+            longitudes, np.full_like(longitudes, 35.0)
+        )[0]
+        y_coords = transformer.transform(
+            np.full_like(latitudes, -120.0), latitudes
+        )[1]
+        lat_grid, lon_grid = np.meshgrid(latitudes, longitudes, indexing="ij")
+        tas = np.ones((2, 3, 3))
+        tas[:, 1, 1] = np.nan
+        dataset = xr.Dataset(
+            {
+                "tas": (("time", "y", "x"), tas),
+                "pr": (("time", "y", "x"), np.full((2, 3, 3), 5.0)),
+            },
+            coords={
+                "time": pd.date_range("2020-01-01", periods=2),
+                "y": y_coords,
+                "x": x_coords,
+                "lat": (("y", "x"), lat_grid),
+                "lon": (("y", "x"), lon_grid),
+            },
+        ).rio.write_crs("EPSG:3857")
+
+        result = Clip._clip_data_to_point(dataset, 35.0, -120.0)
+
+        assert result.y.item() == y_coords[1]
+        assert result.x.item() == x_coords[1]
+        assert result.lat.item() == 35.0
+        assert result.lon.item() == -120.0
+        assert result["tas"].isnull().all()
+        assert result["pr"].values.tolist() == [5.0, 5.0]
+
 
 class TestClipDataToMultiplePointsIntegration:
     """Integration tests for _clip_data_to_multiple_points static method.
