@@ -882,6 +882,44 @@ class TestExportSingle:
         assert exported["pr_percentile"].notna().sum() == 6
         assert set(exported["units"]) == {"degC", "mm"}
 
+    def test_multi_variable_csv_preserves_missing_values_and_blank_coordinates(
+        self, tmp_path
+    ):
+        """Retain missing measurements and leave unrelated coordinate columns blank."""
+        data = xr.Dataset(
+            {
+                "tasmax_percentiles": (
+                    ("tasmax_percentile", "lat"),
+                    [[1.0, np.nan]],
+                ),
+                "pr_percentiles": (
+                    ("pr_percentile",),
+                    [np.nan, 3.0],
+                ),
+            },
+            coords={
+                "tasmax_percentile": [5],
+                "pr_percentile": [50, 99],
+                "lat": [34.0, 35.0],
+            },
+        )
+        processor = Export({"filename": "missing", "file_format": "CSV"})
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.chdir(tmp_path)
+            processor.execute(data, context={"variable_id": ["tasmax", "pr"]})
+
+        exported = pd.read_csv(tmp_path / "missing.csv.gz")
+        temp_rows = exported[exported["variable"] == "tasmax_percentiles"]
+        precip_rows = exported[exported["variable"] == "pr_percentiles"]
+        assert len(temp_rows) == 2
+        assert len(precip_rows) == 2
+        assert temp_rows["value"].isna().sum() == 1
+        assert precip_rows["value"].isna().sum() == 1
+        assert precip_rows["lat"].isna().all()
+        assert precip_rows["tasmax_percentile"].isna().all()
+        assert temp_rows["pr_percentile"].isna().all()
+
     @patch("os.path.exists", return_value=True)
     @patch("climakitae.new_core.processors.export._export_to_netcdf")
     def test_export_single_skip_existing(self, mock_export, mock_exists):
