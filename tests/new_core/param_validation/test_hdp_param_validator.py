@@ -205,6 +205,19 @@ class TestHDPValidatorNetworkIdRequirement:
         # Should return None (validation failed)
         assert result is None
 
+    def test_query_with_prohibited_public_process_fails(self):
+        """Test the public processes query key enforces HDP restrictions."""
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_data_catalog.hdp = mock_hdp_catalog
+        validator = HDPValidator(mock_data_catalog)
+
+        result = validator.is_valid_query(
+            {"network_id": "ASOSAWOS", "processes": {"clip": "California"}}
+        )
+
+        assert result is None
+
     def test_query_with_network_id_string_passes_initial_check(self):
         """Test that query with network_id as string passes initial validation check."""
         from climakitae.new_core.param_validation.abc_param_validation import (
