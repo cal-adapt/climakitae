@@ -901,6 +901,9 @@ class TestExportSingle:
         assert exported["tasmax_percentile"].notna().sum() == 4
         assert exported["pr_percentile"].notna().sum() == 6
         assert set(exported["units"]) == {"degC", "mm"}
+        metadata = (tmp_path / "multi_metadata.txt").read_text()
+        assert "== tasmax_percentiles ==" in metadata
+        assert "units : degC" in metadata
 
     def test_multi_variable_csv_preserves_missing_values_and_blank_coordinates(
         self, tmp_path
