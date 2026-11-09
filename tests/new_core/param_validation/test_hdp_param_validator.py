@@ -82,6 +82,30 @@ class TestHDPValidatorValidation:
         assert result["_hdp_variable_query"] is True
         mock_hdp_catalog.search.assert_called_once_with(network_id="ASOSAWOS")
 
+    def test_registered_derived_names_remain_literal_hdp_fields(self):
+        """Test HDP selection never invokes gridded derived-variable handling."""
+        from climakitae.new_core.param_validation.abc_param_validation import (
+            ParameterValidator,
+        )
+
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_search_result = MagicMock()
+        mock_search_result.__len__.return_value = 1
+        mock_hdp_catalog.search.return_value = mock_search_result
+        mock_data_catalog.hdp = mock_hdp_catalog
+        validator = HDPValidator(mock_data_catalog)
+
+        query = {"network_id": "ASOSAWOS", "variable_id": "wind_speed_10m"}
+        with patch.object(
+            ParameterValidator, "_has_valid_processes", return_value=True
+        ):
+            result = validator.is_valid_query(query)
+
+        assert result["_hdp_requested_fields"] == ["wind_speed_10m"]
+        assert "_derived_variable" not in result
+        mock_hdp_catalog.search.assert_called_once_with(network_id="ASOSAWOS")
+
     def test_is_valid_query_calls_parent_method(self):
         """Test that is_valid_query calls the parent _is_valid_query method.
 

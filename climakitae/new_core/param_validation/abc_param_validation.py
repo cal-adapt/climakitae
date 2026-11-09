@@ -472,8 +472,10 @@ class ParameterValidator(ABC):
         derived_var_name = None
         source_vars = None
         original_variable_id = self.all_catalog_keys.get("variable_id", UNSET)
-        if original_variable_id is not UNSET and not self.all_catalog_keys.get(
-            "_multi_variable_query", False
+        if (
+            original_variable_id is not UNSET
+            and not self.all_catalog_keys.get("_multi_variable_query", False)
+            and not self.all_catalog_keys.get("_hdp_variable_query", False)
         ):
             is_derived, source_vars, derived_name = self._check_derived_variable(
                 original_variable_id
