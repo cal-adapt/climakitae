@@ -6,6 +6,7 @@ data units as specified. It verifies that the processor modifies the data
 array in the expected manner and handles edge cases appropriately.
 """
 
+import dask.array as da
 import numpy as np
 import pandas as pd
 import pytest
@@ -393,6 +394,31 @@ class TestConvertUnitsExecute:
         np.testing.assert_array_equal(result["tasmax"].values, [300.0, 301.0])
         assert result["precipitation"].attrs["units"] == "mm"
         assert result["tasmax"].attrs["units"] == "K"
+
+    def test_execute_keeps_multivariable_conversions_lazy(self):
+        """Test unit conversion keeps Dask-backed measurement arrays lazy."""
+        dataset = xr.Dataset(
+            {
+                "tasmax": (
+                    "time",
+                    da.from_array(np.array([300.0, 301.0]), chunks=1),
+                ),
+                "tasmin": (
+                    "time",
+                    da.from_array(np.array([280.0, 281.0]), chunks=1),
+                ),
+            },
+            coords={"time": pd.date_range("2020-01-01", periods=2)},
+        )
+        dataset["tasmax"].attrs["units"] = "K"
+        dataset["tasmin"].attrs["units"] = "K"
+
+        result = ConvertUnits("degC").execute(dataset, context={})
+
+        assert isinstance(result["tasmax"].data, da.Array)
+        assert isinstance(result["tasmin"].data, da.Array)
+        np.testing.assert_allclose(result["tasmax"].compute().values, [26.85, 27.85])
+        np.testing.assert_allclose(result["tasmin"].compute().values, [6.85, 7.85])
 
 
 class TestHelperConversionFunctions:
