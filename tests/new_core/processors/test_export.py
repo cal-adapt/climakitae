@@ -837,6 +837,51 @@ class TestExportSingle:
         args, _ = mock_export.call_args
         assert args[1] == "test_output.csv.gz"
 
+    def test_multi_variable_csv_keeps_independent_coordinate_rows(self, tmp_path):
+        """Export each variable over its own percentile axis without Cartesian rows."""
+        data = xr.Dataset(
+            {
+                "tasmax_percentiles": (
+                    ("tasmax_percentile", "lat"),
+                    [[1.0, 2.0], [3.0, 4.0]],
+                    {"units": "degC"},
+                ),
+                "pr_percentiles": (
+                    ("pr_percentile", "lat"),
+                    [[5.0, 6.0], [7.0, 8.0], [9.0, 10.0]],
+                    {"units": "mm"},
+                ),
+            },
+            coords={
+                "tasmax_percentile": [5, 95],
+                "pr_percentile": [10, 50, 99],
+                "lat": [34.0, 35.0],
+            },
+        )
+        processor = Export({"filename": "multi", "file_format": "CSV"})
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.chdir(tmp_path)
+            processor.execute(data, context={"variable_id": ["tasmax", "pr"]})
+
+        exported = pd.read_csv(tmp_path / "multi.csv.gz")
+        assert len(exported) == 10
+        assert list(exported.columns) == [
+            "variable",
+            "value",
+            "units",
+            "tasmax_percentile",
+            "lat",
+            "pr_percentile",
+        ]
+        assert exported["variable"].value_counts().to_dict() == {
+            "tasmax_percentiles": 4,
+            "pr_percentiles": 6,
+        }
+        assert exported["tasmax_percentile"].notna().sum() == 4
+        assert exported["pr_percentile"].notna().sum() == 6
+        assert set(exported["units"]) == {"degC", "mm"}
+
     @patch("os.path.exists", return_value=True)
     @patch("climakitae.new_core.processors.export._export_to_netcdf")
     def test_export_single_skip_existing(self, mock_export, mock_exists):
