@@ -434,7 +434,29 @@ class TestMultiVariableMetricCalc:
             {"by_variable": {"tasmax": {"percentiles": [50], "percentiles_only": True}}}
         )
 
-        with pytest.raises(ValueError, match="percentile dimension 'tasmax_percentile'"):
+        with pytest.raises(
+            ValueError, match="percentile dimension 'tasmax_percentile'"
+        ):
+            processor._calculate_metrics_single(data)
+
+    def test_percentile_output_coordinate_collision_is_rejected(self):
+        """Do not overwrite an existing coordinate with a percentile output."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("time", "lat"), [[1.0, 2.0], [3.0, 4.0]]),
+                "pr": (("time", "lat"), [[5.0, 6.0], [7.0, 8.0]]),
+            },
+            coords={
+                "time": [0, 1],
+                "lat": [10, 20],
+                "tasmax_percentiles": [25, 75],
+            },
+        )
+        processor = MetricCalc(
+            {"by_variable": {"tasmax": {"percentiles": [50], "percentiles_only": True}}}
+        )
+
+        with pytest.raises(ValueError, match="would overwrite an input coordinate"):
             processor._calculate_metrics_single(data)
 
     def test_percentiles_use_independent_variable_dimensions(self):

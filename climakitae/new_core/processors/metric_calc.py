@@ -619,7 +619,8 @@ class MetricCalc(DataProcessor):
 
         outputs: dict[str, xr.DataArray] = {}
         generated_names: set[str] = set()
-        original_names = set(variable_names)
+        original_names = set(data.data_vars)
+        original_coordinate_names = set(data.coords)
         for variable_name in variable_names:
             if variable_name not in target_names:
                 outputs[variable_name] = data[variable_name]
@@ -661,6 +662,11 @@ class MetricCalc(DataProcessor):
                     raise ValueError(
                         f"metric_calc output '{percentile_name}' would overwrite "
                         "an input variable."
+                    )
+                if percentile_name in original_coordinate_names:
+                    raise ValueError(
+                        f"metric_calc output '{percentile_name}' would overwrite "
+                        "an input coordinate."
                     )
                 if percentile_name in generated_names:
                     raise ValueError(
@@ -706,6 +712,11 @@ class MetricCalc(DataProcessor):
                     raise ValueError(
                         f"metric_calc output '{metric_name}' would overwrite an "
                         "input variable."
+                    )
+                if metric_name in original_coordinate_names:
+                    raise ValueError(
+                        f"metric_calc output '{metric_name}' would overwrite "
+                        "an input coordinate."
                     )
                 if metric_name in generated_names:
                     raise ValueError(
