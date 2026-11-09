@@ -4,10 +4,55 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import intake
+import pytest
 
 
-def _make_local_catalog(tmp_path):
-    """Create a small CADCAT-shaped catalog with incomplete member coverage."""
+def _make_local_catalog(tmp_path, catalog_kind="cadcat", registry=None):
+    """Create a local multi-variable catalog with incomplete source coverage."""
+    catalog_profiles = {
+        "cadcat": {
+            "groupby_attrs": [
+                "activity_id",
+                "institution_id",
+                "source_id",
+                "experiment_id",
+                "table_id",
+                "grid_label",
+            ],
+            "aggregations": [
+                {"type": "join_new", "attribute_name": "member_id"},
+                {"type": "union", "attribute_name": "variable_id"},
+            ],
+        },
+        "renewables": {
+            "groupby_attrs": [
+                "installation",
+                "activity_id",
+                "institution_id",
+                "source_id",
+                "experiment_id",
+                "table_id",
+                "grid_label",
+            ],
+            "aggregations": [
+                {"type": "union", "attribute_name": "variable_id"}
+            ],
+        },
+        "sup3rcc": {
+            "groupby_attrs": [
+                "activity_id",
+                "institution_id",
+                "source_id",
+                "experiment_id",
+                "table_id",
+                "grid_label",
+            ],
+            "aggregations": [
+                {"type": "union", "attribute_name": "variable_id"}
+            ],
+        },
+    }
+    profile = catalog_profiles[catalog_kind]
     assets = {
         ("r1i1p1f1", "tasmax"): (
             ["2000-01-01", "2000-01-02", "2000-01-03"],
@@ -22,6 +67,10 @@ def _make_local_catalog(tmp_path):
             [20.0, 21.0],
         ),
     }
+    if catalog_kind != "cadcat":
+        assets = {
+            key: value for key, value in assets.items() if key[0] == "r1i1p1f1"
+        }
     records = []
     for (member_id, variable_id), (times, values) in assets.items():
         path = tmp_path / f"{member_id}-{variable_id}.nc"
@@ -29,43 +78,42 @@ def _make_local_catalog(tmp_path):
             {variable_id: ("time", values)},
             coords={"time": pd.to_datetime(times)},
         ).to_netcdf(path)
-        records.append(
-            {
-                "activity_id": "WRF",
-                "experiment_id": "historical",
-                "member_id": member_id,
-                "variable_id": variable_id,
-                "path": str(path),
-                "format": "netcdf",
-            }
-        )
+        record = {
+            "activity_id": "WRF",
+            "institution_id": "UCLA",
+            "source_id": "WRF-test",
+            "experiment_id": "historical",
+            "table_id": "day",
+            "grid_label": "d03",
+            "variable_id": variable_id,
+            "path": str(path),
+            "format": "netcdf",
+        }
+        if catalog_kind == "cadcat":
+            record["member_id"] = member_id
+        elif catalog_kind == "renewables":
+            record["installation"] = "wind"
+        records.append(record)
 
     esmcat = {
         "esmcat_version": "0.0.1",
-        "id": "local-cadcat",
+        "id": f"local-{catalog_kind}",
         "description": "Local catalog for testing intake-esm aggregation",
         "attributes": [
             {"column_name": name, "vocabulary": ""}
-            for name in (
-                "activity_id",
-                "experiment_id",
-                "member_id",
-                "variable_id",
-            )
+            for name in records[0]
+            if name not in ("path", "format")
         ],
         "assets": {"column_name": "path", "format": "netcdf"},
         "aggregation_control": {
             "variable_column_name": "variable_id",
-            "groupby_attrs": ["activity_id", "experiment_id"],
-            "aggregations": [
-                {"type": "join_new", "attribute_name": "member_id"},
-                {"type": "union", "attribute_name": "variable_id"},
-            ],
+            **profile,
         },
     }
     return intake.open_esm_datastore(
         {"esmcat": esmcat, "df": pd.DataFrame(records)},
         progressbar=False,
+        registry=registry,
     )
 
 
@@ -111,3 +159,19 @@ def test_aggregation_hides_source_coverage_but_unaggregated_assets_preserve_it(
         [10.0, np.nan, 12.0],
     )
     assert assets_by_member_variable[("r1i1p1f1", "pr")].time.size == 2
+
+
+@pytest.mark.parametrize("catalog_kind", ["renewables", "sup3rcc"])
+def test_variable_union_catalogs_return_requested_fields(tmp_path, catalog_kind):
+    """Test renewable and Sup3rCC-style unions combine distinct variable assets."""
+    catalog = _make_local_catalog(tmp_path, catalog_kind=catalog_kind).search(
+        variable_id=["tasmax", "pr"]
+    )
+
+    datasets = catalog.to_dataset_dict(progressbar=False)
+
+    assert len(datasets) == 1
+    dataset = next(iter(datasets.values()))
+    assert set(dataset.data_vars) == {"tasmax", "pr"}
+    np.testing.assert_allclose(dataset["tasmax"].values, [10.0, np.nan, 12.0])
+    np.testing.assert_allclose(dataset["pr"].values, [np.nan, 2.0, 3.0])
