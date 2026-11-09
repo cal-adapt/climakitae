@@ -393,6 +393,16 @@ class TestConvertUnitsExecute:
             result["temperature"].values, sample_dataset["temperature"].values
         )
 
+    def test_execute_rejects_invalid_variable_name_type(self, sample_dataset):
+        """Test malformed variable names are rejected before target lookup."""
+        processor = ConvertUnits({"by_variable": {1: "K"}})
+
+        with pytest.warns(UserWarning, match="non-empty variable names"):
+            result = processor.execute(sample_dataset, context={})
+
+        assert result is sample_dataset
+        assert processor.success is False
+
     def test_execute_by_variable_preserves_monthly_precipitation_conversion(self):
         """Test targeted flux conversion uses monthly calendar-day scaling."""
         dataset = xr.Dataset(

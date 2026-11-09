@@ -176,6 +176,13 @@ class ConvertUnits(DataProcessor):
                 self.success = False
                 return result
 
+            if any(not isinstance(name, str) or not name.strip() for name in targets):
+                logger.warning(
+                    "The 'by_variable' mapping must use non-empty variable names."
+                )
+                self.success = False
+                return result
+
             unknown_variables = set(targets) - self._get_data_variable_names(result)
             if unknown_variables:
                 logger.warning(
