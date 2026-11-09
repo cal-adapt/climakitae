@@ -663,6 +663,7 @@ class DataCatalog(dict):
             result = self._assemble_multi_variable_datasets(
                 result, query, effective_key
             )
+            result = self._apply_multi_variable_outputs(result, query)
 
         # For HDP data, rename station coordinate to station_id for consistency
         if effective_key == CATALOG_HDP:
@@ -843,6 +844,111 @@ class DataCatalog(dict):
 
         return result
 
+    def _apply_multi_variable_outputs(
+        self, datasets: Dict[str, xr.Dataset], query: Dict[str, Any]
+    ) -> Dict[str, xr.Dataset]:
+        """Compute requested derived variables and select outputs in request order.
+
+        Derived functions run against a shallow copy of the assembled source
+        dataset. Their registered output is merged back into the original so
+        dependency cleanup cannot remove explicitly requested source fields or
+        shared inputs needed by another derived variable.
+
+        Parameters
+        ----------
+        datasets : dict[str, xr.Dataset]
+            Complete datasets assembled from catalog assets.
+        query : dict
+            Multi-variable query metadata containing requested and derived names.
+
+        Returns
+        -------
+        dict[str, xr.Dataset]
+            Datasets containing exactly the requested data variables in order.
+
+        Raises
+        ------
+        ValueError
+            If a derived function or retrieval does not provide a requested
+            output under its registered name.
+        """
+        requested_variables = query.get("_requested_variables")
+        if (
+            not isinstance(requested_variables, (list, tuple))
+            or not requested_variables
+        ):
+            raise ValueError(
+                "Multi-variable queries require an ordered requested-variable list."
+            )
+
+        derived_variables = query.get("_derived_variables") or []
+        from climakitae.new_core.derived_variables.registry import (
+            get_derived_variable_info,
+        )
+
+        results = {}
+        for key, dataset in datasets.items():
+            assembled = dataset
+            for variable in derived_variables:
+                if variable in assembled.data_vars:
+                    continue
+
+                info = get_derived_variable_info(variable)
+                if info is None:
+                    raise ValueError(
+                        f"Requested derived variable {variable!r} is not registered."
+                    )
+
+                missing_dependencies = [
+                    dependency
+                    for dependency in info.depends_on
+                    if dependency not in assembled.data_vars
+                ]
+                if missing_dependencies:
+                    raise ValueError(
+                        f"Cannot compute derived variable {variable!r} for dataset "
+                        f"{key!r}: missing dependencies {missing_dependencies}."
+                    )
+
+                computed = info.func(assembled.copy(deep=False))
+                if not isinstance(computed, xr.Dataset):
+                    raise ValueError(
+                        f"Derived function for {variable!r} must return an "
+                        "xarray.Dataset containing the registered output name."
+                    )
+                if variable not in computed.data_vars:
+                    raise ValueError(
+                        f"Derived function for {variable!r} did not return a data "
+                        f"variable named {variable!r}; returned {list(computed.data_vars)}."
+                    )
+
+                try:
+                    assembled = xr.merge(
+                        [assembled, computed[[variable]]],
+                        join="exact",
+                        compat="no_conflicts",
+                        combine_attrs="override",
+                    )
+                except ValueError as exc:
+                    raise ValueError(
+                        f"Derived variable {variable!r} for dataset {key!r} has "
+                        "coordinates incompatible with its source data."
+                    ) from exc
+
+            missing_outputs = [
+                variable
+                for variable in requested_variables
+                if variable not in assembled.data_vars
+            ]
+            if missing_outputs:
+                raise ValueError(
+                    f"Dataset {key!r} is missing requested output variables "
+                    f"{missing_outputs}."
+                )
+            results[key] = assembled[list(requested_variables)]
+
+        return results
+
     def _assemble_multi_variable_datasets(
         self,
         datasets: Dict[str, xr.Dataset],
@@ -1002,6 +1108,16 @@ class DataCatalog(dict):
             common_times = field_times[0]
             for times in field_times[1:]:
                 common_times = np.intersect1d(common_times, times)
+            for variable, times in zip(requested_fields, field_times):
+                trimmed_count = len(np.setdiff1d(times, common_times))
+                if trimmed_count:
+                    logger.warning(
+                        "Trimming %d timestamp(s) from field %s in source group "
+                        "%s to align requested variables.",
+                        trimmed_count,
+                        variable,
+                        identity,
+                    )
             if not len(common_times):
                 raise ValueError(
                     f"Multi-variable fields have no common timestamps in source "

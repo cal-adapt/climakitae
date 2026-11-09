@@ -24,6 +24,7 @@ def _make_local_catalog(
     include_ssp=False,
     no_time_overlap=False,
     only_incomplete_members=False,
+    include_wind_components=False,
 ):
     """Create a local multi-variable catalog with incomplete source coverage."""
     catalog_profiles = {
@@ -87,6 +88,15 @@ def _make_local_catalog(
         )
     if only_incomplete_members:
         assets.pop(("r1i1p1f1", "pr"))
+    if include_wind_components:
+        assets[("r1i1p1f1", "u10")] = (
+            ["2000-01-01", "2000-01-02", "2000-01-03"],
+            [3.0, 0.0, 4.0],
+        )
+        assets[("r1i1p1f1", "v10")] = (
+            ["2000-01-01", "2000-01-02", "2000-01-03"],
+            [4.0, 5.0, 3.0],
+        )
     if catalog_kind != "cadcat":
         assets = {key: value for key, value in assets.items() if key[0] == "r1i1p1f1"}
     asset_rows = [
@@ -383,7 +393,7 @@ def test_catalog_keeps_historical_and_ssp_assets_in_separate_groups(tmp_path):
     assert str(experiments["ssp245"].time.values[0]).startswith("2040")
 
 
-def test_data_catalog_excludes_members_missing_requested_variables(tmp_path):
+def test_data_catalog_excludes_members_missing_requested_variables(tmp_path, caplog):
     """Test retrieval keeps only members with every requested field and common time."""
     from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
 
@@ -412,6 +422,7 @@ def test_data_catalog_excludes_members_missing_requested_variables(tmp_path):
             np.datetime64("2000-01-03"),
         ],
     )
+    assert "Trimming 1 timestamp(s) from field tasmax" in caplog.text
 
 
 def test_data_catalog_rejects_complete_groups_without_shared_timestamps(tmp_path):
@@ -602,3 +613,180 @@ def test_data_catalog_fails_when_no_member_has_complete_variable_coverage(
         data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
 
     assert "missing catalog variables" in caplog.text
+
+
+def test_data_catalog_computes_derived_and_native_variables_in_request_order(
+    tmp_path,
+):
+    """Test mixed native and derived fields expose only requested outputs."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(
+        tmp_path, include_wind_components=True
+    )
+    query = {
+        "variable_id": ["wind_speed_10m", "pr"],
+        "_multi_variable_query": True,
+        "_requested_variables": ["wind_speed_10m", "pr"],
+        "_derived_variables": ["wind_speed_10m"],
+        "_catalog_variable_ids": ["u10", "v10", "pr"],
+        "_source_variables": ["u10", "v10"],
+    }
+
+    result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+    dataset = next(iter(result.values()))
+    assert list(dataset.data_vars) == ["wind_speed_10m", "pr"]
+    assert isinstance(dataset["wind_speed_10m"].data, da.Array)
+    np.testing.assert_allclose(
+        dataset["wind_speed_10m"].isel(member_id=0).values, [5.0, 5.0]
+    )
+    np.testing.assert_allclose(dataset["pr"].isel(member_id=0).values, [2.0, 3.0])
+
+
+def test_data_catalog_computes_shared_dependencies_without_dropping_requested_sources(
+    tmp_path,
+):
+    """Test shared derived inputs and explicitly requested sources are retained."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(
+        tmp_path, include_wind_components=True
+    )
+    query = {
+        "variable_id": [
+            "wind_direction_10m",
+            "u10",
+            "wind_speed_10m",
+            "pr",
+        ],
+        "_multi_variable_query": True,
+        "_requested_variables": [
+            "wind_direction_10m",
+            "u10",
+            "wind_speed_10m",
+            "pr",
+        ],
+        "_derived_variables": ["wind_direction_10m", "wind_speed_10m"],
+        "_catalog_variable_ids": ["u10", "v10", "pr"],
+        "_source_variables": ["u10", "v10"],
+    }
+
+    result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+    dataset = next(iter(result.values()))
+    assert list(dataset.data_vars) == [
+        "wind_direction_10m",
+        "u10",
+        "wind_speed_10m",
+        "pr",
+    ]
+    np.testing.assert_allclose(
+        dataset["wind_direction_10m"].isel(member_id=0).values,
+        [180.0, 233.13010235],
+    )
+    np.testing.assert_allclose(dataset["u10"].isel(member_id=0).values, [0.0, 4.0])
+    np.testing.assert_allclose(
+        dataset["wind_speed_10m"].isel(member_id=0).values, [5.0, 5.0]
+    )
+
+
+def test_data_catalog_preserves_dependencies_when_derived_registration_keeps_them(
+    tmp_path, monkeypatch
+):
+    """Test drop_dependencies=False derived registrations retain their inputs."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+    from climakitae.new_core.derived_variables import registry
+
+    def add_one_to_tasmax(dataset):
+        result = dataset.copy()
+        result["tasmax_plus_one"] = result["tasmax"] + 1
+        return result
+
+    monkeypatch.setitem(
+        registry._DERIVED_METADATA,
+        "tasmax_plus_one",
+        registry.DerivedVariableInfo(
+            name="tasmax_plus_one",
+            depends_on=["tasmax"],
+            description="Test derived field",
+            units="K",
+            func=add_one_to_tasmax,
+            source="user",
+            drop_dependencies=False,
+        ),
+    )
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(tmp_path, spatial_grid=True)
+    query = {
+        "variable_id": ["tasmax_plus_one", "tasmax"],
+        "_multi_variable_query": True,
+        "_requested_variables": ["tasmax_plus_one", "tasmax"],
+        "_derived_variables": ["tasmax_plus_one"],
+        "_catalog_variable_ids": ["tasmax"],
+        "_source_variables": ["tasmax"],
+    }
+
+    result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+    dataset = next(iter(result.values()))
+    assert list(dataset.data_vars) == ["tasmax_plus_one", "tasmax"]
+    np.testing.assert_allclose(
+        dataset["tasmax_plus_one"].isel(member_id=0, lat=0, lon=0).values,
+        [11.0, np.nan, 13.0],
+        equal_nan=True,
+    )
+    np.testing.assert_allclose(
+        dataset["tasmax"].isel(member_id=0, lat=0, lon=0).values,
+        [10.0, np.nan, 12.0],
+        equal_nan=True,
+    )
+
+
+def test_data_catalog_rejects_custom_derived_alias_in_multi_variable_query(
+    tmp_path, monkeypatch
+):
+    """Test custom functions must return the registered output field name."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+    from climakitae.new_core.derived_variables import registry
+
+    def create_alias(dataset):
+        result = dataset.copy()
+        result["alias"] = result["tasmax"] + 1
+        return result
+
+    monkeypatch.setitem(
+        registry._DERIVED_METADATA,
+        "requested_derived",
+        registry.DerivedVariableInfo(
+            name="requested_derived",
+            depends_on=["tasmax"],
+            description="Test derived field",
+            units="K",
+            func=create_alias,
+            source="user",
+            drop_dependencies=False,
+        ),
+    )
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(tmp_path, spatial_grid=True)
+    query = {
+        "variable_id": ["requested_derived", "pr"],
+        "_multi_variable_query": True,
+        "_requested_variables": ["requested_derived", "pr"],
+        "_derived_variables": ["requested_derived"],
+        "_catalog_variable_ids": ["tasmax", "pr"],
+        "_source_variables": ["tasmax"],
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="did not return a data variable named 'requested_derived'",
+    ):
+        data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
