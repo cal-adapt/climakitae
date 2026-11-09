@@ -298,6 +298,45 @@ class TestMultiVariableMetricCalc:
                 context={"variable_id": ["tasmax", "pr"]},
             )
 
+    def test_percentiles_and_reductions_keep_variable_specific_outputs(self):
+        """Test percentile and reduction outputs are assembled independently."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("time", "lat"), [[0.0, 10.0], [10.0, 20.0]]),
+                "pr": (("time", "lat"), [[1.0, 2.0], [3.0, 4.0]]),
+            },
+            coords={"time": [0, 1], "lat": [10, 20]},
+        )
+        processor = MetricCalc(
+            {
+                "by_variable": {
+                    "tasmax": {
+                        "metric": "mean",
+                        "percentiles": [5, 95],
+                    },
+                    "pr": {
+                        "metric": "max",
+                        "percentiles": [50, 99],
+                    },
+                }
+            }
+        )
+
+        result = processor._calculate_metrics_single(data)
+
+        assert set(result.data_vars) == {
+            "tasmax_percentiles",
+            "tasmax_mean",
+            "pr_percentiles",
+            "pr_max",
+        }
+        assert result["tasmax_percentiles"].dims == ("tasmax_percentile", "lat")
+        assert result["pr_percentiles"].dims == ("pr_percentile", "lat")
+        np.testing.assert_array_equal(result.tasmax_percentile, [5, 95])
+        np.testing.assert_array_equal(result.pr_percentile, [50, 99])
+        np.testing.assert_allclose(result.tasmax_mean, [5.0, 15.0])
+        np.testing.assert_allclose(result.pr_max, [3.0, 4.0])
+
     def test_percentiles_use_independent_variable_dimensions(self):
         """Test multi-variable percentiles retain each variable's requested levels."""
         data = xr.Dataset(
