@@ -368,6 +368,23 @@ class TestMultiVariableMetricCalc:
         with pytest.raises(ValueError, match="variable 'pr'"):
             processor._calculate_metrics_single(data)
 
+    def test_unselected_variable_target_is_rejected(self):
+        """Reject a by_variable target outside the selected Dataset variables."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("time",), [1.0, 2.0]),
+                "pr": (("time",), [3.0, 4.0]),
+            }
+        )
+        processor = MetricCalc({"by_variable": {"tasmin": {"metric": "max"}}})
+
+        with pytest.raises(ValueError, match="not selected Dataset variables"):
+            processor._calculate_metrics_single(
+                data,
+                multi_variable=True,
+                selected_variables=["tasmax", "pr"],
+            )
+
     def test_multi_variable_percentiles_preserve_lazy_arrays(self):
         """Keep dask-backed arrays lazy through per-variable percentile calculation."""
         data = xr.Dataset(
