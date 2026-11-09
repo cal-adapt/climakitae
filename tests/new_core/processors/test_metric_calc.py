@@ -337,6 +337,23 @@ class TestMultiVariableMetricCalc:
         np.testing.assert_allclose(result.tasmax_mean, [5.0, 15.0])
         np.testing.assert_allclose(result.pr_max, [3.0, 4.0])
 
+    def test_omitted_variable_targets_remain_unchanged(self):
+        """Leave variables not named in by_variable untouched."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("time",), [1.0, 3.0]),
+                "pr": (("time",), [2.0, 4.0]),
+            }
+        )
+        processor = MetricCalc(
+            {"by_variable": {"tasmax": {"percentiles": [50], "percentiles_only": True}}}
+        )
+
+        result = processor._calculate_metrics_single(data)
+
+        assert set(result.data_vars) == {"tasmax_percentiles", "pr"}
+        xr.testing.assert_equal(result["pr"], data["pr"])
+
     def test_percentiles_use_independent_variable_dimensions(self):
         """Test multi-variable percentiles retain each variable's requested levels."""
         data = xr.Dataset(
