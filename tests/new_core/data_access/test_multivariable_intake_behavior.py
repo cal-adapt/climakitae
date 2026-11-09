@@ -8,7 +8,11 @@ import pytest
 
 
 def _make_local_catalog(
-    tmp_path, catalog_kind="cadcat", registry=None, spatial_grid=False
+    tmp_path,
+    catalog_kind="cadcat",
+    registry=None,
+    spatial_grid=False,
+    include_ssp=False,
 ):
     """Create a local multi-variable catalog with incomplete source coverage."""
     catalog_profiles = {
@@ -73,9 +77,25 @@ def _make_local_catalog(
         assets = {
             key: value for key, value in assets.items() if key[0] == "r1i1p1f1"
         }
+    asset_rows = [
+        ("historical", member_id, variable_id, times, values)
+        for (member_id, variable_id), (times, values) in assets.items()
+    ]
+    if include_ssp:
+        asset_rows.extend(
+            (
+                "ssp245",
+                member_id,
+                variable_id,
+                [time.replace("2000", "2040") for time in times],
+                values,
+            )
+            for (member_id, variable_id), (times, values) in assets.items()
+            if member_id == "r1i1p1f1"
+        )
     records = []
-    for (member_id, variable_id), (times, values) in assets.items():
-        path = tmp_path / f"{member_id}-{variable_id}.nc"
+    for experiment_id, member_id, variable_id, times, values in asset_rows:
+        path = tmp_path / f"{experiment_id}-{member_id}-{variable_id}.nc"
         if spatial_grid:
             latitudes = [34.0, 35.0] if variable_id == "tasmax" else [34.0, 36.0]
             measurements = np.broadcast_to(
@@ -94,12 +114,12 @@ def _make_local_catalog(
                 {variable_id: ("time", values)},
                 coords={"time": pd.to_datetime(times)},
             )
-        dataset.to_netcdf(path)
+        dataset.to_netcdf(path, engine="scipy")
         record = {
             "activity_id": "WRF",
             "institution_id": "UCLA",
             "source_id": "WRF-test",
-            "experiment_id": "historical",
+            "experiment_id": experiment_id,
             "table_id": "day",
             "grid_label": "d03",
             "variable_id": variable_id,
@@ -157,7 +177,7 @@ def _make_local_hdp_catalog(tmp_path):
                 "station": [station_id],
                 "time": pd.to_datetime(["2000-01-01", "2000-01-02"]),
             },
-        ).to_netcdf(path)
+        ).to_netcdf(path, engine="scipy")
         records.append(
             {
                 "network_id": "ASOSAWOS",
@@ -333,3 +353,24 @@ def test_hdp_station_assets_contain_observation_fields_not_variable_rows(tmp_pat
         "station-1": {"tas", "pr"},
         "station-2": {"tas"},
     }
+
+
+def test_catalog_keeps_historical_and_ssp_assets_in_separate_groups(tmp_path):
+    """Test experiment grouping keeps historical and SSP assets separate."""
+    catalog = _make_local_catalog(tmp_path, include_ssp=True).search(
+        variable_id=["tasmax", "pr"]
+    )
+
+    datasets = catalog.to_dataset_dict(progressbar=False)
+    experiments = {
+        dataset.attrs["intake_esm_attrs:experiment_id"]: dataset
+        for dataset in datasets.values()
+    }
+
+    assert set(experiments) == {"historical", "ssp245"}
+    assert all(
+        set(dataset.data_vars) == {"tasmax", "pr"}
+        for dataset in experiments.values()
+    )
+    assert str(experiments["historical"].time.values[0]).startswith("2000")
+    assert str(experiments["ssp245"].time.values[0]).startswith("2040")
