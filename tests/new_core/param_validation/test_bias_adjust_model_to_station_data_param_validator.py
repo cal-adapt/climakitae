@@ -814,6 +814,107 @@ class TestValidateInstitutionIdRequirement:
         assert result is False
 
 
+class TestValidateStationQaHook:
+    """Test class for the station QA sheet cross-check hook inside
+    validate_bias_adjustment_station_data_param."""
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.validate_station_request_qa"
+    )
+    def test_qa_failure_propagates(self, mock_qa, mock_get_metadata, valid_query):
+        """Test that a QA sheet failure blocks the overall validation."""
+        mock_get_metadata.return_value = pd.DataFrame(
+            {
+                "network_id": ["ASOSAWOS"],
+                "station_id": ["ASOSAWOS_72483023225"],
+            }
+        )
+        mock_qa.return_value = False
+
+        value = {"stations": ["ASOSAWOS_72483023225"]}
+        result = validate_bias_adjustment_station_data_param(value, query=valid_query)
+
+        assert result is False
+        mock_qa.assert_called_once_with(valid_query)
+
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator.validate_station_request_qa"
+    )
+    def test_qa_pass_allows_validation(self, mock_qa, mock_get_metadata, valid_query):
+        """Test that a passing QA check doesn't block the overall validation."""
+        mock_get_metadata.return_value = pd.DataFrame(
+            {
+                "network_id": ["ASOSAWOS"],
+                "station_id": ["ASOSAWOS_72483023225"],
+            }
+        )
+        mock_qa.return_value = True
+
+        value = {"stations": ["ASOSAWOS_72483023225"]}
+        result = validate_bias_adjustment_station_data_param(value, query=valid_query)
+
+        assert result is True
+
+    @patch("climakitae.new_core.param_validation.station_qa_validation.DataCatalog")
+    @patch("climakitae.new_core.param_validation.station_qa_validation.read_csv_file")
+    @patch(
+        "climakitae.new_core.param_validation.bias_adjust_model_to_station_param_validator._get_station_metadata"
+    )
+    def test_real_qa_check_blocks_end_to_end(
+        self, mock_get_metadata, mock_read_csv, mock_catalog, valid_query
+    ):
+        """Test the real (unmocked) QA check fires through the full
+        validator when historical_slice's center year lands on a year
+        where total-time-window (the sole blocking check) is flagged."""
+        mock_get_metadata.return_value = pd.DataFrame(
+            {
+                "network_id": ["ASOSAWOS"],
+                "station_id": ["ASOSAWOS_72483023225"],
+            }
+        )
+        mock_catalog.return_value.__getitem__.return_value = pd.DataFrame(
+            {
+                "ID": ["KBAD"],
+                "station": ["Bad Station (KBAD)"],
+                "station id": [72483023225],
+            }
+        )
+        mock_read_csv.return_value = pd.DataFrame(
+            [
+                {
+                    "source-id": "KBAD",
+                    "variable": "tas",
+                    "test": "total-time-window",
+                    2030: 1,
+                },
+            ]
+        )
+
+        query = dict(valid_query)
+        query["processes"] = {
+            "bias_adjust_model_to_station": {
+                "stations": ["ASOSAWOS_72483023225"],
+                # center year = (2025 + 2035) // 2 = 2030, flagged above
+                "historical_slice": (2025, 2035),
+            },
+        }
+        value = {
+            "stations": ["ASOSAWOS_72483023225"],
+            "historical_slice": (2025, 2035),
+        }
+
+        with pytest.warns(UserWarning, match="Too much missing data"):
+            result = validate_bias_adjustment_station_data_param(value, query=query)
+
+        assert result is False
+
+
 class TestValidateCatalogRequirement:
     """Test class for _validate_catalog_requirement function."""
 
