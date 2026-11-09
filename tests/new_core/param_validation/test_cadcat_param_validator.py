@@ -257,6 +257,46 @@ class TestDataValidator:
         assert "table_id=day" in caplog.text
         assert "grid_label=d03" in caplog.text
 
+    def test_is_valid_query_plans_shared_derived_dependencies(self):
+        """Plan unique catalog fields for multiple derived requests."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["WRF", "WRF"],
+                "institution_id": ["UCLA", "UCLA"],
+                "table_id": ["1hr", "1hr"],
+                "grid_label": ["d03", "d03"],
+                "variable_id": ["u10", "v10"],
+            }
+        )
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 2)
+        query = {
+            "activity_id": "WRF",
+            "institution_id": "UCLA",
+            "table_id": "1hr",
+            "grid_label": "d03",
+            "variable_id": ["wind_speed_10m", "wind_direction_10m"],
+        }
+        original_query = query.copy()
+
+        result = self.validator.is_valid_query(query)
+
+        assert result["variable_id"] == [
+            "wind_speed_10m",
+            "wind_direction_10m",
+        ]
+        assert result["_requested_variables"] == query["variable_id"]
+        assert result["_derived_variables"] == query["variable_id"]
+        assert result["_source_variables"] == ["u10", "v10"]
+        assert result["_catalog_variable_ids"] == ["u10", "v10"]
+        self.validator.catalog.search.assert_called_once_with(
+            activity_id="WRF",
+            institution_id="UCLA",
+            table_id="1hr",
+            grid_label="d03",
+            variable_id=["u10", "v10"],
+        )
+        assert query == original_query
+
     def test_default_processors_with_empty_query(self):
         """Test get_default_processors with empty query.
 

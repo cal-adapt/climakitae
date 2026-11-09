@@ -313,26 +313,46 @@ class ParameterValidator(ABC):
                 if variable_id in derived_vars:
                     info = derived_vars[variable_id]
                     return True, info.depends_on, variable_id
-            else:
-                if all(var in derived_vars for var in variable_id):
-                    #! test
-                    print("return to derived var check")
 
         except ImportError:
             pass
         return False, None, None
 
-    def _check_requested_variables_available(self) -> bool:
-        """Check that every requested native variable matches the catalog constraints.
+    def _build_multi_variable_plan(self) -> Dict[str, Any] | None:
+        """Build a catalog-field plan for an ordered multi-variable request.
 
         Returns
         -------
-        bool
-            Whether the requested variable IDs are available together.
+        dict or None
+            Query-local metadata for retrieval, or ``None`` when any requested
+            native field or derived dependency is unavailable.
         """
         variable_ids = self.all_catalog_keys.get("variable_id", UNSET)
         if not isinstance(variable_ids, (list, tuple)) or len(variable_ids) < 2:
-            return True
+            return {}
+
+        from climakitae.new_core.derived_variables import list_derived_variables
+
+        derived_variables = list_derived_variables()
+        requested_variables = list(variable_ids)
+        derived_names = [
+            variable
+            for variable in requested_variables
+            if variable in derived_variables
+        ]
+        source_variables = []
+        catalog_variable_ids = []
+        for variable in requested_variables:
+            dependencies = (
+                derived_variables[variable].depends_on
+                if variable in derived_variables
+                else [variable]
+            )
+            for dependency in dependencies:
+                if dependency not in catalog_variable_ids:
+                    catalog_variable_ids.append(dependency)
+                if variable in derived_variables and dependency not in source_variables:
+                    source_variables.append(dependency)
 
         catalog_df = getattr(self.catalog, "df", None)
         columns = getattr(catalog_df, "columns", ())
@@ -340,9 +360,9 @@ class ParameterValidator(ABC):
             logger.warning(
                 "Cannot validate requested variables %s because the catalog does "
                 "not expose variable_id metadata.",
-                variable_ids,
+                requested_variables,
             )
-            return False
+            return None
 
         constrained_df = catalog_df
         constraints = {}
@@ -354,22 +374,48 @@ class ParameterValidator(ABC):
             constraints[key] = value
 
         available_variables = set(constrained_df["variable_id"].unique())
-        missing_variables = [
-            variable for variable in variable_ids if variable not in available_variables
+        missing_catalog_variables = [
+            variable
+            for variable in catalog_variable_ids
+            if variable not in available_variables
         ]
-        if missing_variables:
+        if missing_catalog_variables:
+            missing_requests = []
+            for variable in requested_variables:
+                dependencies = (
+                    derived_variables[variable].depends_on
+                    if variable in derived_variables
+                    else [variable]
+                )
+                missing_dependencies = [
+                    dependency
+                    for dependency in dependencies
+                    if dependency in missing_catalog_variables
+                ]
+                if missing_dependencies:
+                    missing_requests.append(
+                        f"{variable} (missing {', '.join(missing_dependencies)})"
+                    )
             constraint_text = ", ".join(
                 f"{key}={value}" for key, value in constraints.items()
             )
             logger.warning(
-                "Requested variables %s are unavailable under constraints %s. "
+                "Requested variables %s require catalog fields %s that are "
+                "unavailable under constraints %s. "
                 "The entire query has been rejected.",
-                missing_variables,
+                missing_requests,
+                missing_catalog_variables,
                 constraint_text or "none",
             )
-            return False
+            return None
 
-        return True
+        return {
+            "_multi_variable_query": True,
+            "_requested_variables": requested_variables,
+            "_derived_variables": derived_names,
+            "_source_variables": source_variables,
+            "_catalog_variable_ids": catalog_variable_ids,
+        }
 
     def _is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         """Internal method to validate query parameters and provide user feedback.
@@ -415,8 +461,10 @@ class ParameterValidator(ABC):
         # convert user input to keys
         self.populate_catalog_keys(query)
 
-        if not self._check_requested_variables_available():
+        variable_plan = self._build_multi_variable_plan()
+        if variable_plan is None:
             return None
+        self.all_catalog_keys.update(variable_plan)
 
         # Check if variable_id is a derived variable
         # For derived variables, we need to search for source variables in the catalog,
@@ -424,7 +472,9 @@ class ParameterValidator(ABC):
         derived_var_name = None
         source_vars = None
         original_variable_id = self.all_catalog_keys.get("variable_id", UNSET)
-        if original_variable_id is not UNSET:
+        if original_variable_id is not UNSET and not self.all_catalog_keys.get(
+            "_multi_variable_query", False
+        ):
             is_derived, source_vars, derived_name = self._check_derived_variable(
                 original_variable_id
             )
@@ -517,8 +567,15 @@ class ParameterValidator(ABC):
 
         # check if the catalog keys can be found
         subset = []
+        search_keys = {
+            key: value
+            for key, value in self.all_catalog_keys.items()
+            if not key.startswith("_")
+        }
+        if self.all_catalog_keys.get("_multi_variable_query", False):
+            search_keys["variable_id"] = self.all_catalog_keys["_catalog_variable_ids"]
         try:
-            subset = self.catalog.search(**self.all_catalog_keys)
+            subset = self.catalog.search(**search_keys)
         except ValueError as e:
             # no datasets found or invalid query
             logger.warning(
@@ -542,7 +599,7 @@ class ParameterValidator(ABC):
         logger.info("Checking for valid options...")
         df = self.catalog.df.copy()
         last_key = None
-        for key, value in self.all_catalog_keys.items():
+        for key, value in search_keys.items():
             # don't check unset values
             if value is UNSET:
                 continue
