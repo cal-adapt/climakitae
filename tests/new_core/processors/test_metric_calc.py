@@ -373,6 +373,32 @@ class TestMultiVariableMetricCalc:
         assert result.pr_percentiles.attrs["units"] == "mm"
         assert result.pr_max.attrs["units"] == "mm"
 
+    def test_shared_settings_apply_to_selected_variables(self):
+        """Apply shared basic settings to every selected variable."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("time",), [1.0, 3.0]),
+                "pr": (("time",), [2.0, 4.0]),
+            }
+        )
+        processor = MetricCalc({"metric": "max", "percentiles": [50]})
+
+        result = processor.execute(
+            data,
+            context={"variable_id": ["tasmax", "pr"]},
+        )
+
+        assert set(result.data_vars) == {
+            "tasmax_percentiles",
+            "tasmax_max",
+            "pr_percentiles",
+            "pr_max",
+        }
+        np.testing.assert_array_equal(result.tasmax_percentile, [50])
+        np.testing.assert_array_equal(result.pr_percentile, [50])
+        np.testing.assert_allclose(result.tasmax_max, 3.0)
+        np.testing.assert_allclose(result.pr_max, 4.0)
+
     def test_omitted_variable_targets_remain_unchanged(self):
         """Leave variables not named in by_variable untouched."""
         data = xr.Dataset(
