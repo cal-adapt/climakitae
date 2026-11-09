@@ -594,6 +594,18 @@ class ParameterValidator(ABC):
                 )
             return self.all_catalog_keys if self._has_valid_processes(query) else None
 
+        if self.all_catalog_keys.get("_multi_variable_query", False):
+            constraints = {
+                key: value for key, value in search_keys.items() if key != "variable_id"
+            }
+            logger.warning(
+                "No catalog records matched all requested variables %s under "
+                "constraints %s. The entire query has been rejected.",
+                self.all_catalog_keys["_requested_variables"],
+                constraints or "none",
+            )
+            return None
+
         # dataset not found
         # find closest match to each provided key
         logger.info("Checking for valid options...")
