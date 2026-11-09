@@ -1230,6 +1230,38 @@ class TestClipDataToPointIntegration:
         assert "temp" in result.data_vars
         assert "precip" in result.data_vars
 
+    def test_multivariable_point_uses_same_coordinate_cell_independent_of_order(self):
+        """Test NaNs in one field neither shift nor average the common selected cell."""
+        lat = np.array([34.0, 35.0, 36.0])
+        lon = np.array([-121.0, -120.0, -119.0])
+        temperature = np.ones((2, 3, 3))
+        precipitation = np.full((2, 3, 3), 5.0)
+        temperature[:, 1, 1] = np.nan
+        fields = {
+            "tas": (("time", "lat", "lon"), temperature),
+            "pr": (("time", "lat", "lon"), precipitation),
+        }
+        coordinates = {
+            "time": pd.date_range("2020-01-01", periods=2),
+            "lat": lat,
+            "lon": lon,
+        }
+        datasets = (
+            xr.Dataset(fields, coords=coordinates),
+            xr.Dataset({"pr": fields["pr"], "tas": fields["tas"]}, coords=coordinates),
+        )
+
+        results = [
+            Clip._clip_data_to_point(dataset, lat[1], lon[1]) for dataset in datasets
+        ]
+
+        assert all(result is not None for result in results)
+        for result in results:
+            assert result.lat.item() == lat[1]
+            assert result.lon.item() == lon[1]
+            assert result["tas"].isnull().all()
+            assert result["pr"].values.tolist() == [5.0, 5.0]
+
 
 class TestClipDataToMultiplePointsIntegration:
     """Integration tests for _clip_data_to_multiple_points static method.
@@ -1455,6 +1487,49 @@ class TestClipDataToPointsAsMask:
         # Verify most cells are NaN
         valid_cells = ~np.isnan(result["temp"].values)
         assert valid_cells.sum() <= 3  # At most one cell valid per time step
+
+    @pytest.mark.parametrize("extract_points", [False, True])
+    def test_multivariable_mask_preserves_common_nan_cell(
+        self, extract_points: bool
+    ) -> None:
+        """Test multi-variable masks do not average or reorder cells based on NaNs."""
+        coords = {
+            "time": pd.date_range("2020-01-01", periods=2),
+            "lat": [34.0, 35.0, 36.0],
+            "lon": [-121.0, -120.0, -119.0],
+        }
+        temperature = np.ones((2, 3, 3))
+        precipitation = np.full((2, 3, 3), 5.0)
+        temperature[:, 1, 1] = np.nan
+        fields = {
+            "tas": (("time", "lat", "lon"), temperature),
+            "pr": (("time", "lat", "lon"), precipitation),
+        }
+        datasets = (
+            xr.Dataset(fields, coords=coords),
+            xr.Dataset({"pr": fields["pr"], "tas": fields["tas"]}, coords=coords),
+        )
+
+        results = [
+            Clip._clip_data_to_points_as_mask(
+                dataset, [(35.0, -120.0)], extract_points=extract_points
+            )
+            for dataset in datasets
+        ]
+
+        for result in results:
+            if extract_points:
+                assert result.sizes["points"] == 1
+                assert result.point_lat.item() == 35.0
+                assert result.point_lon.item() == -120.0
+                assert result["tas"].isnull().all()
+                assert result["pr"].isel(points=0).values.tolist() == [5.0, 5.0]
+            else:
+                assert result["tas"].sel(lat=35.0, lon=-120.0).isnull().all()
+                assert result["pr"].sel(lat=35.0, lon=-120.0).values.tolist() == [
+                    5.0,
+                    5.0,
+                ]
 
     def test_mask_multiple_points(self):
         """Test mask clipping with multiple points - outcome: bbox-clipped gridded data."""

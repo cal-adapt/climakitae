@@ -654,6 +654,79 @@ class Clip(DataProcessor):
         )
 
     @staticmethod
+    def _is_multivariable_dataset(dataset: xr.Dataset | xr.DataArray) -> bool:
+        """Return whether a Dataset contains multiple measurement variables."""
+        if not isinstance(dataset, xr.Dataset):
+            return False
+        measurement_vars = set(dataset.data_vars) - {"landmask"}
+        return len(measurement_vars) > 1
+
+    @staticmethod
+    def _get_common_grid_index(
+        dataset: xr.Dataset, lat: float, lon: float
+    ) -> tuple[str, int, str, int] | None:
+        """Find the nearest coordinate cell, constrained by an explicit land mask."""
+        if "y" in dataset.dims and "x" in dataset.dims:
+            dim1, dim2 = "y", "x"
+            target1, target2 = lat, lon
+            data_crs = dataset.rio.crs
+            if data_crs is not None:
+                try:
+                    transformer = pyproj.Transformer.from_crs(
+                        "epsg:4326", data_crs, always_xy=True
+                    )
+                    target2, target1 = transformer.transform(lon, lat)
+                except (pyproj.exceptions.CRSError, ValueError):
+                    logger.warning(
+                        "Could not transform point coordinates to the grid CRS; "
+                        "using input coordinates."
+                    )
+        elif "lat" in dataset.dims and "lon" in dataset.dims:
+            dim1, dim2 = "lat", "lon"
+            target1, target2 = lat, lon
+        else:
+            logger.warning(
+                "Cannot select a common grid cell without x/y or lat/lon dimensions."
+            )
+            return None
+
+        coord1 = np.asarray(dataset[dim1].values)
+        coord2 = np.asarray(dataset[dim2].values)
+        if coord1.ndim != 1 or coord2.ndim != 1:
+            logger.warning("Common-cell selection requires 1D spatial axes.")
+            return None
+
+        nearest1 = int(np.abs(coord1 - target1).argmin())
+        nearest2 = int(np.abs(coord2 - target2).argmin())
+
+        if "landmask" not in dataset.coords and "landmask" not in dataset.data_vars:
+            return dim1, nearest1, dim2, nearest2
+
+        landmask = dataset["landmask"]
+        for dim in tuple(landmask.dims):
+            if dim not in (dim1, dim2):
+                landmask = landmask.isel({dim: 0})
+
+        if dim1 not in landmask.dims or dim2 not in landmask.dims:
+            logger.warning(
+                "Ignoring landmask because it does not share the dataset's "
+                "spatial dimensions."
+            )
+            return dim1, nearest1, dim2, nearest2
+
+        mask_values = np.asarray(landmask.transpose(dim1, dim2).values)
+        valid_cells = np.argwhere(np.isfinite(mask_values) & (mask_values == 1))
+        if valid_cells.size == 0:
+            logger.warning("No valid cells found in the explicit landmask.")
+            return None
+
+        distances = (coord1[valid_cells[:, 0]] - target1) ** 2 + (
+            coord2[valid_cells[:, 1]] - target2
+        ) ** 2
+        selected = valid_cells[int(distances.argmin())]
+        return dim1, int(selected[0]), dim2, int(selected[1])
+
+    @staticmethod
     def _clip_data_to_point(dataset: xr.DataArray | xr.Dataset, lat: float, lon: float):
         """
         Clip data to the closest gridcell with valid data for a single point.
@@ -676,6 +749,13 @@ class Clip(DataProcessor):
             Clipped dataset containing only the closest valid gridcell,
             or None if no valid gridcell found within search radius
         """
+
+        if isinstance(dataset, xr.Dataset) and Clip._is_multivariable_dataset(dataset):
+            selection = Clip._get_common_grid_index(dataset, lat, lon)
+            if selection is None:
+                return None
+            dim1, idx1, dim2, idx2 = selection
+            return dataset.isel({dim1: idx1, dim2: idx2})
 
         # First try the original method
         closest_gridcell = get_closest_gridcell(dataset, lat, lon, print_coords=False)
@@ -899,6 +979,45 @@ class Clip(DataProcessor):
             len(point_list),
         )
 
+        if isinstance(dataset, xr.Dataset) and Clip._is_multivariable_dataset(dataset):
+            selections = []
+            for point_index, (lat, lon) in enumerate(point_list):
+                selection = Clip._get_common_grid_index(dataset, lat, lon)
+                if selection is not None:
+                    selections.append((point_index, lat, lon, selection))
+
+            if not selections:
+                logger.warning(
+                    "No valid common gridcells found for the requested points."
+                )
+                return None
+
+            dim1, _, dim2, _ = selections[0][3]
+            result = dataset.isel(
+                {
+                    dim1: xr.DataArray(
+                        [selection[3][1] for selection in selections], dims="points"
+                    ),
+                    dim2: xr.DataArray(
+                        [selection[3][3] for selection in selections], dims="points"
+                    ),
+                }
+            ).rename({"points": "closest_cell"})
+            return result.assign_coords(
+                target_lats=(
+                    "closest_cell",
+                    [selection[1] for selection in selections],
+                ),
+                target_lons=(
+                    "closest_cell",
+                    [selection[2] for selection in selections],
+                ),
+                point_index=(
+                    "closest_cell",
+                    [selection[0] for selection in selections],
+                ),
+            )
+
         # Extract lat/lon arrays from point_list
         lats = [lat for lat, lon in point_list]
         lons = [lon for lat, lon in point_list]
@@ -1100,6 +1219,7 @@ class Clip(DataProcessor):
             raise ValueError(
                 f"Cannot identify spatial dimensions. Dataset has dims: {dataset.dims}"
             )
+        multivariable = Clip._is_multivariable_dataset(dataset)
 
         # Get coordinate arrays
         lat_coords = dataset[lat_dim].values
@@ -1123,25 +1243,42 @@ class Clip(DataProcessor):
         lat_indices = []
         lon_indices = []
         valid_points = []
+        selected_point_coordinates = {}
 
         for lat, lon in point_list:
-            # Transform coordinates if needed
-            if needs_transform:
-                try:
-                    x_target, y_target = fwd_transformer.transform(lon, lat)
-                    lat_target, lon_target = y_target, x_target
-                except Exception:
-                    lat_target, lon_target = lat, lon
+            if multivariable:
+                selection = Clip._get_common_grid_index(dataset, lat, lon)
+                if selection is None:
+                    continue
+                selected_dim1, lat_idx, selected_dim2, lon_idx = selection
+                if (selected_dim1, selected_dim2) != (lat_dim, lon_dim):
+                    logger.warning(
+                        "Common-cell selection returned incompatible spatial dimensions."
+                    )
+                    continue
             else:
-                lat_target, lon_target = lat, lon
+                # Transform coordinates if needed
+                if needs_transform:
+                    try:
+                        x_target, y_target = fwd_transformer.transform(lon, lat)
+                        lat_target, lon_target = y_target, x_target
+                    except Exception:
+                        lat_target, lon_target = lat, lon
+                else:
+                    lat_target, lon_target = lat, lon
 
-            # Find nearest indices
-            lat_idx = np.abs(lat_coords - lat_target).argmin()
-            lon_idx = np.abs(lon_coords - lon_target).argmin()
+                # Find nearest indices
+                lat_idx = np.abs(lat_coords - lat_target).argmin()
+                lon_idx = np.abs(lon_coords - lon_target).argmin()
 
             lat_indices.append(lat_idx)
             lon_indices.append(lon_idx)
             valid_points.append((lat, lon))
+            selected_point_coordinates[(lat_idx, lon_idx)] = (lat, lon)
+
+        if not lat_indices:
+            logger.warning("No valid common gridcells found for the requested points.")
+            return None
 
         # Create unique set of (lat_idx, lon_idx) pairs to avoid duplicates
         unique_indices = list(set(zip(lat_indices, lon_indices)))
@@ -1151,23 +1288,6 @@ class Clip(DataProcessor):
             len(point_list),
         )
 
-        # Get a sample variable to check for NaN values and create mask
-        if isinstance(dataset, xr.Dataset):
-            first_var = next(iter(dataset.data_vars))
-            sample_data = dataset[first_var]
-        else:
-            sample_data = dataset
-
-        # Reduce to 2D for mask creation (take first time step, first simulation, etc.)
-        sample_2d = sample_data
-        for dim in list(sample_2d.dims):
-            if dim not in [lat_dim, lon_dim]:
-                sample_2d = sample_2d.isel({dim: 0})
-
-        # Compute if dask-backed (this is just 2D, so should be cheap)
-        if hasattr(sample_2d.data, "compute"):
-            sample_2d = sample_2d.compute()
-
         # Create the point mask (True where we want data)
         mask = np.zeros((len(lat_coords), len(lon_coords)), dtype=bool)
         point_values_valid = np.zeros((len(lat_coords), len(lon_coords)), dtype=bool)
@@ -1175,13 +1295,32 @@ class Clip(DataProcessor):
         # Track which points need 3x3 averaging due to NaN at exact location
         needs_averaging = []
 
-        for lat_idx, lon_idx in unique_indices:
-            # Check if this grid cell has valid data
-            cell_value = sample_2d.values[lat_idx, lon_idx]
-            if np.isnan(cell_value):
-                needs_averaging.append((lat_idx, lon_idx))
-            else:
+        if multivariable:
+            for lat_idx, lon_idx in unique_indices:
                 point_values_valid[lat_idx, lon_idx] = True
+        else:
+            # Single-variable behavior retains its data-validity fallback.
+            if isinstance(dataset, xr.Dataset):
+                first_var = next(iter(dataset.data_vars))
+                sample_data = dataset[first_var]
+            else:
+                sample_data = dataset
+
+            sample_2d = sample_data
+            for dim in list(sample_2d.dims):
+                if dim not in [lat_dim, lon_dim]:
+                    sample_2d = sample_2d.isel({dim: 0})
+
+            if hasattr(sample_2d.data, "compute"):
+                sample_2d = sample_2d.compute()
+
+            for lat_idx, lon_idx in unique_indices:
+                if np.isnan(sample_2d.values[lat_idx, lon_idx]):
+                    needs_averaging.append((lat_idx, lon_idx))
+                else:
+                    point_values_valid[lat_idx, lon_idx] = True
+
+        for lat_idx, lon_idx in unique_indices:
             mask[lat_idx, lon_idx] = True
 
         logger.debug(
@@ -1286,23 +1425,24 @@ class Clip(DataProcessor):
             clipped_lat_coords = masked_data[lat_dim].values
             clipped_lon_coords = masked_data[lon_dim].values
 
-            # Create a mapping from (lat_idx, lon_idx) to the original point_list lat/lon
-            idx_to_latlon = {}
-            for lat, lon in point_list:
-                # Transform coordinates if needed (same logic as above)
-                if needs_transform:
-                    try:
-                        x_target, y_target = fwd_transformer.transform(lon, lat)
-                        lat_target, lon_target = y_target, x_target
-                    except Exception:
+            if multivariable:
+                idx_to_latlon = selected_point_coordinates
+            else:
+                # Create a mapping from grid indices to the original points.
+                idx_to_latlon = {}
+                for lat, lon in point_list:
+                    if needs_transform:
+                        try:
+                            x_target, y_target = fwd_transformer.transform(lon, lat)
+                            lat_target, lon_target = y_target, x_target
+                        except Exception:
+                            lat_target, lon_target = lat, lon
+                    else:
                         lat_target, lon_target = lat, lon
-                else:
-                    lat_target, lon_target = lat, lon
 
-                # Find nearest indices
-                lat_idx = np.abs(lat_coords - lat_target).argmin()
-                lon_idx = np.abs(lon_coords - lon_target).argmin()
-                idx_to_latlon[(lat_idx, lon_idx)] = (lat, lon)
+                    lat_idx = np.abs(lat_coords - lat_target).argmin()
+                    lon_idx = np.abs(lon_coords - lon_target).argmin()
+                    idx_to_latlon[(lat_idx, lon_idx)] = (lat, lon)
 
             for lat_idx, lon_idx in unique_indices:
                 target_grid_lat = lat_coords[lat_idx]
