@@ -243,6 +243,17 @@ class TestValidateMetricCalcParam:
         assert result is False
         assert "Invalid metric 'mode'" in caplog.text
 
+    def test_by_variable_target_must_be_selected(self, caplog):
+        """Reject variable-specific settings for unselected variables."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {"by_variable": {"tasmin": {"percentiles": [50]}}},
+                query={"variable_id": ["tasmax", "pr"]},
+            )
+
+        assert result is False
+        assert "'by_variable' targets are not selected variables" in caplog.text
+
     def test_param_dict(self):
         """Test validate_metric_calc_param with a valid parameter dictionary."""
         param_dict = {
