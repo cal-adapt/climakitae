@@ -186,7 +186,7 @@ class TestClipUpdateContext:
         assert "clip" in context[_NEW_ATTRS_KEY]
         assert "Multi-point mask clipping" in context[_NEW_ATTRS_KEY]["clip"]
         assert "2 coordinate pairs" in context[_NEW_ATTRS_KEY]["clip"]
-        assert "3x3 neighborhood average" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "3x3 neighborhood fallback" in context[_NEW_ATTRS_KEY]["clip"]
 
     def test_update_context_multi_point_extracted(self):
         """Test context update for multi-point clipping with separated=True (extracted points)."""
@@ -1321,9 +1321,7 @@ class TestClipDataToPointIntegration:
             if clip_operation == "point":
                 result = Clip._clip_data_to_point(dataset, 35.0, -120.0)
             else:
-                result = Clip._clip_data_to_points_as_mask(
-                    dataset, [(35.0, -120.0)]
-                )
+                result = Clip._clip_data_to_points_as_mask(dataset, [(35.0, -120.0)])
 
         assert isinstance(result["tas"].data, da.Array)
         assert isinstance(result["pr"].data, da.Array)
@@ -1335,12 +1333,8 @@ class TestClipDataToPointIntegration:
         transformer = pyproj.Transformer.from_crs(
             "EPSG:4326", "EPSG:3857", always_xy=True
         )
-        x_coords = transformer.transform(
-            longitudes, np.full_like(longitudes, 35.0)
-        )[0]
-        y_coords = transformer.transform(
-            np.full_like(latitudes, -120.0), latitudes
-        )[1]
+        x_coords = transformer.transform(longitudes, np.full_like(longitudes, 35.0))[0]
+        y_coords = transformer.transform(np.full_like(latitudes, -120.0), latitudes)[1]
         lat_grid, lon_grid = np.meshgrid(latitudes, longitudes, indexing="ij")
         tas = np.ones((2, 3, 3))
         tas[:, 1, 1] = np.nan
@@ -1570,7 +1564,7 @@ class TestClipDataToPointsAsMask:
 
     This test class verifies the point-based mask clipping functionality:
     - Returns masked gridded data with NaN for non-selected cells
-    - Fills NaN cells with 3x3 neighborhood average
+    - Uses 3x3 neighborhood fallback for single-variable NaN cells
     - Handles extract_points=True to collapse to 'points' dimension
     - Handles duplicate points mapping to same grid cell
     """
@@ -1692,7 +1686,7 @@ class TestClipDataToPointsAsMask:
             ), f"Point lon {lon} outside range [{lon_min}, {lon_max}]"
 
     def test_mask_with_nan_fill(self):
-        """Test mask clipping fills NaN cells with 3x3 neighborhood average."""
+        """Test single-variable mask clipping fills NaN cells from neighbors."""
         # Point at NaN location (first row)
         point_at_nan = [(32.0, -119.0)]  # This is at lat=32, which is first row (NaN)
 

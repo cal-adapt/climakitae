@@ -38,8 +38,10 @@ Clipping Modes
 
 Key Features
 ------------
-- **Smart Point Handling**: For point-based clipping, automatically searches for
-  the nearest gridcell with valid (non-NaN) data within expanding search radii
+- **Common-Cell Multi-Variable Selection**: For point-based multi-variable queries,
+  selects cells by coordinates and applicable land masks without inspecting measurements
+- **Single-Variable Fallback**: Retains the existing nearest-cell validity search and
+  neighborhood averaging behavior
 - **Efficient Multi-Point Processing**: Uses vectorized operations for multiple
   points to minimize computation time
 - **Duplicate Filtering**: Automatically removes duplicate gridcells when multiple
@@ -113,8 +115,8 @@ Examples
 Notes
 -----
 - The processor requires a DataCatalog to access predefined boundary data
-- Point-based clipping includes intelligent search for valid data within expanding
-  radii (0.01°, 0.05°, 0.1°, 0.2°, 0.5°) if the closest gridcell contains NaN values
+- Multi-variable point clipping selects a common coordinate cell for all variables and
+  preserves NaNs; single-variable clipping retains its validity-based fallback
 - Multi-point operations are optimized using vectorized calculations where possible
 - All clipping operations preserve the original data's coordinate reference system
 - Results include metadata about the clipping operation in the dataset attributes
@@ -538,11 +540,11 @@ class Clip(DataProcessor):
             if self.extract_points:
                 context[_NEW_ATTRS_KEY][
                     self.name
-                ] = f"""Process '{self.name}' applied to the data. Multi-point mask clipping was done: {len(self.point_list)} coordinate pairs were indexed to the grid, points without data were filled with 3x3 neighborhood average, then extracted along 'points' dimension: {self.point_list}."""
+                ] = f"""Process '{self.name}' applied to the data. Multi-point mask clipping was done: {len(self.point_list)} coordinate pairs were indexed to the grid, single-variable NaNs may use the 3x3 neighborhood fallback while multi-variable queries preserve NaNs, then extracted along 'points' dimension: {self.point_list}."""
             else:
                 context[_NEW_ATTRS_KEY][
                     self.name
-                ] = f"""Process '{self.name}' applied to the data. Multi-point mask clipping was done: {len(self.point_list)} coordinate pairs were indexed to the grid, points without data were filled with 3x3 neighborhood average, non-selected grid cells were set to NaN. Coordinates: {self.point_list}."""
+                ] = f"""Process '{self.name}' applied to the data. Multi-point mask clipping was done: {len(self.point_list)} coordinate pairs were indexed to the grid, single-variable NaNs may use the 3x3 neighborhood fallback while multi-variable queries preserve NaNs, non-selected grid cells were set to NaN. Coordinates: {self.point_list}."""
         elif self.separated:
             # Separated mode: boundaries are clipped individually along a dimension
             dim_name = self.dimension_name or "region"
@@ -729,10 +731,11 @@ class Clip(DataProcessor):
     @staticmethod
     def _clip_data_to_point(dataset: xr.DataArray | xr.Dataset, lat: float, lon: float):
         """
-        Clip data to the closest gridcell with valid data for a single point.
+        Clip data to a single point.
 
-        This method will search for the nearest gridcell that contains
-        non-NaN values rather than just the geographically closest point.
+        Multi-variable Datasets use the nearest coordinate cell, constrained by an
+        explicit landmask when available. They do not inspect measurements to move
+        away from NaNs. Single-variable inputs retain the existing validity search.
 
         Parameters
         ----------
@@ -955,11 +958,11 @@ class Clip(DataProcessor):
         dataset: xr.DataArray | xr.Dataset, point_list: list[tuple[float, float]]
     ):
         """
-        Clip data to multiple closest gridcells using efficient vectorized operations.
+        Clip data to multiple closest gridcells.
 
-        This method uses the efficient `get_closest_gridcells` function to find all
-        closest gridcells at once, then renames the dimension to 'closest_cell' for
-        consistency with the previous API.
+        Single-variable inputs use the vectorized `get_closest_gridcells` function.
+        Multi-variable Datasets select cells by coordinates and applicable landmasks,
+        then rename the point dimension to 'closest_cell'.
 
         Parameters
         ----------
@@ -1180,8 +1183,10 @@ class Clip(DataProcessor):
         Apply a point-based mask to gridded data, preserving the grid structure.
 
         This method treats the list of lat/lon points as a spatial mask:
-        1. Index each lat/lon to the closest grid cell
-        2. For grid cells without valid data, fill with 3x3 neighborhood average
+        1. Index each lat/lon to the closest grid cell, constrained by an explicit
+           landmask when available
+        2. Preserve NaNs for multi-variable Datasets; single-variable inputs retain
+           the existing 3x3 neighborhood fallback
         3. Set all non-selected grid cells to NaN
         4. Return the masked gridded dataset
 
