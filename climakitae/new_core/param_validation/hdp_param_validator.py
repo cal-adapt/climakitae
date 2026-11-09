@@ -51,6 +51,7 @@ class HDPValidator(ParameterValidator):
         self.all_catalog_keys = {
             "network_id": UNSET,
             "station_id": UNSET,
+            "variable_id": UNSET,
         }
         self.catalog = catalog.hdp
         self.invalid_processors = [
@@ -146,11 +147,47 @@ class HDPValidator(ParameterValidator):
             True if the query does not contain invalid processors, False otherwise.
 
         """
-        for processor in query.get("processors", []):
+        processes = query.get("processes", {})
+        if isinstance(processes, dict):
+            processor_names = set(processes)
+        elif isinstance(processes, (list, tuple, set)):
+            processor_names = set(processes)
+        else:
+            processor_names = set()
+        processor_names.update(query.get("processors", []))
+
+        for processor in processor_names:
             if processor in self.invalid_processors:
                 logger.warning("Invalid processor for HDP data: %s", processor)
                 return False
         return True
+
+    def _build_multi_variable_plan(self) -> Dict[str, Any] | None:
+        """Mark selected HDP observation fields without treating them as catalog keys.
+
+        Returns
+        -------
+        dict or None
+            Query metadata for station-field selection, or ``None`` for invalid input.
+        """
+        variable_ids = self.all_catalog_keys.get("variable_id", UNSET)
+        if variable_ids is UNSET:
+            return {}
+
+        if isinstance(variable_ids, str):
+            requested_fields = [variable_ids]
+        elif isinstance(variable_ids, (list, tuple)) and variable_ids:
+            requested_fields = list(variable_ids)
+        else:
+            logger.warning(
+                "HDP variable_id must be a non-empty string or sequence of fields."
+            )
+            return None
+
+        return {
+            "_hdp_variable_query": True,
+            "_hdp_requested_fields": requested_fields,
+        }
 
     def _check_network_id_required(self, query: Dict[str, Any]) -> bool:
         """Check that network_id is provided and is a single value.

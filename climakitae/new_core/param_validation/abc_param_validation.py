@@ -571,6 +571,10 @@ class ParameterValidator(ABC):
             key: value
             for key, value in self.all_catalog_keys.items()
             if not key.startswith("_")
+            and not (
+                key == "variable_id"
+                and self.all_catalog_keys.get("_hdp_variable_query")
+            )
         }
         if self.all_catalog_keys.get("_multi_variable_query", False):
             search_keys["variable_id"] = self.all_catalog_keys["_catalog_variable_ids"]
