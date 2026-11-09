@@ -8,6 +8,7 @@ that validates data catalog parameters for CADCAT catalog.
 import warnings
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 from climakitae.core.constants import UNSET
@@ -230,6 +231,31 @@ class TestDataValidator:
             # Should call parent method once and return its result
             mock_parent.assert_called_once_with(query)
             assert result == expected_result
+
+    def test_is_valid_query_rejects_partially_available_variables(self, caplog):
+        """Reject a multi-variable query when one field is unavailable."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["LOCA2"],
+                "table_id": ["day"],
+                "grid_label": ["d03"],
+                "variable_id": ["tasmax"],
+            }
+        )
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 1)
+        query = {
+            "activity_id": "LOCA2",
+            "table_id": "day",
+            "grid_label": "d03",
+            "variable_id": ["tasmax", "pr"],
+        }
+
+        result = self.validator.is_valid_query(query)
+
+        assert result is None
+        assert "pr" in caplog.text
+        assert "table_id=day" in caplog.text
+        assert "grid_label=d03" in caplog.text
 
     def test_default_processors_with_empty_query(self):
         """Test get_default_processors with empty query.

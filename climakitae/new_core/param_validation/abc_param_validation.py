@@ -322,6 +322,55 @@ class ParameterValidator(ABC):
             pass
         return False, None, None
 
+    def _check_requested_variables_available(self) -> bool:
+        """Check that every requested native variable matches the catalog constraints.
+
+        Returns
+        -------
+        bool
+            Whether the requested variable IDs are available together.
+        """
+        variable_ids = self.all_catalog_keys.get("variable_id", UNSET)
+        if not isinstance(variable_ids, (list, tuple)) or len(variable_ids) < 2:
+            return True
+
+        catalog_df = getattr(self.catalog, "df", None)
+        columns = getattr(catalog_df, "columns", ())
+        if catalog_df is None or "variable_id" not in columns:
+            logger.warning(
+                "Cannot validate requested variables %s because the catalog does "
+                "not expose variable_id metadata.",
+                variable_ids,
+            )
+            return False
+
+        constrained_df = catalog_df
+        constraints = {}
+        for key, value in self.all_catalog_keys.items():
+            if key == "variable_id" or value is UNSET or key not in columns:
+                continue
+            values = value if isinstance(value, (list, tuple)) else [value]
+            constrained_df = constrained_df[constrained_df[key].isin(values)]
+            constraints[key] = value
+
+        available_variables = set(constrained_df["variable_id"].unique())
+        missing_variables = [
+            variable for variable in variable_ids if variable not in available_variables
+        ]
+        if missing_variables:
+            constraint_text = ", ".join(
+                f"{key}={value}" for key, value in constraints.items()
+            )
+            logger.warning(
+                "Requested variables %s are unavailable under constraints %s. "
+                "The entire query has been rejected.",
+                missing_variables,
+                constraint_text or "none",
+            )
+            return False
+
+        return True
+
     def _is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         """Internal method to validate query parameters and provide user feedback.
 
@@ -365,6 +414,9 @@ class ParameterValidator(ABC):
         """
         # convert user input to keys
         self.populate_catalog_keys(query)
+
+        if not self._check_requested_variables_available():
+            return None
 
         # Check if variable_id is a derived variable
         # For derived variables, we need to search for source variables in the catalog,
