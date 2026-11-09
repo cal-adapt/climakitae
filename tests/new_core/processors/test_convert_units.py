@@ -370,6 +370,30 @@ class TestConvertUnitsExecute:
             result["temperature"].values, sample_dataset["temperature"].values
         )
 
+    def test_execute_by_variable_preserves_monthly_precipitation_conversion(self):
+        """Test targeted flux conversion uses monthly calendar-day scaling."""
+        dataset = xr.Dataset(
+            {
+                "precipitation": ("time", [1.0, 1.0]),
+                "tasmax": ("time", [300.0, 301.0]),
+            },
+            coords={"time": pd.to_datetime(["2020-01-01", "2020-02-01"])},
+            attrs={"frequency": "mon"},
+        )
+        dataset["precipitation"].attrs["units"] = "kg m-2 s-1"
+        dataset["tasmax"].attrs["units"] = "K"
+
+        result = ConvertUnits({"by_variable": {"precipitation": "mm"}}).execute(
+            dataset, context={}
+        )
+
+        np.testing.assert_allclose(
+            result["precipitation"].values, np.array([31, 29]) * 86400
+        )
+        np.testing.assert_array_equal(result["tasmax"].values, [300.0, 301.0])
+        assert result["precipitation"].attrs["units"] == "mm"
+        assert result["tasmax"].attrs["units"] == "K"
+
 
 class TestHelperConversionFunctions:
     """Tests for helper conversion functions within ConvertUnits processor."""
