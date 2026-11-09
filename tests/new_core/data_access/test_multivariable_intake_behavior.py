@@ -1,5 +1,6 @@
 """Characterize pinned intake-esm aggregation for multi-variable queries."""
 
+import dask.array as da
 import intake
 import numpy as np
 import pandas as pd
@@ -468,3 +469,26 @@ def test_data_catalog_rejects_incompatible_calendars(tmp_path):
 
     with pytest.raises(ValueError, match="incompatible calendars"):
         data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+
+def test_data_catalog_preserves_lazy_multi_variable_assets(tmp_path):
+    """Test multi-variable assets remain lazy after assembly."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(tmp_path, spatial_grid=True)
+    query = {
+        "variable_id": ["tasmax", "pr"],
+        "_multi_variable_query": True,
+        "_requested_variables": ["tasmax", "pr"],
+        "_catalog_variable_ids": ["tasmax", "pr"],
+        "_derived_variables": [],
+        "_source_variables": [],
+    }
+
+    result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+    dataset = next(iter(result.values()))
+    assert isinstance(dataset["tasmax"].data, da.Array)
+    assert isinstance(dataset["pr"].data, da.Array)

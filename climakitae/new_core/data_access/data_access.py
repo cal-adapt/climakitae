@@ -641,6 +641,9 @@ class DataCatalog(dict):
                 self[effective_key]
                 .search(**search_query)
                 .to_dataset_dict(
+                    xarray_open_kwargs=(
+                        {"chunks": {}} if multi_variable_query else None
+                    ),
                     # Use consolidated=None for compatibility with both Zarr v2 and v3.
                     # - True: requires consolidated metadata (fails on Zarr v3 without it)
                     # - False: always reads metadata from individual arrays
