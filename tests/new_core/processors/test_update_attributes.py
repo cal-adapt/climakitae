@@ -103,6 +103,27 @@ class TestUpdateAttributesExecuteDataset:
         assert result.attrs["original_attr"] == "original_value"
         assert "new_attr" in result.attrs
 
+    def test_execute_preserves_multivariable_diagnostics_and_variable_units(self):
+        """Test export metadata updates preserve coverage and per-field units."""
+        diagnostics = '{"records":{"r1":{"status":"included"}}}'
+        dataset = xr.Dataset(
+            {
+                "tasmax": ("time", [300.0, 301.0]),
+                "pr": ("time", [1.0, 2.0]),
+            },
+            coords={"time": pd.date_range("2020-01-01", periods=2)},
+            attrs={"multi_variable_diagnostics": diagnostics},
+        )
+        dataset["tasmax"].attrs["units"] = "K"
+        dataset["pr"].attrs["units"] = "mm/day"
+        context = {_NEW_ATTRS_KEY: {"time_slice": "2020-01-01 to 2020-01-02"}}
+
+        result = self.processor.execute(dataset, context)
+
+        assert result.attrs["multi_variable_diagnostics"] == diagnostics
+        assert result["tasmax"].attrs["units"] == "K"
+        assert result["pr"].attrs["units"] == "mm/day"
+
     def test_execute_dataset_converts_bad_types(self):
         """Test that execute converts bad types to strings."""
         self.sample_dataset.attrs["dictionary"] = {"key": "value"}
