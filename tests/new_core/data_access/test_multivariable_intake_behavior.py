@@ -362,3 +362,34 @@ def test_catalog_keeps_historical_and_ssp_assets_in_separate_groups(tmp_path):
     )
     assert str(experiments["historical"].time.values[0]).startswith("2000")
     assert str(experiments["ssp245"].time.values[0]).startswith("2040")
+
+
+def test_data_catalog_excludes_members_missing_requested_variables(tmp_path):
+    """Test retrieval keeps only members with every requested field and common time."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(tmp_path, spatial_grid=True)
+    query = {
+        "variable_id": ["tasmax", "pr"],
+        "_multi_variable_query": True,
+        "_requested_variables": ["tasmax", "pr"],
+        "_catalog_variable_ids": ["tasmax", "pr"],
+        "_derived_variables": [],
+        "_source_variables": [],
+    }
+
+    result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+    assert len(result) == 1
+    dataset = next(iter(result.values()))
+    assert set(dataset.data_vars) == {"tasmax", "pr"}
+    assert dataset.member_id.values.tolist() == ["r1i1p1f1"]
+    np.testing.assert_array_equal(
+        dataset.time.values,
+        [
+            np.datetime64("2000-01-02"),
+            np.datetime64("2000-01-03"),
+        ],
+    )
