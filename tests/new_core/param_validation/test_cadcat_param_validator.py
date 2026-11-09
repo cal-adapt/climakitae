@@ -297,6 +297,40 @@ class TestDataValidator:
         )
         assert query == original_query
 
+    def test_is_valid_query_retains_explicit_sources_with_derived_requests(self):
+        """Keep explicitly requested source fields in the retrieval plan."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["WRF", "WRF", "WRF"],
+                "institution_id": ["UCLA", "UCLA", "UCLA"],
+                "table_id": ["1hr", "1hr", "1hr"],
+                "grid_label": ["d03", "d03", "d03"],
+                "variable_id": ["u10", "v10", "pr"],
+            }
+        )
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 3)
+        query = {
+            "activity_id": "WRF",
+            "institution_id": "UCLA",
+            "table_id": "1hr",
+            "grid_label": "d03",
+            "variable_id": ["u10", "wind_speed_10m", "pr"],
+        }
+
+        result = self.validator.is_valid_query(query)
+
+        assert result["variable_id"] == ["u10", "wind_speed_10m", "pr"]
+        assert result["_requested_variables"] == ["u10", "wind_speed_10m", "pr"]
+        assert result["_catalog_variable_ids"] == ["u10", "v10", "pr"]
+        assert result["_source_variables"] == ["u10", "v10"]
+        self.validator.catalog.search.assert_called_once_with(
+            activity_id="WRF",
+            institution_id="UCLA",
+            table_id="1hr",
+            grid_label="d03",
+            variable_id=["u10", "v10", "pr"],
+        )
+
     def test_default_processors_with_empty_query(self):
         """Test get_default_processors with empty query.
 
