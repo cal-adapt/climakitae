@@ -7,7 +7,9 @@ import intake
 import pytest
 
 
-def _make_local_catalog(tmp_path, catalog_kind="cadcat", registry=None):
+def _make_local_catalog(
+    tmp_path, catalog_kind="cadcat", registry=None, spatial_grid=False
+):
     """Create a local multi-variable catalog with incomplete source coverage."""
     catalog_profiles = {
         "cadcat": {
@@ -74,10 +76,25 @@ def _make_local_catalog(tmp_path, catalog_kind="cadcat", registry=None):
     records = []
     for (member_id, variable_id), (times, values) in assets.items():
         path = tmp_path / f"{member_id}-{variable_id}.nc"
-        xr.Dataset(
-            {variable_id: ("time", values)},
-            coords={"time": pd.to_datetime(times)},
-        ).to_netcdf(path)
+        if spatial_grid:
+            latitudes = [34.0, 35.0] if variable_id == "tasmax" else [34.0, 36.0]
+            measurements = np.broadcast_to(
+                np.asarray(values)[:, None, None], (len(times), 2, 2)
+            )
+            dataset = xr.Dataset(
+                {variable_id: (("time", "lat", "lon"), measurements)},
+                coords={
+                    "time": pd.to_datetime(times),
+                    "lat": latitudes,
+                    "lon": [-120.0, -119.0],
+                },
+            )
+        else:
+            dataset = xr.Dataset(
+                {variable_id: ("time", values)},
+                coords={"time": pd.to_datetime(times)},
+            )
+        dataset.to_netcdf(path)
         record = {
             "activity_id": "WRF",
             "institution_id": "UCLA",
@@ -210,3 +227,18 @@ def test_shared_derived_dependencies_are_separate_before_assembly(tmp_path):
         set(dataset.data_vars).issubset({"tasmax", "pr"})
         for dataset in raw_assets.values()
     )
+
+
+def test_aggregation_outer_aligns_mismatched_spatial_coordinates(tmp_path):
+    """Test different grids are unioned and padded instead of rejected."""
+    catalog = _make_local_catalog(tmp_path, spatial_grid=True).search(
+        variable_id=["tasmax", "pr"]
+    )
+
+    dataset = next(
+        iter(catalog.to_dataset_dict(progressbar=False).values())
+    )
+
+    np.testing.assert_array_equal(dataset["lat"].values, [34.0, 35.0, 36.0])
+    assert dataset["tasmax"].sel(lat=36.0).isnull().all()
+    assert dataset["pr"].sel(lat=35.0).isnull().all()
