@@ -343,6 +343,34 @@ class TestDataValidator:
         )
         assert query == original_query
 
+    def test_is_valid_query_rejects_missing_derived_dependencies_under_constraints(
+        self, caplog
+    ):
+        """Reject derived outputs when a required source is missing at the resolution."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["WRF", "WRF"],
+                "institution_id": ["UCLA", "UCLA"],
+                "table_id": ["1hr", "day"],
+                "grid_label": ["d03", "d03"],
+                "variable_id": ["u10", "v10"],
+            }
+        )
+        query = {
+            "activity_id": "WRF",
+            "institution_id": "UCLA",
+            "table_id": "1hr",
+            "grid_label": "d03",
+            "variable_id": ["wind_speed_10m", "wind_direction_10m"],
+        }
+
+        result = self.validator.is_valid_query(query)
+
+        assert result is None
+        assert "v10" in caplog.text
+        assert "table_id=1hr" in caplog.text
+        self.validator.catalog.search.assert_not_called()
+
     def test_is_valid_query_retains_explicit_sources_with_derived_requests(self):
         """Keep explicitly requested source fields in the retrieval plan."""
         self.validator.catalog.df = pd.DataFrame(
