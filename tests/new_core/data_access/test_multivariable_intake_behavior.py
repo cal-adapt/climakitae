@@ -192,7 +192,7 @@ def _make_local_hdp_catalog(tmp_path):
     """Create HDP-shaped station assets with different observation fields."""
     stations = {
         "station-1": {
-            "tas": [280.0, 281.0],
+            "tas": [280.0, np.nan],
             "pr": [0.0, 1.0],
         },
         "station-2": {
@@ -376,6 +376,34 @@ def test_hdp_station_assets_contain_observation_fields_not_variable_rows(tmp_pat
     assert fields_by_station == {
         "station-1": {"tas", "pr"},
         "station-2": {"tas"},
+    }
+
+
+def test_hdp_field_selection_excludes_incomplete_stations_with_diagnostics(tmp_path):
+    """Test HDP returns complete station fields and records excluded stations."""
+    from climakitae.new_core.data_access.data_access import CATALOG_HDP, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_HDP] = _make_local_hdp_catalog(tmp_path)
+    query = {
+        "network_id": "ASOSAWOS",
+        "variable_id": ["tas", "pr"],
+        "_hdp_variable_query": True,
+        "_hdp_requested_fields": ["tas", "pr"],
+    }
+
+    result = data_catalog.get_data(query, catalog_key=CATALOG_HDP)
+
+    assert len(result) == 1
+    dataset = next(iter(result.values()))
+    assert list(dataset.data_vars) == ["tas", "pr"]
+    assert dataset.station_id.values.tolist() == ["station-1"]
+    assert np.isnan(dataset["tas"].values).any()
+    diagnostics = json.loads(dataset.attrs["multi_variable_diagnostics"])
+    assert diagnostics["stations"]["station-2"] == {
+        "missing_fields": ["pr"],
+        "status": "excluded",
     }
 
 
