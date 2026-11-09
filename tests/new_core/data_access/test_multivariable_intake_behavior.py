@@ -88,6 +88,10 @@ def _make_local_catalog(
             ["2000-01-04", "2000-01-05"],
             [2.0, 3.0],
         )
+        assets[("r2i1p1f1", "pr")] = (
+            ["2000-01-02", "2000-01-03"],
+            [4.0, 5.0],
+        )
     if only_incomplete_members:
         assets.pop(("r1i1p1f1", "pr"))
     if include_wind_components:
@@ -437,7 +441,7 @@ def test_data_catalog_excludes_members_missing_requested_variables(tmp_path, cap
 
 
 def test_data_catalog_rejects_complete_groups_without_shared_timestamps(tmp_path):
-    """Test a complete source group with disjoint times fails the query."""
+    """Test one disjoint complete group fails even when another group overlaps."""
     from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
 
     data_catalog = dict.__new__(DataCatalog)
