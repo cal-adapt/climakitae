@@ -26,10 +26,7 @@ from climakitae.core.constants import (
     SMALL_ARRAY_THRESHOLD_BYTES,
     UNSET,
 )
-from climakitae.explore.threshold_tools import (
-    _get_distr_func,
-    _get_fitted_distr,
-)
+from climakitae.explore.threshold_tools import _get_distr_func, _get_fitted_distr
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.abc_data_processor import (
     DataProcessor,

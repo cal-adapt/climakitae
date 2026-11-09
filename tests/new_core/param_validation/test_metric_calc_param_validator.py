@@ -13,9 +13,9 @@ import pytest
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.metric_calc_param_validator import (
     _validate_basic_metric_parameters,
+    _validate_one_in_x_parameters,
     _validate_threshold_parameters,
     validate_metric_calc_param,
-    _validate_one_in_x_parameters,
 )
 
 
