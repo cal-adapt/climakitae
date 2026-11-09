@@ -998,6 +998,28 @@ class TestExportSingle:
         exported = pd.read_csv(tmp_path / "selected_raw.csv.gz")
         assert exported["variable"].tolist() == ["tasmax", "tasmax", "pr", "pr"]
 
+    def test_multi_variable_csv_skip_existing_preserves_files(self, tmp_path):
+        """Do not overwrite existing long-format CSV or metadata sidecar."""
+        csv_path = tmp_path / "existing.csv.gz"
+        metadata_path = tmp_path / "existing_metadata.txt"
+        csv_path.write_bytes(b"existing csv")
+        metadata_path.write_text("existing metadata")
+        processor = Export(
+            {
+                "filename": "existing",
+                "file_format": "CSV",
+                "export_method": "skip_existing",
+            }
+        )
+        data = xr.Dataset({"tasmax": (("time",), [1.0]), "pr": (("time",), [2.0])})
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.chdir(tmp_path)
+            processor.execute(data, context={"variable_id": ["tasmax", "pr"]})
+
+        assert csv_path.read_bytes() == b"existing csv"
+        assert metadata_path.read_text() == "existing metadata"
+
     @patch("os.path.exists", return_value=True)
     @patch("climakitae.new_core.processors.export._export_to_netcdf")
     def test_export_single_skip_existing(self, mock_export, mock_exists):
