@@ -542,3 +542,34 @@ def test_data_catalog_assembles_each_supported_variable_catalog(
             np.datetime64("2000-01-03"),
         ],
     )
+
+
+def test_data_catalog_keeps_historical_and_ssp_multi_variable_groups_separate(
+    tmp_path,
+):
+    """Test distinct experiments remain separate during source assembly."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(
+        tmp_path, spatial_grid=True, include_ssp=True
+    )
+    query = {
+        "variable_id": ["tasmax", "pr"],
+        "_multi_variable_query": True,
+        "_requested_variables": ["tasmax", "pr"],
+        "_catalog_variable_ids": ["tasmax", "pr"],
+        "_derived_variables": [],
+        "_source_variables": [],
+    }
+
+    result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+    datasets = {
+        dataset.attrs["intake_esm_attrs:experiment_id"]: dataset
+        for dataset in result.values()
+    }
+    assert set(datasets) == {"historical", "ssp245"}
+    assert str(datasets["historical"].time.values[0]).startswith("2000")
+    assert str(datasets["ssp245"].time.values[0]).startswith("2040")
