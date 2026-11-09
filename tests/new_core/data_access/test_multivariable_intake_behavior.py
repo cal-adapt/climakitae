@@ -1,5 +1,7 @@
 """Characterize pinned intake-esm aggregation for multi-variable queries."""
 
+import json
+
 import dask.array as da
 import intake
 import numpy as np
@@ -423,6 +425,15 @@ def test_data_catalog_excludes_members_missing_requested_variables(tmp_path, cap
         ],
     )
     assert "Trimming 1 timestamp(s) from field tasmax" in caplog.text
+    diagnostics = json.loads(dataset.attrs["multi_variable_diagnostics"])
+    assert diagnostics["records"]["r1i1p1f1"]["trimmed_timestamp_counts"] == {
+        "pr": 0,
+        "tasmax": 1,
+    }
+    assert diagnostics["records"]["r2i1p1f1"] == {
+        "missing_catalog_variables": ["pr"],
+        "status": "excluded",
+    }
 
 
 def test_data_catalog_rejects_complete_groups_without_shared_timestamps(tmp_path):

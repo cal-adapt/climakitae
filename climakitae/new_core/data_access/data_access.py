@@ -1021,6 +1021,14 @@ class DataCatalog(dict):
                 "Multi-variable queries require at least one catalog variable."
             )
 
+        member_index = (
+            identity_fields.index("member_id")
+            if catalog_key == CATALOG_CADCAT
+            else None
+        )
+        outer_identity_fields = tuple(
+            field for field in identity_fields if field != "member_id"
+        )
         grouped_assets = {}
         for asset_key, dataset in datasets.items():
             identity = []
@@ -1043,7 +1051,17 @@ class DataCatalog(dict):
             grouped_assets.setdefault(tuple(identity), []).append((asset_key, dataset))
 
         complete_groups = {}
+        alignment_diagnostics = {}
         for identity, assets in grouped_assets.items():
+            outer_identity = (
+                identity[:member_index] + identity[member_index + 1 :]
+                if member_index is not None
+                else identity
+            )
+            record_key = (
+                str(identity[member_index]) if member_index is not None else "record"
+            )
+            group_diagnostics = alignment_diagnostics.setdefault(outer_identity, {})
             available_fields = {
                 variable for _, dataset in assets for variable in dataset.data_vars
             }
@@ -1059,6 +1077,10 @@ class DataCatalog(dict):
                     identity,
                     missing_fields,
                 )
+                group_diagnostics[record_key] = {
+                    "status": "excluded",
+                    "missing_catalog_variables": missing_fields,
+                }
                 continue
 
             field_datasets = []
@@ -1118,6 +1140,14 @@ class DataCatalog(dict):
                         variable,
                         identity,
                     )
+            group_diagnostics[record_key] = {
+                "status": "included",
+                "common_timestamp_count": int(len(common_times)),
+                "trimmed_timestamp_counts": {
+                    variable: int(len(np.setdiff1d(times, common_times)))
+                    for variable, times in zip(requested_fields, field_times)
+                },
+            }
             if not len(common_times):
                 raise ValueError(
                     f"Multi-variable fields have no common timestamps in source "
@@ -1153,10 +1183,8 @@ class DataCatalog(dict):
                 "No source group contains all requested catalog variables "
                 f"{requested_fields}."
             )
-
         result = {}
         if catalog_key == CATALOG_CADCAT:
-            member_index = identity_fields.index("member_id")
             outer_groups = {}
             for identity, group_datasets in complete_groups.items():
                 outer_identity = identity[:member_index] + identity[member_index + 1 :]
@@ -1167,15 +1195,32 @@ class DataCatalog(dict):
 
             for members in outer_groups.values():
                 members.sort(key=lambda item: str(item[0]))
-                result[members[0][1]] = xr.concat(
+                dataset = xr.concat(
                     [dataset for _, _, dataset in members],
                     dim="member_id",
                     join="outer",
                     combine_attrs="override",
                 )
+                dataset.attrs["multi_variable_diagnostics"] = json.dumps(
+                    {
+                        "identity": dict(zip(outer_identity_fields, outer_identity)),
+                        "records": alignment_diagnostics[outer_identity],
+                    },
+                    sort_keys=True,
+                    default=str,
+                )
+                result[members[0][1]] = dataset
         else:
-            for group_datasets in complete_groups.values():
+            for identity, group_datasets in complete_groups.items():
                 key, dataset = group_datasets[0]
+                dataset.attrs["multi_variable_diagnostics"] = json.dumps(
+                    {
+                        "identity": dict(zip(identity_fields, identity)),
+                        "records": alignment_diagnostics[identity],
+                    },
+                    sort_keys=True,
+                    default=str,
+                )
                 result[key] = dataset
 
         return result
