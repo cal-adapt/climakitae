@@ -268,6 +268,63 @@ class ConvertUnits(DataProcessor):
             case _:
                 return set()
 
+    @staticmethod
+    def _get_support_variable_names(data: Any) -> set[str]:
+        """Return names of land-mask and CRS variables in supported containers.
+
+        Parameters
+        ----------
+        data : Any
+            An xarray object or a nested dictionary, list, or tuple of xarray
+            objects.
+
+        Returns
+        -------
+        set of str
+            Names of variables that must not be unit-converted.
+        """
+        match data:
+            case xr.Dataset():
+                grid_mapping_variables = {
+                    variable.attrs.get("grid_mapping")
+                    for variable in data.data_vars.values()
+                    if variable.attrs.get("grid_mapping") is not None
+                }
+                return {
+                    name
+                    for name, variable in data.data_vars.items()
+                    if name.lower() in {"landmask", "crs", "spatial_ref"}
+                    or name in grid_mapping_variables
+                    or {
+                        "grid_mapping_name",
+                        "spatial_ref",
+                        "crs_wkt",
+                    }.intersection(variable.attrs)
+                }
+            case xr.DataArray():
+                if data.name is None:
+                    return set()
+                if data.name.lower() in {"landmask", "crs", "spatial_ref"} or {
+                    "grid_mapping_name",
+                    "spatial_ref",
+                    "crs_wkt",
+                }.intersection(data.attrs):
+                    return {data.name}
+                return set()
+            case dict():
+                return set().union(
+                    *(
+                        ConvertUnits._get_support_variable_names(item)
+                        for item in data.values()
+                    )
+                )
+            case list() | tuple():
+                return set().union(
+                    *(ConvertUnits._get_support_variable_names(item) for item in data)
+                )
+            case _:
+                return set()
+
     def update_context(self, context: Dict[str, Any]) -> None:
         """
         Update the context with information about the unit conversion operation, to be
@@ -318,26 +375,21 @@ class ConvertUnits(DataProcessor):
         Union[xr.Dataset, xr.DataArray]
             The converted data.
         """
+        support_variables = self._get_support_variable_names(data)
         if isinstance(value, str):
             if isinstance(data, xr.DataArray):
-                targets = {data.name: value} if data.name is not None else {}
+                targets = (
+                    {data.name: value}
+                    if data.name is not None and data.name not in support_variables
+                    else {}
+                )
             else:
-                grid_mapping_variables = {
-                    variable.attrs.get("grid_mapping")
-                    for variable in data.data_vars.values()
-                }
                 targets = {
                     name: value
                     for name, variable in data.data_vars.items()
                     if "units" in variable.attrs
-                    and name != "landmask"
-                    and name not in grid_mapping_variables
+                    and name not in support_variables
                     and (selected_variables is None or name in selected_variables)
-                    and not {
-                        "grid_mapping_name",
-                        "spatial_ref",
-                        "crs_wkt",
-                    }.intersection(variable.attrs)
                 }
         elif (
             isinstance(value, Mapping)
@@ -345,6 +397,15 @@ class ConvertUnits(DataProcessor):
             and isinstance(value["by_variable"], Mapping)
         ):
             targets = value["by_variable"]
+            support_targets = set(targets) & support_variables
+            if support_targets:
+                logger.warning(
+                    "Unit conversions cannot target support/CRS variables: %s; "
+                    "no variables were converted.",
+                    sorted(support_targets),
+                )
+                self.success = False
+                return data
         else:
             logger.warning(
                 "The provided value is not the correct type. Expected a string "
@@ -354,7 +415,16 @@ class ConvertUnits(DataProcessor):
             self.success = False
             return data
 
+        if isinstance(data, xr.DataArray) and data.name in support_variables:
+            return data
+
         if isinstance(data, xr.DataArray):
+            if (
+                data.name is not None
+                and selected_variables is not None
+                and data.name not in selected_variables
+            ):
+                return data
             if data.name not in targets:
                 return data
             variables = {data.name: data}
@@ -362,6 +432,26 @@ class ConvertUnits(DataProcessor):
             variables = {name: data[name] for name in targets if name in data.data_vars}
 
         if not variables:
+            if isinstance(value, Mapping):
+                return data
+
+        if not variables:
+            has_unit_attributes = (
+                "units" in data.attrs
+                if isinstance(data, xr.DataArray)
+                else any(
+                    "units" in variable.attrs for variable in data.data_vars.values()
+                )
+            )
+            if not has_unit_attributes:
+                logger.warning(
+                    "This variable does not have identifiable native units. "
+                    "The data for this variable will need to have a 'units' "
+                    "attribute added in the catalog."
+                )
+                self.success = False
+                return data
+
             logger.warning(
                 "No climate data variables with identifiable units were selected "
                 "for conversion."
@@ -405,12 +495,12 @@ class ConvertUnits(DataProcessor):
 
             if target_unit not in valid_units:
                 logger.warning(
-                    "The selected units '%s' are not valid for variable '%s' "
-                    "with source units '%s'. Valid options: %s; no variables "
-                    "were converted.",
+                    "The selected units '%s' are not valid for '%s' "
+                    "(variable '%s'). Valid options: %s; no variables were "
+                    "converted.",
                     target_unit,
-                    name,
                     units_from,
+                    name,
                     valid_units,
                 )
                 self.success = False

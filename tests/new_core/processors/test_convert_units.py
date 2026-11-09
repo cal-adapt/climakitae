@@ -335,6 +335,28 @@ class TestConvertUnitsExecute:
         assert result["spatial_ref"].attrs["units"] == "K"
         assert result["tasmax"].attrs["grid_mapping"] == "spatial_ref"
 
+    def test_execute_rejects_explicit_crs_conversion_atomically(self):
+        """Test CRS variables cannot be converted, even when explicitly targeted."""
+        dataset = xr.Dataset(
+            {
+                "tasmax": ("time", [300.0]),
+                "spatial_ref": xr.DataArray(0, attrs={"grid_mapping_name": "crs"}),
+            },
+            coords={"time": pd.date_range("2020-01-01", periods=1)},
+        )
+        dataset["tasmax"].attrs.update({"units": "K", "grid_mapping": "spatial_ref"})
+        dataset["spatial_ref"].attrs["units"] = "K"
+
+        with pytest.warns(UserWarning, match="support/CRS"):
+            result = ConvertUnits(
+                {"by_variable": {"tasmax": "degC", "spatial_ref": "degC"}}
+            ).execute(dataset, context={})
+
+        assert result is dataset
+        assert result["tasmax"].attrs["units"] == "K"
+        assert result["spatial_ref"].attrs["units"] == "K"
+        np.testing.assert_array_equal(result["tasmax"].values, [300.0])
+
     def test_execute_shared_incompatible_target_is_atomic(self):
         """Test incompatible shared targets leave all measurement fields unchanged."""
         dataset = xr.Dataset(
