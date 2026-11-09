@@ -14,6 +14,7 @@ def _make_local_catalog(
     spatial_grid=False,
     mismatched_spatial_grid=False,
     include_ssp=False,
+    no_time_overlap=False,
 ):
     """Create a local multi-variable catalog with incomplete source coverage."""
     catalog_profiles = {
@@ -70,6 +71,11 @@ def _make_local_catalog(
             [20.0, 21.0],
         ),
     }
+    if no_time_overlap:
+        assets[("r1i1p1f1", "pr")] = (
+            ["2000-01-04", "2000-01-05"],
+            [2.0, 3.0],
+        )
     if catalog_kind != "cadcat":
         assets = {key: value for key, value in assets.items() if key[0] == "r1i1p1f1"}
     asset_rows = [
@@ -393,3 +399,25 @@ def test_data_catalog_excludes_members_missing_requested_variables(tmp_path):
             np.datetime64("2000-01-03"),
         ],
     )
+
+
+def test_data_catalog_rejects_complete_groups_without_shared_timestamps(tmp_path):
+    """Test a complete source group with disjoint times fails the query."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(
+        tmp_path, spatial_grid=True, no_time_overlap=True
+    )
+    query = {
+        "variable_id": ["tasmax", "pr"],
+        "_multi_variable_query": True,
+        "_requested_variables": ["tasmax", "pr"],
+        "_catalog_variable_ids": ["tasmax", "pr"],
+        "_derived_variables": [],
+        "_source_variables": [],
+    }
+
+    with pytest.raises(ValueError, match="no common timestamps"):
+        data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
