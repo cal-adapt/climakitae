@@ -453,6 +453,28 @@ def test_hdp_field_selection_excludes_incomplete_stations_with_diagnostics(tmp_p
     }
 
 
+def test_hdp_validator_plan_reaches_station_field_retrieval(tmp_path):
+    """Test HDP validation metadata drives station-field retrieval end to end."""
+    from climakitae.new_core.data_access.data_access import CATALOG_HDP, DataCatalog
+    from climakitae.new_core.param_validation.hdp_param_validator import HDPValidator
+
+    hdp_catalog = _make_local_hdp_catalog(tmp_path)
+    validator = HDPValidator(MagicMock(hdp=hdp_catalog))
+    query = {"network_id": "ASOSAWOS", "variable_id": ["tas", "pr"]}
+
+    validated_query = validator.is_valid_query(query)
+    assert validated_query is not None
+    assert validated_query["_hdp_requested_fields"] == ["tas", "pr"]
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_HDP] = hdp_catalog
+    result = data_catalog.get_data(validated_query, catalog_key=CATALOG_HDP)
+
+    assert len(result) == 1
+    assert list(next(iter(result.values())).data_vars) == ["tas", "pr"]
+
+
 def test_hdp_selection_fails_when_no_station_has_requested_fields(tmp_path):
     """Test HDP selection fails with diagnostics when all stations are incomplete."""
     from climakitae.new_core.data_access.data_access import CATALOG_HDP, DataCatalog
