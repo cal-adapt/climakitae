@@ -8,6 +8,7 @@ coordinate-based, and point-based clipping.
 
 from unittest.mock import MagicMock, patch
 
+import dask.array as da
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -1289,6 +1290,43 @@ class TestClipDataToPointIntegration:
             assert result.lat.item() == 35.0
             assert result.lon.item() == -121.0
             assert result.landmask.item() == 1
+
+    @pytest.mark.parametrize("clip_operation", ["point", "mask"])
+    def test_multivariable_point_selection_does_not_compute_measurements(
+        self, clip_operation: str
+    ) -> None:
+        """Test multi-variable point selection leaves Dask measurements lazy."""
+        coords = {
+            "time": pd.date_range("2020-01-01", periods=2),
+            "lat": [34.0, 35.0, 36.0],
+            "lon": [-121.0, -120.0, -119.0],
+        }
+        temperature = np.ones((2, 3, 3))
+        temperature[:, 1, 1] = np.nan
+        dataset = xr.Dataset(
+            {
+                "tas": (("time", "lat", "lon"), da.from_array(temperature, chunks=1)),
+                "pr": (
+                    ("time", "lat", "lon"),
+                    da.from_array(np.full((2, 3, 3), 5.0), chunks=1),
+                ),
+            },
+            coords=coords,
+        )
+
+        with patch(
+            "dask.array.Array.compute",
+            side_effect=AssertionError("Measurement data was eagerly computed"),
+        ):
+            if clip_operation == "point":
+                result = Clip._clip_data_to_point(dataset, 35.0, -120.0)
+            else:
+                result = Clip._clip_data_to_points_as_mask(
+                    dataset, [(35.0, -120.0)]
+                )
+
+        assert isinstance(result["tas"].data, da.Array)
+        assert isinstance(result["pr"].data, da.Array)
 
 
 class TestClipDataToMultiplePointsIntegration:
