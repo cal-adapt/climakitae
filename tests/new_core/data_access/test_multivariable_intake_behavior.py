@@ -23,6 +23,7 @@ def _make_local_catalog(
     mismatched_calendar=False,
     include_ssp=False,
     no_time_overlap=False,
+    only_incomplete_members=False,
 ):
     """Create a local multi-variable catalog with incomplete source coverage."""
     catalog_profiles = {
@@ -84,6 +85,8 @@ def _make_local_catalog(
             ["2000-01-04", "2000-01-05"],
             [2.0, 3.0],
         )
+    if only_incomplete_members:
+        assets.pop(("r1i1p1f1", "pr"))
     if catalog_kind != "cadcat":
         assets = {key: value for key, value in assets.items() if key[0] == "r1i1p1f1"}
     asset_rows = [
@@ -573,3 +576,29 @@ def test_data_catalog_keeps_historical_and_ssp_multi_variable_groups_separate(
     assert set(datasets) == {"historical", "ssp245"}
     assert str(datasets["historical"].time.values[0]).startswith("2000")
     assert str(datasets["ssp245"].time.values[0]).startswith("2040")
+
+
+def test_data_catalog_fails_when_no_member_has_complete_variable_coverage(
+    tmp_path, caplog
+):
+    """Test no complete member fails with per-member coverage diagnostics."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(
+        tmp_path, only_incomplete_members=True
+    )
+    query = {
+        "variable_id": ["tasmax", "pr"],
+        "_multi_variable_query": True,
+        "_requested_variables": ["tasmax", "pr"],
+        "_catalog_variable_ids": ["tasmax", "pr"],
+        "_derived_variables": [],
+        "_source_variables": [],
+    }
+
+    with pytest.raises(ValueError, match="No source group contains all requested"):
+        data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+    assert "missing catalog variables" in caplog.text
