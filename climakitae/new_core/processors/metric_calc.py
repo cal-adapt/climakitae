@@ -357,8 +357,15 @@ class MetricCalc(DataProcessor):
             and len(selected_variables) > 1
         )
 
+        has_targeted_advanced_mode = isinstance(self.by_variable, Mapping) and any(
+            isinstance(config, Mapping)
+            and ("thresholds" in config or "one_in_x" in config)
+            for config in self.by_variable.values()
+        )
         if is_multi_variable_query and (
-            self.thresholds is not UNSET or self.one_in_x_config is not UNSET
+            self.thresholds is not UNSET
+            or self.one_in_x_config is not UNSET
+            or has_targeted_advanced_mode
         ):
             raise ValueError(
                 "metric_calc threshold and one_in_x modes are not supported for "
