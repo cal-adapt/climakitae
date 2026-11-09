@@ -1,6 +1,7 @@
 """Characterize pinned intake-esm aggregation for multi-variable queries."""
 
 import json
+from unittest.mock import MagicMock
 
 import dask.array as da
 import intake
@@ -390,6 +391,38 @@ def test_hdp_observation_fields_are_discovered_from_station_assets(tmp_path):
     fields = data_catalog.get_hdp_observation_fields({"network_id": "ASOSAWOS"})
 
     assert fields == ["pr", "tas"]
+
+
+def test_hdp_query_without_variable_selection_keeps_existing_fields(tmp_path):
+    """Test HDP queries without variable selection retain all station fields."""
+    from climakitae.new_core.data_access.data_access import CATALOG_HDP, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    catalog = MagicMock()
+    search_result = MagicMock()
+    search_result.to_dataset_dict.return_value = {
+        "station-1": xr.Dataset(
+            {
+                "tas": (("station", "time"), [[280.0, np.nan]]),
+                "pr": (("station", "time"), [[0.0, 1.0]]),
+            },
+            coords={
+                "station": ["station-1"],
+                "time": pd.to_datetime(["2000-01-01", "2000-01-02"]),
+            },
+        )
+    }
+    catalog.search.return_value = search_result
+    data_catalog[CATALOG_HDP] = catalog
+
+    result = data_catalog.get_data({"network_id": "ASOSAWOS"}, catalog_key=CATALOG_HDP)
+
+    search_result.to_dataset_dict.assert_called_once()
+    assert search_result.to_dataset_dict.call_args.kwargs["aggregate"] is True
+    dataset = next(iter(result.values()))
+    assert set(dataset.data_vars) == {"tas", "pr"}
+    assert dataset.station_id.item() == "station-1"
 
 
 def test_hdp_field_selection_excludes_incomplete_stations_with_diagnostics(tmp_path):
