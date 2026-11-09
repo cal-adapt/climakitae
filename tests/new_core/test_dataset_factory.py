@@ -536,6 +536,16 @@ class TestDatasetFactoryGetOptions:
         expected = sorted(["pr", "tas"])
         assert result == expected
 
+    def test_get_catalog_options_discovers_hdp_observation_fields(self):
+        """Test HDP variable options are discovered from station assets."""
+        self.factory._catalog.get_hdp_observation_fields.return_value = ["pr", "tas"]
+        query: Dict[str, Any] = {"catalog": "hdp", "network_id": "ASOSAWOS"}
+
+        result = self.factory.get_catalog_options("variable_id", query)
+
+        assert result == ["pr", "tas"]
+        self.factory._catalog.get_hdp_observation_fields.assert_called_once_with(query)
+
     def test_get_catalog_options_with_list_filter(self):
         """Test get_catalog_options with list filter."""
         query: Dict[str, Any] = {"experiment_id": ["historical", "ssp245"]}

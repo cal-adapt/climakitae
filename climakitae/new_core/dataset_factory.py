@@ -38,7 +38,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Type
 
-from climakitae.core.constants import _NEW_ATTRS_KEY, PROC_KEY, UNSET
+from climakitae.core.constants import _NEW_ATTRS_KEY, CATALOG_HDP, PROC_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.dataset import Dataset
 from climakitae.new_core.param_validation.abc_param_validation import (
@@ -181,7 +181,7 @@ class DatasetFactory:
         concatenation and attribute updates even if not specified in the query.
 
         Processing steps are applied in priority order, with preprocessing
-        steps (like bias correction) applied before postprocessing steps.
+        steps (like bias adjustment) applied before postprocessing steps.
 
         See Also
         --------
@@ -264,7 +264,7 @@ class DatasetFactory:
         Notes
         -----
         Processing step priority determines execution order:
-        - Priority 0-10: Preprocessing (bias correction, warming level)
+        - Priority 0-10: Preprocessing (bias adjustment, warming level)
         - Priority 11-20: Core processing (variable calculations)
         - Priority 21-30: Postprocessing (concatenation, attribute updates)
 
@@ -503,6 +503,13 @@ class DatasetFactory:
             List of available options for the specified catalog.
 
         """
+        if (
+            key == "variable_id"
+            and query is not None
+            and query.get("catalog") == CATALOG_HDP
+        ):
+            return self._catalog.get_hdp_observation_fields(query)
+
         if key not in self._catalog_df.columns:
             raise ValueError(f"Catalog key '{key}' not found.")
         filtered_df = self._catalog_df.copy()
