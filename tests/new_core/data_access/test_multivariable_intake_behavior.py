@@ -134,6 +134,62 @@ def _make_local_catalog(
     )
 
 
+def _make_local_hdp_catalog(tmp_path):
+    """Create HDP-shaped station assets with different observation fields."""
+    stations = {
+        "station-1": {
+            "tas": [280.0, 281.0],
+            "pr": [0.0, 1.0],
+        },
+        "station-2": {
+            "tas": [282.0, 283.0],
+        },
+    }
+    records = []
+    for station_id, fields in stations.items():
+        path = tmp_path / f"{station_id}.nc"
+        xr.Dataset(
+            {
+                name: (("station", "time"), [values])
+                for name, values in fields.items()
+            },
+            coords={
+                "station": [station_id],
+                "time": pd.to_datetime(["2000-01-01", "2000-01-02"]),
+            },
+        ).to_netcdf(path)
+        records.append(
+            {
+                "network_id": "ASOSAWOS",
+                "station_id": station_id,
+                "path": str(path),
+                "format": "netcdf",
+            }
+        )
+
+    esmcat = {
+        "esmcat_version": "0.0.1",
+        "id": "local-hdp",
+        "description": "Local catalog for testing HDP station assets",
+        "attributes": [
+            {"column_name": name, "vocabulary": ""}
+            for name in ("network_id", "station_id")
+        ],
+        "assets": {"column_name": "path", "format": "netcdf"},
+        "aggregation_control": {
+            "variable_column_name": "station_id",
+            "groupby_attrs": ["network_id", "station_id"],
+            "aggregations": [
+                {"type": "union", "attribute_name": "station_id"}
+            ],
+        },
+    }
+    return intake.open_esm_datastore(
+        {"esmcat": esmcat, "df": pd.DataFrame(records)},
+        progressbar=False,
+    )
+
+
 def test_aggregation_hides_source_coverage_but_unaggregated_assets_preserve_it(
     tmp_path,
 ):
@@ -261,3 +317,19 @@ def test_aggregated_measurement_arrays_remain_lazy(tmp_path):
         hasattr(dataset[name].data, "__dask_graph__")
         for name in ("tasmax", "pr")
     )
+
+
+def test_hdp_station_assets_contain_observation_fields_not_variable_rows(tmp_path):
+    """Test HDP selects stations by catalog keys and exposes per-station fields."""
+    catalog = _make_local_hdp_catalog(tmp_path).search(network_id="ASOSAWOS")
+
+    datasets = catalog.to_dataset_dict(progressbar=False)
+    fields_by_station = {
+        dataset.attrs["intake_esm_attrs:station_id"]: set(dataset.data_vars)
+        for dataset in datasets.values()
+    }
+
+    assert fields_by_station == {
+        "station-1": {"tas", "pr"},
+        "station-2": {"tas"},
+    }
