@@ -528,6 +528,46 @@ def test_hdp_station_without_shared_timestamps_fails_entire_query(tmp_path):
         data_catalog._assemble_hdp_station_fields(assets, query)
 
 
+def test_hdp_fields_are_trimmed_to_shared_timestamps_with_diagnostics():
+    """Test HDP fields use the station-level time intersection."""
+    from climakitae.new_core.data_access.data_access import DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    station_id = "station-1"
+    assets = {
+        "station-1-tas": xr.Dataset(
+            {"tas": (("station", "time"), [[280.0, 281.0]])},
+            coords={
+                "station": [station_id],
+                "time": pd.to_datetime(["2000-01-01", "2000-01-02"]),
+            },
+            attrs={"intake_esm_attrs:station_id": station_id},
+        ),
+        "station-1-pr": xr.Dataset(
+            {"pr": (("station", "time"), [[2.0, 3.0]])},
+            coords={
+                "station": [station_id],
+                "time": pd.to_datetime(["2000-01-02", "2000-01-03"]),
+            },
+            attrs={"intake_esm_attrs:station_id": station_id},
+        ),
+    }
+
+    result = data_catalog._assemble_hdp_station_fields(
+        assets, {"_hdp_requested_fields": ["tas", "pr"]}
+    )
+
+    dataset = next(iter(result.values()))
+    assert list(dataset.data_vars) == ["tas", "pr"]
+    np.testing.assert_array_equal(dataset.time.values, [np.datetime64("2000-01-02")])
+    diagnostics = json.loads(dataset.attrs["multi_variable_diagnostics"])
+    assert diagnostics["stations"][station_id]["trimmed_timestamp_counts"] == {
+        "pr": 1,
+        "tas": 1,
+    }
+
+
 def test_catalog_keeps_historical_and_ssp_assets_in_separate_groups(tmp_path):
     """Test experiment grouping keeps historical and SSP assets separate."""
     catalog = _make_local_catalog(tmp_path, include_ssp=True).search(
