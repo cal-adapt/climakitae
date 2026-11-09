@@ -98,6 +98,12 @@ class TestCheckUnitValidity:
 class TestValidateConvertUnitsParam:
     """Test class for validate_convert_units_param function."""
 
+    def test_validate_by_variable_mapping(self):
+        """Test the validator accepts a non-empty per-variable unit mapping."""
+        assert validate_convert_units_param(
+            {"by_variable": {"tasmax": "degC", "pr": "inches/d"}}
+        )
+
     @pytest.mark.parametrize(
         "value,expected,warning_match",
         [
