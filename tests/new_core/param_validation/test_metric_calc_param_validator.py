@@ -232,6 +232,17 @@ class TestValidateBasicMetricParameters:
 class TestValidateMetricCalcParam:
     """Unit tests for the validate_metric_calc_param function."""
 
+    def test_invalid_by_variable_metric(self, caplog):
+        """Reject invalid metric settings in a variable-specific configuration."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {"by_variable": {"tasmax": {"metric": "mode"}}},
+                query={"variable_id": ["tasmax", "pr"]},
+            )
+
+        assert result is False
+        assert "Invalid metric 'mode'" in caplog.text
+
     def test_param_dict(self):
         """Test validate_metric_calc_param with a valid parameter dictionary."""
         param_dict = {
