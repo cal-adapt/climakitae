@@ -97,6 +97,49 @@ class TestConcatExecuteBasicCases:
         result = self.processor.execute(dataarray, self.context)
         assert result is dataarray
 
+    def test_execute_concatenates_multivariable_members_with_units(self):
+        """Test concatenation keeps variables, units, and member identity."""
+        times = pd.date_range("2020-01-01", periods=2)
+        datasets = {}
+        for member_id, offset in (("r1i1p1f1", 0), ("r2i1p1f1", 10)):
+            dataset = xr.Dataset(
+                {
+                    "tasmax": ("time", [300.0 + offset, 301.0 + offset]),
+                    "pr": ("time", [1.0 + offset, 2.0 + offset]),
+                },
+                coords={"time": times},
+                attrs={
+                    "intake_esm_attrs:activity_id": "LOCA2",
+                    "intake_esm_attrs:institution_id": "NCAR",
+                    "intake_esm_attrs:source_id": "CESM2",
+                    "intake_esm_attrs:experiment_id": "ssp245",
+                    "intake_esm_attrs:member_id": member_id,
+                },
+            )
+            dataset["tasmax"].attrs["units"] = "K"
+            dataset["pr"].attrs["units"] = "mm/day"
+            datasets[f"model-{member_id}"] = dataset
+
+        result = self.processor.execute(
+            datasets,
+            context={"_catalog_key": "cadcat"},
+        )
+
+        assert result.sizes["sim"] == 2
+        assert set(result.data_vars) == {"tasmax", "pr"}
+        assert {member for member in result.sim.values} == {
+            "loca2_ncar_cesm2_ssp245_r1i1p1f1",
+            "loca2_ncar_cesm2_ssp245_r2i1p1f1",
+        }
+        assert result["tasmax"].attrs["units"] == "K"
+        assert result["pr"].attrs["units"] == "mm/day"
+        assert result.sel(sim="loca2_ncar_cesm2_ssp245_r2i1p1f1")[
+            "tasmax"
+        ].values.tolist() == [310.0, 311.0]
+        assert result.sel(sim="loca2_ncar_cesm2_ssp245_r2i1p1f1")[
+            "pr"
+        ].values.tolist() == [11.0, 12.0]
+
     def test_execute_empty_dict_raises_error(self):
         """Test execute with empty dictionary raises ValueError."""
         with pytest.raises(
