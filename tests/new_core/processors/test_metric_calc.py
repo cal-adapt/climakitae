@@ -323,8 +323,16 @@ class TestMultiVariableMetricCalc:
         """Test percentile and reduction outputs are assembled independently."""
         data = xr.Dataset(
             {
-                "tasmax": (("time", "lat"), [[0.0, 10.0], [10.0, 20.0]]),
-                "pr": (("time", "lat"), [[1.0, 2.0], [3.0, 4.0]]),
+                "tasmax": (
+                    ("time", "lat"),
+                    [[0.0, 10.0], [10.0, 20.0]],
+                    {"units": "degC"},
+                ),
+                "pr": (
+                    ("time", "lat"),
+                    [[1.0, 2.0], [3.0, 4.0]],
+                    {"units": "mm"},
+                ),
             },
             coords={"time": [0, 1], "lat": [10, 20]},
         )
@@ -357,6 +365,10 @@ class TestMultiVariableMetricCalc:
         np.testing.assert_array_equal(result.pr_percentile, [50, 99])
         np.testing.assert_allclose(result.tasmax_mean, [5.0, 15.0])
         np.testing.assert_allclose(result.pr_max, [3.0, 4.0])
+        assert result.tasmax_percentiles.attrs["units"] == "degC"
+        assert result.tasmax_mean.attrs["units"] == "degC"
+        assert result.pr_percentiles.attrs["units"] == "mm"
+        assert result.pr_max.attrs["units"] == "mm"
 
     def test_omitted_variable_targets_remain_unchanged(self):
         """Leave variables not named in by_variable untouched."""
