@@ -13,6 +13,7 @@ def _make_local_catalog(
     registry=None,
     spatial_grid=False,
     mismatched_spatial_grid=False,
+    mismatched_calendar=False,
     include_ssp=False,
     no_time_overlap=False,
 ):
@@ -119,6 +120,8 @@ def _make_local_catalog(
                 {variable_id: ("time", values)},
                 coords={"time": pd.to_datetime(times)},
             )
+        if mismatched_calendar and variable_id == "pr":
+            dataset["time"].encoding["calendar"] = "noleap"
         dataset.to_netcdf(path, engine="scipy")
         record = {
             "activity_id": "WRF",
@@ -442,4 +445,26 @@ def test_data_catalog_rejects_incompatible_spatial_coordinates(tmp_path):
     }
 
     with pytest.raises(ValueError, match="incompatible spatial coordinates"):
+        data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+
+def test_data_catalog_rejects_incompatible_calendars(tmp_path):
+    """Test different CF calendars fail before timestamp intersection."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(
+        tmp_path, spatial_grid=True, mismatched_calendar=True
+    )
+    query = {
+        "variable_id": ["tasmax", "pr"],
+        "_multi_variable_query": True,
+        "_requested_variables": ["tasmax", "pr"],
+        "_catalog_variable_ids": ["tasmax", "pr"],
+        "_derived_variables": [],
+        "_source_variables": [],
+    }
+
+    with pytest.raises(ValueError, match="incompatible calendars"):
         data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
