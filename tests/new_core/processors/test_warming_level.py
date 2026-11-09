@@ -21,6 +21,7 @@ import pytest
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY
+from climakitae.new_core.processors.concatenate import Concat
 from climakitae.new_core.processors.warming_level import WarmingLevel
 
 
@@ -383,6 +384,32 @@ class TestWarmingLevelExecute:
         # centered_year is now stored in context for later reconstruction by concatenate processor
         assert "_sim_centered_years" in context
         assert len(context["_sim_centered_years"]) > 0
+
+    def test_execute_preserves_multivariable_fields_and_center_years(
+        self, request, full_processor
+    ):
+        """Test warming-level processing preserves fields and reconstructs center years."""
+        test_result = request.getfixturevalue("test_dataarray_dict_wrf_yearly")
+        for dataset in test_result.values():
+            dataset["pr"] = (
+                dataset["t2"].dims,
+                np.ones(dataset["t2"].shape),
+            )
+            dataset["t2"].attrs["units"] = "K"
+            dataset["pr"].attrs["units"] = "mm/day"
+        context = {"activity_id": "WRF"}
+
+        warmed = full_processor.execute(result=test_result, context=context)
+        combined = Concat("sim").execute(warmed, context)
+
+        assert set(combined.data_vars) == {"t2", "pr"}
+        assert combined["t2"].attrs["units"] == "K"
+        assert combined["pr"].attrs["units"] == "mm/day"
+        assert combined["t2"].dims == combined["pr"].dims
+        assert combined.sizes["sim"] == 1
+        assert "centered_year" in combined.coords
+        assert combined.centered_year.dims == ("sim", "warming_level")
+        assert np.isfinite(combined.centered_year.values).all()
 
     def test_execute_dummy_time_dims_correct(self, request, full_processor):
         """Test that execute returns a dict with expected keys and types when add_dummy_time=True."""
