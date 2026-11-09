@@ -156,6 +156,48 @@ class ConcreteValidator(ParameterValidator):
         return self._is_valid_query(query)
 
 
+class TestMultiVariableProcessorCompatibility:
+    """Test validation of processor modes that cannot consume multiple fields."""
+
+    @pytest.mark.parametrize(
+        "processes",
+        [
+            {"bias_adjust_model_to_station": {"stations": ["KSAC"]}},
+            {
+                "metric_calc": {
+                    "thresholds": {
+                        "threshold_value": 305,
+                        "threshold_direction": "above",
+                    }
+                }
+            },
+            {"metric_calc": {"one_in_x": {"return_periods": [10]}}},
+        ],
+    )
+    @patch("climakitae.new_core.param_validation.abc_param_validation.DataCatalog")
+    def test_multi_variable_unsupported_modes_fail_before_search(
+        self, mock_data_catalog, processes
+    ):
+        """Test incompatible modes are rejected before catalog retrieval."""
+        catalog_df = pd.DataFrame(
+            {"variable_id": ["tasmax", "pr"], "activity_id": ["WRF", "WRF"]}
+        )
+        mock_catalog_instance = MagicMock()
+        mock_catalog_instance.catalog_df = catalog_df
+        mock_data_catalog.return_value = mock_catalog_instance
+        validator = ConcreteValidator()
+        validator.catalog = MagicMock()
+        validator.catalog.df = catalog_df
+        validator.all_catalog_keys = {"variable_id": UNSET}
+
+        result = validator.is_valid_query(
+            {"variable_id": ["tasmax", "pr"], "processes": processes}
+        )
+
+        assert result is None
+        validator.catalog.search.assert_not_called()
+
+
 class TestParameterValidatorInit:
     """Test class for ParameterValidator initialization."""
 
