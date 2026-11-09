@@ -460,9 +460,10 @@ class TestConcatExecuteTimeDimension:
 
         assert result.sizes["sim"] == 1
         assert "r2i1p1f1" in result.sim.item()
-        assert result.time.values.tolist() == pd.date_range(
-            "2010-01-01", periods=4, freq="YS"
-        ).values.tolist()
+        assert (
+            result.time.values.tolist()
+            == pd.date_range("2010-01-01", periods=4, freq="YS").values.tolist()
+        )
         assert result["tasmax"].attrs["units"] == "K"
         assert result["pr"].attrs["units"] == "mm/day"
         assert result["tasmax"].item(0, 0) == 3.0

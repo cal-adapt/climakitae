@@ -156,9 +156,10 @@ class TestDropLeapDaysExecute:
         result = processor.execute(test_dataset_with_leap_day, context={})
 
         assert list(result.data_vars) == ["var1", "var2"]
-        assert result.time.values.tolist() == test_dataset_with_leap_day.time.values[
-            [0, 2, 3]
-        ].tolist()
+        assert (
+            result.time.values.tolist()
+            == test_dataset_with_leap_day.time.values[[0, 2, 3]].tolist()
+        )
         assert result["var1"].attrs["units"] == "K"
         assert result["var2"].attrs["units"] == "mm/day"
         assert result["var1"].values.tolist() == [[1, 2], [5, 6], [7, 8]]
