@@ -1262,6 +1262,34 @@ class TestClipDataToPointIntegration:
             assert result["tas"].isnull().all()
             assert result["pr"].values.tolist() == [5.0, 5.0]
 
+    def test_multivariable_point_honors_explicit_landmask(self):
+        """Test common-cell selection chooses the nearest explicitly valid cell."""
+        coords = {
+            "time": pd.date_range("2020-01-01", periods=2),
+            "lat": [34.0, 35.0, 36.0],
+            "lon": [-121.0, -120.0, -119.0],
+        }
+        landmask = np.zeros((3, 3), dtype=np.int8)
+        landmask[1, 0] = 1
+        dataset = xr.Dataset(
+            {
+                "tas": (("time", "lat", "lon"), np.ones((2, 3, 3))),
+                "pr": (("time", "lat", "lon"), np.full((2, 3, 3), 5.0)),
+                "landmask": (("lat", "lon"), landmask),
+            },
+            coords=coords,
+        )
+
+        results = [
+            Clip._clip_data_to_point(candidate, 35.0, -120.0)
+            for candidate in (dataset, dataset[["pr", "tas", "landmask"]])
+        ]
+
+        for result in results:
+            assert result.lat.item() == 35.0
+            assert result.lon.item() == -121.0
+            assert result.landmask.item() == 1
+
 
 class TestClipDataToMultiplePointsIntegration:
     """Integration tests for _clip_data_to_multiple_points static method.
