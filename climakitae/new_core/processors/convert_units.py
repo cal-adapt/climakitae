@@ -3,6 +3,7 @@ DataProcessor for converting units of data.
 """
 
 import logging
+from collections.abc import Mapping
 from typing import Any, Dict, Iterable, Union
 
 import xarray as xr
@@ -105,9 +106,9 @@ class ConvertUnits(DataProcessor):
 
     Parameters
     ----------
-    value : string
-        The value to convert the units to. If not specified, the processor will
-        not perform any conversion.
+    value : string or mapping
+        A shared target unit, a ``{"by_variable": {name: unit}}`` mapping, or
+        UNSET to skip conversion.
 
     Methods
     -------
@@ -126,14 +127,14 @@ class ConvertUnits(DataProcessor):
         Convert the units of the data based on the specified value.
     """
 
-    def __init__(self, value: Union[str, object] = UNSET):
+    def __init__(self, value: Union[str, Mapping[str, Any], object] = UNSET):
         """
         Initialize the ConvertUnits processor.
 
         Parameters
         ----------
-        value : string
-            The value to convert the units to.
+        value : string or mapping
+            A shared target unit or a ``{"by_variable": {name: unit}}`` mapping.
         """
         self.value = value
         self.name = "convert_units"
@@ -156,9 +157,43 @@ class ConvertUnits(DataProcessor):
             type(result).__name__,
         )
 
+        self.success = True
         if self.value is UNSET:
             logger.debug("No target units specified, returning data unchanged")
             return result
+
+        if isinstance(self.value, Mapping):
+            targets = self.value.get("by_variable")
+            if (
+                set(self.value) != {"by_variable"}
+                or not isinstance(targets, Mapping)
+                or not targets
+            ):
+                logger.warning(
+                    "Convert Units Processor expects a string or a non-empty "
+                    "{'by_variable': {variable: unit}} mapping."
+                )
+                self.success = False
+                return result
+
+            unknown_variables = set(targets) - self._get_data_variable_names(result)
+            if unknown_variables:
+                logger.warning(
+                    "Unit conversion targets are not present in the data: %s",
+                    sorted(unknown_variables),
+                )
+                self.success = False
+                return result
+
+        selected_variables = context.get("variable_id", UNSET)
+        if selected_variables is UNSET:
+            selected_variables = context.get("_catalog_variable_ids", UNSET)
+        if isinstance(selected_variables, str):
+            selected_variables = {selected_variables}
+        elif isinstance(selected_variables, (list, tuple, set)):
+            selected_variables = set(selected_variables)
+        else:
+            selected_variables = None
 
         ret = result
         match result:
@@ -167,16 +202,22 @@ class ConvertUnits(DataProcessor):
                 logger.debug(
                     "Converting units for %d datasets in dictionary", len(result)
                 )
-                ret = {k: self._convert_units(v, self.value) for k, v in result.items()}
+                ret = {
+                    k: self._convert_units(v, self.value, selected_variables)
+                    for k, v in result.items()
+                }
             case xr.Dataset() | xr.DataArray():
-                ret = self._convert_units(result, self.value)
+                ret = self._convert_units(result, self.value, selected_variables)
             case list() | tuple():
                 # If result is an iterable, convert each item
                 logger.debug(
                     "Converting units for %d datasets in iterable", len(result)
                 )
                 ret = type(result)(
-                    [self._convert_units(item, self.value) for item in result]
+                    [
+                        self._convert_units(item, self.value, selected_variables)
+                        for item in result
+                    ]
                 )
             case _:
                 logger.warning(
@@ -184,11 +225,48 @@ class ConvertUnits(DataProcessor):
                     type(result).__name__,
                 )
 
+        if not self.success:
+            return result
+
         if self.success:
             # In this processor, it doesn't make sense to update unless the conversion was successful
             logger.info("Units successfully converted to '%s'", self.value)
             self.update_context(context)
         return ret
+
+    @staticmethod
+    def _get_data_variable_names(data: Any) -> set[str]:
+        """Return the names of all data variables in supported result containers.
+
+        Parameters
+        ----------
+        data : Any
+            An xarray object or a nested dictionary, list, or tuple of xarray
+            objects.
+
+        Returns
+        -------
+        set of str
+            Names of data variables available for conversion.
+        """
+        match data:
+            case xr.Dataset():
+                return set(data.data_vars)
+            case xr.DataArray():
+                return {data.name} if data.name is not None else set()
+            case dict():
+                return set().union(
+                    *(
+                        ConvertUnits._get_data_variable_names(item)
+                        for item in data.values()
+                    )
+                )
+            case list() | tuple():
+                return set().union(
+                    *(ConvertUnits._get_data_variable_names(item) for item in data)
+                )
+            case _:
+                return set()
 
     def update_context(self, context: Dict[str, Any]) -> None:
         """
@@ -217,7 +295,10 @@ class ConvertUnits(DataProcessor):
         pass
 
     def _convert_units(
-        self, data: Union[xr.Dataset, xr.DataArray], value: str
+        self,
+        data: Union[xr.Dataset, xr.DataArray],
+        value: Union[str, Mapping[str, Any]],
+        selected_variables: set[str] | None = None,
     ) -> Union[xr.Dataset, xr.DataArray]:
         """
         Convert the units of the data.
@@ -226,82 +307,145 @@ class ConvertUnits(DataProcessor):
         ----------
         data : xr.Dataset | xr.DataArray
             The data to convert.
-        value : str
-            The value to convert the units to.
+        value : str or mapping
+            A shared target unit or a ``{"by_variable": {name: unit}}`` mapping.
+        selected_variables : set of str, optional
+            Requested measurement variables. Other data variables are treated as
+            support fields and left unchanged.
 
         Returns
         -------
         Union[xr.Dataset, xr.DataArray]
             The converted data.
         """
-        try:
-            var = list(data.data_vars.keys())[0]
-            units_from = data.data_vars[var].attrs[
-                "units"
-            ]  # Trying to get an error if the units attribute does not exist
-            logger.debug(
-                "Converting variable '%s' from '%s' to '%s'", var, units_from, value
-            )
-        except (KeyError, IndexError):
+        if isinstance(value, str):
+            if isinstance(data, xr.DataArray):
+                targets = {data.name: value} if data.name is not None else {}
+            else:
+                grid_mapping_variables = {
+                    variable.attrs.get("grid_mapping")
+                    for variable in data.data_vars.values()
+                }
+                targets = {
+                    name: value
+                    for name, variable in data.data_vars.items()
+                    if "units" in variable.attrs
+                    and name != "landmask"
+                    and name not in grid_mapping_variables
+                    and (selected_variables is None or name in selected_variables)
+                    and not {
+                        "grid_mapping_name",
+                        "spatial_ref",
+                        "crs_wkt",
+                    }.intersection(variable.attrs)
+                }
+        elif (
+            isinstance(value, Mapping)
+            and set(value) == {"by_variable"}
+            and isinstance(value["by_variable"], Mapping)
+        ):
+            targets = value["by_variable"]
+        else:
             logger.warning(
-                "This variable does not have identifiable native units. "
-                "The data for this variable will need to have a 'units' "
-                "attribute added in the catalog. "
-                "Please report this issue at: "
-                "https://github.com/cal-adapt/climakitae/issues/new/choose"
+                "The provided value is not the correct type. Expected a string "
+                "or a 'by_variable' mapping, but got %s.",
+                type(value).__name__,
             )
             self.success = False
             return data
 
-        valid_units = UNIT_OPTIONS.get(units_from, None)
-        if valid_units is None:
+        if isinstance(data, xr.DataArray):
+            if data.name not in targets:
+                return data
+            variables = {data.name: data}
+        else:
+            variables = {name: data[name] for name in targets if name in data.data_vars}
+
+        if not variables:
             logger.warning(
-                "No valid unit conversions implemented for '%s'. "
-                "Please report this issue at: "
-                "https://github.com/cal-adapt/climakitae/issues/new/choose",
-                units_from,
+                "No climate data variables with identifiable units were selected "
+                "for conversion."
             )
             self.success = False
             return data
 
-        match value:
-            case str():
-                if value not in valid_units:
-                    logger.warning(
-                        "The selected units '%s' are not valid for '%s'. "
-                        "Valid options: %s",
-                        value,
-                        units_from,
-                        valid_units,
-                    )
-                    self.success = False
-                    return data
-
-                # Perform the actual conversion
-                logger.debug("Applying conversion: (%s, %s)", units_from, value)
-                converter = UNIT_CONVERSIONS.get((units_from, value), lambda da: da)
-                # Pass frequency for precip conversions that need it
-                if "kg m-2 s-1" in (units_from, value):
-                    frequency = data.attrs.get("frequency")
-                    converted_var = converter(data.data_vars[var], freq=frequency)
-                else:
-                    converted_var = converter(data.data_vars[var])
-                # Update the units attribute
-                converted_var.attrs["units"] = value
-                # Assign back to the dataset
-                data = data.assign({var: converted_var})
-                logger.debug(
-                    "Conversion complete for variable '%s': %s -> %s",
-                    var,
-                    units_from,
-                    value,
-                )
-            case _:
+        frequency = data.attrs.get("frequency")
+        converted_variables = {}
+        for name, variable in variables.items():
+            target_unit = targets[name]
+            if not isinstance(target_unit, str):
                 logger.warning(
-                    "The provided value is not the correct type. "
-                    "Expected str, but got %s.",
-                    type(value).__name__,
+                    "Target units for variable '%s' must be a string; "
+                    "no variables were converted.",
+                    name,
                 )
                 self.success = False
                 return data
-        return data
+
+            units_from = variable.attrs.get("units")
+            if units_from is None:
+                logger.warning(
+                    "This variable does not have identifiable native units "
+                    "(variable '%s'); no variables were converted.",
+                    name,
+                )
+                self.success = False
+                return data
+
+            valid_units = UNIT_OPTIONS.get(units_from)
+            if valid_units is None:
+                logger.warning(
+                    "No valid unit conversions implemented for '%s' on variable "
+                    "'%s'; no variables were converted.",
+                    units_from,
+                    name,
+                )
+                self.success = False
+                return data
+
+            if target_unit not in valid_units:
+                logger.warning(
+                    "The selected units '%s' are not valid for variable '%s' "
+                    "with source units '%s'. Valid options: %s; no variables "
+                    "were converted.",
+                    target_unit,
+                    name,
+                    units_from,
+                    valid_units,
+                )
+                self.success = False
+                return data
+
+            converter = UNIT_CONVERSIONS.get((units_from, target_unit))
+            if converter is None and units_from != target_unit:
+                logger.warning(
+                    "Conversion from '%s' to '%s' is not implemented for "
+                    "variable '%s'; no variables were converted.",
+                    units_from,
+                    target_unit,
+                    name,
+                )
+                self.success = False
+                return data
+
+            if converter is None:
+                converted_variable = variable.copy(deep=False)
+            elif "kg m-2 s-1" in (units_from, target_unit):
+                converted_variable = converter(variable, freq=frequency)
+            else:
+                converted_variable = converter(variable)
+
+            converted_variable = converted_variable.copy(deep=False)
+            converted_variable.attrs = dict(variable.attrs)
+            converted_variable.attrs["units"] = target_unit
+            converted_variables[name] = converted_variable
+            logger.debug(
+                "Prepared conversion for variable '%s': %s -> %s",
+                name,
+                units_from,
+                target_unit,
+            )
+
+        if isinstance(data, xr.DataArray):
+            return converted_variables[data.name]
+        return data.assign(converted_variables)

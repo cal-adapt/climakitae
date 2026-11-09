@@ -289,6 +289,25 @@ class TestConvertUnitsExecute:
         )
         assert converted_dataset[var].attrs["units"] == "K"
 
+    def test_execute_shared_target_converts_all_compatible_variables(self):
+        """Test a shared target is applied to every compatible measurement field."""
+        dataset = xr.Dataset(
+            {
+                "tasmax": ("time", [300.0]),
+                "tasmin": ("time", [50.0]),
+            },
+            coords={"time": pd.date_range("2020-01-01", periods=1)},
+        )
+        dataset["tasmax"].attrs["units"] = "K"
+        dataset["tasmin"].attrs["units"] = "degF"
+
+        result = ConvertUnits("degC").execute(dataset, context={})
+
+        np.testing.assert_allclose(result["tasmax"].values, [26.85])
+        np.testing.assert_allclose(result["tasmin"].values, [10.0])
+        assert result["tasmax"].attrs["units"] == "degC"
+        assert result["tasmin"].attrs["units"] == "degC"
+
 
 class TestHelperConversionFunctions:
     """Tests for helper conversion functions within ConvertUnits processor."""
