@@ -421,3 +421,25 @@ def test_data_catalog_rejects_complete_groups_without_shared_timestamps(tmp_path
 
     with pytest.raises(ValueError, match="no common timestamps"):
         data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+
+def test_data_catalog_rejects_incompatible_spatial_coordinates(tmp_path):
+    """Test different spatial grids fail instead of being aligned."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(
+        tmp_path, spatial_grid=True, mismatched_spatial_grid=True
+    )
+    query = {
+        "variable_id": ["tasmax", "pr"],
+        "_multi_variable_query": True,
+        "_requested_variables": ["tasmax", "pr"],
+        "_catalog_variable_ids": ["tasmax", "pr"],
+        "_derived_variables": [],
+        "_source_variables": [],
+    }
+
+    with pytest.raises(ValueError, match="incompatible spatial coordinates"):
+        data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
