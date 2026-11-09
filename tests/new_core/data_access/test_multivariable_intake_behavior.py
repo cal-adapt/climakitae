@@ -12,6 +12,7 @@ def _make_local_catalog(
     catalog_kind="cadcat",
     registry=None,
     spatial_grid=False,
+    mismatched_spatial_grid=False,
     include_ssp=False,
 ):
     """Create a local multi-variable catalog with incomplete source coverage."""
@@ -91,7 +92,11 @@ def _make_local_catalog(
     for experiment_id, member_id, variable_id, times, values in asset_rows:
         path = tmp_path / f"{experiment_id}-{member_id}-{variable_id}.nc"
         if spatial_grid:
-            latitudes = [34.0, 35.0] if variable_id == "tasmax" else [34.0, 36.0]
+            latitudes = (
+                [34.0, 36.0]
+                if mismatched_spatial_grid and variable_id == "pr"
+                else [34.0, 35.0]
+            )
             measurements = np.broadcast_to(
                 np.asarray(values)[:, None, None], (len(times), 2, 2)
             )
@@ -294,9 +299,9 @@ def test_shared_derived_dependencies_are_separate_before_assembly(tmp_path):
 
 def test_aggregation_outer_aligns_mismatched_spatial_coordinates(tmp_path):
     """Test different grids are unioned and padded instead of rejected."""
-    catalog = _make_local_catalog(tmp_path, spatial_grid=True).search(
-        variable_id=["tasmax", "pr"]
-    )
+    catalog = _make_local_catalog(
+        tmp_path, spatial_grid=True, mismatched_spatial_grid=True
+    ).search(variable_id=["tasmax", "pr"])
 
     dataset = next(iter(catalog.to_dataset_dict(progressbar=False).values()))
 
