@@ -242,3 +242,22 @@ def test_aggregation_outer_aligns_mismatched_spatial_coordinates(tmp_path):
     np.testing.assert_array_equal(dataset["lat"].values, [34.0, 35.0, 36.0])
     assert dataset["tasmax"].sel(lat=36.0).isnull().all()
     assert dataset["pr"].sel(lat=35.0).isnull().all()
+
+
+def test_aggregated_measurement_arrays_remain_lazy(tmp_path):
+    """Test intake aggregation can retain Dask-backed measurement arrays."""
+    catalog = _make_local_catalog(tmp_path).search(variable_id=["tasmax", "pr"])
+
+    dataset = next(
+        iter(
+            catalog.to_dataset_dict(
+                progressbar=False,
+                xarray_open_kwargs={"chunks": {}},
+            ).values()
+        )
+    )
+
+    assert all(
+        hasattr(dataset[name].data, "__dask_graph__")
+        for name in ("tasmax", "pr")
+    )
