@@ -43,9 +43,13 @@ Examples
 
 Notes
 -----
-- Requires gridded data to include the requested historical training period
-- Station observational coverage varies per HDP station; the historical
-  training period must overlap with the station's actual record
+- The QDM training window is always bounded to `historical_slice`,
+  intersected with the supplied historical model data's own coverage and
+  the station's actual observational coverage; raises ValueError if that
+  intersection is empty
+- Also raises ValueError if the resulting training window covers fewer
+  than 30 calendar years, since QDM quantile estimates are unreliable on
+  short training records
 - Requested stations may span multiple HDP networks in a single call
 - Uses xclim's QuantileDeltaMapping for bias adjustment
 - Converts all data to noleap calendar for consistency
@@ -125,6 +129,13 @@ _QDM_LOG_REFERENCE = (
     "for more info)"
 )
 
+# QDM quantile estimates get noisy on short training records. Require at
+# least this many distinct calendar years in the final historical training
+# window -- after bounding gridded/historical data to historical_slice and
+# intersecting with the station's actual observational coverage -- raising
+# rather than silently training on an unreliably short record.
+_MIN_TRAINING_YEARS = 30
+
 
 @register_processor("bias_adjust_model_to_station", priority=60)
 class BiasAdjustModelToStation(DataProcessor):
@@ -158,7 +169,12 @@ class BiasAdjustModelToStation(DataProcessor):
         "Sacramento (KSAC)") are also accepted and translated to their HDP
         ASOSAWOS `station_id` equivalent.
     historical_slice : tuple[int, int], optional
-        Start and end years for historical training period (default: (1980, 2014))
+        Start and end years for the historical training period (default:
+        (1980, 2014)). The QDM training window is always bounded to this
+        range, intersected with the supplied historical model data's own
+        coverage and the station's actual observational coverage; raises
+        ValueError if that intersection is empty or covers fewer than 30
+        calendar years.
     window : int, optional
         Window size in days for seasonal grouping (default: 90, representing +/- 45 days)
     nquantiles : int, optional
@@ -219,7 +235,12 @@ class BiasAdjustModelToStation(DataProcessor):
             - stations : list[str]
                 List of station names to process
             - historical_slice : tuple[int, int], optional
-                Start and end years for historical training period (default: (1980, 2014))
+                Start and end years for the historical training period
+                (default: (1980, 2014)). The QDM training window is always
+                bounded to this range, intersected with the supplied
+                historical model data's own coverage and the station's
+                actual observational coverage; raises ValueError if that
+                intersection is empty or covers fewer than 30 calendar years.
             - window : int, optional
                 Window size in days for seasonal grouping (default: 90)
             - nquantiles : int, optional
@@ -466,15 +487,21 @@ class BiasAdjustModelToStation(DataProcessor):
         obs_da: xr.DataArray,
         gridded_da: xr.DataArray,
         historical_da: Optional[xr.DataArray] = None,
+        station_names: Optional[list[str]] = None,
     ) -> xr.DataArray:
         """Apply Quantile Delta Mapping bias adjustment to model data.
 
         This method performs the core bias adjustment by:
         1. Converting units to match gridded data
         2. Rechunking data (QDM requires unchunked time dimension)
-        3. Training QDM on the historical overlap period between the station's
-           actual observational record and the gridded historical data
-        4. Applying correction to the input data
+        3. Training QDM on the intersection of: the user-requested
+           `self.historical_slice` window, the supplied historical model
+           run's own actual time coverage, and the station's own actual
+           observational coverage.
+        4. Applying correction to the full input data (`gridded_da`), which
+           is never truncated by `self.historical_slice` -- only the
+           training window is bounded; the adjusted output always spans the
+           entire input time range.
 
         Note: Data must be in noleap calendar before calling this method.
         Calendar conversion is handled by _process_single_dataset.
@@ -488,11 +515,25 @@ class BiasAdjustModelToStation(DataProcessor):
         historical_da : xr.DataArray, optional
             Historical climate model data for training QDM (noleap calendar).
             If None, assumes gridded_da contains the historical period (legacy behavior).
+        station_names : list[str], optional
+            Station identifiers, used only to produce clearer error messages
+            when `obs_da`/`gridded_da` are multi-station stacked arrays (whose
+            `.name` is not station-identifying). Falls back to
+            `str(obs_da.name)` when not provided.
 
         Returns
         -------
         xr.DataArray
             Bias-adjusted data (noleap calendar)
+
+        Raises
+        ------
+        ValueError
+            If `self.historical_slice` does not overlap the supplied
+            historical/gridded model data's own time coverage, if the
+            resulting training window does not overlap the station
+            observational record at all, or if that window covers fewer
+            than `_MIN_TRAINING_YEARS` calendar years.
         """
         logger.debug("=== Starting bias adjustment for station: %s ===", obs_da.name)
         # Avoid accessing .values for logging as it triggers computation
@@ -510,6 +551,13 @@ class BiasAdjustModelToStation(DataProcessor):
             obs_da.time.values[0],
             obs_da.time.values[-1],
         )
+
+        # Capture obs's own full coverage and a station-identifying label
+        # now, before obs_da is narrowed further down -- used only for the
+        # error messages below.
+        obs_full_start = obs_da.time.values[0]
+        obs_full_end = obs_da.time.values[-1]
+        station_label = ", ".join(station_names) if station_names else str(obs_da.name)
 
         # Create grouper for seasonal window
         # Use 90 day window (+/- 45 days) to account for seasonality
@@ -531,27 +579,47 @@ class BiasAdjustModelToStation(DataProcessor):
         if historical_da is not None:
             historical_da = historical_da.chunk(chunks=dict(time=-1))
 
+        # Bound the training window to the user-requested historical_slice
+        # BEFORE narrowing against obs -- this is the only place
+        # self.historical_slice is applied. The obs-narrowing + xr.align
+        # steps below derive their bounds FROM gridded_da_historical's
+        # resulting range, so bounding it here makes the final training
+        # window the intersection of: (a) historical_slice, (b) the
+        # supplied historical model run's own coverage, and (c) the
+        # station's own observational coverage.
+        hist_start, hist_end = self.historical_slice
+        training_slice = slice(f"{hist_start}-01-01", f"{hist_end}-12-31")
+
         if historical_da is not None:
             # Use provided historical data
-            # Slice to match obs data period
-            gridded_da_historical = historical_da.sel(
-                time=slice(str(obs_da.time.values[0]), str(obs_da.time.values[-1]))
-            )
+            source_da = historical_da
+            gridded_da_historical = historical_da.sel(time=training_slice)
         else:
-            # Slice gridded data to match obs data period (legacy approach)
-            # This ensures we only use the overlapping historical period
-            gridded_da_historical = gridded_da.sel(
-                time=slice(str(obs_da.time.values[0]), str(obs_da.time.values[-1]))
+            # Legacy approach: bound gridded_da itself to historical_slice
+            source_da = gridded_da
+            gridded_da_historical = gridded_da.sel(time=training_slice)
+
+        if gridded_da_historical.sizes.get("time", 0) == 0:
+            raise ValueError(
+                f"BiasAdjustModelToStation: requested historical_slice="
+                f"({hist_start}, {hist_end}) does not overlap the available "
+                f"model data time range ({source_da.time.values[0]} to "
+                f"{source_da.time.values[-1]}) for station(s): {station_label}. "
+                f"Adjust 'historical_slice' to overlap the model data's "
+                f"actual coverage."
             )
 
         # Avoid accessing .values for logging
         logger.debug(
-            "Gridded historical shape: %s",
+            "Gridded historical shape after historical_slice=(%s, %s): %s",
+            hist_start,
+            hist_end,
             gridded_da_historical.shape,
         )
 
-        # Narrow obs data to roughly the gridded historical period first, so
-        # the alignment below only has to compare a similarly-sized range.
+        # Narrow obs data to roughly the (historical_slice-bounded) gridded
+        # historical period first, so the alignment below only has to
+        # compare a similarly-sized range.
         t_start = str(gridded_da_historical.time.values[0])
         t_end = str(gridded_da_historical.time.values[-1])
         obs_da = obs_da.sel(time=slice(t_start, t_end))
@@ -568,6 +636,34 @@ class BiasAdjustModelToStation(DataProcessor):
             "Final obs period shape: %s",
             obs_da.shape,
         )
+
+        if obs_da.sizes.get("time", 0) == 0:
+            raise ValueError(
+                f"BiasAdjustModelToStation: no overlap between the requested "
+                f"historical training window (historical_slice=({hist_start}, "
+                f"{hist_end}), intersected with available model data {t_start} "
+                f"to {t_end}) and the station observational record "
+                f"({obs_full_start} to {obs_full_end}) for station(s): "
+                f"{station_label}. Adjust 'historical_slice' or verify this "
+                f"station's data coverage."
+            )
+
+        # Require at least _MIN_TRAINING_YEARS of training data. Computed via
+        # unique calendar years (pd.unique on .dt.year), not a timedelta,
+        # since this must work for cftime (noleap) time objects and is
+        # robust to the data's actual frequency (hourly/daily).
+        n_training_years = len(pd.unique(gridded_da_historical["time"].dt.year.values))
+        if n_training_years < _MIN_TRAINING_YEARS:
+            raise ValueError(
+                f"BiasAdjustModelToStation: QDM training window for "
+                f"station(s) {station_label} spans only {n_training_years} "
+                f"year(s) ({t_start} to {t_end}), after intersecting "
+                f"historical_slice=({hist_start}, {hist_end}) with the "
+                f"available model and station data. At least "
+                f"{_MIN_TRAINING_YEARS} years of training data are required "
+                f"for reliable QDM quantile estimates; widen 'historical_slice' "
+                f"or verify this station's data coverage."
+            )
 
         # Check if data has a 'sim' dimension from concatenation
         # QDM must be trained and applied separately for each simulation
@@ -837,6 +933,7 @@ class BiasAdjustModelToStation(DataProcessor):
             station_stacked,
             gridded_stacked,
             historical_da=historical_stacked,
+            station_names=station_names,
         )
 
         # Keep 'station' as an actual dimension on a single data variable,
@@ -1008,11 +1105,18 @@ class BiasAdjustModelToStation(DataProcessor):
         TypeError
             If input data is not an xr.DataArray, xr.Dataset, or Dict
         ValueError
-            If input Dataset has no data variables or doesn't contain required time dimension
+            If input Dataset has no data variables or doesn't contain
+            required time dimension, if `historical_slice` doesn't overlap
+            the available model/station data, or if the resulting training
+            window covers fewer than 30 calendar years
 
         Notes
         -----
         - Input data must overlap the requested historical training period
+          (`historical_slice`); otherwise a ValueError is raised naming the
+          requested vs. actually-available ranges
+        - The resulting training window must cover at least 30 calendar
+          years; otherwise a ValueError is raised
         - Station observational coverage varies per HDP station
         - All data is converted to noleap calendar for consistency
         - Final output is time-sliced to the user's requested period
