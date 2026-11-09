@@ -144,6 +144,26 @@ class TestDropLeapDaysExecute:
         assert result["var1"].values.tolist() == [[1, 2], [5, 6], [7, 8]]
         assert result["var2"].values.tolist() == [[10, 20], [50, 60], [70, 80]]
 
+    def test_drop_leap_days_preserves_multivariable_units_and_shared_time(
+        self,
+        processor: DropLeapDays,
+        test_dataset_with_leap_day: xr.Dataset,
+    ) -> None:
+        """Test leap-day removal across fields while retaining units and alignment."""
+        test_dataset_with_leap_day["var1"].attrs["units"] = "K"
+        test_dataset_with_leap_day["var2"].attrs["units"] = "mm/day"
+
+        result = processor.execute(test_dataset_with_leap_day, context={})
+
+        assert list(result.data_vars) == ["var1", "var2"]
+        assert result.time.values.tolist() == test_dataset_with_leap_day.time.values[
+            [0, 2, 3]
+        ].tolist()
+        assert result["var1"].attrs["units"] == "K"
+        assert result["var2"].attrs["units"] == "mm/day"
+        assert result["var1"].values.tolist() == [[1, 2], [5, 6], [7, 8]]
+        assert result["var2"].values.tolist() == [[10, 20], [50, 60], [70, 80]]
+
     def test_disabled_processor_passes_through(
         self,
         processor_disabled: DropLeapDays,
