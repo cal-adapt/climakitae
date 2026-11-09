@@ -175,3 +175,38 @@ def test_variable_union_catalogs_return_requested_fields(tmp_path, catalog_kind)
     assert set(dataset.data_vars) == {"tasmax", "pr"}
     np.testing.assert_allclose(dataset["tasmax"].values, [10.0, np.nan, 12.0])
     np.testing.assert_allclose(dataset["pr"].values, [np.nan, 2.0, 3.0])
+
+
+def test_shared_derived_dependencies_are_separate_before_assembly(tmp_path):
+    """Test local intake keeps shared derived inputs as separate raw assets."""
+    from intake_esm import DerivedVariableRegistry
+
+    registry = DerivedVariableRegistry()
+
+    @registry.register(
+        variable="temp_plus_precip",
+        query={"variable_id": ["tasmax", "pr"]},
+    )
+    def add_fields(dataset):
+        """Add the local temperature and precipitation test fields."""
+        return dataset.assign(temp_plus_precip=dataset["tasmax"] + dataset["pr"])
+
+    @registry.register(
+        variable="temp_minus_precip",
+        query={"variable_id": ["tasmax", "pr"]},
+    )
+    def subtract_fields(dataset):
+        """Subtract the local precipitation test field from temperature."""
+        return dataset.assign(temp_minus_precip=dataset["tasmax"] - dataset["pr"])
+
+    query = _make_local_catalog(tmp_path, registry=registry).search(
+        variable_id=["temp_plus_precip", "temp_minus_precip"]
+    )
+    assert set(query.df["variable_id"]) == {"tasmax", "pr"}
+
+    raw_assets = query.to_dataset_dict(progressbar=False, aggregate=False)
+    assert len(raw_assets) == 3
+    assert all(
+        set(dataset.data_vars).issubset({"tasmax", "pr"})
+        for dataset in raw_assets.values()
+    )
