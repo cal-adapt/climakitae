@@ -351,7 +351,10 @@ class TestMultiVariableMetricCalc:
             }
         )
 
-        result = processor._calculate_metrics_single(data)
+        result = processor.execute(
+            data,
+            context={"variable_id": ["tasmax", "pr"]},
+        )
 
         assert set(result.data_vars) == {
             "tasmax_percentiles",
