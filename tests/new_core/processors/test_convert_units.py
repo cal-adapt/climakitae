@@ -334,6 +334,29 @@ class TestConvertUnitsExecute:
         assert result["spatial_ref"].attrs["units"] == "K"
         assert result["tasmax"].attrs["grid_mapping"] == "spatial_ref"
 
+    def test_execute_shared_incompatible_target_is_atomic(self):
+        """Test incompatible shared targets leave all measurement fields unchanged."""
+        dataset = xr.Dataset(
+            {
+                "tasmax": ("time", [300.0]),
+                "pr": ("time", [2.0]),
+            },
+            coords={"time": pd.date_range("2020-01-01", periods=1)},
+        )
+        dataset["tasmax"].attrs["units"] = "K"
+        dataset["pr"].attrs["units"] = "mm/d"
+        context = {}
+
+        with pytest.warns(UserWarning, match="no variables were converted"):
+            result = ConvertUnits("degC").execute(dataset, context)
+
+        assert result is dataset
+        np.testing.assert_array_equal(result["tasmax"].values, [300.0])
+        np.testing.assert_array_equal(result["pr"].values, [2.0])
+        assert result["tasmax"].attrs["units"] == "K"
+        assert result["pr"].attrs["units"] == "mm/d"
+        assert "_new_attrs" not in context
+
 
 class TestHelperConversionFunctions:
     """Tests for helper conversion functions within ConvertUnits processor."""
