@@ -47,6 +47,7 @@ class TestHDPValidatorInit:
         expected_keys = {
             "network_id",
             "station_id",
+            "variable_id",
         }
         assert set(validator.all_catalog_keys.keys()) == expected_keys
 
