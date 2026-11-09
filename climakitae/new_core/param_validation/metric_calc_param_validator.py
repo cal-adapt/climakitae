@@ -60,9 +60,21 @@ def validate_metric_calc_param(
     percentiles_only = value.get("percentiles_only", False)
     dim = value.get("dims", value.get("dim", "time"))
     skipna = value.get("skipna", True)
+    by_variable = value.get("by_variable", UNSET)
+    has_shared_percentiles = percentiles is not UNSET and percentiles is not None
+    if isinstance(percentiles, (list, np.ndarray)):
+        has_shared_percentiles = len(percentiles) > 0
+    base_percentiles_only = percentiles_only
+    if (
+        isinstance(by_variable, Mapping)
+        and by_variable
+        and percentiles_only is True
+        and not has_shared_percentiles
+    ):
+        base_percentiles_only = False
 
     if not _validate_basic_metric_parameters(
-        metric, percentiles, percentiles_only, dim, skipna
+        metric, percentiles, base_percentiles_only, dim, skipna
     ):
         return False
 
@@ -75,7 +87,6 @@ def validate_metric_calc_param(
     else:
         selected_variables = None
 
-    by_variable = value.get("by_variable", UNSET)
     if by_variable is not UNSET:
         if not isinstance(by_variable, Mapping):
             logger.warning(

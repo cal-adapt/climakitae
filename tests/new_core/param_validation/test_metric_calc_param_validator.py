@@ -243,6 +243,21 @@ class TestValidateMetricCalcParam:
         assert result is False
         assert "Invalid metric 'mode'" in caplog.text
 
+    def test_shared_percentiles_only_uses_targeted_percentiles(self):
+        """Allow shared percentile-only behavior with target-specific levels."""
+        result = validate_metric_calc_param(
+            {
+                "percentiles_only": True,
+                "by_variable": {
+                    "tasmax": {"percentiles": [5, 95]},
+                    "pr": {"percentiles": [50, 99]},
+                },
+            },
+            query={"variable_id": ["tasmax", "pr"]},
+        )
+
+        assert result is True
+
     def test_by_variable_target_must_be_selected(self, caplog):
         """Reject variable-specific settings for unselected variables."""
         with caplog.at_level(logging.WARNING):
