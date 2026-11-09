@@ -442,6 +442,22 @@ class TestConvertUnitsExecute:
         np.testing.assert_allclose(result["tasmax"].compute().values, [26.85, 27.85])
         np.testing.assert_allclose(result["tasmin"].compute().values, [6.85, 7.85])
 
+    def test_execute_converts_dataarray(self):
+        """Test unit conversion handles a named DataArray directly."""
+        data = xr.DataArray(
+            [300.0],
+            dims=["time"],
+            coords={"time": pd.date_range("2020-01-01", periods=1)},
+            name="tasmax",
+            attrs={"units": "K", "standard_name": "air_temperature"},
+        )
+
+        result = ConvertUnits("degC").execute(data, context={})
+
+        np.testing.assert_allclose(result.values, [26.85])
+        assert result.attrs["units"] == "degC"
+        assert result.attrs["standard_name"] == "air_temperature"
+
 
 class TestHelperConversionFunctions:
     """Tests for helper conversion functions within ConvertUnits processor."""
