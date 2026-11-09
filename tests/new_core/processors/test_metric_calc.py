@@ -299,6 +299,26 @@ class TestMultiVariableMetricCalc:
                 context={"variable_id": ["tasmax", "pr"]},
             )
 
+    @pytest.mark.parametrize(
+        "mode, config",
+        [
+            ("thresholds", {"threshold_value": 30, "threshold_direction": "above"}),
+            ("one_in_x", {"return_periods": [10]}),
+        ],
+    )
+    def test_execute_rejects_advanced_modes_for_multi_variable_data(self, mode, config):
+        """Reject advanced modes when execution receives multiple variables."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("time",), [1.0, 2.0]),
+                "pr": (("time",), [3.0, 4.0]),
+            }
+        )
+        processor = MetricCalc({mode: config})
+
+        with pytest.raises(ValueError, match="not supported for multi-variable"):
+            processor.execute(data, context={})
+
     def test_percentiles_and_reductions_keep_variable_specific_outputs(self):
         """Test percentile and reduction outputs are assembled independently."""
         data = xr.Dataset(

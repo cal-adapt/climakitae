@@ -356,13 +356,25 @@ class MetricCalc(DataProcessor):
             isinstance(selected_variables, (list, tuple))
             and len(selected_variables) > 1
         )
+        if isinstance(result, xr.Dataset):
+            result_datasets = (result,)
+        elif isinstance(result, dict):
+            result_datasets = result.values()
+        elif isinstance(result, (list, tuple)):
+            result_datasets = result
+        else:
+            result_datasets = ()
+        has_multi_variable_data = any(
+            isinstance(item, xr.Dataset) and len(item.data_vars) > 1
+            for item in result_datasets
+        )
 
         has_targeted_advanced_mode = isinstance(self.by_variable, Mapping) and any(
             isinstance(config, Mapping)
             and ("thresholds" in config or "one_in_x" in config)
             for config in self.by_variable.values()
         )
-        if is_multi_variable_query and (
+        if (is_multi_variable_query or has_multi_variable_data) and (
             self.thresholds is not UNSET
             or self.one_in_x_config is not UNSET
             or has_targeted_advanced_mode
