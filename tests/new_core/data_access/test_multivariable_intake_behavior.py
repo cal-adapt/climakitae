@@ -1,10 +1,10 @@
 """Characterize pinned intake-esm aggregation for multi-variable queries."""
 
+import intake
 import numpy as np
 import pandas as pd
-import xarray as xr
-import intake
 import pytest
+import xarray as xr
 
 
 def _make_local_catalog(
@@ -40,9 +40,7 @@ def _make_local_catalog(
                 "table_id",
                 "grid_label",
             ],
-            "aggregations": [
-                {"type": "union", "attribute_name": "variable_id"}
-            ],
+            "aggregations": [{"type": "union", "attribute_name": "variable_id"}],
         },
         "sup3rcc": {
             "groupby_attrs": [
@@ -53,9 +51,7 @@ def _make_local_catalog(
                 "table_id",
                 "grid_label",
             ],
-            "aggregations": [
-                {"type": "union", "attribute_name": "variable_id"}
-            ],
+            "aggregations": [{"type": "union", "attribute_name": "variable_id"}],
         },
     }
     profile = catalog_profiles[catalog_kind]
@@ -74,9 +70,7 @@ def _make_local_catalog(
         ),
     }
     if catalog_kind != "cadcat":
-        assets = {
-            key: value for key, value in assets.items() if key[0] == "r1i1p1f1"
-        }
+        assets = {key: value for key, value in assets.items() if key[0] == "r1i1p1f1"}
     asset_rows = [
         ("historical", member_id, variable_id, times, values)
         for (member_id, variable_id), (times, values) in assets.items()
@@ -169,10 +163,7 @@ def _make_local_hdp_catalog(tmp_path):
     for station_id, fields in stations.items():
         path = tmp_path / f"{station_id}.nc"
         xr.Dataset(
-            {
-                name: (("station", "time"), [values])
-                for name, values in fields.items()
-            },
+            {name: (("station", "time"), [values]) for name, values in fields.items()},
             coords={
                 "station": [station_id],
                 "time": pd.to_datetime(["2000-01-01", "2000-01-02"]),
@@ -199,9 +190,7 @@ def _make_local_hdp_catalog(tmp_path):
         "aggregation_control": {
             "variable_column_name": "station_id",
             "groupby_attrs": ["network_id", "station_id"],
-            "aggregations": [
-                {"type": "union", "attribute_name": "station_id"}
-            ],
+            "aggregations": [{"type": "union", "attribute_name": "station_id"}],
         },
     }
     return intake.open_esm_datastore(
@@ -216,9 +205,7 @@ def test_aggregation_hides_source_coverage_but_unaggregated_assets_preserve_it(
     """Test merged NaNs are ambiguous while unaggregated assets retain provenance."""
     catalog = _make_local_catalog(tmp_path).search(variable_id=["tasmax", "pr"])
 
-    aggregated = next(
-        iter(catalog.to_dataset_dict(progressbar=False).values())
-    )
+    aggregated = next(iter(catalog.to_dataset_dict(progressbar=False).values()))
     np.testing.assert_allclose(
         aggregated["tasmax"].sel(member_id="r1i1p1f1").values,
         [10.0, np.nan, 12.0],
@@ -311,9 +298,7 @@ def test_aggregation_outer_aligns_mismatched_spatial_coordinates(tmp_path):
         variable_id=["tasmax", "pr"]
     )
 
-    dataset = next(
-        iter(catalog.to_dataset_dict(progressbar=False).values())
-    )
+    dataset = next(iter(catalog.to_dataset_dict(progressbar=False).values()))
 
     np.testing.assert_array_equal(dataset["lat"].values, [34.0, 35.0, 36.0])
     assert dataset["tasmax"].sel(lat=36.0).isnull().all()
@@ -334,8 +319,7 @@ def test_aggregated_measurement_arrays_remain_lazy(tmp_path):
     )
 
     assert all(
-        hasattr(dataset[name].data, "__dask_graph__")
-        for name in ("tasmax", "pr")
+        hasattr(dataset[name].data, "__dask_graph__") for name in ("tasmax", "pr")
     )
 
 
@@ -369,8 +353,7 @@ def test_catalog_keeps_historical_and_ssp_assets_in_separate_groups(tmp_path):
 
     assert set(experiments) == {"historical", "ssp245"}
     assert all(
-        set(dataset.data_vars) == {"tasmax", "pr"}
-        for dataset in experiments.values()
+        set(dataset.data_vars) == {"tasmax", "pr"} for dataset in experiments.values()
     )
     assert str(experiments["historical"].time.values[0]).startswith("2000")
     assert str(experiments["ssp245"].time.values[0]).startswith("2040")
