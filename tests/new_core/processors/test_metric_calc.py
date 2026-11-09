@@ -278,6 +278,46 @@ class TestMetricCalcCalculateMetricsSingle:
         xr.testing.assert_equal(result, expected)
 
 
+class TestMultiVariableMetricCalc:
+    """Test variable-specific metrics and percentile results."""
+
+    def test_percentiles_use_independent_variable_dimensions(self):
+        """Test multi-variable percentiles retain each variable's requested levels."""
+        data = xr.Dataset(
+            {
+                "tasmax": (
+                    ("time", "lat"),
+                    np.array([[0.0, 10.0], [10.0, 20.0], [20.0, 30.0]]),
+                    {"units": "degC"},
+                ),
+                "pr": (
+                    ("time", "lat"),
+                    np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]),
+                    {"units": "mm"},
+                ),
+            },
+            coords={"time": [0, 1, 2], "lat": [10, 20]},
+        )
+        processor = MetricCalc(
+            {
+                "by_variable": {
+                    "tasmax": {"percentiles": [5, 95], "percentiles_only": True},
+                    "pr": {"percentiles": [50, 99], "percentiles_only": True},
+                }
+            }
+        )
+
+        result = processor._calculate_metrics_single(data)
+
+        assert set(result.data_vars) == {"tasmax_percentiles", "pr_percentiles"}
+        assert result["tasmax_percentiles"].dims == ("tasmax_percentile", "lat")
+        assert result["pr_percentiles"].dims == ("pr_percentile", "lat")
+        np.testing.assert_array_equal(result.tasmax_percentile, [5, 95])
+        np.testing.assert_array_equal(result.pr_percentile, [50, 99])
+        assert result.tasmax_percentiles.attrs["units"] == "degC"
+        assert result.pr_percentiles.attrs["units"] == "mm"
+
+
 class TestMetricUpdateContext:
     """Unit tests for the MetricCalc processor's update_context method."""
 
