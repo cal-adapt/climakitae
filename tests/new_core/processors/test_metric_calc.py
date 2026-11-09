@@ -354,6 +354,19 @@ class TestMultiVariableMetricCalc:
         assert set(result.data_vars) == {"tasmax_percentiles", "pr"}
         xr.testing.assert_equal(result["pr"], data["pr"])
 
+    def test_dimensions_are_validated_for_each_target(self):
+        """Reject a reduction dimension missing from its targeted variable."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("time", "lat"), [[1.0, 2.0], [3.0, 4.0]]),
+                "pr": (("time",), [5.0, 6.0]),
+            }
+        )
+        processor = MetricCalc({"by_variable": {"pr": {"dim": "lat"}}})
+
+        with pytest.raises(ValueError, match="variable 'pr'"):
+            processor._calculate_metrics_single(data)
+
     def test_percentiles_use_independent_variable_dimensions(self):
         """Test multi-variable percentiles retain each variable's requested levels."""
         data = xr.Dataset(
