@@ -7,6 +7,12 @@ import pandas as pd
 import pytest
 import xarray as xr
 
+from climakitae.core.constants import (
+    CATALOG_CADCAT,
+    CATALOG_REN_ENERGY_GEN,
+    CATALOG_SUP3RCC,
+)
+
 
 def _make_local_catalog(
     tmp_path,
@@ -492,3 +498,47 @@ def test_data_catalog_preserves_lazy_multi_variable_assets(tmp_path):
     dataset = next(iter(result.values()))
     assert isinstance(dataset["tasmax"].data, da.Array)
     assert isinstance(dataset["pr"].data, da.Array)
+
+
+@pytest.mark.parametrize(
+    "catalog_kind,catalog_key",
+    [
+        ("cadcat", CATALOG_CADCAT),
+        ("renewables", CATALOG_REN_ENERGY_GEN),
+        ("sup3rcc", CATALOG_SUP3RCC),
+    ],
+)
+def test_data_catalog_assembles_each_supported_variable_catalog(
+    tmp_path, catalog_kind, catalog_key
+):
+    """Test all supported catalogs return jointly covered requested fields."""
+    from climakitae.new_core.data_access.data_access import DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    catalog_path = tmp_path / catalog_kind
+    catalog_path.mkdir()
+    data_catalog[catalog_key] = _make_local_catalog(
+        catalog_path, catalog_kind=catalog_kind, spatial_grid=True
+    )
+    query = {
+        "variable_id": ["tasmax", "pr"],
+        "_multi_variable_query": True,
+        "_requested_variables": ["tasmax", "pr"],
+        "_catalog_variable_ids": ["tasmax", "pr"],
+        "_derived_variables": [],
+        "_source_variables": [],
+    }
+
+    result = data_catalog.get_data(query, catalog_key=catalog_key)
+
+    assert len(result) == 1
+    dataset = next(iter(result.values()))
+    assert set(dataset.data_vars) == {"tasmax", "pr"}
+    np.testing.assert_array_equal(
+        dataset.time.values,
+        [
+            np.datetime64("2000-01-02"),
+            np.datetime64("2000-01-03"),
+        ],
+    )
