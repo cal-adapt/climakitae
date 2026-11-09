@@ -458,6 +458,30 @@ class TestConvertUnitsExecute:
         assert result.attrs["units"] == "degC"
         assert result.attrs["standard_name"] == "air_temperature"
 
+    def test_execute_shared_target_skips_unselected_unit_bearing_variables(self):
+        """Test selected climate fields convert without touching support fields."""
+        dataset = xr.Dataset(
+            {
+                "tasmax": ("time", [300.0]),
+                "tasmin": ("time", [280.0]),
+                "elevation": ("time", [1000.0]),
+            },
+            coords={"time": pd.date_range("2020-01-01", periods=1)},
+        )
+        dataset["tasmax"].attrs["units"] = "K"
+        dataset["tasmin"].attrs["units"] = "K"
+        dataset["elevation"].attrs["units"] = "m"
+
+        result = ConvertUnits("degC").execute(
+            dataset,
+            context={"variable_id": ["tasmax", "tasmin"]},
+        )
+
+        np.testing.assert_allclose(result["tasmax"].values, [26.85])
+        np.testing.assert_allclose(result["tasmin"].values, [6.85])
+        np.testing.assert_array_equal(result["elevation"].values, [1000.0])
+        assert result["elevation"].attrs["units"] == "m"
+
 
 class TestHelperConversionFunctions:
     """Tests for helper conversion functions within ConvertUnits processor."""
