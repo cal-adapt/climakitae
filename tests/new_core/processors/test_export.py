@@ -979,6 +979,25 @@ class TestExportSingle:
             exported = pd.read_csv(tmp_path / filename)
             assert exported["variable"].tolist() == ["tasmax", "pr"]
 
+    def test_multi_variable_csv_preserves_selective_export_suffix(self, tmp_path):
+        """Use long-format CSV for selected raw/calculate export paths."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("time",), [1.0, 2.0]),
+                "pr": (("time",), [3.0, 4.0]),
+            }
+        )
+        processor = Export(
+            {"filename": "selected", "file_format": "CSV", "export_method": "raw"}
+        )
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.chdir(tmp_path)
+            processor.execute(data, context={"variable_id": ["tasmax", "pr"]})
+
+        exported = pd.read_csv(tmp_path / "selected_raw.csv.gz")
+        assert exported["variable"].tolist() == ["tasmax", "tasmax", "pr", "pr"]
+
     @patch("os.path.exists", return_value=True)
     @patch("climakitae.new_core.processors.export._export_to_netcdf")
     def test_export_single_skip_existing(self, mock_export, mock_exists):
