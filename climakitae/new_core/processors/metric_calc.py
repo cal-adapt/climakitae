@@ -51,10 +51,11 @@ class MetricCalc(DataProcessor):
     and extreme value analysis for 1-in-X return period calculations.
     Multiple calculation types can be performed simultaneously.
 
-    **Multi-Variable Support**: When a Dataset with multiple variables is provided:
-    - Basic metrics (min/max/mean/median) and percentiles are calculated for all variables
-    - 1-in-X analysis processes each variable separately and prefixes results with variable names
-      (e.g., `tasmax_return_values`, `tasmin_return_values`)
+    **Multi-Variable Support**: Basic metrics and percentiles can be shared across
+    selected variables or configured independently with ``by_variable``. Variables
+    omitted from a targeted configuration remain unchanged. Percentile outputs use
+    variable-specific names and dimensions. Threshold and 1-in-X modes are not
+    supported for multi-variable queries.
 
     Parameters
     ----------
@@ -72,6 +73,9 @@ class MetricCalc(DataProcessor):
           Default: "time"
         - keepdims (bool, optional): Whether to keep the dimensions being reduced. Default: False
         - skipna (bool, optional): Whether to skip NaN values in calculations. Default: True
+        - by_variable (dict, optional): Basic metric settings keyed by selected
+          variable name. Per-variable settings override shared settings; if no
+          shared basic settings are provided, unlisted variables remain unchanged.
 
         1-in-X Return Value Analysis:
         - one_in_x (dict, optional): Configuration for annual 1-in-X extreme value analysis.
@@ -165,6 +169,7 @@ class MetricCalc(DataProcessor):
             - dim (str or list, optional): Dimension(s) to reduce. Default: "time"
             - keepdims (bool, optional): Keep dimensions. Default: False
             - skipna (bool, optional): Skip NaN values. Default: True
+            - by_variable (dict, optional): Basic metric settings keyed by variable name
             - one_in_x (dict, optional): 1-in-X extreme value analysis configuration
 
         Raises
@@ -603,6 +608,16 @@ class MetricCalc(DataProcessor):
             by_variable = {}
         if not isinstance(by_variable, Mapping):
             raise ValueError("'by_variable' must map variable names to metric configs.")
+        invalid_targets = [
+            target
+            for target in by_variable
+            if not isinstance(target, str) or not target.strip()
+        ]
+        if invalid_targets:
+            raise ValueError(
+                "'by_variable' keys must be non-empty variable names: "
+                f"{sorted(invalid_targets, key=str)}."
+            )
 
         unknown_targets = set(by_variable) - set(variable_names)
         if selected_variables is not None:
@@ -610,7 +625,7 @@ class MetricCalc(DataProcessor):
         if unknown_targets:
             raise ValueError(
                 "metric_calc by_variable targets are not selected Dataset variables: "
-                f"{sorted(unknown_targets)}."
+                f"{sorted(unknown_targets, key=str)}."
             )
 
         shared_keys = {
@@ -642,6 +657,12 @@ class MetricCalc(DataProcessor):
             if not isinstance(variable_config, Mapping):
                 raise ValueError(
                     f"metric_calc config for '{variable_name}' must be a mapping."
+                )
+            unsupported_settings = set(variable_config) - shared_keys - {"dims"}
+            if unsupported_settings:
+                raise ValueError(
+                    "Unsupported metric_calc settings for variable "
+                    f"'{variable_name}': {sorted(unsupported_settings, key=str)}."
                 )
             config = {**shared_config, **variable_config}
             metric = config.get("metric", "mean")

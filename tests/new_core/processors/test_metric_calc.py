@@ -417,6 +417,19 @@ class TestMultiVariableMetricCalc:
                 selected_variables=["tasmax", "pr"],
             )
 
+    def test_unknown_targeted_setting_is_rejected(self):
+        """Do not silently ignore unsupported per-variable settings."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("time",), [1.0, 2.0]),
+                "pr": (("time",), [3.0, 4.0]),
+            }
+        )
+        processor = MetricCalc({"by_variable": {"tasmax": {"mertic": "max"}}})
+
+        with pytest.raises(ValueError, match="Unsupported metric_calc settings"):
+            processor._calculate_metrics_single(data)
+
     def test_multi_variable_percentiles_preserve_lazy_arrays(self):
         """Keep dask-backed arrays lazy through per-variable percentile calculation."""
         data = xr.Dataset(
