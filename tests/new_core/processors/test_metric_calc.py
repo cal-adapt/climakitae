@@ -294,8 +294,12 @@ class TestMultiVariableMetricCalc:
         result = processor.execute(data, context={"variable_id": variable_id})
         expected = xr.Dataset(
             {
-                "tasmax_p50": xr.DataArray([3.0, 5.0], dims=["lat"], coords={"lat": [10, 20]}),
-                "tasmax_mean": xr.DataArray([3.0, 5.0], dims=["lat"], coords={"lat": [10, 20]}),
+                "tasmax_p50": xr.DataArray(
+                    [3.0, 5.0], dims=["lat"], coords={"lat": [10, 20]}
+                ),
+                "tasmax_mean": xr.DataArray(
+                    [3.0, 5.0], dims=["lat"], coords={"lat": [10, 20]}
+                ),
             }
         )
 
