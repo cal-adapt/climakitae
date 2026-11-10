@@ -282,6 +282,25 @@ class TestMetricCalcCalculateMetricsSingle:
 class TestMultiVariableMetricCalc:
     """Test variable-specific metrics and percentile results."""
 
+    @pytest.mark.parametrize("variable_id", ["tasmax", ["tasmax"]])
+    def test_one_variable_query_preserves_legacy_output_format(self, variable_id):
+        """Keep scalar and one-item selections on the legacy metric schema."""
+        data = xr.Dataset(
+            {"tasmax": (("time", "lat"), [[1.0, 3.0], [5.0, 7.0]])},
+            coords={"time": [0, 1], "lat": [10, 20]},
+        )
+        processor = MetricCalc({"metric": "mean", "percentiles": [50]})
+
+        result = processor.execute(data, context={"variable_id": variable_id})
+        expected = xr.Dataset(
+            {
+                "tasmax_p50": xr.DataArray([3.0, 5.0], dims=["lat"], coords={"lat": [10, 20]}),
+                "tasmax_mean": xr.DataArray([3.0, 5.0], dims=["lat"], coords={"lat": [10, 20]}),
+            }
+        )
+
+        xr.testing.assert_equal(result, expected)
+
     @pytest.mark.parametrize("mode", ["thresholds", "one_in_x"])
     def test_execute_rejects_targeted_advanced_modes(self, mode):
         """Reject targeted threshold and return-period settings at execution."""
