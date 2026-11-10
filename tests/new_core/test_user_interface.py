@@ -249,6 +249,8 @@ class TestClimateDataParameterSetters:
             (["tasmax", " tasmax "], "unique after trimming"),
             (["tasmax", ""], "Each variable ID must be a non-empty string"),
             (("tasmax", None), "Each variable ID must be a non-empty string"),
+            (["tasmax", 3], "Each variable ID must be a non-empty string"),
+            (UNSET, "Variable ID must be a non-empty string"),
         ],
     )
     def test_variable_id_rejects_invalid_collections(self, variable_ids, error_message):
