@@ -82,3 +82,32 @@ def test_gridded_catalog_multi_variable_query(selection, variables, time_slice):
     assert all(
         hasattr(result[variable].data, "__dask_graph__") for variable in variables
     )
+
+
+@pytest.mark.advanced
+def test_hdp_multi_variable_query_uses_discovered_station_fields():
+    """Test public HDP queries return multiple fields from one station."""
+    from climakitae.new_core.data_access.data_access import DataCatalog
+
+    network_id = "ASOSAWOS"
+    catalog = DataCatalog()
+    station_id = catalog.hdp.df.loc[
+        catalog.hdp.df["network_id"] == network_id, "station_id"
+    ].iloc[0]
+    variables = catalog.get_hdp_observation_fields(
+        {"network_id": network_id, "station_id": station_id}
+    )[:2]
+    assert len(variables) == 2
+
+    result = (
+        ClimateData(verbosity=-1)
+        .catalog("hdp")
+        .network_id(network_id)
+        .station_id(station_id)
+        .variable_id(variables)
+        .get()
+    )
+
+    assert isinstance(result, xr.Dataset)
+    assert set(variables).issubset(result.data_vars)
+    assert station_id in result.station_id.values
