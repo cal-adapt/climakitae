@@ -916,6 +916,19 @@ class TestClimateDataAdditionalMethods:
 
         assert self.climate_data.copy_query()["variable_id"] == ["tasmax", "pr"]
 
+    def test_load_query_invalid_variable_selection_is_atomic(self):
+        """Reject invalid dictionary selections without replacing prior query state."""
+        self.climate_data.variable_id(["tasmax", "pr"])
+
+        with patch("climakitae.new_core.user_interface.logger") as logger:
+            with pytest.raises(
+                ValueError, match="Each variable ID must be a non-empty string"
+            ):
+                self.climate_data.load_query({"variable_id": ["huss", None]})
+
+        assert self.climate_data.copy_query()["variable_id"] == ["tasmax", "pr"]
+        logger.error.assert_called_once()
+
     def test_load_query_empty_dict(self):
         """Test load_query with empty dictionary."""
         result = self.climate_data.load_query({})
