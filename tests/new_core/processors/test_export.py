@@ -857,6 +857,41 @@ class TestExportSingle:
         assert result is multi_output_dataset
         mock_export.assert_called_once()
 
+    @pytest.mark.parametrize("variable_id", ["tasmax", ["tasmax"]])
+    def test_single_derived_variable_csv_keeps_legacy_output(
+        self, tmp_path, monkeypatch, variable_id
+    ):
+        """Keep several fields from one request in the legacy CSV schema."""
+        from climakitae.core import data_export
+
+        station_path = tmp_path / "stations.csv"
+        pd.DataFrame({"station": []}).to_csv(station_path, index=False)
+        monkeypatch.setattr(data_export, "HADISD_STATIONS_URL", str(station_path))
+        monkeypatch.setattr(
+            data_export,
+            "read_csv_file",
+            lambda _: pd.DataFrame({"variable_id": [], "display_name": []}),
+        )
+        data = xr.Dataset(
+            {
+                "tasmax_p5": (("time",), [1.0, 2.0], {"units": "degC"}),
+                "tasmax_mean": (("time",), [3.0, 4.0], {"units": "degC"}),
+            },
+            coords={"time": pd.date_range("2020-01-01", periods=2)},
+        )
+        processor = Export({"filename": "derived", "file_format": "CSV"})
+        monkeypatch.chdir(tmp_path)
+
+        processor.execute(data, context={"variable_id": variable_id})
+
+        exported = pd.read_csv(tmp_path / "derived.csv.gz", header=[0, 1], index_col=0)
+        assert ("tasmax_p5", "degC") in exported.columns
+        assert ("tasmax_mean", "degC") in exported.columns
+        assert exported[("tasmax_p5", "degC")].tolist() == [1.0, 2.0]
+        assert exported[("tasmax_mean", "degC")].tolist() == [3.0, 4.0]
+        assert not any(column[0] == "variable" for column in exported.columns)
+        assert (tmp_path / "derived_metadata.txt").exists()
+
     @pytest.mark.parametrize(
         "file_format,suffix",
         [("NetCDF", ".nc"), ("Zarr", ".zarr")],
