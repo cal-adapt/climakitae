@@ -412,12 +412,16 @@ class TestClimateDataGet:
         # The implementation uses logger.info for success message
         mock_logger.info.assert_any_call("✅ Data retrieval successful!")
 
-    def test_get_preserves_multiple_variable_selection(self):
-        """Test the selected variables survive the get query snapshot."""
+    @pytest.mark.parametrize("variable_count", [2, 3, 10])
+    def test_get_preserves_variable_selection_without_fixed_count_cap(
+        self, variable_count
+    ):
+        """Test selections of different sizes survive the get query snapshot."""
         self.climate_data.catalog("cadcat")
         self.climate_data.table_id("day")
         self.climate_data.grid_label("d03")
-        self.climate_data.variable_id(["tasmax", "pr"])
+        variable_ids = [f"variable_{index}" for index in range(variable_count)]
+        self.climate_data.variable_id(variable_ids)
 
         mock_dataset = MagicMock()
         expected_data = MagicMock()
@@ -430,8 +434,8 @@ class TestClimateDataGet:
         assert result is expected_data
         factory_query = self.climate_data._factory.create_dataset.call_args.args[0]
         execute_query = mock_dataset.execute.call_args.args[0]
-        assert factory_query["variable_id"] == ["tasmax", "pr"]
-        assert execute_query["variable_id"] == ["tasmax", "pr"]
+        assert factory_query["variable_id"] == variable_ids
+        assert execute_query["variable_id"] == variable_ids
         assert self.climate_data._query["variable_id"] is UNSET
 
     def test_get_returns_none_and_logs_dictionary_validation_failure(self):
