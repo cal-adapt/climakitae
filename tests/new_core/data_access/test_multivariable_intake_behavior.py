@@ -28,6 +28,7 @@ def _make_local_catalog(
     no_time_overlap=False,
     only_incomplete_members=False,
     include_wind_components=False,
+    include_spatial_metadata=False,
 ):
     """Create a local multi-variable catalog with incomplete source coverage."""
     catalog_profiles = {
@@ -146,6 +147,19 @@ def _make_local_catalog(
             dataset = xr.Dataset(
                 {variable_id: ("time", values)},
                 coords={"time": pd.to_datetime(times)},
+            )
+        if include_spatial_metadata:
+            units = {
+                "tasmax": "degC",
+                "pr": "mm day-1",
+                "u10": "m s-1",
+                "v10": "m s-1",
+            }
+            dataset[variable_id].attrs.update(
+                {"units": units[variable_id], "grid_mapping": "crs"}
+            )
+            dataset = dataset.assign_coords(
+                crs=xr.DataArray(0, attrs={"crs_wkt": "EPSG:4326"})
             )
         if mismatched_calendar and variable_id == "pr":
             dataset["time"].encoding["calendar"] = "noleap"
@@ -880,6 +894,36 @@ def test_data_catalog_computes_derived_and_native_variables_in_request_order(
         dataset["wind_speed_10m"].isel(member_id=0).values, [5.0, 5.0]
     )
     np.testing.assert_allclose(dataset["pr"].isel(member_id=0).values, [2.0, 3.0])
+
+def test_data_catalog_preserves_independent_units_and_crs_for_outputs(tmp_path):
+    """Keep each output's units and CRS metadata through mixed assembly."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(
+        tmp_path,
+        spatial_grid=True,
+        include_wind_components=True,
+        include_spatial_metadata=True,
+    )
+    query = {
+        "variable_id": ["wind_speed_10m", "pr"],
+        "_multi_variable_query": True,
+        "_requested_variables": ["wind_speed_10m", "pr"],
+        "_derived_variables": ["wind_speed_10m"],
+        "_catalog_variable_ids": ["u10", "v10", "pr"],
+        "_source_variables": ["u10", "v10"],
+    }
+
+    result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+    dataset = next(iter(result.values()))
+    assert dataset["wind_speed_10m"].attrs["units"] == "m/s"
+    assert dataset["pr"].attrs["units"] == "mm day-1"
+    assert dataset["wind_speed_10m"].attrs["grid_mapping"] == "crs"
+    assert dataset["pr"].attrs["grid_mapping"] == "crs"
+    assert dataset.coords["crs"].attrs["crs_wkt"] == "EPSG:4326"
 
 
 def test_data_catalog_computes_shared_dependencies_without_dropping_requested_sources(
