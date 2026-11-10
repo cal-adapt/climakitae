@@ -1070,3 +1070,47 @@ def test_data_catalog_rejects_custom_derived_alias_in_multi_variable_query(
         match="did not return a data variable named 'requested_derived'",
     ):
         data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+
+@pytest.mark.parametrize("variable_count", [2, 3, 10])
+def test_assembly_preserves_order_for_multiple_variable_counts(variable_count):
+    """Assemble two, three, or ten native fields in request order."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+
+    requested_variables = [
+        f"field_{index}" for index in reversed(range(variable_count))
+    ]
+    identity = {
+        "activity_id": "WRF",
+        "institution_id": "UCLA",
+        "source_id": "WRF-test",
+        "experiment_id": "historical",
+        "table_id": "day",
+        "grid_label": "d03",
+        "member_id": "r1i1p1f1",
+    }
+    assets = {
+        variable: xr.Dataset(
+            {variable: ("time", [float(index)])},
+            coords={"time": pd.to_datetime(["2000-01-01"])},
+            attrs={
+                f"intake_esm_attrs:{key}": value
+                for key, value in identity.items()
+            },
+        )
+        for index, variable in enumerate(reversed(requested_variables))
+    }
+    query = {
+        "_catalog_variable_ids": requested_variables,
+        "_requested_variables": requested_variables,
+        "_derived_variables": [],
+    }
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+
+    assembled = data_catalog._assemble_multi_variable_datasets(
+        assets, query, CATALOG_CADCAT
+    )
+    result = data_catalog._apply_multi_variable_outputs(assembled, query)
+
+    assert list(next(iter(result.values())).data_vars) == requested_variables
