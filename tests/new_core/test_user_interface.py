@@ -433,6 +433,40 @@ class TestClimateDataGet:
         assert execute_query["variable_id"] == ["tasmax", "pr"]
         assert self.climate_data._query["variable_id"] is UNSET
 
+    def test_get_keeps_query_snapshots_independent_between_calls(self):
+        """A later query must not mutate an earlier multi-variable snapshot."""
+        first_dataset = MagicMock()
+        first_result = MagicMock()
+        first_result.nbytes = 100
+        first_dataset.execute.return_value = first_result
+        second_dataset = MagicMock()
+        second_result = MagicMock()
+        second_result.nbytes = 100
+        second_dataset.execute.return_value = second_result
+        self.climate_data._factory.create_dataset.side_effect = [
+            first_dataset,
+            second_dataset,
+        ]
+
+        self.climate_data.catalog("cadcat").table_id("day").grid_label(
+            "d03"
+        ).variable_id(["tasmax", "pr"])
+        assert self.climate_data.get() is first_result
+        first_query = self.climate_data._factory.create_dataset.call_args_list[0].args[
+            0
+        ]
+
+        self.climate_data.catalog("cadcat").table_id("day").grid_label("d03")
+        self.climate_data.variable_id("huss")
+        assert self.climate_data.get() is second_result
+
+        second_query = self.climate_data._factory.create_dataset.call_args_list[1].args[
+            0
+        ]
+        assert first_query["variable_id"] == ["tasmax", "pr"]
+        assert second_query["variable_id"] == "huss"
+        assert first_query is not second_query
+
 
 class TestClimateDataValidation:
     """Test class for parameter validation."""
