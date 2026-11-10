@@ -566,9 +566,11 @@ class DataCatalog(dict):
         Parameters
         ----------
         query : dict
-            Query parameters for filtering data. The available parameters
-            depend on the catalog and may include items like 'variable',
-            'scenario', 'model', etc.
+            Query parameters for filtering data. Available parameters depend
+            on the catalog and include fields such as ``variable_id``,
+            ``experiment_id``, and ``source_id``. Internal multi-variable
+            metadata distinguishes requested outputs from catalog dependency
+            fields.
         catalog_key : str, optional
             The key identifying which catalog to query. If not provided,
             falls back to the deprecated instance attribute (for backward
@@ -578,11 +580,17 @@ class DataCatalog(dict):
         -------
         dict[str, xr.Dataset]
             The requested dataset(s) from the catalog, keyed by dataset identifiers.
+            Multi-variable retrieval assembles requested fields for each
+            simulation/member or station and records coverage and timestamp
+            alignment in the ``multi_variable_diagnostics`` Dataset attribute.
 
         Raises
         ------
         ValueError
             If no catalog_key is provided and no default is available.
+            Multi-variable retrieval also raises when an eligible record has
+            no common timestamps, or when requested fields have incompatible
+            coordinates.
 
         Examples
         --------

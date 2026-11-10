@@ -160,6 +160,8 @@ class Clip(DataProcessor):
     This processor supports single and multiple boundary clipping operations.
     By default, multiple boundaries are combined using union operations.
     Use the ``separated`` option to keep boundaries as separate dimensions.
+    For multi-variable point queries, all selected fields use one common
+    geographic cell; missing measurements do not affect cell selection.
 
     Parameters
     ----------
@@ -322,6 +324,22 @@ class Clip(DataProcessor):
         ],
         context: Dict[str, Any],
     ) -> Union[xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]]:
+        """Apply the configured spatial selection.
+
+        Parameters
+        ----------
+        result : xr.Dataset, xr.DataArray, or iterable
+            Data to clip.
+        context : dict
+            Query context, including requested variables for multi-variable
+            point selection.
+
+        Returns
+        -------
+        xr.Dataset, xr.DataArray, or iterable
+            Clipped data. Multi-variable point queries use a common selected
+            cell across all requested fields and preserve missing measurements.
+        """
         # Placeholder for data subsetting logic
         geom = UNSET
         match self.value:

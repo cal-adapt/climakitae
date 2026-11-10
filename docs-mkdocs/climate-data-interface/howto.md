@@ -8,6 +8,7 @@ For a parameter-by-parameter reference of any single processor, see
 
 | Goal | Guide |
 |---|---|
+| Retrieve and process several variables in one query | [Query Multiple Variables](howto/multi-variable-queries.md) |
 | Clip to a county, watershed, point, or bbox | [Clip Data](howto/clip.md) |
 | Save to NetCDF / Zarr / CSV / GeoTIFF | [Export Data](howto/export.md) |
 | Query at 1.5 / 2 / 3 °C global warming | [Warming Level Analysis](howto/warming-levels.md) |
@@ -16,4 +17,3 @@ For a parameter-by-parameter reference of any single processor, see
 | Build a multi-model / multi-region pipeline | [Combining Techniques](howto/combining-techniques.md) |
 | Compute HDD / CDD / heat index / etc. | [Derived Variables](howto/derived-variables.md) |
 | Subset by calendar dates | [Time-Based Queries](howto/time-based-queries.md) |
-

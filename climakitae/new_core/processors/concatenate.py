@@ -43,6 +43,10 @@ class Concat(DataProcessor):
     Notes
     -----
     All input datasets should have the 'source_id' attribute.
+    For multi-variable queries, retrieval first retains only complete
+    simulation/member or station records and aligns their fields to shared
+    timestamps. Coverage and trimming diagnostics remain on the assembled
+    Dataset.
 
     """
 

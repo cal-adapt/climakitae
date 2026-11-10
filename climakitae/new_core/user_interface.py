@@ -674,12 +674,22 @@ class ClimateData:
         ----------
         variable_id : str | list[str] | tuple[str, ...]
             One variable identifier or an ordered collection of identifiers.
-            Identifiers may include registered derived variable names.
+            Identifiers may include registered derived variable names. Lists
+            and tuples preserve their order and have no fixed length limit.
+            Empty collections, blank or non-string values, and duplicates
+            after trimming are rejected. A string or one-element collection
+            retains single-variable behavior.
 
         Returns
         -------
         ClimateData
             The current instance for method chaining.
+
+        Raises
+        ------
+        ValueError
+            If the selection is empty, contains a blank or non-string ID, or
+            contains duplicate IDs after whitespace is trimmed.
 
         """
 
@@ -945,16 +955,20 @@ class ClimateData:
 
         Returns
         -------
-        Optional[xr.DataArray]
-            The retrieved climate data as a lazy-loaded xarray DataArray,
-            or None if the query fails or validation errors occur.
+        Optional[xr.Dataset | xr.DataArray]
+            The retrieved lazy-loaded data. A multi-variable selection returns
+            one Dataset with the requested fields in order; a string or
+            one-element selection retains the existing single-variable return
+            behavior. Returns None if validation or execution fails.
 
-        Raises
-        ------
-        ValueError
-            If required parameters are missing during validation.
-        Exception
-            If there are errors during dataset creation or execution.
+        Notes
+        -----
+        Multi-variable retrieval requires joint coverage across the requested
+        fields for each retained simulation/member or station. Fields are
+        aligned to their common timestamps. Exclusions and timestamp trimming
+        are logged and recorded in the ``multi_variable_diagnostics`` Dataset
+        attribute. The query state resets after successful execution and
+        handled validation or retrieval failures.
 
         """
         logger.info("Starting data retrieval with query: %s", self._query)

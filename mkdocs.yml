@@ -99,6 +99,7 @@ nav:
       - Core Concepts: climate-data-interface/concepts.md
       - How-To Guides:
           - Overview: climate-data-interface/howto.md
+          - Query Multiple Variables: climate-data-interface/howto/multi-variable-queries.md
           - Clip Data: climate-data-interface/howto/clip.md
           - Access Boundary Geometries: climate-data-interface/howto/boundary-accessors.md
           - Export Data: climate-data-interface/howto/export.md

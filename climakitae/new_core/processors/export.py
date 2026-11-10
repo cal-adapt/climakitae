@@ -6,6 +6,7 @@ import logging
 import os
 from typing import Any, Dict, Iterable, Union
 
+import pandas as pd
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY
@@ -69,6 +70,12 @@ class Export(DataProcessor):
     Note: When ``cava_data`` uses ``separate_files=False`` or ``batch_mode=True``,
     it concatenates points into a single dataset along a ``simulation`` dimension.
     In this case, the data is treated as a single dataset (like case 1 above).
+
+    For multi-variable Dataset results, CSV output is long-form. Each variable
+    contributes rows over its own dimensions with ``variable``, ``value``,
+    ``units``, and coordinate columns; independent dimensions are not expanded
+    into Cartesian-product rows. Missing values are retained and a metadata
+    sidecar is written. Single-variable CSV formatting is unchanged.
 
     Parameters
     ----------
@@ -374,6 +381,13 @@ class Export(DataProcessor):
             print("Export method set to 'none'; no data is exported!")
             return result
 
+        selected_variables = context.get("variable_id")
+        multi_variable_csv = (
+            self.file_format.lower() == "csv"
+            and isinstance(selected_variables, (list, tuple))
+            and len(selected_variables) > 1
+        )
+
         # Handle different export methods
         export_method_lower = self.export_method.lower()
 
@@ -382,12 +396,16 @@ class Export(DataProcessor):
             # Note: We check if result is actually a dict (for cases like cava_data output)
             # even though type annotation doesn't include Dict to maintain base class compatibility
             if isinstance(result, dict):
-                self._handle_dict_result(result, export_method_lower)
+                self._handle_dict_result(
+                    result, export_method_lower, multi_variable_csv
+                )
             else:
-                self._handle_selective_export(result, context, export_method_lower)
+                self._handle_selective_export(
+                    result, context, export_method_lower, multi_variable_csv
+                )
         else:
             # Standard export for "data" and "skip_existing" methods
-            self._export_data(result)
+            self._export_data(result, multi_variable_csv)
 
         return result
 
@@ -396,6 +414,7 @@ class Export(DataProcessor):
         result: Union[
             xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
         ],
+        multi_variable_csv: bool = False,
     ):
         """
         Route data to the appropriate export method based on its structure.
@@ -435,20 +454,22 @@ class Export(DataProcessor):
                 # Check if this is multi-point data with closest_cell dimension
                 # that should be split into separate files
                 if self.separated and has_closest_cell:
-                    self._split_and_export_closest_cells(result)
+                    self._split_and_export_closest_cells(
+                        result, multi_variable_csv=multi_variable_csv
+                    )
                 else:
                     # Single dataset - export directly
-                    self.export_single(result)
+                    self._export_single(result, multi_variable_csv)
             case dict():
                 # Dict of datasets - export each value
                 for _, value in result.items():
                     if isinstance(value, (list, tuple)):
-                        self._export_collection(value)
+                        self._export_collection(value, multi_variable_csv)
                     else:
-                        self.export_single(value)
+                        self._export_single(value, multi_variable_csv)
             case list() | tuple():
                 # Collection of datasets - handle separated/location_based_naming
-                self._export_collection(result)
+                self._export_collection(result, multi_variable_csv)
             case _:
                 raise TypeError(
                     f"Expected xr.Dataset, xr.DataArray, dict, list, or tuple, got {type(result)}"
@@ -457,6 +478,7 @@ class Export(DataProcessor):
     def _export_collection(
         self,
         items: Iterable[Union[xr.Dataset, xr.DataArray]],
+        multi_variable_csv: bool = False,
     ):
         """
         Export a collection of datasets, respecting separated and location_based_naming.
@@ -500,7 +522,9 @@ class Export(DataProcessor):
                     raise TypeError(
                         f"Expected xr.Dataset or xr.DataArray, got {type(item)}"
                     )
-                self._export_single_from_collection(item, idx)
+                self._export_single_from_collection(
+                    item, idx, multi_variable_csv=multi_variable_csv
+                )
         else:
             # Export all items (each as its own file, but without index/location suffix)
             for item in items_list:
@@ -508,12 +532,24 @@ class Export(DataProcessor):
                     raise TypeError(
                         f"Expected xr.Dataset or xr.DataArray, got {type(item)}"
                     )
-                self.export_single(item)
+                self._export_single(item, multi_variable_csv)
+
+    def _export_single(
+        self,
+        data: Union[xr.Dataset, xr.DataArray],
+        multi_variable_csv: bool,
+    ) -> None:
+        """Export one item while preserving the original call for standard formats."""
+        if multi_variable_csv:
+            self.export_single(data, multi_variable_csv=True)
+        else:
+            self.export_single(data)
 
     def _export_single_from_collection(
         self,
         data: Union[xr.Dataset, xr.DataArray],
         index: int,
+        multi_variable_csv: bool = False,
     ):
         """
         Export a single item from a collection with appropriate naming.
@@ -563,14 +599,16 @@ class Export(DataProcessor):
             self.location_based_naming = False
 
             try:
-                self.export_single(data)
+                self._export_single(data, multi_variable_csv)
             finally:
                 self.location_based_naming = original_location_naming
 
         finally:
             self.filename = original_filename
 
-    def _handle_dict_result(self, result: dict, export_method: str):
+    def _handle_dict_result(
+        self, result: dict, export_method: str, multi_variable_csv: bool = False
+    ):
         """
         Handle dictionary results (like those from cava_data function).
         """
@@ -578,14 +616,16 @@ class Export(DataProcessor):
         calc_data = result.get("calc_data")
 
         if export_method == "raw" and raw_data is not None:
-            self._export_with_suffix(raw_data, "raw")
+            self._export_with_suffix_for_query(raw_data, "raw", multi_variable_csv)
         elif export_method == "calculate" and calc_data is not None:
-            self._export_with_suffix(calc_data, "calc")
+            self._export_with_suffix_for_query(calc_data, "calc", multi_variable_csv)
         elif export_method == "both":
             if raw_data is not None:
-                self._export_with_suffix(raw_data, "raw")
+                self._export_with_suffix_for_query(raw_data, "raw", multi_variable_csv)
             if calc_data is not None:
-                self._export_with_suffix(calc_data, "calc")
+                self._export_with_suffix_for_query(
+                    calc_data, "calc", multi_variable_csv
+                )
 
     def _handle_selective_export(
         self,
@@ -594,6 +634,7 @@ class Export(DataProcessor):
         ],
         context: Dict[str, Any],
         export_method: str,
+        multi_variable_csv: bool = False,
     ):
         """
         Handle selective export methods (raw, calculate, both).
@@ -605,17 +646,17 @@ class Export(DataProcessor):
         data_type = self._determine_data_type(result, context)
 
         if export_method == "raw" and data_type == "raw":
-            self._export_with_suffix(result, "raw")
+            self._export_with_suffix_for_query(result, "raw", multi_variable_csv)
         elif export_method == "calculate" and data_type == "calc":
-            self._export_with_suffix(result, "calc")
+            self._export_with_suffix_for_query(result, "calc", multi_variable_csv)
         elif export_method == "both":
             # If we can't determine type, export as both with different suffixes
-            self._export_with_suffix(result, "raw")
-            self._export_with_suffix(result, "calc")
+            self._export_with_suffix_for_query(result, "raw", multi_variable_csv)
+            self._export_with_suffix_for_query(result, "calc", multi_variable_csv)
         else:
             # Default behavior - export with appropriate suffix
             suffix = "raw" if export_method == "raw" else "calc"
-            self._export_with_suffix(result, suffix)
+            self._export_with_suffix_for_query(result, suffix, multi_variable_csv)
 
     def _determine_data_type(self, result, context: Dict[str, Any]) -> str:
         """
@@ -651,6 +692,7 @@ class Export(DataProcessor):
             xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
         ],
         suffix: str,
+        multi_variable_csv: bool = False,
     ):
         """
         Export data with appropriate filename suffix.
@@ -668,10 +710,24 @@ class Export(DataProcessor):
 
         try:
             # Export the data using the standard export logic
-            self._export_data(data)
+            self._export_data(data, multi_variable_csv)
         finally:
             # Restore original filename
             self.filename = original_filename
+
+    def _export_with_suffix_for_query(
+        self,
+        data: Union[
+            xr.Dataset, xr.DataArray, Iterable[Union[xr.Dataset, xr.DataArray]]
+        ],
+        suffix: str,
+        multi_variable_csv: bool,
+    ) -> None:
+        """Retain the legacy method call when query-specific CSV is not needed."""
+        if multi_variable_csv:
+            self._export_with_suffix(data, suffix, multi_variable_csv=True)
+        else:
+            self._export_with_suffix(data, suffix)
 
     def update_context(self, context: Dict[str, Any]) -> None:
         """
@@ -817,7 +873,11 @@ class Export(DataProcessor):
 
         return result
 
-    def _split_and_export_closest_cells(self, data: Union[xr.Dataset, xr.DataArray]):
+    def _split_and_export_closest_cells(
+        self,
+        data: Union[xr.Dataset, xr.DataArray],
+        multi_variable_csv: bool = False,
+    ):
         """
         Split data along closest_cell or points dimension and export each slice separately.
 
@@ -894,7 +954,7 @@ class Export(DataProcessor):
                 self.location_based_naming = False
 
                 try:
-                    self.export_single(slice_data)
+                    self._export_single(slice_data, multi_variable_csv)
                 finally:
                     self.location_based_naming = original_location_naming
 
@@ -1061,7 +1121,74 @@ class Export(DataProcessor):
                     f"Could not find unique filename after 10000 attempts for {base_filename}"
                 )
 
-    def export_single(self, data: Union[xr.Dataset, xr.DataArray]) -> None:
+    def _multi_variable_csv_dataframe(self, data: xr.Dataset) -> pd.DataFrame:
+        """Create long-format rows without aligning variables on unrelated dimensions."""
+        coordinate_columns = list(data.sizes)
+        coordinate_columns.extend(
+            name for name in data.coords if name not in coordinate_columns
+        )
+        reserved_columns = {"variable", "value", "units"}
+        conflicts = reserved_columns.intersection(coordinate_columns)
+        if conflicts:
+            raise ValueError(
+                "Multi-variable CSV coordinates conflict with required columns: "
+                f"{sorted(conflicts)}."
+            )
+
+        variable_frames = []
+        for variable_name, variable_data in data.data_vars.items():
+            if variable_data.ndim == 0:
+                variable_frame = pd.DataFrame(
+                    {"value": [variable_data.to_numpy().item()]}
+                )
+            else:
+                variable_frame = variable_data.to_dataframe(name="value").reset_index()
+            variable_frame.insert(0, "variable", variable_name)
+            units = variable_data.attrs.get("units")
+            variable_frame["units"] = "" if units is None else str(units)
+            variable_frames.append(variable_frame)
+
+        if not variable_frames:
+            raise ValueError("Cannot export a Dataset with no data variables to CSV.")
+
+        columns = ["variable", "value", "units", *coordinate_columns]
+        return pd.concat(variable_frames, ignore_index=True, sort=False).reindex(
+            columns=columns
+        )
+
+    def _export_multi_variable_csv(self, data: xr.Dataset, save_name: str) -> None:
+        """Write long-format CSV data and the standard metadata sidecar."""
+        output_path = os.path.join(os.getcwd(), save_name)
+        dataframe = self._multi_variable_csv_dataframe(data)
+        dataframe.to_csv(output_path, index=False, compression="gzip")
+
+        metadata_path = output_path.removesuffix(".csv.gz") + "_metadata.txt"
+        with open(metadata_path, "w", encoding="utf-8") as metadata_file:
+            metadata_file.write(
+                f"======== Metadata for CSV file {output_path} ========\n\n"
+            )
+            metadata_file.write("===== Global file attributes =====\n")
+            for name, value in data.attrs.items():
+                metadata_file.write(f"{name} : {value}\n")
+
+            metadata_file.write("\n===== Coordinate descriptions =====\n")
+            metadata_file.write("Note: coordinate values are in the CSV\n")
+            for name in data.coords:
+                metadata_file.write(f"\n== {name} ==\n")
+                for attr_name, attr_value in data[name].attrs.items():
+                    metadata_file.write(f"{attr_name} : {attr_value}\n")
+
+            metadata_file.write("\n===== Variable descriptions =====\n")
+            for name in data.data_vars:
+                metadata_file.write(f"\n== {name} ==\n")
+                for attr_name, attr_value in data[name].attrs.items():
+                    metadata_file.write(f"{attr_name} : {attr_value}\n")
+
+    def export_single(
+        self,
+        data: Union[xr.Dataset, xr.DataArray],
+        multi_variable_csv: bool = False,
+    ) -> None:
         """
         Export a single xr.Dataset or xr.DataArray to file.
 
@@ -1112,7 +1239,14 @@ class Export(DataProcessor):
                 case "csv":
                     # Clean up attributes to avoid NetCDF serialization issues
                     data = self._clean_attrs_for_netcdf(data)
-                    _export_to_csv(data, save_name)
+                    if multi_variable_csv:
+                        if not isinstance(data, xr.Dataset):
+                            raise ValueError(
+                                "Multi-variable CSV export requires an xarray Dataset."
+                            )
+                        self._export_multi_variable_csv(data, save_name)
+                    else:
+                        _export_to_csv(data, save_name)
                 case _:
                     # This should never happen due to validation in __init__
                     raise ValueError(f"Unsupported file format: {self.file_format}")

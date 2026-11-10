@@ -56,6 +56,12 @@ Clip to specific weather station locations from the HadISD station network.
 ### Mode 3: Single Point (Closest Valid Gridcell)
 Extract data for a single geographic point. The processor first selects the geographically closest gridcell; if that cell is all-NaN (common in WRF data near coastlines/mountains/masked regions) it falls back to a **3×3 index-space neighborhood** around the nearest cell and returns the **mean of the valid (non-NaN) cells in that neighborhood**.
 
+For multi-variable queries, point selection instead uses one common geographic
+cell for every requested field. Selection is independent of field values and
+request order: a missing measurement does not move the cell or trigger
+neighbor averaging. An applicable explicit spatial mask is still honored.
+Single-variable queries keep the behavior described above.
+
 **Algorithm (`_clip_data_to_point`, line 665):**
 
 1. Call `get_closest_gridcell(dataset, lat, lon)` and check if it has valid data on a sample slice.
@@ -117,6 +123,13 @@ When providing multiple point coordinates:
 ```
 
 ## Spatial Processing Details
+
+### Multi-variable Point Selection
+
+Multi-variable single- and multi-point queries share the same common-cell
+policy. All requested variables use the selected cell, and existing NaN
+measurements remain NaN. The processor does not compute measurement arrays to
+choose among cells.
 
 ### Coordinate System Handling
 - **Data CRS detection** (`_clip_data_with_geom`, line 595): if `data.rio.crs` is unset, the processor detects WRF data by the presence of a `Lambert_Conformal` coordinate and writes the CRS from `spatial_ref` or CF-convention attributes; otherwise it assumes EPSG:4326 (LOCA2 lat/lon).

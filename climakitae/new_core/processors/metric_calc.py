@@ -51,8 +51,10 @@ class MetricCalc(DataProcessor):
     **Multi-Variable Support**: Basic metrics and percentiles can be shared across
     selected variables or configured independently with ``by_variable``. Variables
     omitted from a targeted configuration remain unchanged. Percentile outputs use
-    variable-specific names and dimensions. Threshold and 1-in-X modes are not
-    supported for multi-variable queries.
+    variable-specific names (``{variable}_percentiles``) and dimensions
+    (``{variable}_percentile``), so different percentile lists do not align onto
+    a union coordinate. Threshold and 1-in-X modes are not supported for
+    multi-variable queries.
 
     Parameters
     ----------
