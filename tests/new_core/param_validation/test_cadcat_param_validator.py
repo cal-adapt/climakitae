@@ -281,6 +281,32 @@ class TestDataValidator:
         assert "pr" in caplog.text
         assert "table_id=day" in caplog.text
 
+    def test_is_valid_query_rejects_variable_missing_for_selected_source(self, caplog):
+        """Require every requested field within the selected source group."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["LOCA2", "LOCA2"],
+                "source_id": ["model_a", "model_b"],
+                "table_id": ["day", "day"],
+                "grid_label": ["d03", "d03"],
+                "variable_id": ["tasmax", "pr"],
+            }
+        )
+        query = {
+            "activity_id": "LOCA2",
+            "source_id": ["model_a"],
+            "table_id": "day",
+            "grid_label": "d03",
+            "variable_id": ["tasmax", "pr"],
+        }
+
+        result = self.validator.is_valid_query(query)
+
+        assert result is None
+        assert "pr" in caplog.text
+        assert "source_id=['model_a']" in caplog.text
+        self.validator.catalog.search.assert_not_called()
+
     def test_is_valid_query_rejects_multi_variable_search_without_matches(self):
         """Reject a multi-variable query when the constrained search is empty."""
         self.validator.catalog.df = pd.DataFrame(
