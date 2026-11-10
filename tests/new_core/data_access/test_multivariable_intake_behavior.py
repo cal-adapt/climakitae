@@ -639,6 +639,11 @@ def test_data_catalog_excludes_members_missing_requested_variables(tmp_path, cap
             np.datetime64("2000-01-03"),
         ],
     )
+    assert np.isnan(dataset["tasmax"].sel(member_id="r1i1p1f1").isel(time=0)).all()
+    np.testing.assert_array_equal(
+        dataset["pr"].sel(member_id="r1i1p1f1").isel(lat=0, lon=0).values,
+        [2.0, 3.0],
+    )
     assert "Trimming 1 timestamp(s) from field tasmax" in caplog.text
     diagnostics = json.loads(dataset.attrs["multi_variable_diagnostics"])
     assert diagnostics["records"]["r1i1p1f1"]["trimmed_timestamp_counts"] == {
