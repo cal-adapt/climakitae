@@ -1,7 +1,7 @@
 """Network-backed smoke tests for multi-variable catalog queries."""
 
-import xarray as xr
 import pytest
+import xarray as xr
 
 from climakitae.new_core.user_interface import ClimateData
 
