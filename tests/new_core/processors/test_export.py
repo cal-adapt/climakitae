@@ -952,9 +952,10 @@ class TestExportSingle:
         assert result["pr_percentiles"].attrs["units"] == "mm"
         assert result["tasmax_percentiles"].attrs["grid_mapping"] == "crs"
         assert result.crs.attrs["spatial_ref"] == "EPSG:4326"
-        assert result.attrs["multi_variable_diagnostics"] == data.attrs[
-            "multi_variable_diagnostics"
-        ]
+        assert (
+            result.attrs["multi_variable_diagnostics"]
+            == data.attrs["multi_variable_diagnostics"]
+        )
 
     def test_multi_variable_csv_keeps_independent_coordinate_rows(self, tmp_path):
         """Export each variable over its own percentile axis without Cartesian rows."""
