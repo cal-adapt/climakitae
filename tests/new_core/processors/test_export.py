@@ -969,6 +969,57 @@ class TestExportSingle:
         assert "== tasmax_percentiles ==" in metadata
         assert "units : degC" in metadata
 
+    def test_multi_variable_csv_shared_dimensions_use_sum_of_sizes(self, tmp_path):
+        """Export shared-dimension variables as one row per value, not Cartesian rows."""
+        data = xr.Dataset(
+            {
+                "tasmax": (
+                    ("time", "lat"),
+                    [[1.0, 2.0], [3.0, 4.0]],
+                    {"units": "degC"},
+                ),
+                "pr": (
+                    ("time", "lat"),
+                    [[5.0, 6.0], [7.0, 8.0]],
+                    {"units": "mm"},
+                ),
+            },
+            coords={"time": [0, 1], "lat": [34.0, 35.0]},
+        )
+        processor = Export({"filename": "shared", "file_format": "CSV"})
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.chdir(tmp_path)
+            processor.execute(data, context={"variable_id": ["tasmax", "pr"]})
+
+        exported = pd.read_csv(tmp_path / "shared.csv.gz")
+        assert len(exported) == 8
+        assert list(exported.columns) == [
+            "variable",
+            "value",
+            "units",
+            "time",
+            "lat",
+        ]
+        assert exported["variable"].value_counts().to_dict() == {
+            "tasmax": 4,
+            "pr": 4,
+        }
+        assert exported.loc[exported["variable"] == "tasmax", "value"].tolist() == [
+            1.0,
+            2.0,
+            3.0,
+            4.0,
+        ]
+        assert exported.loc[exported["variable"] == "pr", "value"].tolist() == [
+            5.0,
+            6.0,
+            7.0,
+            8.0,
+        ]
+        assert set(exported["units"]) == {"degC", "mm"}
+        assert (tmp_path / "shared_metadata.txt").exists()
+
     def test_multi_variable_csv_preserves_missing_values_and_blank_coordinates(
         self, tmp_path
     ):
