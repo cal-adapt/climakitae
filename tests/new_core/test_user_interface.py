@@ -230,6 +230,17 @@ class TestClimateDataParameterSetters:
 
         assert self.climate_data._query["variable_id"] == "tasmax"
 
+    def test_variable_id_string_and_single_item_collections_are_equivalent(self):
+        """Normalize a string and one-item list/tuple to the same query value."""
+        normalized_values = []
+        for variable_ids in ("tasmax", ["tasmax"], ("tasmax",)):
+            self.climate_data.reset()
+            normalized_values.append(
+                self.climate_data.variable_id(variable_ids).copy_query()["variable_id"]
+            )
+
+        assert normalized_values == ["tasmax", "tasmax", "tasmax"]
+
     @pytest.mark.parametrize(
         "variable_ids,error_message",
         [
