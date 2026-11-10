@@ -8,6 +8,8 @@ that provides parameter validation for historical data platform queries.
 import warnings
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.hdp_param_validator import HDPValidator
 
@@ -58,6 +60,19 @@ class TestHDPValidatorInit:
 
 class TestHDPValidatorValidation:
     """Test class for HDPValidator validation methods."""
+
+    @pytest.mark.parametrize("processor", ["convert_units", "metric_calc"])
+    def test_metric_processors_are_rejected_for_hdp(self, processor, caplog):
+        """Reject gridded unit conversion and metrics for station observations."""
+        validator = HDPValidator(MagicMock())
+
+        with caplog.at_level("WARNING"):
+            result = validator._check_query_invalid_processors(
+                {"processes": {processor: {}}}
+            )
+
+        assert result is False
+        assert f"Invalid processor for HDP data: {processor}" in caplog.text
 
     def test_variable_fields_are_preserved_without_catalog_filtering(self):
         """Test HDP fields remain query outputs rather than catalog search keys."""
