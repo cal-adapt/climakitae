@@ -495,6 +495,53 @@ class TestClimateDataGet:
         assert second_query["variable_id"] == "huss"
         assert self.climate_data._query["variable_id"] is UNSET
 
+    def test_get_keeps_variable_selections_independent_between_instances(self):
+        """Test separate ClimateData instances retain their own variable queries."""
+        first_factory = MagicMock()
+        second_factory = MagicMock()
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                side_effect=[first_factory, second_factory],
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
+        ):
+            first_client = ClimateData()
+            second_client = ClimateData()
+
+        first_dataset = MagicMock()
+        first_result = MagicMock()
+        first_result.nbytes = 100
+        first_dataset.execute.return_value = first_result
+        first_factory.create_dataset.return_value = first_dataset
+
+        second_dataset = MagicMock()
+        second_result = MagicMock()
+        second_result.nbytes = 100
+        second_dataset.execute.return_value = second_result
+        second_factory.create_dataset.return_value = second_dataset
+
+        first_client.catalog("cadcat").table_id("day").grid_label("d03").variable_id(
+            ["tasmax", "pr"]
+        )
+        second_client.catalog("cadcat").table_id("day").grid_label("d03").variable_id(
+            ["tasmin", "huss"]
+        )
+
+        assert first_client.get() is first_result
+        assert second_client.get() is second_result
+
+        first_query = first_factory.create_dataset.call_args.args[0]
+        second_query = second_factory.create_dataset.call_args.args[0]
+        assert first_query["variable_id"] == ["tasmax", "pr"]
+        assert second_query["variable_id"] == ["tasmin", "huss"]
+        assert first_client._query["variable_id"] is UNSET
+        assert second_client._query["variable_id"] is UNSET
+
     def test_get_keeps_query_snapshots_independent_between_calls(self):
         """A later query must not mutate an earlier multi-variable snapshot."""
         first_dataset = MagicMock()
