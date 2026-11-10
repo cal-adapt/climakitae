@@ -895,6 +895,7 @@ def test_data_catalog_computes_derived_and_native_variables_in_request_order(
     )
     np.testing.assert_allclose(dataset["pr"].isel(member_id=0).values, [2.0, 3.0])
 
+
 def test_data_catalog_preserves_independent_units_and_crs_for_outputs(tmp_path):
     """Keep each output's units and CRS metadata through mixed assembly."""
     from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
@@ -1093,10 +1094,7 @@ def test_assembly_preserves_order_for_multiple_variable_counts(variable_count):
         variable: xr.Dataset(
             {variable: ("time", [float(index)])},
             coords={"time": pd.to_datetime(["2000-01-01"])},
-            attrs={
-                f"intake_esm_attrs:{key}": value
-                for key, value in identity.items()
-            },
+            attrs={f"intake_esm_attrs:{key}": value for key, value in identity.items()},
         )
         for index, variable in enumerate(reversed(requested_variables))
     }
@@ -1114,3 +1112,35 @@ def test_assembly_preserves_order_for_multiple_variable_counts(variable_count):
     result = data_catalog._apply_multi_variable_outputs(assembled, query)
 
     assert list(next(iter(result.values())).data_vars) == requested_variables
+
+
+def test_scalar_custom_derived_query_remains_compatible(tmp_path):
+    """Keep scalar custom derived retrieval on the existing intake path."""
+    from intake_esm import DerivedVariableRegistry
+
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+
+    registry = DerivedVariableRegistry()
+
+    @registry.register(
+        variable="tasmax_plus_one",
+        query={"variable_id": ["tasmax"]},
+    )
+    def add_one(dataset):
+        """Create a test derived field from the native temperature field."""
+        return dataset.assign(tasmax_plus_one=dataset["tasmax"] + 1)
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(tmp_path, registry=registry)
+    query = {
+        "variable_id": "tasmax_plus_one",
+        "_derived_variable": "tasmax_plus_one",
+        "_source_variables": ["tasmax"],
+    }
+
+    result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+    dataset = next(iter(result.values()))
+    assert "tasmax_plus_one" in dataset.data_vars
+    assert "_multi_variable_query" not in query
