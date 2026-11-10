@@ -857,6 +857,70 @@ class TestExportSingle:
         assert result is multi_output_dataset
         mock_export.assert_called_once()
 
+    @pytest.mark.parametrize(
+        "file_format,suffix",
+        [("NetCDF", ".nc"), ("Zarr", ".zarr")],
+    )
+    def test_multi_variable_export_round_trips_metadata(
+        self, tmp_path, file_format, suffix
+    ):
+        """Round-trip independent percentile axes and metadata through real writers."""
+        data = xr.Dataset(
+            {
+                "tasmax_percentiles": (
+                    ("tasmax_percentile", "lat"),
+                    [[1.0, 2.0], [3.0, 4.0]],
+                    {"units": "degC", "grid_mapping": "crs"},
+                ),
+                "pr_percentiles": (
+                    ("pr_percentile", "lat"),
+                    [[5.0, 6.0], [7.0, 8.0], [9.0, 10.0]],
+                    {"units": "mm", "grid_mapping": "crs"},
+                ),
+            },
+            coords={
+                "tasmax_percentile": [5, 95],
+                "pr_percentile": [10, 50, 99],
+                "lat": [34.0, 35.0],
+                "crs": xr.DataArray(0, attrs={"spatial_ref": "EPSG:4326"}),
+            },
+            attrs={
+                "multi_variable_diagnostics": (
+                    '{"excluded":{"member-2":{"missing_variables":["pr"]}},'
+                    '"trimmed":{"tasmax":1,"pr":1}}'
+                )
+            },
+        )
+        processor = Export({"filename": "roundtrip", "file_format": file_format})
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.chdir(tmp_path)
+            processor.execute(data, context={"variable_id": ["tasmax", "pr"]})
+
+        output_path = tmp_path / f"roundtrip{suffix}"
+        if file_format == "NetCDF":
+            with xr.open_dataset(output_path) as opened:
+                result = opened.load()
+        else:
+            with xr.open_zarr(output_path) as opened:
+                result = opened.load()
+
+        assert set(result.data_vars) == {
+            "tasmax_percentiles",
+            "pr_percentiles",
+        }
+        assert result["tasmax_percentiles"].dims == ("tasmax_percentile", "lat")
+        assert result["pr_percentiles"].dims == ("pr_percentile", "lat")
+        np.testing.assert_array_equal(result.tasmax_percentile, [5, 95])
+        np.testing.assert_array_equal(result.pr_percentile, [10, 50, 99])
+        assert result["tasmax_percentiles"].attrs["units"] == "degC"
+        assert result["pr_percentiles"].attrs["units"] == "mm"
+        assert result["tasmax_percentiles"].attrs["grid_mapping"] == "crs"
+        assert result.crs.attrs["spatial_ref"] == "EPSG:4326"
+        assert result.attrs["multi_variable_diagnostics"] == data.attrs[
+            "multi_variable_diagnostics"
+        ]
+
     def test_multi_variable_csv_keeps_independent_coordinate_rows(self, tmp_path):
         """Export each variable over its own percentile axis without Cartesian rows."""
         data = xr.Dataset(
