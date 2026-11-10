@@ -433,6 +433,29 @@ class TestClimateDataGet:
         assert execute_query["variable_id"] == ["tasmax", "pr"]
         assert self.climate_data._query["variable_id"] is UNSET
 
+    def test_get_returns_none_and_logs_dictionary_validation_failure(self):
+        """Return None and log catalog validation errors from dictionary queries."""
+        self.climate_data.load_query(
+            {
+                "catalog": "cadcat",
+                "table_id": "day",
+                "grid_label": "d03",
+                "variable_id": ["tasmax", "invalid_variable"],
+            }
+        )
+        self.climate_data._factory.create_dataset.side_effect = ValueError(
+            "Requested variable is unavailable"
+        )
+
+        with patch("climakitae.new_core.user_interface.logger") as logger:
+            result = self.climate_data.get()
+
+        assert result is None
+        logger.error.assert_called_once_with(
+            "Error during dataset creation: %s", "Requested variable is unavailable"
+        )
+        assert self.climate_data._query["variable_id"] is UNSET
+
     def test_get_keeps_query_snapshots_independent_between_calls(self):
         """A later query must not mutate an earlier multi-variable snapshot."""
         first_dataset = MagicMock()
