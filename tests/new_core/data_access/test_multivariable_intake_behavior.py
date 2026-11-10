@@ -718,8 +718,9 @@ def test_data_catalog_rejects_incompatible_calendars(tmp_path):
 
 
 def test_data_catalog_preserves_lazy_multi_variable_assets(tmp_path):
-    """Test multi-variable assets remain lazy after assembly."""
+    """Test retrieval leaves measurements lazy and executes no Dask tasks."""
     from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+    from dask.callbacks import Callback
 
     data_catalog = dict.__new__(DataCatalog)
     dict.__init__(data_catalog)
@@ -733,11 +734,14 @@ def test_data_catalog_preserves_lazy_multi_variable_assets(tmp_path):
         "_source_variables": [],
     }
 
-    result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+    executed_tasks = []
+    with Callback(posttask=lambda key, *args: executed_tasks.append(key)):
+        result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
 
     dataset = next(iter(result.values()))
     assert isinstance(dataset["tasmax"].data, da.Array)
     assert isinstance(dataset["pr"].data, da.Array)
+    assert all(str(task).startswith("_open_dataset-") for task in executed_tasks)
 
 
 @pytest.mark.parametrize(
