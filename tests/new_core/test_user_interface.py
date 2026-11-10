@@ -461,6 +461,40 @@ class TestClimateDataGet:
         )
         assert self.climate_data._query["variable_id"] is UNSET
 
+    def test_get_resets_after_execution_failure_and_allows_reuse(self):
+        """Test execution failures reset state before a scalar query is reused."""
+        first_dataset = MagicMock()
+        first_dataset.execute.side_effect = ValueError("Invalid variable combination")
+        second_dataset = MagicMock()
+        expected_data = MagicMock()
+        expected_data.nbytes = 100
+        second_dataset.execute.return_value = expected_data
+        self.climate_data._factory.create_dataset.side_effect = [
+            first_dataset,
+            second_dataset,
+        ]
+
+        self.climate_data.catalog("cadcat").table_id("day").grid_label(
+            "d03"
+        ).variable_id(["tasmax", "pr"])
+        assert self.climate_data.get() is None
+        assert self.climate_data._query["variable_id"] is UNSET
+
+        self.climate_data.catalog("cadcat").table_id("day").grid_label(
+            "d03"
+        ).variable_id("huss")
+        assert self.climate_data.get() is expected_data
+
+        first_query = self.climate_data._factory.create_dataset.call_args_list[0].args[
+            0
+        ]
+        second_query = self.climate_data._factory.create_dataset.call_args_list[1].args[
+            0
+        ]
+        assert first_query["variable_id"] == ["tasmax", "pr"]
+        assert second_query["variable_id"] == "huss"
+        assert self.climate_data._query["variable_id"] is UNSET
+
     def test_get_keeps_query_snapshots_independent_between_calls(self):
         """A later query must not mutate an earlier multi-variable snapshot."""
         first_dataset = MagicMock()
