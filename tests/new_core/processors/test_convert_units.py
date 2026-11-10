@@ -380,6 +380,40 @@ class TestConvertUnitsExecute:
         assert result["pr"].attrs["units"] == "mm/d"
         assert "_new_attrs" not in context
 
+    @pytest.mark.parametrize(
+        "native_units,target_unit,warning_match",
+        [
+            ("K", None, "Target units for variable 'pr' must be a string"),
+            (None, "degC", "identifiable native units"),
+            ("unknown", "degC", "No valid unit conversions implemented"),
+        ],
+    )
+    def test_execute_invalid_targeted_conversion_is_atomic(
+        self, native_units, target_unit, warning_match
+    ):
+        """Leave all fields unchanged if any targeted variable cannot convert."""
+        dataset = xr.Dataset(
+            {
+                "tasmax": ("time", [300.0]),
+                "pr": ("time", [2.0]),
+            },
+            coords={"time": pd.date_range("2020-01-01", periods=1)},
+        )
+        dataset["tasmax"].attrs["units"] = "K"
+        if native_units is not None:
+            dataset["pr"].attrs["units"] = native_units
+
+        with pytest.warns(UserWarning, match=warning_match):
+            result = ConvertUnits(
+                {"by_variable": {"tasmax": "degC", "pr": target_unit}}
+            ).execute(dataset, context={})
+
+        assert result is dataset
+        np.testing.assert_array_equal(result["tasmax"].values, [300.0])
+        np.testing.assert_array_equal(result["pr"].values, [2.0])
+        assert result["tasmax"].attrs["units"] == "K"
+        assert result["pr"].attrs.get("units") == native_units
+
     def test_execute_unknown_variable_target_is_atomic(self, sample_dataset):
         """Test unknown variable targets leave the input dataset unchanged."""
         processor = ConvertUnits({"by_variable": {"unknown": "K"}})
