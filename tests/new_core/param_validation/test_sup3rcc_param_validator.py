@@ -146,6 +146,25 @@ class TestSup3rCCValidator:
 
         assert self.validator.is_valid_query(query) is None
 
+    def test_multi_variable_query_still_rejects_unsupported_catalog_processor(self):
+        """Do not bypass the Sup3rCC processor gate for multiple variables."""
+        query = {
+            "activity_id": "Sup3rCC",
+            "table_id": "1hr",
+            "grid_label": "conus4km",
+            "variable_id": ["t2", "wind_speed_10m"],
+            "processes": {"warming_level": {"warming_levels": [2.0]}},
+        }
+
+        with patch(
+            "climakitae.new_core.param_validation.sup3rcc_param_validator.logger"
+        ) as logger:
+            result = self.validator.is_valid_query(query)
+
+        assert result is None
+        logger.warning.assert_called_once()
+        self.mock_catalog.sup3rcc.search.assert_not_called()
+
     def test_is_valid_query_allows_supported_concat_processor(self):
         """Test Sup3rCC allows the registered concat processor."""
         query = {
