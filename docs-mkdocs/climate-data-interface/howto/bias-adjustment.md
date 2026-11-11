@@ -50,22 +50,22 @@ data = (cd
 
 ## Limitations
 
-**Currently available for:**
-- ✅ WRF data only (not LOCA2 statistical downscaling)
-- ✅ Hourly temperature (t2) or dewpoint (dew_point)
-- ✅ HDP weather stations (not every network provides temperature)
+**Currently available for:**  
+- ✅ WRF data only (not LOCA2 statistical downscaling)  
+- ✅ Hourly temperature (t2) or dewpoint (dew_point)  
+- ✅ HDP weather stations (not every network provides temperature)  
 
 **Why these limitations?**
 
-Bias adjustment requires:
-- **High-frequency observations** (hourly) to capture temperature variability that drives quantile mapping
-- **WRF hourly data** because WRF's fast-varying dynamics need point-wise calibration
-- **LOCA2 is already bias-adjusted** by design using quantile mapping to observations during downscaling (no bias adjustment needed)
-- **Weather station coverage** — stations are sourced from the HDP catalog, whose per-station time coverage and variable availability varies by network
+Bias adjustment requires:  
+- **High-frequency observations** (hourly) to capture temperature variability that drives quantile mapping  
+- **WRF hourly data** because WRF's fast-varying dynamics need point-wise calibration  
+- **LOCA2 is already bias-adjusted** by design using quantile mapping to observations during downscaling (no bias adjustment needed)  
+- **Weather station coverage** — stations are sourced from the HDP catalog, whose per-station time coverage and variable availability varies by network  
 
-**For other scenarios:**
-- Use direct model output (LOCA2 is already bias-corrected)
-- Implement alternative bias adjustment method for daily/monthly aggregates
-- Contact support for custom approaches
+**For other scenarios:**  
+- Use direct model output (LOCA2 is already bias-corrected)  
+- Implement alternative bias adjustment method for daily/monthly aggregates  
+- Contact support for custom approaches  
 
 ---
