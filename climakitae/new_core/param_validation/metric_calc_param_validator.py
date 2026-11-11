@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 @register_processor_validator("metric_calc")
-def validate_metric_calc_param(value: dict[str, Any], **kwargs: Any) -> bool:
+def validate_metric_calc_param(
+    value: dict[str, Any], **kwargs: Any
+) -> bool:  # noqa: ARG001
     """
     Validate the parameters provided to the MetricCalc Processor.
 
