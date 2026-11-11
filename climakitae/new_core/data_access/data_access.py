@@ -580,17 +580,16 @@ class DataCatalog(dict):
         -------
         dict[str, xr.Dataset]
             The requested dataset(s) from the catalog, keyed by dataset identifiers.
-            Multi-variable retrieval assembles requested fields for each
-            simulation/member or station and records coverage and timestamp
-            alignment in the ``multi_variable_diagnostics`` Dataset attribute.
+            Multi-variable retrieval keeps only simulations/members (or HDP
+            stations) with every requested field, aligned to shared
+            timestamps. Excluded members are logged.
 
         Raises
         ------
         ValueError
             If no catalog_key is provided and no default is available.
-            Multi-variable retrieval also raises when an eligible record has
-            no common timestamps, or when requested fields have incompatible
-            coordinates.
+            Multi-variable retrieval also raises when no member has every
+            requested field or the requested fields share no coordinates.
 
         Examples
         --------
@@ -616,7 +615,6 @@ class DataCatalog(dict):
         hdp_field_query = effective_key == CATALOG_HDP and bool(
             query.get("_hdp_variable_query")
         )
-        unaggregated_query = multi_variable_query or hdp_field_query
         search_query = {k: v for k, v in query.items() if not k.startswith("_")}
         if hdp_field_query:
             search_query.pop("variable_id", None)
@@ -651,33 +649,50 @@ class DataCatalog(dict):
             pass
 
         with dask.config.set(scheduler=scheduler_override):
-            result = (
-                self[effective_key]
-                .search(**search_query)
-                .to_dataset_dict(
-                    xarray_open_kwargs=({"chunks": {}} if unaggregated_query else None),
-                    # Use consolidated=None for compatibility with both Zarr v2 and v3.
-                    # - True: requires consolidated metadata (fails on Zarr v3 without it)
-                    # - False: always reads metadata from individual arrays
-                    # - None: uses consolidated if available, falls back to individual reads
-                    # Unaggregated (multi-variable/HDP field) reads may open NetCDF
-                    # assets, which reject Zarr-only options, so pass none there.
-                    zarr_kwargs=({} if unaggregated_query else {"consolidated": None}),
-                    storage_options={"anon": True},
-                    progressbar=False,
-                    aggregate=not unaggregated_query,
+            if multi_variable_query:
+                result = self._open_complete_multi_variable_datasets(
+                    self[effective_key], search_query
                 )
-            )
+            else:
+                result = (
+                    self[effective_key]
+                    .search(**search_query)
+                    .to_dataset_dict(
+                        xarray_open_kwargs=(
+                            {"chunks": {}} if hdp_field_query else None
+                        ),
+                        # Use consolidated=None for compatibility with both Zarr v2 and v3.
+                        # - True: requires consolidated metadata (fails on Zarr v3 without it)
+                        # - False: always reads metadata from individual arrays
+                        # - None: uses consolidated if available, falls back to individual reads
+                        # Unaggregated HDP field reads may open NetCDF assets,
+                        # which reject Zarr-only options, so pass none there.
+                        zarr_kwargs=({} if hdp_field_query else {"consolidated": None}),
+                        storage_options={"anon": True},
+                        progressbar=False,
+                        aggregate=not hdp_field_query,
+                    )
+                )
         logger.info("Retrieved %d dataset(s) from catalog", len(result))
         logger.debug("Retrieved datasets: %s", list(result.keys()))
 
         if hdp_field_query:
             result = self._assemble_hdp_station_fields(result, query)
         elif multi_variable_query:
-            result = self._assemble_multi_variable_datasets(
-                result, query, effective_key
-            )
-            result = self._apply_multi_variable_outputs(result, query)
+            for derived_name in query.get("_derived_variables") or []:
+                result = self._apply_derived_variable(
+                    result, derived_name, keep_inputs=True
+                )
+            requested_variables = list(query.get("_requested_variables") or [])
+            for key, dataset in result.items():
+                missing = [v for v in requested_variables if v not in dataset]
+                if missing:
+                    raise ValueError(
+                        f"Dataset {key!r} is missing requested output variables "
+                        f"{missing}; derived functions must return their "
+                        f"registered output name. Returned {list(dataset.data_vars)}."
+                    )
+                result[key] = dataset[requested_variables]
 
         # For HDP data, rename station coordinate to station_id for consistency
         if effective_key == CATALOG_HDP:
@@ -1062,389 +1077,107 @@ class DataCatalog(dict):
             }
         return selected_datasets
 
-    def _apply_multi_variable_outputs(
-        self, datasets: Dict[str, xr.Dataset], query: Dict[str, Any]
+    def _open_complete_multi_variable_datasets(
+        self, catalog: intake_esm.core.esm_datastore, search_query: Dict[str, Any]
     ) -> Dict[str, xr.Dataset]:
-        """Compute requested derived variables and select outputs in request order.
+        """Open aggregated datasets for members that have every requested variable.
 
-        Derived functions run against a shallow copy of the assembled source
-        dataset. Their registered output is merged back into the original so
-        dependency cleanup cannot remove explicitly requested source fields or
-        shared inputs needed by another derived variable.
+        ``require_all_on`` is the catalog's ``groupby_attrs`` plus ``member_id``
+        (when the catalog has one), so intake-esm drops any simulation/member
+        lacking a requested variable. The inner join leaves no NaN padding from
+        mismatched coordinates; it intersects them across every member in a key.
 
         Parameters
         ----------
-        datasets : dict[str, xr.Dataset]
-            Complete datasets assembled from catalog assets.
-        query : dict
-            Multi-variable query metadata containing requested and derived names.
+        catalog : intake_esm.core.esm_datastore
+            Catalog to search.
+        search_query : dict
+            Catalog search with ``variable_id`` set to the catalog variables.
 
         Returns
         -------
         dict[str, xr.Dataset]
-            Datasets containing exactly the requested data variables in order.
+            Aggregated datasets keyed by intake-esm dataset key.
 
         Raises
         ------
         ValueError
-            If a derived function or retrieval does not provide a requested
-            output under its registered name.
+            If no member has every requested variable, or if the inner join
+            leaves any dimension empty.
         """
-        requested_variables = query.get("_requested_variables")
-        if (
-            not isinstance(requested_variables, (list, tuple))
-            or not requested_variables
-        ):
-            raise ValueError(
-                "Multi-variable queries require an ordered requested-variable list."
-            )
-
-        derived_variables = query.get("_derived_variables") or []
-        from climakitae.new_core.derived_variables.registry import (
-            get_derived_variable_info,
-        )
-
-        results = {}
-        for key, dataset in datasets.items():
-            assembled = dataset
-            for variable in derived_variables:
-                if variable in assembled.data_vars:
-                    continue
-
-                info = get_derived_variable_info(variable)
-                if info is None:
-                    raise ValueError(
-                        f"Requested derived variable {variable!r} is not registered."
-                    )
-
-                missing_dependencies = [
-                    dependency
-                    for dependency in info.depends_on
-                    if dependency not in assembled.data_vars
-                ]
-                if missing_dependencies:
-                    raise ValueError(
-                        f"Cannot compute derived variable {variable!r} for dataset "
-                        f"{key!r}: missing dependencies {missing_dependencies}."
-                    )
-
-                computed = info.func(assembled.copy(deep=False))
-                if not isinstance(computed, xr.Dataset):
-                    raise ValueError(
-                        f"Derived function for {variable!r} must return an "
-                        "xarray.Dataset containing the registered output name."
-                    )
-                if variable not in computed.data_vars:
-                    raise ValueError(
-                        f"Derived function for {variable!r} did not return a data "
-                        f"variable named {variable!r}; returned {list(computed.data_vars)}."
-                    )
-
-                try:
-                    assembled = xr.merge(
-                        [assembled, computed[[variable]]],
-                        join="exact",
-                        compat="equals",
-                        combine_attrs="override",
-                    )
-                except ValueError as exc:
-                    raise ValueError(
-                        f"Derived variable {variable!r} for dataset {key!r} has "
-                        "coordinates incompatible with its source data."
-                    ) from exc
-
-            missing_outputs = [
-                variable
-                for variable in requested_variables
-                if variable not in assembled.data_vars
-            ]
-            if missing_outputs:
-                raise ValueError(
-                    f"Dataset {key!r} is missing requested output variables "
-                    f"{missing_outputs}."
-                )
-            results[key] = assembled[list(requested_variables)]
-
-        return results
-
-    def _assemble_multi_variable_datasets(
-        self,
-        datasets: Dict[str, xr.Dataset],
-        query: Dict[str, Any],
-        catalog_key: str,
-    ) -> Dict[str, xr.Dataset]:
-        """Assemble complete multi-variable datasets from unaggregated assets.
-
-        Assets are grouped by their simulation identity before checking field
-        coverage. Incomplete groups are excluded, and the time coordinate is
-        intersected across all requested catalog variables in each group.
-
-        Parameters
-        ----------
-        datasets : dict[str, xr.Dataset]
-            Unaggregated datasets returned by intake-esm.
-        query : dict
-            Query parameters containing the multi-variable retrieval plan.
-        catalog_key : str
-            Catalog identifier used to determine simulation identity fields.
-
-        Returns
-        -------
-        dict[str, xr.Dataset]
-            Complete datasets assembled by simulation identity.
-
-        Raises
-        ------
-        ValueError
-            If the catalog is unsupported, no requested fields are available,
-            a complete group has no shared timestamps, or spatial/calendar
-            coordinates are incompatible.
-        """
-        identity_fields = {
-            CATALOG_CADCAT: (
-                "activity_id",
-                "institution_id",
-                "source_id",
-                "experiment_id",
-                "table_id",
-                "grid_label",
+        require_all_on = [
+            column
+            for column in [
+                *catalog.esmcat.aggregation_control.groupby_attrs,
                 "member_id",
-            ),
-            CATALOG_REN_ENERGY_GEN: (
-                "installation",
-                "activity_id",
-                "institution_id",
-                "source_id",
-                "experiment_id",
-                "table_id",
-                "grid_label",
-            ),
-            CATALOG_SUP3RCC: (
-                "activity_id",
-                "institution_id",
-                "source_id",
-                "experiment_id",
-                "table_id",
-                "grid_label",
-            ),
-        }.get(catalog_key)
-        if identity_fields is None:
-            raise ValueError(
-                f"Multi-variable retrieval is not supported for catalog {catalog_key!r}."
-            )
-
-        requested_fields = query.get("_catalog_variable_ids") or []
-        if not requested_fields:
-            raise ValueError(
-                "Multi-variable queries require at least one catalog variable."
-            )
-
-        member_index = (
-            identity_fields.index("member_id")
-            if catalog_key == CATALOG_CADCAT
-            else None
-        )
-        outer_identity_fields = tuple(
-            field for field in identity_fields if field != "member_id"
-        )
-        grouped_assets = {}
-        for asset_key, dataset in datasets.items():
-            identity = []
-            for field in identity_fields:
-                value = dataset.attrs.get(
-                    f"intake_esm_attrs:{field}", dataset.attrs.get(field)
-                )
-                if value is None and field == "member_id" and field in dataset.coords:
-                    values = dataset[field].values
-                    if len(values) == 1:
-                        value = values[0]
-                if isinstance(value, np.generic):
-                    value = value.item()
-                if value is None:
-                    raise ValueError(
-                        f"Cannot assemble multi-variable assets: missing "
-                        f"{field!r} identity metadata in dataset {asset_key!r}."
-                    )
-                identity.append(value)
-            grouped_assets.setdefault(tuple(identity), []).append((asset_key, dataset))
-
-        complete_groups = {}
-        alignment_diagnostics = {}
-        for identity, assets in grouped_assets.items():
-            outer_identity = (
-                identity[:member_index] + identity[member_index + 1 :]
-                if member_index is not None
-                else identity
-            )
-            record_key = (
-                str(identity[member_index]) if member_index is not None else "record"
-            )
-            group_diagnostics = alignment_diagnostics.setdefault(outer_identity, {})
-            available_fields = {
-                variable for _, dataset in assets for variable in dataset.data_vars
-            }
-            missing_fields = [
-                variable
-                for variable in requested_fields
-                if variable not in available_fields
             ]
-            if missing_fields:
+            if column in catalog.df.columns
+        ]
+        complete = catalog.search(**search_query, require_all_on=require_all_on)
+        found = catalog.search(**search_query).df
+        complete_ids = set(complete.df[require_all_on].itertuples(index=False))
+        requested = set(search_query["variable_id"])
+        for identity, rows in found.groupby(require_all_on, sort=True):
+            if identity not in complete_ids:
+                logger.info(
+                    "Excluding %s: missing requested catalog variables %s.",
+                    dict(zip(require_all_on, identity)),
+                    sorted(requested - set(rows["variable_id"])),
+                )
+        if complete.df.empty:
+            raise ValueError(
+                "No simulation/member contains all requested catalog variables "
+                f"{sorted(requested)}."
+            )
+
+        # Record each asset's dimension sizes as it opens (coordinates only,
+        # no data compute) so inner-join shortening can be reported per key.
+        asset_sizes = {}
+
+        def _record_sizes(dataset):
+            source = str(dataset.encoding.get("source", ""))
+            asset_sizes[source.split("://", 1)[-1]] = dict(dataset.sizes)
+            return dataset
+
+        result = complete.to_dataset_dict(
+            xarray_combine_by_coords_kwargs={"join": "inner"},
+            zarr_kwargs={"consolidated": None},
+            storage_options={"anon": True},
+            progressbar=False,
+            preprocess=_record_sizes,
+        )
+
+        path_column = complete.esmcat.assets.column_name
+        for key, dataset in result.items():
+            empty_dims = [dim for dim, size in dataset.sizes.items() if not size]
+            if empty_dims:
+                raise ValueError(
+                    f"Requested variables share no common {empty_dims} "
+                    f"coordinates in {key!r}."
+                )
+            shortened = {}
+            for path in complete[key].df[path_column]:
+                sizes = asset_sizes.get(str(path).split("://", 1)[-1], {})
+                for dim, length in sizes.items():
+                    if dim in dataset.sizes and dataset.sizes[dim] < length:
+                        shortened[dim] = max(length, shortened.get(dim, 0))
+            if shortened:
                 logger.warning(
-                    "Excluding multi-variable source group %s: missing catalog "
-                    "variables %s.",
-                    identity,
-                    missing_fields,
-                )
-                group_diagnostics[record_key] = {
-                    "status": "excluded",
-                    "missing_catalog_variables": missing_fields,
-                }
-                continue
-
-            field_datasets = []
-            field_times = []
-            calendars = set()
-            for variable in requested_fields:
-                variable_assets = [
-                    dataset[[variable]]
-                    for _, dataset in assets
-                    if variable in dataset.data_vars
-                ]
-                if any("time" not in item[variable].dims for item in variable_assets):
-                    raise ValueError(
-                        f"Multi-variable field {variable!r} must have a time dimension."
-                    )
-                if len(variable_assets) == 1:
-                    variable_dataset = variable_assets[0]
-                else:
-                    try:
-                        variable_dataset = xr.combine_by_coords(
-                            variable_assets,
-                            join="exact",
-                            combine_attrs="override",
-                        )
-                    except ValueError as exc:
-                        raise ValueError(
-                            f"Could not combine assets for multi-variable field "
-                            f"{variable!r} in source group {identity}."
-                        ) from exc
-
-                time = variable_dataset["time"]
-                calendar = (
-                    time.encoding.get("calendar")
-                    or time.attrs.get("calendar")
-                    or "standard"
-                )
-                calendars.add(calendar.lower())
-                field_times.append(time.values)
-                field_datasets.append(variable_dataset)
-
-            if len(calendars) != 1:
-                raise ValueError(
-                    f"Multi-variable fields in source group {identity} use "
-                    f"incompatible calendars: {sorted(calendars)}."
-                )
-
-            common_times = field_times[0]
-            for times in field_times[1:]:
-                common_times = np.intersect1d(common_times, times)
-            for variable, times in zip(requested_fields, field_times):
-                trimmed_count = len(np.setdiff1d(times, common_times))
-                if trimmed_count:
-                    logger.warning(
-                        "Trimming %d timestamp(s) from field %s in source group "
-                        "%s to align requested variables.",
-                        trimmed_count,
-                        variable,
-                        identity,
-                    )
-            group_diagnostics[record_key] = {
-                "status": "included",
-                "common_timestamp_count": int(len(common_times)),
-                "trimmed_timestamp_counts": {
-                    variable: int(len(np.setdiff1d(times, common_times)))
-                    for variable, times in zip(requested_fields, field_times)
-                },
-            }
-            if not len(common_times):
-                raise ValueError(
-                    f"Multi-variable fields have no common timestamps in source "
-                    f"group {identity}."
-                )
-
-            aligned_fields = [
-                dataset.sel(time=common_times) for dataset in field_datasets
-            ]
-            try:
-                assembled = xr.merge(
-                    aligned_fields,
-                    join="exact",
-                    compat="equals",
-                    combine_attrs="override",
-                )
-            except ValueError as exc:
-                raise ValueError(
-                    f"Multi-variable fields in source group {identity} have "
-                    "incompatible spatial coordinates."
-                ) from exc
-
-            assembled.attrs = assets[0][1].attrs.copy()
-            assembled = assembled[requested_fields]
-            if catalog_key == CATALOG_CADCAT and "member_id" not in assembled.dims:
-                member_id = identity[identity_fields.index("member_id")]
-                assembled = assembled.expand_dims(member_id=[member_id])
-
-            complete_groups.setdefault(identity, []).append((assets[0][0], assembled))
-
-        if not complete_groups:
-            raise ValueError(
-                "No source group contains all requested catalog variables "
-                f"{requested_fields}."
-            )
-        result = {}
-        if catalog_key == CATALOG_CADCAT:
-            outer_groups = {}
-            for identity, group_datasets in complete_groups.items():
-                outer_identity = identity[:member_index] + identity[member_index + 1 :]
-                outer_groups.setdefault(outer_identity, []).extend(
-                    (identity[member_index], key, dataset)
-                    for key, dataset in group_datasets
-                )
-
-            for members in outer_groups.values():
-                members.sort(key=lambda item: str(item[0]))
-                dataset = xr.concat(
-                    [dataset for _, _, dataset in members],
-                    dim="member_id",
-                    join="outer",
-                    combine_attrs="override",
-                )
-                dataset.attrs["multi_variable_diagnostics"] = json.dumps(
+                    "Inner join across requested variables and members shortened "
+                    "%s: %s.",
+                    key,
                     {
-                        "identity": dict(zip(outer_identity_fields, outer_identity)),
-                        "records": alignment_diagnostics[outer_identity],
+                        dim: f"{length} -> {dataset.sizes[dim]}"
+                        for dim, length in shortened.items()
                     },
-                    sort_keys=True,
-                    default=str,
                 )
-                result[members[0][1]] = dataset
-        else:
-            for identity, group_datasets in complete_groups.items():
-                key, dataset = group_datasets[0]
-                dataset.attrs["multi_variable_diagnostics"] = json.dumps(
-                    {
-                        "identity": dict(zip(identity_fields, identity)),
-                        "records": alignment_diagnostics[identity],
-                    },
-                    sort_keys=True,
-                    default=str,
-                )
-                result[key] = dataset
-
         return result
 
     def _apply_derived_variable(
-        self, datasets: Dict[str, xr.Dataset], derived_var_name: str
+        self,
+        datasets: Dict[str, xr.Dataset],
+        derived_var_name: str,
+        keep_inputs: bool = False,
     ) -> Dict[str, xr.Dataset]:
         """Apply a derived variable function to all datasets.
 
@@ -1454,6 +1187,10 @@ class DataCatalog(dict):
             Dictionary of datasets to apply the derived variable to.
         derived_var_name : str
             Name of the derived variable to compute.
+        keep_inputs : bool, optional
+            If True, only add the function's new variables to each dataset so
+            dependency cleanup cannot drop fields needed by other requested
+            outputs. Default: False.
 
         Returns
         -------
@@ -1506,7 +1243,17 @@ class DataCatalog(dict):
 
             try:
                 # The registered function should add the derived variable to the dataset
-                datasets[key] = func(ds)
+                if keep_inputs:
+                    computed = func(ds.copy(deep=False))
+                    datasets[key] = ds.assign(
+                        {
+                            name: computed[name]
+                            for name in computed.data_vars
+                            if name not in ds.data_vars
+                        }
+                    )
+                else:
+                    datasets[key] = func(ds)
                 logger.debug("Computed '%s' for dataset %s", derived_var_name, key)
             except Exception as e:
                 logger.error(

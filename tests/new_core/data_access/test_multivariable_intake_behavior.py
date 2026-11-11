@@ -3,6 +3,7 @@
 import json
 from unittest.mock import MagicMock
 
+import dask
 import dask.array as da
 import intake
 import numpy as np
@@ -17,6 +18,13 @@ from climakitae.core.constants import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _synchronous_dask():
+    """Open local assets synchronously; threaded netCDF reads segfault locally."""
+    with dask.config.set(scheduler="synchronous"):
+        yield
+
+
 def _make_local_catalog(
     tmp_path,
     catalog_kind="cadcat",
@@ -29,7 +37,7 @@ def _make_local_catalog(
     only_incomplete_members=False,
     include_wind_components=False,
     include_spatial_metadata=False,
-    asset_format="netcdf",
+    asset_format="zarr",
 ):
     """Create a local multi-variable catalog with incomplete source coverage."""
     catalog_profiles = {
@@ -632,8 +640,10 @@ def test_catalog_keeps_historical_and_ssp_assets_in_separate_groups(tmp_path):
 
 
 def test_data_catalog_excludes_members_missing_requested_variables(tmp_path, caplog):
-    """Test retrieval keeps only members with every requested field and common time."""
+    """Test retrieval keeps only complete members on shared, unpadded timestamps."""
     from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+
+    caplog.set_level("INFO")
 
     data_catalog = dict.__new__(DataCatalog)
     dict.__init__(data_catalog)
@@ -665,20 +675,14 @@ def test_data_catalog_excludes_members_missing_requested_variables(tmp_path, cap
         dataset["pr"].sel(member_id="r1i1p1f1").isel(lat=0, lon=0).values,
         [2.0, 3.0],
     )
-    assert "Trimming 1 timestamp(s) from field tasmax" in caplog.text
-    diagnostics = json.loads(dataset.attrs["multi_variable_diagnostics"])
-    assert diagnostics["records"]["r1i1p1f1"]["trimmed_timestamp_counts"] == {
-        "pr": 0,
-        "tasmax": 1,
-    }
-    assert diagnostics["records"]["r2i1p1f1"] == {
-        "missing_catalog_variables": ["pr"],
-        "status": "excluded",
-    }
+    assert not dataset["pr"].isnull().any()
+    assert "'member_id': 'r2i1p1f1'" in caplog.text
+    assert "missing requested catalog variables ['pr']" in caplog.text
+    assert "shortened" in caplog.text and "'time': '3 -> 2'" in caplog.text
 
 
-def test_data_catalog_rejects_complete_groups_without_shared_timestamps(tmp_path):
-    """Test one disjoint complete group fails even when another group overlaps."""
+def test_data_catalog_rejects_members_without_shared_timestamps(tmp_path):
+    """Test complete members whose timestamps never all overlap fail the query."""
     from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
 
     data_catalog = dict.__new__(DataCatalog)
@@ -695,12 +699,14 @@ def test_data_catalog_rejects_complete_groups_without_shared_timestamps(tmp_path
         "_source_variables": [],
     }
 
-    with pytest.raises(ValueError, match="no common timestamps"):
+    with pytest.raises(ValueError, match="share no common"):
         data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
 
 
-def test_data_catalog_rejects_incompatible_spatial_coordinates(tmp_path):
-    """Test different spatial grids fail instead of being aligned."""
+def test_data_catalog_intersects_mismatched_spatial_coordinates_with_warning(
+    tmp_path, caplog
+):
+    """Test different spatial grids are intersected, not padded, and warned about."""
     from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
 
     data_catalog = dict.__new__(DataCatalog)
@@ -717,12 +723,16 @@ def test_data_catalog_rejects_incompatible_spatial_coordinates(tmp_path):
         "_source_variables": [],
     }
 
-    with pytest.raises(ValueError, match="incompatible spatial coordinates"):
-        data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+    result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+    dataset = next(iter(result.values()))
+    np.testing.assert_array_equal(dataset["lat"].values, [34.0])
+    assert not dataset["pr"].isnull().any()
+    assert "'lat': '2 -> 1'" in caplog.text
 
 
 def test_data_catalog_rejects_incompatible_calendars(tmp_path):
-    """Test different CF calendars fail before timestamp intersection."""
+    """Test fields on different CF calendars share no timestamps and fail."""
     from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
 
     data_catalog = dict.__new__(DataCatalog)
@@ -739,14 +749,15 @@ def test_data_catalog_rejects_incompatible_calendars(tmp_path):
         "_source_variables": [],
     }
 
-    with pytest.raises(ValueError, match="incompatible calendars"):
+    with pytest.raises(ValueError, match="share no common"):
         data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
 
 
 def test_data_catalog_preserves_lazy_multi_variable_assets(tmp_path):
     """Test retrieval leaves measurements lazy and executes no Dask tasks."""
-    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
     from dask.callbacks import Callback
+
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
 
     data_catalog = dict.__new__(DataCatalog)
     dict.__init__(data_catalog)
@@ -848,7 +859,7 @@ def test_data_catalog_keeps_historical_and_ssp_multi_variable_groups_separate(
 def test_data_catalog_fails_when_no_member_has_complete_variable_coverage(
     tmp_path, caplog
 ):
-    """Test no complete member fails with per-member coverage diagnostics."""
+    """Test no complete member fails and logs each excluded member."""
     from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
 
     data_catalog = dict.__new__(DataCatalog)
@@ -865,10 +876,12 @@ def test_data_catalog_fails_when_no_member_has_complete_variable_coverage(
         "_source_variables": [],
     }
 
-    with pytest.raises(ValueError, match="No source group contains all requested"):
+    caplog.set_level("INFO")
+
+    with pytest.raises(ValueError, match="No simulation/member contains all requested"):
         data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
 
-    assert "missing catalog variables" in caplog.text
+    assert "missing requested catalog variables ['pr']" in caplog.text
 
 
 def test_data_catalog_computes_derived_and_native_variables_in_request_order(
@@ -1026,12 +1039,12 @@ def test_data_catalog_preserves_dependencies_when_derived_registration_keeps_the
     assert list(dataset.data_vars) == ["tasmax_plus_one", "tasmax"]
     np.testing.assert_allclose(
         dataset["tasmax_plus_one"].isel(member_id=0, lat=0, lon=0).values,
-        [11.0, np.nan, 13.0],
+        [11.0, np.nan],
         equal_nan=True,
     )
     np.testing.assert_allclose(
         dataset["tasmax"].isel(member_id=0, lat=0, lon=0).values,
-        [10.0, np.nan, 12.0],
+        [10.0, np.nan],
         equal_nan=True,
     )
 
@@ -1075,50 +1088,9 @@ def test_data_catalog_rejects_custom_derived_alias_in_multi_variable_query(
 
     with pytest.raises(
         ValueError,
-        match="did not return a data variable named 'requested_derived'",
+        match=r"missing requested output variables \['requested_derived'\]",
     ):
         data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
-
-
-@pytest.mark.parametrize("variable_count", [2, 3, 10])
-def test_assembly_preserves_order_for_multiple_variable_counts(variable_count):
-    """Assemble two, three, or ten native fields in request order."""
-    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
-
-    requested_variables = [
-        f"field_{index}" for index in reversed(range(variable_count))
-    ]
-    identity = {
-        "activity_id": "WRF",
-        "institution_id": "UCLA",
-        "source_id": "WRF-test",
-        "experiment_id": "historical",
-        "table_id": "day",
-        "grid_label": "d03",
-        "member_id": "r1i1p1f1",
-    }
-    assets = {
-        variable: xr.Dataset(
-            {variable: ("time", [float(index)])},
-            coords={"time": pd.to_datetime(["2000-01-01"])},
-            attrs={f"intake_esm_attrs:{key}": value for key, value in identity.items()},
-        )
-        for index, variable in enumerate(reversed(requested_variables))
-    }
-    query = {
-        "_catalog_variable_ids": requested_variables,
-        "_requested_variables": requested_variables,
-        "_derived_variables": [],
-    }
-    data_catalog = dict.__new__(DataCatalog)
-    dict.__init__(data_catalog)
-
-    assembled = data_catalog._assemble_multi_variable_datasets(
-        assets, query, CATALOG_CADCAT
-    )
-    result = data_catalog._apply_multi_variable_outputs(assembled, query)
-
-    assert list(next(iter(result.values())).data_vars) == requested_variables
 
 
 def test_scalar_custom_derived_query_remains_compatible(tmp_path):
