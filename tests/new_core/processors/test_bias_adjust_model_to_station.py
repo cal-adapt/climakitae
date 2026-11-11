@@ -681,34 +681,6 @@ class TestBiasCorrectStationDataBiasAdjustment:
         assert pd.Timestamp(out.time.values[-1]).year == 2020
 
     @pytest.mark.advanced
-    def test_bias_adjust_model_data_raises_on_empty_overlap_with_model_data(self):
-        """historical_slice that doesn't overlap the model data's own
-        coverage must raise a clear ValueError, not an opaque QDM/xsdba
-        error.
-        """
-        # (1930, 1959) is an exactly-30-year historical_slice (passes the
-        # __init__ fail-fast check) that still predates the model's own
-        # 1980-2014 coverage entirely.
-        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (1930, 1959)})
-
-        obs_times = pd.date_range("1980-01-01", "1984-12-31", freq="D")
-        obs_da = xr.DataArray(
-            np.random.rand(len(obs_times)), dims=("time",), coords={"time": obs_times}
-        )
-        obs_da.name = "obs"
-        obs_da.attrs["units"] = "K"
-
-        gr_times = pd.date_range("1980-01-01", "2014-12-31", freq="D")
-        gr_da = xr.DataArray(
-            np.random.rand(len(gr_times)), dims=("time",), coords={"time": gr_times}
-        )
-        gr_da.name = "tas"
-        gr_da.attrs["units"] = "K"
-
-        with pytest.raises(ValueError, match="historical_slice"):
-            proc._bias_adjust_model_data(obs_da, gr_da)
-
-    @pytest.mark.advanced
     def test_bias_adjust_model_data_raises_on_empty_overlap_with_station_data(self):
         """historical_slice that overlaps the model data but not the
         station's own record must also raise a clear ValueError.
@@ -737,12 +709,16 @@ class TestBiasCorrectStationDataBiasAdjustment:
 
     @pytest.mark.advanced
     def test_bias_adjust_model_data_error_names_stations_when_provided(self):
-        """When station_names is passed, the empty-overlap error should
-        name the actual station(s), not the unhelpful stacked obs_da.name.
+        """When station_names is passed, the short-training-window error
+        should name the actual station(s), not the unhelpful stacked
+        obs_da.name.
         """
-        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (1930, 1959)})
+        # Exactly 30 years, overlapping the model's 1980-2014 coverage below
+        # but entirely predating the station's own record.
+        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (1980, 2009)})
 
-        obs_times = pd.date_range("1980-01-01", "1984-12-31", freq="D")
+        # Station record starts well after the requested historical_slice.
+        obs_times = pd.date_range("2010-01-01", "2014-12-31", freq="D")
         obs_da = xr.DataArray(
             np.random.rand(len(obs_times)), dims=("time",), coords={"time": obs_times}
         )
