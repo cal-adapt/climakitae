@@ -553,14 +553,7 @@ class BiasAdjustModelToStation(DataProcessor):
         if historical_da is not None:
             historical_da = historical_da.chunk(chunks=dict(time=-1))
 
-        # Bound the training window to the user-requested historical_slice
-        # BEFORE narrowing against obs -- this is the only place
-        # self.historical_slice is applied. The obs-narrowing + xr.align
-        # steps below derive their bounds FROM gridded_da_historical's
-        # resulting range, so bounding it here makes the final training
-        # window the intersection of: (a) historical_slice, (b) the
-        # supplied historical model run's own coverage, and (c) the
-        # station's own observational coverage.
+        # Bound the training window to user-specified historical slice
         hist_start, hist_end = self.historical_slice
         training_slice = slice(f"{hist_start}-01-01", f"{hist_end}-12-31")
 
