@@ -440,7 +440,6 @@ def _search_nearby_valid_gridcells(
     dim1_name: str,
     dim2_name: str,
     window_size: int = 1,
-    candidate_cells: np.ndarray | None = None,
 ) -> list:
     """Search a window around the center index for valid gridcells.
 
@@ -458,9 +457,6 @@ def _search_nearby_valid_gridcells(
         Name of the second spatial dimension.
     window_size : int, optional
         Half-width of the search window (1 = 3x3 window). Default is 1.
-    candidate_cells : np.ndarray | None, optional
-        Boolean 2-D array ordered (dim1, dim2). When given, cells where it is
-        False are skipped. Default is None (all cells are candidates).
 
     Returns
     -------
@@ -479,8 +475,6 @@ def _search_nearby_valid_gridcells(
 
             # Skip if indices are out of bounds
             if not (0 <= new_idx1 < dim1_size and 0 <= new_idx2 < dim2_size):
-                continue
-            if candidate_cells is not None and not candidate_cells[new_idx1, new_idx2]:
                 continue
 
             gridcell = data.isel({dim1_name: new_idx1, dim2_name: new_idx2})
@@ -531,109 +525,8 @@ def _average_gridcells_preserve_coords(
     return averaged, (coord1_val, coord2_val)
 
 
-def _mask_to_candidate_cells(
-    mask: xr.DataArray,
-    data: xr.Dataset | xr.DataArray,
-    lat_dim: str,
-    lon_dim: str,
-) -> np.ndarray:
-    """Convert a mask into a 2-D boolean array of candidate gridcells.
-
-    Parameters
-    ----------
-    mask : xr.DataArray
-        Mask sharing the data's spatial dimensions. Cells equal to 1 (or True)
-        are candidates; all other cells, including NaN, are excluded. Any
-        non-spatial dimensions are reduced by taking their first index.
-    data : xr.Dataset | xr.DataArray
-        Gridded data the mask applies to.
-    lat_dim : str
-        Name of the latitude/y spatial dimension.
-    lon_dim : str
-        Name of the longitude/x spatial dimension.
-
-    Returns
-    -------
-    np.ndarray
-        Boolean array of shape (data.sizes[lat_dim], data.sizes[lon_dim]).
-
-    Raises
-    ------
-    ValueError
-        If the mask does not share the data's spatial dimensions and sizes.
-
-    """
-    if lat_dim not in mask.dims or lon_dim not in mask.dims:
-        raise ValueError(
-            f"mask must have spatial dimensions ({lat_dim}, {lon_dim}); "
-            f"got {mask.dims}"
-        )
-    for dim in tuple(mask.dims):
-        if dim not in (lat_dim, lon_dim):
-            mask = mask.isel({dim: 0})
-    mask_values = np.asarray(mask.transpose(lat_dim, lon_dim).values)
-    if mask_values.shape != (data.sizes[lat_dim], data.sizes[lon_dim]):
-        raise ValueError(
-            f"mask shape {mask_values.shape} does not match data spatial shape "
-            f"{(data.sizes[lat_dim], data.sizes[lon_dim])}"
-        )
-    with np.errstate(invalid="ignore"):
-        return np.asarray(mask_values == 1) & ~pd.isna(mask_values)
-
-
-def _nearest_candidate_indices(
-    lat_values: np.ndarray,
-    lon_values: np.ndarray,
-    lat_targets: np.ndarray,
-    lon_targets: np.ndarray,
-    candidate_cells: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray] | None:
-    """Find the nearest candidate gridcell indices for each target coordinate.
-
-    Distances are measured in the data's own coordinate space.
-
-    Parameters
-    ----------
-    lat_values : np.ndarray
-        1-D coordinate values along the latitude/y dimension.
-    lon_values : np.ndarray
-        1-D coordinate values along the longitude/x dimension.
-    lat_targets : np.ndarray
-        Target coordinates along the latitude/y dimension (data CRS).
-    lon_targets : np.ndarray
-        Target coordinates along the longitude/x dimension (data CRS).
-    candidate_cells : np.ndarray
-        Boolean 2-D array ordered (lat_dim, lon_dim) of allowed cells.
-
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray] | None
-        Arrays of (lat_indices, lon_indices), one per target, or None if the
-        mask has no candidate cells.
-
-    """
-    valid_cells = np.argwhere(candidate_cells)
-    if valid_cells.size == 0:
-        return None
-    lat_values = np.asarray(lat_values, dtype=float)
-    lon_values = np.asarray(lon_values, dtype=float)
-    cell_lats = lat_values[valid_cells[:, 0]]
-    cell_lons = lon_values[valid_cells[:, 1]]
-    lat_indices = np.empty(len(lat_targets), dtype=int)
-    lon_indices = np.empty(len(lat_targets), dtype=int)
-    for i, (lat_target, lon_target) in enumerate(zip(lat_targets, lon_targets)):
-        distances = (cell_lats - lat_target) ** 2 + (cell_lons - lon_target) ** 2
-        lat_indices[i], lon_indices[i] = valid_cells[int(distances.argmin())]
-    return lat_indices, lon_indices
-
-
 def get_closest_gridcell(
-    data: xr.Dataset | xr.DataArray,
-    lat: float,
-    lon: float,
-    print_coords: bool = True,
-    search_valid: bool = True,
-    mask: xr.DataArray | None = None,
+    data: xr.Dataset | xr.DataArray, lat: float, lon: float, print_coords: bool = True
 ) -> xr.Dataset | xr.DataArray | None:
     """From input gridded data, get the closest VALID gridcell to a lat, lon coordinate pair.
 
@@ -651,22 +544,12 @@ def get_closest_gridcell(
     print_coords : bool, optional
         Print closest coorindates?
         Default to True. Set to False for backend use.
-    search_valid : bool, optional
-        If True (default), check the data at the selected gridcell and, when it
-        is all NaN, average valid cells in the surrounding 3x3 window. If False,
-        return the selected gridcell as-is without inspecting the data values,
-        which keeps lazy inputs uncomputed.
-    mask : xr.DataArray | None, optional
-        Mask sharing the data's spatial dimensions (e.g. a landmask). When
-        given, only cells where the mask equals 1 are candidates, and the
-        nearest such cell is selected. Default is None (all cells).
 
     Returns
     -------
     xr.Dataset | xr.DataArray | None
         Grid cell closest to input lat,lon coordinate pair, returns same type as input.
         The result preserves lazy evaluation if the input was lazy.
-        Returns None if no candidate cell can be found.
 
     See also
     --------
@@ -680,36 +563,16 @@ def get_closest_gridcell(
         data, lat, lon, lat_dim, lon_dim
     )
 
-    candidate_cells = None
-    if mask is not None:
-        candidate_cells = _mask_to_candidate_cells(mask, data, lat_dim, lon_dim)
-        nearest = _nearest_candidate_indices(
-            data[lat_dim].values,
-            data[lon_dim].values,
-            np.atleast_1d(lat_coord),
-            np.atleast_1d(lon_coord),
-            candidate_cells,
-        )
-        if nearest is None:
-            print("No candidate gridcells found in mask. Returning None.")
-            return None
-        lat_idx, lon_idx = int(nearest[0][0]), int(nearest[1][0])
-    else:
-        # Find nearest indices
-        lat_idx = data[lat_dim].to_index().get_indexer([lat_coord], method="nearest")[0]
-        lon_idx = data[lon_dim].to_index().get_indexer([lon_coord], method="nearest")[0]
+    # Find nearest indices
+    lat_idx = data[lat_dim].to_index().get_indexer([lat_coord], method="nearest")[0]
+    lon_idx = data[lon_dim].to_index().get_indexer([lon_coord], method="nearest")[0]
 
     if lat_idx == -1 or lon_idx == -1:
         print("Input coordinate is OUTSIDE of data extent. Returning None.")
         return None
 
-    gridcell = data.isel({lat_dim: lat_idx, lon_dim: lon_idx})
-    if not search_valid:
-        if print_coords:
-            _print_closest_coords(gridcell, lat, lon, lat_dim, lon_dim)
-        return gridcell
-
     # Check for valid data at closest gridcell
+    gridcell = data.isel({lat_dim: lat_idx, lon_dim: lon_idx})
     test_data = _reduce_to_single_point(gridcell, lat_dim, lon_dim)
 
     if _check_has_valid_data(test_data):
@@ -719,7 +582,7 @@ def get_closest_gridcell(
 
     # If closest gridcell is all NaN, search in 3x3 window and average valid cells
     valid_data = _search_nearby_valid_gridcells(
-        data, lat_idx, lon_idx, lat_dim, lon_dim, candidate_cells=candidate_cells
+        data, lat_idx, lon_idx, lat_dim, lon_dim
     )
 
     if len(valid_data) > 0:
@@ -793,8 +656,6 @@ def get_closest_gridcells(
     lons: Iterable[float] | float,
     print_coords: bool = True,
     bbox_buffer: int = 5,
-    search_valid: bool = True,
-    mask: xr.DataArray | None = None,
 ) -> xr.Dataset | xr.DataArray | None:
     """Find the nearest grid cell(s) for given latitude and longitude coordinates.
 
@@ -816,16 +677,6 @@ def get_closest_gridcells(
     bbox_buffer : int, optional
         Number of grid cells to add as buffer around the bounding box when
         pre-clipping large datasets. Default is 5.
-    search_valid : bool, optional
-        If True (default), check whether each selected cell is valid (using a
-        ``landmask`` in the data, or the data values otherwise) and move
-        invalid points to a valid neighbor in the 3x3 window. If False, skip
-        that check and keep the geometrically nearest cells, which keeps lazy
-        inputs uncomputed.
-    mask : xr.DataArray | None, optional
-        Mask sharing the data's spatial dimensions (e.g. a landmask). When
-        given, each point snaps to the nearest cell where the mask equals 1,
-        and the mask replaces the validity check. Default is None.
 
     Returns
     -------
@@ -868,23 +719,6 @@ def get_closest_gridcells(
     lat_coords, lon_coords = _transform_coords_to_data_crs_vectorized(
         data, lats_arr, lons_arr, lat_dim, lon_dim
     )
-
-    if mask is not None:
-        # Snap targets to the nearest unmasked cell before any pre-clipping so
-        # the masked-out search region cannot be truncated by the bounding box.
-        candidate_cells = _mask_to_candidate_cells(mask, data, lat_dim, lon_dim)
-        nearest = _nearest_candidate_indices(
-            data[lat_dim].values,
-            data[lon_dim].values,
-            np.atleast_1d(lat_coords),
-            np.atleast_1d(lon_coords),
-            candidate_cells,
-        )
-        if nearest is None:
-            print("No candidate gridcells found in mask. Returning None.")
-            return None
-        lat_coords = data[lat_dim].values[nearest[0]]
-        lon_coords = data[lon_dim].values[nearest[1]]
 
     # Get coordinate arrays from data
     lat_index = data[lat_dim].to_index()
@@ -956,10 +790,7 @@ def get_closest_gridcells(
     needs_nan_handling = []
     skip_validity_check = n_valid > 100
 
-    if mask is not None or not search_valid:
-        # Mask-snapped cells are already valid; raw nearest cells skip the search.
-        pass
-    elif skip_validity_check:
+    if skip_validity_check:
         print(f"  Skipping validity check for {n_valid} points (too expensive)")
     elif "landmask" in data.coords or "landmask" in getattr(data, "data_vars", {}):
         print("  Checking landmask for valid land points...")

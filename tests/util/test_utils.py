@@ -501,60 +501,6 @@ class TestUtils:
         assert "y:" in captured.out, "Output should use 'y:' for projection coords"
         assert "x:" in captured.out, "Output should use 'x:' for projection coords"
 
-    @pytest.mark.parametrize("vectorized", [False, True])
-    def test_get_closest_gridcell_search_valid_false_keeps_nan_cell(self, vectorized):
-        """Test search_valid=False returns the geometric nearest cell even if NaN."""
-        data = np.ones((2, 3, 3))
-        data[:, 1, 1] = np.nan
-        ds = xr.Dataset(
-            {"temp": (["time", "lat", "lon"], data)},
-            coords={
-                "time": [0, 1],
-                "lat": [34.0, 35.0, 36.0],
-                "lon": [-121, -120, -119],
-            },
-        )
-
-        if vectorized:
-            result = get_closest_gridcells(
-                ds, [35.0], [-120.0], print_coords=False, search_valid=False
-            ).isel(points=0)
-        else:
-            result = get_closest_gridcell(
-                ds, 35.0, -120.0, print_coords=False, search_valid=False
-            )
-
-        assert result.lat.item() == 35.0
-        assert result.lon.item() == -120.0
-        assert result["temp"].isnull().all()
-
-    @pytest.mark.parametrize("vectorized", [False, True])
-    def test_get_closest_gridcell_mask_never_returns_masked_cell(self, vectorized):
-        """Test mask= restricts selection to the nearest unmasked cell."""
-        mask = xr.DataArray(
-            np.array([[0, 0, 0], [0, 0, 0], [0, 0, 1]]),
-            dims=["lat", "lon"],
-            coords={"lat": [34.0, 35.0, 36.0], "lon": [-121, -120, -119]},
-        )
-        ds = xr.Dataset(
-            {"temp": (["lat", "lon"], np.arange(9.0).reshape(3, 3))},
-            coords=mask.coords,
-        )
-
-        if vectorized:
-            result = get_closest_gridcells(
-                ds, [34.0, 35.0], [-121.0, -120.0], print_coords=False, mask=mask
-            )
-            assert result.lat.values.tolist() == [36.0, 36.0]
-            assert result.lon.values.tolist() == [-119, -119]
-        else:
-            result = get_closest_gridcell(
-                ds, 34.0, -121.0, print_coords=False, mask=mask
-            )
-            assert result.lat.item() == 36.0
-            assert result.lon.item() == -119
-            assert result["temp"].item() == 8.0
-
     def test_julianDay_to_date(self):
         """tests the julianDay_to_date function"""
         # Test default return_type (str) with default format
