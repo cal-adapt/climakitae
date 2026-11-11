@@ -63,16 +63,14 @@ result = (
     .grid_label("d03")
     .variable_id(["tasmax", "pr"])
     .processes({
-        "convert_units": {
-            "by_variable": {"tasmax": "degC"}
-        }
+        "convert_units": {"tasmax": "degC"}
     })
     .get()
 )
 ```
 
 Here, precipitation remains in native units. Unit conversion uses an explicit
-`by_variable` wrapper, not positional lists. Unknown variable targets invalidate
+`{variable_id: unit}` mapping, not positional lists. Unknown variable targets invalidate
 the request. Existing scalar processor settings retain single-variable behavior;
 on a multi-variable request, a shared setting is accepted only if valid for
 every affected variable.
@@ -85,7 +83,7 @@ enable a processor on a catalog that currently prohibits it.
 | Operation | Multi-variable scope |
 | --- | --- |
 | Defaults and selectors | Audit model filtering, leap-day removal, concatenation, historical extension, time slicing, local-time conversion, clipping, and warming levels wherever currently supported. |
-| Units | Support shared settings valid for all variables and `by_variable` targeting; omitted targets remain unchanged. |
+| Units | Support shared settings valid for all variables and `{variable_id: unit}` targeting; omitted targets remain unchanged. |
 | Basic metrics | Support reductions and percentiles independently per variable, including targeted settings where necessary. Multi-variable percentiles use variable-specific fields and percentile coordinates; other metric names remain unchanged. |
 | Advanced metrics | Reject threshold-event and return-period modes on multi-variable queries in this release. |
 | Station bias adjustment | Out of scope for this feature. Do not change this processor or add multi-variable-specific rejection behavior here. |
@@ -247,7 +245,7 @@ Observation arrays remain lazy, and real NaNs are preserved.
 | --- | --- | --- |
 | `filter_unadjusted_models` | Operates on entire results and metadata, not one climate field. | Verify identical member filtering across fields and empty-result failure. |
 | `drop_leap_days` | Slices whole Datasets. | Multi-field leap-day, dispatch, and metadata regression tests. |
-| `convert_units` | Converts only the first Dataset variable; a local probe left the second temperature field in Kelvin. | Shared all-variable conversion and validated `by_variable` targeting. |
+| `convert_units` | Converts only the first Dataset variable; a local probe left the second temperature field in Kelvin. | Shared all-variable conversion and validated `{variable_id: unit}` targeting. |
 | `warming_level` | Transforms whole Datasets before concat and invokes historical extension. | Verify aligned fields, member splitting, complete windows, center years, and preserved restrictions. |
 | `concat` | Uses outer alignment and compatibility overrides; historical extension also uses outer joins. | Establish joint variable coverage before ensemble assembly; preserve historical/SSP identity and diagnostics. |
 | `bias_adjust_model_to_station` | Explicitly out of scope for this feature. | No feature-specific changes; preserve current behavior. |
@@ -295,7 +293,7 @@ discover HDP observation fields without treating them as intake search keys.
 Separate requested variables from dependency variables. Validate every native
 ID and derived dependency against the full shared selection. Determine joint
 coverage per simulation/member or station. Reject unsupported processor
-combinations and unknown `by_variable` targets before retrieval where possible.
+combinations and unknown per-variable targets before retrieval where possible.
 For HDP, field validation may require opening lazy station metadata first.
 
 ### 4. Retrieve and assemble multi-variable results

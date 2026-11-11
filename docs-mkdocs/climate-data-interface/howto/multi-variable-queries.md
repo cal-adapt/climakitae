@@ -125,22 +125,17 @@ silently coerce incompatible fields.
 ### Units
 
 A shared target unit is applied to every selected field with identifiable
-units. Use `by_variable` when fields need different targets or when only some
+units. Use a `{variable_id: unit}` mapping when fields need different targets or when only some
 fields should be converted. Targets are validated before conversion, so an
 invalid target does not leave a partially converted Dataset.
 
 ```python
 .processes({
-    "convert_units": {
-        "by_variable": {
-            "tasmax": "degC",
-            "pr": "inches/d",
-        }
-    }
+    "convert_units": {"tasmax": "degC", "pr": "inches/d"}
 })
 ```
 
-Variables omitted from `by_variable` remain unchanged. Unit conversions must
+Variables omitted from the mapping remain unchanged. Unit conversions must
 be registered for each field's native units. `convert_units` is not supported
 for HDP.
 

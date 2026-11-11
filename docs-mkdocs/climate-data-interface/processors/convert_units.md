@@ -42,8 +42,8 @@ flowchart TD
 
 ## Parameter shape
 
-The processor accepts either a shared target-unit string or a `by_variable`
-mapping. Source units are read from each variable's `units` attribute.
+The processor accepts either a shared target-unit string or a
+`{variable_id: target_unit}` mapping. Source units are read from each variable's `units` attribute.
 
 ```python
 .processes({"convert_units": "<target unit>"})
@@ -51,21 +51,16 @@ mapping. Source units are read from each variable's `units` attribute.
 
 ```python
 .processes({
-    "convert_units": {
-        "by_variable": {
-            "tasmax": "degC",
-            "pr": "inches/d",
-        }
-    }
+    "convert_units": {"tasmax": "degC", "pr": "inches/d"}
 })
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `value` | `str` or mapping | A shared target unit, or `{"by_variable": {variable_id: target_unit}}`. Each target must form a registered `(source, target)` pair with that variable's existing `units`. |
+| `value` | `str` or mapping | A shared target unit, or `{variable_id: target_unit}`. Each target must form a registered `(source, target)` pair with that variable's existing `units`. |
 
 A shared string applies to every selected variable with identifiable units.
-The `by_variable` form converts only named fields; omitted fields stay
+The mapping form converts only named fields; omitted fields stay
 unchanged. All requested conversions are validated before any variable is
 modified. Invalid targets, missing native units, or unknown native units leave
 the entire input unchanged and produce a warning.
@@ -128,9 +123,7 @@ data = (ClimateData()
     .grid_label("d03")
     .variable_id(["tasmax", "pr"])
     .processes({
-        "convert_units": {
-            "by_variable": {"tasmax": "degC", "pr": "inches/d"}
-        }
+        "convert_units": {"tasmax": "degC", "pr": "inches/d"}
     })
     .get())
 ```

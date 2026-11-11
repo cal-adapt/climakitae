@@ -107,8 +107,8 @@ class ConvertUnits(DataProcessor):
     Parameters
     ----------
     value : string or mapping
-        A shared target unit, a ``{"by_variable": {name: unit}}`` mapping, or
-        UNSET to skip conversion.
+        A shared target unit, a ``{variable_id: unit}`` mapping, or UNSET to
+        skip conversion.
 
     Methods
     -------
@@ -134,7 +134,7 @@ class ConvertUnits(DataProcessor):
         Parameters
         ----------
         value : string or mapping
-            A shared target unit or a ``{"by_variable": {name: unit}}`` mapping.
+            A shared target unit or a ``{variable_id: unit}`` mapping.
         """
         self.value = value
         self.name = "convert_units"
@@ -169,8 +169,8 @@ class ConvertUnits(DataProcessor):
         Notes
         -----
         A string applies one target unit to all selected, unit-bearing climate
-        fields. A ``{"by_variable": {name: unit}}`` mapping targets only its
-        named fields. All conversions are validated before any field is changed.
+        fields. A ``{variable_id: unit}`` mapping targets only its named
+        fields. All conversions are validated before any field is changed.
         """
         logger.debug(
             "ConvertUnits.execute called with target_units=%s, result_type=%s",
@@ -226,68 +226,9 @@ class ConvertUnits(DataProcessor):
         if not self.success:
             return result
 
-        if self.success:
-            # In this processor, it doesn't make sense to update unless the conversion was successful
-            logger.info("Units successfully converted to '%s'", self.value)
-            self.update_context(context)
+        logger.info("Units successfully converted to '%s'", self.value)
+        self.update_context(context)
         return ret
-
-    @staticmethod
-    def _get_support_variable_names(data: Any) -> set[str]:
-        """Return names of land-mask and CRS variables in supported containers.
-
-        Parameters
-        ----------
-        data : Any
-            An xarray object or a nested dictionary, list, or tuple of xarray
-            objects.
-
-        Returns
-        -------
-        set of str
-            Names of variables that must not be unit-converted.
-        """
-        match data:
-            case xr.Dataset():
-                grid_mapping_variables = {
-                    variable.attrs.get("grid_mapping")
-                    for variable in data.data_vars.values()
-                    if variable.attrs.get("grid_mapping") is not None
-                }
-                return {
-                    name
-                    for name, variable in data.data_vars.items()
-                    if name.lower() in {"landmask", "crs", "spatial_ref"}
-                    or name in grid_mapping_variables
-                    or {
-                        "grid_mapping_name",
-                        "spatial_ref",
-                        "crs_wkt",
-                    }.intersection(variable.attrs)
-                }
-            case xr.DataArray():
-                if data.name is None:
-                    return set()
-                if data.name.lower() in {"landmask", "crs", "spatial_ref"} or {
-                    "grid_mapping_name",
-                    "spatial_ref",
-                    "crs_wkt",
-                }.intersection(data.attrs):
-                    return {data.name}
-                return set()
-            case dict():
-                return set().union(
-                    *(
-                        ConvertUnits._get_support_variable_names(item)
-                        for item in data.values()
-                    )
-                )
-            case list() | tuple():
-                return set().union(
-                    *(ConvertUnits._get_support_variable_names(item) for item in data)
-                )
-            case _:
-                return set()
 
     def update_context(self, context: Dict[str, Any]) -> None:
         """
@@ -329,53 +270,35 @@ class ConvertUnits(DataProcessor):
         data : xr.Dataset | xr.DataArray
             The data to convert.
         value : str or mapping
-            A shared target unit or a ``{"by_variable": {name: unit}}`` mapping.
+            A shared target unit or a ``{variable_id: unit}`` mapping.
         selected_variables : set of str, optional
-            Requested measurement variables. Other data variables are treated as
-            support fields and left unchanged.
+            Requested measurement variables. Other data variables, such as CRS
+            and land-mask fields, are left unchanged by a shared target.
 
         Returns
         -------
         Union[xr.Dataset, xr.DataArray]
             The converted data.
         """
-        support_variables = self._get_support_variable_names(data)
         if isinstance(value, str):
             if isinstance(data, xr.DataArray):
-                targets = (
-                    {data.name: value}
-                    if data.name is not None and data.name not in support_variables
-                    else {}
-                )
+                targets = {data.name: value} if data.name is not None else {}
             else:
                 targets = {
                     name: value
                     for name, variable in data.data_vars.items()
                     if "units" in variable.attrs
-                    and name not in support_variables
                     and (selected_variables is None or name in selected_variables)
                 }
         elif isinstance(value, Mapping):
-            targets = value["by_variable"]
-            support_targets = set(targets) & support_variables
-            if support_targets:
-                logger.warning(
-                    "Unit conversions cannot target support/CRS variables: %s; "
-                    "no variables were converted.",
-                    sorted(support_targets),
-                )
-                self.success = False
-                return data
+            targets = value
         else:
             logger.warning(
                 "The provided value is not the correct type. Expected a string "
-                "or a 'by_variable' mapping, but got %s.",
+                "or a {variable: unit} mapping, but got %s.",
                 type(value).__name__,
             )
             self.success = False
-            return data
-
-        if isinstance(data, xr.DataArray) and data.name in support_variables:
             return data
 
         if isinstance(data, xr.DataArray):
@@ -394,8 +317,6 @@ class ConvertUnits(DataProcessor):
         if not variables:
             if isinstance(value, Mapping):
                 return data
-
-        if not variables:
             has_unit_attributes = (
                 "units" in data.attrs
                 if isinstance(data, xr.DataArray)

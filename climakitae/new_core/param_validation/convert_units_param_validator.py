@@ -37,7 +37,7 @@ def validate_convert_units_param(
     Parameters
     ----------
     value : str or mapping
-        A shared target unit, or ``{"by_variable": {variable_id: unit}}``.
+        A shared target unit, or a ``{variable_id: unit}`` mapping.
         Mapping keys must be variables requested by ``query["variable_id"]``.
         Valid units include temperature units (K, degC, degF), pressure units (Pa, hPa, mb, inHg),
         wind units (m/s, m s-1, mph, knots), precipitation units (mm, mm/d, mm/h, inches, inches/d, inches/h),
@@ -83,27 +83,20 @@ def _check_input_types(value: Any) -> bool:
         return True
 
     if isinstance(value, Mapping):
-        targets = value.get("by_variable")
-        if (
-            set(value) != {"by_variable"}
-            or not isinstance(targets, Mapping)
-            or not targets
-        ):
+        if not value:
             logger.warning(
                 "Convert Units Processor expects a string or a non-empty "
-                "{'by_variable': {variable: unit}} mapping."
+                "{variable: unit} mapping."
             )
             return False
 
-        if any(not isinstance(name, str) or not name.strip() for name in targets):
-            logger.warning(
-                "The 'by_variable' mapping must use non-empty variable names."
-            )
+        if any(not isinstance(name, str) or not name.strip() for name in value):
+            logger.warning("The unit mapping must use non-empty variable names.")
             return False
         return True
 
     logger.warning(
-        "Convert Units Processor expects a string or a 'by_variable' mapping. "
+        "Convert Units Processor expects a string or a {variable: unit} mapping. "
         "Received type: %s",
         type(value),
     )
@@ -139,7 +132,7 @@ def _check_targets_are_selected(value: Any, query: Any) -> bool:
     else:
         return True
 
-    unknown_variables = set(value["by_variable"]) - selected_variables
+    unknown_variables = set(value) - selected_variables
     if unknown_variables:
         logger.warning(
             "Unit conversion targets are not present in the data: %s",
@@ -166,7 +159,7 @@ def _check_unit_validity(value: Any) -> bool:
     if isinstance(value, str):
         units_to_check = [value]
     elif isinstance(value, Mapping):
-        units_to_check = list(value["by_variable"].values())
+        units_to_check = list(value.values())
     else:
         units_to_check = list(value)
 

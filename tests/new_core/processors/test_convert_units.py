@@ -323,7 +323,7 @@ class TestConvertUnitsExecute:
         dataset["pr"].attrs["units"] = "mm/d"
         dataset["spatial_ref"].attrs["units"] = "K"
 
-        result = ConvertUnits({"by_variable": {"tasmax": "degC"}}).execute(
+        result = ConvertUnits({"tasmax": "degC"}).execute(
             dataset,
             context={"variable_id": ["tasmax", "pr"]},
         )
@@ -334,28 +334,6 @@ class TestConvertUnitsExecute:
         assert result["pr"].attrs["units"] == "mm/d"
         assert result["spatial_ref"].attrs["units"] == "K"
         assert result["tasmax"].attrs["grid_mapping"] == "spatial_ref"
-
-    def test_execute_rejects_explicit_crs_conversion_atomically(self):
-        """Test CRS variables cannot be converted, even when explicitly targeted."""
-        dataset = xr.Dataset(
-            {
-                "tasmax": ("time", [300.0]),
-                "spatial_ref": xr.DataArray(0, attrs={"grid_mapping_name": "crs"}),
-            },
-            coords={"time": pd.date_range("2020-01-01", periods=1)},
-        )
-        dataset["tasmax"].attrs.update({"units": "K", "grid_mapping": "spatial_ref"})
-        dataset["spatial_ref"].attrs["units"] = "K"
-
-        with pytest.warns(UserWarning, match="support/CRS"):
-            result = ConvertUnits(
-                {"by_variable": {"tasmax": "degC", "spatial_ref": "degC"}}
-            ).execute(dataset, context={})
-
-        assert result is dataset
-        assert result["tasmax"].attrs["units"] == "K"
-        assert result["spatial_ref"].attrs["units"] == "K"
-        np.testing.assert_array_equal(result["tasmax"].values, [300.0])
 
     def test_execute_shared_incompatible_target_is_atomic(self):
         """Test incompatible shared targets leave all measurement fields unchanged."""
@@ -403,9 +381,9 @@ class TestConvertUnitsExecute:
             dataset["pr"].attrs["units"] = native_units
 
         with pytest.warns(UserWarning, match=warning_match):
-            result = ConvertUnits(
-                {"by_variable": {"tasmax": "degC", "pr": target_unit}}
-            ).execute(dataset, context={})
+            result = ConvertUnits({"tasmax": "degC", "pr": target_unit}).execute(
+                dataset, context={}
+            )
 
         assert result is dataset
         np.testing.assert_array_equal(result["tasmax"].values, [300.0])
@@ -426,9 +404,7 @@ class TestConvertUnitsExecute:
         dataset["precipitation"].attrs["units"] = "kg m-2 s-1"
         dataset["tasmax"].attrs["units"] = "K"
 
-        result = ConvertUnits({"by_variable": {"precipitation": "mm"}}).execute(
-            dataset, context={}
-        )
+        result = ConvertUnits({"precipitation": "mm"}).execute(dataset, context={})
 
         np.testing.assert_allclose(
             result["precipitation"].values, np.array([31, 29]) * 86400

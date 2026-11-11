@@ -27,11 +27,6 @@ class TestCheckInputTypes:
             (123, False, "expects a string"),
             (None, False, "expects a string"),
             (
-                {"weird string that would be caught in _check_unit_validity": "K"},
-                False,
-                "expects a string",
-            ),
-            (
                 ["one string", 123],
                 False,
                 "expects a string",
@@ -98,33 +93,31 @@ class TestCheckUnitValidity:
 class TestValidateConvertUnitsParam:
     """Test class for validate_convert_units_param function."""
 
-    def test_validate_by_variable_mapping(self):
+    def test_validate_per_variable_mapping(self):
         """Test the validator accepts a non-empty per-variable unit mapping."""
-        assert validate_convert_units_param(
-            {"by_variable": {"tasmax": "degC", "pr": "inches/d"}}
-        )
+        assert validate_convert_units_param({"tasmax": "degC", "pr": "inches/d"})
 
     @pytest.mark.parametrize(
         "value,warning_match",
         [
-            ({"by_variable": {}}, "expects a string"),
-            ({"by_variable": {"tasmax": "invalid_unit"}}, "Unsupported unit"),
-            ({"by_variable": {"": "K"}}, "non-empty variable names"),
-            ({"by_variable": {1: "K"}}, "non-empty variable names"),
-            ({"by_variable": {"tasmax": None}}, "Unsupported unit"),
-            ({"units": {"tasmax": "K"}}, "expects a string"),
+            ({}, "expects a string"),
+            ({"tasmax": "invalid_unit"}, "Unsupported unit"),
+            ({"": "K"}, "non-empty variable names"),
+            ({1: "K"}, "non-empty variable names"),
+            ({"tasmax": None}, "Unsupported unit"),
+            ({"by_variable": {"tasmax": "K"}}, "Unsupported unit"),
         ],
     )
-    def test_validate_rejects_invalid_by_variable_mappings(self, value, warning_match):
+    def test_validate_rejects_invalid_unit_mappings(self, value, warning_match):
         """Test malformed mappings, variable names, and units are rejected."""
         with pytest.warns(UserWarning, match=warning_match):
             assert not validate_convert_units_param(value)
 
-    def test_validate_rejects_unselected_by_variable_target(self):
+    def test_validate_rejects_unselected_mapping_target(self):
         """Test per-variable targets must name requested variables."""
         with pytest.warns(UserWarning, match="not present in the data"):
             assert not validate_convert_units_param(
-                {"by_variable": {"tasmax": "degC", "tasmin": "degC"}},
+                {"tasmax": "degC", "tasmin": "degC"},
                 query={"variable_id": ["tasmax", "pr"]},
             )
 
@@ -137,7 +130,6 @@ class TestValidateConvertUnitsParam:
             (["K", "invalid_unit"], False, "expects a string"),
             (123, False, "expects a string"),
             (None, False, "expects a string"),
-            ({"unit": "K"}, False, "expects a string"),
             (
                 ["one string", 123],
                 False,
