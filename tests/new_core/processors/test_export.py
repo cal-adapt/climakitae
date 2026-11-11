@@ -1171,6 +1171,58 @@ class TestExportSingle:
         assert csv_path.read_bytes() == b"existing csv"
         assert metadata_path.read_text() == "existing metadata"
 
+    def test_multi_variable_csv_metadata_matches_single_variable_sidecar(
+        self, tmp_path, monkeypatch
+    ):
+        """Write the same sidecar header and sections as single-variable CSV."""
+        from climakitae.core import data_export
+
+        station_path = tmp_path / "stations.csv"
+        pd.DataFrame({"station": []}).to_csv(station_path, index=False)
+        monkeypatch.setattr(data_export, "HADISD_STATIONS_URL", str(station_path))
+        monkeypatch.setattr(
+            data_export,
+            "read_csv_file",
+            lambda _: pd.DataFrame({"variable_id": [], "display_name": []}),
+        )
+        monkeypatch.chdir(tmp_path)
+        data = xr.Dataset(
+            {
+                "tasmax": (("time",), [1.0, 2.0], {"units": "degC"}),
+                "pr": (("time",), [3.0, 4.0], {"units": "mm"}),
+            },
+            coords={
+                "time": xr.DataArray(
+                    pd.date_range("2020-01-01", periods=2),
+                    dims="time",
+                    attrs={"standard_name": "time"},
+                )
+            },
+            attrs={"institution": "CAE"},
+        )
+
+        Export({"filename": "single", "file_format": "CSV"}).execute(
+            data, context={"variable_id": "tasmax"}
+        )
+        Export({"filename": "multi", "file_format": "CSV"}).execute(
+            data, context={"variable_id": ["tasmax", "pr"]}
+        )
+
+        single = (tmp_path / "single_metadata.txt").read_text()
+        multi = (tmp_path / "multi_metadata.txt").read_text()
+        assert multi.replace(str(tmp_path / "multi"), str(tmp_path / "single")) == (
+            single
+        )
+        assert multi.startswith(
+            f"======== Metadata for CSV file {tmp_path / 'multi'} ========"
+        )
+        for section in (
+            "===== Global file attributes =====",
+            "===== Coordinate descriptions =====",
+            "===== Variable descriptions =====",
+        ):
+            assert section in multi
+
     @patch("os.path.exists", return_value=True)
     @patch("climakitae.new_core.processors.export._export_to_netcdf")
     def test_export_single_skip_existing(self, mock_export, mock_exists):
