@@ -29,6 +29,7 @@ def _make_local_catalog(
     only_incomplete_members=False,
     include_wind_components=False,
     include_spatial_metadata=False,
+    asset_format="netcdf",
 ):
     """Create a local multi-variable catalog with incomplete source coverage."""
     catalog_profiles = {
@@ -125,7 +126,8 @@ def _make_local_catalog(
         )
     records = []
     for experiment_id, member_id, variable_id, times, values in asset_rows:
-        path = tmp_path / f"{experiment_id}-{member_id}-{variable_id}.nc"
+        suffix = "zarr" if asset_format == "zarr" else "nc"
+        path = tmp_path / f"{experiment_id}-{member_id}-{variable_id}.{suffix}"
         if spatial_grid:
             latitudes = (
                 [34.0, 36.0]
@@ -163,7 +165,12 @@ def _make_local_catalog(
             )
         if mismatched_calendar and variable_id == "pr":
             dataset["time"].encoding["calendar"] = "noleap"
-        dataset.to_netcdf(path, engine="scipy")
+        if asset_format == "zarr":
+            dataset.to_zarr(path)
+            # Zarr only accepts storage_options for remote-style fsspec URIs.
+            path = f"local://{path}"
+        else:
+            dataset.to_netcdf(path, engine="scipy")
         record = {
             "activity_id": "WRF",
             "institution_id": "UCLA",
@@ -173,7 +180,7 @@ def _make_local_catalog(
             "grid_label": "d03",
             "variable_id": variable_id,
             "path": str(path),
-            "format": "netcdf",
+            "format": asset_format,
         }
         if catalog_kind == "cadcat":
             record["member_id"] = member_id
@@ -190,7 +197,7 @@ def _make_local_catalog(
             for name in records[0]
             if name not in ("path", "format")
         ],
-        "assets": {"column_name": "path", "format": "netcdf"},
+        "assets": {"column_name": "path", "format": asset_format},
         "aggregation_control": {
             "variable_column_name": "variable_id",
             **profile,
@@ -1132,7 +1139,10 @@ def test_scalar_custom_derived_query_remains_compatible(tmp_path):
 
     data_catalog = dict.__new__(DataCatalog)
     dict.__init__(data_catalog)
-    data_catalog[CATALOG_CADCAT] = _make_local_catalog(tmp_path, registry=registry)
+    # Scalar retrieval aggregates Zarr assets with consolidated=None, as in production.
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(
+        tmp_path, registry=registry, asset_format="zarr"
+    )
     query = {
         "variable_id": "tasmax_plus_one",
         "_derived_variable": "tasmax_plus_one",

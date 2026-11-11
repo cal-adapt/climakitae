@@ -656,9 +656,13 @@ class DataCatalog(dict):
                 .search(**search_query)
                 .to_dataset_dict(
                     xarray_open_kwargs=({"chunks": {}} if unaggregated_query else None),
-                    # Preserve xarray's consolidated=None default for Zarr, and
-                    # avoid passing Zarr-only options to NetCDF assets.
-                    zarr_kwargs={},
+                    # Use consolidated=None for compatibility with both Zarr v2 and v3.
+                    # - True: requires consolidated metadata (fails on Zarr v3 without it)
+                    # - False: always reads metadata from individual arrays
+                    # - None: uses consolidated if available, falls back to individual reads
+                    # Unaggregated (multi-variable/HDP field) reads may open NetCDF
+                    # assets, which reject Zarr-only options, so pass none there.
+                    zarr_kwargs=({} if unaggregated_query else {"consolidated": None}),
                     storage_options={"anon": True},
                     progressbar=False,
                     aggregate=not unaggregated_query,
