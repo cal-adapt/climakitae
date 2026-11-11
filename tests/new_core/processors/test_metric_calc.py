@@ -359,31 +359,42 @@ class TestMultiVariableMetricCalc:
         assert result.pr_percentiles.attrs["units"] == "mm"
         assert result.pr_max.attrs["units"] == "mm"
 
-    def test_shared_settings_apply_to_selected_variables(self):
-        """Apply shared basic settings to every selected variable."""
+    @pytest.mark.parametrize(
+        "config,expected",
+        [
+            ({"metric": "min"}, {"tasmax": 1.0, "pr": 2.0}),
+            ({"metric": "max"}, {"tasmax": 5.0, "pr": 8.0}),
+            ({"metric": "mean"}, {"tasmax": 3.0, "pr": 14 / 3}),
+            ({"metric": "median"}, {"tasmax": 3.0, "pr": 4.0}),
+            (
+                {"metric": "max", "percentiles": [50]},
+                {
+                    "tasmax_percentiles": [3.0],
+                    "tasmax_max": 5.0,
+                    "pr_percentiles": [4.0],
+                    "pr_max": 8.0,
+                },
+            ),
+        ],
+    )
+    def test_shared_settings_apply_to_selected_variables(self, config, expected):
+        """Apply shared metric settings to every selected variable."""
         data = xr.Dataset(
             {
-                "tasmax": (("time",), [1.0, 3.0]),
-                "pr": (("time",), [2.0, 4.0]),
+                "tasmax": (("time",), [1.0, 3.0, 5.0], {"units": "degC"}),
+                "pr": (("time",), [2.0, 4.0, 8.0], {"units": "mm"}),
             }
         )
-        processor = MetricCalc({"metric": "max", "percentiles": [50]})
 
-        result = processor.execute(
-            data,
-            context={"variable_id": ["tasmax", "pr"]},
+        result = MetricCalc(config).execute(
+            data, context={"variable_id": ["tasmax", "pr"]}
         )
 
-        assert set(result.data_vars) == {
-            "tasmax_percentiles",
-            "tasmax_max",
-            "pr_percentiles",
-            "pr_max",
-        }
-        np.testing.assert_array_equal(result.tasmax_percentile, [50])
-        np.testing.assert_array_equal(result.pr_percentile, [50])
-        np.testing.assert_allclose(result.tasmax_max, 3.0)
-        np.testing.assert_allclose(result.pr_max, 4.0)
+        assert set(result.data_vars) == set(expected)
+        for name, value in expected.items():
+            np.testing.assert_allclose(result[name], value)
+            unit = "degC" if name.startswith("tasmax") else "mm"
+            assert result[name].attrs["units"] == unit
 
     def test_omitted_variable_targets_remain_unchanged(self):
         """Leave variables not named in by_variable untouched."""
@@ -438,55 +449,31 @@ class TestMultiVariableMetricCalc:
         assert isinstance(result["tasmax_percentiles"].data, da.Array)
         assert isinstance(result["pr"].data, da.Array)
 
-    def test_percentile_output_name_collision_is_rejected(self):
-        """Do not overwrite an existing variable with a generated percentile name."""
-        data = xr.Dataset(
-            {
-                "tasmax": (("time",), [1.0, 2.0]),
-                "pr": (("time",), [3.0, 4.0]),
-                "tasmax_percentiles": (("time",), [5.0, 6.0]),
-            }
-        )
-        processor = MetricCalc(
-            {"by_variable": {"tasmax": {"percentiles": [50], "percentiles_only": True}}}
-        )
-
-        with pytest.raises(ValueError, match="would overwrite an input variable"):
-            processor._calculate_metrics_single(data)
-
-    def test_percentile_dimension_collision_is_rejected(self):
-        """Do not reuse an existing coordinate as a generated percentile dimension."""
+    @pytest.mark.parametrize(
+        "name,as_variable",
+        [
+            ("tasmax_percentiles", True),
+            ("tasmax_percentiles", False),
+            ("tasmax_percentile", False),
+            ("tasmax_mean", True),
+        ],
+        ids=["variable", "coordinate", "dimension", "metric-variable"],
+    )
+    def test_output_name_collision_is_rejected(self, name, as_variable):
+        """Reject generated names that collide with existing input names."""
         data = xr.Dataset(
             {"tasmax": (("time",), [1.0, 2.0]), "pr": (("time",), [3.0, 4.0])},
-            coords={"time": [0, 1], "tasmax_percentile": [25, 75]},
+            coords={"time": [0, 1]},
         )
-        processor = MetricCalc(
-            {"by_variable": {"tasmax": {"percentiles": [50], "percentiles_only": True}}}
-        )
+        if as_variable:
+            data[name] = ("time", [5.0, 6.0])
+        else:
+            data = data.assign_coords({name: [25, 75]})
+        processor = MetricCalc({"by_variable": {"tasmax": {"percentiles": [50]}}})
 
         with pytest.raises(
-            ValueError, match="percentile dimension 'tasmax_percentile'"
+            ValueError, match=f"metric_calc output name '{name}' collides with"
         ):
-            processor._calculate_metrics_single(data)
-
-    def test_percentile_output_coordinate_collision_is_rejected(self):
-        """Do not overwrite an existing coordinate with a percentile output."""
-        data = xr.Dataset(
-            {
-                "tasmax": (("time", "lat"), [[1.0, 2.0], [3.0, 4.0]]),
-                "pr": (("time", "lat"), [[5.0, 6.0], [7.0, 8.0]]),
-            },
-            coords={
-                "time": [0, 1],
-                "lat": [10, 20],
-                "tasmax_percentiles": [25, 75],
-            },
-        )
-        processor = MetricCalc(
-            {"by_variable": {"tasmax": {"percentiles": [50], "percentiles_only": True}}}
-        )
-
-        with pytest.raises(ValueError, match="would overwrite an input coordinate"):
             processor._calculate_metrics_single(data)
 
     def test_percentiles_use_independent_variable_dimensions(self):

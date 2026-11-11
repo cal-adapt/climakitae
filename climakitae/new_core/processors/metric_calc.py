@@ -598,8 +598,6 @@ class MetricCalc(DataProcessor):
 
         outputs: dict[str, xr.DataArray] = {}
         generated_names: set[str] = set()
-        original_names = set(data.data_vars)
-        original_coordinate_names = set(data.coords)
         for variable_name in variable_names:
             if variable_name not in target_names:
                 outputs[variable_name] = data[variable_name]
@@ -623,31 +621,17 @@ class MetricCalc(DataProcessor):
                     f"{variable_data.dims})."
                 )
             calc_dim = dims[0] if len(dims) == 1 else dims
+            # The source variable may be replaced by its own metric output.
+            taken = (set(data.variables) - {variable_name}, generated_names)
 
             has_percentiles = percentiles is not UNSET and percentiles is not None
             if has_percentiles:
                 percentile_dim = f"{variable_name}_percentile"
                 percentile_name = f"{variable_name}_percentiles"
-                if percentile_dim in data.variables or percentile_dim in data.dims:
-                    raise ValueError(
-                        f"metric_calc percentile dimension '{percentile_dim}' "
-                        "already exists in the input."
-                    )
-                if percentile_name in original_names:
-                    raise ValueError(
-                        f"metric_calc output '{percentile_name}' would overwrite "
-                        "an input variable."
-                    )
-                if percentile_name in original_coordinate_names:
-                    raise ValueError(
-                        f"metric_calc output '{percentile_name}' would overwrite "
-                        "an input coordinate."
-                    )
-                if percentile_name in generated_names:
-                    raise ValueError(
-                        f"metric_calc generated output name '{percentile_name}' "
-                        "more than once."
-                    )
+                self._check_output_name_collision(
+                    percentile_dim, data.variables, data.dims
+                )
+                self._check_output_name_collision(percentile_name, *taken)
                 percentile_result = variable_data.quantile(
                     np.asarray(percentiles, dtype=float)
                     / PERCENTILE_TO_QUANTILE_FACTOR,
@@ -662,46 +646,40 @@ class MetricCalc(DataProcessor):
                 generated_names.add(percentile_name)
 
             if not percentiles_only:
-                metric_functions = {
-                    "min": lambda x: x.min(
-                        dim=calc_dim, keep_attrs=True, skipna=skipna
-                    ),
-                    "max": lambda x: x.max(
-                        dim=calc_dim, keep_attrs=True, skipna=skipna
-                    ),
-                    "mean": lambda x: x.mean(
-                        dim=calc_dim, keep_attrs=True, skipna=skipna
-                    ),
-                    "median": lambda x: x.median(
-                        dim=calc_dim, keep_attrs=True, skipna=skipna
-                    ),
-                    "sum": lambda x: x.sum(
-                        dim=calc_dim, keep_attrs=True, skipna=skipna
-                    ),
-                }
-                metric_result = metric_functions[metric](variable_data)
+                metric_result = getattr(variable_data, metric)(
+                    dim=calc_dim, keep_attrs=True, skipna=skipna
+                )
                 metric_name = (
                     f"{variable_name}_{metric}" if has_percentiles else variable_name
                 )
-                if metric_name in original_names and metric_name != variable_name:
-                    raise ValueError(
-                        f"metric_calc output '{metric_name}' would overwrite an "
-                        "input variable."
-                    )
-                if metric_name in original_coordinate_names:
-                    raise ValueError(
-                        f"metric_calc output '{metric_name}' would overwrite "
-                        "an input coordinate."
-                    )
-                if metric_name in generated_names:
-                    raise ValueError(
-                        f"metric_calc generated output name '{metric_name}' "
-                        "more than once."
-                    )
+                self._check_output_name_collision(metric_name, *taken)
                 outputs[metric_name] = metric_result.rename(metric_name)
                 generated_names.add(metric_name)
 
         return xr.Dataset(outputs, attrs=data.attrs)
+
+    @staticmethod
+    def _check_output_name_collision(name: str, *taken: Iterable[str]) -> None:
+        """
+        Reject a generated output name that is already in use.
+
+        Parameters
+        ----------
+        name : str
+            Generated output variable or dimension name.
+        *taken : Iterable[str]
+            Collections of names that ``name`` must not collide with.
+
+        Raises
+        ------
+        ValueError
+            If ``name`` appears in any collection in ``taken``.
+        """
+        if any(name in names for names in taken):
+            raise ValueError(
+                f"metric_calc output name '{name}' collides with an existing "
+                "input variable, coordinate, dimension, or generated output."
+            )
 
     def _calculate_threshold_single(
         self, data: xr.Dataset | xr.DataArray
