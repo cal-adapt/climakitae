@@ -131,7 +131,6 @@ data = (ClimateData()
 ## Behavior notes
 
 - If `value` is left unset, the processor is a no-op.
-- For multi-variable queries, unit conversion is atomic: an invalid or unavailable target prevents partial conversion.
 - `convert_units` is not supported for HDP observation data.
 - Runs at priority **5** — early in the pipeline, so downstream processors (e.g. `metric_calc` thresholds) operate on already-converted units.
 - Records the conversion in dataset attributes via the shared `new_attrs` context key.

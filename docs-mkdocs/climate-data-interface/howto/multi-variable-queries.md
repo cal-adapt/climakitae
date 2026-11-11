@@ -112,13 +112,14 @@ requested source fields. For HDP, a station must contain every selected
 observation field. Incomplete members or stations are excluded and reported.
 If none remain, retrieval fails.
 
-Within each eligible simulation or station, fields are trimmed to their shared
-timestamps. The returned data keeps the overlap and diagnostics record the
-trimmed counts. If even one otherwise eligible record has no common timestamps,
-the entire query fails. Existing NaN measurements are preserved; they are not
-treated as proof that a field or timestamp is absent. Spatial coordinates and
-calendars must align exactly. The query does not interpolate, regrid, or
-silently coerce incompatible fields.
+Gridded results keep only the time and spatial coordinates shared by every
+requested field and retained member in a dataset. If that shortens a dimension,
+a warning is logged; if no coordinates are shared, the query fails. Variables on
+different grids are cut to their overlap, never interpolated or regridded.
+Mismatched calendars fail the query. HDP trims each station to the timestamps
+shared by its fields and fails if a station has none. Existing NaN measurements
+are preserved. See the [multi-variable design notes](https://github.com/cal-adapt/climakitae/blob/main/docs/design/multi-variable-queries.md) for the reasoning
+and known limitations.
 
 ## Process variables independently
 
@@ -222,21 +223,20 @@ Zarr, not CSV.
 
 ## Read diagnostics
 
-Successful multi-variable results store a JSON string in the
-`multi_variable_diagnostics` Dataset attribute. Gridded results record
-simulation identity and per-record status, missing catalog variables, common
-timestamp counts, and per-variable trimmed timestamp counts. HDP diagnostics
-record station status, missing fields, and timestamp counts. Warnings are also
-emitted when records are excluded or timestamps are trimmed.
+Successful HDP multi-variable results store a JSON string in the
+`multi_variable_diagnostics` Dataset attribute, recording station status,
+missing fields, and timestamp counts. Gridded results don't carry this
+attribute: excluded members and shortened dimensions are reported only in
+the log.
 
 ```python
 import json
 
-diagnostics = json.loads(data.attrs["multi_variable_diagnostics"])
+diagnostics = json.loads(station_data.attrs["multi_variable_diagnostics"])
 ```
 
-An unavailable requested field, incompatible coordinates, or zero timestamp
-overlap is a query failure, not a successful result with an exclusion
+An unavailable requested field, incompatible calendars, or no shared
+coordinates is a query failure, not a successful result with an exclusion
 diagnostic. Inspect the log message and the `None` return from `.get()` for
 those cases.
 

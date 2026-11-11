@@ -71,8 +71,6 @@ flowchart TD
 For multi-variable queries, shared basic settings apply to each selected variable.
 Use `by_variable` to override settings for individual variables. When only
 `by_variable` is supplied, variables omitted from it pass through unchanged.
-Percentile levels are independent per variable, so xarray does not align or pad
-different variables onto one shared percentile coordinate.
 
 ```python
 .processes({
@@ -88,15 +86,11 @@ different variables onto one shared percentile coordinate.
 #         pr_percentiles(pr_percentile, ...)
 ```
 
-Each percentile output is named `<variable>_percentiles` and has its own
-`<variable>_percentile` coordinate. For example, `[5, 95]` for `tasmax` and
-`[50, 99]` for `pr` produce two and two levels, respectively; no union
-coordinate is created. Reductions retain the existing metric output names,
-and string or one-element variable selections retain single-variable output
-formatting.
-
-`thresholds` and `one_in_x` are rejected for multi-variable queries. `metric_calc`
-is not available for HDP, and `by_variable` may target only selected variables.
+Reductions keep the existing metric output names, and string or one-element
+selections keep single-variable formatting. `by_variable` may target only
+selected variables, and `metric_calc` is not available for HDP. See the
+[multi-variable design notes](https://github.com/cal-adapt/climakitae/blob/main/docs/design/multi-variable-queries.md) for why percentiles get per-variable
+dimensions.
 
 ### Threshold flow (`_calculate_threshold_single`)
 
@@ -126,7 +120,7 @@ Cannot be combined with `metric`, `percentiles`, or `one_in_x`.
 ### 1-in-X flow (`_calculate_one_in_x_single`)
 
 Although the internal calculation supports iterating over Dataset variables,
-`execute` rejects this mode for multi-variable queries in this release.
+query validation rejects this mode for multi-variable queries.
 
 ```mermaid
 flowchart TD

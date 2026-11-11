@@ -261,12 +261,11 @@ else:
     data.to_zarr(f"./{filename}.zarr")
 ```
 
-**CSV**: Multi-variable Dataset selections use long format: one row per value
-for each variable's own dimensions. Columns include `variable`, `value`,
-`units`, and applicable coordinates; unrelated dimensions are not crossed to
-form Cartesian-product rows. Missing values are retained, and coordinate
-columns that do not apply to a field are blank. A metadata sidecar is written.
-Single-variable selections retain the existing CSV format.
+**CSV**: Single-variable selections flatten spatial dims and suit scalar or
+point data. Multi-variable selections use the long format described in the CSV notes
+above; see the
+[multi-variable design notes](https://github.com/cal-adapt/climakitae/blob/main/docs/design/multi-variable-queries.md)
+for the rationale.
 
 ```python
 data.to_csv(filename)  # Works for time series at single points
