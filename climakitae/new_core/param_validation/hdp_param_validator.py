@@ -3,11 +3,7 @@
 from __future__ import annotations
 
 import logging
-from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, Optional, Tuple
-
-import pandas as pd
-import xarray as xr
+from typing import Any, Dict
 
 from climakitae.core.constants import CATALOG_HDP, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
@@ -18,44 +14,6 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 
 # Module logger
 logger = logging.getLogger(__name__)
-
-# Maximum number of station zarrs opened concurrently when checking the
-# requested time_slice against each station's record.
-_MAX_STATION_READERS = 16
-
-# Earliest start and latest end of any station's record in each network,
-# read from the time coordinates of every station zarr. Used when a query
-# names a network but no stations.
-NETWORK_DATE_RANGES: Dict[str, Tuple[str, str]] = {
-    "ASOSAWOS": ("1980-01-01", "2022-08-31"),
-    "CAHYDRO": ("2010-05-27", "2022-08-31"),
-    "CDEC": ("2010-09-09", "2022-08-31"),
-    "CIMIS": ("1982-05-30", "2022-08-31"),
-    "CNRFC": ("2001-06-21", "2022-08-31"),
-    "CRN": ("2006-11-08", "2022-08-31"),
-    "CW3E": ("2019-10-24", "2022-08-31"),
-    "CWOP": ("2002-06-20", "2022-08-31"),
-    "HADS": ("1997-01-01", "2022-08-31"),
-    "HNXWFO": ("2004-03-25", "2022-08-31"),
-    "HOLFUY": ("2017-08-21", "2022-08-31"),
-    "HPWREN": ("2004-10-03", "2022-08-31"),
-    "LOXWFO": ("2006-05-08", "2022-08-31"),
-    "MAP": ("2014-03-20", "2022-08-31"),
-    "MARITIME": ("1984-01-25", "2022-08-31"),
-    "MTRWFO": ("2004-03-25", "2022-08-31"),
-    "NCAWOS": ("2002-05-01", "2022-08-31"),
-    "NDBC": ("1980-01-01", "2022-08-31"),
-    "NOS-NWLON": ("2008-02-09", "2022-08-31"),
-    "NOS-PORTS": ("2008-02-09", "2022-08-31"),
-    "OtherISD": ("1980-01-01", "2022-08-31"),
-    "RAWS": ("1997-01-01", "2022-08-31"),
-    "SCAN": ("1986-10-01", "2022-08-31"),
-    "SGXWFO": ("2003-09-10", "2022-08-31"),
-    "SHASAVAL": ("2002-12-17", "2022-08-31"),
-    "SNOTEL": ("1980-01-01", "2022-08-31"),
-    "VALLEYWATER": ("1949-09-12", "2025-03-05"),
-    "VCAPCD": ("2010-05-27", "2022-08-31"),
-}
 
 
 @register_catalog_validator(CATALOG_HDP)
@@ -152,9 +110,6 @@ class HDPValidator(ParameterValidator):
            (accepts string or single-item list, rejects multi-item lists)
         2. station_id is optional and can be used to filter within the network
         3. If station_id is provided, all requested station IDs must exist in the catalog
-        4. A time_slice must overlap the record of at least one requested
-           station (or, with no station_id, the network's overall record).
-           Stations with no data in the slice are reported.
 
         Multiple network_ids are not allowed to prevent mixing data from
         different networks with potentially different time periods and
@@ -168,7 +123,6 @@ class HDPValidator(ParameterValidator):
             self._check_network_id_required(query),
             self._check_station_ids_exist(query),
             self._check_query_invalid_processors(query),
-            self._check_time_slice_available(query, CATALOG_HDP),
         ]
         if not all(initial_checks):
             logger.warning("Initial validation checks failed")
@@ -316,140 +270,3 @@ class HDPValidator(ParameterValidator):
             msg = f"Error validating station_ids: {e}"
             logger.warning(msg)
             return False
-
-    def _check_time_slice_available(
-        self, query: Dict[str, Any], catalog_name: str
-    ) -> bool:
-        """Check the requested time_slice against the station records.
-
-        With station_id, each requested station's time coordinate is read
-        and the slice must overlap at least one of them; stations without
-        data in the slice are reported. With only network_id, the slice is
-        checked against the network's overall record.
-
-        Parameters
-        ----------
-        query : Dict[str, Any]
-            The query to check.
-        catalog_name : str
-            Catalog name used in user-facing messages.
-
-        Returns
-        -------
-        bool
-            False if no requested station (or the network) has data in the
-            time slice.
-        """
-        dates = self._get_time_slice_dates(query)
-        if dates is None:
-            return True
-        start, end = dates
-
-        station_id = query.get("station_id", UNSET)
-        if station_id is UNSET:
-            network_id = query.get("network_id", UNSET)
-            if not isinstance(network_id, str) or network_id not in NETWORK_DATE_RANGES:
-                return True
-            first, last = NETWORK_DATE_RANGES[network_id]
-            return self._check_dates_overlap(
-                start,
-                end,
-                pd.Timestamp(first),
-                pd.Timestamp(last),
-                label=f"stations in the {network_id} network",
-                available=f"{first} to {last}",
-            )
-
-        station_ids = [station_id] if isinstance(station_id, str) else list(station_id)
-        ranges = self._get_station_date_ranges(station_ids)
-        if not ranges:
-            return True
-
-        no_data = {
-            sid: rng
-            for sid, rng in ranges.items()
-            if start.normalize() > rng[1] or end.normalize() < rng[0]
-        }
-        described = {
-            sid: f"{rng[0].date()} to {rng[1].date()}" for sid, rng in no_data.items()
-        }
-        requested = f"{start.date()} to {end.date()}"
-
-        if len(no_data) == len(ranges):
-            logger.warning(
-                "Time slice (%s) is outside the records of all requested "
-                "stations in the '%s' catalog: %s. Please choose a time slice "
-                "within a station's record.",
-                requested,
-                catalog_name,
-                described,
-            )
-            return False
-
-        if no_data:
-            logger.warning(
-                "Time slice (%s) is outside the records of these stations, "
-                "which will have no data: %s.",
-                requested,
-                described,
-            )
-
-        if len(ranges) == 1:
-            ((sid, (first, last)),) = ranges.items()
-            return self._check_dates_overlap(
-                start,
-                end,
-                first,
-                last,
-                label=f"station {sid}",
-                available=f"{first.date()} to {last.date()}",
-            )
-        return True
-
-    def _get_station_date_ranges(
-        self, station_ids: list[str]
-    ) -> Dict[str, Tuple[pd.Timestamp, pd.Timestamp]]:
-        """Read the first and last dates of each station's record.
-
-        Stations that are not in the catalog or cannot be opened are left
-        out, so the check is skipped for them.
-
-        Parameters
-        ----------
-        station_ids : list of str
-            Station IDs to look up.
-
-        Returns
-        -------
-        dict
-            Mapping of station_id to (first date, last date).
-        """
-        try:
-            df = self.catalog.search(station_id=station_ids).df
-            paths = dict(zip(df["station_id"], df["path"]))
-        except Exception as e:  # catalog lookup is best effort here
-            logger.debug("Could not look up station paths: %s", e)
-            return {}
-
-        def read_range(
-            item: Tuple[str, str],
-        ) -> Tuple[str, Optional[Tuple[pd.Timestamp, pd.Timestamp]]]:
-            sid, path = item
-            try:
-                ds = xr.open_zarr(
-                    path, consolidated=None, storage_options={"anon": True}
-                )
-                times = ds.indexes["time"]
-                return sid, (
-                    pd.Timestamp(times.min()).normalize(),
-                    pd.Timestamp(times.max()).normalize(),
-                )
-            except Exception as e:  # unreadable station: skip its check
-                logger.debug("Could not read time range for %s: %s", sid, e)
-                return sid, None
-
-        with ThreadPoolExecutor(
-            max_workers=min(_MAX_STATION_READERS, max(len(paths), 1))
-        ) as pool:
-            results = pool.map(read_range, paths.items())
-        return {sid: rng for sid, rng in results if rng is not None}
