@@ -1052,8 +1052,7 @@ class BiasAdjustModelToStation(DataProcessor):
         TypeError
             If input data is not an xr.DataArray, xr.Dataset, or Dict
         ValueError
-            If input Dataset has no data variables or doesn't contain
-            required time dimension
+            If input Dataset has no data variables or doesn't contain required time dimension
 
         Notes
         -----

@@ -392,12 +392,6 @@ def _validate_historical_slice(historical_slice: Any) -> bool:
         logger.warning(msg)
         return False
 
-    # For now, only an exactly-30-year historical_slice is supported: short
-    # windows make QDM's quantile estimates unreliable, and this pins the
-    # training window to a single consistent length. (Whether this specific
-    # 30-year window is actually usable for a given station/variable -- i.e.
-    # real data coverage -- is checked later, by the processor itself and
-    # eventually the QA engine; this is just the structural span check.)
     n_years = end_year - start_year + 1
     if n_years != 30:
         msg = (
