@@ -255,8 +255,10 @@ class Dataset:
         except Exception as e:
             # Get detailed traceback information
             tb_info = traceback.format_exc()
-            # Log the traceback for debugging
-            logger.error("Exception during pipeline execution: %s", str(e))
+            # Logged at debug only -- the caller (e.g. ClimateData.get()) logs
+            # this same error at ERROR level once it catches the RuntimeError
+            # raised below, so logging it again here at ERROR would duplicate it.
+            logger.debug("Exception during pipeline execution: %s", str(e))
             logger.debug("Exception traceback:\n%s", tb_info)
             raise RuntimeError(f"Error in processing pipeline: {str(e)}") from e
 
