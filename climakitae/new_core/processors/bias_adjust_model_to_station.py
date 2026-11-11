@@ -595,14 +595,11 @@ class BiasAdjustModelToStation(DataProcessor):
         n_training_years = len(pd.unique(gridded_da_historical["time"].dt.year.values))
         if n_training_years < _REQUIRED_TRAINING_YEARS:
             raise ValueError(
-                f"BiasAdjustModelToStation: QDM training window for "
-                f"station(s) {station_label} spans only {n_training_years} "
-                f"year(s) ({t_start} to {t_end}), short of the "
-                f"{_REQUIRED_TRAINING_YEARS} years requested via "
-                f"historical_slice=({hist_start}, {hist_end}) -- the "
-                f"station's or model's own data coverage doesn't fully span "
-                f"that window. Verify this station's data coverage or choose "
-                f"a different {_REQUIRED_TRAINING_YEARS}-year historical_slice."
+                f"BiasAdjustModelToStation: station(s) {station_label} only "
+                f"have {n_training_years} year(s) of overlapping data "
+                f"({t_start} to {t_end}); {_REQUIRED_TRAINING_YEARS} are "
+                f"required. Choose a different "
+                f"{_REQUIRED_TRAINING_YEARS}-year historical_slice."
             )
 
         # Check if data has a 'sim' dimension from concatenation
