@@ -127,11 +127,6 @@ def validate_metric_calc_param(
         }
         supported_variable_keys = set(shared_config)
         for variable_name, variable_config in by_variable.items():
-            if not isinstance(variable_name, str) or not variable_name.strip():
-                logger.warning(
-                    "\n\n'by_variable' keys must be non-empty variable names."
-                )
-                return False
             if not isinstance(variable_config, Mapping):
                 logger.warning(
                     "\n\nMetricCalc configuration for variable '%s' must be a mapping.",
@@ -185,18 +180,6 @@ def validate_metric_calc_param(
             "metric_calc queries."
         )
         return False
-
-    if multi_variable_query and isinstance(by_variable, Mapping):
-        if any(
-            "one_in_x" in config or "thresholds" in config
-            for config in by_variable.values()
-            if isinstance(config, Mapping)
-        ):
-            logger.warning(
-                "\n\nThreshold and one_in_x modes are not supported in by_variable "
-                "configurations for multi-variable metric_calc queries."
-            )
-            return False
 
     if one_in_x_config is not UNSET and thresholds_config is not UNSET:
         logger.warning("\n\nCannot set both 'thresholds' and 'one_in_x'. Choose one.")

@@ -465,8 +465,6 @@ class ParameterValidator(ABC):
         if variable_plan is None:
             return None
         self.all_catalog_keys.update(variable_plan)
-        if not self._check_multi_variable_processor_compatibility(query):
-            return None
 
         # Check if variable_id is a derived variable
         # For derived variables, we need to search for source variables in the catalog,
@@ -722,48 +720,6 @@ class ParameterValidator(ABC):
                 )
             return self.all_catalog_keys if self._has_valid_processes(query) else None
         return None
-
-    def _check_multi_variable_processor_compatibility(
-        self, query: Dict[str, Any]
-    ) -> bool:
-        """Reject processor modes that cannot process a multi-variable query.
-
-        Parameters
-        ----------
-        query : dict
-            User query containing variable and processor selections.
-
-        Returns
-        -------
-        bool
-            True when requested processors support the variable selection.
-        """
-        variable_ids = self.all_catalog_keys.get("variable_id", UNSET)
-        if not isinstance(variable_ids, (list, tuple)) or len(variable_ids) < 2:
-            return True
-
-        processes = query.get(PROC_KEY, {})
-        if not isinstance(processes, dict):
-            return True
-
-        if "bias_adjust_model_to_station" in processes:
-            logger.warning(
-                "Station bias adjustment does not support multi-variable queries."
-            )
-            return False
-
-        metric_config = processes.get("metric_calc")
-        if isinstance(metric_config, dict) and any(
-            mode in metric_config and metric_config[mode] is not UNSET
-            for mode in ("thresholds", "one_in_x")
-        ):
-            logger.warning(
-                "Threshold and return-period metric modes do not support "
-                "multi-variable queries."
-            )
-            return False
-
-        return True
 
     def _has_valid_processes(self, query: Dict[str, Any]) -> bool:
         """Validate processor parameters using registered processor validators.

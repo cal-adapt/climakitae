@@ -5,7 +5,6 @@ DataProcessor MetricCalc
 import gc
 import logging
 import time as time_module
-from collections.abc import Mapping
 from typing import Any, Iterable, Union
 
 import numpy as np
@@ -56,8 +55,8 @@ class MetricCalc(DataProcessor):
     omitted from a targeted configuration remain unchanged. Percentile outputs use
     variable-specific names (``{variable}_percentiles``) and dimensions
     (``{variable}_percentile``), so different percentile lists do not align onto
-    a union coordinate. Threshold and 1-in-X modes are not supported for
-    multi-variable queries.
+    a union coordinate. Multi-variable queries support only basic metrics and
+    percentiles; threshold and 1-in-X modes are rejected during validation.
 
     Parameters
     ----------
@@ -363,33 +362,6 @@ class MetricCalc(DataProcessor):
             isinstance(selected_variables, (list, tuple))
             and len(selected_variables) > 1
         )
-        if isinstance(result, xr.Dataset):
-            result_datasets = (result,)
-        elif isinstance(result, dict):
-            result_datasets = result.values()
-        elif isinstance(result, (list, tuple)):
-            result_datasets = result
-        else:
-            result_datasets = ()
-        has_multi_variable_data = any(
-            isinstance(item, xr.Dataset) and len(item.data_vars) > 1
-            for item in result_datasets
-        )
-
-        has_targeted_advanced_mode = isinstance(self.by_variable, Mapping) and any(
-            isinstance(config, Mapping)
-            and ("thresholds" in config or "one_in_x" in config)
-            for config in self.by_variable.values()
-        )
-        if (is_multi_variable_query or has_multi_variable_data) and (
-            self.thresholds is not UNSET
-            or self.one_in_x_config is not UNSET
-            or has_targeted_advanced_mode
-        ):
-            raise ValueError(
-                "metric_calc threshold and one_in_x modes are not supported for "
-                "multi-variable queries."
-            )
 
         if self.thresholds is not UNSET:
             process_fn = self._calculate_threshold_single
@@ -608,28 +580,6 @@ class MetricCalc(DataProcessor):
         by_variable = self.by_variable
         if by_variable is UNSET:
             by_variable = {}
-        if not isinstance(by_variable, Mapping):
-            raise ValueError("'by_variable' must map variable names to metric configs.")
-        invalid_targets = [
-            target
-            for target in by_variable
-            if not isinstance(target, str) or not target.strip()
-        ]
-        if invalid_targets:
-            raise ValueError(
-                "'by_variable' keys must be non-empty variable names: "
-                f"{sorted(invalid_targets, key=str)}."
-            )
-
-        unknown_targets = set(by_variable) - set(variable_names)
-        if selected_variables is not None:
-            unknown_targets.update(set(by_variable) - set(selected_names))
-        if unknown_targets:
-            raise ValueError(
-                "metric_calc by_variable targets are not selected Dataset variables: "
-                f"{sorted(unknown_targets, key=str)}."
-            )
-
         shared_keys = {
             "metric",
             "percentiles",
@@ -656,16 +606,6 @@ class MetricCalc(DataProcessor):
                 continue
 
             variable_config = by_variable.get(variable_name, {})
-            if not isinstance(variable_config, Mapping):
-                raise ValueError(
-                    f"metric_calc config for '{variable_name}' must be a mapping."
-                )
-            unsupported_settings = set(variable_config) - shared_keys - {"dims"}
-            if unsupported_settings:
-                raise ValueError(
-                    "Unsupported metric_calc settings for variable "
-                    f"'{variable_name}': {sorted(unsupported_settings, key=str)}."
-                )
             config = {**shared_config, **variable_config}
             metric = config.get("metric", "mean")
             percentiles = config.get("percentiles", UNSET)

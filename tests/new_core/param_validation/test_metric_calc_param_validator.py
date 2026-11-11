@@ -300,23 +300,17 @@ class TestValidateMetricCalcParam:
         assert result is False
         assert "not supported for multi-variable metric_calc queries" in caplog.text
 
-    @pytest.mark.parametrize(
-        "mode, config",
-        [
-            ("thresholds", {"threshold_value": 30, "threshold_direction": "above"}),
-            ("one_in_x", {"return_periods": [10]}),
-        ],
-    )
-    def test_targeted_advanced_modes_rejected_for_multiple_variables(
-        self, mode, config
-    ):
-        """Reject targeted threshold and return-period settings."""
-        result = validate_metric_calc_param(
-            {"by_variable": {"tasmax": {mode: config}}},
-            query={"variable_id": ["tasmax", "pr"]},
-        )
+    @pytest.mark.parametrize("setting", ["mertic", "thresholds", "one_in_x"])
+    def test_unsupported_by_variable_setting_is_rejected(self, setting, caplog):
+        """Reject per-variable settings other than basic metric options."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {"by_variable": {"tasmax": {setting: {}}}},
+                query={"variable_id": ["tasmax", "pr"]},
+            )
 
         assert result is False
+        assert "Unsupported metric_calc settings for variable" in caplog.text
 
     def test_param_dict(self):
         """Test validate_metric_calc_param with a valid parameter dictionary."""

@@ -554,8 +554,8 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
     # Handle both string and list inputs
     if isinstance(variable_id, str):
         variable_ids = [variable_id]
-    elif isinstance(variable_id, list):
-        variable_ids = variable_id
+    elif isinstance(variable_id, (list, tuple)):
+        variable_ids = list(variable_id)
     else:
         return True  # Unknown format, skip validation
 
@@ -570,6 +570,12 @@ def _validate_variable_compatibility(query: Dict[str, Any]) -> bool:
             f"(or 'tdps_derived') observations."
         )
         logger.warning(msg)
+        return False
+
+    if len(variable_ids) > 1:
+        logger.warning(
+            "Station bias adjustment does not support multi-variable queries."
+        )
         return False
 
     logger.debug("Variable compatibility check passed")

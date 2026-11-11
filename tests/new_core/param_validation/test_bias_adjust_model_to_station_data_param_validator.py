@@ -630,6 +630,17 @@ class TestValidateVariableCompatibility:
             result = _validate_variable_compatibility(query)
         assert result is False
 
+    @pytest.mark.parametrize(
+        "variable_id",
+        [["t2", "dew_point"], ("t2", "dew_point")],
+        ids=["list", "tuple"],
+    )
+    def test_multi_variable_query_is_rejected(self, variable_id):
+        """Test station bias adjustment rejects multiple supported variables."""
+        with pytest.warns(UserWarning, match="does not support multi-variable"):
+            result = _validate_variable_compatibility({"variable_id": variable_id})
+        assert result is False
+
 
 class TestValidateTimescaleRequirement:
     """Test class for _validate_timescale_requirement function."""
