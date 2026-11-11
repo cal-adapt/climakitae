@@ -27,6 +27,21 @@ class DataValidator(ParameterValidator):
 
     """
 
+    # Outer bounds of the stored time axes, read from the zarrs. Individual
+    # datasets can be narrower (e.g. WRF historical hourly runs
+    # 1980-09-01 to 2014-08-31).
+    available_years = {
+        ("LOCA2", "historical"): (1950, 2014),
+        ("LOCA2", "ssp245"): (2015, 2100),
+        ("LOCA2", "ssp370"): (2015, 2100),
+        ("LOCA2", "ssp585"): (2015, 2100),
+        ("WRF", "historical"): (1980, 2014),
+        ("WRF", "reanalysis"): (1980, 2020),
+        ("WRF", "ssp245"): (2014, 2100),
+        ("WRF", "ssp370"): (2014, 2100),
+        ("WRF", "ssp585"): (2014, 2100),
+    }
+
     def __init__(self, catalog: DataCatalog):
         """Initialize with  catalog of renewable energy datasets.
 
@@ -120,6 +135,8 @@ class DataValidator(ParameterValidator):
             Localize is not supported for LOCA2 datasets.
         2. Reject explicitly requested unadjusted WRF sources unless
             filter_unadjusted_models is set to "no".
+        3. Reject a time_slice that falls entirely outside the years
+            available for the requested activity_id/experiment_id.
 
         """
         logger.debug("Validating query: %s", query)
@@ -128,6 +145,7 @@ class DataValidator(ParameterValidator):
             self._check_query_for_required_keys(query),
             self._check_wrf_requires_institution_id(query),
             self._check_explicit_unadjusted_sources(query),
+            self._check_time_slice_available(query, CATALOG_CADCAT),
         ]
         if not all(initial_checks):
             logger.debug("Initial validation checks failed: %s", initial_checks)

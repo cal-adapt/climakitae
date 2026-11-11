@@ -27,6 +27,13 @@ class Sup3rCCValidator(ParameterValidator):
 
     """
 
+    # Outer bounds of the stored time axes, read from the zarrs. Some ssp245
+    # sources end in 2059.
+    available_years = {
+        ("Sup3rCC", "historical"): (2000, 2014),
+        ("Sup3rCC", "ssp245"): (2015, 2099),
+    }
+
     def __init__(self, catalog: DataCatalog):
         """Initialize with the catalog of Sup3rCC climate datasets.
 
@@ -123,6 +130,8 @@ class Sup3rCCValidator(ParameterValidator):
             No models are filtered from Sup3rCC datasets.
         3. Check if the query contains the warming level processor.
             Warming levels are not supported for Sup3rCC datasets.
+        4. Reject a time_slice that falls entirely outside the years
+            available for the requested experiment_id.
 
         """
         query = query.copy()
@@ -153,6 +162,7 @@ class Sup3rCCValidator(ParameterValidator):
         logger.debug("Validating query: %s", query)
         initial_checks = [
             self._check_query_for_required_keys(query),
+            self._check_time_slice_available(query, CATALOG_SUP3RCC),
         ]
         if not all(initial_checks):
             logger.warning("Initial validation checks failed: %s", initial_checks)
