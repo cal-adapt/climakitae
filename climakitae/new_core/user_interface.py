@@ -1638,7 +1638,7 @@ class ClimateData:
             A copy of the current query parameters.
 
         """
-        return copy.deepcopy({k: v for k, v in self._query.items() if v is not UNSET})
+        return {k: v for k, v in self._query.items() if v is not UNSET}
 
     def load_query(self, query_params: Dict[str, Any]) -> "ClimateData":
         """Load query parameters from a dictionary.

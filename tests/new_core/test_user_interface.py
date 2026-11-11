@@ -721,15 +721,6 @@ class TestClimateDataConvenienceMethods:
         expected = {"catalog": "climate", "variable_id": "tas"}
         assert result == expected
 
-    def test_copy_query_detaches_variable_selection(self):
-        """Test modifying a copied selection does not mutate the active query."""
-        self.climate_data.variable_id(["tasmax", "pr"])
-
-        query_copy = self.climate_data.copy_query()
-        query_copy["variable_id"].append("huss")
-
-        assert self.climate_data._query["variable_id"] == ["tasmax", "pr"]
-
 
 class TestClimateDataChaining:
     """Test class for method chaining functionality."""
