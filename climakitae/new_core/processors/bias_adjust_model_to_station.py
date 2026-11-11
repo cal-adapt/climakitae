@@ -21,23 +21,30 @@ Examples
 >>> # Create processor for single station
 >>> processor = BiasAdjustModelToStation(
 ...     stations=["ASOSAWOS_69007093217"],
-...     historical_slice=(1981, 2010)
+...     historical_slice={"time": (1981, 2010)}
 ... )
 >>> result = processor.execute(gridded_data, context)
 
 >>> # Legacy airport codes are also accepted for ASOSAWOS stations
 >>> processor = BiasAdjustModelToStation(
 ...     stations=["KSAC"],
-...     historical_slice=(1981, 2010)
+...     historical_slice={"time": (1981, 2010)}
 ... )
 >>> result = processor.execute(gridded_data, context)
 
 >>> # Multiple stations with custom bias adjustment parameters
 >>> processor = BiasAdjustModelToStation(
 ...     stations=["ASOSAWOS_69007093217", "ASOSAWOS_72384023155"],
-...     historical_slice=(1981, 2010),
+...     historical_slice={"time": (1981, 2010)},
 ...     window=60,  # 60-day window instead of default 90
 ...     nquantiles=30  # 30 quantiles instead of default 20
+... )
+>>> result = processor.execute(gridded_data, context)
+
+>>> # Training period expressed as a Global Warming Level instead of years
+>>> processor = BiasAdjustModelToStation(
+...     stations=["KSAC"],
+...     historical_slice={"warming_level": 1.5}
 ... )
 >>> result = processor.execute(gridded_data, context)
 
@@ -53,7 +60,7 @@ Notes
 
 import logging
 import re
-from typing import Any, Dict, Iterable, Optional, Union
+from typing import Any, Dict, Iterable, Optional, Tuple, Union
 
 import pandas as pd
 import xarray as xr
@@ -68,6 +75,7 @@ from climakitae.new_core.processors.abc_data_processor import (
 )
 from climakitae.util.unit_conversions import convert_units
 from climakitae.util.utils import get_closest_gridcell
+from climakitae.util.warming_levels import get_year_at_gwl
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -126,6 +134,133 @@ _QDM_LOG_REFERENCE = (
 
 _REQUIRED_TRAINING_YEARS = 30
 
+# Fixed +/- window (in years) used to turn a GWL-derived centered_year into
+# a (start_year, end_year) historical_slice, giving the required 30-year span.
+_GWL_HISTORICAL_SLICE_WINDOW = 15
+
+
+def _resolve_gwl_to_year_range(gwl: Union[int, float]) -> Tuple[int, int]:
+    """Resolve a Global Warming Level to a fixed +/-15-year (start, end) window.
+
+    Centers the window on the year the Historical ensemble mean first
+    reaches `gwl` (`get_year_at_gwl(gwl, ssp="all").loc["Historical", "Mean"]`).
+    If that GWL was never reached historically, falls back to the SSP 3-7.0
+    ensemble mean. If neither reaches it (by 2100), raises `ValueError` --
+    there is no further fallback.
+
+    Parameters
+    ----------
+    gwl : int | float
+        Global warming level in degrees C (e.g. 1.5).
+
+    Returns
+    -------
+    tuple[int, int]
+        (start_year, end_year), a 30-year span centered on the resolved year.
+
+    Raises
+    ------
+    ValueError
+        If `gwl` is never reached by 2100 under either the Historical or
+        SSP 3-7.0 ensemble mean trajectory.
+    """
+    years = get_year_at_gwl(gwl, ssp="all")
+    centered_year = years.loc["Historical", "Mean"]
+    if pd.isna(centered_year):
+        centered_year = years.loc["SSP 3-7.0", "Mean"]
+    if pd.isna(centered_year):
+        raise ValueError(
+            f"Could not resolve historical_slice for warming_level={gwl}: "
+            f"this GWL is never reached by 2100 under either the Historical "
+            f"or SSP 3-7.0 ensemble mean trajectory. Try a lower "
+            f"warming_level, or provide historical_slice={{'time': "
+            f"(start, end)}} directly."
+        )
+    centered_year = int(centered_year)
+    return (
+        centered_year - _GWL_HISTORICAL_SLICE_WINDOW,
+        centered_year + _GWL_HISTORICAL_SLICE_WINDOW - 1,
+    )
+
+
+def _resolve_historical_slice(historical_slice: Any) -> Tuple[int, int]:
+    """Resolve a historical_slice spec dict into a plain (start_year, end_year) tuple.
+
+    Accepts exactly one of:
+    - ``{"time": (start_year, end_year)}`` -- returned as given (as a
+      2-tuple). Years are NOT type/order/span-checked here; that remains
+      the param validator's job
+      (`bias_adjust_model_to_station_param_validator._validate_historical_slice`),
+      exactly as today's bare-tuple input was never checked at construction
+      time either.
+    - ``{"warming_level": gwl}`` (int | float) -- resolved via
+      `_resolve_gwl_to_year_range`.
+
+    Parameters
+    ----------
+    historical_slice : Any
+        The historical_slice value to resolve.
+
+    Returns
+    -------
+    tuple[int, int]
+        (start_year, end_year).
+
+    Raises
+    ------
+    ValueError
+        If `historical_slice` is not a dict, doesn't contain exactly one of
+        'time'/'warming_level' (or contains extra keys), if 'time' isn't a
+        2-element sequence, if 'warming_level' isn't a number, or if GWL
+        resolution fails (see `_resolve_gwl_to_year_range`).
+    """
+    if not isinstance(historical_slice, dict):
+        raise ValueError(
+            f"'historical_slice' must be a dict with exactly one of 'time' "
+            f"or 'warming_level' keys, got {type(historical_slice).__name__}. "
+            f"Bare tuples are no longer supported -- wrap yours, e.g. "
+            f"(1981, 2010) -> {{'time': (1981, 2010)}}."
+        )
+
+    has_time = "time" in historical_slice
+    has_gwl = "warming_level" in historical_slice
+    extra_keys = sorted(set(historical_slice) - {"time", "warming_level"})
+
+    if has_time and has_gwl:
+        raise ValueError(
+            "'historical_slice' must contain exactly one of 'time' or "
+            "'warming_level', not both."
+        )
+    if not has_time and not has_gwl:
+        raise ValueError(
+            "'historical_slice' must contain exactly one of 'time' or "
+            "'warming_level' keys. Example: {'time': (1981, 2010)} or "
+            "{'warming_level': 1.5}."
+        )
+    if extra_keys:
+        raise ValueError(
+            f"'historical_slice' contains unexpected key(s): {extra_keys}. "
+            f"Only 'time' or 'warming_level' are allowed."
+        )
+
+    if has_time:
+        time_value = historical_slice["time"]
+        if not isinstance(time_value, (tuple, list)) or len(time_value) != 2:
+            raise ValueError(
+                f"historical_slice['time'] must be a (start_year, end_year) "
+                f"tuple, got {time_value!r}."
+            )
+        start_year, end_year = time_value
+        return (start_year, end_year)
+
+    gwl = historical_slice["warming_level"]
+    if not isinstance(gwl, (int, float)) or isinstance(gwl, bool):
+        raise ValueError(
+            f"historical_slice['warming_level'] must be a number (int or "
+            f"float), got {type(gwl).__name__}."
+        )
+    return _resolve_gwl_to_year_range(gwl)
+
 
 @register_processor("bias_adjust_model_to_station", priority=60)
 class BiasAdjustModelToStation(DataProcessor):
@@ -158,9 +293,16 @@ class BiasAdjustModelToStation(DataProcessor):
         ["ASOSAWOS_69007093217"]). Legacy airport codes/names (e.g. "KSAC",
         "Sacramento (KSAC)") are also accepted and translated to their HDP
         ASOSAWOS `station_id` equivalent.
-    historical_slice : tuple[int, int], optional
-        Start and end years for the historical training period. Default
-        to (1981, 2010). Must be a 30-year period that overlaps station
+    historical_slice : dict, optional
+        Historical training period, as a dict with exactly one of:
+        - {"time": (start_year, end_year)} -- an explicit 30-year period.
+        - {"warming_level": gwl} -- a Global Warming Level (e.g. 1.5),
+          resolved to a 30-year period centered on the year it's reached
+          (Historical ensemble mean, falling back to SSP 3-7.0 ensemble
+          mean if never reached historically). Cannot be combined with
+          `experiment_id` set on the main query.
+        Default: {"time": (1981, 2010)}. Bare tuples are no longer
+        accepted. Must resolve to a 30-year period that overlaps station
         record data.
     window : int, optional
         Window size in days for seasonal grouping (default: 90, representing +/- 45 days)
@@ -177,8 +319,11 @@ class BiasAdjustModelToStation(DataProcessor):
     stations : list[str]
         Station names to process
     historical_slice : tuple[int, int]
-        Historical training period (default: 1981-2010); must span exactly
-        30 years
+        Resolved historical training period, as a plain (start_year,
+        end_year) tuple (default: (1981, 2010)); must span exactly 30
+        years. Derived from the dict passed at construction (see
+        `__init__`), regardless of whether it was given as a "time" range
+        or a "warming_level"
     window : int
         Seasonal grouping window in days
     nquantiles : int
@@ -222,10 +367,12 @@ class BiasAdjustModelToStation(DataProcessor):
             Configuration dictionary containing:
             - stations : list[str]
                 List of station names to process
-            - historical_slice : tuple[int, int], optional
-                Start and end years for the historical training period.
-                Default to (1981, 2010). Must be a 30-year period that
-                overlaps station record data.
+            - historical_slice : dict, optional
+                Historical training period, as a dict with exactly one of
+                {"time": (start_year, end_year)} or {"warming_level": gwl}.
+                Default to {"time": (1981, 2010)}. Must resolve to a
+                30-year period that overlaps station record data. See the
+                class docstring for full details.
             - window : int, optional
                 Window size in days for seasonal grouping (default: 90)
             - nquantiles : int, optional
@@ -243,7 +390,9 @@ class BiasAdjustModelToStation(DataProcessor):
 
         # Extract configuration parameters with defaults
         self.stations = value.get("stations", [])
-        self.historical_slice = value.get("historical_slice", (1981, 2010))
+        self.historical_slice = _resolve_historical_slice(
+            value.get("historical_slice", {"time": (1981, 2010)})
+        )
         self.window = value.get("window", 90)
         self.nquantiles = value.get("nquantiles", 20)
         self.group = value.get("group", "time.dayofyear")

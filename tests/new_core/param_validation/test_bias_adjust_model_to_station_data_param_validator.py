@@ -19,6 +19,7 @@ from climakitae.new_core.param_validation.bias_adjust_model_to_station_param_val
     _validate_downscaling_method_requirement,
     _validate_group,
     _validate_historical_slice,
+    _validate_historical_slice_experiment_id_compatibility,
     _validate_institution_id_requirement,
     _validate_kind,
     _validate_nquantiles,
@@ -95,7 +96,7 @@ class TestValidateBiasAdjustStationDataParam:
 
         value = {
             "stations": ["ASOSAWOS_72483023225"],
-            "historical_slice": (1981, 2010),
+            "historical_slice": {"time": (1981, 2010)},
             "window": 90,
             "nquantiles": 20,
             "group": "time.dayofyear",
@@ -380,6 +381,31 @@ class TestValidateStations:
         mock_get_legacy_metadata.assert_not_called()
 
 
+def _fake_gwl_table(historical_mean=None, ssp370_mean=None):
+    """Build a minimal get_year_at_gwl-shaped DataFrame for mocking."""
+    df = pd.DataFrame(
+        index=[
+            "Historical",
+            "SSP 1-1.9",
+            "SSP 1-2.6",
+            "SSP 2-4.5",
+            "SSP 3-7.0",
+            "SSP 5-8.5",
+        ],
+        columns=["5%", "Mean", "95%"],
+    )
+    df.loc["Historical", "Mean"] = (
+        historical_mean if historical_mean is not None else pd.NA
+    )
+    df.loc["SSP 3-7.0", "Mean"] = ssp370_mean if ssp370_mean is not None else pd.NA
+    return df
+
+
+_GWL_PATCH_TARGET = (
+    "climakitae.new_core.processors.bias_adjust_model_to_station.get_year_at_gwl"
+)
+
+
 class TestValidateHistoricalSlice:
     """Test class for _validate_historical_slice function."""
 
@@ -390,9 +416,9 @@ class TestValidateHistoricalSlice:
             # per station and is validated at runtime against the actual
             # data. For now, only an exactly-30-year span is accepted here
             # (see test_invalid_historical_slices for non-30-year spans).
-            (1981, 2010),  # matches the processor's own default
-            (1950, 1979),
-            (2015, 2044),
+            {"time": (1981, 2010)},  # matches the processor's own default
+            {"time": (1950, 1979)},
+            {"time": (2015, 2044)},
         ],
         ids=[
             "default_span",
@@ -408,22 +434,30 @@ class TestValidateHistoricalSlice:
     @pytest.mark.parametrize(
         "historical_slice,error_match",
         [
-            ([1980, 2014], "must be a tuple"),
-            ((1980,), "must contain exactly 2 elements"),
-            ((1980, 2000, 2014), "must contain exactly 2 elements"),
-            (("1980", 2014), "must be integers"),
-            ((1980, "2014"), "must be integers"),
-            ((2000, 2000), "must be less than"),
-            ((2014, 1980), "must be less than"),
-            ((1980, 2014), "exactly 30"),  # 35 years -- too long
-            ((1990, 2010), "exactly 30"),  # 21 years -- too short
-            ((1980, 2000), "exactly 30"),  # 21 years -- too short
-            ((2000, 2014), "exactly 30"),  # 15 years -- too short
-            ((1950, 1970), "exactly 30"),  # 21 years -- too short
-            ((2015, 2022), "exactly 30"),  # 8 years -- too short
+            ((1981, 2010), "must be a dict"),
+            ({}, "exactly one of"),
+            ({"time": (1980, 2014), "warming_level": 1.5}, "not both"),
+            ({"time": (1980, 2009), "extra": 1}, "unexpected key"),
+            ({"time": (1980,)}, "must be a .* tuple"),
+            ({"time": (1980, 2000, 2014)}, "must be a .* tuple"),
+            ({"time": ("1980", 2014)}, "must be integers"),
+            ({"time": (1980, "2014")}, "must be integers"),
+            ({"time": (2000, 2000)}, "must be less than"),
+            ({"time": (2014, 1980)}, "must be less than"),
+            ({"time": (1980, 2014)}, "exactly 30"),  # 35 years -- too long
+            ({"time": (1990, 2010)}, "exactly 30"),  # 21 years -- too short
+            ({"time": (1980, 2000)}, "exactly 30"),  # 21 years -- too short
+            ({"time": (2000, 2014)}, "exactly 30"),  # 15 years -- too short
+            ({"time": (1950, 1970)}, "exactly 30"),  # 21 years -- too short
+            ({"time": (2015, 2022)}, "exactly 30"),  # 8 years -- too short
+            ({"warming_level": "1.5"}, "must be a number"),
+            ({"warming_level": True}, "must be a number"),
         ],
         ids=[
-            "list_not_tuple",
+            "bare_tuple_rejected",
+            "empty_dict",
+            "both_keys",
+            "unexpected_key",
             "too_short_tuple",
             "too_long_tuple",
             "start_string",
@@ -436,12 +470,82 @@ class TestValidateHistoricalSlice:
             "late_period_too_short",
             "before_legacy_1980_bound_too_short",
             "after_legacy_2014_bound_too_short",
+            "warming_level_string",
+            "warming_level_bool",
         ],
     )
     def test_invalid_historical_slices(self, historical_slice, error_match):
         """Test validation with invalid historical periods."""
         with pytest.warns(UserWarning, match=error_match):
             result = _validate_historical_slice(historical_slice)
+        assert result is False
+
+    @patch(_GWL_PATCH_TARGET)
+    def test_valid_gwl_uses_historical_mean(self, mock_get_year_at_gwl):
+        """A GWL reached historically resolves via the Historical mean year."""
+        mock_get_year_at_gwl.return_value = _fake_gwl_table(historical_mean=2002)
+
+        result = _validate_historical_slice({"warming_level": 0.8})
+
+        assert result is True
+        mock_get_year_at_gwl.assert_called_once_with(0.8, ssp="all")
+
+    @patch(_GWL_PATCH_TARGET)
+    def test_valid_gwl_falls_back_to_ssp370_mean(self, mock_get_year_at_gwl):
+        """A GWL never reached historically falls back to the SSP 3-7.0 mean year."""
+        mock_get_year_at_gwl.return_value = _fake_gwl_table(ssp370_mean=2031)
+
+        result = _validate_historical_slice({"warming_level": 1.5})
+
+        assert result is True
+
+    @patch(_GWL_PATCH_TARGET)
+    def test_invalid_gwl_never_reached(self, mock_get_year_at_gwl):
+        """A GWL reached under neither Historical nor SSP 3-7.0 is rejected."""
+        mock_get_year_at_gwl.return_value = _fake_gwl_table()
+
+        with pytest.warns(UserWarning, match="never reached"):
+            result = _validate_historical_slice({"warming_level": 4.0})
+        assert result is False
+
+
+class TestValidateHistoricalSliceExperimentIdCompatibility:
+    """Test class for _validate_historical_slice_experiment_id_compatibility."""
+
+    @pytest.mark.parametrize(
+        "historical_slice,query",
+        [
+            ({"time": (1981, 2010)}, {"experiment_id": "ssp370"}),
+            ({"time": (1981, 2010)}, {"experiment_id": ["historical", "ssp370"]}),
+            ({"warming_level": 0.8}, {}),
+            ({"warming_level": 0.8}, {"warming_levels": {"warming_level": [1.5]}}),
+        ],
+        ids=[
+            "time_based_with_experiment_id",
+            "time_based_with_experiment_id_list",
+            "gwl_based_no_experiment_id",
+            "gwl_based_with_unrelated_warming_levels_process",
+        ],
+    )
+    def test_valid_combinations(self, historical_slice, query):
+        """Test combinations that should be allowed."""
+        result = _validate_historical_slice_experiment_id_compatibility(
+            historical_slice, query
+        )
+        assert result is True
+
+    @pytest.mark.parametrize(
+        "experiment_id",
+        ["ssp370", ["historical", "ssp370"]],
+        ids=["single", "list"],
+    )
+    def test_invalid_gwl_with_experiment_id(self, experiment_id):
+        """Test that GWL-based historical_slice rejects a main-query experiment_id."""
+        query = {"experiment_id": experiment_id}
+        with pytest.warns(UserWarning, match="cannot be combined"):
+            result = _validate_historical_slice_experiment_id_compatibility(
+                {"warming_level": 1.5}, query
+            )
         assert result is False
 
 

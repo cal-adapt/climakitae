@@ -51,14 +51,88 @@ class TestBiasCorrectStationDataInit:
         bias_adjust_model_to_station_param_validator.py's
         TestValidateHistoricalSlice), not here or in execute()."""
         proc = self.ProcClass(
-            {"stations": ["KSAC"], "historical_slice": historical_slice}
+            {"stations": ["KSAC"], "historical_slice": {"time": historical_slice}}
         )
         assert proc.historical_slice == historical_slice
 
     def test_init_accepts_exactly_30_year_historical_slice(self):
         """A historical_slice spanning exactly 30 years is accepted."""
-        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (1985, 2014)})
+        proc = self.ProcClass(
+            {"stations": ["KSAC"], "historical_slice": {"time": (1985, 2014)}}
+        )
         assert proc.historical_slice == (1985, 2014)
+
+    def test_init_rejects_bare_tuple_historical_slice(self):
+        """Bare tuples are no longer accepted -- must be wrapped in a dict."""
+        with pytest.raises(ValueError, match="must be a dict"):
+            self.ProcClass(
+                {"stations": ["KSAC"], "historical_slice": (1981, 2010)}
+            )
+
+    @pytest.mark.parametrize(
+        "historical_slice",
+        [{}, {"time": (1981, 2010), "warming_level": 1.5}, {"foo": 1}],
+        ids=["empty_dict", "both_keys", "unknown_key"],
+    )
+    def test_init_rejects_malformed_historical_slice_dict(self, historical_slice):
+        """A dict with neither/both/unexpected keys is rejected."""
+        with pytest.raises(ValueError):
+            self.ProcClass(
+                {"stations": ["KSAC"], "historical_slice": historical_slice}
+            )
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_year_at_gwl"
+    )
+    def test_init_resolves_warming_level_via_historical_mean(
+        self, mock_get_year_at_gwl
+    ):
+        """A GWL reached historically resolves to a +/-15yr window around
+        the Historical ensemble mean year."""
+        gwl_table = pd.DataFrame(
+            {"5%": [1990], "Mean": [2002], "95%": [2010]}, index=["Historical"]
+        )
+        mock_get_year_at_gwl.return_value = gwl_table
+
+        proc = self.ProcClass(
+            {"stations": ["KSAC"], "historical_slice": {"warming_level": 0.8}}
+        )
+        assert proc.historical_slice == (1987, 2016)
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_year_at_gwl"
+    )
+    def test_init_resolves_warming_level_via_ssp370_fallback(
+        self, mock_get_year_at_gwl
+    ):
+        """A GWL never reached historically falls back to the SSP 3-7.0
+        ensemble mean year."""
+        gwl_table = pd.DataFrame(
+            {"5%": [pd.NA, 2024], "Mean": [pd.NA, 2031], "95%": [pd.NA, 2041]},
+            index=["Historical", "SSP 3-7.0"],
+        )
+        mock_get_year_at_gwl.return_value = gwl_table
+
+        proc = self.ProcClass(
+            {"stations": ["KSAC"], "historical_slice": {"warming_level": 1.5}}
+        )
+        assert proc.historical_slice == (2016, 2045)
+
+    @patch(
+        "climakitae.new_core.processors.bias_adjust_model_to_station.get_year_at_gwl"
+    )
+    def test_init_raises_for_unreachable_warming_level(self, mock_get_year_at_gwl):
+        """A GWL reached under neither Historical nor SSP 3-7.0 raises."""
+        gwl_table = pd.DataFrame(
+            {"5%": [pd.NA, pd.NA], "Mean": [pd.NA, pd.NA], "95%": [pd.NA, pd.NA]},
+            index=["Historical", "SSP 3-7.0"],
+        )
+        mock_get_year_at_gwl.return_value = gwl_table
+
+        with pytest.raises(ValueError, match="never reached"):
+            self.ProcClass(
+                {"stations": ["KSAC"], "historical_slice": {"warming_level": 4.0}}
+            )
 
 
 class TestPreprocessHDP:
@@ -639,7 +713,9 @@ class TestBiasCorrectStationDataBiasAdjustment:
         # narrower than the full 1950-2020 obs/gridded coverage below, so
         # this still proves historical_slice -- not just the data's own
         # range -- bounds the training window.
-        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (1981, 2010)})
+        proc = self.ProcClass(
+            {"stations": ["KSAC"], "historical_slice": {"time": (1981, 2010)}}
+        )
 
         obs_times = pd.date_range("1950-01-01", "2020-12-31", freq="D")
         obs_da = xr.DataArray(
@@ -687,7 +763,9 @@ class TestBiasCorrectStationDataBiasAdjustment:
         """
         # Exactly 30 years, overlapping the model's 1980-2014 coverage below
         # but entirely predating the station's own record.
-        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (1980, 2009)})
+        proc = self.ProcClass(
+            {"stations": ["KSAC"], "historical_slice": {"time": (1980, 2009)}}
+        )
 
         # Station record starts well after the requested historical_slice.
         obs_times = pd.date_range("2010-01-01", "2014-12-31", freq="D")
@@ -715,7 +793,9 @@ class TestBiasCorrectStationDataBiasAdjustment:
         """
         # Exactly 30 years, overlapping the model's 1980-2014 coverage below
         # but entirely predating the station's own record.
-        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (1980, 2009)})
+        proc = self.ProcClass(
+            {"stations": ["KSAC"], "historical_slice": {"time": (1980, 2009)}}
+        )
 
         # Station record starts well after the requested historical_slice.
         obs_times = pd.date_range("2010-01-01", "2014-12-31", freq="D")
@@ -743,7 +823,10 @@ class TestBiasCorrectStationDataBiasAdjustment:
         the zero-overlap cases above, where there's no overlap at all.
         """
         proc = self.ProcClass(
-            {"stations": ["KSAC"], "historical_slice": (1985, 2014)}  # 30 years
+            {
+                "stations": ["KSAC"],
+                "historical_slice": {"time": (1985, 2014)},  # 30 years
+            }
         )
 
         # Station record only covers the last 6 years of the requested window.
@@ -986,7 +1069,7 @@ class TestBiasCorrectConcatIntegration:
             {
                 "stations": ["KSAC"],
                 # Exactly 30 years, as currently required.
-                "historical_slice": (1981, 2010),
+                "historical_slice": {"time": (1981, 2010)},
             }
         )
 

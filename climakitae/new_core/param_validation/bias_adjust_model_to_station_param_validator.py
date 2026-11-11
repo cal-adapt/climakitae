@@ -54,6 +54,7 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 )
 from climakitae.new_core.processors.bias_adjust_model_to_station import (
     _VARIABLE_ID_TO_HDP_VARIABLE,
+    _resolve_historical_slice,
 )
 from climakitae.new_core.processors.processor_utils import (
     is_station_identifier,
@@ -121,7 +122,11 @@ def validate_bias_adjustment_station_data_param(
     value : Any
         Dictionary containing station bias adjustment parameters. Expected keys:
         - stations: list[str] - Station names or codes (REQUIRED)
-        - historical_slice: tuple[int, int], optional - Historical training period (default: (1981, 2010)); the processor currently requires this to span exactly 30 years
+        - historical_slice: dict, optional - Historical training period, as
+          a dict with exactly one of {"time": (start_year, end_year)} or
+          {"warming_level": gwl} (default: {"time": (1981, 2010)}); must
+          resolve to exactly 30 years. A "warming_level" historical_slice
+          cannot be combined with 'experiment_id' set on the main query.
         - window: int, optional - Seasonal grouping window (default: 90)
         - nquantiles: int, optional - Number of quantiles (default: 20)
         - group: str, optional - Temporal grouping (default: "time.dayofyear")
@@ -201,6 +206,14 @@ def validate_bias_adjustment_station_data_param(
     # Validate historical_slice parameter if provided
     if "historical_slice" in value and not _validate_historical_slice(
         value["historical_slice"]
+    ):
+        return False
+
+    if (
+        "historical_slice" in value
+        and not _validate_historical_slice_experiment_id_compatibility(
+            value["historical_slice"], query
+        )
     ):
         return False
 
@@ -342,36 +355,38 @@ def _validate_stations(stations: Any, query: Dict[str, Any] | None = None) -> bo
 def _validate_historical_slice(historical_slice: Any) -> bool:
     """Validate historical slice parameter for bias adjustment training period.
 
+    Delegates shape validation and GWL resolution to
+    `_resolve_historical_slice`. For a {"time": (start, end)} slice, also
+    checks that the years are integers, properly ordered, and span exactly
+    30 years. A {"warming_level": gwl} slice needs no further checks once
+    it resolves successfully, since `_resolve_gwl_to_year_range` always
+    produces an exact 30-year span.
+
     Parameters
     ----------
     historical_slice : Any
-        Historical training period tuple to validate.
+        Historical training period spec to validate.
 
     Returns
     -------
     bool
         True if historical slice is valid, False otherwise.
     """
-    # Check type
-    if not isinstance(historical_slice, tuple):
-        msg = (
-            f"'historical_slice' must be a tuple of (start_year, end_year), "
-            f"got {type(historical_slice).__name__}. "
-            f"Example: (1980, 2014)"
-        )
-        logger.warning(msg)
+    try:
+        resolved = _resolve_historical_slice(historical_slice)
+    except ValueError as e:
+        logger.warning(str(e))
         return False
 
-    # Check length
-    if len(historical_slice) != 2:
-        msg = (
-            f"'historical_slice' must contain exactly 2 elements (start_year, end_year), "
-            f"got {len(historical_slice)} elements."
+    if "warming_level" in historical_slice:
+        logger.debug(
+            "Historical slice (warming_level=%s) validation passed -> %s",
+            historical_slice["warming_level"],
+            resolved,
         )
-        logger.warning(msg)
-        return False
+        return True
 
-    start_year, end_year = historical_slice
+    start_year, end_year = resolved
 
     # Check both are integers
     if not isinstance(start_year, int) or not isinstance(end_year, int):
@@ -404,6 +419,62 @@ def _validate_historical_slice(historical_slice: Any) -> bool:
         return False
 
     logger.debug("Historical slice validation passed: %s", historical_slice)
+    return True
+
+
+def _validate_historical_slice_experiment_id_compatibility(
+    historical_slice: Any, query: Dict[str, Any]
+) -> bool:
+    """Reject a GWL-based historical_slice combined with a main-query experiment_id.
+
+    GWL-based historical_slice translation always resolves against the
+    Historical-or-SSP-3-7.0 ensemble mean (see `_resolve_gwl_to_year_range`),
+    regardless of which SSP(s) the main query actually retrieves. Mixing
+    SSP-specific data selection (`query['experiment_id']`) with GWL-based
+    historical_slice translation is therefore rejected. This does not block
+    a main query using the separate `warming_levels` processor alongside a
+    GWL-based historical_slice, nor a {"time": ...} historical_slice
+    combined with any experiment_id.
+
+    Parameters
+    ----------
+    historical_slice : Any
+        Historical training period spec (only dicts with a "warming_level"
+        key trigger this check; anything else is a no-op).
+    query : Dict[str, Any]
+        Full query dictionary. By the time processor validators see it,
+        unset keys (including an unset 'experiment_id') are already
+        stripped out (see `ParameterValidator._has_valid_processes`), so a
+        plain `None` default correctly means "not specified".
+
+    Returns
+    -------
+    bool
+        True if the combination is valid, False otherwise.
+    """
+    if not isinstance(historical_slice, dict) or "warming_level" not in historical_slice:
+        return True
+
+    experiment_id = query.get("experiment_id", None)
+    if experiment_id is not None:
+        msg = (
+            f"\n\nhistorical_slice={{'warming_level': ...}} cannot be combined "
+            f"with 'experiment_id' set on the main query (got "
+            f"experiment_id={experiment_id!r}). GWL-based historical_slice "
+            f"translation always resolves against the Historical-or-SSP "
+            f"3-7.0 ensemble mean, regardless of which SSP(s) your query "
+            f"actually retrieves -- mixing SSP-specific data selection "
+            f"(experiment_id) with GWL-based historical_slice translation "
+            f"is not supported. Either remove .experiment_id(...) from "
+            f"your query, or use historical_slice={{'time': (start, end)}} "
+            f"instead.\n\n"
+        )
+        logger.warning(msg)
+        return False
+
+    logger.debug(
+        "historical_slice warming_level/experiment_id compatibility check passed"
+    )
     return True
 
 
