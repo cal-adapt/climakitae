@@ -681,6 +681,22 @@ def test_data_catalog_excludes_members_missing_requested_variables(tmp_path, cap
     assert "shortened" in caplog.text and "'time': '3 -> 2'" in caplog.text
 
 
+def test_data_catalog_single_variable_query_keeps_aggregated_path(tmp_path):
+    """Test single-variable retrieval keeps every member on the outer-joined time."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = _make_local_catalog(tmp_path, spatial_grid=True)
+
+    result = data_catalog.get_data({"variable_id": "tasmax"}, CATALOG_CADCAT)
+
+    dataset = next(iter(result.values()))
+    assert list(dataset.data_vars) == ["tasmax"]
+    assert dataset.member_id.values.tolist() == ["r1i1p1f1", "r2i1p1f1"]
+    assert dataset.sizes["time"] == 3
+
+
 def test_data_catalog_rejects_members_without_shared_timestamps(tmp_path):
     """Test complete members whose timestamps never all overlap fail the query."""
     from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
@@ -1126,3 +1142,108 @@ def test_scalar_custom_derived_query_remains_compatible(tmp_path):
     dataset = next(iter(result.values()))
     assert "tasmax_plus_one" in dataset.data_vars
     assert "_multi_variable_query" not in query
+
+
+def test_warming_level_keeps_both_variables_across_historical_and_ssp(tmp_path, caplog):
+    """Test warming levels over multi-variable data keep both fields aligned."""
+    from climakitae.new_core.data_access.data_access import CATALOG_CADCAT, DataCatalog
+    from climakitae.new_core.processors.warming_level import WarmingLevel
+
+    periods = {"historical": (1981, 2014), "ssp245": (2015, 2099)}
+    records = []
+    for experiment_id, (start, end) in periods.items():
+        times = pd.date_range(f"{start}-01-01", f"{end}-01-01", freq="YS")
+        for member_id in ("r1i1p1f1", "r2i1p1f1"):
+            for variable_id, units in (("tasmax", "K"), ("pr", "mm/day")):
+                if (experiment_id, member_id, variable_id) == (
+                    "historical",
+                    "r2i1p1f1",
+                    "pr",
+                ):
+                    continue
+                path = tmp_path / f"{experiment_id}-{member_id}-{variable_id}.zarr"
+                dataset = xr.Dataset(
+                    {variable_id: ("time", np.arange(len(times), dtype=float))},
+                    coords={"time": times},
+                )
+                dataset[variable_id].attrs["units"] = units
+                dataset.to_zarr(path)
+                records.append(
+                    {
+                        "activity_id": "WRF",
+                        "institution_id": "UCLA",
+                        "source_id": "WRF-test",
+                        "experiment_id": experiment_id,
+                        "table_id": "mon",
+                        "grid_label": "d03",
+                        "member_id": member_id,
+                        "variable_id": variable_id,
+                        "path": f"local://{path}",
+                        "format": "zarr",
+                    }
+                )
+    esmcat = {
+        "esmcat_version": "0.0.1",
+        "id": "local-wl",
+        "description": "Local multi-variable catalog for warming levels",
+        "attributes": [
+            {"column_name": name, "vocabulary": ""}
+            for name in records[0]
+            if name not in ("path", "format")
+        ],
+        "assets": {"column_name": "path", "format": "zarr"},
+        "aggregation_control": {
+            "variable_column_name": "variable_id",
+            "groupby_attrs": [
+                "activity_id",
+                "institution_id",
+                "source_id",
+                "experiment_id",
+                "table_id",
+                "grid_label",
+            ],
+            "aggregations": [
+                {"type": "join_new", "attribute_name": "member_id"},
+                {"type": "union", "attribute_name": "variable_id"},
+            ],
+        },
+    }
+    data_catalog = dict.__new__(DataCatalog)
+    dict.__init__(data_catalog)
+    data_catalog[CATALOG_CADCAT] = intake.open_esm_datastore(
+        {"esmcat": esmcat, "df": pd.DataFrame(records)}, progressbar=False
+    )
+    query = {
+        "variable_id": ["tasmax", "pr"],
+        "_multi_variable_query": True,
+        "_requested_variables": ["tasmax", "pr"],
+        "_catalog_variable_ids": ["tasmax", "pr"],
+        "_derived_variables": [],
+        "_source_variables": [],
+    }
+    caplog.set_level("INFO")
+    retrieved = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+
+    processor = WarmingLevel(value={"warming_levels": [2.0]})
+    processor.warming_level_times = pd.DataFrame(
+        [
+            ["WRF-test", member_id, "ssp245", "2020-01-01"]
+            for member_id in ("r1i1p1f1", "r2i1p1f1")
+        ],
+        columns=["GCM", "run", "scenario", "2.0"],
+    ).set_index(["GCM", "run", "scenario"])
+    warmed = processor.execute(retrieved, {"activity_id": "WRF"})
+
+    assert "'member_id': 'r2i1p1f1'" in caplog.text
+    assert set(warmed) == {
+        "WRF.UCLA.WRF-test.ssp245.mon.d03.r1i1p1f1",
+        "WRF.UCLA.WRF-test.ssp245.mon.d03.r2i1p1f1",
+    }
+    complete = warmed["WRF.UCLA.WRF-test.ssp245.mon.d03.r1i1p1f1"]
+    assert list(complete.data_vars) == ["tasmax", "pr"]
+    assert complete["tasmax"].attrs["units"] == "K"
+    assert complete["pr"].attrs["units"] == "mm/day"
+    assert complete.sizes["time_delta"] == 30
+    for dataset in warmed.values():
+        assert dataset["tasmax"].dims == dataset["pr"].dims
+        assert not dataset["pr"].isnull().any()
