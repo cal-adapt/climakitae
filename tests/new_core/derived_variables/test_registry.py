@@ -5,19 +5,23 @@ Tests the registration, retrieval, and metadata preservation functionality
 for derived variables in the new_core module.
 """
 
-import xarray as xr
 import numpy as np
+import pytest
+import xarray as xr
 
 from climakitae.new_core.derived_variables import registry as reg
 
 
+@pytest.fixture
+def isolated_derived_registry(monkeypatch):
+    """Isolate derived-variable metadata and the intake-esm registry."""
+    monkeypatch.setattr(reg, "_DERIVED_METADATA", {})
+    monkeypatch.setattr(reg, "_DERIVED_REGISTRY", None)
+
+
+@pytest.mark.usefixtures("isolated_derived_registry")
 class TestUserFunctionRegistration:
     """Test class for user function registration functionality."""
-
-    def setup_method(self):
-        """Reset module state before each test."""
-        reg._DERIVED_METADATA.clear()
-        reg._DERIVED_REGISTRY = None
 
     def test_register_user_function_validation(self):
         """Test validation of user function registration parameters.
@@ -87,13 +91,9 @@ class TestUserFunctionRegistration:
         assert "t2" in out.data_vars
 
 
+@pytest.mark.usefixtures("isolated_derived_registry")
 class TestDecoratorRegistration:
     """Test class for decorator-based registration functionality."""
-
-    def setup_method(self):
-        """Reset module state before each test."""
-        reg._DERIVED_METADATA.clear()
-        reg._DERIVED_REGISTRY = None
 
     def test_register_derived_decorator_and_wrapping(self):
         """Test decorator registration and function wrapping.
