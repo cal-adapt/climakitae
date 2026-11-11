@@ -143,9 +143,9 @@ from climakitae.new_core.processors.abc_data_processor import (
 )
 from climakitae.new_core.processors.processor_utils import is_station_identifier
 from climakitae.util.utils import (
-    add_crs_to_downscaled_data,
     get_closest_gridcell,
     get_closest_gridcells,
+    add_crs_to_downscaled_data,
 )
 
 # Module logger
@@ -432,15 +432,13 @@ class Clip(DataProcessor):
                 # Clip each dataset in the dictionary
                 if self.is_single_point:
                     ret = {
-                        key: self._clip_data_to_point(
-                            value, self.lat, self.lon, context
-                        )
+                        key: self._clip_data_to_point(value, self.lat, self.lon)
                         for key, value in result.items()
                     }
                 elif self.is_multi_point:
                     ret = {
                         key: self._clip_data_to_points_as_mask(
-                            value, self.point_list, self.extract_points, context
+                            value, self.point_list, self.extract_points
                         )
                         for key, value in result.items()
                     }
@@ -458,10 +456,10 @@ class Clip(DataProcessor):
             case xr.Dataset() | xr.DataArray():
                 # Clip the single dataset
                 if self.is_single_point:
-                    ret = self._clip_data_to_point(result, self.lat, self.lon, context)
+                    ret = self._clip_data_to_point(result, self.lat, self.lon)
                 elif self.is_multi_point:
                     ret = self._clip_data_to_points_as_mask(
-                        result, self.point_list, self.extract_points, context
+                        result, self.point_list, self.extract_points
                     )
                 elif self.separated:
                     ret = self._clip_data_separated(result, self.value)
@@ -471,7 +469,7 @@ class Clip(DataProcessor):
                 # return as passed type
                 if self.is_single_point:
                     clipped_data = [
-                        self._clip_data_to_point(data, self.lat, self.lon, context)
+                        self._clip_data_to_point(data, self.lat, self.lon)
                         for data in result
                     ]
                     # Filter out None results
@@ -480,7 +478,7 @@ class Clip(DataProcessor):
                 elif self.is_multi_point:
                     clipped_data = [
                         self._clip_data_to_points_as_mask(
-                            data, self.point_list, self.extract_points, context
+                            data, self.point_list, self.extract_points
                         )
                         for data in result
                     ]
@@ -676,68 +674,86 @@ class Clip(DataProcessor):
         )
 
     @staticmethod
-    def _is_multivariable_query(context: Dict[str, Any] | None) -> bool:
-        """Return whether the query context requests more than one variable.
-
-        Parameters
-        ----------
-        context : dict or None
-            Query context; ``context["variable_id"]`` holds the requested
-            variable(s).
-
-        Returns
-        -------
-        bool
-            True when ``variable_id`` is a list or tuple with more than one item.
-        """
-        variable_id = (context or {}).get("variable_id")
-        return isinstance(variable_id, (list, tuple)) and len(variable_id) > 1
+    def _is_multivariable_dataset(dataset: xr.Dataset | xr.DataArray) -> bool:
+        """Return whether a Dataset contains multiple measurement variables."""
+        if not isinstance(dataset, xr.Dataset):
+            return False
+        measurement_vars = set(dataset.data_vars) - {"landmask"}
+        return len(measurement_vars) > 1
 
     @staticmethod
-    def _get_landmask(dataset: xr.Dataset | xr.DataArray) -> xr.DataArray | None:
-        """Return the dataset's landmask if it can constrain point selection.
-
-        Parameters
-        ----------
-        dataset : xr.Dataset or xr.DataArray
-            Gridded data that may carry a ``landmask`` variable or coordinate.
-
-        Returns
-        -------
-        xr.DataArray or None
-            The landmask when present and sharing both spatial dimensions of the
-            data, otherwise None.
-        """
-        has_landmask = "landmask" in dataset.coords or (
-            isinstance(dataset, xr.Dataset) and "landmask" in dataset.data_vars
-        )
-        if not has_landmask:
+    def _get_common_grid_index(
+        dataset: xr.Dataset, lat: float, lon: float
+    ) -> tuple[str, int, str, int] | None:
+        """Find the nearest coordinate cell, constrained by an explicit land mask."""
+        if "y" in dataset.dims and "x" in dataset.dims:
+            dim1, dim2 = "y", "x"
+            target1, target2 = lat, lon
+            data_crs = dataset.rio.crs
+            if data_crs is not None:
+                try:
+                    transformer = pyproj.Transformer.from_crs(
+                        "epsg:4326", data_crs, always_xy=True
+                    )
+                    target2, target1 = transformer.transform(lon, lat)
+                except (pyproj.exceptions.CRSError, ValueError):
+                    logger.warning(
+                        "Could not transform point coordinates to the grid CRS; "
+                        "using input coordinates."
+                    )
+        elif "lat" in dataset.dims and "lon" in dataset.dims:
+            dim1, dim2 = "lat", "lon"
+            target1, target2 = lat, lon
+        else:
+            logger.warning(
+                "Cannot select a common grid cell without x/y or lat/lon dimensions."
+            )
             return None
+
+        coord1 = np.asarray(dataset[dim1].values)
+        coord2 = np.asarray(dataset[dim2].values)
+        if coord1.ndim != 1 or coord2.ndim != 1:
+            logger.warning("Common-cell selection requires 1D spatial axes.")
+            return None
+
+        nearest1 = int(np.abs(coord1 - target1).argmin())
+        nearest2 = int(np.abs(coord2 - target2).argmin())
+
+        if "landmask" not in dataset.coords and "landmask" not in dataset.data_vars:
+            return dim1, nearest1, dim2, nearest2
+
         landmask = dataset["landmask"]
-        spatial_dims = {"y", "x"} if "y" in dataset.dims else {"lat", "lon"}
-        if not spatial_dims.issubset(landmask.dims):
+        for dim in tuple(landmask.dims):
+            if dim not in (dim1, dim2):
+                landmask = landmask.isel({dim: 0})
+
+        if dim1 not in landmask.dims or dim2 not in landmask.dims:
             logger.warning(
                 "Ignoring landmask because it does not share the dataset's "
                 "spatial dimensions."
             )
+            return dim1, nearest1, dim2, nearest2
+
+        mask_values = np.asarray(landmask.transpose(dim1, dim2).values)
+        valid_cells = np.argwhere(np.isfinite(mask_values) & (mask_values == 1))
+        if valid_cells.size == 0:
+            logger.warning("No valid cells found in the explicit landmask.")
             return None
-        return landmask
+
+        distances = (coord1[valid_cells[:, 0]] - target1) ** 2 + (
+            coord2[valid_cells[:, 1]] - target2
+        ) ** 2
+        selected = valid_cells[int(distances.argmin())]
+        return dim1, int(selected[0]), dim2, int(selected[1])
 
     @staticmethod
-    def _clip_data_to_point(
-        dataset: xr.DataArray | xr.Dataset,
-        lat: float,
-        lon: float,
-        context: Dict[str, Any] | None = None,
-    ):
+    def _clip_data_to_point(dataset: xr.DataArray | xr.Dataset, lat: float, lon: float):
         """
         Clip data to a single point.
 
-        Multi-variable queries (per ``context["variable_id"]``) use the nearest
-        coordinate cell, constrained by an explicit landmask when available.
-        They do not inspect measurements to move away from NaNs, so every
-        variable shares the same cell. Single-variable inputs retain the
-        existing validity search.
+        Multi-variable Datasets use the nearest coordinate cell, constrained by an
+        explicit landmask when available. They do not inspect measurements to move
+        away from NaNs. Single-variable inputs retain the existing validity search.
 
         Parameters
         ----------
@@ -747,8 +763,6 @@ class Clip(DataProcessor):
             Target latitude
         lon : float
             Target longitude
-        context : dict, optional
-            Query context used to detect multi-variable queries.
 
         Returns
         -------
@@ -757,15 +771,12 @@ class Clip(DataProcessor):
             or None if no valid gridcell found within search radius
         """
 
-        if Clip._is_multivariable_query(context):
-            return get_closest_gridcell(
-                dataset,
-                lat,
-                lon,
-                print_coords=False,
-                search_valid=False,
-                mask=Clip._get_landmask(dataset),
-            )
+        if isinstance(dataset, xr.Dataset) and Clip._is_multivariable_dataset(dataset):
+            selection = Clip._get_common_grid_index(dataset, lat, lon)
+            if selection is None:
+                return None
+            dim1, idx1, dim2, idx2 = selection
+            return dataset.isel({dim1: idx1, dim2: idx2})
 
         # First try the original method
         closest_gridcell = get_closest_gridcell(dataset, lat, lon, print_coords=False)
@@ -962,16 +973,13 @@ class Clip(DataProcessor):
 
     @staticmethod
     def _clip_data_to_multiple_points(
-        dataset: xr.DataArray | xr.Dataset,
-        point_list: list[tuple[float, float]],
-        context: Dict[str, Any] | None = None,
+        dataset: xr.DataArray | xr.Dataset, point_list: list[tuple[float, float]]
     ):
         """
         Clip data to multiple closest gridcells.
 
         Single-variable inputs use the vectorized `get_closest_gridcells` function.
-        Multi-variable queries (per ``context["variable_id"]``) select cells by
-        coordinates and applicable landmasks without inspecting measurements,
+        Multi-variable Datasets select cells by coordinates and applicable landmasks,
         then rename the point dimension to 'closest_cell'.
 
         Parameters
@@ -980,8 +988,6 @@ class Clip(DataProcessor):
             The dataset to clip
         point_list : list[tuple[float, float]]
             List of (lat, lon) tuples to clip to
-        context : dict, optional
-            Query context used to detect multi-variable queries.
 
         Returns
         -------
@@ -994,29 +1000,48 @@ class Clip(DataProcessor):
             len(point_list),
         )
 
-        # Extract lat/lon arrays from point_list
-        lats = [lat for lat, lon in point_list]
-        lons = [lon for lat, lon in point_list]
+        if isinstance(dataset, xr.Dataset) and Clip._is_multivariable_dataset(dataset):
+            selections = []
+            for point_index, (lat, lon) in enumerate(point_list):
+                selection = Clip._get_common_grid_index(dataset, lat, lon)
+                if selection is not None:
+                    selections.append((point_index, lat, lon, selection))
 
-        if Clip._is_multivariable_query(context):
-            result = get_closest_gridcells(
-                dataset,
-                lats,
-                lons,
-                print_coords=False,
-                search_valid=False,
-                mask=Clip._get_landmask(dataset),
-            )
-            if result is None:
+            if not selections:
                 logger.warning(
                     "No valid common gridcells found for the requested points."
                 )
                 return None
-            return result.rename({"points": "closest_cell"}).assign_coords(
-                target_lats=("closest_cell", lats),
-                target_lons=("closest_cell", lons),
-                point_index=("closest_cell", list(range(len(point_list)))),
+
+            dim1, _, dim2, _ = selections[0][3]
+            result = dataset.isel(
+                {
+                    dim1: xr.DataArray(
+                        [selection[3][1] for selection in selections], dims="points"
+                    ),
+                    dim2: xr.DataArray(
+                        [selection[3][3] for selection in selections], dims="points"
+                    ),
+                }
+            ).rename({"points": "closest_cell"})
+            return result.assign_coords(
+                target_lats=(
+                    "closest_cell",
+                    [selection[1] for selection in selections],
+                ),
+                target_lons=(
+                    "closest_cell",
+                    [selection[2] for selection in selections],
+                ),
+                point_index=(
+                    "closest_cell",
+                    [selection[0] for selection in selections],
+                ),
             )
+
+        # Extract lat/lon arrays from point_list
+        lats = [lat for lat, lon in point_list]
+        lons = [lon for lat, lon in point_list]
 
         # Use the efficient vectorized approach
         try:
@@ -1171,15 +1196,14 @@ class Clip(DataProcessor):
         dataset: xr.DataArray | xr.Dataset,
         point_list: list[tuple[float, float]],
         extract_points: bool = False,
-        context: Dict[str, Any] | None = None,
     ) -> xr.DataArray | xr.Dataset:
         """
         Apply a point-based mask to gridded data, preserving the grid structure.
 
         This method treats the list of lat/lon points as a spatial mask:
-        1. Index each lat/lon to the closest grid cell; multi-variable queries
-           constrain this by an explicit landmask when available
-        2. Preserve NaNs for multi-variable queries; single-variable inputs retain
+        1. Index each lat/lon to the closest grid cell, constrained by an explicit
+           landmask when available
+        2. Preserve NaNs for multi-variable Datasets; single-variable inputs retain
            the existing 3x3 neighborhood fallback
         3. Set all non-selected grid cells to NaN
         4. Return the masked gridded dataset
@@ -1196,9 +1220,6 @@ class Clip(DataProcessor):
         extract_points : bool, optional
             If True, collapse spatial dimensions to a "points" dimension.
             Default is False (return masked gridded data).
-        context : dict, optional
-            Query context; ``context["variable_id"]`` with more than one entry
-            selects the multi-variable common-cell behavior.
 
         Returns
         -------
@@ -1221,7 +1242,7 @@ class Clip(DataProcessor):
             raise ValueError(
                 f"Cannot identify spatial dimensions. Dataset has dims: {dataset.dims}"
             )
-        multivariable = Clip._is_multivariable_query(context)
+        multivariable = Clip._is_multivariable_dataset(dataset)
 
         # Get coordinate arrays
         lat_coords = dataset[lat_dim].values
@@ -1247,35 +1268,18 @@ class Clip(DataProcessor):
         valid_points = []
         selected_point_coordinates = {}
 
-        if multivariable:
-            common_cells = get_closest_gridcells(
-                dataset,
-                [lat for lat, _ in point_list],
-                [lon for _, lon in point_list],
-                print_coords=False,
-                search_valid=False,
-                mask=Clip._get_landmask(dataset),
-            )
-            if common_cells is None:
-                logger.warning(
-                    "No valid common gridcells found for the requested points."
-                )
-                return None
-            selected_lat_idx = (
-                dataset[lat_dim].to_index().get_indexer(common_cells[lat_dim].values)
-            )
-            selected_lon_idx = (
-                dataset[lon_dim].to_index().get_indexer(common_cells[lon_dim].values)
-            )
-            for (lat, lon), lat_idx, lon_idx in zip(
-                point_list, selected_lat_idx, selected_lon_idx
-            ):
-                lat_indices.append(int(lat_idx))
-                lon_indices.append(int(lon_idx))
-                valid_points.append((lat, lon))
-                selected_point_coordinates[(int(lat_idx), int(lon_idx))] = (lat, lon)
-        else:
-            for lat, lon in point_list:
+        for lat, lon in point_list:
+            if multivariable:
+                selection = Clip._get_common_grid_index(dataset, lat, lon)
+                if selection is None:
+                    continue
+                selected_dim1, lat_idx, selected_dim2, lon_idx = selection
+                if (selected_dim1, selected_dim2) != (lat_dim, lon_dim):
+                    logger.warning(
+                        "Common-cell selection returned incompatible spatial dimensions."
+                    )
+                    continue
+            else:
                 # Transform coordinates if needed
                 if needs_transform:
                     try:
@@ -1290,10 +1294,10 @@ class Clip(DataProcessor):
                 lat_idx = np.abs(lat_coords - lat_target).argmin()
                 lon_idx = np.abs(lon_coords - lon_target).argmin()
 
-                lat_indices.append(lat_idx)
-                lon_indices.append(lon_idx)
-                valid_points.append((lat, lon))
-                selected_point_coordinates[(lat_idx, lon_idx)] = (lat, lon)
+            lat_indices.append(lat_idx)
+            lon_indices.append(lon_idx)
+            valid_points.append((lat, lon))
+            selected_point_coordinates[(lat_idx, lon_idx)] = (lat, lon)
 
         if not lat_indices:
             logger.warning("No valid common gridcells found for the requested points.")

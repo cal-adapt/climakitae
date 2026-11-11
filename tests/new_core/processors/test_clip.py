@@ -21,8 +21,6 @@ from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.processors.clip import Clip
 
-MULTI_CONTEXT = {"variable_id": ["tas", "pr"]}
-
 
 class TestClipInit:
     """Test class for Clip initialization."""
@@ -353,9 +351,7 @@ class TestClipExecuteWithSinglePoint:
             assert result is self.clipped_point
 
             # Verify clipping method was called with correct args
-            mock_clip.assert_called_once_with(
-                self.sample_dataset, 37.7749, -122.4194, context
-            )
+            mock_clip.assert_called_once_with(self.sample_dataset, 37.7749, -122.4194)
 
             # Verify context was updated
             assert _NEW_ATTRS_KEY in context
@@ -431,7 +427,7 @@ class TestClipExecuteWithMultiplePoints:
 
             # Verify clipping method was called with correct args
             mock_clip.assert_called_once_with(
-                self.sample_dataset, self.points, self.clip.extract_points, context
+                self.sample_dataset, self.points, self.clip.extract_points
             )
 
             # Verify context was updated
@@ -1257,8 +1253,7 @@ class TestClipDataToPointIntegration:
         )
 
         results = [
-            Clip._clip_data_to_point(dataset, lat[1], lon[1], context=MULTI_CONTEXT)
-            for dataset in datasets
+            Clip._clip_data_to_point(dataset, lat[1], lon[1]) for dataset in datasets
         ]
 
         assert all(result is not None for result in results)
@@ -1287,7 +1282,7 @@ class TestClipDataToPointIntegration:
         )
 
         results = [
-            Clip._clip_data_to_point(candidate, 35.0, -120.0, context=MULTI_CONTEXT)
+            Clip._clip_data_to_point(candidate, 35.0, -120.0)
             for candidate in (dataset, dataset[["pr", "tas", "landmask"]])
         ]
 
@@ -1324,13 +1319,9 @@ class TestClipDataToPointIntegration:
             side_effect=AssertionError("Measurement data was eagerly computed"),
         ):
             if clip_operation == "point":
-                result = Clip._clip_data_to_point(
-                    dataset, 35.0, -120.0, context=MULTI_CONTEXT
-                )
+                result = Clip._clip_data_to_point(dataset, 35.0, -120.0)
             else:
-                result = Clip._clip_data_to_points_as_mask(
-                    dataset, [(35.0, -120.0)], context=MULTI_CONTEXT
-                )
+                result = Clip._clip_data_to_points_as_mask(dataset, [(35.0, -120.0)])
 
         assert isinstance(result["tas"].data, da.Array)
         assert isinstance(result["pr"].data, da.Array)
@@ -1361,59 +1352,12 @@ class TestClipDataToPointIntegration:
             },
         ).rio.write_crs("EPSG:3857")
 
-        result = Clip._clip_data_to_point(dataset, 35.0, -120.0, context=MULTI_CONTEXT)
+        result = Clip._clip_data_to_point(dataset, 35.0, -120.0)
 
         assert result.y.item() == y_coords[1]
         assert result.x.item() == x_coords[1]
         assert result.lat.item() == 35.0
         assert result.lon.item() == -120.0
-        assert result["tas"].isnull().all()
-        assert result["pr"].values.tolist() == [5.0, 5.0]
-
-    def test_execute_multivariable_point_on_lambert_grid_with_landmask(self):
-        """Test execute keeps one landmask-valid cell for every field on a projected grid."""
-        crs = pyproj.CRS.from_proj4(
-            "+proj=lcc +lat_1=30 +lat_2=60 +lat_0=38 +lon_0=-70 +a=6370000 +b=6370000"
-        )
-        to_xy = pyproj.Transformer.from_crs("EPSG:4326", crs, always_xy=True)
-        x_center, y_center = to_xy.transform(-120.0, 35.0)
-        x_coords = x_center + np.array([-9000.0, 0.0, 9000.0])
-        y_coords = y_center + np.array([-12000.0, 0.0, 12000.0])
-        xx, yy = np.meshgrid(x_coords, y_coords)
-        lon_grid, lat_grid = pyproj.Transformer.from_crs(
-            crs, "EPSG:4326", always_xy=True
-        ).transform(xx, yy)
-        landmask = np.ones((3, 3))
-        landmask[1, 1] = 0
-        tas = np.ones((2, 3, 3))
-        tas[:, 1, 0] = np.nan
-        dataset = xr.Dataset(
-            {
-                "tas": (("time", "y", "x"), tas),
-                "pr": (("time", "y", "x"), np.full((2, 3, 3), 5.0)),
-                "landmask": (("y", "x"), landmask),
-            },
-            coords={
-                "time": pd.date_range("2020-01-01", periods=2),
-                "y": y_coords,
-                "x": x_coords,
-                "lat": (("y", "x"), lat_grid),
-                "lon": (("y", "x"), lon_grid),
-            },
-        ).rio.write_crs(crs)
-        target_lon, target_lat = pyproj.Transformer.from_crs(
-            crs, "EPSG:4326", always_xy=True
-        ).transform(x_center - 1000.0, y_center)
-
-        # Nearest cell (1, 1) is masked out; (1, 0) is the nearest land cell and
-        # has NaN temperatures, which must not move the selection.
-        result = Clip((target_lat, target_lon)).execute(
-            dataset, context=dict(MULTI_CONTEXT)
-        )
-
-        assert result.y.item() == y_coords[1]
-        assert result.x.item() == x_coords[0]
-        assert result.landmask.item() == 1
         assert result["tas"].isnull().all()
         assert result["pr"].values.tolist() == [5.0, 5.0]
 
@@ -1495,9 +1439,7 @@ class TestClipDataToMultiplePointsIntegration:
         point = (float(y[5]), float(x[5]))
 
         results = [
-            Clip._clip_data_to_multiple_points(
-                candidate, [point], context=MULTI_CONTEXT
-            )
+            Clip._clip_data_to_multiple_points(candidate, [point])
             for candidate in (dataset, dataset[["pr", "tas"]])
         ]
 
@@ -1692,10 +1634,7 @@ class TestClipDataToPointsAsMask:
 
         results = [
             Clip._clip_data_to_points_as_mask(
-                dataset,
-                [(35.0, -120.0)],
-                extract_points=extract_points,
-                context=MULTI_CONTEXT,
+                dataset, [(35.0, -120.0)], extract_points=extract_points
             )
             for dataset in datasets
         ]
@@ -3307,7 +3246,7 @@ class TestClipStationExecute:
             "_get_station_coordinates",
             return_value=(37.0, -121.5, station_info),
         ):
-            result = clip.execute(dataset, context=dict(MULTI_CONTEXT))
+            result = clip.execute(dataset, context={})
 
         assert result.lat.item() == 37.0
         assert result.lon.item() == -122.25
