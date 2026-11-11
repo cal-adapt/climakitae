@@ -44,8 +44,8 @@ Examples
 Notes
 -----
 - For now, `historical_slice` must span exactly 30 years; a shorter or
-  longer request raises ValueError immediately (before any data is
-  touched)
+  longer request is rejected at parameter-validation time (query returns
+  an empty result, with a warning logged), before this processor ever runs
 - The QDM training window is always bounded to `historical_slice`,
   intersected with the supplied historical model data's own coverage and
   the station's actual observational coverage; raises ValueError if that
@@ -135,10 +135,11 @@ _QDM_LOG_REFERENCE = (
 # windows make QDM's quantile estimates unreliable, and this pins the
 # training window to a single consistent length rather than letting it vary
 # with whatever historical_slice a user happens to pass. A historical_slice
-# requesting more or fewer years is rejected immediately (before any data is
-# touched); the resulting training window -- after intersecting with the
-# model's and station's own coverage -- is also required to still span
-# exactly this many distinct calendar years.
+# requesting more or fewer years is rejected at parameter-validation time
+# (see bias_adjust_model_to_station_param_validator.py::_validate_historical_slice),
+# before this processor ever runs; the resulting training window -- after
+# intersecting with the model's and station's own coverage -- is also
+# required here to still span exactly this many distinct calendar years.
 _REQUIRED_TRAINING_YEARS = 30
 
 
@@ -176,12 +177,13 @@ class BiasAdjustModelToStation(DataProcessor):
     historical_slice : tuple[int, int], optional
         Start and end years for the historical training period (default:
         (1981, 2010)). For now, must span exactly 30 years (e.g. (1981,
-        2010), (1990, 2019)); raises ValueError immediately otherwise. The
-        QDM training window is always bounded to this range, intersected
-        with the supplied historical model data's own coverage and the
-        station's actual observational coverage; raises ValueError if that
-        intersection is empty or ends up covering fewer than 30 calendar
-        years.
+        2010), (1990, 2019)); otherwise the query is rejected at parameter
+        validation (returns an empty result, with a warning logged) before
+        this processor ever runs. The QDM training window is always bounded
+        to this range, intersected with the supplied historical model
+        data's own coverage and the station's actual observational
+        coverage; raises ValueError if that intersection is empty or ends
+        up covering fewer than 30 calendar years.
     window : int, optional
         Window size in days for seasonal grouping (default: 90, representing +/- 45 days)
     nquantiles : int, optional
@@ -245,12 +247,13 @@ class BiasAdjustModelToStation(DataProcessor):
             - historical_slice : tuple[int, int], optional
                 Start and end years for the historical training period
                 (default: (1981, 2010)). For now, must span exactly 30
-                years; raises ValueError immediately otherwise. The QDM
-                training window is always bounded to this range,
-                intersected with the supplied historical model data's own
-                coverage and the station's actual observational coverage;
-                raises ValueError if that intersection is empty or ends up
-                covering fewer than 30 calendar years.
+                years; otherwise rejected at parameter validation (not by
+                this processor). The QDM training window is always bounded
+                to this range, intersected with the supplied historical
+                model data's own coverage and the station's actual
+                observational coverage; raises ValueError if that
+                intersection is empty or ends up covering fewer than 30
+                calendar years.
             - window : int, optional
                 Window size in days for seasonal grouping (default: 90)
             - nquantiles : int, optional
@@ -269,24 +272,6 @@ class BiasAdjustModelToStation(DataProcessor):
         # Extract configuration parameters with defaults
         self.stations = value.get("stations", [])
         self.historical_slice = value.get("historical_slice", (1981, 2010))
-
-        # Fail fast, before touching any data: only an exactly-30-year
-        # historical_slice is currently supported.
-        hist_start, hist_end = self.historical_slice
-        n_requested_years = hist_end - hist_start + 1
-        if n_requested_years != _REQUIRED_TRAINING_YEARS:
-            direction = (
-                "Narrow" if n_requested_years > _REQUIRED_TRAINING_YEARS else "Widen"
-            )
-            raise ValueError(
-                f"BiasAdjustModelToStation: historical_slice=({hist_start}, "
-                f"{hist_end}) spans {n_requested_years} years, but exactly "
-                f"{_REQUIRED_TRAINING_YEARS} years are currently supported "
-                f"for QDM training. {direction} it to a "
-                f"{_REQUIRED_TRAINING_YEARS}-year window, e.g. ({hist_start}, "
-                f"{hist_start + _REQUIRED_TRAINING_YEARS - 1})."
-            )
-
         self.window = value.get("window", 90)
         self.nquantiles = value.get("nquantiles", 20)
         self.group = value.get("group", "time.dayofyear")
@@ -1136,16 +1121,18 @@ class BiasAdjustModelToStation(DataProcessor):
         TypeError
             If input data is not an xr.DataArray, xr.Dataset, or Dict
         ValueError
-            If `historical_slice` doesn't span exactly 30 years, if input
-            Dataset has no data variables or doesn't contain required time
-            dimension, if `historical_slice` doesn't overlap the available
-            model/station data, or if the resulting training window covers
-            fewer than 30 calendar years
+            If input Dataset has no data variables or doesn't contain
+            required time dimension, if `historical_slice` doesn't overlap
+            the available model/station data, or if the resulting training
+            window covers fewer than 30 calendar years
 
         Notes
         -----
-        - `historical_slice` must span exactly 30 years; otherwise a
-          ValueError is raised immediately, before any data is touched
+        - `historical_slice` must span exactly 30 years; this is checked at
+          parameter-validation time (before this method ever runs), so an
+          invalid span never reaches `execute()` -- it causes the whole
+          query to be rejected (empty result + a warning log), not a raised
+          exception here
         - Input data must overlap the requested historical training period
           (`historical_slice`); otherwise a ValueError is raised naming the
           requested vs. actually-available ranges

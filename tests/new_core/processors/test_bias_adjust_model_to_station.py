@@ -45,11 +45,15 @@ class TestBiasCorrectStationDataInit:
         [(2000, 2005), (1980, 2014), (1980, 1980)],
         ids=["too_short", "too_long", "single_year"],
     )
-    def test_init_raises_on_non_30_year_historical_slice(self, historical_slice):
-        """historical_slice must span exactly 30 years; anything else is
-        rejected immediately, before any data is touched."""
-        with pytest.raises(ValueError, match="exactly 30"):
-            self.ProcClass({"stations": ["KSAC"], "historical_slice": historical_slice})
+    def test_init_accepts_non_30_year_historical_slice(self, historical_slice):
+        """Construction itself doesn't validate historical_slice's span --
+        that check is done at parameter-validation time (see
+        bias_adjust_model_to_station_param_validator.py's
+        TestValidateHistoricalSlice), not here or in execute()."""
+        proc = self.ProcClass(
+            {"stations": ["KSAC"], "historical_slice": historical_slice}
+        )
+        assert proc.historical_slice == historical_slice
 
     def test_init_accepts_exactly_30_year_historical_slice(self):
         """A historical_slice spanning exactly 30 years is accepted."""

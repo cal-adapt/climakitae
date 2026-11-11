@@ -95,7 +95,7 @@ class TestValidateBiasAdjustStationDataParam:
 
         value = {
             "stations": ["ASOSAWOS_72483023225"],
-            "historical_slice": (1990, 2010),
+            "historical_slice": (1981, 2010),
             "window": 90,
             "nquantiles": 20,
             "group": "time.dayofyear",
@@ -386,26 +386,22 @@ class TestValidateHistoricalSlice:
     @pytest.mark.parametrize(
         "historical_slice",
         [
-            (1980, 2014),
-            (1990, 2010),
-            (1980, 2000),
-            (2000, 2014),
             # No fixed HadISD-derived bound applies to HDP: coverage varies
-            # per station and is validated at runtime against the actual data.
-            (1950, 1970),
-            (2015, 2022),
+            # per station and is validated at runtime against the actual
+            # data. For now, only an exactly-30-year span is accepted here
+            # (see test_invalid_historical_slices for non-30-year spans).
+            (1981, 2010),  # matches the processor's own default
+            (1950, 1979),
+            (2015, 2044),
         ],
         ids=[
-            "full_period",
-            "partial_period",
-            "early_period",
-            "late_period",
+            "default_span",
             "before_legacy_1980_bound",
             "after_legacy_2014_bound",
         ],
     )
     def test_valid_historical_slices(self, historical_slice):
-        """Test validation with valid historical periods."""
+        """Test validation with valid (exactly-30-year) historical periods."""
         result = _validate_historical_slice(historical_slice)
         assert result is True
 
@@ -419,15 +415,27 @@ class TestValidateHistoricalSlice:
             ((1980, "2014"), "must be integers"),
             ((2000, 2000), "must be less than"),
             ((2014, 1980), "must be less than"),
+            ((1980, 2014), "exactly 30"),  # 35 years -- too long
+            ((1990, 2010), "exactly 30"),  # 21 years -- too short
+            ((1980, 2000), "exactly 30"),  # 21 years -- too short
+            ((2000, 2014), "exactly 30"),  # 15 years -- too short
+            ((1950, 1970), "exactly 30"),  # 21 years -- too short
+            ((2015, 2022), "exactly 30"),  # 8 years -- too short
         ],
         ids=[
             "list_not_tuple",
-            "too_short",
-            "too_long",
+            "too_short_tuple",
+            "too_long_tuple",
             "start_string",
             "end_string",
             "equal_years",
             "reversed_years",
+            "full_period_too_long",
+            "partial_period_too_short",
+            "early_period_too_short",
+            "late_period_too_short",
+            "before_legacy_1980_bound_too_short",
+            "after_legacy_2014_bound_too_short",
         ],
     )
     def test_invalid_historical_slices(self, historical_slice, error_match):
