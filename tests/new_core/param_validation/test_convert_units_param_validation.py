@@ -110,6 +110,8 @@ class TestValidateConvertUnitsParam:
             ({"by_variable": {}}, "expects a string"),
             ({"by_variable": {"tasmax": "invalid_unit"}}, "Unsupported unit"),
             ({"by_variable": {"": "K"}}, "non-empty variable names"),
+            ({"by_variable": {1: "K"}}, "non-empty variable names"),
+            ({"by_variable": {"tasmax": None}}, "Unsupported unit"),
             ({"units": {"tasmax": "K"}}, "expects a string"),
         ],
     )
@@ -117,6 +119,14 @@ class TestValidateConvertUnitsParam:
         """Test malformed mappings, variable names, and units are rejected."""
         with pytest.warns(UserWarning, match=warning_match):
             assert not validate_convert_units_param(value)
+
+    def test_validate_rejects_unselected_by_variable_target(self):
+        """Test per-variable targets must name requested variables."""
+        with pytest.warns(UserWarning, match="not present in the data"):
+            assert not validate_convert_units_param(
+                {"by_variable": {"tasmax": "degC", "tasmin": "degC"}},
+                query={"variable_id": ["tasmax", "pr"]},
+            )
 
     @pytest.mark.parametrize(
         "value,expected,warning_match",

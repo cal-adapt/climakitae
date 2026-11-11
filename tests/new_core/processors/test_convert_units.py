@@ -383,7 +383,6 @@ class TestConvertUnitsExecute:
     @pytest.mark.parametrize(
         "native_units,target_unit,warning_match",
         [
-            ("K", None, "Target units for variable 'pr' must be a string"),
             (None, "degC", "identifiable native units"),
             ("unknown", "degC", "No valid unit conversions implemented"),
         ],
@@ -413,29 +412,6 @@ class TestConvertUnitsExecute:
         np.testing.assert_array_equal(result["pr"].values, [2.0])
         assert result["tasmax"].attrs["units"] == "K"
         assert result["pr"].attrs.get("units") == native_units
-
-    def test_execute_unknown_variable_target_is_atomic(self, sample_dataset):
-        """Test unknown variable targets leave the input dataset unchanged."""
-        processor = ConvertUnits({"by_variable": {"unknown": "K"}})
-
-        with pytest.warns(UserWarning, match="not present in the data"):
-            result = processor.execute(sample_dataset, context={})
-
-        assert result is sample_dataset
-        assert processor.success is False
-        np.testing.assert_array_equal(
-            result["temperature"].values, sample_dataset["temperature"].values
-        )
-
-    def test_execute_rejects_invalid_variable_name_type(self, sample_dataset):
-        """Test malformed variable names are rejected before target lookup."""
-        processor = ConvertUnits({"by_variable": {1: "K"}})
-
-        with pytest.warns(UserWarning, match="non-empty variable names"):
-            result = processor.execute(sample_dataset, context={})
-
-        assert result is sample_dataset
-        assert processor.success is False
 
     def test_execute_by_variable_preserves_monthly_precipitation_conversion(self):
         """Test targeted flux conversion uses monthly calendar-day scaling."""

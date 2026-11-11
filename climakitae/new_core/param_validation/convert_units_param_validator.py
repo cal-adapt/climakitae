@@ -38,6 +38,7 @@ def validate_convert_units_param(
     ----------
     value : str or mapping
         A shared target unit, or ``{"by_variable": {variable_id: unit}}``.
+        Mapping keys must be variables requested by ``query["variable_id"]``.
         Valid units include temperature units (K, degC, degF), pressure units (Pa, hPa, mb, inHg),
         wind units (m/s, m s-1, mph, knots), precipitation units (mm, mm/d, mm/h, inches, inches/d, inches/h),
         moisture units (kg/kg, kg kg-1, g/kg, g kg-1), flux units (kg m-2 s-1), and relative humidity
@@ -48,14 +49,14 @@ def validate_convert_units_param(
     bool
         True if all parameters are valid, False otherwise
     """
-    # kwargs unused but required for signature compatibility
-    del kwargs
-
     if value is UNSET:
         # UNSET is valid - processor will not perform any conversion
         return True
 
     if not _check_input_types(value):
+        return False
+
+    if not _check_targets_are_selected(value, kwargs.get("query")):
         return False
 
     if not _check_unit_validity(value):
@@ -107,6 +108,45 @@ def _check_input_types(value: Any) -> bool:
         type(value),
     )
     return False
+
+
+def _check_targets_are_selected(value: Any, query: Any) -> bool:
+    """
+    Check that per-variable unit targets name requested variables.
+
+    Parameters
+    ----------
+    value : Any
+        The shared unit string or per-variable unit mapping to check.
+    query : Any
+        The full user query. Targets are only checked when it provides a
+        ``variable_id`` string or sequence.
+
+    Returns
+    -------
+    bool
+        True if every target is a requested variable or no selection is known,
+        False otherwise.
+    """
+    if not isinstance(value, Mapping) or not isinstance(query, Mapping):
+        return True
+
+    selected_variables = query.get("variable_id", UNSET)
+    if isinstance(selected_variables, str):
+        selected_variables = {selected_variables}
+    elif isinstance(selected_variables, (list, tuple, set)):
+        selected_variables = set(selected_variables)
+    else:
+        return True
+
+    unknown_variables = set(value["by_variable"]) - selected_variables
+    if unknown_variables:
+        logger.warning(
+            "Unit conversion targets are not present in the data: %s",
+            sorted(unknown_variables),
+        )
+        return False
+    return True
 
 
 def _check_unit_validity(value: Any) -> bool:

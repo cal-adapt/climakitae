@@ -183,36 +183,6 @@ class ConvertUnits(DataProcessor):
             logger.debug("No target units specified, returning data unchanged")
             return result
 
-        if isinstance(self.value, Mapping):
-            targets = self.value.get("by_variable")
-            if (
-                set(self.value) != {"by_variable"}
-                or not isinstance(targets, Mapping)
-                or not targets
-            ):
-                logger.warning(
-                    "Convert Units Processor expects a string or a non-empty "
-                    "{'by_variable': {variable: unit}} mapping."
-                )
-                self.success = False
-                return result
-
-            if any(not isinstance(name, str) or not name.strip() for name in targets):
-                logger.warning(
-                    "The 'by_variable' mapping must use non-empty variable names."
-                )
-                self.success = False
-                return result
-
-            unknown_variables = set(targets) - self._get_data_variable_names(result)
-            if unknown_variables:
-                logger.warning(
-                    "Unit conversion targets are not present in the data: %s",
-                    sorted(unknown_variables),
-                )
-                self.success = False
-                return result
-
         selected_variables = context.get("variable_id", UNSET)
         if selected_variables is UNSET:
             selected_variables = context.get("_catalog_variable_ids", UNSET)
@@ -261,40 +231,6 @@ class ConvertUnits(DataProcessor):
             logger.info("Units successfully converted to '%s'", self.value)
             self.update_context(context)
         return ret
-
-    @staticmethod
-    def _get_data_variable_names(data: Any) -> set[str]:
-        """Return the names of all data variables in supported result containers.
-
-        Parameters
-        ----------
-        data : Any
-            An xarray object or a nested dictionary, list, or tuple of xarray
-            objects.
-
-        Returns
-        -------
-        set of str
-            Names of data variables available for conversion.
-        """
-        match data:
-            case xr.Dataset():
-                return set(data.data_vars)
-            case xr.DataArray():
-                return {data.name} if data.name is not None else set()
-            case dict():
-                return set().union(
-                    *(
-                        ConvertUnits._get_data_variable_names(item)
-                        for item in data.values()
-                    )
-                )
-            case list() | tuple():
-                return set().union(
-                    *(ConvertUnits._get_data_variable_names(item) for item in data)
-                )
-            case _:
-                return set()
 
     @staticmethod
     def _get_support_variable_names(data: Any) -> set[str]:
@@ -419,11 +355,7 @@ class ConvertUnits(DataProcessor):
                     and name not in support_variables
                     and (selected_variables is None or name in selected_variables)
                 }
-        elif (
-            isinstance(value, Mapping)
-            and set(value) == {"by_variable"}
-            and isinstance(value["by_variable"], Mapping)
-        ):
+        elif isinstance(value, Mapping):
             targets = value["by_variable"]
             support_targets = set(targets) & support_variables
             if support_targets:
@@ -491,15 +423,6 @@ class ConvertUnits(DataProcessor):
         converted_variables = {}
         for name, variable in variables.items():
             target_unit = targets[name]
-            if not isinstance(target_unit, str):
-                logger.warning(
-                    "Target units for variable '%s' must be a string; "
-                    "no variables were converted.",
-                    name,
-                )
-                self.success = False
-                return data
-
             units_from = variable.attrs.get("units")
             if units_from is None:
                 logger.warning(
