@@ -164,8 +164,16 @@ class Dataset:
 
         Returns
         -------
-        xr.Dataset
-            Result of the processing pipeline
+        xr.Dataset or None
+            Result of the processing pipeline. Multi-variable queries return
+            a Dataset containing the requested data variables in request
+            order. Validation failure returns None.
+
+        Notes
+        -----
+        Data access validates joint field coverage before processing. Eligible
+        members or stations are aligned to shared timestamps; an otherwise
+        eligible record with no timestamp overlap fails the query.
 
         """
         logger.info("Executing dataset processing pipeline")

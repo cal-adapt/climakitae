@@ -8,6 +8,8 @@ that provides parameter validation for historical data platform queries.
 import warnings
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.hdp_param_validator import HDPValidator
 
@@ -47,6 +49,7 @@ class TestHDPValidatorInit:
         expected_keys = {
             "network_id",
             "station_id",
+            "variable_id",
         }
         assert set(validator.all_catalog_keys.keys()) == expected_keys
 
@@ -57,6 +60,67 @@ class TestHDPValidatorInit:
 
 class TestHDPValidatorValidation:
     """Test class for HDPValidator validation methods."""
+
+    @pytest.mark.parametrize("processor", ["convert_units", "metric_calc"])
+    def test_metric_processors_are_rejected_for_hdp(self, processor, caplog):
+        """Reject gridded unit conversion and metrics for station observations."""
+        validator = HDPValidator(MagicMock())
+
+        with caplog.at_level("WARNING"):
+            result = validator._check_query_invalid_processors(
+                {"processes": {processor: {}}}
+            )
+
+        assert result is False
+        assert f"Invalid processor for HDP data: {processor}" in caplog.text
+
+    def test_variable_fields_are_preserved_without_catalog_filtering(self):
+        """Test HDP fields remain query outputs rather than catalog search keys."""
+        from climakitae.new_core.param_validation.abc_param_validation import (
+            ParameterValidator,
+        )
+
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_search_result = MagicMock()
+        mock_search_result.__len__.return_value = 1
+        mock_hdp_catalog.search.return_value = mock_search_result
+        mock_data_catalog.hdp = mock_hdp_catalog
+        validator = HDPValidator(mock_data_catalog)
+
+        query = {"network_id": "ASOSAWOS", "variable_id": ["tas", "pr"]}
+        with patch.object(
+            ParameterValidator, "_has_valid_processes", return_value=True
+        ):
+            result = validator.is_valid_query(query)
+
+        assert result["variable_id"] == ["tas", "pr"]
+        assert result["_hdp_variable_query"] is True
+        mock_hdp_catalog.search.assert_called_once_with(network_id="ASOSAWOS")
+
+    def test_registered_derived_names_remain_literal_hdp_fields(self):
+        """Test HDP selection never invokes gridded derived-variable handling."""
+        from climakitae.new_core.param_validation.abc_param_validation import (
+            ParameterValidator,
+        )
+
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_search_result = MagicMock()
+        mock_search_result.__len__.return_value = 1
+        mock_hdp_catalog.search.return_value = mock_search_result
+        mock_data_catalog.hdp = mock_hdp_catalog
+        validator = HDPValidator(mock_data_catalog)
+
+        query = {"network_id": "ASOSAWOS", "variable_id": "wind_speed_10m"}
+        with patch.object(
+            ParameterValidator, "_has_valid_processes", return_value=True
+        ):
+            result = validator.is_valid_query(query)
+
+        assert result["_hdp_requested_fields"] == ["wind_speed_10m"]
+        assert "_derived_variable" not in result
+        mock_hdp_catalog.search.assert_called_once_with(network_id="ASOSAWOS")
 
     def test_is_valid_query_calls_parent_method(self):
         """Test that is_valid_query calls the parent _is_valid_query method.
@@ -179,6 +243,19 @@ class TestHDPValidatorNetworkIdRequirement:
         result = validator.is_valid_query(test_query)
 
         # Should return None (validation failed)
+        assert result is None
+
+    def test_query_with_prohibited_public_process_fails(self):
+        """Test the public processes query key enforces HDP restrictions."""
+        mock_data_catalog = MagicMock()
+        mock_hdp_catalog = MagicMock()
+        mock_data_catalog.hdp = mock_hdp_catalog
+        validator = HDPValidator(mock_data_catalog)
+
+        result = validator.is_valid_query(
+            {"network_id": "ASOSAWOS", "processes": {"clip": "California"}}
+        )
+
         assert result is None
 
     def test_query_with_network_id_string_passes_initial_check(self):

@@ -50,10 +50,13 @@ class MetricCalc(DataProcessor):
     and extreme value analysis for 1-in-X return period calculations.
     Multiple calculation types can be performed simultaneously.
 
-    **Multi-Variable Support**: When a Dataset with multiple variables is provided:
-    - Basic metrics (min/max/mean/median) and percentiles are calculated for all variables
-    - 1-in-X analysis processes each variable separately and prefixes results with variable names
-      (e.g., `tasmax_return_values`, `tasmin_return_values`)
+    **Multi-Variable Support**: Basic metrics and percentiles can be shared across
+    selected variables or configured independently with ``by_variable``. Variables
+    omitted from a targeted configuration remain unchanged. Percentile outputs use
+    variable-specific names (``{variable}_percentiles``) and dimensions
+    (``{variable}_percentile``), so different percentile lists do not align onto
+    a union coordinate. Multi-variable queries support only basic metrics and
+    percentiles; threshold and 1-in-X modes are rejected during validation.
 
     Parameters
     ----------
@@ -71,6 +74,9 @@ class MetricCalc(DataProcessor):
           Default: "time"
         - keepdims (bool, optional): Whether to keep the dimensions being reduced. Default: False
         - skipna (bool, optional): Whether to skip NaN values in calculations. Default: True
+        - by_variable (dict, optional): Basic metric settings keyed by selected
+          variable name. Per-variable settings override shared settings; if no
+          shared basic settings are provided, unlisted variables remain unchanged.
 
         1-in-X Return Value Analysis:
         - one_in_x (dict, optional): Configuration for annual 1-in-X extreme value analysis.
@@ -164,6 +170,7 @@ class MetricCalc(DataProcessor):
             - dim (str or list, optional): Dimension(s) to reduce. Default: "time"
             - keepdims (bool, optional): Keep dimensions. Default: False
             - skipna (bool, optional): Skip NaN values. Default: True
+            - by_variable (dict, optional): Basic metric settings keyed by variable name
             - one_in_x (dict, optional): 1-in-X extreme value analysis configuration
 
         Raises
@@ -179,6 +186,7 @@ class MetricCalc(DataProcessor):
         self.metric = value.get("metric", "mean")
         self.percentiles = value.get("percentiles", UNSET)
         self.percentiles_only = value.get("percentiles_only", False)
+        self.by_variable = value.get("by_variable", UNSET)
 
         # Allow either `dim` or `dims` for flexibility
         self.dim = value.get("dims", value.get("dim", "time"))
@@ -347,12 +355,24 @@ class MetricCalc(DataProcessor):
             an iterable of them.
         """
         # Select processing function based on configuration
+        selected_variables = context.get("variable_id")
+        if isinstance(selected_variables, str):
+            selected_variables = [selected_variables]
+        is_multi_variable_query = (
+            isinstance(selected_variables, (list, tuple))
+            and len(selected_variables) > 1
+        )
+
         if self.thresholds is not UNSET:
             process_fn = self._calculate_threshold_single
         elif self.one_in_x_config is not UNSET:
             process_fn = self._calculate_one_in_x_single
         else:
-            process_fn = self._calculate_metrics_single
+            process_fn = lambda data: self._calculate_metrics_single(
+                data,
+                multi_variable=is_multi_variable_query,
+                selected_variables=selected_variables,
+            )
 
         ret = None
 
@@ -390,7 +410,10 @@ class MetricCalc(DataProcessor):
         return ret
 
     def _calculate_metrics_single(
-        self, data: xr.Dataset | xr.DataArray
+        self,
+        data: xr.Dataset | xr.DataArray,
+        multi_variable: bool | None = None,
+        selected_variables: list[str] | tuple[str, ...] | None = None,
     ) -> xr.Dataset | xr.DataArray:
         """
         Calculate metrics on a single Dataset or DataArray.
@@ -405,6 +428,12 @@ class MetricCalc(DataProcessor):
         xr.Dataset | xr.DataArray
             The data with calculated metrics.
         """
+        if isinstance(data, xr.Dataset):
+            if multi_variable is None:
+                multi_variable = len(data.data_vars) > 1
+            if multi_variable:
+                return self._calculate_metrics_multi_variable(data, selected_variables)
+
         # Check if dimensions exist in the data
         if isinstance(self.dim, str):
             dims_to_check = [self.dim]
@@ -528,6 +557,129 @@ class MetricCalc(DataProcessor):
         else:
             # Should not reach here, but return the first result as fallback
             return results[0] if results else data
+
+    def _calculate_metrics_multi_variable(
+        self,
+        data: xr.Dataset,
+        selected_variables: list[str] | tuple[str, ...] | None,
+    ) -> xr.Dataset:
+        """Calculate basic metrics independently for selected Dataset variables."""
+        variable_names = list(data.data_vars)
+        selected_names = (
+            list(selected_variables)
+            if selected_variables is not None
+            else variable_names
+        )
+        missing_selected = set(selected_names) - set(variable_names)
+        if missing_selected:
+            raise ValueError(
+                "Selected variables are missing from metric input: "
+                f"{sorted(missing_selected)}."
+            )
+
+        by_variable = self.by_variable
+        if by_variable is UNSET:
+            by_variable = {}
+        shared_keys = {
+            "metric",
+            "percentiles",
+            "percentiles_only",
+            "dim",
+            "dims",
+            "skipna",
+        }
+        shared_config = {
+            key: value for key, value in self.value.items() if key in shared_keys
+        }
+        if by_variable and not shared_config:
+            target_names = set(by_variable)
+        else:
+            target_names = set(selected_names)
+
+        outputs: dict[str, xr.DataArray] = {}
+        generated_names: set[str] = set()
+        for variable_name in variable_names:
+            if variable_name not in target_names:
+                outputs[variable_name] = data[variable_name]
+                continue
+
+            variable_config = by_variable.get(variable_name, {})
+            config = {**shared_config, **variable_config}
+            metric = config.get("metric", "mean")
+            percentiles = config.get("percentiles", UNSET)
+            percentiles_only = config.get("percentiles_only", False)
+            dims = config.get("dims", config.get("dim", "time"))
+            dims = [dims] if isinstance(dims, str) else list(dims)
+            skipna = config.get("skipna", True)
+
+            variable_data = data[variable_name]
+            missing_dims = set(dims) - set(variable_data.dims)
+            if missing_dims:
+                raise ValueError(
+                    f"metric_calc dimensions {sorted(missing_dims)} are not present "
+                    f"on variable '{variable_name}' (dimensions: "
+                    f"{variable_data.dims})."
+                )
+            calc_dim = dims[0] if len(dims) == 1 else dims
+            # The source variable may be replaced by its own metric output.
+            taken = (set(data.variables) - {variable_name}, generated_names)
+
+            has_percentiles = percentiles is not UNSET and percentiles is not None
+            if has_percentiles:
+                percentile_dim = f"{variable_name}_percentile"
+                percentile_name = f"{variable_name}_percentiles"
+                self._check_output_name_collision(
+                    percentile_dim, data.variables, data.dims
+                )
+                self._check_output_name_collision(percentile_name, *taken)
+                percentile_result = variable_data.quantile(
+                    np.asarray(percentiles, dtype=float)
+                    / PERCENTILE_TO_QUANTILE_FACTOR,
+                    dim=calc_dim,
+                    keep_attrs=True,
+                    skipna=skipna,
+                )
+                percentile_result = percentile_result.rename(
+                    {"quantile": percentile_dim}
+                ).assign_coords({percentile_dim: percentiles})
+                outputs[percentile_name] = percentile_result.rename(percentile_name)
+                generated_names.add(percentile_name)
+
+            if not percentiles_only:
+                metric_result = getattr(variable_data, metric)(
+                    dim=calc_dim, keep_attrs=True, skipna=skipna
+                )
+                metric_name = (
+                    f"{variable_name}_{metric}" if has_percentiles else variable_name
+                )
+                self._check_output_name_collision(metric_name, *taken)
+                outputs[metric_name] = metric_result.rename(metric_name)
+                generated_names.add(metric_name)
+
+        return xr.Dataset(outputs, attrs=data.attrs)
+
+    @staticmethod
+    def _check_output_name_collision(name: str, *taken: Iterable[str]) -> None:
+        """
+        Reject a generated output name that is already in use.
+
+        Parameters
+        ----------
+        name : str
+            Generated output variable or dimension name.
+        *taken : Iterable[str]
+            Collections of names that ``name`` must not collide with.
+
+        Raises
+        ------
+        ValueError
+            If ``name`` appears in any collection in ``taken``.
+        """
+        if any(name in names for names in taken):
+            raise ValueError(
+                f"metric_calc output name '{name}' collides with an existing "
+                "input variable, coordinate, dimension, or generated output."
+            )
 
     def _calculate_threshold_single(
         self, data: xr.Dataset | xr.DataArray

@@ -199,6 +199,66 @@ class TestClimateDataParameterSetters:
         assert self.climate_data._query["variable_id"] == "tasmax"
         assert result is self.climate_data
 
+    @pytest.mark.parametrize(
+        "variable_ids",
+        [
+            [" tasmax ", " pr "],
+            (" tasmax ", " pr "),
+        ],
+    )
+    def test_variable_id_multiple_values_preserve_order(self, variable_ids):
+        """Test multiple variable IDs are trimmed without changing their order."""
+        result = self.climate_data.variable_id(variable_ids)
+
+        assert self.climate_data._query["variable_id"] == ["tasmax", "pr"]
+        assert result is self.climate_data
+
+    @pytest.mark.parametrize("selection_size", [3, 10])
+    def test_variable_id_accepts_three_and_ten_values(self, selection_size):
+        """Accept larger ordered selections without dropping variable IDs."""
+        variable_ids = [f"variable_{index}" for index in range(selection_size)]
+
+        result = self.climate_data.variable_id(variable_ids)
+
+        assert self.climate_data._query["variable_id"] == variable_ids
+        assert result is self.climate_data
+
+    @pytest.mark.parametrize("variable_ids", [[" tasmax "], (" tasmax ",)])
+    def test_variable_id_single_item_collection_preserves_scalar(self, variable_ids):
+        """Test one-item selections retain single-variable query behavior."""
+        self.climate_data.variable_id(variable_ids)
+
+        assert self.climate_data._query["variable_id"] == "tasmax"
+
+    def test_variable_id_string_and_single_item_collections_are_equivalent(self):
+        """Normalize a string and one-item list/tuple to the same query value."""
+        normalized_values = []
+        for variable_ids in ("tasmax", ["tasmax"], ("tasmax",)):
+            self.climate_data.reset()
+            normalized_values.append(
+                self.climate_data.variable_id(variable_ids).copy_query()["variable_id"]
+            )
+
+        assert normalized_values == ["tasmax", "tasmax", "tasmax"]
+
+    @pytest.mark.parametrize(
+        "variable_ids,error_message",
+        [
+            ([], "Variable ID collection must not be empty"),
+            ((), "Variable ID collection must not be empty"),
+            (["tasmax", " tasmax "], "unique after trimming"),
+            (["tasmax", ""], "Each variable ID must be a non-empty string"),
+            (("tasmax", None), "Each variable ID must be a non-empty string"),
+            (["tasmax", 3], "Each variable ID must be a non-empty string"),
+            (UNSET, "Variable ID must be a non-empty string"),
+            ("   ", "Variable ID must be a non-empty string"),
+        ],
+    )
+    def test_variable_id_rejects_invalid_collections(self, variable_ids, error_message):
+        """Test empty, duplicate, blank, and non-string selections are rejected."""
+        with pytest.raises(ValueError, match=error_message):
+            self.climate_data.variable_id(variable_ids)
+
     def test_variable_id_invalid(self):
         """Test variable_id setter with invalid input."""
         try:
@@ -351,6 +411,170 @@ class TestClimateDataGet:
         assert result is expected_data
         # The implementation uses logger.info for success message
         mock_logger.info.assert_any_call("✅ Data retrieval successful!")
+
+    @pytest.mark.parametrize("variable_count", [2, 3, 10])
+    def test_get_preserves_variable_selection_without_fixed_count_cap(
+        self, variable_count
+    ):
+        """Test selections of different sizes survive the get query snapshot."""
+        self.climate_data.catalog("cadcat")
+        self.climate_data.table_id("day")
+        self.climate_data.grid_label("d03")
+        variable_ids = [f"variable_{index}" for index in range(variable_count)]
+        self.climate_data.variable_id(variable_ids)
+
+        mock_dataset = MagicMock()
+        expected_data = MagicMock()
+        expected_data.nbytes = 100
+        mock_dataset.execute.return_value = expected_data
+        self.climate_data._factory.create_dataset.return_value = mock_dataset
+
+        result = self.climate_data.get()
+
+        assert result is expected_data
+        factory_query = self.climate_data._factory.create_dataset.call_args.args[0]
+        execute_query = mock_dataset.execute.call_args.args[0]
+        assert factory_query["variable_id"] == variable_ids
+        assert execute_query["variable_id"] == variable_ids
+        assert self.climate_data._query["variable_id"] is UNSET
+
+    def test_get_returns_none_and_logs_dictionary_validation_failure(self):
+        """Return None and log catalog validation errors from dictionary queries."""
+        self.climate_data.load_query(
+            {
+                "catalog": "cadcat",
+                "table_id": "day",
+                "grid_label": "d03",
+                "variable_id": ["tasmax", "invalid_variable"],
+            }
+        )
+        self.climate_data._factory.create_dataset.side_effect = ValueError(
+            "Requested variable is unavailable"
+        )
+
+        with patch("climakitae.new_core.user_interface.logger") as logger:
+            result = self.climate_data.get()
+
+        assert result is None
+        logger.error.assert_called_once_with(
+            "Error during dataset creation: %s", "Requested variable is unavailable"
+        )
+        assert self.climate_data._query["variable_id"] is UNSET
+
+    def test_get_resets_after_execution_failure_and_allows_reuse(self):
+        """Test execution failures reset state before a scalar query is reused."""
+        first_dataset = MagicMock()
+        first_dataset.execute.side_effect = ValueError("Invalid variable combination")
+        second_dataset = MagicMock()
+        expected_data = MagicMock()
+        expected_data.nbytes = 100
+        second_dataset.execute.return_value = expected_data
+        self.climate_data._factory.create_dataset.side_effect = [
+            first_dataset,
+            second_dataset,
+        ]
+
+        self.climate_data.catalog("cadcat").table_id("day").grid_label(
+            "d03"
+        ).variable_id(["tasmax", "pr"])
+        assert self.climate_data.get() is None
+        assert self.climate_data._query["variable_id"] is UNSET
+
+        self.climate_data.catalog("cadcat").table_id("day").grid_label(
+            "d03"
+        ).variable_id("huss")
+        assert self.climate_data.get() is expected_data
+
+        first_query = self.climate_data._factory.create_dataset.call_args_list[0].args[
+            0
+        ]
+        second_query = self.climate_data._factory.create_dataset.call_args_list[1].args[
+            0
+        ]
+        assert first_query["variable_id"] == ["tasmax", "pr"]
+        assert second_query["variable_id"] == "huss"
+        assert self.climate_data._query["variable_id"] is UNSET
+
+    def test_get_keeps_variable_selections_independent_between_instances(self):
+        """Test separate ClimateData instances retain their own variable queries."""
+        first_factory = MagicMock()
+        second_factory = MagicMock()
+        with (
+            patch(
+                "climakitae.new_core.user_interface.DatasetFactory",
+                side_effect=[first_factory, second_factory],
+            ),
+            patch(
+                "climakitae.new_core.user_interface.read_csv_file",
+                return_value=pd.DataFrame(),
+            ),
+            patch("builtins.print"),
+        ):
+            first_client = ClimateData()
+            second_client = ClimateData()
+
+        first_dataset = MagicMock()
+        first_result = MagicMock()
+        first_result.nbytes = 100
+        first_dataset.execute.return_value = first_result
+        first_factory.create_dataset.return_value = first_dataset
+
+        second_dataset = MagicMock()
+        second_result = MagicMock()
+        second_result.nbytes = 100
+        second_dataset.execute.return_value = second_result
+        second_factory.create_dataset.return_value = second_dataset
+
+        first_client.catalog("cadcat").table_id("day").grid_label("d03").variable_id(
+            ["tasmax", "pr"]
+        )
+        second_client.catalog("cadcat").table_id("day").grid_label("d03").variable_id(
+            ["tasmin", "huss"]
+        )
+
+        assert first_client.get() is first_result
+        assert second_client.get() is second_result
+
+        first_query = first_factory.create_dataset.call_args.args[0]
+        second_query = second_factory.create_dataset.call_args.args[0]
+        assert first_query["variable_id"] == ["tasmax", "pr"]
+        assert second_query["variable_id"] == ["tasmin", "huss"]
+        assert first_client._query["variable_id"] is UNSET
+        assert second_client._query["variable_id"] is UNSET
+
+    def test_get_keeps_query_snapshots_independent_between_calls(self):
+        """A later query must not mutate an earlier multi-variable snapshot."""
+        first_dataset = MagicMock()
+        first_result = MagicMock()
+        first_result.nbytes = 100
+        first_dataset.execute.return_value = first_result
+        second_dataset = MagicMock()
+        second_result = MagicMock()
+        second_result.nbytes = 100
+        second_dataset.execute.return_value = second_result
+        self.climate_data._factory.create_dataset.side_effect = [
+            first_dataset,
+            second_dataset,
+        ]
+
+        self.climate_data.catalog("cadcat").table_id("day").grid_label(
+            "d03"
+        ).variable_id(["tasmax", "pr"])
+        assert self.climate_data.get() is first_result
+        first_query = self.climate_data._factory.create_dataset.call_args_list[0].args[
+            0
+        ]
+
+        self.climate_data.catalog("cadcat").table_id("day").grid_label("d03")
+        self.climate_data.variable_id("huss")
+        assert self.climate_data.get() is second_result
+
+        second_query = self.climate_data._factory.create_dataset.call_args_list[1].args[
+            0
+        ]
+        assert first_query["variable_id"] == ["tasmax", "pr"]
+        assert second_query["variable_id"] == "huss"
+        assert first_query is not second_query
 
 
 class TestClimateDataValidation:
@@ -819,6 +1043,25 @@ class TestClimateDataAdditionalMethods:
         assert self.climate_data._query["catalog"] == "climate"
         assert self.climate_data._query["variable_id"] == "tas"
         assert self.climate_data._query["experiment_id"] == ["historical"]
+
+    def test_load_query_normalizes_variable_id_tuple(self):
+        """Test dictionary queries use the variable-ID normalization contract."""
+        self.climate_data.load_query({"variable_id": (" tasmax ", " pr ")})
+
+        assert self.climate_data.copy_query()["variable_id"] == ["tasmax", "pr"]
+
+    def test_load_query_invalid_variable_selection_is_atomic(self):
+        """Reject invalid dictionary selections without replacing prior query state."""
+        self.climate_data.variable_id(["tasmax", "pr"])
+
+        with patch("climakitae.new_core.user_interface.logger") as logger:
+            with pytest.raises(
+                ValueError, match="Each variable ID must be a non-empty string"
+            ):
+                self.climate_data.load_query({"variable_id": ["huss", None]})
+
+        assert self.climate_data.copy_query()["variable_id"] == ["tasmax", "pr"]
+        logger.error.assert_called_once()
 
     def test_load_query_empty_dict(self):
         """Test load_query with empty dictionary."""

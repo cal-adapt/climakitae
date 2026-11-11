@@ -35,6 +35,7 @@ import dask
 import geopandas as gpd
 import intake
 import intake_esm
+import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -565,9 +566,11 @@ class DataCatalog(dict):
         Parameters
         ----------
         query : dict
-            Query parameters for filtering data. The available parameters
-            depend on the catalog and may include items like 'variable',
-            'scenario', 'model', etc.
+            Query parameters for filtering data. Available parameters depend
+            on the catalog and include fields such as ``variable_id``,
+            ``experiment_id``, and ``source_id``. Internal multi-variable
+            metadata distinguishes requested outputs from catalog dependency
+            fields.
         catalog_key : str, optional
             The key identifying which catalog to query. If not provided,
             falls back to the deprecated instance attribute (for backward
@@ -577,11 +580,16 @@ class DataCatalog(dict):
         -------
         dict[str, xr.Dataset]
             The requested dataset(s) from the catalog, keyed by dataset identifiers.
+            Multi-variable retrieval keeps only simulations/members (or HDP
+            stations) with every requested field, aligned to shared
+            timestamps. Excluded members are logged.
 
         Raises
         ------
         ValueError
             If no catalog_key is provided and no default is available.
+            Multi-variable retrieval also raises when no member has every
+            requested field or the requested fields share no coordinates.
 
         Examples
         --------
@@ -603,10 +611,20 @@ class DataCatalog(dict):
         logger.info("Querying %s catalog", effective_key)
         logger.debug("Query parameters: %s", query)
 
-        # Strip internal metadata keys that shouldn't be passed to catalog search
-        # These are used internally for derived variable handling
-        internal_keys = {"_derived_variable", "_source_variables", "_catalog_key"}
-        search_query = {k: v for k, v in query.items() if k not in internal_keys}
+        multi_variable_query = bool(query.get("_multi_variable_query"))
+        hdp_field_query = effective_key == CATALOG_HDP and bool(
+            query.get("_hdp_variable_query")
+        )
+        search_query = {k: v for k, v in query.items() if not k.startswith("_")}
+        if hdp_field_query:
+            search_query.pop("variable_id", None)
+        if multi_variable_query:
+            catalog_variable_ids = query.get("_catalog_variable_ids")
+            if not catalog_variable_ids:
+                raise ValueError(
+                    "Multi-variable queries require at least one catalog variable."
+                )
+            search_query["variable_id"] = catalog_variable_ids
 
         logger.debug("Querying %s catalog with query: %s", effective_key, search_query)
 
@@ -631,21 +649,50 @@ class DataCatalog(dict):
             pass
 
         with dask.config.set(scheduler=scheduler_override):
-            result = (
-                self[effective_key]
-                .search(**search_query)
-                .to_dataset_dict(
-                    # Use consolidated=None for compatibility with both Zarr v2 and v3.
-                    # - True: requires consolidated metadata (fails on Zarr v3 without it)
-                    # - False: always reads metadata from individual arrays
-                    # - None: uses consolidated if available, falls back to individual reads
-                    zarr_kwargs={"consolidated": None},
-                    storage_options={"anon": True},
-                    progressbar=False,
+            if multi_variable_query:
+                result = self._open_complete_multi_variable_datasets(
+                    self[effective_key], search_query
                 )
-            )
+            else:
+                result = (
+                    self[effective_key]
+                    .search(**search_query)
+                    .to_dataset_dict(
+                        xarray_open_kwargs=(
+                            {"chunks": {}} if hdp_field_query else None
+                        ),
+                        # Use consolidated=None for compatibility with both Zarr v2 and v3.
+                        # - True: requires consolidated metadata (fails on Zarr v3 without it)
+                        # - False: always reads metadata from individual arrays
+                        # - None: uses consolidated if available, falls back to individual reads
+                        # Unaggregated HDP field reads may open NetCDF assets,
+                        # which reject Zarr-only options, so pass none there.
+                        zarr_kwargs=({} if hdp_field_query else {"consolidated": None}),
+                        storage_options={"anon": True},
+                        progressbar=False,
+                        aggregate=not hdp_field_query,
+                    )
+                )
         logger.info("Retrieved %d dataset(s) from catalog", len(result))
         logger.debug("Retrieved datasets: %s", list(result.keys()))
+
+        if hdp_field_query:
+            result = self._assemble_hdp_station_fields(result, query)
+        elif multi_variable_query:
+            for derived_name in query.get("_derived_variables") or []:
+                result = self._apply_derived_variable(
+                    result, derived_name, keep_inputs=True
+                )
+            requested_variables = list(query.get("_requested_variables") or [])
+            for key, dataset in result.items():
+                missing = [v for v in requested_variables if v not in dataset]
+                if missing:
+                    raise ValueError(
+                        f"Dataset {key!r} is missing requested output variables "
+                        f"{missing}; derived functions must return their "
+                        f"registered output name. Returned {list(dataset.data_vars)}."
+                    )
+                result[key] = dataset[requested_variables]
 
         # For HDP data, rename station coordinate to station_id for consistency
         if effective_key == CATALOG_HDP:
@@ -826,8 +873,311 @@ class DataCatalog(dict):
 
         return result
 
+    def get_hdp_observation_fields(
+        self, query: Optional[Dict[str, Any]] = None
+    ) -> list[str]:
+        """Discover time-varying HDP observation fields from representative assets.
+
+        A representative station is inspected for each selected network, or one
+        station per network when no network is selected. If station IDs are
+        specified, every selected station is inspected.
+
+        Parameters
+        ----------
+        query : dict, optional
+            Current user selections, including optional ``network_id`` and
+            ``station_id`` filters.
+
+        Returns
+        -------
+        list[str]
+            Sorted observation variable names present in the selected assets.
+        """
+        query = query or {}
+        catalog_df = self.hdp.df
+        selected = catalog_df
+
+        network_id = query.get("network_id", UNSET)
+        if network_id is not UNSET and "network_id" in selected.columns:
+            network_ids = (
+                network_id if isinstance(network_id, (list, tuple)) else [network_id]
+            )
+            selected = selected[selected["network_id"].isin(network_ids)]
+
+        station_id = query.get("station_id", UNSET)
+        inspect_all_stations = station_id is not UNSET
+        if inspect_all_stations and "station_id" in selected.columns:
+            station_ids = (
+                station_id if isinstance(station_id, (list, tuple)) else [station_id]
+            )
+            selected = selected[selected["station_id"].isin(station_ids)]
+        elif "network_id" in selected.columns:
+            selected = selected.groupby("network_id", sort=False).head(1)
+        else:
+            selected = selected.head(1)
+
+        fields = set()
+        for _, record in selected.iterrows():
+            station_catalog = self.hdp.search(
+                network_id=record["network_id"],
+                station_id=record["station_id"],
+            )
+            station_datasets = station_catalog.to_dataset_dict(
+                xarray_open_kwargs={"chunks": {}},
+                storage_options={"anon": True},
+                progressbar=False,
+                aggregate=False,
+            )
+            for dataset in station_datasets.values():
+                fields.update(
+                    name
+                    for name, variable in dataset.data_vars.items()
+                    if "time" in variable.dims and not name.startswith("_")
+                )
+
+        return sorted(fields)
+
+    def _assemble_hdp_station_fields(
+        self, datasets: Dict[str, xr.Dataset], query: Dict[str, Any]
+    ) -> Dict[str, xr.Dataset]:
+        """Select requested HDP fields and align their station-level timestamps.
+
+        Parameters
+        ----------
+        datasets : dict[str, xr.Dataset]
+            Unaggregated datasets returned by intake-esm.
+        query : dict
+            Query metadata containing the ordered requested HDP fields.
+
+        Returns
+        -------
+        dict[str, xr.Dataset]
+            Datasets for stations containing every requested field.
+
+        Raises
+        ------
+        ValueError
+            If no station contains every requested field or a complete station
+            has no timestamps shared by all requested fields.
+        """
+        requested_fields = query.get("_hdp_requested_fields") or []
+        if not requested_fields:
+            raise ValueError(
+                "HDP field selection requires at least one requested field."
+            )
+
+        station_assets = {}
+        for dataset_key, dataset in datasets.items():
+            station_id = dataset.attrs.get("intake_esm_attrs:station_id")
+            if station_id is None and "station" in dataset.coords:
+                station_values = dataset["station"].values
+                if len(station_values) == 1:
+                    station_id = station_values[0]
+            if isinstance(station_id, np.generic):
+                station_id = station_id.item()
+            if station_id is None:
+                raise ValueError(
+                    f"Cannot select HDP observation fields: missing station_id "
+                    f"metadata in dataset {dataset_key!r}."
+                )
+            station_id = str(station_id)
+            station_assets.setdefault(station_id, []).append((dataset_key, dataset))
+
+        diagnostics = {"stations": {}}
+        selected_datasets = {}
+        for station_id, assets in station_assets.items():
+            field_datasets = {}
+            missing_fields = []
+            for field in requested_fields:
+                field_sources = [
+                    dataset[[field]]
+                    for _, dataset in assets
+                    if field in dataset.data_vars and "time" in dataset[field].dims
+                ]
+                if not field_sources:
+                    missing_fields.append(field)
+                elif len(field_sources) == 1:
+                    field_datasets[field] = field_sources[0]
+                else:
+                    field_datasets[field] = xr.concat(field_sources, dim="time").sortby(
+                        "time"
+                    )
+            if missing_fields:
+                logger.warning(
+                    "Excluding HDP station %s: missing requested observation fields %s.",
+                    station_id,
+                    missing_fields,
+                )
+                diagnostics["stations"][station_id] = {
+                    "status": "excluded",
+                    "missing_fields": missing_fields,
+                }
+                continue
+
+            common_times = field_datasets[requested_fields[0]]["time"].values
+            for field in requested_fields[1:]:
+                common_times = np.intersect1d(
+                    common_times, field_datasets[field]["time"].values
+                )
+            if not len(common_times):
+                raise ValueError(
+                    f"HDP station {station_id!r} has no timestamps shared by "
+                    f"requested fields {requested_fields}."
+                )
+
+            trimmed_counts = {
+                field: int(
+                    field_datasets[field][field].sizes["time"] - len(common_times)
+                )
+                for field in requested_fields
+            }
+            if any(trimmed_counts.values()):
+                logger.warning(
+                    "Trimming HDP station %s to %d timestamps shared by fields %s.",
+                    station_id,
+                    len(common_times),
+                    requested_fields,
+                )
+            diagnostics["stations"][station_id] = {
+                "status": "included",
+                "common_timestamp_count": int(len(common_times)),
+                "trimmed_timestamp_counts": trimmed_counts,
+            }
+            aligned_fields = [
+                field_datasets[field].sel(time=common_times)
+                for field in requested_fields
+            ]
+            try:
+                assembled = xr.merge(
+                    aligned_fields,
+                    join="exact",
+                    compat="equals",
+                    combine_attrs="override",
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    f"HDP station {station_id!r} has incompatible coordinates "
+                    "across requested fields."
+                ) from exc
+            assembled.attrs = dict(assets[0][1].attrs)
+            dataset_key = assets[0][0]
+            selected_datasets[dataset_key] = assembled[requested_fields]
+
+        if not selected_datasets:
+            raise ValueError(
+                "No HDP stations contain all requested observation fields "
+                f"{requested_fields}. Diagnostics: {json.dumps(diagnostics)}"
+            )
+
+        diagnostics_json = json.dumps(diagnostics)
+        for dataset_key, dataset in selected_datasets.items():
+            dataset.attrs = {
+                **dataset.attrs,
+                "multi_variable_diagnostics": diagnostics_json,
+            }
+        return selected_datasets
+
+    def _open_complete_multi_variable_datasets(
+        self, catalog: intake_esm.core.esm_datastore, search_query: Dict[str, Any]
+    ) -> Dict[str, xr.Dataset]:
+        """Open aggregated datasets for members that have every requested variable.
+
+        ``require_all_on`` is the catalog's ``groupby_attrs`` plus ``member_id``
+        (when the catalog has one), so intake-esm drops any simulation/member
+        lacking a requested variable. The inner join leaves no NaN padding from
+        mismatched coordinates; it intersects them across every member in a key.
+
+        Parameters
+        ----------
+        catalog : intake_esm.core.esm_datastore
+            Catalog to search.
+        search_query : dict
+            Catalog search with ``variable_id`` set to the catalog variables.
+
+        Returns
+        -------
+        dict[str, xr.Dataset]
+            Aggregated datasets keyed by intake-esm dataset key.
+
+        Raises
+        ------
+        ValueError
+            If no member has every requested variable, or if the inner join
+            leaves any dimension empty.
+        """
+        require_all_on = [
+            column
+            for column in [
+                *catalog.esmcat.aggregation_control.groupby_attrs,
+                "member_id",
+            ]
+            if column in catalog.df.columns
+        ]
+        complete = catalog.search(**search_query, require_all_on=require_all_on)
+        found = catalog.search(**search_query).df
+        complete_ids = set(complete.df[require_all_on].itertuples(index=False))
+        requested = set(search_query["variable_id"])
+        for identity, rows in found.groupby(require_all_on, sort=True):
+            if identity not in complete_ids:
+                logger.info(
+                    "Excluding %s: missing requested catalog variables %s.",
+                    dict(zip(require_all_on, identity)),
+                    sorted(requested - set(rows["variable_id"])),
+                )
+        if complete.df.empty:
+            raise ValueError(
+                "No simulation/member contains all requested catalog variables "
+                f"{sorted(requested)}."
+            )
+
+        # Record each asset's dimension sizes as it opens (coordinates only,
+        # no data compute) so inner-join shortening can be reported per key.
+        asset_sizes = {}
+
+        def _record_sizes(dataset):
+            source = str(dataset.encoding.get("source", ""))
+            asset_sizes[source.split("://", 1)[-1]] = dict(dataset.sizes)
+            return dataset
+
+        result = complete.to_dataset_dict(
+            xarray_combine_by_coords_kwargs={"join": "inner"},
+            zarr_kwargs={"consolidated": None},
+            storage_options={"anon": True},
+            progressbar=False,
+            preprocess=_record_sizes,
+        )
+
+        path_column = complete.esmcat.assets.column_name
+        for key, dataset in result.items():
+            empty_dims = [dim for dim, size in dataset.sizes.items() if not size]
+            if empty_dims:
+                raise ValueError(
+                    f"Requested variables share no common {empty_dims} "
+                    f"coordinates in {key!r}."
+                )
+            shortened = {}
+            for path in complete[key].df[path_column]:
+                sizes = asset_sizes.get(str(path).split("://", 1)[-1], {})
+                for dim, length in sizes.items():
+                    if dim in dataset.sizes and dataset.sizes[dim] < length:
+                        shortened[dim] = max(length, shortened.get(dim, 0))
+            if shortened:
+                logger.warning(
+                    "Inner join across requested variables and members shortened "
+                    "%s: %s.",
+                    key,
+                    {
+                        dim: f"{length} -> {dataset.sizes[dim]}"
+                        for dim, length in shortened.items()
+                    },
+                )
+        return result
+
     def _apply_derived_variable(
-        self, datasets: Dict[str, xr.Dataset], derived_var_name: str
+        self,
+        datasets: Dict[str, xr.Dataset],
+        derived_var_name: str,
+        keep_inputs: bool = False,
     ) -> Dict[str, xr.Dataset]:
         """Apply a derived variable function to all datasets.
 
@@ -837,6 +1187,10 @@ class DataCatalog(dict):
             Dictionary of datasets to apply the derived variable to.
         derived_var_name : str
             Name of the derived variable to compute.
+        keep_inputs : bool, optional
+            If True, only add the function's new variables to each dataset so
+            dependency cleanup cannot drop fields needed by other requested
+            outputs. Default: False.
 
         Returns
         -------
@@ -889,7 +1243,17 @@ class DataCatalog(dict):
 
             try:
                 # The registered function should add the derived variable to the dataset
-                datasets[key] = func(ds)
+                if keep_inputs:
+                    computed = func(ds.copy(deep=False))
+                    datasets[key] = ds.assign(
+                        {
+                            name: computed[name]
+                            for name in computed.data_vars
+                            if name not in ds.data_vars
+                        }
+                    )
+                else:
+                    datasets[key] = func(ds)
                 logger.debug("Computed '%s' for dataset %s", derived_var_name, key)
             except Exception as e:
                 logger.error(

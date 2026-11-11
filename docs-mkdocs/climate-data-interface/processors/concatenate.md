@@ -11,6 +11,11 @@ Merge multiple climate datasets returned from a single catalog query by concaten
 
 The processor is invoked automatically when a query produces multiple datasets (e.g. multiple `source_id` values) and the user includes `"concat"` in `.processes({...})`. It dispatches to `_execute_gridded_concat` or `_execute_hdp_concat` based on the catalog type detected in the processing context.
 
+Multi-variable coverage is checked at retrieval, before this processor runs.
+A gridded member or HDP station is included only when it has every requested
+field, and fields are aligned to shared coordinates. `concat` does not relax
+these checks. See the [multi-variable design notes](https://github.com/cal-adapt/climakitae/blob/main/docs/design/multi-variable-queries.md) for details.
+
 ## Algorithm
 
 ```mermaid

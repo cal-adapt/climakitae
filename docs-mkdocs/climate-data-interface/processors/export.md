@@ -2,7 +2,7 @@
 
 **Registry key:** `export` &nbsp;|&nbsp; **Priority:** 9999 &nbsp;|&nbsp; **Category:** I/O & Archival
 
-Write climate data to disk in NetCDF, Zarr, or CSV. Handles gridded datasets, multi-point clip results (`closest_cell` dimension), and collections (lists/tuples/dicts of single-point datasets) with optional location-based filenames and S3 storage for Zarr.
+Write climate data to disk in NetCDF, Zarr, or CSV. Handles gridded datasets, multi-point clip results (`closest_cell` dimension), and collections (lists/tuples/dicts of single-point datasets) with optional location-based filenames and S3 storage for Zarr. CSV exports for multi-variable queries use long format so each variable retains its own dimensions rather than expanding across unrelated dimensions.
 
 ## Algorithm
 
@@ -37,11 +37,13 @@ flowchart TD
     WriteOne --> FormatMatch{match req_format}
     FormatMatch -->|zarr| Zarr["_export_to_zarr<br/>(local or s3)"]
     FormatMatch -->|netcdf| NCDF["_export_to_netcdf"]
-    FormatMatch -->|csv| CSV["_export_to_csv (gzip)"]
+    FormatMatch -->|csv, single variable| CSV["_export_to_csv (gzip)"]
+    FormatMatch -->|csv, multiple variables| LongCSV["Long-format CSV + metadata sidecar"]
 
     Zarr --> Done
     NCDF --> Done
     CSV --> Done
+    LongCSV --> Done
     HandleDict --> Done
     HandleSel --> Done
     Done([Return original data unchanged — chainable])
@@ -183,6 +185,8 @@ myfile_2.nc
 **CSV (`_export_to_csv`)**
 - gzip-compressed (`.csv.gz`).
 - Practical only for small / point datasets.
+- A query selecting multiple variables writes long-format rows with `variable`, `value`, and `units` columns, plus applicable coordinate columns. Coordinates that do not apply to a variable are blank; rows are not expanded across unrelated variable dimensions.
+- Multi-variable CSV output also writes a `_metadata.txt` sidecar with dataset, coordinate, and variable attributes. Single-variable queries retain the existing CSV layout.
 
 ## Parameters
 
@@ -257,7 +261,11 @@ else:
     data.to_zarr(f"./{filename}.zarr")
 ```
 
-**CSV**: Flattens spatial dims; requires scalar or point data
+**CSV**: Single-variable selections flatten spatial dims and suit scalar or
+point data. Multi-variable selections use the long format described in the CSV notes
+above; see the
+[multi-variable design notes](https://github.com/cal-adapt/climakitae/blob/main/docs/design/multi-variable-queries.md)
+for the rationale.
 
 ```python
 data.to_csv(filename)  # Works for time series at single points

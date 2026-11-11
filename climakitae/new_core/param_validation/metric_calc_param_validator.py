@@ -5,6 +5,7 @@ Validator for parameters provided to MetricCalc Processor.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
@@ -40,6 +41,9 @@ def validate_metric_calc_param(
         - dim (str or list, optional): Dimension(s) along which to calculate the metric/percentiles.
           Default: "time"
         - skipna (bool, optional): Whether to skip NaN values in calculations. Default: True
+        - by_variable (dict, optional): Basic metric settings keyed by selected
+          variable name, overriding shared settings.
+        - thresholds, one_in_x: Not supported for multi-variable queries.
 
     Returns
     -------
@@ -57,16 +61,125 @@ def validate_metric_calc_param(
     metric = value.get("metric", "mean")
     percentiles = value.get("percentiles", UNSET)
     percentiles_only = value.get("percentiles_only", False)
-    dim = value.get("dim", "time")
+    dim = value.get("dims", value.get("dim", "time"))
     skipna = value.get("skipna", True)
+    by_variable = value.get("by_variable", UNSET)
+    has_shared_percentiles = percentiles is not UNSET and percentiles is not None
+    if isinstance(percentiles, (list, np.ndarray)):
+        has_shared_percentiles = len(percentiles) > 0
+    base_percentiles_only = percentiles_only
+    if (
+        isinstance(by_variable, Mapping)
+        and by_variable
+        and percentiles_only is True
+        and not has_shared_percentiles
+    ):
+        base_percentiles_only = False
 
     if not _validate_basic_metric_parameters(
-        metric, percentiles, percentiles_only, dim, skipna
+        metric, percentiles, base_percentiles_only, dim, skipna
     ):
         return False
 
+    query = kwargs.get("query", {})
+    selected_variables = query.get("variable_id") if isinstance(query, dict) else None
+    if isinstance(selected_variables, str):
+        selected_variables = [selected_variables]
+    elif isinstance(selected_variables, (list, tuple)):
+        selected_variables = list(selected_variables)
+    else:
+        selected_variables = None
+
+    if by_variable is not UNSET:
+        if not isinstance(by_variable, Mapping):
+            logger.warning(
+                "\n\n'by_variable' must map variable names to metric configs."
+            )
+            return False
+
+        invalid_targets = [
+            target
+            for target in by_variable
+            if not isinstance(target, str) or not target.strip()
+        ]
+        if invalid_targets:
+            logger.warning(
+                "\n\n'by_variable' keys must be non-empty variable names: %s.",
+                sorted(invalid_targets, key=str),
+            )
+            return False
+
+        if selected_variables is not None:
+            unknown_targets = set(by_variable) - set(selected_variables)
+            if unknown_targets:
+                logger.warning(
+                    "\n\n'by_variable' targets are not selected variables: %s.",
+                    sorted(unknown_targets, key=str),
+                )
+                return False
+
+        shared_config = {
+            "metric": metric,
+            "percentiles": percentiles,
+            "percentiles_only": percentiles_only,
+            "dim": dim,
+            "skipna": skipna,
+        }
+        supported_variable_keys = set(shared_config)
+        for variable_name, variable_config in by_variable.items():
+            if not isinstance(variable_config, Mapping):
+                logger.warning(
+                    "\n\nMetricCalc configuration for variable '%s' must be a mapping.",
+                    variable_name,
+                )
+                return False
+
+            invalid_settings = [
+                setting for setting in variable_config if not isinstance(setting, str)
+            ]
+            if invalid_settings:
+                logger.warning(
+                    "\n\nMetricCalc setting names for variable '%s' must be strings.",
+                    variable_name,
+                )
+                return False
+
+            unsupported_keys = set(variable_config) - supported_variable_keys - {"dims"}
+            if unsupported_keys:
+                logger.warning(
+                    "\n\nUnsupported metric_calc settings for variable '%s': %s.",
+                    variable_name,
+                    sorted(unsupported_keys),
+                )
+                return False
+
+            config = {**shared_config, **variable_config}
+            config["dim"] = variable_config.get(
+                "dims", variable_config.get("dim", config["dim"])
+            )
+            if not _validate_basic_metric_parameters(
+                config["metric"],
+                config["percentiles"],
+                config["percentiles_only"],
+                config["dim"],
+                config["skipna"],
+            ):
+                return False
+
     one_in_x_config = value.get("one_in_x", UNSET)
     thresholds_config = value.get("thresholds", UNSET)
+    multi_variable_query = (
+        isinstance(selected_variables, list) and len(selected_variables) > 1
+    )
+
+    if multi_variable_query and (
+        one_in_x_config is not UNSET or thresholds_config is not UNSET
+    ):
+        logger.warning(
+            "\n\nThreshold and one_in_x modes are not supported for multi-variable "
+            "metric_calc queries."
+        )
+        return False
 
     if one_in_x_config is not UNSET and thresholds_config is not UNSET:
         logger.warning("\n\nCannot set both 'thresholds' and 'one_in_x'. Choose one.")

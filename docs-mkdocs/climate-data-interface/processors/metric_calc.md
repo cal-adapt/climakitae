@@ -2,7 +2,7 @@
 
 **Registry key:** `metric_calc` &nbsp;|&nbsp; **Priority:** 7500 &nbsp;|&nbsp; **Category:** Analysis & Derived Variables
 
-Reduce a dataset along one or more dimensions using a basic statistic (`min` / `max` / `mean` / `median` / `sum`), optionally compute percentiles alongside it, count threshold exceedances, or fit extreme-value distributions to estimate return periods.
+Reduce a dataset along one or more dimensions using a basic statistic (`min` / `max` / `mean` / `median` / `sum`), optionally compute percentiles alongside it, count threshold exceedances, or fit extreme-value distributions to estimate return periods. Basic metrics and percentiles can be configured independently for each variable in a multi-variable query. Threshold and return-period modes are limited to single-variable queries.
 
 ## Three calculation modes
 
@@ -10,9 +10,9 @@ Reduce a dataset along one or more dimensions using a basic statistic (`min` / `
 
 | Mode | Triggered by | Output |
 |------|--------------|--------|
-| **Basic / percentiles** | neither `thresholds` nor `one_in_x` | reduced Dataset/DataArray; if both metric and percentiles are requested for a Dataset, variables are renamed `<var>_p<N>` and `<var>_<metric>` |
-| **Threshold exceedance** | `thresholds={...}` | counts of qualifying timesteps per period |
-| **1-in-X extreme value** | `one_in_x={...}` | `return_values` and `p_values` (KS goodness-of-fit) |
+| **Basic / percentiles** | neither `thresholds` nor `one_in_x` | reduced Dataset/DataArray; single-variable naming is unchanged. For multi-variable queries, each percentile result is `<var>_percentiles` on its own `<var>_percentile` dimension; reductions retain the existing per-metric naming. |
+| **Threshold exceedance** | `thresholds={...}` | counts of qualifying timesteps per period; single-variable queries only |
+| **1-in-X extreme value** | `one_in_x={...}` | `return_values` and `p_values` (KS goodness-of-fit); single-variable queries only |
 
 > The earlier doc used the key `one_in_x_config`. The actual key is **`one_in_x`** (`__init__` calls `value.get("one_in_x", UNSET)`). Earlier doc also listed metrics like `hdd_cdd`, `heat_index`, `effective_temp`, `noaa_heat_index` — those live in `climakitae.tools.indices` / `derived_variables`, not in this processor. The supported `metric` values here are exactly `min`, `max`, `mean` (default), `median`, `sum`.
 
@@ -68,6 +68,30 @@ flowchart TD
     H -->|Single| K([Return as-is])
 ```
 
+For multi-variable queries, shared basic settings apply to each selected variable.
+Use `by_variable` to override settings for individual variables. When only
+`by_variable` is supplied, variables omitted from it pass through unchanged.
+
+```python
+.processes({
+    "metric_calc": {
+        "percentiles_only": True,
+        "by_variable": {
+            "tasmax": {"percentiles": [5, 95]},
+            "pr": {"percentiles": [50, 99]},
+        },
+    }
+})
+# Output: tasmax_percentiles(tasmax_percentile, ...),
+#         pr_percentiles(pr_percentile, ...)
+```
+
+Reductions keep the existing metric output names, and string or one-element
+selections keep single-variable formatting. `by_variable` may target only
+selected variables, and `metric_calc` is not available for HDP. See the
+[multi-variable design notes](https://github.com/cal-adapt/climakitae/blob/main/docs/design/multi-variable-queries.md) for why percentiles get per-variable
+dimensions.
+
 ### Threshold flow (`_calculate_threshold_single`)
 
 ```mermaid
@@ -94,6 +118,9 @@ flowchart TD
 Cannot be combined with `metric`, `percentiles`, or `one_in_x`.
 
 ### 1-in-X flow (`_calculate_one_in_x_single`)
+
+Although the internal calculation supports iterating over Dataset variables,
+query validation rejects this mode for multi-variable queries.
 
 ```mermaid
 flowchart TD
@@ -167,11 +194,15 @@ Internally the workflow extracts block extrema, fits the chosen distribution, an
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `metric` | str | `"mean"` | `"min"`, `"max"`, `"mean"`, `"median"`, `"sum"`. |
-| `percentiles` | list[float] | `UNSET` | Percentile values 0–100; output stored on coord `percentile`. |
+| `percentiles` | list[float] | `UNSET` | Percentile values 0–100; single-variable output uses `percentile`, while multi-variable output uses a distinct `<var>_percentile` dimension per variable. |
 | `percentiles_only` | bool | `False` | Skip the metric reduction. |
-| `dim` (or `dims`) | str / list[str] | `"time"` | Dimensions to reduce over. Missing dims are filtered with a warning. |
+| `dim` (or `dims`) | str / list[str] | `"time"` | Dimensions to reduce over. Missing dimensions are filtered with a warning for single-variable data and rejected per target for multi-variable calculations. |
 | `keepdims` | bool | `False` | (Reserved; passed through where supported.) |
 | `skipna` | bool | `True` | Pass to underlying xarray reductions. |
+| `by_variable` | dict[str, dict] | `UNSET` | Per-variable basic metric settings. Supports `metric`, `percentiles`, `percentiles_only`, `dim` / `dims`, and `skipna`. |
+
+`thresholds` and `one_in_x` are rejected for multi-variable queries, including
+when supplied inside a `by_variable` entry.
 
 ## Examples
 
@@ -191,6 +222,26 @@ data = (ClimateData()
     })
     .get())
 # Dataset variables: t2max_p10, t2max_p50, t2max_p90, t2max_mean
+```
+
+### Independent multi-variable percentiles
+
+```python
+data = (ClimateData()
+    .catalog("cadcat").activity_id("LOCA2")
+    .variable_id(["tasmax", "pr"]).table_id("day").grid_label("d03")
+    .processes({
+        "metric_calc": {
+            "percentiles_only": True,
+            "by_variable": {
+                "tasmax": {"percentiles": [5, 95]},
+                "pr": {"percentiles": [50, 99]},
+            },
+        }
+    })
+    .get())
+# Dataset variables: tasmax_percentiles, pr_percentiles
+# Dimensions include tasmax_percentile=[5, 95] and pr_percentile=[50, 99]
 ```
 
 ### Threshold exceedance (annual count of days above 35 °C, 3-day events)

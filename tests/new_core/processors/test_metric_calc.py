@@ -12,6 +12,7 @@ import logging
 from typing import Any, Dict
 from unittest.mock import patch
 
+import dask.array as da
 import numpy as np
 import pytest
 import xarray as xr
@@ -276,6 +277,240 @@ class TestMetricCalcCalculateMetricsSingle:
             name="t2max",
         )
         xr.testing.assert_equal(result, expected)
+
+
+class TestMultiVariableMetricCalc:
+    """Test variable-specific metrics and percentile results."""
+
+    @pytest.mark.parametrize("variable_id", ["tasmax", ["tasmax"]])
+    def test_one_variable_query_preserves_legacy_output_format(self, variable_id):
+        """Keep scalar and one-item selections on the legacy metric schema."""
+        data = xr.Dataset(
+            {"tasmax": (("time", "lat"), [[1.0, 3.0], [5.0, 7.0]])},
+            coords={"time": [0, 1], "lat": [10, 20]},
+        )
+        processor = MetricCalc({"metric": "mean", "percentiles": [50]})
+
+        result = processor.execute(data, context={"variable_id": variable_id})
+        expected = xr.Dataset(
+            {
+                "tasmax_p50": xr.DataArray(
+                    [3.0, 5.0], dims=["lat"], coords={"lat": [10, 20]}
+                ),
+                "tasmax_mean": xr.DataArray(
+                    [3.0, 5.0], dims=["lat"], coords={"lat": [10, 20]}
+                ),
+            }
+        )
+
+        xr.testing.assert_equal(result, expected)
+
+    def test_percentiles_and_reductions_keep_variable_specific_outputs(self):
+        """Test percentile and reduction outputs are assembled independently."""
+        data = xr.Dataset(
+            {
+                "tasmax": (
+                    ("time", "lat"),
+                    [[0.0, 10.0], [10.0, 20.0]],
+                    {"units": "degC"},
+                ),
+                "pr": (
+                    ("time", "lat"),
+                    [[1.0, 2.0], [3.0, 4.0]],
+                    {"units": "mm"},
+                ),
+            },
+            coords={"time": [0, 1], "lat": [10, 20]},
+        )
+        processor = MetricCalc(
+            {
+                "by_variable": {
+                    "tasmax": {
+                        "metric": "mean",
+                        "percentiles": [5, 95],
+                    },
+                    "pr": {
+                        "metric": "max",
+                        "percentiles": [50, 99],
+                    },
+                }
+            }
+        )
+
+        result = processor.execute(
+            data,
+            context={"variable_id": ["tasmax", "pr"]},
+        )
+
+        assert set(result.data_vars) == {
+            "tasmax_percentiles",
+            "tasmax_mean",
+            "pr_percentiles",
+            "pr_max",
+        }
+        assert result["tasmax_percentiles"].dims == ("tasmax_percentile", "lat")
+        assert result["pr_percentiles"].dims == ("pr_percentile", "lat")
+        np.testing.assert_array_equal(result.tasmax_percentile, [5, 95])
+        np.testing.assert_array_equal(result.pr_percentile, [50, 99])
+        np.testing.assert_allclose(result.tasmax_mean, [5.0, 15.0])
+        np.testing.assert_allclose(result.pr_max, [3.0, 4.0])
+        assert result.tasmax_percentiles.attrs["units"] == "degC"
+        assert result.tasmax_mean.attrs["units"] == "degC"
+        assert result.pr_percentiles.attrs["units"] == "mm"
+        assert result.pr_max.attrs["units"] == "mm"
+
+    @pytest.mark.parametrize(
+        "config,expected",
+        [
+            ({"metric": "min"}, {"tasmax": 1.0, "pr": 2.0}),
+            ({"metric": "max"}, {"tasmax": 5.0, "pr": 8.0}),
+            ({"metric": "mean"}, {"tasmax": 3.0, "pr": 14 / 3}),
+            ({"metric": "median"}, {"tasmax": 3.0, "pr": 4.0}),
+            (
+                {"metric": "max", "percentiles": [50]},
+                {
+                    "tasmax_percentiles": [3.0],
+                    "tasmax_max": 5.0,
+                    "pr_percentiles": [4.0],
+                    "pr_max": 8.0,
+                },
+            ),
+        ],
+    )
+    def test_shared_settings_apply_to_selected_variables(self, config, expected):
+        """Apply shared metric settings to every selected variable."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("time",), [1.0, 3.0, 5.0], {"units": "degC"}),
+                "pr": (("time",), [2.0, 4.0, 8.0], {"units": "mm"}),
+            }
+        )
+
+        result = MetricCalc(config).execute(
+            data, context={"variable_id": ["tasmax", "pr"]}
+        )
+
+        assert set(result.data_vars) == set(expected)
+        for name, value in expected.items():
+            np.testing.assert_allclose(result[name], value)
+            unit = "degC" if name.startswith("tasmax") else "mm"
+            assert result[name].attrs["units"] == unit
+
+    def test_omitted_variable_targets_remain_unchanged(self):
+        """Leave variables not named in by_variable untouched."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("time",), [1.0, 3.0]),
+                "pr": (("time",), [2.0, 4.0]),
+            }
+        )
+        processor = MetricCalc(
+            {"by_variable": {"tasmax": {"percentiles": [50], "percentiles_only": True}}}
+        )
+
+        result = processor._calculate_metrics_single(data)
+
+        assert set(result.data_vars) == {"tasmax_percentiles", "pr"}
+        xr.testing.assert_equal(result["pr"], data["pr"])
+
+    def test_dimensions_are_validated_for_each_target(self):
+        """Reject a reduction dimension missing from its targeted variable."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("time", "lat"), [[1.0, 2.0], [3.0, 4.0]]),
+                "pr": (("time",), [5.0, 6.0]),
+            }
+        )
+        processor = MetricCalc({"by_variable": {"pr": {"dim": "lat"}}})
+
+        with pytest.raises(ValueError, match="variable 'pr'"):
+            processor._calculate_metrics_single(data)
+
+    def test_multi_variable_percentiles_preserve_lazy_arrays(self):
+        """Keep dask-backed arrays lazy through per-variable percentile calculation."""
+        data = xr.Dataset(
+            {
+                "tasmax": (
+                    ("time", "lat"),
+                    da.from_array([[1.0, 2.0], [3.0, 4.0]], chunks=(1, 2)),
+                ),
+                "pr": (
+                    ("time", "lat"),
+                    da.from_array([[5.0, 6.0], [7.0, 8.0]], chunks=(1, 2)),
+                ),
+            }
+        )
+        processor = MetricCalc(
+            {"by_variable": {"tasmax": {"percentiles": [50], "percentiles_only": True}}}
+        )
+
+        result = processor._calculate_metrics_single(data)
+
+        assert isinstance(result["tasmax_percentiles"].data, da.Array)
+        assert isinstance(result["pr"].data, da.Array)
+
+    @pytest.mark.parametrize(
+        "name,as_variable",
+        [
+            ("tasmax_percentiles", True),
+            ("tasmax_percentiles", False),
+            ("tasmax_percentile", False),
+            ("tasmax_mean", True),
+        ],
+        ids=["variable", "coordinate", "dimension", "metric-variable"],
+    )
+    def test_output_name_collision_is_rejected(self, name, as_variable):
+        """Reject generated names that collide with existing input names."""
+        data = xr.Dataset(
+            {"tasmax": (("time",), [1.0, 2.0]), "pr": (("time",), [3.0, 4.0])},
+            coords={"time": [0, 1]},
+        )
+        if as_variable:
+            data[name] = ("time", [5.0, 6.0])
+        else:
+            data = data.assign_coords({name: [25, 75]})
+        processor = MetricCalc({"by_variable": {"tasmax": {"percentiles": [50]}}})
+
+        with pytest.raises(
+            ValueError, match=f"metric_calc output name '{name}' collides with"
+        ):
+            processor._calculate_metrics_single(data)
+
+    def test_percentiles_use_independent_variable_dimensions(self):
+        """Test multi-variable percentiles retain each variable's requested levels."""
+        data = xr.Dataset(
+            {
+                "tasmax": (
+                    ("time", "lat"),
+                    np.array([[0.0, 10.0], [10.0, 20.0], [20.0, 30.0]]),
+                    {"units": "degC"},
+                ),
+                "pr": (
+                    ("time", "lat"),
+                    np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]),
+                    {"units": "mm"},
+                ),
+            },
+            coords={"time": [0, 1, 2], "lat": [10, 20]},
+        )
+        processor = MetricCalc(
+            {
+                "by_variable": {
+                    "tasmax": {"percentiles": [5, 95], "percentiles_only": True},
+                    "pr": {"percentiles": [50, 99], "percentiles_only": True},
+                }
+            }
+        )
+
+        result = processor._calculate_metrics_single(data)
+
+        assert set(result.data_vars) == {"tasmax_percentiles", "pr_percentiles"}
+        assert result["tasmax_percentiles"].dims == ("tasmax_percentile", "lat")
+        assert result["pr_percentiles"].dims == ("pr_percentile", "lat")
+        np.testing.assert_array_equal(result.tasmax_percentile, [5, 95])
+        np.testing.assert_array_equal(result.pr_percentile, [50, 99])
+        assert result.tasmax_percentiles.attrs["units"] == "degC"
+        assert result.pr_percentiles.attrs["units"] == "mm"
 
 
 class TestMetricUpdateContext:

@@ -13,9 +13,9 @@ import pytest
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.metric_calc_param_validator import (
     _validate_basic_metric_parameters,
+    _validate_one_in_x_parameters,
     _validate_threshold_parameters,
     validate_metric_calc_param,
-    _validate_one_in_x_parameters,
 )
 
 
@@ -231,6 +231,86 @@ class TestValidateBasicMetricParameters:
 
 class TestValidateMetricCalcParam:
     """Unit tests for the validate_metric_calc_param function."""
+
+    def test_invalid_by_variable_metric(self, caplog):
+        """Reject invalid metric settings in a variable-specific configuration."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {"by_variable": {"tasmax": {"metric": "mode"}}},
+                query={"variable_id": ["tasmax", "pr"]},
+            )
+
+        assert result is False
+        assert "Invalid metric 'mode'" in caplog.text
+
+    def test_shared_percentiles_only_uses_targeted_percentiles(self):
+        """Allow shared percentile-only behavior with target-specific levels."""
+        result = validate_metric_calc_param(
+            {
+                "percentiles_only": True,
+                "by_variable": {
+                    "tasmax": {"percentiles": [5, 95]},
+                    "pr": {"percentiles": [50, 99]},
+                },
+            },
+            query={"variable_id": ["tasmax", "pr"]},
+        )
+
+        assert result is True
+
+    def test_by_variable_target_must_be_selected(self, caplog):
+        """Reject variable-specific settings for unselected variables."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {"by_variable": {"tasmin": {"percentiles": [50]}}},
+                query={"variable_id": ["tasmax", "pr"]},
+            )
+
+        assert result is False
+        assert "'by_variable' targets are not selected variables" in caplog.text
+
+    def test_non_string_by_variable_target_is_rejected(self, caplog):
+        """Return a validation failure for non-string variable names."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {"by_variable": {"tasmax": {}, 1: {}}},
+                query={"variable_id": ["pr"]},
+            )
+
+        assert result is False
+        assert "'by_variable' keys must be non-empty variable names" in caplog.text
+
+    @pytest.mark.parametrize(
+        "mode, config",
+        [
+            ("thresholds", {"threshold_value": 30, "threshold_direction": "above"}),
+            ("one_in_x", {"return_periods": [10]}),
+        ],
+    )
+    def test_advanced_metric_modes_rejected_for_multiple_variables(
+        self, mode, config, caplog
+    ):
+        """Reject threshold and return-period modes for multi-variable queries."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {mode: config},
+                query={"variable_id": ["tasmax", "pr"]},
+            )
+
+        assert result is False
+        assert "not supported for multi-variable metric_calc queries" in caplog.text
+
+    @pytest.mark.parametrize("setting", ["mertic", "thresholds", "one_in_x"])
+    def test_unsupported_by_variable_setting_is_rejected(self, setting, caplog):
+        """Reject per-variable settings other than basic metric options."""
+        with caplog.at_level(logging.WARNING):
+            result = validate_metric_calc_param(
+                {"by_variable": {"tasmax": {setting: {}}}},
+                query={"variable_id": ["tasmax", "pr"]},
+            )
+
+        assert result is False
+        assert "Unsupported metric_calc settings for variable" in caplog.text
 
     def test_param_dict(self):
         """Test validate_metric_calc_param with a valid parameter dictionary."""

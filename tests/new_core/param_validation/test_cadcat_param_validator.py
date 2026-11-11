@@ -8,6 +8,7 @@ that validates data catalog parameters for CADCAT catalog.
 import warnings
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 from climakitae.core.constants import UNSET
@@ -230,6 +231,205 @@ class TestDataValidator:
             # Should call parent method once and return its result
             mock_parent.assert_called_once_with(query)
             assert result == expected_result
+
+    def test_is_valid_query_rejects_partially_available_variables(self, caplog):
+        """Reject a multi-variable query when one field is unavailable."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["LOCA2"],
+                "table_id": ["day"],
+                "grid_label": ["d03"],
+                "variable_id": ["tasmax"],
+            }
+        )
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 1)
+        query = {
+            "activity_id": "LOCA2",
+            "table_id": "day",
+            "grid_label": "d03",
+            "variable_id": ["tasmax", "pr"],
+        }
+
+        result = self.validator.is_valid_query(query)
+
+        assert result is None
+        assert "pr" in caplog.text
+        assert "table_id=day" in caplog.text
+        assert "grid_label=d03" in caplog.text
+
+    def test_is_valid_query_rejects_variables_missing_under_constraints(self, caplog):
+        """Reject a field that exists only at a different temporal resolution."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["LOCA2", "LOCA2"],
+                "table_id": ["day", "mon"],
+                "grid_label": ["d03", "d03"],
+                "variable_id": ["tasmax", "pr"],
+            }
+        )
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 1)
+        query = {
+            "activity_id": "LOCA2",
+            "table_id": "day",
+            "grid_label": "d03",
+            "variable_id": ["tasmax", "pr"],
+        }
+
+        result = self.validator.is_valid_query(query)
+
+        assert result is None
+        assert "pr" in caplog.text
+        assert "table_id=day" in caplog.text
+
+    def test_is_valid_query_rejects_variable_missing_for_selected_source(self, caplog):
+        """Require every requested field within the selected source group."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["LOCA2", "LOCA2"],
+                "source_id": ["model_a", "model_b"],
+                "table_id": ["day", "day"],
+                "grid_label": ["d03", "d03"],
+                "variable_id": ["tasmax", "pr"],
+            }
+        )
+        query = {
+            "activity_id": "LOCA2",
+            "source_id": ["model_a"],
+            "table_id": "day",
+            "grid_label": "d03",
+            "variable_id": ["tasmax", "pr"],
+        }
+
+        result = self.validator.is_valid_query(query)
+
+        assert result is None
+        assert "pr" in caplog.text
+        assert "source_id=['model_a']" in caplog.text
+        self.validator.catalog.search.assert_not_called()
+
+    def test_is_valid_query_rejects_multi_variable_search_without_matches(self):
+        """Reject a multi-variable query when the constrained search is empty."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["LOCA2", "LOCA2"],
+                "table_id": ["day", "day"],
+                "grid_label": ["d03", "d03"],
+                "variable_id": ["tasmax", "pr"],
+            }
+        )
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 0)
+        query = {
+            "activity_id": "LOCA2",
+            "table_id": "day",
+            "grid_label": "d03",
+            "variable_id": ["tasmax", "pr"],
+        }
+
+        result = self.validator.is_valid_query(query)
+
+        assert result is None
+
+    def test_is_valid_query_plans_shared_derived_dependencies(self):
+        """Plan unique catalog fields for multiple derived requests."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["WRF", "WRF"],
+                "institution_id": ["UCLA", "UCLA"],
+                "table_id": ["1hr", "1hr"],
+                "grid_label": ["d03", "d03"],
+                "variable_id": ["u10", "v10"],
+            }
+        )
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 2)
+        query = {
+            "activity_id": "WRF",
+            "institution_id": "UCLA",
+            "table_id": "1hr",
+            "grid_label": "d03",
+            "variable_id": ["wind_speed_10m", "wind_direction_10m"],
+        }
+        original_query = query.copy()
+
+        result = self.validator.is_valid_query(query)
+
+        assert result["variable_id"] == [
+            "wind_speed_10m",
+            "wind_direction_10m",
+        ]
+        assert result["_requested_variables"] == query["variable_id"]
+        assert result["_derived_variables"] == query["variable_id"]
+        assert result["_source_variables"] == ["u10", "v10"]
+        assert result["_catalog_variable_ids"] == ["u10", "v10"]
+        self.validator.catalog.search.assert_called_once_with(
+            activity_id="WRF",
+            institution_id="UCLA",
+            table_id="1hr",
+            grid_label="d03",
+            variable_id=["u10", "v10"],
+        )
+        assert query == original_query
+
+    def test_is_valid_query_rejects_missing_derived_dependencies_under_constraints(
+        self, caplog
+    ):
+        """Reject derived outputs when a required source is missing at the resolution."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["WRF", "WRF"],
+                "institution_id": ["UCLA", "UCLA"],
+                "table_id": ["1hr", "day"],
+                "grid_label": ["d03", "d03"],
+                "variable_id": ["u10", "v10"],
+            }
+        )
+        query = {
+            "activity_id": "WRF",
+            "institution_id": "UCLA",
+            "table_id": "1hr",
+            "grid_label": "d03",
+            "variable_id": ["wind_speed_10m", "wind_direction_10m"],
+        }
+
+        result = self.validator.is_valid_query(query)
+
+        assert result is None
+        assert "v10" in caplog.text
+        assert "table_id=1hr" in caplog.text
+        self.validator.catalog.search.assert_not_called()
+
+    def test_is_valid_query_retains_explicit_sources_with_derived_requests(self):
+        """Keep explicitly requested source fields in the retrieval plan."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["WRF", "WRF", "WRF"],
+                "institution_id": ["UCLA", "UCLA", "UCLA"],
+                "table_id": ["1hr", "1hr", "1hr"],
+                "grid_label": ["d03", "d03", "d03"],
+                "variable_id": ["u10", "v10", "pr"],
+            }
+        )
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 3)
+        query = {
+            "activity_id": "WRF",
+            "institution_id": "UCLA",
+            "table_id": "1hr",
+            "grid_label": "d03",
+            "variable_id": ["u10", "wind_speed_10m", "pr"],
+        }
+
+        result = self.validator.is_valid_query(query)
+
+        assert result["variable_id"] == ["u10", "wind_speed_10m", "pr"]
+        assert result["_requested_variables"] == ["u10", "wind_speed_10m", "pr"]
+        assert result["_catalog_variable_ids"] == ["u10", "v10", "pr"]
+        assert result["_source_variables"] == ["u10", "v10"]
+        self.validator.catalog.search.assert_called_once_with(
+            activity_id="WRF",
+            institution_id="UCLA",
+            table_id="1hr",
+            grid_label="d03",
+            variable_id=["u10", "v10", "pr"],
+        )
 
     def test_default_processors_with_empty_query(self):
         """Test get_default_processors with empty query.

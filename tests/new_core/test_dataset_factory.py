@@ -275,6 +275,25 @@ class TestDatasetFactoryProcessingSteps:
         # priority 5 (filter_unadjusted_models)
         assert result[1] is mock_default_instance
 
+    def test_multivariable_export_processor_runs_last(self):
+        """Test multi-variable queries order export after data processors."""
+        query = {
+            PROC_KEY: {
+                "export": {"filename": "multi_variable"},
+                "time_slice": ("2030-01-01", "2040-12-31"),
+            },
+            "catalog": "cadcat",
+            "variable_id": ["tasmax", "pr"],
+            _NEW_ATTRS_KEY: {},
+        }
+
+        processors = self.factory._get_list_of_processing_steps(query)
+
+        assert [type(processor) for processor in processors] == [
+            self.factory._processing_step_registry["time_slice"][0],
+            self.factory._processing_step_registry["export"][0],
+        ]
+
 
 class TestDatasetFactoryRegistration:
     """Test class for registration methods."""
@@ -535,6 +554,16 @@ class TestDatasetFactoryGetOptions:
 
         expected = sorted(["pr", "tas"])
         assert result == expected
+
+    def test_get_catalog_options_discovers_hdp_observation_fields(self):
+        """Test HDP variable options are discovered from station assets."""
+        self.factory._catalog.get_hdp_observation_fields.return_value = ["pr", "tas"]
+        query: Dict[str, Any] = {"catalog": "hdp", "network_id": "ASOSAWOS"}
+
+        result = self.factory.get_catalog_options("variable_id", query)
+
+        assert result == ["pr", "tas"]
+        self.factory._catalog.get_hdp_observation_fields.assert_called_once_with(query)
 
     def test_get_catalog_options_with_list_filter(self):
         """Test get_catalog_options with list filter."""

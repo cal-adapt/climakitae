@@ -8,6 +8,7 @@ coordinate-based, and point-based clipping.
 
 from unittest.mock import MagicMock, patch
 
+import dask.array as da
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -185,7 +186,7 @@ class TestClipUpdateContext:
         assert "clip" in context[_NEW_ATTRS_KEY]
         assert "Multi-point mask clipping" in context[_NEW_ATTRS_KEY]["clip"]
         assert "2 coordinate pairs" in context[_NEW_ATTRS_KEY]["clip"]
-        assert "3x3 neighborhood average" in context[_NEW_ATTRS_KEY]["clip"]
+        assert "3x3 neighborhood fallback" in context[_NEW_ATTRS_KEY]["clip"]
 
     def test_update_context_multi_point_extracted(self):
         """Test context update for multi-point clipping with separated=True (extracted points)."""
@@ -1230,6 +1231,136 @@ class TestClipDataToPointIntegration:
         assert "temp" in result.data_vars
         assert "precip" in result.data_vars
 
+    def test_multivariable_point_uses_same_coordinate_cell_independent_of_order(self):
+        """Test NaNs in one field neither shift nor average the common selected cell."""
+        lat = np.array([34.0, 35.0, 36.0])
+        lon = np.array([-121.0, -120.0, -119.0])
+        temperature = np.ones((2, 3, 3))
+        precipitation = np.full((2, 3, 3), 5.0)
+        temperature[:, 1, 1] = np.nan
+        fields = {
+            "tas": (("time", "lat", "lon"), temperature),
+            "pr": (("time", "lat", "lon"), precipitation),
+        }
+        coordinates = {
+            "time": pd.date_range("2020-01-01", periods=2),
+            "lat": lat,
+            "lon": lon,
+        }
+        datasets = (
+            xr.Dataset(fields, coords=coordinates),
+            xr.Dataset({"pr": fields["pr"], "tas": fields["tas"]}, coords=coordinates),
+        )
+
+        results = [
+            Clip._clip_data_to_point(dataset, lat[1], lon[1]) for dataset in datasets
+        ]
+
+        assert all(result is not None for result in results)
+        for result in results:
+            assert result.lat.item() == lat[1]
+            assert result.lon.item() == lon[1]
+            assert result["tas"].isnull().all()
+            assert result["pr"].values.tolist() == [5.0, 5.0]
+
+    def test_multivariable_point_honors_explicit_landmask(self):
+        """Test common-cell selection chooses the nearest explicitly valid cell."""
+        coords = {
+            "time": pd.date_range("2020-01-01", periods=2),
+            "lat": [34.0, 35.0, 36.0],
+            "lon": [-121.0, -120.0, -119.0],
+        }
+        landmask = np.zeros((3, 3), dtype=np.int8)
+        landmask[1, 0] = 1
+        dataset = xr.Dataset(
+            {
+                "tas": (("time", "lat", "lon"), np.ones((2, 3, 3))),
+                "pr": (("time", "lat", "lon"), np.full((2, 3, 3), 5.0)),
+                "landmask": (("lat", "lon"), landmask),
+            },
+            coords=coords,
+        )
+
+        results = [
+            Clip._clip_data_to_point(candidate, 35.0, -120.0)
+            for candidate in (dataset, dataset[["pr", "tas", "landmask"]])
+        ]
+
+        for result in results:
+            assert result.lat.item() == 35.0
+            assert result.lon.item() == -121.0
+            assert result.landmask.item() == 1
+
+    @pytest.mark.parametrize("clip_operation", ["point", "mask"])
+    def test_multivariable_point_selection_does_not_compute_measurements(
+        self, clip_operation: str
+    ) -> None:
+        """Test multi-variable point selection leaves Dask measurements lazy."""
+        coords = {
+            "time": pd.date_range("2020-01-01", periods=2),
+            "lat": [34.0, 35.0, 36.0],
+            "lon": [-121.0, -120.0, -119.0],
+        }
+        temperature = np.ones((2, 3, 3))
+        temperature[:, 1, 1] = np.nan
+        dataset = xr.Dataset(
+            {
+                "tas": (("time", "lat", "lon"), da.from_array(temperature, chunks=1)),
+                "pr": (
+                    ("time", "lat", "lon"),
+                    da.from_array(np.full((2, 3, 3), 5.0), chunks=1),
+                ),
+            },
+            coords=coords,
+        )
+
+        with patch(
+            "dask.array.Array.compute",
+            side_effect=AssertionError("Measurement data was eagerly computed"),
+        ):
+            if clip_operation == "point":
+                result = Clip._clip_data_to_point(dataset, 35.0, -120.0)
+            else:
+                result = Clip._clip_data_to_points_as_mask(dataset, [(35.0, -120.0)])
+
+        assert isinstance(result["tas"].data, da.Array)
+        assert isinstance(result["pr"].data, da.Array)
+
+    def test_multivariable_point_preserves_projected_grid_coordinates(self):
+        """Test projected-grid cell selection retains geographic and grid coordinates."""
+        latitudes = np.array([34.0, 35.0, 36.0])
+        longitudes = np.array([-121.0, -120.0, -119.0])
+        transformer = pyproj.Transformer.from_crs(
+            "EPSG:4326", "EPSG:3857", always_xy=True
+        )
+        x_coords = transformer.transform(longitudes, np.full_like(longitudes, 35.0))[0]
+        y_coords = transformer.transform(np.full_like(latitudes, -120.0), latitudes)[1]
+        lat_grid, lon_grid = np.meshgrid(latitudes, longitudes, indexing="ij")
+        tas = np.ones((2, 3, 3))
+        tas[:, 1, 1] = np.nan
+        dataset = xr.Dataset(
+            {
+                "tas": (("time", "y", "x"), tas),
+                "pr": (("time", "y", "x"), np.full((2, 3, 3), 5.0)),
+            },
+            coords={
+                "time": pd.date_range("2020-01-01", periods=2),
+                "y": y_coords,
+                "x": x_coords,
+                "lat": (("y", "x"), lat_grid),
+                "lon": (("y", "x"), lon_grid),
+            },
+        ).rio.write_crs("EPSG:3857")
+
+        result = Clip._clip_data_to_point(dataset, 35.0, -120.0)
+
+        assert result.y.item() == y_coords[1]
+        assert result.x.item() == x_coords[1]
+        assert result.lat.item() == 35.0
+        assert result.lon.item() == -120.0
+        assert result["tas"].isnull().all()
+        assert result["pr"].values.tolist() == [5.0, 5.0]
+
 
 class TestClipDataToMultiplePointsIntegration:
     """Integration tests for _clip_data_to_multiple_points static method.
@@ -1296,6 +1427,29 @@ class TestClipDataToMultiplePointsIntegration:
         # Verify coordinates match input
         assert float(result["target_lats"].values[0]) == 37.0
         assert float(result["target_lons"].values[0]) == -119.0
+
+    def test_multivariable_multiple_points_select_common_cells(self):
+        """Test the vectorized path uses common cells independent of field order."""
+        y = self.dataset_valid.y.values
+        x = self.dataset_valid.x.values
+        dataset = self.dataset_valid.drop_vars("temp")
+        dataset["tas"] = (("time", "y", "x"), np.ones((3, 10, 10)))
+        dataset["pr"] = (("time", "y", "x"), np.full((3, 10, 10), 5.0))
+        dataset["tas"][:, 5, 5] = np.nan
+        point = (float(y[5]), float(x[5]))
+
+        results = [
+            Clip._clip_data_to_multiple_points(candidate, [point])
+            for candidate in (dataset, dataset[["pr", "tas"]])
+        ]
+
+        for result in results:
+            assert result.sizes["closest_cell"] == 1
+            assert result.y.item() == point[0]
+            assert result.x.item() == point[1]
+            assert result["tas"].isnull().all()
+            assert result["pr"].values.tolist() == [[5.0], [5.0], [5.0]]
+            assert result.point_index.item() == 0
 
     def test_clip_data_to_multiple_points_preserves_time(self):
         """Test _clip_data_to_multiple_points preserves time dimension - outcome: time intact."""
@@ -1410,7 +1564,7 @@ class TestClipDataToPointsAsMask:
 
     This test class verifies the point-based mask clipping functionality:
     - Returns masked gridded data with NaN for non-selected cells
-    - Fills NaN cells with 3x3 neighborhood average
+    - Uses 3x3 neighborhood fallback for single-variable NaN cells
     - Handles extract_points=True to collapse to 'points' dimension
     - Handles duplicate points mapping to same grid cell
     """
@@ -1456,6 +1610,49 @@ class TestClipDataToPointsAsMask:
         valid_cells = ~np.isnan(result["temp"].values)
         assert valid_cells.sum() <= 3  # At most one cell valid per time step
 
+    @pytest.mark.parametrize("extract_points", [False, True])
+    def test_multivariable_mask_preserves_common_nan_cell(
+        self, extract_points: bool
+    ) -> None:
+        """Test multi-variable masks do not average or reorder cells based on NaNs."""
+        coords = {
+            "time": pd.date_range("2020-01-01", periods=2),
+            "lat": [34.0, 35.0, 36.0],
+            "lon": [-121.0, -120.0, -119.0],
+        }
+        temperature = np.ones((2, 3, 3))
+        precipitation = np.full((2, 3, 3), 5.0)
+        temperature[:, 1, 1] = np.nan
+        fields = {
+            "tas": (("time", "lat", "lon"), temperature),
+            "pr": (("time", "lat", "lon"), precipitation),
+        }
+        datasets = (
+            xr.Dataset(fields, coords=coords),
+            xr.Dataset({"pr": fields["pr"], "tas": fields["tas"]}, coords=coords),
+        )
+
+        results = [
+            Clip._clip_data_to_points_as_mask(
+                dataset, [(35.0, -120.0)], extract_points=extract_points
+            )
+            for dataset in datasets
+        ]
+
+        for result in results:
+            if extract_points:
+                assert result.sizes["points"] == 1
+                assert result.point_lat.item() == 35.0
+                assert result.point_lon.item() == -120.0
+                assert result["tas"].isnull().all()
+                assert result["pr"].isel(points=0).values.tolist() == [5.0, 5.0]
+            else:
+                assert result["tas"].sel(lat=35.0, lon=-120.0).isnull().all()
+                assert result["pr"].sel(lat=35.0, lon=-120.0).values.tolist() == [
+                    5.0,
+                    5.0,
+                ]
+
     def test_mask_multiple_points(self):
         """Test mask clipping with multiple points - outcome: bbox-clipped gridded data."""
         point_list = [(37.0, -119.0), (35.0, -121.0), (40.0, -118.0)]
@@ -1489,7 +1686,7 @@ class TestClipDataToPointsAsMask:
             ), f"Point lon {lon} outside range [{lon_min}, {lon_max}]"
 
     def test_mask_with_nan_fill(self):
-        """Test mask clipping fills NaN cells with 3x3 neighborhood average."""
+        """Test single-variable mask clipping fills NaN cells from neighbors."""
         # Point at NaN location (first row)
         point_at_nan = [(32.0, -119.0)]  # This is at lat=32, which is first row (NaN)
 
@@ -3026,6 +3223,35 @@ class TestClipStationExecute:
             assert clip.is_station is True
             assert clip.is_single_point is True
             mock_clip_point.assert_called()
+
+    @patch(
+        "climakitae.new_core.processors.clip.is_station_identifier", return_value=True
+    )
+    def test_execute_multivariable_station_uses_common_cell(self, mock_is_station):
+        """Test station-coordinate clipping keeps the same cell for every field."""
+        dataset = self.sample_dataset.copy()
+        dataset["pr"] = xr.full_like(dataset["tas"], 5.0)
+        dataset["tas"][:, 2, 1] = np.nan
+        clip = Clip("KSAC")
+        clip.set_data_accessor(MagicMock())
+        station_info = {
+            "station_id": "KSAC",
+            "station_name": "Sacramento Executive Airport",
+            "city": "Sacramento",
+            "state": "CA",
+        }
+
+        with patch.object(
+            clip,
+            "_get_station_coordinates",
+            return_value=(37.0, -121.5, station_info),
+        ):
+            result = clip.execute(dataset, context={})
+
+        assert result.lat.item() == 37.0
+        assert result.lon.item() == -122.25
+        assert result["tas"].isnull().all()
+        assert result["pr"].values.tolist() == [5.0] * 10
 
     @patch(
         "climakitae.new_core.processors.clip.is_station_identifier", return_value=True

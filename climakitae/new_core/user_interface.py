@@ -103,8 +103,8 @@ class ClimateData:
         The temporal resolution (e.g., ``"1hr"``, ``"day"``, ``"mon"``).
     grid_label : str
         The spatial resolution (e.g., ``"d01"``, ``"d02"``, ``"d03"``).
-    variable_id : str
-        The climate variable (e.g., ``"tasmax"``, ``"pr"``, ``"cf"``).
+    variable_id : str | list[str] | tuple[str, ...]
+        One or more climate variables (e.g., ``"tasmax"``, ``"pr"``, ``"cf"``).
     processes : dict
         Dictionary of data processing operations to apply.
 
@@ -128,10 +128,8 @@ class ClimateData:
         Set the temporal resolution.
     grid_label(grid_label: str) -> ClimateData
         Set the spatial resolution.
-    variable_id(variable_id: str) -> ClimateData
-        Set the climate variable to retrieve.
-    variable(variable: str) -> ClimateData
-        Deprecated alias for ``variable_id``. Use ``variable_id`` instead.
+    variable_id(variable_id: str | list[str] | tuple[str, ...]) -> ClimateData
+        Set the climate variable(s) to retrieve.
     station_id(station_id: str) --> ClimateData
         Set the station identifier
     network_id(network_id: str) --> ClimateData
@@ -667,27 +665,72 @@ class ClimateData:
         logger.info("Grid label set to: %s", grid_label.strip())
         return self
 
-    def variable_id(self, variable_id: str) -> "ClimateData":
-        """Set the climate variable to retrieve.
+    def variable_id(
+        self, variable_id: str | list[str] | tuple[str, ...]
+    ) -> "ClimateData":
+        """Set one or more climate variables to retrieve.
 
         Parameters
         ----------
-        variable_id : str
-            The variable identifier (e.g., "tasmax", "pr", "cf").
-            Can also be a registered derived variable name.
+        variable_id : str | list[str] | tuple[str, ...]
+            One variable identifier or an ordered collection of identifiers.
+            Identifiers may include registered derived variable names. Lists
+            and tuples preserve their order and have no fixed length limit.
+            Empty collections, blank or non-string values, and duplicates
+            after trimming are rejected. A string or one-element collection
+            retains single-variable behavior.
 
         Returns
         -------
         ClimateData
             The current instance for method chaining.
 
+        Raises
+        ------
+        ValueError
+            If the selection is empty, contains a blank or non-string ID, or
+            contains duplicate IDs after whitespace is trimmed.
+
         """
+
         logger.debug("Setting variable_id to: %s", variable_id)
-        if not isinstance(variable_id, str) or not variable_id.strip():
-            logger.error("Invalid variable_id parameter: must be non-empty string")
-            raise ValueError("Variable ID must be a non-empty string")
-        self._query["variable_id"] = variable_id.strip()
-        logger.info("Variable ID set to: %s", variable_id.strip())
+        if isinstance(variable_id, str):
+            if not variable_id.strip():
+                logger.error("Invalid variable_id parameter: empty string")
+                raise ValueError("Variable ID must be a non-empty string")
+            variable_ids = [variable_id]
+        elif isinstance(variable_id, (list, tuple)):
+            variable_ids = variable_id
+            if not variable_ids:
+                logger.error("Invalid variable_id parameter: collection is empty")
+                raise ValueError("Variable ID collection must not be empty")
+        else:
+            logger.error(
+                "Invalid variable_id parameter: must be a string or list/tuple of strings"
+            )
+            raise ValueError(
+                "Variable ID must be a non-empty string or list/tuple of strings"
+            )
+
+        normalized_ids = []
+        for var_id in variable_ids:
+            if not isinstance(var_id, str) or not var_id.strip():
+                logger.error(
+                    "Invalid variable_id: each value must be a non-empty string"
+                )
+                raise ValueError("Each variable ID must be a non-empty string")
+            normalized_ids.append(var_id.strip())
+
+        if len(normalized_ids) != len(set(normalized_ids)):
+            logger.error("Invalid variable_id parameter: duplicate values")
+            raise ValueError("Variable IDs must be unique after trimming")
+
+        normalized_value = (
+            normalized_ids[0] if len(normalized_ids) == 1 else normalized_ids
+        )
+        self._query["variable_id"] = normalized_value
+        logger.info("Variable ID(s) set to: %s", normalized_value)
+
         return self
 
     def derived_variable(
@@ -912,16 +955,21 @@ class ClimateData:
 
         Returns
         -------
-        Optional[xr.DataArray]
-            The retrieved climate data as a lazy-loaded xarray DataArray,
-            or None if the query fails or validation errors occur.
+        Optional[xr.Dataset | xr.DataArray]
+            The retrieved lazy-loaded data. A multi-variable selection returns
+            one Dataset with the requested fields in order; a string or
+            one-element selection retains the existing single-variable return
+            behavior. Returns None if validation or execution fails.
 
-        Raises
-        ------
-        ValueError
-            If required parameters are missing during validation.
-        Exception
-            If there are errors during dataset creation or execution.
+        Notes
+        -----
+        Multi-variable retrieval requires joint coverage across the requested
+        fields for each retained simulation/member or station. Fields are
+        aligned to their common timestamps. Exclusions and timestamp trimming
+        are logged; HDP station results also record them in the
+        ``multi_variable_diagnostics`` Dataset attribute. The query state
+        resets after successful execution and
+        handled validation or retrieval failures.
 
         """
         logger.info("Starting data retrieval with query: %s", self._query)

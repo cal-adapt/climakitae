@@ -837,6 +837,392 @@ class TestExportSingle:
         args, _ = mock_export.call_args
         assert args[1] == "test_output.csv.gz"
 
+    @patch("climakitae.new_core.processors.export._export_to_csv")
+    def test_single_variable_query_keeps_legacy_csv_path(self, mock_export):
+        """Use legacy CSV formatting for scalar variable selections."""
+        multi_output_dataset = xr.Dataset(
+            {
+                "tasmax_p5": (("lat",), [1.0, 2.0]),
+                "tasmax_mean": (("lat",), [3.0, 4.0]),
+            },
+            coords={"lat": [34.0, 35.0]},
+        )
+
+        self.processor.file_format = "CSV"
+        result = self.processor.execute(
+            multi_output_dataset,
+            context={"variable_id": "tasmax"},
+        )
+
+        assert result is multi_output_dataset
+        mock_export.assert_called_once()
+
+    @pytest.mark.parametrize("variable_id", ["tasmax", ["tasmax"]])
+    def test_single_derived_variable_csv_keeps_legacy_output(
+        self, tmp_path, monkeypatch, variable_id
+    ):
+        """Keep several fields from one request in the legacy CSV schema."""
+        from climakitae.core import data_export
+
+        station_path = tmp_path / "stations.csv"
+        pd.DataFrame({"station": []}).to_csv(station_path, index=False)
+        monkeypatch.setattr(data_export, "HADISD_STATIONS_URL", str(station_path))
+        monkeypatch.setattr(
+            data_export,
+            "read_csv_file",
+            lambda _: pd.DataFrame({"variable_id": [], "display_name": []}),
+        )
+        data = xr.Dataset(
+            {
+                "tasmax_p5": (("time",), [1.0, 2.0], {"units": "degC"}),
+                "tasmax_mean": (("time",), [3.0, 4.0], {"units": "degC"}),
+            },
+            coords={"time": pd.date_range("2020-01-01", periods=2)},
+        )
+        processor = Export({"filename": "derived", "file_format": "CSV"})
+        monkeypatch.chdir(tmp_path)
+
+        processor.execute(data, context={"variable_id": variable_id})
+
+        exported = pd.read_csv(tmp_path / "derived.csv.gz", header=[0, 1], index_col=0)
+        assert ("tasmax_p5", "degC") in exported.columns
+        assert ("tasmax_mean", "degC") in exported.columns
+        assert exported[("tasmax_p5", "degC")].tolist() == [1.0, 2.0]
+        assert exported[("tasmax_mean", "degC")].tolist() == [3.0, 4.0]
+        assert not any(column[0] == "variable" for column in exported.columns)
+        assert (tmp_path / "derived_metadata.txt").exists()
+
+    @pytest.mark.parametrize(
+        "file_format,suffix",
+        [("NetCDF", ".nc"), ("Zarr", ".zarr")],
+    )
+    def test_multi_variable_export_round_trips_metadata(
+        self, tmp_path, file_format, suffix
+    ):
+        """Round-trip independent percentile axes and metadata through real writers."""
+        data = xr.Dataset(
+            {
+                "tasmax_percentiles": (
+                    ("tasmax_percentile", "lat"),
+                    [[1.0, 2.0], [3.0, 4.0]],
+                    {"units": "degC", "grid_mapping": "crs"},
+                ),
+                "pr_percentiles": (
+                    ("pr_percentile", "lat"),
+                    [[5.0, 6.0], [7.0, 8.0], [9.0, 10.0]],
+                    {"units": "mm", "grid_mapping": "crs"},
+                ),
+            },
+            coords={
+                "tasmax_percentile": [5, 95],
+                "pr_percentile": [10, 50, 99],
+                "lat": [34.0, 35.0],
+                "crs": xr.DataArray(0, attrs={"spatial_ref": "EPSG:4326"}),
+            },
+            attrs={
+                "multi_variable_diagnostics": (
+                    '{"excluded":{"member-2":{"missing_variables":["pr"]}},'
+                    '"trimmed":{"tasmax":1,"pr":1}}'
+                )
+            },
+        )
+        processor = Export({"filename": "roundtrip", "file_format": file_format})
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.chdir(tmp_path)
+            processor.execute(data, context={"variable_id": ["tasmax", "pr"]})
+
+        output_path = tmp_path / f"roundtrip{suffix}"
+        if file_format == "NetCDF":
+            with xr.open_dataset(output_path) as opened:
+                result = opened.load()
+        else:
+            with xr.open_zarr(output_path) as opened:
+                result = opened.load()
+
+        assert set(result.data_vars) == {
+            "tasmax_percentiles",
+            "pr_percentiles",
+        }
+        assert result["tasmax_percentiles"].dims == ("tasmax_percentile", "lat")
+        assert result["pr_percentiles"].dims == ("pr_percentile", "lat")
+        np.testing.assert_array_equal(result.tasmax_percentile, [5, 95])
+        np.testing.assert_array_equal(result.pr_percentile, [10, 50, 99])
+        assert result["tasmax_percentiles"].attrs["units"] == "degC"
+        assert result["pr_percentiles"].attrs["units"] == "mm"
+        assert result["tasmax_percentiles"].attrs["grid_mapping"] == "crs"
+        assert result.crs.attrs["spatial_ref"] == "EPSG:4326"
+        assert (
+            result.attrs["multi_variable_diagnostics"]
+            == data.attrs["multi_variable_diagnostics"]
+        )
+
+    def test_multi_variable_csv_keeps_independent_coordinate_rows(self, tmp_path):
+        """Export each variable over its own percentile axis without Cartesian rows."""
+        data = xr.Dataset(
+            {
+                "tasmax_percentiles": (
+                    ("tasmax_percentile", "lat"),
+                    [[1.0, 2.0], [3.0, 4.0]],
+                    {"units": "degC"},
+                ),
+                "pr_percentiles": (
+                    ("pr_percentile", "lat"),
+                    [[5.0, 6.0], [7.0, 8.0], [9.0, 10.0]],
+                    {"units": "mm"},
+                ),
+            },
+            coords={
+                "tasmax_percentile": [5, 95],
+                "pr_percentile": [10, 50, 99],
+                "lat": [34.0, 35.0],
+            },
+        )
+        processor = Export({"filename": "multi", "file_format": "CSV"})
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.chdir(tmp_path)
+            processor.execute(data, context={"variable_id": ["tasmax", "pr"]})
+
+        exported = pd.read_csv(tmp_path / "multi.csv.gz")
+        assert len(exported) == 10
+        assert list(exported.columns) == [
+            "variable",
+            "value",
+            "units",
+            "tasmax_percentile",
+            "lat",
+            "pr_percentile",
+        ]
+        assert exported["variable"].value_counts().to_dict() == {
+            "tasmax_percentiles": 4,
+            "pr_percentiles": 6,
+        }
+        assert exported["tasmax_percentile"].notna().sum() == 4
+        assert exported["pr_percentile"].notna().sum() == 6
+        assert set(exported["units"]) == {"degC", "mm"}
+        metadata = (tmp_path / "multi_metadata.txt").read_text()
+        assert "== tasmax_percentiles ==" in metadata
+        assert "units : degC" in metadata
+
+    def test_multi_variable_csv_shared_dimensions_use_sum_of_sizes(self, tmp_path):
+        """Export shared-dimension variables as one row per value, not Cartesian rows."""
+        data = xr.Dataset(
+            {
+                "tasmax": (
+                    ("time", "lat"),
+                    [[1.0, 2.0], [3.0, 4.0]],
+                    {"units": "degC"},
+                ),
+                "pr": (
+                    ("time", "lat"),
+                    [[5.0, 6.0], [7.0, 8.0]],
+                    {"units": "mm"},
+                ),
+            },
+            coords={"time": [0, 1], "lat": [34.0, 35.0]},
+        )
+        processor = Export({"filename": "shared", "file_format": "CSV"})
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.chdir(tmp_path)
+            processor.execute(data, context={"variable_id": ["tasmax", "pr"]})
+
+        exported = pd.read_csv(tmp_path / "shared.csv.gz")
+        assert len(exported) == 8
+        assert list(exported.columns) == [
+            "variable",
+            "value",
+            "units",
+            "time",
+            "lat",
+        ]
+        assert exported["variable"].value_counts().to_dict() == {
+            "tasmax": 4,
+            "pr": 4,
+        }
+        assert exported.loc[exported["variable"] == "tasmax", "value"].tolist() == [
+            1.0,
+            2.0,
+            3.0,
+            4.0,
+        ]
+        assert exported.loc[exported["variable"] == "pr", "value"].tolist() == [
+            5.0,
+            6.0,
+            7.0,
+            8.0,
+        ]
+        assert set(exported["units"]) == {"degC", "mm"}
+        assert (tmp_path / "shared_metadata.txt").exists()
+
+    def test_multi_variable_csv_preserves_missing_values_and_blank_coordinates(
+        self, tmp_path
+    ):
+        """Retain missing measurements and leave unrelated coordinate columns blank."""
+        data = xr.Dataset(
+            {
+                "tasmax_percentiles": (
+                    ("tasmax_percentile", "lat"),
+                    [[1.0, np.nan]],
+                ),
+                "pr_percentiles": (
+                    ("pr_percentile",),
+                    [np.nan, 3.0],
+                ),
+            },
+            coords={
+                "tasmax_percentile": [5],
+                "pr_percentile": [50, 99],
+                "lat": [34.0, 35.0],
+            },
+        )
+        processor = Export({"filename": "missing", "file_format": "CSV"})
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.chdir(tmp_path)
+            processor.execute(data, context={"variable_id": ["tasmax", "pr"]})
+
+        exported = pd.read_csv(tmp_path / "missing.csv.gz")
+        temp_rows = exported[exported["variable"] == "tasmax_percentiles"]
+        precip_rows = exported[exported["variable"] == "pr_percentiles"]
+        assert len(temp_rows) == 2
+        assert len(precip_rows) == 2
+        assert temp_rows["value"].isna().sum() == 1
+        assert precip_rows["value"].isna().sum() == 1
+        assert precip_rows["lat"].isna().all()
+        assert precip_rows["tasmax_percentile"].isna().all()
+        assert temp_rows["pr_percentile"].isna().all()
+
+    def test_multi_variable_csv_preserves_separated_location_filenames(self, tmp_path):
+        """Keep location-based filenames when long-format output splits points."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("closest_cell", "time"), [[1.0], [2.0]]),
+                "pr": (("closest_cell", "time"), [[3.0], [4.0]]),
+            },
+            coords={
+                "time": [0],
+                "closest_cell": [0, 1],
+                "target_lats": ("closest_cell", [34.05, 37.77]),
+                "target_lons": ("closest_cell", [-118.25, -122.42]),
+            },
+        )
+        processor = Export(
+            {
+                "filename": "points",
+                "file_format": "CSV",
+                "separated": True,
+                "location_based_naming": True,
+            }
+        )
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.chdir(tmp_path)
+            processor.execute(data, context={"variable_id": ["tasmax", "pr"]})
+
+        output_files = sorted(path.name for path in tmp_path.glob("points_*.csv.gz"))
+        assert output_files == [
+            "points_34-05N_118-25W.csv.gz",
+            "points_37-77N_122-42W.csv.gz",
+        ]
+        for filename in output_files:
+            exported = pd.read_csv(tmp_path / filename)
+            assert exported["variable"].tolist() == ["tasmax", "pr"]
+
+    def test_multi_variable_csv_preserves_selective_export_suffix(self, tmp_path):
+        """Use long-format CSV for selected raw/calculate export paths."""
+        data = xr.Dataset(
+            {
+                "tasmax": (("time",), [1.0, 2.0]),
+                "pr": (("time",), [3.0, 4.0]),
+            }
+        )
+        processor = Export(
+            {"filename": "selected", "file_format": "CSV", "export_method": "raw"}
+        )
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.chdir(tmp_path)
+            processor.execute(data, context={"variable_id": ["tasmax", "pr"]})
+
+        exported = pd.read_csv(tmp_path / "selected_raw.csv.gz")
+        assert exported["variable"].tolist() == ["tasmax", "tasmax", "pr", "pr"]
+
+    def test_multi_variable_csv_skip_existing_preserves_files(self, tmp_path):
+        """Do not overwrite existing long-format CSV or metadata sidecar."""
+        csv_path = tmp_path / "existing.csv.gz"
+        metadata_path = tmp_path / "existing_metadata.txt"
+        csv_path.write_bytes(b"existing csv")
+        metadata_path.write_text("existing metadata")
+        processor = Export(
+            {
+                "filename": "existing",
+                "file_format": "CSV",
+                "export_method": "skip_existing",
+            }
+        )
+        data = xr.Dataset({"tasmax": (("time",), [1.0]), "pr": (("time",), [2.0])})
+
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.chdir(tmp_path)
+            processor.execute(data, context={"variable_id": ["tasmax", "pr"]})
+
+        assert csv_path.read_bytes() == b"existing csv"
+        assert metadata_path.read_text() == "existing metadata"
+
+    def test_multi_variable_csv_metadata_matches_single_variable_sidecar(
+        self, tmp_path, monkeypatch
+    ):
+        """Write the same sidecar header and sections as single-variable CSV."""
+        from climakitae.core import data_export
+
+        station_path = tmp_path / "stations.csv"
+        pd.DataFrame({"station": []}).to_csv(station_path, index=False)
+        monkeypatch.setattr(data_export, "HADISD_STATIONS_URL", str(station_path))
+        monkeypatch.setattr(
+            data_export,
+            "read_csv_file",
+            lambda _: pd.DataFrame({"variable_id": [], "display_name": []}),
+        )
+        monkeypatch.chdir(tmp_path)
+        data = xr.Dataset(
+            {
+                "tasmax": (("time",), [1.0, 2.0], {"units": "degC"}),
+                "pr": (("time",), [3.0, 4.0], {"units": "mm"}),
+            },
+            coords={
+                "time": xr.DataArray(
+                    pd.date_range("2020-01-01", periods=2),
+                    dims="time",
+                    attrs={"standard_name": "time"},
+                )
+            },
+            attrs={"institution": "CAE"},
+        )
+
+        Export({"filename": "single", "file_format": "CSV"}).execute(
+            data, context={"variable_id": "tasmax"}
+        )
+        Export({"filename": "multi", "file_format": "CSV"}).execute(
+            data, context={"variable_id": ["tasmax", "pr"]}
+        )
+
+        single = (tmp_path / "single_metadata.txt").read_text()
+        multi = (tmp_path / "multi_metadata.txt").read_text()
+        assert multi.replace(str(tmp_path / "multi"), str(tmp_path / "single")) == (
+            single
+        )
+        assert multi.startswith(
+            f"======== Metadata for CSV file {tmp_path / 'multi'} ========"
+        )
+        for section in (
+            "===== Global file attributes =====",
+            "===== Coordinate descriptions =====",
+            "===== Variable descriptions =====",
+        ):
+            assert section in multi
+
     @patch("os.path.exists", return_value=True)
     @patch("climakitae.new_core.processors.export._export_to_netcdf")
     def test_export_single_skip_existing(self, mock_export, mock_exists):

@@ -287,7 +287,7 @@ class ParameterValidator(ABC):
         """
 
     def _check_derived_variable(
-        self, variable_id: str
+        self, variable_id: str | List[str]
     ) -> Tuple[bool, Optional[List[str]], Optional[str]]:
         """Check if a variable_id is a derived variable.
 
@@ -309,12 +309,113 @@ class ParameterValidator(ABC):
             from climakitae.new_core.derived_variables import list_derived_variables
 
             derived_vars = list_derived_variables()
-            if variable_id in derived_vars:
-                info = derived_vars[variable_id]
-                return True, info.depends_on, variable_id
+            if isinstance(variable_id, str):
+                if variable_id in derived_vars:
+                    info = derived_vars[variable_id]
+                    return True, info.depends_on, variable_id
+
         except ImportError:
             pass
         return False, None, None
+
+    def _build_multi_variable_plan(self) -> Dict[str, Any] | None:
+        """Build a catalog-field plan for an ordered multi-variable request.
+
+        Returns
+        -------
+        dict or None
+            Query-local metadata for retrieval, or ``None`` when any requested
+            native field or derived dependency is unavailable.
+        """
+        variable_ids = self.all_catalog_keys.get("variable_id", UNSET)
+        if not isinstance(variable_ids, (list, tuple)) or len(variable_ids) < 2:
+            return {}
+
+        from climakitae.new_core.derived_variables import list_derived_variables
+
+        derived_variables = list_derived_variables()
+        requested_variables = list(variable_ids)
+        derived_names = [
+            variable
+            for variable in requested_variables
+            if variable in derived_variables
+        ]
+        source_variables = []
+        catalog_variable_ids = []
+        for variable in requested_variables:
+            dependencies = (
+                derived_variables[variable].depends_on
+                if variable in derived_variables
+                else [variable]
+            )
+            for dependency in dependencies:
+                if dependency not in catalog_variable_ids:
+                    catalog_variable_ids.append(dependency)
+                if variable in derived_variables and dependency not in source_variables:
+                    source_variables.append(dependency)
+
+        catalog_df = getattr(self.catalog, "df", None)
+        columns = getattr(catalog_df, "columns", ())
+        if catalog_df is None or "variable_id" not in columns:
+            logger.warning(
+                "Cannot validate requested variables %s because the catalog does "
+                "not expose variable_id metadata.",
+                requested_variables,
+            )
+            return None
+
+        constrained_df = catalog_df
+        constraints = {}
+        for key, value in self.all_catalog_keys.items():
+            if key == "variable_id" or value is UNSET or key not in columns:
+                continue
+            values = value if isinstance(value, (list, tuple)) else [value]
+            constrained_df = constrained_df[constrained_df[key].isin(values)]
+            constraints[key] = value
+
+        available_variables = set(constrained_df["variable_id"].unique())
+        missing_catalog_variables = [
+            variable
+            for variable in catalog_variable_ids
+            if variable not in available_variables
+        ]
+        if missing_catalog_variables:
+            missing_requests = []
+            for variable in requested_variables:
+                dependencies = (
+                    derived_variables[variable].depends_on
+                    if variable in derived_variables
+                    else [variable]
+                )
+                missing_dependencies = [
+                    dependency
+                    for dependency in dependencies
+                    if dependency in missing_catalog_variables
+                ]
+                if missing_dependencies:
+                    missing_requests.append(
+                        f"{variable} (missing {', '.join(missing_dependencies)})"
+                    )
+            constraint_text = ", ".join(
+                f"{key}={value}" for key, value in constraints.items()
+            )
+            logger.warning(
+                "Requested variables %s require catalog fields %s that are "
+                "unavailable under constraints %s. "
+                "The entire query has been rejected.",
+                missing_requests,
+                missing_catalog_variables,
+                constraint_text or "none",
+            )
+            return None
+
+        return {
+            "_multi_variable_query": True,
+            "_requested_variables": requested_variables,
+            "_derived_variables": derived_names,
+            "_source_variables": source_variables,
+            "_catalog_variable_ids": catalog_variable_ids,
+        }
 
     def _is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
         """Internal method to validate query parameters and provide user feedback.
@@ -360,13 +461,22 @@ class ParameterValidator(ABC):
         # convert user input to keys
         self.populate_catalog_keys(query)
 
+        variable_plan = self._build_multi_variable_plan()
+        if variable_plan is None:
+            return None
+        self.all_catalog_keys.update(variable_plan)
+
         # Check if variable_id is a derived variable
         # For derived variables, we need to search for source variables in the catalog,
         # then compute the derived variable during data loading.
         derived_var_name = None
         source_vars = None
         original_variable_id = self.all_catalog_keys.get("variable_id", UNSET)
-        if original_variable_id is not UNSET:
+        if (
+            original_variable_id is not UNSET
+            and not self.all_catalog_keys.get("_multi_variable_query", False)
+            and not self.all_catalog_keys.get("_hdp_variable_query", False)
+        ):
             is_derived, source_vars, derived_name = self._check_derived_variable(
                 original_variable_id
             )
@@ -459,8 +569,19 @@ class ParameterValidator(ABC):
 
         # check if the catalog keys can be found
         subset = []
+        search_keys = {
+            key: value
+            for key, value in self.all_catalog_keys.items()
+            if not key.startswith("_")
+            and not (
+                key == "variable_id"
+                and self.all_catalog_keys.get("_hdp_variable_query")
+            )
+        }
+        if self.all_catalog_keys.get("_multi_variable_query", False):
+            search_keys["variable_id"] = self.all_catalog_keys["_catalog_variable_ids"]
         try:
-            subset = self.catalog.search(**self.all_catalog_keys)
+            subset = self.catalog.search(**search_keys)
         except ValueError as e:
             # no datasets found or invalid query
             logger.warning(
@@ -479,12 +600,24 @@ class ParameterValidator(ABC):
                 )
             return self.all_catalog_keys if self._has_valid_processes(query) else None
 
+        if self.all_catalog_keys.get("_multi_variable_query", False):
+            constraints = {
+                key: value for key, value in search_keys.items() if key != "variable_id"
+            }
+            logger.warning(
+                "No catalog records matched all requested variables %s under "
+                "constraints %s. The entire query has been rejected.",
+                self.all_catalog_keys["_requested_variables"],
+                constraints or "none",
+            )
+            return None
+
         # dataset not found
         # find closest match to each provided key
         logger.info("Checking for valid options...")
         df = self.catalog.df.copy()
         last_key = None
-        for key, value in self.all_catalog_keys.items():
+        for key, value in search_keys.items():
             # don't check unset values
             if value is UNSET:
                 continue

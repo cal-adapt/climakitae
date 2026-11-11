@@ -6,6 +6,7 @@ import logging
 import os
 from typing import Any, Dict, Iterable, Union
 
+import pandas as pd
 import xarray as xr
 
 from climakitae.core.constants import _NEW_ATTRS_KEY
@@ -13,6 +14,7 @@ from climakitae.core.data_export import (
     _export_to_csv,
     _export_to_netcdf,
     _export_to_zarr,
+    _metadata_to_file,
 )
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.export_param_validator import (
@@ -69,6 +71,12 @@ class Export(DataProcessor):
     Note: When ``cava_data`` uses ``separate_files=False`` or ``batch_mode=True``,
     it concatenates points into a single dataset along a ``simulation`` dimension.
     In this case, the data is treated as a single dataset (like case 1 above).
+
+    For multi-variable Dataset results, CSV output is long-form. Each variable
+    contributes rows over its own dimensions with ``variable``, ``value``,
+    ``units``, and coordinate columns; independent dimensions are not expanded
+    into Cartesian-product rows. Missing values are retained and a metadata
+    sidecar is written. Single-variable CSV formatting is unchanged.
 
     Parameters
     ----------
@@ -231,6 +239,7 @@ class Export(DataProcessor):
         self.fail_on_error = value.get("fail_on_error", True)
         self.raw_filename = value.get("raw_filename", None)
         self.calc_filename = value.get("calc_filename", None)
+        self._multi_variable_csv = False
 
         # Validate inputs during initialization
         self._validate_parameters()
@@ -373,6 +382,13 @@ class Export(DataProcessor):
         if self.export_method.lower() == "none":
             print("Export method set to 'none'; no data is exported!")
             return result
+
+        selected_variables = context.get("variable_id")
+        self._multi_variable_csv = (
+            self.file_format.lower() == "csv"
+            and isinstance(selected_variables, (list, tuple))
+            and len(selected_variables) > 1
+        )
 
         # Handle different export methods
         export_method_lower = self.export_method.lower()
@@ -817,7 +833,10 @@ class Export(DataProcessor):
 
         return result
 
-    def _split_and_export_closest_cells(self, data: Union[xr.Dataset, xr.DataArray]):
+    def _split_and_export_closest_cells(
+        self,
+        data: Union[xr.Dataset, xr.DataArray],
+    ):
         """
         Split data along closest_cell or points dimension and export each slice separately.
 
@@ -1061,7 +1080,86 @@ class Export(DataProcessor):
                     f"Could not find unique filename after 10000 attempts for {base_filename}"
                 )
 
-    def export_single(self, data: Union[xr.Dataset, xr.DataArray]) -> None:
+    def _long_format_csv_dataframe(self, data: xr.Dataset) -> pd.DataFrame:
+        """
+        Build long-format CSV rows without aligning variables on unrelated dims.
+
+        Parameters
+        ----------
+        data : xr.Dataset
+            Dataset holding every requested variable.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per variable value with ``variable``, ``value``, ``units``
+            and coordinate columns; coordinates a variable lacks are blank.
+
+        Raises
+        ------
+        ValueError
+            If a coordinate collides with a reserved column name or the
+            Dataset has no data variables.
+        """
+        coordinate_columns = list(data.sizes)
+        coordinate_columns.extend(
+            name for name in data.coords if name not in coordinate_columns
+        )
+        reserved_columns = {"variable", "value", "units"}
+        conflicts = reserved_columns.intersection(coordinate_columns)
+        if conflicts:
+            raise ValueError(
+                "Multi-variable CSV coordinates conflict with required columns: "
+                f"{sorted(conflicts)}."
+            )
+
+        variable_frames = []
+        for variable_name, variable_data in data.data_vars.items():
+            if variable_data.ndim == 0:
+                variable_frame = pd.DataFrame(
+                    {"value": [variable_data.to_numpy().item()]}
+                )
+            else:
+                variable_frame = variable_data.to_dataframe(name="value").reset_index()
+            variable_frame.insert(0, "variable", variable_name)
+            units = variable_data.attrs.get("units")
+            variable_frame["units"] = "" if units is None else str(units)
+            variable_frames.append(variable_frame)
+
+        if not variable_frames:
+            raise ValueError("Cannot export a Dataset with no data variables to CSV.")
+
+        columns = ["variable", "value", "units", *coordinate_columns]
+        return pd.concat(variable_frames, ignore_index=True, sort=False).reindex(
+            columns=columns
+        )
+
+    def _export_long_format_csv(self, data: xr.Dataset, save_name: str) -> None:
+        """
+        Write a long-format CSV and the standard metadata sidecar.
+
+        Parameters
+        ----------
+        data : xr.Dataset
+            Dataset holding every requested variable.
+        save_name : str
+            Output filename ending in ``.csv.gz``, relative to the working
+            directory.
+
+        See Also
+        --------
+        climakitae.core.data_export._metadata_to_file : Writes the sidecar.
+        """
+        output_path = os.path.join(os.getcwd(), save_name)
+        _metadata_to_file(data, output_path)
+        self._long_format_csv_dataframe(data).to_csv(
+            output_path, index=False, compression="gzip"
+        )
+
+    def export_single(
+        self,
+        data: Union[xr.Dataset, xr.DataArray],
+    ) -> None:
         """
         Export a single xr.Dataset or xr.DataArray to file.
 
@@ -1112,7 +1210,14 @@ class Export(DataProcessor):
                 case "csv":
                     # Clean up attributes to avoid NetCDF serialization issues
                     data = self._clean_attrs_for_netcdf(data)
-                    _export_to_csv(data, save_name)
+                    if self._multi_variable_csv:
+                        if not isinstance(data, xr.Dataset):
+                            raise ValueError(
+                                "Multi-variable CSV export requires an xarray Dataset."
+                            )
+                        self._export_long_format_csv(data, save_name)
+                    else:
+                        _export_to_csv(data, save_name)
                 case _:
                     # This should never happen due to validation in __init__
                     raise ValueError(f"Unsupported file format: {self.file_format}")

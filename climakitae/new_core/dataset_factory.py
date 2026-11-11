@@ -38,7 +38,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Type
 
-from climakitae.core.constants import _NEW_ATTRS_KEY, PROC_KEY, UNSET
+from climakitae.core.constants import _NEW_ATTRS_KEY, CATALOG_HDP, PROC_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.dataset import Dataset
 from climakitae.new_core.param_validation.abc_param_validation import (
@@ -503,6 +503,13 @@ class DatasetFactory:
             List of available options for the specified catalog.
 
         """
+        if (
+            key == "variable_id"
+            and query is not None
+            and query.get("catalog") == CATALOG_HDP
+        ):
+            return self._catalog.get_hdp_observation_fields(query)
+
         if key not in self._catalog_df.columns:
             raise ValueError(f"Catalog key '{key}' not found.")
         filtered_df = self._catalog_df.copy()

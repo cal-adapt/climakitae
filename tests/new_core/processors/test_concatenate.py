@@ -97,6 +97,49 @@ class TestConcatExecuteBasicCases:
         result = self.processor.execute(dataarray, self.context)
         assert result is dataarray
 
+    def test_execute_concatenates_multivariable_members_with_units(self):
+        """Test concatenation keeps variables, units, and member identity."""
+        times = pd.date_range("2020-01-01", periods=2)
+        datasets = {}
+        for member_id, offset in (("r1i1p1f1", 0), ("r2i1p1f1", 10)):
+            dataset = xr.Dataset(
+                {
+                    "tasmax": ("time", [300.0 + offset, 301.0 + offset]),
+                    "pr": ("time", [1.0 + offset, 2.0 + offset]),
+                },
+                coords={"time": times},
+                attrs={
+                    "intake_esm_attrs:activity_id": "LOCA2",
+                    "intake_esm_attrs:institution_id": "NCAR",
+                    "intake_esm_attrs:source_id": "CESM2",
+                    "intake_esm_attrs:experiment_id": "ssp245",
+                    "intake_esm_attrs:member_id": member_id,
+                },
+            )
+            dataset["tasmax"].attrs["units"] = "K"
+            dataset["pr"].attrs["units"] = "mm/day"
+            datasets[f"model-{member_id}"] = dataset
+
+        result = self.processor.execute(
+            datasets,
+            context={"_catalog_key": "cadcat"},
+        )
+
+        assert result.sizes["sim"] == 2
+        assert set(result.data_vars) == {"tasmax", "pr"}
+        assert {member for member in result.sim.values} == {
+            "loca2_ncar_cesm2_ssp245_r1i1p1f1",
+            "loca2_ncar_cesm2_ssp245_r2i1p1f1",
+        }
+        assert result["tasmax"].attrs["units"] == "K"
+        assert result["pr"].attrs["units"] == "mm/day"
+        assert result.sel(sim="loca2_ncar_cesm2_ssp245_r2i1p1f1")[
+            "tasmax"
+        ].values.tolist() == [310.0, 311.0]
+        assert result.sel(sim="loca2_ncar_cesm2_ssp245_r2i1p1f1")[
+            "pr"
+        ].values.tolist() == [11.0, 12.0]
+
     def test_execute_empty_dict_raises_error(self):
         """Test execute with empty dictionary raises ValueError."""
         with pytest.raises(
@@ -359,6 +402,74 @@ class TestConcatExecuteTimeDimension:
         # Original dimension should still be tracked
         assert self.processor._original_dim_name == "time"
         assert result is concatenated
+
+    def test_time_extension_preserves_multivariable_common_members(self):
+        """Test historical extension aligns member identity across multiple fields."""
+        historical = xr.Dataset(
+            {
+                "tasmax": (
+                    ("member_id", "time"),
+                    [[1.0, 2.0], [3.0, 4.0]],
+                ),
+                "pr": (
+                    ("member_id", "time"),
+                    [[10.0, 20.0], [30.0, 40.0]],
+                ),
+            },
+            coords={
+                "member_id": ["r1i1p1f1", "r2i1p1f1"],
+                "time": pd.to_datetime(["2010-01-01", "2011-01-01"]),
+            },
+            attrs={
+                "intake_esm_attrs:activity_id": "LOCA2",
+                "intake_esm_attrs:institution_id": "NCAR",
+                "intake_esm_attrs:source_id": "CESM2",
+                "intake_esm_attrs:experiment_id": "historical",
+            },
+        )
+        future = xr.Dataset(
+            {
+                "tasmax": (
+                    ("member_id", "time"),
+                    [[5.0, 6.0], [7.0, 8.0]],
+                ),
+                "pr": (
+                    ("member_id", "time"),
+                    [[50.0, 60.0], [70.0, 80.0]],
+                ),
+            },
+            coords={
+                "member_id": ["r2i1p1f1", "r3i1p1f1"],
+                "time": pd.to_datetime(["2012-01-01", "2013-01-01"]),
+            },
+            attrs={
+                "intake_esm_attrs:activity_id": "LOCA2",
+                "intake_esm_attrs:institution_id": "NCAR",
+                "intake_esm_attrs:source_id": "CESM2",
+                "intake_esm_attrs:experiment_id": "ssp245",
+            },
+        )
+        for dataset in (historical, future):
+            dataset["tasmax"].attrs["units"] = "K"
+            dataset["pr"].attrs["units"] = "mm/day"
+
+        result = Concat("time").execute(
+            {"model.historical": historical, "model.ssp245": future},
+            context={"_catalog_key": "cadcat"},
+        )
+
+        assert result.sizes["sim"] == 1
+        assert "r2i1p1f1" in result.sim.item()
+        assert (
+            result.time.values.tolist()
+            == pd.date_range("2010-01-01", periods=4, freq="YS").values.tolist()
+        )
+        assert result["tasmax"].attrs["units"] == "K"
+        assert result["pr"].attrs["units"] == "mm/day"
+        assert result["tasmax"].item(0, 0) == 3.0
+        assert result["tasmax"].item(0, 3) == 6.0
+        assert result["pr"].item(0, 0) == 30.0
+        assert result["pr"].item(0, 3) == 60.0
 
     def test_execute_non_time_dimension_skips_extend_time_domain(self):
         """Test execute with non-time dimension skips extend_time_domain."""

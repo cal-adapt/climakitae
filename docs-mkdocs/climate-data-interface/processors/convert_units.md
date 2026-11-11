@@ -42,15 +42,28 @@ flowchart TD
 
 ## Parameter shape
 
-The processor takes a **single string**: the target unit. The source unit is read from the variable's `units` attribute.
+The processor accepts either a shared target-unit string or a
+`{variable_id: target_unit}` mapping. Source units are read from each variable's `units` attribute.
 
 ```python
 .processes({"convert_units": "<target unit>"})
 ```
 
+```python
+.processes({
+    "convert_units": {"tasmax": "degC", "pr": "inches/d"}
+})
+```
+
 | Field | Type | Description |
 |-------|------|-------------|
-| `value` | `str` | Target unit. Must form a registered `(source, target)` pair with each variable's existing `units`; mismatches log a warning and leave the variable unchanged. |
+| `value` | `str` or mapping | A shared target unit, or `{variable_id: target_unit}`. Each target must form a registered `(source, target)` pair with that variable's existing `units`. |
+
+A shared string applies to every selected variable with identifiable units.
+The mapping form converts only named fields; omitted fields stay
+unchanged. All requested conversions are validated before any variable is
+modified. Invalid targets, missing native units, or unknown native units leave
+the entire input unchanged and produce a warning.
 
 ## Supported conversions
 
@@ -97,10 +110,28 @@ data = (ClimateData()
     .get())
 ```
 
+### Different targets for different variables
+
+```python
+data = (ClimateData()
+    .catalog("cadcat")
+    .activity_id("LOCA2")
+    .institution_id("UCSD")
+    .source_id("ACCESS-CM2")
+    .experiment_id("historical")
+    .table_id("day")
+    .grid_label("d03")
+    .variable_id(["tasmax", "pr"])
+    .processes({
+        "convert_units": {"tasmax": "degC", "pr": "inches/d"}
+    })
+    .get())
+```
+
 ## Behavior notes
 
 - If `value` is left unset, the processor is a no-op.
-- If `(source_unit, target_unit)` is not registered, the processor logs a warning and returns the variable unchanged.
+- `convert_units` is not supported for HDP observation data.
 - Runs at priority **5** — early in the pipeline, so downstream processors (e.g. `metric_calc` thresholds) operate on already-converted units.
 - Records the conversion in dataset attributes via the shared `new_attrs` context key.
 
