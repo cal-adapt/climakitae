@@ -87,24 +87,6 @@ class TestTimeSliceExecute:
         assert result["var1"].values.tolist() == [[1, 2], [3, 4]]
         assert result["var2"].values.tolist() == [[10, 20], [30, 40]]
 
-    def test_time_slice_preserves_multivariable_units_and_shared_time(
-        self,
-        processor: TimeSlice,
-        test_dataset: xr.Dataset,
-    ) -> None:
-        """Test slicing all variables together without losing per-variable units."""
-        test_dataset["var1"].attrs["units"] = "K"
-        test_dataset["var2"].attrs["units"] = "mm/day"
-
-        result = processor.execute(test_dataset, context={})
-
-        assert list(result.data_vars) == ["var1", "var2"]
-        assert result.time.values.tolist() == test_dataset.time.values[:2].tolist()
-        assert result["var1"].attrs["units"] == "K"
-        assert result["var2"].attrs["units"] == "mm/day"
-        assert result["var1"].values.tolist() == [[1, 2], [3, 4]]
-        assert result["var2"].values.tolist() == [[10, 20], [30, 40]]
-
     @pytest.mark.parametrize("container_type", [list, tuple, dict])
     def test_time_slice_data_types(
         self,

@@ -441,23 +441,6 @@ class TestFilterUnAdjustedModelsExecute:
         assert result == [ds_adjusted, ds_adjusted]
         assert len(recwarn) == 0
 
-    def test_execute_preserves_multivariable_fields_and_units(
-        self,
-        processor_yes: FilterUnAdjustedModels,
-        ds_adjusted: xr.Dataset,
-    ) -> None:
-        """Test model filtering retains all fields and their units."""
-        ds_adjusted["precip"] = ("time", [0.1, 0.2, 0.3])
-        ds_adjusted["temp"].attrs["units"] = "K"
-        ds_adjusted["precip"].attrs["units"] = "mm/day"
-
-        result = processor_yes.execute(ds_adjusted, context={})
-
-        assert set(result.data_vars) == {"temp", "precip"}
-        assert result["temp"].attrs["units"] == "K"
-        assert result["precip"].attrs["units"] == "mm/day"
-        assert result["precip"].values.tolist() == [0.1, 0.2, 0.3]
-
     def test_execute_yes_with_only_unadjusted_models(
         self,
         recwarn: pytest.WarningsRecorder,

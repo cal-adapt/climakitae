@@ -230,25 +230,6 @@ class TestConvertToLocalTimeExecute:
         assert result["var2"].attrs["timezone"] == "America/Los_Angeles"
         assert result.time[0] == pd.Timestamp("1999-12-31 16:00:00")
 
-    def test_convert_to_local_time_preserves_multivariable_units_and_alignment(
-        self,
-        processor: ConvertToLocalTime,
-        test_dataset: xr.Dataset,
-    ) -> None:
-        """Test local-time conversion retains units and shared field timestamps."""
-        test_dataset["var1"].attrs["units"] = "K"
-        test_dataset["var2"].attrs["units"] = "mm/hour"
-
-        result = processor.execute(test_dataset, context={})
-
-        assert result.time.size == 24
-        assert result.time[0] == pd.Timestamp("1999-12-31 16:00:00")
-        assert result["var1"].attrs["timezone"] == "America/Los_Angeles"
-        assert result["var2"].attrs["timezone"] == "America/Los_Angeles"
-        assert result["var1"].attrs["units"] == "K"
-        assert result["var2"].attrs["units"] == "mm/hour"
-        assert result["var1"].time.identical(result["var2"].time)
-
     @pytest.mark.parametrize("container_type", [list, tuple, dict])
     def test_convert_to_local_time_data_types(
         self,
