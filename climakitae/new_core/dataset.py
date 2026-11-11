@@ -256,9 +256,7 @@ class Dataset:
             # Get detailed traceback information
             tb_info = traceback.format_exc()
             # Log the traceback for debugging
-            logger.error(
-                "Exception during pipeline execution: %s", str(e), exc_info=True
-            )
+            logger.error("Exception during pipeline execution: %s", str(e))
             logger.debug("Exception traceback:\n%s", tb_info)
             raise RuntimeError(f"Error in processing pipeline: {str(e)}") from e
 

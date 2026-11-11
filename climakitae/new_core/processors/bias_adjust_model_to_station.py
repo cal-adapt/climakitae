@@ -657,12 +657,10 @@ class BiasAdjustModelToStation(DataProcessor):
             raise ValueError(
                 f"BiasAdjustModelToStation: QDM training window for "
                 f"station(s) {station_label} spans only {n_training_years} "
-                f"year(s) ({t_start} to {t_end}), after intersecting "
-                f"historical_slice=({hist_start}, {hist_end}) with the "
-                f"available model and station data. At least "
+                f"year(s) ({t_start} to {t_end}). At least "
                 f"{_MIN_TRAINING_YEARS} years of training data are required "
                 f"for reliable QDM quantile estimates; widen 'historical_slice' "
-                f"or verify this station's data coverage."
+                f"for more accurate localization."
             )
 
         # Check if data has a 'sim' dimension from concatenation
