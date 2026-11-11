@@ -14,8 +14,8 @@ import pandas as pd
 import pytz
 import requests
 import xarray as xr
-from timezonefinder import TimezoneFinder
 from dask.diagnostics import ProgressBar
+from timezonefinder import TimezoneFinder
 
 from climakitae.core.constants import UNSET
 from climakitae.core.paths import (
@@ -722,6 +722,88 @@ def _dataset_to_dataframe(dataset: xr.Dataset) -> pd.DataFrame:
     return df
 
 
+def _metadata_to_file(ds: xr.DataArray | xr.Dataset, output_name: str):
+    """Write NetCDF metadata to a txt file alongside an exported CSV.
+
+    Users can still access attributes after exporting to CSV.
+
+    Parameters
+    ----------
+    ds : xr.DataArray | xr.Dataset
+        Data whose global, coordinate, and variable attributes are written.
+    output_name : str
+        Path of the CSV file; a trailing ``.csv.gz`` is replaced by
+        ``_metadata.txt``.
+
+    Returns
+    -------
+    None
+
+    """
+
+    def _rchop(s, suffix):
+        if suffix and s.endswith(suffix):
+            return s[: -len(suffix)]
+        return s
+
+    output_name = _rchop(output_name, ".csv.gz")
+
+    if os.path.exists(output_name + "_metadata.txt"):
+        os.remove(output_name + "_metadata.txt")
+
+    print(
+        "NOTE: File metadata will be written in "
+        + output_name
+        + (
+            "_metadata.txt. We recommend you download this along with "
+            "the CSV for your records."
+        )
+    )
+
+    with open(output_name + "_metadata.txt", "w") as f:
+        f.write("======== Metadata for CSV file " + output_name + " ========")
+        f.write("\n")
+        f.write("\n")
+        f.write("\n")
+        f.write("===== Global file attributes =====")
+        if type(ds) == xr.core.dataarray.DataArray:
+            f.write("\n")
+            f.write("Name: " + ds.name)
+        f.write("\n")
+        for att_keys, att_values in ds.attrs.items():
+            f.write(str(att_keys) + " : " + str(att_values))
+            f.write("\n")
+
+        f.write("\n")
+        f.write("\n")
+        f.write("===== Coordinate descriptions =====")
+        f.write("\n")
+        f.write("Note: coordinate values are in the CSV")
+        f.write("\n")
+
+        for coord in ds.coords:
+            f.write("\n")
+            f.write("== " + str(coord) + " ==")
+            f.write("\n")
+            for att_keys, att_values in ds[coord].attrs.items():
+                f.write(str(att_keys) + " : " + str(att_values))
+                f.write("\n")
+
+        if type(ds) == xr.core.dataset.Dataset:
+            f.write("\n")
+            f.write("\n")
+            f.write("===== Variable descriptions =====")
+            f.write("\n")
+
+            for var in ds.data_vars:
+                f.write("\n")
+                f.write("== " + str(var) + " ==")
+                f.write("\n")
+                for att_keys, att_values in ds[var].attrs.items():
+                    f.write(str(att_keys) + " : " + str(att_values))
+                    f.write("\n")
+
+
 def _export_to_csv(data: xr.DataArray | xr.Dataset, save_name: str):
     """Export user-selected data to CSV format.
 
@@ -791,83 +873,6 @@ def _export_to_csv(data: xr.DataArray | xr.Dataset, save_name: str):
             f"and {excel_column_limit} columns.",
             stacklevel=999,
         )
-
-    def _metadata_to_file(ds: xr.Dataset, output_name: str):
-        """Write NetCDF metadata to a txt file so users can still access it
-        after exporting to a CSV.
-
-        Parameters
-        ----------
-        ds : xr.Dataset
-        output_name : str
-
-        Returns
-        -------
-        None
-
-        """
-
-        def _rchop(s, suffix):
-            if suffix and s.endswith(suffix):
-                return s[: -len(suffix)]
-            return s
-
-        output_name = _rchop(output_name, ".csv.gz")
-
-        if os.path.exists(output_name + "_metadata.txt"):
-            os.remove(output_name + "_metadata.txt")
-
-        print(
-            "NOTE: File metadata will be written in "
-            + output_name
-            + (
-                "_metadata.txt. We recommend you download this along with "
-                "the CSV for your records."
-            )
-        )
-
-        with open(output_name + "_metadata.txt", "w") as f:
-            f.write("======== Metadata for CSV file " + output_name + " ========")
-            f.write("\n")
-            f.write("\n")
-            f.write("\n")
-            f.write("===== Global file attributes =====")
-            if type(ds) == xr.core.dataarray.DataArray:
-                f.write("\n")
-                f.write("Name: " + ds.name)
-            f.write("\n")
-            for att_keys, att_values in ds.attrs.items():
-                f.write(str(att_keys) + " : " + str(att_values))
-                f.write("\n")
-
-            f.write("\n")
-            f.write("\n")
-            f.write("===== Coordinate descriptions =====")
-            f.write("\n")
-            f.write("Note: coordinate values are in the CSV")
-            f.write("\n")
-
-            for coord in ds.coords:
-                f.write("\n")
-                f.write("== " + str(coord) + " ==")
-                f.write("\n")
-                for att_keys, att_values in ds[coord].attrs.items():
-                    f.write(str(att_keys) + " : " + str(att_values))
-                    f.write("\n")
-
-            if type(ds) == xr.core.dataset.Dataset:
-                f.write("\n")
-                f.write("\n")
-                f.write("===== Variable descriptions =====")
-                f.write("\n")
-
-                for var in ds.data_vars:
-                    f.write("\n")
-                    f.write("== " + str(var) + " ==")
-                    f.write("\n")
-                    for att_keys, att_values in ds[var].attrs.items():
-                        f.write(str(att_keys) + " : " + str(att_values))
-                        f.write("\n")
 
     _metadata_to_file(data, output_path)
     df.to_csv(output_path, compression="gzip")
