@@ -179,19 +179,28 @@ metadata, field names, and storage-backed array types only.
 
 ### Reviewed retrieval boundary — approved for implementation
 
-For multi-variable gridded queries, retrieve source assets without intake
-aggregation and keep their catalog metadata. Group assets by simulation and
-member identity, exclude groups missing requested source fields, intersect
-timestamps within each complete group, and reject empty overlaps or mismatched
-spatial coordinates and calendars. Compute derived outputs by their registered
-names, then return only requested variables in request order. The arrays remain
-lazy. Single-variable queries keep the existing aggregated retrieval path.
+Multi-variable CADCAT, renewables, and Sup3rCC queries use intake-esm
+aggregation directly (ticket `climakitae-wm2.2`, approved 2026-11-11). The
+search passes `require_all_on` built from the catalog's
+`aggregation_control.groupby_attrs` plus `member_id` when the catalog has that
+column, so intake-esm drops any simulation/member missing a requested field.
+`to_dataset_dict` then combines assets with
+`xarray_combine_by_coords_kwargs={"join": "inner"}`, which leaves no NaN
+padding from mismatched coordinates. Derived outputs are computed by their
+registered names without dropping inputs other outputs need, and only the
+requested variables are returned, in request order. Arrays stay lazy.
+Single-variable queries keep the existing aggregated retrieval path.
 
-The local intake fixtures confirm that unaggregated retrieval preserves source
-coverage and keeps historical and SSP groups distinct. CADCAT results restore a
-`member_id` dimension after incomplete members are excluded. The current
-implementation records exclusions and timestamp trimming in warnings and in
-the JSON-valued `multi_variable_diagnostics` dataset attribute.
+Two behaviors differ from the earlier per-asset assembly. First, the inner
+join intersects coordinates across every member in a key, not per member.
+Second, per-record trimming diagnostics are gone. Members dropped by
+`require_all_on` are logged at info level with their missing fields. A cheap
+guard records each asset's dimension sizes while it opens (coordinates only)
+and logs a warning when the join shortens a key's time or spatial dimension
+below an asset's length. An empty dimension after the join fails the query.
+Warming-level processing is unaffected because keys and `member_id` match
+the single-variable path, but a shortened key would narrow every member's
+window, which is what the warning flags.
 
 HDP station-field selection remains a separate route in ticket
 `climakitae-n44.5`; processor behavior is tracked under `.6` through `.10`.
@@ -221,7 +230,7 @@ retrieval boundary above. Tickets `.3`, `.4`, and `.5` are complete.
 | --- | --- | --- |
 | Public and dictionary input | Setter normalization, scalar compatibility, detached query copies, dictionary loading, and `.get()` snapshots are implemented and covered. Removed `.variable()` remains absent. | `climakitae-n44.2` |
 | Validation | Requested native fields and derived dependencies are checked under shared constraints. Query-local plans distinguish output variables from catalog dependencies. | `climakitae-n44.3` |
-| Retrieval and derived registry | Per-asset source coverage is assembled for CADCAT, renewable energy generation, and Sup3rCC. Results preserve requested order, derived dependencies, lazy arrays, and export-safe coverage diagnostics. | `.3` and `.4` complete |
+| Retrieval and derived registry | CADCAT, renewable energy generation, and Sup3rCC use intake-esm `require_all_on` plus an inner join. Results preserve requested order, derived dependencies, and lazy arrays; exclusions are logged. | `.3` and `.4` complete |
 | HDP | Explicit fields are discovered from representative station assets and selected after unaggregated retrieval. Incomplete stations are excluded with JSON diagnostics; empty time intersections fail the query. No-selector and single-field paths are covered, and prohibited processors are checked through `processes`. | `.5` complete |
 | Factory and pipeline | Default injection and explicit catalog-key routing already exist. Processor-wide output identity, diagnostics, and rejection gates remain. | `climakitae-n44.6` |
 

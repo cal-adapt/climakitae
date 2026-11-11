@@ -966,8 +966,9 @@ class ClimateData:
         Multi-variable retrieval requires joint coverage across the requested
         fields for each retained simulation/member or station. Fields are
         aligned to their common timestamps. Exclusions and timestamp trimming
-        are logged and recorded in the ``multi_variable_diagnostics`` Dataset
-        attribute. The query state resets after successful execution and
+        are logged; HDP station results also record them in the
+        ``multi_variable_diagnostics`` Dataset attribute. The query state
+        resets after successful execution and
         handled validation or retrieval failures.
 
         """
