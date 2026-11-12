@@ -1359,18 +1359,18 @@ class MetricCalc(DataProcessor):
 
     def _fit_and_conf_int_1d(
         self,
-        block_maxima_1d,
-        return_periods=UNSET,
-        return_values=UNSET,
-        block_size=1,
-        bootstrap_runs=100,
-        conf_int_lower_bound=2.5,
-        conf_int_upper_bound=97.5,
-        distr="gev",
-        extremes_type="max",
-        get_p_value=False,
-        compute_conf_int=False,
-    ) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]:
+        block_maxima_1d: np.ndarray,
+        return_periods: np.ndarray = UNSET,
+        return_values: np.ndarray = UNSET,
+        block_size: int = 1,
+        bootstrap_runs: int = 100,
+        conf_int_lower_bound: float = 2.5,
+        conf_int_upper_bound: float = 97.5,
+        distr: str = "gev",
+        extremes_type: str = "max",
+        get_p_value: bool = False,
+        compute_conf_int: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
         """
         Combine the return variable and confidence interval calculations into
         one function that can be called with xr.apply_ufunc to get all results.
@@ -1457,45 +1457,54 @@ class MetricCalc(DataProcessor):
         """
         # Compute block maxima to numpy first (small after yearly aggregation)
         if hasattr(block_maxima.data, "compute"):
-            block_maxima_computed = block_maxima.compute()
-        else:
-            block_maxima_computed = block_maxima
+            block_maxima = block_maxima.compute()
 
+        return self._apply_fit(block_maxima, time_dim)
+
+    def _apply_fit(
+        self, block_maxima: xr.DataArray, time_dim: str
+    ) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]:
+        """
+        Fit the configured distribution to every series in in-memory block maxima.
+
+        Parameters
+        ----------
+        block_maxima : xr.DataArray
+            Computed (non-dask) block maxima with a time dimension.
+        time_dim : str
+            Name of the time dimension to fit along.
+
+        Returns
+        -------
+        tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]
+            Return data, confidence interval lower and upper limits, and p-values.
+        """
         if self.return_periods is not UNSET:
             output_length = len(self.return_periods)
         else:
             output_length = len(self.return_values)
 
-        compute_conf_int = True
-        if self.conf_int_lower_bound is UNSET:
-            compute_conf_int = False
-
-        # Apply the return value fitting function
-        return_data, conf_int_lower_limit, conf_int_upper_limit, p_values = (
-            xr.apply_ufunc(
-                self._fit_and_conf_int_1d,
-                block_maxima_computed,
-                kwargs={
-                    "return_periods": self.return_periods,
-                    "return_values": self.return_values,
-                    "block_size": self.block_size,
-                    "bootstrap_runs": self.bootstrap_runs,
-                    "conf_int_lower_bound": self.conf_int_lower_bound,
-                    "conf_int_upper_bound": self.conf_int_upper_bound,
-                    "distr": self.distribution,
-                    "extremes_type": self.extremes_type,
-                    "get_p_value": self.goodness_of_fit_test,
-                    "compute_conf_int": compute_conf_int,
-                },
-                input_core_dims=[[time_dim]],
-                output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"], []],
-                output_sizes={"one_in_x": output_length},
-                output_dtypes=("float", "float", "float", "float"),
-                vectorize=True,
-            )
+        return xr.apply_ufunc(
+            self._fit_and_conf_int_1d,
+            block_maxima,
+            kwargs={
+                "return_periods": self.return_periods,
+                "return_values": self.return_values,
+                "block_size": self.block_size,
+                "bootstrap_runs": self.bootstrap_runs,
+                "conf_int_lower_bound": self.conf_int_lower_bound,
+                "conf_int_upper_bound": self.conf_int_upper_bound,
+                "distr": self.distribution,
+                "extremes_type": self.extremes_type,
+                "get_p_value": self.goodness_of_fit_test,
+                "compute_conf_int": self.conf_int_lower_bound is not UNSET,
+            },
+            input_core_dims=[[time_dim]],
+            output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"], []],
+            output_sizes={"one_in_x": output_length},
+            output_dtypes=("float", "float", "float", "float"),
+            vectorize=True,
         )
-
-        return return_data, conf_int_lower_limit, conf_int_upper_limit, p_values
 
     def _fit_with_early_spatial_batching(
         self,
@@ -1541,11 +1550,6 @@ class MetricCalc(DataProcessor):
         conf_int_lower_limit_list = []
         conf_int_upper_limit_list = []
         p_values_list = []
-        # Set expected length of ufunc return
-        if self.return_periods is not UNSET:
-            output_length = len(self.return_periods)
-        else:
-            output_length = len(self.return_values)
 
         step_start = time_module.time()
 
@@ -1578,37 +1582,12 @@ class MetricCalc(DataProcessor):
             time_dim = "time" if "time" in chunk_block_maxima.dims else "time_delta"
 
             # Step 3: Fit distributions for this spatial chunk
-            compute_conf_int = True
-            if self.conf_int_lower_bound is UNSET:
-                compute_conf_int = False
-
-            # Apply the return value fitting function
             (
                 chunk_return_data,
                 chunk_conf_int_lower_limit,
                 chunk_conf_int_upper_limit,
                 chunk_p_values,
-            ) = xr.apply_ufunc(
-                self._fit_and_conf_int_1d,
-                chunk_block_maxima,
-                kwargs={
-                    "return_periods": self.return_periods,
-                    "return_values": self.return_values,
-                    "block_size": self.block_size,
-                    "bootstrap_runs": self.bootstrap_runs,
-                    "conf_int_lower_bound": self.conf_int_lower_bound,
-                    "conf_int_upper_bound": self.conf_int_upper_bound,
-                    "distr": self.distribution,
-                    "extremes_type": self.extremes_type,
-                    "get_p_value": self.goodness_of_fit_test,
-                    "compute_conf_int": compute_conf_int,
-                },
-                input_core_dims=[[time_dim]],
-                output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"], []],
-                output_sizes={"one_in_x": output_length},
-                output_dtypes=("float", "float", "float", "float"),
-                vectorize=True,
-            )
+            ) = self._apply_fit(chunk_block_maxima, time_dim)
 
             return_data_list.append(chunk_return_data)
             conf_int_lower_limit_list.append(chunk_conf_int_lower_limit)
