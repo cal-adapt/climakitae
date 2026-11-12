@@ -528,6 +528,40 @@ class TestValidateOneInXParameters:
         assert result is False
         assert "bootstrap_runs must be a positive integer." in caplog.text
 
+    @pytest.mark.parametrize("seed", [None, 0, 42, np.int64(7)])
+    def test_valid_bootstrap_seed(self, seed):
+        """None or a non-negative integer seed passes."""
+        assert _validate_one_in_x_parameters(
+            {"return_periods": 10, "bootstrap_seed": seed}
+        )
+
+    @pytest.mark.parametrize("seed", [-1, 1.5, "42", True])
+    def test_invalid_bootstrap_seed(self, seed, caplog):
+        """Negative, non-integer, or boolean seeds return False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters(
+                {"return_periods": 10, "bootstrap_seed": seed}
+            )
+        assert result is False
+        assert "bootstrap_seed must be a non-negative integer or None." in caplog.text
+
+    @pytest.mark.parametrize("n_workers", ["auto", 1, 8])
+    def test_valid_n_workers(self, n_workers):
+        """'auto' or a positive integer worker count passes."""
+        assert _validate_one_in_x_parameters(
+            {"return_periods": 10, "n_workers": n_workers}
+        )
+
+    @pytest.mark.parametrize("n_workers", [0, -1, 2.0, "all", None, True])
+    def test_invalid_n_workers(self, n_workers, caplog):
+        """Zero, negative, non-integer, or boolean worker counts return False."""
+        with caplog.at_level(logging.WARNING):
+            result = _validate_one_in_x_parameters(
+                {"return_periods": 10, "n_workers": n_workers}
+            )
+        assert result is False
+        assert "n_workers must be 'auto' or a positive integer." in caplog.text
+
     def test_invalid_alpha_size(self, caplog):
         """float(alpha) returns False."""
         with caplog.at_level(logging.WARNING):
