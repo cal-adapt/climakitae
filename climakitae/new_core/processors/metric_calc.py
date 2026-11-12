@@ -5,6 +5,7 @@ DataProcessor MetricCalc
 import gc
 import logging
 import time as time_module
+import warnings
 from typing import Any, Iterable, Union
 
 import numpy as np
@@ -19,6 +20,7 @@ from climakitae.core.constants import (
     BYTES_TO_GB_FACTOR,
     BYTES_TO_MB_FACTOR,
     MEDIUM_ARRAY_THRESHOLD_BYTES,
+    MIN_BOOTSTRAP_SUCCESS_FRACTION,
     MIN_VALID_DATA_POINTS,
     PERCENTILE_TO_QUANTILE_FACTOR,
     RETURN_VALUE_PRECISION,
@@ -782,8 +784,13 @@ class MetricCalc(DataProcessor):
             if the fit failed.
 
         """
-        sample_size = len(block_maxima_1d)
-        new_bms = np.random.choice(block_maxima_1d, size=sample_size, replace=True)
+        n_outputs = len(
+            return_periods if return_periods is not UNSET else return_values
+        )
+        valid_data = block_maxima_1d[~np.isnan(block_maxima_1d)]
+        if len(valid_data) < MIN_VALID_DATA_POINTS:
+            return np.full(n_outputs, np.nan)
+        new_bms = np.random.choice(valid_data, size=len(valid_data), replace=True)
 
         try:
             result, _ = self._fit_return_variable_1d(
@@ -796,9 +803,6 @@ class MetricCalc(DataProcessor):
                 get_p_value=False,
             )
         except (ValueError, ZeroDivisionError):
-            n_outputs = len(
-                return_periods if return_periods is not UNSET else return_values
-            )
             result = np.full(n_outputs, np.nan)
 
         return result
@@ -847,6 +851,12 @@ class MetricCalc(DataProcessor):
             Tuple containing:
             - conf_int_lower_limit: Lower limit of confidence interval
             - conf_int_upper_limit: Upper limit of confidence interval
+
+        Notes
+        -----
+        Failed bootstrap fits are ignored, but if fewer than
+        MIN_BOOTSTRAP_SUCCESS_FRACTION of runs succeed for a return period or
+        value, its limits are NaN.
         """
         bootstrap_values = []
 
@@ -863,9 +873,15 @@ class MetricCalc(DataProcessor):
 
         bootstrap_values = np.stack(bootstrap_values, axis=0)
 
-        conf_int_array = np.percentile(
-            bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound], axis=0
-        )
+        # Failed fits are NaN; ignore them unless too many failed to trust the interval
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            conf_int_array = np.nanpercentile(
+                bootstrap_values, [conf_int_lower_bound, conf_int_upper_bound], axis=0
+            )
+        n_successful = np.sum(~np.isnan(bootstrap_values), axis=0)
+        too_few = n_successful < MIN_BOOTSTRAP_SUCCESS_FRACTION * bootstrap_runs
+        conf_int_array[:, too_few] = np.nan
 
         conf_int_lower_limit = conf_int_array[0]
         conf_int_upper_limit = conf_int_array[1]
@@ -1424,7 +1440,7 @@ class MetricCalc(DataProcessor):
             extremes_type=extremes_type,
             get_p_value=get_p_value,
         )
-        if not compute_conf_int:
+        if not compute_conf_int or np.all(np.isnan(return_data)):
             nan_like = np.full_like(return_data, np.nan, dtype=float)
             return return_data, nan_like, nan_like, p_value
 

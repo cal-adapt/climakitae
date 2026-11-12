@@ -595,6 +595,94 @@ class TestMetricCalcFitReturnPeriods1d:
         assert np.isnan(p_value)
 
 
+class TestMetricCalcBootstrapConfInt:
+    """Test bootstrap confidence intervals produced by _conf_int and _bootstrap."""
+
+    def setup_method(self):
+        """Set up a processor and a GEV-like block maxima series."""
+        self.processor = MetricCalc(
+            {"one_in_x": {"return_periods": [10, 50], "alpha": 0.05}}
+        )
+        self.return_periods = np.array([10, 50])
+        self.series = stats.genextreme.rvs(
+            c=-0.1, loc=30, scale=5, size=30, random_state=0
+        )
+
+    def _bootstrap_outcomes(self, n_failed: int, n_runs: int = 100) -> list:
+        """Build bootstrap results where the first n_failed fits failed."""
+        failed = [np.array([np.nan, np.nan])] * n_failed
+        ok = [np.array([40.0 + i, 50.0 + i]) for i in range(n_runs - n_failed)]
+        return failed + ok
+
+    def test_conf_int_survives_bootstrap_exception(self):
+        """A bootstrap fit that raises must not break stacking of the results."""
+        good = (np.array([40.0, 50.0]), np.nan)
+        with patch.object(
+            self.processor,
+            "_fit_return_variable_1d",
+            side_effect=[ZeroDivisionError()] + [good] * 9,
+        ):
+            lower, upper = self.processor._conf_int(
+                self.series, return_periods=self.return_periods, bootstrap_runs=10
+            )
+
+        assert lower.shape == (2,)
+        assert upper.shape == (2,)
+
+    def test_conf_int_tolerates_few_failed_fits(self):
+        """A handful of failed bootstrap fits still yields a finite interval."""
+        with patch.object(
+            self.processor, "_bootstrap", side_effect=self._bootstrap_outcomes(5)
+        ):
+            lower, upper = self.processor._conf_int(
+                self.series, return_periods=self.return_periods, bootstrap_runs=100
+            )
+
+        assert np.all(np.isfinite(lower))
+        assert np.all(np.isfinite(upper))
+        assert np.all(lower < upper)
+
+    def test_conf_int_nan_when_too_many_fits_fail(self):
+        """Below the minimum share of successful fits the interval is NaN."""
+        with patch.object(
+            self.processor, "_bootstrap", side_effect=self._bootstrap_outcomes(20)
+        ):
+            lower, upper = self.processor._conf_int(
+                self.series, return_periods=self.return_periods, bootstrap_runs=100
+            )
+
+        assert np.all(np.isnan(lower))
+        assert np.all(np.isnan(upper))
+
+    def test_bootstrap_resamples_only_valid_values(self):
+        """Missing values are excluded from bootstrap resamples."""
+        series = np.concatenate([self.series, np.full(20, np.nan)])
+        with patch.object(
+            self.processor,
+            "_fit_return_variable_1d",
+            return_value=(np.array([40.0, 50.0]), np.nan),
+        ) as mock_fit:
+            self.processor._bootstrap(series, return_periods=self.return_periods)
+
+        resample = mock_fit.call_args.args[0]
+        assert len(resample) == len(self.series)
+        assert not np.isnan(resample).any()
+
+    def test_conf_int_on_series_with_missing_values(self):
+        """A series with missing values gets a finite interval around the fit."""
+        series = np.concatenate([self.series, np.full(20, np.nan)])
+        return_data, lower, upper, _ = self.processor._fit_and_conf_int_1d(
+            series,
+            return_periods=self.return_periods,
+            bootstrap_runs=50,
+            compute_conf_int=True,
+        )
+
+        assert np.all(np.isfinite(lower))
+        assert np.all(lower <= return_data)
+        assert np.all(return_data <= upper)
+
+
 class TestMetricCalcUpdateContextOneInX:
     """Test class for update_context method with 1-in-X configuration."""
 
