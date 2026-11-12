@@ -753,7 +753,7 @@ class MetricCalc(DataProcessor):
         distr: str = "gev",
         block_size: int = 1,
         extremes_type: str = "max",
-    ) -> np.ndarray | float:
+    ) -> np.ndarray:
         """Function for making a bootstrap-calculated value from input array
 
         Determines a bootstrap-calculated value for relevant parameters from an
@@ -777,7 +777,9 @@ class MetricCalc(DataProcessor):
 
         Returns
         -------
-        np.ndarray | float
+        np.ndarray
+            One bootstrap estimate per requested return period or value; all NaN
+            if the fit failed.
 
         """
         sample_size = len(block_maxima_1d)
@@ -794,7 +796,10 @@ class MetricCalc(DataProcessor):
                 get_p_value=False,
             )
         except (ValueError, ZeroDivisionError):
-            result = np.nan
+            n_outputs = len(
+                return_periods if return_periods is not UNSET else return_values
+            )
+            result = np.full(n_outputs, np.nan)
 
         return result
 
