@@ -312,8 +312,8 @@ class BiasAdjustModelToStation(DataProcessor):
             display_name = station_id
 
         # Normalize HDP's units label to Kelvin's canonical label. Anything
-        # that doesn't map to Kelvin is rejected -- no HDP network has been
-        # observed reporting Celsius or Fahrenheit, so there's nothing to
+        # that doesn't map to Kelvin is rejected, since no HDP network has
+        # been observed reporting Celsius or Fahrenheit, so there's nothing to
         # convert; guessing at an unverified label risks silently producing
         # wrong temperatures.
         units = ds[source_variable].attrs.get("units")

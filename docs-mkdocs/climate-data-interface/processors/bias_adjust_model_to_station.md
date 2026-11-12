@@ -47,7 +47,7 @@ The processor takes a **dict**:
 
 - **Activity ID**: WRF (dynamical downscaling). LOCA2 already includes statistical bias adjustment at the watershed level and is not the intended input.
 - **Variable**: Designed for hourly `t2` (temperature, matched to HDP's `tas`) or `dew_point` (dewpoint, matched to HDP's `tdps`, or `tdps_derived` where `tdps` isn't available). Not every HDP network provides every variable — requesting a station from a network known not to provide the needed variable is rejected up front.
-- **Time coverage**: The QDM training window is always bounded to `historical_slice` (default 1981–2010), intersected with the model data's own coverage and the station's actual observational record. Note that only the *training* window is bounded this way — the bias-adjusted *output* always spans the full input time range and is never truncated by `historical_slice`.
+- **Time coverage**: The QDM training window is always bounded to `historical_slice` (default 1981–2010), intersected with the model data's own coverage and the station's actual observational record.
 - **Multiple networks**: Requested stations may span multiple HDP networks in a single call.
 - **Calendar**: All inputs are converted to a `noleap` calendar internally for consistency.
 

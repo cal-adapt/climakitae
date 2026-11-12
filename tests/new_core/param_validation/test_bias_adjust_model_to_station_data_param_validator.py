@@ -388,8 +388,7 @@ class TestValidateHistoricalSlice:
         [
             # No fixed HadISD-derived bound applies to HDP: coverage varies
             # per station and is validated at runtime against the actual
-            # data. For now, only an exactly-30-year span is accepted here
-            # (see test_invalid_historical_slices for non-30-year spans).
+            # data.
             (1981, 2010),  # matches the processor's own default
             (1950, 1979),
             (2015, 2044),
@@ -415,12 +414,12 @@ class TestValidateHistoricalSlice:
             ((1980, "2014"), "must be integers"),
             ((2000, 2000), "must be less than"),
             ((2014, 1980), "must be less than"),
-            ((1980, 2014), "exactly 30"),  # 35 years -- too long
-            ((1990, 2010), "exactly 30"),  # 21 years -- too short
-            ((1980, 2000), "exactly 30"),  # 21 years -- too short
-            ((2000, 2014), "exactly 30"),  # 15 years -- too short
-            ((1950, 1970), "exactly 30"),  # 21 years -- too short
-            ((2015, 2022), "exactly 30"),  # 8 years -- too short
+            ((1980, 2014), "exactly 30"),  # 35 years, too long
+            ((1990, 2010), "exactly 30"),  # 21 years, too short
+            ((1980, 2000), "exactly 30"),  # 21 years, too short
+            ((2000, 2014), "exactly 30"),  # 15 years, too short
+            ((1950, 1970), "exactly 30"),  # 21 years, too short
+            ((2015, 2022), "exactly 30"),  # 8 years, too short
         ],
         ids=[
             "list_not_tuple",

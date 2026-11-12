@@ -46,7 +46,7 @@ class TestBiasCorrectStationDataInit:
         ids=["too_short", "too_long", "single_year"],
     )
     def test_init_accepts_non_30_year_historical_slice(self, historical_slice):
-        """Construction itself doesn't validate historical_slice's span --
+        """Construction itself doesn't validate historical_slice's span;
         that check is done at parameter-validation time (see
         bias_adjust_model_to_station_param_validator.py's
         TestValidateHistoricalSlice), not here or in execute()."""
@@ -601,8 +601,8 @@ class TestBiasCorrectStationDataBiasAdjustment:
         """
         proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
 
-        # Starts in 1980 (rather than 2010) so the training window -- bounded
-        # by the default historical_slice=(1981, 2010) -- is fully covered,
+        # Starts in 1980 (rather than 2010) so the training window, bounded
+        # by the default historical_slice=(1981, 2010), is fully covered,
         # while still extending past 2014-08-31 to exercise the regression
         # this test targets.
         obs_times = pd.date_range("1980-01-01", "2016-12-31", freq="D")
@@ -637,8 +637,7 @@ class TestBiasCorrectStationDataBiasAdjustment:
         """
         # historical_slice=(1981, 2010) is exactly 30 years, but still
         # narrower than the full 1950-2020 obs/gridded coverage below, so
-        # this still proves historical_slice -- not just the data's own
-        # range -- bounds the training window.
+        # this still proves historical_slice bounds the training window.
         proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (1981, 2010)})
 
         obs_times = pd.date_range("1950-01-01", "2020-12-31", freq="D")
@@ -676,7 +675,7 @@ class TestBiasCorrectStationDataBiasAdjustment:
             assert hist_trained_on.time.dt.year.max() == 2010
 
         # The output (adjusted) series must still span the FULL input
-        # range, unaffected by historical_slice -- only training is bounded.
+        # range, unaffected by historical_slice, since only training is bounded.
         assert pd.Timestamp(out.time.values[0]).year == 1950
         assert pd.Timestamp(out.time.values[-1]).year == 2020
 
@@ -739,7 +738,7 @@ class TestBiasCorrectStationDataBiasAdjustment:
     def test_bias_adjust_model_data_raises_on_short_training_window(self):
         """Even with an exactly-30-year historical_slice, if the station's
         own record doesn't fully span it, the resulting training window
-        falls short of 30 calendar years and must raise -- distinct from
+        falls short of 30 calendar years and must raise, distinct from
         the zero-overlap cases above, where there's no overlap at all.
         """
         proc = self.ProcClass(
