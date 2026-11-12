@@ -14,6 +14,8 @@ The tests validate:
 - Helper methods for time handling and result creation
 """
 
+import pickle
+import threading
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -21,6 +23,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+from joblib import parallel_config
 from scipy import stats
 
 from climakitae.core.constants import _NEW_ATTRS_KEY, UNSET
@@ -681,6 +684,121 @@ class TestMetricCalcBootstrapConfInt:
         assert np.all(np.isfinite(lower))
         assert np.all(lower <= return_data)
         assert np.all(return_data <= upper)
+
+
+class TestMetricCalcBootstrapStreams:
+    """Test seeding and worker-pool dispatch of _fit_block_maxima_array."""
+
+    def setup_method(self):
+        """Build block maxima for a 2 x 3 grid of 25-year series."""
+        self.block_maxima = stats.genextreme.rvs(
+            c=-0.1, loc=30, scale=5, size=(2, 3, 25), random_state=1
+        )
+
+    @staticmethod
+    def _processor(**one_in_x) -> MetricCalc:
+        """Create a processor computing confidence intervals with 10 bootstraps."""
+        config = {
+            "return_periods": [10, 50],
+            "alpha": 0.1,
+            "bootstrap_runs": 10,
+            **one_in_x,
+        }
+        return MetricCalc({"one_in_x": config})
+
+    def test_same_seed_gives_identical_intervals(self):
+        """Two processors with one bootstrap_seed produce identical intervals."""
+        first = self._processor(bootstrap_seed=7)._fit_block_maxima_array(
+            self.block_maxima
+        )
+        second = self._processor(bootstrap_seed=7)._fit_block_maxima_array(
+            self.block_maxima
+        )
+
+        for a, b in zip(first, second):
+            np.testing.assert_array_equal(a, b)
+        assert first[0].shape == (2, 3, 2)
+        assert first[3].shape == (2, 3)
+        assert np.all(np.isfinite(first[1]))
+
+    def test_different_seeds_give_different_intervals(self):
+        """Changing bootstrap_seed changes the intervals but not the fit."""
+        first = self._processor(bootstrap_seed=1)._fit_block_maxima_array(
+            self.block_maxima
+        )
+        second = self._processor(bootstrap_seed=2)._fit_block_maxima_array(
+            self.block_maxima
+        )
+
+        np.testing.assert_array_equal(first[0], second[0])
+        assert not np.array_equal(first[1], second[1])
+
+    def test_reset_streams_repeats_seeded_run(self):
+        """Rerunning after a stream reset reproduces the seeded intervals."""
+        processor = self._processor(bootstrap_seed=3)
+        first = processor._fit_block_maxima_array(self.block_maxima)
+        processor._reset_bootstrap_streams()
+        second = processor._fit_block_maxima_array(self.block_maxima)
+
+        np.testing.assert_array_equal(first[1], second[1])
+
+    def test_worker_count_does_not_change_seeded_intervals(self):
+        """Seeded intervals are identical serially and split across workers."""
+        serial = self._processor(bootstrap_seed=5, n_workers=1)._fit_block_maxima_array(
+            self.block_maxima
+        )
+        with parallel_config(backend="threading"):
+            pooled = self._processor(
+                bootstrap_seed=5, n_workers=2
+            )._fit_block_maxima_array(self.block_maxima)
+
+        for a, b in zip(serial, pooled):
+            np.testing.assert_array_equal(a, b)
+
+    def test_single_series_keeps_scalar_p_value(self):
+        """A 1-D series returns (n_one_in_x,) arrays and a scalar p-value."""
+        result = self._processor(bootstrap_seed=0)._fit_block_maxima_array(
+            self.block_maxima[0, 0]
+        )
+
+        assert result[0].shape == (2,)
+        assert result[3].shape == ()
+
+    def test_resolve_n_workers_auto_stays_serial_for_small_jobs(self):
+        """Auto mode fits serially below the parallel fit threshold."""
+        processor = self._processor()
+        assert processor._resolve_n_workers(10) == 1
+
+    def test_resolve_n_workers_auto_uses_cpus_for_large_jobs(self):
+        """Auto mode uses every CPU, capped by the number of series."""
+        processor = self._processor()
+        with patch(
+            "climakitae.new_core.processors.metric_calc.cpu_count", return_value=4
+        ):
+            assert processor._resolve_n_workers(500) == 4
+            assert processor._resolve_n_workers(200) == 4
+
+    def test_resolve_n_workers_auto_counts_bootstrap_fits(self):
+        """Without confidence intervals each series is one fit."""
+        processor = MetricCalc({"one_in_x": {"return_periods": [10]}})
+        assert processor._resolve_n_workers(500) == 1
+
+    def test_resolve_n_workers_explicit_capped_by_series(self):
+        """An explicit worker count is honored but never exceeds the series."""
+        processor = self._processor(n_workers=8)
+        assert processor._resolve_n_workers(100) == 8
+        assert processor._resolve_n_workers(3) == 3
+
+    def test_processor_pickles_without_catalog(self):
+        """Pickling for worker processes drops the unpicklable data catalog."""
+        processor = self._processor(bootstrap_seed=1)
+        processor._catalog = threading.Lock()
+
+        restored = pickle.loads(pickle.dumps(processor))
+
+        assert restored._catalog is UNSET
+        assert restored.bootstrap_seed == 1
+        assert processor._catalog is not UNSET
 
 
 class TestMetricCalcUpdateContextOneInX:

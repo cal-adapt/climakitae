@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import xarray as xr
+from joblib import Parallel, cpu_count, delayed
 from pandas.errors import OutOfBoundsDatetime
 from tqdm.auto import tqdm
 
@@ -22,6 +23,7 @@ from climakitae.core.constants import (
     MEDIUM_ARRAY_THRESHOLD_BYTES,
     MIN_BOOTSTRAP_SUCCESS_FRACTION,
     MIN_VALID_DATA_POINTS,
+    ONE_IN_X_PARALLEL_MIN_FITS,
     PERCENTILE_TO_QUANTILE_FACTOR,
     RETURN_VALUE_PRECISION,
     SMALL_ARRAY_THRESHOLD_BYTES,
@@ -88,6 +90,11 @@ class MetricCalc(DataProcessor):
           - goodness_of_fit_test (bool, optional): Perform KS test. Default: True
           - alpha (float, optional): Alpha value used for determining confidence intervals (or UNSET to skip confidence intervals). Default UNSET
           - bootstrap_runs (int, optional): Number of bootstrap runs for confidence intervals. Default: 100
+          - bootstrap_seed (int, optional): Seed for bootstrap resampling; set it for reproducible
+            confidence intervals. Default: None (different intervals on each run)
+          - n_workers (int or "auto", optional): Worker processes for fitting. "auto" uses all
+            available CPUs once a job needs at least 2,000 distribution fits; 1 fits serially.
+            Default: "auto"
           - print_goodness_of_fit (bool, optional): Print p-value results. Default: True
           - variable_preprocessing (dict, optional): Variable-specific preprocessing options
           - check_ess (bool, optional): Check the effective sample size. Default: TRUE
@@ -259,6 +266,9 @@ class MetricCalc(DataProcessor):
         self.grouped_duration = self.one_in_x_config.get("grouped_duration", UNSET)
         self.block_size = self.one_in_x_config.get("block_size", 1)
         self.bootstrap_runs = self.one_in_x_config.get("bootstrap_runs", 100)
+        self.bootstrap_seed = self.one_in_x_config.get("bootstrap_seed", None)
+        self.n_workers = self.one_in_x_config.get("n_workers", "auto")
+        self._reset_bootstrap_streams()
         self.goodness_of_fit_test = self.one_in_x_config.get(
             "goodness_of_fit_test", True
         )
@@ -280,6 +290,31 @@ class MetricCalc(DataProcessor):
                 alpha * 100.0
             ) / 2  # two-tailed confidence limit as percent
             self.conf_int_upper_bound = 100.0 - self.conf_int_lower_bound
+
+    def _reset_bootstrap_streams(self) -> None:
+        """Start a new family of per-series bootstrap random streams.
+
+        Every fitted series draws from its own stream keyed by its position, so
+        seeded results do not depend on worker count or batching.
+        """
+        if self.bootstrap_seed is None:
+            self._bootstrap_entropy = np.random.SeedSequence().entropy
+        else:
+            self._bootstrap_entropy = self.bootstrap_seed
+        self._next_series_index = 0
+
+    def __getstate__(self) -> dict[str, Any]:
+        """Return picklable state for worker processes.
+
+        Returns
+        -------
+        dict[str, Any]
+            Instance state without the data catalog, which holds live
+            connections that cannot be pickled and is not needed for fitting.
+        """
+        state = self.__dict__.copy()
+        state["_catalog"] = UNSET
+        return state
 
     def _setup_threshold_parameters(self) -> None:
         """Validate and store threshold exceedance config."""
@@ -755,6 +790,7 @@ class MetricCalc(DataProcessor):
         distr: str = "gev",
         block_size: int = 1,
         extremes_type: str = "max",
+        rng: np.random.Generator | None = None,
     ) -> np.ndarray:
         """Function for making a bootstrap-calculated value from input array
 
@@ -776,6 +812,8 @@ class MetricCalc(DataProcessor):
             Block size in years. Default: 1
         extremes_type : str, optional
             Type of extremes: "max" for maxima, "min" for minima. Default: "max".
+        rng : np.random.Generator, optional
+            Random generator used for resampling. Default: a fresh unseeded one.
 
         Returns
         -------
@@ -790,7 +828,9 @@ class MetricCalc(DataProcessor):
         valid_data = block_maxima_1d[~np.isnan(block_maxima_1d)]
         if len(valid_data) < MIN_VALID_DATA_POINTS:
             return np.full(n_outputs, np.nan)
-        new_bms = np.random.choice(valid_data, size=len(valid_data), replace=True)
+        if rng is None:
+            rng = np.random.default_rng()
+        new_bms = rng.choice(valid_data, size=len(valid_data), replace=True)
 
         try:
             result, _ = self._fit_return_variable_1d(
@@ -818,7 +858,8 @@ class MetricCalc(DataProcessor):
         conf_int_upper_bound: float = 97.5,
         block_size: int = 1,
         extremes_type: str = "max",
-    ) -> tuple[float, float]:
+        rng: np.random.Generator | None = None,
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Function for generating lower and upper limits of confidence interval
 
         Returns lower and upper limits of confidence interval given selected parameters.
@@ -844,10 +885,13 @@ class MetricCalc(DataProcessor):
             block size, in years, of the provided block maximum series
         extremes_type : str, optional
             Type of extremes: "max" for maxima, "min" for minima. Default: "max".
+        rng : np.random.Generator, optional
+            Random generator shared by all bootstrap runs. Default: a fresh
+            unseeded one.
 
         Returns
         -------
-        tuple[float, float]
+        tuple[np.ndarray, np.ndarray]
             Tuple containing:
             - conf_int_lower_limit: Lower limit of confidence interval
             - conf_int_upper_limit: Upper limit of confidence interval
@@ -859,6 +903,8 @@ class MetricCalc(DataProcessor):
         value, its limits are NaN.
         """
         bootstrap_values = []
+        if rng is None:
+            rng = np.random.default_rng()
 
         for _ in range(bootstrap_runs):
             result = self._bootstrap(
@@ -868,6 +914,7 @@ class MetricCalc(DataProcessor):
                 distr,
                 block_size,
                 extremes_type,
+                rng=rng,
             )
             bootstrap_values.append(result)
 
@@ -1034,12 +1081,12 @@ class MetricCalc(DataProcessor):
         except (ValueError, RuntimeError, np.linalg.LinAlgError):
             if return_periods is not UNSET:
                 return (
-                    np.full_like(return_periods, np.nan),
+                    np.full_like(return_periods, np.nan, dtype=float),
                     np.nan,
                 )
             else:
                 return (
-                    np.full_like(return_values, np.nan),
+                    np.full_like(return_values, np.nan, dtype=float),
                     np.nan,
                 )
 
@@ -1062,6 +1109,8 @@ class MetricCalc(DataProcessor):
         elif self.event_duration[1] == "hour":
             kwargs["duration"] = self.event_duration
         kwargs["grouped_duration"] = self.grouped_duration
+
+        self._reset_bootstrap_streams()
 
         # Calculate adaptive batch size based on available memory
         batch_size = self._calculate_adaptive_batch_size(data_array)
@@ -1391,10 +1440,10 @@ class MetricCalc(DataProcessor):
         extremes_type: str = "max",
         get_p_value: bool = False,
         compute_conf_int: bool = False,
+        rng: np.random.Generator | None = None,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
         """
-        Combine the return variable and confidence interval calculations into
-        one function that can be called with xr.apply_ufunc to get all results.
+        Fit one block maxima series and, optionally, bootstrap its confidence interval.
 
         Parameters
         ----------
@@ -1421,6 +1470,8 @@ class MetricCalc(DataProcessor):
             Whether to calculate and return p-value from KS test. Default: False.
         compute_conf_int: bool, optional
             True to generate confidence intervals
+        rng : np.random.Generator, optional
+            Random generator for bootstrap resampling. Default: a fresh unseeded one.
 
         Returns
         -------
@@ -1454,6 +1505,7 @@ class MetricCalc(DataProcessor):
             conf_int_upper_bound=conf_int_upper_bound,
             block_size=block_size,
             extremes_type=extremes_type,
+            rng=rng,
         )
 
         return return_data, ci_lower, ci_upper, p_value
@@ -1500,32 +1552,131 @@ class MetricCalc(DataProcessor):
         tuple[xr.DataArray, xr.DataArray, xr.DataArray, xr.DataArray]
             Return data, confidence interval lower and upper limits, and p-values.
         """
-        if self.return_periods is not UNSET:
-            output_length = len(self.return_periods)
-        else:
-            output_length = len(self.return_values)
-
         return xr.apply_ufunc(
-            self._fit_and_conf_int_1d,
+            self._fit_block_maxima_array,
             block_maxima,
-            kwargs={
-                "return_periods": self.return_periods,
-                "return_values": self.return_values,
-                "block_size": self.block_size,
-                "bootstrap_runs": self.bootstrap_runs,
-                "conf_int_lower_bound": self.conf_int_lower_bound,
-                "conf_int_upper_bound": self.conf_int_upper_bound,
-                "distr": self.distribution,
-                "extremes_type": self.extremes_type,
-                "get_p_value": self.goodness_of_fit_test,
-                "compute_conf_int": self.conf_int_lower_bound is not UNSET,
-            },
             input_core_dims=[[time_dim]],
             output_core_dims=[["one_in_x"], ["one_in_x"], ["one_in_x"], []],
-            output_sizes={"one_in_x": output_length},
-            output_dtypes=("float", "float", "float", "float"),
-            vectorize=True,
         )
+
+    def _fit_block_maxima_array(
+        self, block_maxima: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Fit every series of an N-D block maxima array, in parallel when worthwhile.
+
+        Parameters
+        ----------
+        block_maxima : np.ndarray
+            Block maxima with time as the last axis.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+            Return data and confidence interval limits shaped
+            (..., n_one_in_x), and p-values shaped (...).
+        """
+        leading_shape = block_maxima.shape[:-1]
+        series = block_maxima.reshape(-1, block_maxima.shape[-1])
+        n_series = series.shape[0]
+        first_index = self._next_series_index
+        self._next_series_index += n_series
+
+        n_workers = self._resolve_n_workers(n_series)
+        if n_workers == 1:
+            results = self._fit_series(series, first_index)
+        else:
+            logger.info(
+                "Fitting %d series on %d worker processes...", n_series, n_workers
+            )
+            groups = np.array_split(np.arange(n_series), min(n_series, n_workers * 4))
+            parts = Parallel(n_jobs=n_workers)(
+                delayed(self._fit_series)(series[idx], first_index + idx[0])
+                for idx in groups
+            )
+            results = tuple(np.concatenate(arrays) for arrays in zip(*parts))
+
+        return tuple(r.reshape(leading_shape + r.shape[1:]) for r in results)
+
+    def _fit_series(
+        self, series: np.ndarray, first_index: int
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Fit each row of a 2-D (series, time) block maxima array.
+
+        Parameters
+        ----------
+        series : np.ndarray
+            Block maxima with one series per row.
+        first_index : int
+            Position of the first row among all series fitted since the bootstrap
+            streams were last reset; keys each row's random stream.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+            Return data and confidence interval limits shaped
+            (n_series, n_one_in_x), and p-values shaped (n_series,).
+        """
+        compute_conf_int = self.conf_int_lower_bound is not UNSET
+        n_outputs = len(
+            self.return_periods
+            if self.return_periods is not UNSET
+            else self.return_values
+        )
+        return_data = np.full((len(series), n_outputs), np.nan)
+        lower = np.full_like(return_data, np.nan)
+        upper = np.full_like(return_data, np.nan)
+        p_values = np.full(len(series), np.nan)
+
+        for i, block_maxima_1d in enumerate(series):
+            rng = None
+            if compute_conf_int:
+                rng = np.random.default_rng(
+                    np.random.SeedSequence(
+                        self._bootstrap_entropy, spawn_key=(first_index + i,)
+                    )
+                )
+            return_data[i], lower[i], upper[i], p_values[i] = self._fit_and_conf_int_1d(
+                block_maxima_1d,
+                return_periods=self.return_periods,
+                return_values=self.return_values,
+                block_size=self.block_size,
+                bootstrap_runs=self.bootstrap_runs,
+                conf_int_lower_bound=self.conf_int_lower_bound,
+                conf_int_upper_bound=self.conf_int_upper_bound,
+                distr=self.distribution,
+                extremes_type=self.extremes_type,
+                get_p_value=self.goodness_of_fit_test,
+                compute_conf_int=compute_conf_int,
+                rng=rng,
+            )
+
+        return return_data, lower, upper, p_values
+
+    def _resolve_n_workers(self, n_series: int) -> int:
+        """
+        Choose how many worker processes to fit n_series with.
+
+        Parameters
+        ----------
+        n_series : int
+            Number of block maxima series to fit.
+
+        Returns
+        -------
+        int
+            Number of workers; 1 means fit serially in this process.
+        """
+        if self.n_workers != "auto":
+            return max(1, min(self.n_workers, n_series))
+
+        fits_per_series = 1
+        if self.conf_int_lower_bound is not UNSET:
+            fits_per_series += self.bootstrap_runs
+        if n_series * fits_per_series < ONE_IN_X_PARALLEL_MIN_FITS:
+            return 1
+        return max(1, min(cpu_count(), n_series))
 
     def _fit_with_early_spatial_batching(
         self,
