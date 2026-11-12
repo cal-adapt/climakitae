@@ -192,6 +192,8 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
     goodness_of_fit_test = one_in_x_config.get("goodness_of_fit_test", True)
     alpha = one_in_x_config.get("alpha", UNSET)
     bootstrap_runs = one_in_x_config.get("bootstrap_runs", 100)
+    bootstrap_seed = one_in_x_config.get("bootstrap_seed", None)
+    n_workers = one_in_x_config.get("n_workers", "auto")
     print_goodness_of_fit = one_in_x_config.get("print_goodness_of_fit", True)
     variable_preprocessing = one_in_x_config.get("variable_preprocessing", {})
     check_ess = one_in_x_config.get("check_ess", True)
@@ -342,6 +344,28 @@ def _validate_one_in_x_parameters(one_in_x_config: dict) -> bool:
     if not isinstance(bootstrap_runs, int) or bootstrap_runs <= 0:
         logger.warning(
             "\n\nbootstrap_runs must be a positive integer. "
+            "\nPlease check the configuration."
+        )
+        return False
+
+    if bootstrap_seed is not None and (
+        isinstance(bootstrap_seed, bool)
+        or not isinstance(bootstrap_seed, (int, np.integer))
+        or bootstrap_seed < 0
+    ):
+        logger.warning(
+            "\n\nbootstrap_seed must be a non-negative integer or None. "
+            "\nPlease check the configuration."
+        )
+        return False
+
+    if n_workers != "auto" and (
+        isinstance(n_workers, bool)
+        or not isinstance(n_workers, (int, np.integer))
+        or n_workers < 1
+    ):
+        logger.warning(
+            "\n\nn_workers must be 'auto' or a positive integer. "
             "\nPlease check the configuration."
         )
         return False

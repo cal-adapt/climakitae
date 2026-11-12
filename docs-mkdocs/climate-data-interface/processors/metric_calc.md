@@ -159,8 +159,12 @@ flowchart TD
 | `goodness_of_fit_test` | bool | `True` | KS test on residuals. |
 | `print_goodness_of_fit` | bool | `True` | |
 | `variable_preprocessing` | dict | `{}` | Preprocessing config. |
+| `alpha` | float in (0, 1) | unset | Enables bootstrap confidence intervals at the `1 - alpha` level (lower/upper limit outputs prefixed `conf_int_`). |
+| `bootstrap_runs` | int | `100` | Bootstrap resamples per series. An interval is NaN when fewer than 90% of refits succeed. |
+| `bootstrap_seed` | int or `None` | `None` | Set for reproducible intervals; results do not depend on `n_workers`. `np.random.seed` has no effect. |
+| `n_workers` | int or `"auto"` | `"auto"` | Worker processes for fitting. `"auto"` goes parallel on all available CPUs once a job needs ≥ 2,000 distribution fits (series × (1 + `bootstrap_runs`)); `1` fits serially. |
 
-Internally the workflow extracts block extrema, fits the chosen distribution, and produces `return_values` plus `p_values` (KS p-value) DataArrays. Heavy lifting is in the vectorized helpers listed under [Code References](#code-references).
+Internally the workflow extracts block extrema, fits the chosen distribution, and produces `return_values` plus `p_values` (KS p-value) DataArrays. Each series is fitted once, with its bootstrap refits in the same pass, and large jobs are spread across a joblib/loky process pool. Heavy lifting is in the vectorized helpers listed under [Code References](#code-references).
 
 ## Top-level parameters (basic mode)
 

@@ -198,5 +198,7 @@ SMALL_ARRAY_THRESHOLD_BYTES = 1e7  # 10MB threshold for small arrays
 MEDIUM_ARRAY_THRESHOLD_BYTES = 1e9  # 1GB threshold for medium arrays
 PERCENTILE_TO_QUANTILE_FACTOR = 100.0  # Convert percentiles to quantiles
 MIN_VALID_DATA_POINTS = 3  # Minimum data points required for statistical fitting
+MIN_BOOTSTRAP_SUCCESS_FRACTION = 0.9  # Share of bootstrap fits needed for a CI
+ONE_IN_X_PARALLEL_MIN_FITS = 2000  # Fits needed before n_workers="auto" uses a pool
 NUMERIC_PRECISION_DECIMAL_PLACES = 2  # Decimal places for numeric output formatting
 RETURN_VALUE_PRECISION = 5  # Decimal places for return value rounding
