@@ -127,6 +127,15 @@ _QDM_LOG_REFERENCE = (
 _REQUIRED_TRAINING_YEARS = 30
 
 
+def _time_coverage(da: xr.DataArray) -> tuple[int, str | None, str | None]:
+    """Return (year_count, start, end) for a time-indexed DataArray, or
+    (0, None, None) if it has no timesteps along `time`."""
+    if da.sizes.get("time", 0) == 0:
+        return 0, None, None
+    n_years = len(pd.unique(da["time"].dt.year.values))
+    return n_years, str(da.time.values[0]), str(da.time.values[-1])
+
+
 @register_processor("bias_adjust_model_to_station", priority=60)
 class BiasAdjustModelToStation(DataProcessor):
     """Bias-adjust gridded climate data to weather station locations using QDM.
@@ -572,12 +581,40 @@ class BiasAdjustModelToStation(DataProcessor):
             gridded_da_historical.shape,
         )
 
+        # Attribute a training-window shortfall to the model or the station
+        # before narrowing/aligning the two, since their intersection below
+        # would otherwise obscure which source is responsible (e.g. the
+        # model's historical run ending years before the station's own
+        # record does).
+        model_years, model_start, model_end = _time_coverage(gridded_da_historical)
+        station_years, station_start, station_end = _time_coverage(
+            obs_da.sel(time=training_slice)
+        )
+
+        if model_years < _REQUIRED_TRAINING_YEARS:
+            raise ValueError(
+                f"BiasAdjustModelToStation: for station(s) {station_label}, "
+                f"model data only covers {model_years} year(s) "
+                f"({model_start} to {model_end}) within "
+                f"historical_slice=({hist_start}, {hist_end}); "
+                f"{_REQUIRED_TRAINING_YEARS} are required. Choose a "
+                f"different {_REQUIRED_TRAINING_YEARS}-year historical_slice "
+                f"within the model's historical coverage."
+            )
+        if station_years < _REQUIRED_TRAINING_YEARS:
+            raise ValueError(
+                f"BiasAdjustModelToStation: station(s) {station_label} only "
+                f"have {station_years} year(s) of data ({station_start} to "
+                f"{station_end}) within historical_slice=({hist_start}, "
+                f"{hist_end}); {_REQUIRED_TRAINING_YEARS} are required. "
+                f"Choose a different {_REQUIRED_TRAINING_YEARS}-year "
+                f"historical_slice or station."
+            )
+
         # Narrow obs data to roughly the (historical_slice-bounded) gridded
         # historical period first, so the alignment below only has to
         # compare a similarly-sized range.
-        t_start = str(gridded_da_historical.time.values[0])
-        t_end = str(gridded_da_historical.time.values[-1])
-        obs_da = obs_da.sel(time=slice(t_start, t_end))
+        obs_da = obs_da.sel(time=slice(model_start, model_end))
 
         # QDM requires `ref` (obs) and `hist` (gridded historical) to have
         # identical time coordinates (xsdba checks this with an elementwise
@@ -592,14 +629,15 @@ class BiasAdjustModelToStation(DataProcessor):
             obs_da.shape,
         )
 
-        n_training_years = len(pd.unique(gridded_da_historical["time"].dt.year.values))
+        n_training_years, t_start, t_end = _time_coverage(gridded_da_historical)
         if n_training_years < _REQUIRED_TRAINING_YEARS:
             raise ValueError(
                 f"BiasAdjustModelToStation: station(s) {station_label} only "
                 f"have {n_training_years} year(s) of overlapping data "
-                f"({t_start} to {t_end}); {_REQUIRED_TRAINING_YEARS} are "
-                f"required. Choose a different "
-                f"{_REQUIRED_TRAINING_YEARS}-year historical_slice."
+                f"({t_start} to {t_end}) once model and station data are "
+                f"aligned to the same calendar days; "
+                f"{_REQUIRED_TRAINING_YEARS} are required. Choose a "
+                f"different {_REQUIRED_TRAINING_YEARS}-year historical_slice."
             )
 
         # Check if data has a 'sim' dimension from concatenation

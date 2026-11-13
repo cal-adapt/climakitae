@@ -767,6 +767,59 @@ class TestBiasCorrectStationDataBiasAdjustment:
         with pytest.raises(ValueError, match="6 year"):
             proc._bias_adjust_model_data(obs_da, gr_da)
 
+    @pytest.mark.advanced
+    def test_bias_adjust_model_data_attributes_shortfall_to_model(self):
+        """When the model data itself doesn't span historical_slice (e.g. a
+        historical run ending years before the requested window), the error
+        must name the model, not the station, as the limiting source. This
+        also covers the zero-overlap-with-model case, which previously
+        raised an unhandled IndexError instead of a clear ValueError.
+        """
+        # historical_slice extends 15 years past the model's own coverage.
+        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (2000, 2029)})
+
+        obs_times = pd.date_range("1990-01-01", "2029-12-31", freq="D")
+        obs_da = xr.DataArray(
+            np.random.rand(len(obs_times)), dims=("time",), coords={"time": obs_times}
+        )
+        obs_da.name = "obs"
+        obs_da.attrs["units"] = "K"
+
+        gr_times = pd.date_range("1980-01-01", "2014-12-31", freq="D")
+        gr_da = xr.DataArray(
+            np.random.rand(len(gr_times)), dims=("time",), coords={"time": gr_times}
+        )
+        gr_da.name = "tas"
+        gr_da.attrs["units"] = "K"
+
+        with pytest.raises(ValueError, match="model data only covers"):
+            proc._bias_adjust_model_data(obs_da, gr_da)
+
+    @pytest.mark.advanced
+    def test_bias_adjust_model_data_raises_on_zero_overlap_with_model(self):
+        """A historical_slice entirely outside the model's own coverage
+        (zero overlap) must raise a clear ValueError rather than the
+        unhandled IndexError this used to produce.
+        """
+        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (2020, 2049)})
+
+        obs_times = pd.date_range("1990-01-01", "2014-12-31", freq="D")
+        obs_da = xr.DataArray(
+            np.random.rand(len(obs_times)), dims=("time",), coords={"time": obs_times}
+        )
+        obs_da.name = "obs"
+        obs_da.attrs["units"] = "K"
+
+        gr_times = pd.date_range("1980-01-01", "2014-12-31", freq="D")
+        gr_da = xr.DataArray(
+            np.random.rand(len(gr_times)), dims=("time",), coords={"time": gr_times}
+        )
+        gr_da.name = "tas"
+        gr_da.attrs["units"] = "K"
+
+        with pytest.raises(ValueError, match="model data only covers 0 year"):
+            proc._bias_adjust_model_data(obs_da, gr_da)
+
 
 class TestBiasCorrectStationDataExecution:
     """Tests for main execute method."""
