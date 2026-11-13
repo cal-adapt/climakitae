@@ -121,7 +121,7 @@ def validate_bias_adjustment_station_data_param(
     value : Any
         Dictionary containing station bias adjustment parameters. Expected keys:
         - stations: list[str] - Station names or codes (REQUIRED)
-        - historical_slice: tuple[int, int], optional - Historical training period (default: (1980, 2014))
+        - historical_slice: tuple[int, int], optional - Historical training period (default: (1981, 2010)); the processor currently requires this to span exactly 30 years
         - window: int, optional - Seasonal grouping window (default: 90)
         - nquantiles: int, optional - Number of quantiles (default: 20)
         - group: str, optional - Temporal grouping (default: "time.dayofyear")
@@ -388,6 +388,17 @@ def _validate_historical_slice(historical_slice: Any) -> bool:
         msg = (
             f"Start year ({start_year}) must be less than end year ({end_year}). "
             f"Please provide a valid time range."
+        )
+        logger.warning(msg)
+        return False
+
+    n_years = end_year - start_year + 1
+    if n_years != 30:
+        msg = (
+            f"'historical_slice' spans {n_years} years ({start_year}-{end_year}), "
+            f"but exactly 30 years are currently required. "
+            f"{'Narrow' if n_years > 30 else 'Widen'} it to a 30-year window, "
+            f"e.g. ({start_year}, {start_year + 29})."
         )
         logger.warning(msg)
         return False

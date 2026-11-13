@@ -31,7 +31,7 @@ class TestBiasCorrectStationDataInit:
         proc = self.ProcClass(cfg)
         assert proc.stations == ["Sacramento (KSAC)"]
         # defaults
-        assert proc.historical_slice == (1980, 2014)
+        assert proc.historical_slice == (1981, 2010)
         assert proc.window == 90
         assert proc.nquantiles == 20
         assert proc.group == "time.dayofyear"
@@ -39,6 +39,26 @@ class TestBiasCorrectStationDataInit:
         assert proc.name == "bias_adjust_model_to_station"
         # Processor declares it needs a catalog to run
         assert getattr(proc, "needs_catalog", False) is True
+
+    @pytest.mark.parametrize(
+        "historical_slice",
+        [(2000, 2005), (1980, 2014), (1980, 1980)],
+        ids=["too_short", "too_long", "single_year"],
+    )
+    def test_init_accepts_non_30_year_historical_slice(self, historical_slice):
+        """Construction itself doesn't validate historical_slice's span;
+        that check is done at parameter-validation time (see
+        bias_adjust_model_to_station_param_validator.py's
+        TestValidateHistoricalSlice), not here or in execute()."""
+        proc = self.ProcClass(
+            {"stations": ["KSAC"], "historical_slice": historical_slice}
+        )
+        assert proc.historical_slice == historical_slice
+
+    def test_init_accepts_exactly_30_year_historical_slice(self):
+        """A historical_slice spanning exactly 30 years is accepted."""
+        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (1985, 2014)})
+        assert proc.historical_slice == (1985, 2014)
 
 
 class TestPreprocessHDP:
@@ -389,9 +409,10 @@ class TestBiasCorrectStationDataBiasAdjustment:
         """
         proc = self.ProcClass({"stations": ["KSAC"]})
 
-        # Create realistic observational data (5 years, daily frequency)
+        # Create realistic observational data. Must fully cover the default
+        # historical_slice=(1981, 2010) 30-year training window.
         # QDM requires full year coverage for dayofyear grouping
-        obs_times = pd.date_range("1980-01-01", "1984-12-31", freq="D")
+        obs_times = pd.date_range("1980-01-01", "2014-12-31", freq="D")
 
         # Generate realistic temperature data with seasonal cycle
         # Base temp ~15°C with ±10°C seasonal variation
@@ -453,8 +474,9 @@ class TestBiasCorrectStationDataBiasAdjustment:
         """
         proc = self.ProcClass({"stations": ["KSAC"]})
 
-        # Create observational data (5 years, daily frequency)
-        obs_times = pd.date_range("1980-01-01", "1984-12-31", freq="D")
+        # Create observational data. Must fully cover the default
+        # historical_slice=(1981, 2010) 30-year training window.
+        obs_times = pd.date_range("1980-01-01", "2014-12-31", freq="D")
         dayofyear = obs_times.dayofyear
         seasonal_temp = 15 + 10 * np.sin(2 * np.pi * (dayofyear - 80) / 365)
         np.random.seed(42)
@@ -538,7 +560,9 @@ class TestBiasCorrectStationDataBiasAdjustment:
         """
         proc = self.ProcClass({"stations": ["KSAC"]})
 
-        obs_times = pd.date_range("1980-01-01", "1984-12-31", freq="D")
+        # Must fully cover the default historical_slice=(1981, 2010) 30-year
+        # training window.
+        obs_times = pd.date_range("1980-01-01", "2014-12-31", freq="D")
         # Drop a 30-day chunk out of the middle of the obs record, leaving a
         # gap that isn't present in the (dense) gridded time index.
         gap = (obs_times >= "1982-06-01") & (obs_times <= "1982-06-30")
@@ -577,7 +601,11 @@ class TestBiasCorrectStationDataBiasAdjustment:
         """
         proc = self.ProcClass({"stations": ["ASOSAWOS_1234"]})
 
-        obs_times = pd.date_range("2010-01-01", "2016-12-31", freq="D")
+        # Starts in 1980 (rather than 2010) so the training window, bounded
+        # by the default historical_slice=(1981, 2010), is fully covered,
+        # while still extending past 2014-08-31 to exercise the regression
+        # this test targets.
+        obs_times = pd.date_range("1980-01-01", "2016-12-31", freq="D")
         dayofyear = obs_times.dayofyear
         seasonal_temp = 15 + 10 * np.sin(2 * np.pi * (dayofyear - 80) / 365)
         np.random.seed(42)
@@ -587,7 +615,7 @@ class TestBiasCorrectStationDataBiasAdjustment:
         obs_da.name = "obs"
         obs_da.attrs["units"] = "K"
 
-        gr_times = pd.date_range("2010-01-01", "2016-12-31", freq="D")
+        gr_times = pd.date_range("1980-01-01", "2016-12-31", freq="D")
         gr_dayofyear = gr_times.dayofyear
         gr_seasonal_temp = 17 + 10 * np.sin(2 * np.pi * (gr_dayofyear - 80) / 365)
         np.random.seed(43)
@@ -601,6 +629,196 @@ class TestBiasCorrectStationDataBiasAdjustment:
 
         end_time = pd.Timestamp(out.time.values[-1])
         assert end_time.year == 2016
+
+    @pytest.mark.advanced
+    def test_historical_slice_narrows_training_window(self):
+        """historical_slice must bound the QDM training window even when
+        both obs and gridded data cover a much wider range than requested.
+        """
+        # historical_slice=(1981, 2010) is exactly 30 years, but still
+        # narrower than the full 1950-2020 obs/gridded coverage below, so
+        # this still proves historical_slice bounds the training window.
+        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (1981, 2010)})
+
+        obs_times = pd.date_range("1950-01-01", "2020-12-31", freq="D")
+        obs_da = xr.DataArray(
+            np.random.rand(len(obs_times)), dims=("time",), coords={"time": obs_times}
+        )
+        obs_da.name = "obs"
+        obs_da.attrs["units"] = "K"
+
+        gr_times = pd.date_range("1950-01-01", "2020-12-31", freq="D")
+        gr_da = xr.DataArray(
+            np.random.rand(len(gr_times)), dims=("time",), coords={"time": gr_times}
+        )
+        gr_da.name = "tas"
+        gr_da.attrs["units"] = "K"
+
+        with patch(
+            "climakitae.new_core.processors.bias_adjust_model_to_station.QuantileDeltaMapping"
+        ) as mock_qdm:
+            mock_qdm_instance = MagicMock()
+            mock_qdm.train.return_value = mock_qdm_instance
+            mock_qdm_instance.adjust.side_effect = lambda data: data
+
+            out = proc._bias_adjust_model_data(obs_da, gr_da)
+
+            # QDM.train must have been called with obs/hist bounded to
+            # historical_slice=(1981, 2010), not the full 1950-2020 range.
+            train_args = mock_qdm.train.call_args
+            obs_trained_on = train_args[0][0]
+            hist_trained_on = train_args[0][1]
+
+            assert obs_trained_on.time.dt.year.min() == 1981
+            assert obs_trained_on.time.dt.year.max() == 2010
+            assert hist_trained_on.time.dt.year.min() == 1981
+            assert hist_trained_on.time.dt.year.max() == 2010
+
+        # The output (adjusted) series must still span the FULL input
+        # range, unaffected by historical_slice, since only training is bounded.
+        assert pd.Timestamp(out.time.values[0]).year == 1950
+        assert pd.Timestamp(out.time.values[-1]).year == 2020
+
+    @pytest.mark.advanced
+    def test_bias_adjust_model_data_raises_on_empty_overlap_with_station_data(self):
+        """historical_slice that overlaps the model data but not the
+        station's own record must also raise a clear ValueError.
+        """
+        # Exactly 30 years, overlapping the model's 1980-2014 coverage below
+        # but entirely predating the station's own record.
+        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (1980, 2009)})
+
+        # Station record starts well after the requested historical_slice.
+        obs_times = pd.date_range("2010-01-01", "2014-12-31", freq="D")
+        obs_da = xr.DataArray(
+            np.random.rand(len(obs_times)), dims=("time",), coords={"time": obs_times}
+        )
+        obs_da.name = "obs"
+        obs_da.attrs["units"] = "K"
+
+        gr_times = pd.date_range("1980-01-01", "2014-12-31", freq="D")
+        gr_da = xr.DataArray(
+            np.random.rand(len(gr_times)), dims=("time",), coords={"time": gr_times}
+        )
+        gr_da.name = "tas"
+        gr_da.attrs["units"] = "K"
+
+        with pytest.raises(ValueError, match="historical_slice"):
+            proc._bias_adjust_model_data(obs_da, gr_da)
+
+    @pytest.mark.advanced
+    def test_bias_adjust_model_data_error_names_stations_when_provided(self):
+        """When station_names is passed, the short-training-window error
+        should name the actual station(s), not the unhelpful stacked
+        obs_da.name.
+        """
+        # Exactly 30 years, overlapping the model's 1980-2014 coverage below
+        # but entirely predating the station's own record.
+        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (1980, 2009)})
+
+        # Station record starts well after the requested historical_slice.
+        obs_times = pd.date_range("2010-01-01", "2014-12-31", freq="D")
+        obs_da = xr.DataArray(
+            np.random.rand(len(obs_times)), dims=("time",), coords={"time": obs_times}
+        )
+        obs_da.name = "station_data"  # mimics the stacked multi-station name
+        obs_da.attrs["units"] = "K"
+
+        gr_times = pd.date_range("1980-01-01", "2014-12-31", freq="D")
+        gr_da = xr.DataArray(
+            np.random.rand(len(gr_times)), dims=("time",), coords={"time": gr_times}
+        )
+        gr_da.name = "tas"
+        gr_da.attrs["units"] = "K"
+
+        with pytest.raises(ValueError, match="KSAC"):
+            proc._bias_adjust_model_data(obs_da, gr_da, station_names=["KSAC", "KSFO"])
+
+    @pytest.mark.advanced
+    def test_bias_adjust_model_data_raises_on_short_training_window(self):
+        """Even with an exactly-30-year historical_slice, if the station's
+        own record doesn't fully span it, the resulting training window
+        falls short of 30 calendar years and must raise, distinct from
+        the zero-overlap cases above, where there's no overlap at all.
+        """
+        proc = self.ProcClass(
+            {"stations": ["KSAC"], "historical_slice": (1985, 2014)}  # 30 years
+        )
+
+        # Station record only covers the last 6 years of the requested window.
+        obs_times = pd.date_range("2009-01-01", "2014-12-31", freq="D")
+        dayofyear = obs_times.dayofyear
+        seasonal_temp = 15 + 10 * np.sin(2 * np.pi * (dayofyear - 80) / 365)
+        np.random.seed(42)
+        obs_values = seasonal_temp + np.random.randn(len(obs_times)) * 2
+        obs_da = xr.DataArray(obs_values, dims=("time",), coords={"time": obs_times})
+        obs_da.name = "obs"
+        obs_da.attrs["units"] = "K"
+
+        gr_times = pd.date_range("1985-01-01", "2014-12-31", freq="D")
+        gr_dayofyear = gr_times.dayofyear
+        gr_seasonal_temp = 17 + 10 * np.sin(2 * np.pi * (gr_dayofyear - 80) / 365)
+        np.random.seed(43)
+        gr_values = gr_seasonal_temp + np.random.randn(len(gr_times)) * 2
+        gr_da = xr.DataArray(gr_values, dims=("time",), coords={"time": gr_times})
+        gr_da.name = "tas"
+        gr_da.attrs["units"] = "K"
+
+        with pytest.raises(ValueError, match="6 year"):
+            proc._bias_adjust_model_data(obs_da, gr_da)
+
+    @pytest.mark.advanced
+    def test_bias_adjust_model_data_attributes_shortfall_to_model(self):
+        """When the model data itself doesn't span historical_slice (e.g. a
+        historical run ending years before the requested window), the error
+        must name the model, not the station, as the limiting source. This
+        also covers the zero-overlap-with-model case, which previously
+        raised an unhandled IndexError instead of a clear ValueError.
+        """
+        # historical_slice extends 15 years past the model's own coverage.
+        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (2000, 2029)})
+
+        obs_times = pd.date_range("1990-01-01", "2029-12-31", freq="D")
+        obs_da = xr.DataArray(
+            np.random.rand(len(obs_times)), dims=("time",), coords={"time": obs_times}
+        )
+        obs_da.name = "obs"
+        obs_da.attrs["units"] = "K"
+
+        gr_times = pd.date_range("1980-01-01", "2014-12-31", freq="D")
+        gr_da = xr.DataArray(
+            np.random.rand(len(gr_times)), dims=("time",), coords={"time": gr_times}
+        )
+        gr_da.name = "tas"
+        gr_da.attrs["units"] = "K"
+
+        with pytest.raises(ValueError, match="model data only covers"):
+            proc._bias_adjust_model_data(obs_da, gr_da)
+
+    @pytest.mark.advanced
+    def test_bias_adjust_model_data_raises_on_zero_overlap_with_model(self):
+        """A historical_slice entirely outside the model's own coverage
+        (zero overlap) must raise a clear ValueError rather than the
+        unhandled IndexError this used to produce.
+        """
+        proc = self.ProcClass({"stations": ["KSAC"], "historical_slice": (2020, 2049)})
+
+        obs_times = pd.date_range("1990-01-01", "2014-12-31", freq="D")
+        obs_da = xr.DataArray(
+            np.random.rand(len(obs_times)), dims=("time",), coords={"time": obs_times}
+        )
+        obs_da.name = "obs"
+        obs_da.attrs["units"] = "K"
+
+        gr_times = pd.date_range("1980-01-01", "2014-12-31", freq="D")
+        gr_da = xr.DataArray(
+            np.random.rand(len(gr_times)), dims=("time",), coords={"time": gr_times}
+        )
+        gr_da.name = "tas"
+        gr_da.attrs["units"] = "K"
+
+        with pytest.raises(ValueError, match="model data only covers 0 year"):
+            proc._bias_adjust_model_data(obs_da, gr_da)
 
 
 class TestBiasCorrectStationDataExecution:
@@ -819,7 +1037,8 @@ class TestBiasCorrectConcatIntegration:
         self.processor = BiasAdjustModelToStation(
             {
                 "stations": ["KSAC"],
-                "historical_slice": (2000, 2001),  # Short period for test
+                # Exactly 30 years, as currently required.
+                "historical_slice": (1981, 2010),
             }
         )
 
@@ -830,9 +1049,9 @@ class TestBiasCorrectConcatIntegration:
     def test_execute_with_concatenated_input(self, mock_load, mock_get_closest):
         """Test execute with a single DataArray containing 'sim' dimension."""
 
-        # Create concatenated input data (2 simulations, historical + future)
-        # Time range: 2000-2003 (2000-2001 historical, 2002-2003 future)
-        times = pd.date_range("2000-01-01", "2003-12-31", freq="D")
+        # Create concatenated input data (2 simulations, historical + future).
+        # Time range: 1980-2013 (1980-2010 historical, 2011-2013 future).
+        times = pd.date_range("1980-01-01", "2013-12-31", freq="D")
         # Filter to match simple calendar if needed, but standard is fine for mock
 
         # Create DataArray with sim, time, y, x
@@ -849,9 +1068,11 @@ class TestBiasCorrectConcatIntegration:
             attrs={"resolution": "9 km", "units": "K", "grid_label": "d02"},
         )
 
-        # Mock station data
-        # Station data should cover historical period
-        station_times = pd.date_range("2000-01-01", "2001-12-31", freq="D")
+        # Mock station data. Deliberately wider than historical_slice=(1981,
+        # 2010) so the year-range assertions below actually prove
+        # historical_slice narrows the training window, rather than just
+        # coinciding with the station's own (narrower) coverage.
+        station_times = pd.date_range("1980-01-01", "2013-12-31", freq="D")
         station_da = xr.DataArray(
             np.random.rand(len(station_times)) + 273.15,
             dims=["time"],
@@ -921,9 +1142,9 @@ class TestBiasCorrectConcatIntegration:
             assert "time" in hist_arg.dims
 
             # Check that historical data was correctly sliced from input
-            # Should cover 2000-2001
-            assert hist_arg.time.dt.year.min() == 2000
-            assert hist_arg.time.dt.year.max() == 2001
+            # Should cover 1981-2010
+            assert hist_arg.time.dt.year.min() == 1981
+            assert hist_arg.time.dt.year.max() == 2010
 
             # Check that result has 'sim' dimension
             assert "sim" in result["t2"].dims

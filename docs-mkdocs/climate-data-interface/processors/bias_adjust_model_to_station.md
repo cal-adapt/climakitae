@@ -37,7 +37,7 @@ The processor takes a **dict**:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `stations` | `list[str]` | `[]` | HDP `station_id` values to bias-adjust against (e.g. `"ASOSAWOS_69007093217"`). Required for non-trivial use. |
-| `historical_slice` | `tuple[int, int]` | `(1980, 2014)` | Years used as the training period. Must overlap each station's actual observational coverage, which varies per HDP station. |
+| `historical_slice` | `tuple[int, int]` | `(1981, 2010)` | Years used to bound the QDM training window. Must overlap each station's actual observational coverage, which varies per HDP station. |
 | `window` | `int` | `90` | Window size (days) for seasonal grouping in QDM. |
 | `nquantiles` | `int` | `20` | Number of quantiles for the QDM mapping. |
 | `group` | `str` | `"time.dayofyear"` | Temporal grouping passed to `xclim` QDM. |
@@ -47,7 +47,7 @@ The processor takes a **dict**:
 
 - **Activity ID**: WRF (dynamical downscaling). LOCA2 already includes statistical bias adjustment at the watershed level and is not the intended input.
 - **Variable**: Designed for hourly `t2` (temperature, matched to HDP's `tas`) or `dew_point` (dewpoint, matched to HDP's `tdps`, or `tdps_derived` where `tdps` isn't available). Not every HDP network provides every variable — requesting a station from a network known not to provide the needed variable is rejected up front.
-- **Time coverage**: Input must overlap the requested historical training period (default 1980–2014). HDP station coverage varies widely by station, from a few years to multiple decades.
+- **Time coverage**: The QDM training window is always bounded to `historical_slice` (default 1981–2010), intersected with the model data's own coverage and the station's actual observational record.
 - **Multiple networks**: Requested stations may span multiple HDP networks in a single call.
 - **Calendar**: All inputs are converted to a `noleap` calendar internally for consistency.
 
@@ -92,8 +92,4 @@ data = (ClimateData()
 
 - [Processor index](index.md)
 - [`climakitae/new_core/processors/bias_adjust_model_to_station.py`](https://github.com/cal-adapt/climakitae/blob/main/climakitae/new_core/processors/bias_adjust_model_to_station.py)
-<<<<<<< HEAD
-- [How-To: bias correction](../howto/bias-adjustment.md)
-=======
 - [How-To: bias adjustment](../howto/bias-adjustment.md)
->>>>>>> main
