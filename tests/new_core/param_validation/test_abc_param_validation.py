@@ -683,3 +683,124 @@ class TestParameterValidatorIntegration:
                 result = validator.is_valid_query(query)
 
             assert result == {"variable": "tas", "experiment_id": "ssp245"}
+
+
+class _RangedValidator(ParameterValidator):
+    """Validator with a known available_years table for time_slice tests."""
+
+    available_years = {
+        ("WRF", "historical"): (1980, 2014),
+        ("WRF", "ssp370"): (2014, 2100),
+    }
+
+    def is_valid_query(self, query):
+        """Implement abstract method for testing."""
+        return self._is_valid_query(query)
+
+
+@pytest.fixture
+def ranged_validator():
+    """A validator with available_years populated, without loading catalogs."""
+    with patch("climakitae.new_core.param_validation.abc_param_validation.DataCatalog"):
+        yield _RangedValidator()
+
+
+def _ts_query(time_slice, activity_id="WRF", experiment_id=("historical",)):
+    """Build a query with a time_slice process."""
+    return {
+        "activity_id": activity_id,
+        "experiment_id": list(experiment_id),
+        PROC_KEY: {"time_slice": time_slice},
+    }
+
+
+class TestGetTimeSliceDates:
+    """Tests for ParameterValidator._get_time_slice_dates."""
+
+    def test_tuple(self):
+        """Years are coerced to start/end of year."""
+        start, end = ParameterValidator._get_time_slice_dates(_ts_query((1990, 1991)))
+        assert start == pd.Timestamp("1990-01-01")
+        assert end.normalize() == pd.Timestamp("1991-12-31")
+
+    def test_dict_form(self):
+        """The dict form's 'dates' value is used."""
+        q = _ts_query({"dates": (1990, 1991), "seasons": "JJA"})
+        assert ParameterValidator._get_time_slice_dates(q) is not None
+
+    @pytest.mark.parametrize(
+        "processes",
+        [{}, {"time_slice": "bad"}, {"time_slice": (2005, 2000)}, UNSET],
+        ids=["absent", "malformed", "reversed", "processes_unset"],
+    )
+    def test_returns_none(self, processes):
+        """Absent, malformed or reversed slices are left to the processor validator."""
+        assert ParameterValidator._get_time_slice_dates({PROC_KEY: processes}) is None
+
+
+class TestCheckTimeSliceAvailable:
+    """Tests for ParameterValidator._check_time_slice_available."""
+
+    @pytest.mark.parametrize("time_slice", [(1902, 1904), ("1970-01-01", "1979-12-31")])
+    def test_no_overlap_fails(self, ranged_validator, time_slice, caplog):
+        """A slice entirely outside the available years fails."""
+        with caplog.at_level("WARNING"):
+            assert not ranged_validator._check_time_slice_available(
+                _ts_query(time_slice), "cadcat"
+            )
+        assert "covers 1980-2014" in caplog.text
+        assert "'cadcat' catalog" in caplog.text
+
+    def test_partial_overlap_warns(self, ranged_validator, caplog):
+        """A partial overlap passes with a warning."""
+        with caplog.at_level("WARNING"):
+            assert ranged_validator._check_time_slice_available(
+                _ts_query((1975, 1985)), "cadcat"
+            )
+        assert "extends beyond" in caplog.text
+
+    def test_in_range_passes_quietly(self, ranged_validator, caplog):
+        """A slice inside the available years passes with no warning."""
+        with caplog.at_level("WARNING"):
+            assert ranged_validator._check_time_slice_available(
+                _ts_query((1990, 2000)), "cadcat"
+            )
+        assert caplog.text == ""
+
+    def test_multiple_experiments_use_union(self, ranged_validator):
+        """Several experiments are checked against their combined period."""
+        q = _ts_query((2050, 2060), experiment_id=("historical", "ssp370"))
+        assert ranged_validator._check_time_slice_available(q, "cadcat")
+
+    def test_string_experiment_id(self, ranged_validator):
+        """A bare-string experiment_id is handled."""
+        q = _ts_query((1902, 1904))
+        q["experiment_id"] = "historical"
+        assert not ranged_validator._check_time_slice_available(q, "cadcat")
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            _ts_query((1902, 1904), experiment_id=("unknown",)),
+            {"activity_id": "WRF", PROC_KEY: {"time_slice": (1902, 1904)}},
+            {
+                "activity_id": ["WRF"],
+                "experiment_id": ["historical"],
+                PROC_KEY: {"time_slice": (1902, 1904)},
+            },
+            _ts_query((2005, 2000)),
+            {"activity_id": "WRF", "experiment_id": ["historical"]},
+        ],
+        ids=["unknown_exp", "no_experiment", "list_activity", "reversed", "no_slice"],
+    )
+    def test_skipped_when_unresolvable(self, ranged_validator, query):
+        """The check passes when the period or slice cannot be resolved."""
+        assert ranged_validator._check_time_slice_available(query, "cadcat")
+
+    def test_skipped_without_table(self):
+        """Validators with no available_years skip the check."""
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.DataCatalog"
+        ):
+            validator = ConcreteValidator()
+        assert validator._check_time_slice_available(_ts_query((1902, 1904)), "x")

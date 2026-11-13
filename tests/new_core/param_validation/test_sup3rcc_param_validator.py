@@ -8,6 +8,8 @@ that validates data catalog parameters for CADCAT catalog.
 import warnings
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.sup3rcc_param_validator import (
     Sup3rCCValidator,
@@ -225,3 +227,52 @@ class TestSup3rCCValidator:
         # Check catalog-specific defaults
         assert defaults["drop_leap_days"] == "yes"
         assert defaults["concat"] == "time"  # Stays time for SSP
+
+
+class TestSup3rCCValidatorTimeSlice:
+    """Tests for time_slice availability checks in the Sup3rCC validator."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        mock_catalog = MagicMock()
+        mock_catalog.sup3rcc = MagicMock()
+        self.validator = Sup3rCCValidator(mock_catalog)
+
+    @staticmethod
+    def _query(time_slice, experiment_id="historical"):
+        # activity_id omitted: the validator fills in "Sup3rCC"
+        return {
+            "experiment_id": [experiment_id],
+            "table_id": "1hr",
+            "variable_id": "tas",
+            "processes": {"time_slice": time_slice},
+        }
+
+    @pytest.mark.parametrize(
+        "experiment_id,time_slice",
+        [("historical", (1980, 1999)), ("ssp245", (2000, 2010))],
+    )
+    def test_out_of_range_rejected(self, experiment_id, time_slice):
+        """An out-of-range time_slice is rejected before the catalog search."""
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query"
+        ) as mock_parent:
+            assert (
+                self.validator.is_valid_query(self._query(time_slice, experiment_id))
+                is None
+            )
+        mock_parent.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "experiment_id,time_slice",
+        [("historical", (2000, 2014)), ("ssp245", (2050, 2060))],
+    )
+    def test_in_range_passes(self, experiment_id, time_slice):
+        """An in-range time_slice proceeds to the catalog search."""
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query",
+            return_value={"ok": True},
+        ):
+            assert self.validator.is_valid_query(
+                self._query(time_slice, experiment_id)
+            ) == {"ok": True}

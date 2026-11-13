@@ -291,3 +291,76 @@ class TestDataValidator:
         # Check catalog-specific defaults
         assert defaults["filter_unadjusted_models"] == "yes"
         assert defaults["concat"] == "time"  # Stays time for SSP
+
+
+class TestDataValidatorTimeSlice:
+    """Tests for time_slice availability checks in the cadcat validator."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        mock_catalog = MagicMock()
+        mock_catalog.data = MagicMock()
+        self.validator = DataValidator(mock_catalog)
+
+    @staticmethod
+    def _query(time_slice, activity_id="WRF", experiment_id="historical"):
+        query = {
+            "activity_id": activity_id,
+            "institution_id": "UCLA",
+            "experiment_id": [experiment_id],
+            "table_id": "1hr",
+            "grid_label": "d03",
+            "variable_id": "t2",
+            "processes": {"time_slice": time_slice},
+        }
+        if activity_id != "WRF":
+            query.pop("institution_id")
+        return query
+
+    @pytest.mark.parametrize(
+        "activity_id,experiment_id,time_slice",
+        [
+            ("WRF", "historical", (1902, 1904)),
+            ("WRF", "historical", (2050, 2060)),
+            ("WRF", "reanalysis", (2030, 2040)),
+            ("WRF", "ssp370", (1990, 2000)),
+            ("LOCA2", "historical", (1902, 1904)),
+            ("LOCA2", "ssp245", (1990, 2000)),
+        ],
+    )
+    def test_out_of_range_rejected_before_catalog_search(
+        self, activity_id, experiment_id, time_slice
+    ):
+        """An out-of-range time_slice is rejected without searching the catalog."""
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query"
+        ) as mock_parent:
+            result = self.validator.is_valid_query(
+                self._query(time_slice, activity_id, experiment_id)
+            )
+        assert result is None
+        mock_parent.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "activity_id,experiment_id,time_slice",
+        [
+            ("WRF", "historical", (2000, 2003)),
+            ("WRF", "reanalysis", (2015, 2020)),
+            ("WRF", "ssp370", (2050, 2060)),
+            ("LOCA2", "historical", (1950, 1960)),
+            ("LOCA2", "ssp585", (2090, 2100)),
+        ],
+    )
+    def test_in_range_passes_to_catalog_search(
+        self, activity_id, experiment_id, time_slice
+    ):
+        """An in-range time_slice proceeds to the catalog search."""
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query",
+            return_value={"ok": True},
+        ) as mock_parent:
+            result = self.validator.is_valid_query(
+                self._query(time_slice, activity_id, experiment_id)
+            )
+        assert result == {"ok": True}
+        mock_parent.assert_called_once()

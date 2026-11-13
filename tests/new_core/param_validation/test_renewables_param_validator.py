@@ -6,7 +6,9 @@ that provides parameter validation for renewable energy dataset queries.
 """
 
 import warnings
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.renewables_param_validator import (
@@ -232,3 +234,51 @@ class TestRenewablesValidatorDefaultProcessors:
         # Check catalog-specific defaults
         assert defaults["filter_unadjusted_models"] == "yes"
         assert defaults["concat"] == "time"  # Stays time for SSP
+
+
+class TestRenewablesValidatorTimeSlice:
+    """Tests for time_slice availability checks in the renewables validator."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        mock_catalog = MagicMock()
+        mock_catalog.renewables = MagicMock()
+        self.validator = RenewablesValidator(mock_catalog)
+
+    @staticmethod
+    def _query(time_slice, experiment_id="historical"):
+        return {
+            "activity_id": "WRF",
+            "experiment_id": [experiment_id],
+            "processes": {"time_slice": time_slice},
+        }
+
+    @pytest.mark.parametrize(
+        "experiment_id,time_slice",
+        [
+            ("historical", (1902, 1904)),
+            ("historical", (2015, 2020)),
+            ("reanalysis", (2021, 2025)),
+            ("ssp370", (2099, 2100)),
+        ],
+    )
+    def test_out_of_range_rejected(self, experiment_id, time_slice):
+        """An out-of-range time_slice is rejected before the catalog search."""
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query"
+        ) as mock_parent:
+            assert (
+                self.validator.is_valid_query(self._query(time_slice, experiment_id))
+                is None
+            )
+        mock_parent.assert_not_called()
+
+    def test_in_range_passes(self):
+        """An in-range time_slice proceeds to the catalog search."""
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query",
+            return_value={"ok": True},
+        ):
+            assert self.validator.is_valid_query(self._query((2000, 2010))) == {
+                "ok": True
+            }
