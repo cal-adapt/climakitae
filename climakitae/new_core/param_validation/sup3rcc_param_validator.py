@@ -27,11 +27,14 @@ class Sup3rCCValidator(ParameterValidator):
 
     """
 
-    # Outer bounds of the stored time axes, read from the zarrs. Some ssp245
-    # sources end in 2059.
-    available_years = {
-        ("Sup3rCC", "historical"): (2000, 2014),
-        ("Sup3rCC", "ssp245"): (2015, 2099),
+    # Earliest first and latest last date on the time axes of the stored
+    # zarrs, per (activity_id, experiment_id, table_id). Daily ssp245 data
+    # ends in 2059; some hourly ssp245 sources also end in 2059.
+    available_dates = {
+        ("Sup3rCC", "historical", "1hr"): ("2000-01-01", "2014-12-31"),
+        ("Sup3rCC", "historical", "day"): ("2000-01-01", "2014-12-31"),
+        ("Sup3rCC", "ssp245", "1hr"): ("2015-01-01", "2099-12-31"),
+        ("Sup3rCC", "ssp245", "day"): ("2015-01-01", "2059-12-31"),
     }
 
     def __init__(self, catalog: DataCatalog):

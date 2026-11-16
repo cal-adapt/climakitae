@@ -239,11 +239,11 @@ class TestSup3rCCValidatorTimeSlice:
         self.validator = Sup3rCCValidator(mock_catalog)
 
     @staticmethod
-    def _query(time_slice, experiment_id="historical"):
+    def _query(time_slice, experiment_id="historical", table_id="1hr"):
         # activity_id omitted: the validator fills in "Sup3rCC"
         return {
             "experiment_id": [experiment_id],
-            "table_id": "1hr",
+            "table_id": table_id,
             "variable_id": "tas",
             "processes": {"time_slice": time_slice},
         }
@@ -276,3 +276,18 @@ class TestSup3rCCValidatorTimeSlice:
             assert self.validator.is_valid_query(
                 self._query(time_slice, experiment_id)
             ) == {"ok": True}
+
+    @pytest.mark.parametrize(
+        "table_id,expected",
+        [("day", None), ("1hr", {"ok": True})],
+    )
+    def test_daily_ssp245_ends_in_2059(self, table_id, expected):
+        """Daily ssp245 data ends in 2059; hourly runs to 2099."""
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query",
+            return_value={"ok": True},
+        ):
+            result = self.validator.is_valid_query(
+                self._query((2060, 2070), "ssp245", table_id)
+            )
+        assert result == expected

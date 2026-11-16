@@ -27,11 +27,15 @@ class RenewablesValidator(ParameterValidator):
 
     """
 
-    # Outer bounds of the stored time axes, read from the zarrs.
-    available_years = {
-        ("WRF", "historical"): (1980, 2013),
-        ("WRF", "reanalysis"): (1980, 2019),
-        ("WRF", "ssp370"): (2014, 2098),
+    # Earliest first and latest last date on the time axes of the stored
+    # zarrs, per (activity_id, experiment_id, table_id).
+    available_dates = {
+        ("WRF", "historical", "1hr"): ("1981-01-01", "2013-12-31"),
+        ("WRF", "historical", "day"): ("1980-12-31", "2013-12-31"),
+        ("WRF", "reanalysis", "1hr"): ("1981-01-01", "2019-12-31"),
+        ("WRF", "reanalysis", "day"): ("1980-12-31", "2019-12-31"),
+        ("WRF", "ssp370", "1hr"): ("2015-01-01", "2098-12-31"),
+        ("WRF", "ssp370", "day"): ("2014-12-31", "2098-12-31"),
     }
 
     def __init__(self, catalog: DataCatalog):

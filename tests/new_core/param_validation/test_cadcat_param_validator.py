@@ -303,12 +303,16 @@ class TestDataValidatorTimeSlice:
         self.validator = DataValidator(mock_catalog)
 
     @staticmethod
-    def _query(time_slice, activity_id="WRF", experiment_id="historical"):
+    def _query(
+        time_slice, activity_id="WRF", experiment_id="historical", table_id=None
+    ):
+        if table_id is None:
+            table_id = "1hr" if activity_id == "WRF" else "day"
         query = {
             "activity_id": activity_id,
             "institution_id": "UCLA",
             "experiment_id": [experiment_id],
-            "table_id": "1hr",
+            "table_id": table_id,
             "grid_label": "d03",
             "variable_id": "t2",
             "processes": {"time_slice": time_slice},
@@ -364,3 +368,18 @@ class TestDataValidatorTimeSlice:
             )
         assert result == {"ok": True}
         mock_parent.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "table_id,expected",
+        [("1hr", None), ("day", {"ok": True})],
+    )
+    def test_last_months_depend_on_table(self, table_id, expected):
+        """WRF historical hourly ends 2014-08-31; daily runs to 2014-12-31."""
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query",
+            return_value={"ok": True},
+        ):
+            result = self.validator.is_valid_query(
+                self._query(("2014-09-01", "2014-12-31"), table_id=table_id)
+            )
+        assert result == expected

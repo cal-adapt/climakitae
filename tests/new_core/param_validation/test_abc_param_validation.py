@@ -686,11 +686,12 @@ class TestParameterValidatorIntegration:
 
 
 class _RangedValidator(ParameterValidator):
-    """Validator with a known available_years table for time_slice tests."""
+    """Validator with a known available_dates table for time_slice tests."""
 
-    available_years = {
-        ("WRF", "historical"): (1980, 2014),
-        ("WRF", "ssp370"): (2014, 2100),
+    available_dates = {
+        ("WRF", "historical", "1hr"): ("1980-09-01", "2014-08-31"),
+        ("WRF", "historical", "mon"): ("1980-09-01", "2014-08-01"),
+        ("WRF", "ssp370", "1hr"): ("2014-09-01", "2100-08-31"),
     }
 
     def is_valid_query(self, query):
@@ -700,18 +701,23 @@ class _RangedValidator(ParameterValidator):
 
 @pytest.fixture
 def ranged_validator():
-    """A validator with available_years populated, without loading catalogs."""
+    """A validator with available_dates populated, without loading catalogs."""
     with patch("climakitae.new_core.param_validation.abc_param_validation.DataCatalog"):
         yield _RangedValidator()
 
 
-def _ts_query(time_slice, activity_id="WRF", experiment_id=("historical",)):
+def _ts_query(
+    time_slice, activity_id="WRF", experiment_id=("historical",), table_id="1hr"
+):
     """Build a query with a time_slice process."""
-    return {
+    query = {
         "activity_id": activity_id,
         "experiment_id": list(experiment_id),
         PROC_KEY: {"time_slice": time_slice},
     }
+    if table_id is not None:
+        query["table_id"] = table_id
+    return query
 
 
 class TestGetTimeSliceDates:
@@ -748,8 +754,8 @@ class TestCheckTimeSliceAvailable:
             assert not ranged_validator._check_time_slice_available(
                 _ts_query(time_slice), "cadcat"
             )
-        assert "covers 1980-2014" in caplog.text
-        assert "'cadcat' catalog" in caplog.text
+        assert "covers 1980-09-01 to 2014-08-31" in caplog.text
+        assert "WRF historical 1hr in the 'cadcat' catalog" in caplog.text
 
     def test_partial_overlap_warns(self, ranged_validator, caplog):
         """A partial overlap passes with a warning."""
@@ -797,8 +803,47 @@ class TestCheckTimeSliceAvailable:
         """The check passes when the period or slice cannot be resolved."""
         assert ranged_validator._check_time_slice_available(query, "cadcat")
 
+    @pytest.mark.parametrize(
+        "time_slice",
+        [("1980-01-01", "1980-06-30"), ("2014-09-01", "2014-12-31")],
+        ids=["before_first_date", "after_last_date"],
+    )
+    def test_partial_year_outside_dates_fails(self, ranged_validator, time_slice):
+        """Slices in the missing months of the first or last year fail."""
+        assert not ranged_validator._check_time_slice_available(
+            _ts_query(time_slice), "cadcat"
+        )
+
+    def test_last_date_is_inclusive(self, ranged_validator, caplog):
+        """A slice ending on the last available date passes quietly."""
+        with caplog.at_level("WARNING"):
+            assert ranged_validator._check_time_slice_available(
+                _ts_query(("2014-01-01", "2014-08-31")), "cadcat"
+            )
+        assert caplog.text == ""
+
+    def test_table_id_selects_range(self, ranged_validator):
+        """Monthly data stamped 2014-08-01 has nothing after that date."""
+        late_august = ("2014-08-15", "2014-08-31")
+        assert ranged_validator._check_time_slice_available(
+            _ts_query(late_august, table_id="1hr"), "cadcat"
+        )
+        assert not ranged_validator._check_time_slice_available(
+            _ts_query(late_august, table_id="mon"), "cadcat"
+        )
+
+    def test_no_table_id_uses_all_tables(self, ranged_validator):
+        """Without table_id, the widest range across tables is used."""
+        q = _ts_query(("2014-08-15", "2014-08-31"), table_id=None)
+        assert ranged_validator._check_time_slice_available(q, "cadcat")
+
+    def test_unknown_table_id_skips_check(self, ranged_validator):
+        """A table_id with no known range skips the check."""
+        q = _ts_query((1902, 1904), table_id="day")
+        assert ranged_validator._check_time_slice_available(q, "cadcat")
+
     def test_skipped_without_table(self):
-        """Validators with no available_years skip the check."""
+        """Validators with no available_dates skip the check."""
         with patch(
             "climakitae.new_core.param_validation.abc_param_validation.DataCatalog"
         ):

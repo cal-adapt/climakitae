@@ -251,10 +251,11 @@ class ParameterValidator(ABC):
             "update_attributes": UNSET,
         }
 
-    # Inclusive (start_year, end_year) of the data available for each
-    # (activity_id, experiment_id) in this catalog. Subclasses populate this
-    # to enable the time_slice availability check; leave empty to skip it.
-    available_years: Dict[Tuple[str, str], Tuple[int, int]] = {}
+    # First and last dates ("YYYY-MM-DD") on the time axis of the data for each
+    # (activity_id, experiment_id, table_id) in this catalog. Subclasses
+    # populate this to enable the time_slice availability check; leave empty
+    # to skip it.
+    available_dates: Dict[Tuple[str, str, str], Tuple[str, str]] = {}
 
     @abstractmethod
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
@@ -807,11 +808,14 @@ class ParameterValidator(ABC):
     def _check_time_slice_available(
         self, query: Dict[str, Any], catalog_name: str
     ) -> bool:
-        """Check the requested time_slice against ``available_years``.
+        """Check the requested time_slice against ``available_dates``.
 
-        Skipped when no time_slice is requested, when ``available_years`` is
-        empty, or when activity_id/experiment_id do not resolve to a known
-        period. With several experiments, their combined period is used.
+        The period checked runs from the earliest first date to the latest
+        last date of the datasets matching activity_id, experiment_id and
+        table_id (all tables if table_id is not set). With several
+        experiments, their combined period is used. Skipped when no
+        time_slice is requested, when ``available_dates`` is empty, or when
+        the query does not resolve to a known period.
 
         Parameters
         ----------
@@ -826,11 +830,12 @@ class ParameterValidator(ABC):
             False if the time slice falls entirely outside the available data.
         """
         dates = self._get_time_slice_dates(query)
-        if dates is None or not self.available_years:
+        if dates is None or not self.available_dates:
             return True
 
         activity_id = query.get("activity_id", UNSET)
         experiment_ids = query.get("experiment_id", UNSET)
+        table_id = query.get("table_id", UNSET)
         if not isinstance(activity_id, str) or experiment_ids is UNSET:
             return True
         if isinstance(experiment_ids, str):
@@ -838,25 +843,31 @@ class ParameterValidator(ABC):
         experiment_ids = [str(exp) for exp in experiment_ids]
 
         ranges = [
-            self.available_years[(activity_id, exp)]
-            for exp in experiment_ids
-            if (activity_id, exp) in self.available_years
+            rng
+            for (act, exp, table), rng in self.available_dates.items()
+            if act == activity_id
+            and exp in experiment_ids
+            and (not isinstance(table_id, str) or table == table_id)
         ]
         if not ranges:
             logger.debug(
-                "No known time range for activity_id=%s experiment_id=%s; "
-                "skipping time_slice availability check.",
+                "No known time range for activity_id=%s experiment_id=%s "
+                "table_id=%s; skipping time_slice availability check.",
                 activity_id,
                 experiment_ids,
+                table_id,
             )
             return True
 
         first = min(r[0] for r in ranges)
         last = max(r[1] for r in ranges)
+        described = f"{activity_id} {', '.join(experiment_ids)}"
+        if isinstance(table_id, str):
+            described += f" {table_id}"
         return self._check_dates_overlap(
             *dates,
-            pd.Timestamp(f"{first}-01-01"),
-            pd.Timestamp(f"{last}-12-31"),
-            label=f"{activity_id} {', '.join(experiment_ids)} in the '{catalog_name}' catalog",
-            available=f"{first}-{last}",
+            pd.Timestamp(first),
+            pd.Timestamp(last),
+            label=f"{described} in the '{catalog_name}' catalog",
+            available=f"{first} to {last}",
         )
