@@ -66,9 +66,18 @@ def validate_time_slice_param(value: tuple[Any, Any], **kwargs) -> bool:
                 return False
 
     try:
-        value = _coerce_to_dates(time_slice)
+        start, end = _coerce_to_dates(time_slice)
     except ValueError as e:
         msg = f"Invalid date-like values provided: {e}. Expected a tuple of two date-like values."
         logger.warning(msg)
         return False
+
+    if start > end:
+        msg = (
+            f"Time slice start ({start.date()}) is after its end ({end.date()}). "
+            "Please provide the time slice as (start, end)."
+        )
+        logger.warning(msg)
+        return False
+
     return True  # All parameters are valid

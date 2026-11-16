@@ -24,7 +24,7 @@ class TestValidateTimeSliceParam:
         [
             (("2000-01-01", "2000-12-31"), True),
             (("1990-06-15", "1991-06-15"), True),
-            ((1981, 1900), True),
+            ((1900, 1981), True),
             ((2050.0, 2052.0), True),
             ((pd.Timestamp("2010-05-01"), pd.Timestamp("2015-05-01")), True),
             (
@@ -119,3 +119,31 @@ class TestValidateTimeSliceParam:
             assert "'seasons' parameter must be a list of season names" in caplog.text
 
         assert result is False
+
+
+class TestTimeSliceOrder:
+    """Tests for the start/end order of the time slice."""
+
+    def test_reversed_slice_rejected(self, caplog):
+        """A start after the end is rejected."""
+        with caplog.at_level(logging.WARNING):
+            assert validate_time_slice_param((2105, 2100)) is False
+        assert "is after its end" in caplog.text
+
+    def test_reversed_dates_in_dict_rejected(self):
+        """A reversed slice in the dict form is rejected."""
+        value = {"dates": ("2001-01-01", "2000-01-01"), "seasons": "JJA"}
+        assert validate_time_slice_param(value) is False
+
+    def test_same_year_slice_allowed(self):
+        """A single-year slice (start == end year) is valid."""
+        assert validate_time_slice_param((2000, 2000)) is True
+
+    def test_availability_not_checked_here(self):
+        """Availability is checked by the catalog validators, not here."""
+        query = {
+            "catalog": "cadcat",
+            "activity_id": "WRF",
+            "experiment_id": ["historical"],
+        }
+        assert validate_time_slice_param((1902, 1904), query=query) is True

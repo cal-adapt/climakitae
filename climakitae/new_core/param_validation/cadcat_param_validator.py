@@ -15,6 +15,8 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 # Module logger
 logger = logging.getLogger(__name__)
 
+_SSPS = ("ssp245", "ssp370", "ssp585")
+
 
 @register_catalog_validator(CATALOG_CADCAT)
 class DataValidator(ParameterValidator):
@@ -26,6 +28,17 @@ class DataValidator(ParameterValidator):
         the DataCatalog object to validate against
 
     """
+
+    # Period covered by the data per (activity_id, experiment_id)
+    available_dates = {
+        ("LOCA2", "historical"): ("1950-01-01", "2014-12-31"),
+        **{("LOCA2", ssp): ("2015-01-01", "2100-12-31") for ssp in _SSPS},
+        ("WRF", "historical"): ("1980-09-01", "2014-08-31"),
+        # Some daily variables run to the end of 2014
+        ("WRF", "historical", "day"): ("1980-09-01", "2014-12-31"),
+        ("WRF", "reanalysis"): ("1980-09-01", "2020-08-31"),
+        **{("WRF", ssp): ("2014-09-01", "2100-08-31") for ssp in _SSPS},
+    }
 
     def __init__(self, catalog: DataCatalog):
         """Initialize with  catalog of renewable energy datasets.
@@ -120,6 +133,8 @@ class DataValidator(ParameterValidator):
             Localize is not supported for LOCA2 datasets.
         2. Reject explicitly requested unadjusted WRF sources unless
             filter_unadjusted_models is set to "no".
+        3. Reject a time_slice that falls entirely outside the years
+            available for the requested activity_id/experiment_id.
 
         """
         logger.debug("Validating query: %s", query)
@@ -128,6 +143,7 @@ class DataValidator(ParameterValidator):
             self._check_query_for_required_keys(query),
             self._check_wrf_requires_institution_id(query),
             self._check_explicit_unadjusted_sources(query),
+            self._check_time_slice_available(query, CATALOG_CADCAT),
         ]
         if not all(initial_checks):
             logger.debug("Initial validation checks failed: %s", initial_checks)

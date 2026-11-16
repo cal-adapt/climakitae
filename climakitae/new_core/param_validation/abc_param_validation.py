@@ -46,9 +46,12 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
+import pandas as pd
+
 from climakitae.core.constants import PROC_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
 from climakitae.new_core.param_validation.param_validation_tools import (
+    _coerce_to_dates,
     _get_closest_options,
     _validate_experimental_id_param,
 )
@@ -247,6 +250,14 @@ class ParameterValidator(ABC):
         return {
             "update_attributes": UNSET,
         }
+
+    # Period covered by the data ("YYYY-MM-DD" first and last day), keyed by
+    # (activity_id, experiment_id). Optional table_id and source_id elements
+    # override the period for that table or model.
+    available_dates: Dict[Tuple[str, ...], Tuple[str, str]] = {}
+
+    # Tables stamped on the first day of each period
+    _PERIOD_START_TABLES = {"mon": "M", "yrmax": "Y"}
 
     @abstractmethod
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
@@ -705,3 +716,194 @@ class ParameterValidator(ABC):
 
         """
         self.catalog_df = DataCatalog().catalog_df
+
+    @staticmethod
+    def _get_time_slice_dates(
+        query: Dict[str, Any],
+    ) -> Optional[Tuple[pd.Timestamp, pd.Timestamp]]:
+        """Return the requested time_slice as (start, end) timestamps.
+
+        Returns None when no time_slice is requested or when it is malformed
+        or reversed; those cases are reported by the time_slice processor
+        validator, so catalog-level checks skip them.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The user query.
+
+        Returns
+        -------
+        tuple of pd.Timestamp or None
+            The (start, end) of the requested time slice.
+        """
+        processes = query.get(PROC_KEY, {})
+        if not isinstance(processes, dict):
+            return None
+        time_slice = processes.get("time_slice", UNSET)
+        if isinstance(time_slice, dict):
+            time_slice = time_slice.get("dates", UNSET)
+        if time_slice is UNSET or time_slice is None:
+            return None
+        try:
+            start, end = _coerce_to_dates(time_slice)
+        except (TypeError, ValueError):
+            return None
+        if start > end:
+            return None
+        return start, end
+
+    @staticmethod
+    def _check_dates_overlap(
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        avail_start: pd.Timestamp,
+        avail_end: pd.Timestamp,
+        label: str,
+        available: str,
+    ) -> bool:
+        """Check a requested time slice against an available period.
+
+        Fails when the slice falls entirely outside the available period and
+        warns when it only partially overlaps.
+
+        Parameters
+        ----------
+        start, end : pd.Timestamp
+            The requested time slice.
+        avail_start, avail_end : pd.Timestamp
+            The available period.
+        label : str
+            What the period describes, e.g. "WRF historical in 'cadcat'".
+        available : str
+            Human-readable available period, e.g. "1980-2014".
+
+        Returns
+        -------
+        bool
+            False if the slice does not overlap the available period.
+        """
+        start, end = start.normalize(), end.normalize()
+        avail_start, avail_end = avail_start.normalize(), avail_end.normalize()
+        requested = f"{start.date()} to {end.date()}"
+
+        if start > avail_end or end < avail_start:
+            logger.warning(
+                "Time slice (%s) is outside the data available for %s, which "
+                "covers %s. Please choose a time slice within the available range.",
+                requested,
+                label,
+                available,
+            )
+            return False
+
+        if start < avail_start or end > avail_end:
+            logger.warning(
+                "Time slice (%s) extends beyond the data available for %s (%s). "
+                "Only the overlapping period will be returned.",
+                requested,
+                label,
+                available,
+            )
+        return True
+
+    def _last_timestamp(self, last: str, table_id: str) -> str:
+        """Return the last timestamp in ``table_id`` for data covering up to ``last``."""
+        freq = self._PERIOD_START_TABLES.get(table_id)
+        if freq is None:
+            return last
+        return pd.Period(last, freq=freq).start_time.strftime("%Y-%m-%d")
+
+    def _check_time_slice_available(
+        self, query: Dict[str, Any], catalog_name: str
+    ) -> bool:
+        """Check the requested time_slice against ``available_dates``.
+
+        Uses the most specific matching entry. Without a source_id, model
+        overrides count towards the period. With several experiments, their combined period is used.
+        Skipped when the query does not resolve to a known period.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The user query.
+        catalog_name : str
+            Catalog name used in user-facing messages.
+
+        Returns
+        -------
+        bool
+            False if the time slice falls entirely outside the available data.
+        """
+        dates = self._get_time_slice_dates(query)
+        if dates is None or not self.available_dates:
+            return True
+
+        activity_id = query.get("activity_id", UNSET)
+        experiment_ids = query.get("experiment_id", UNSET)
+        table_id = query.get("table_id", UNSET)
+        source_ids = query.get("source_id", UNSET)
+        if not isinstance(activity_id, str) or experiment_ids is UNSET:
+            return True
+        if isinstance(experiment_ids, str):
+            experiment_ids = [experiment_ids]
+        experiment_ids = [str(exp) for exp in experiment_ids]
+
+        if isinstance(source_ids, str):
+            source_ids = [source_ids]
+        elif source_ids is UNSET or source_ids is None:
+            source_ids = []
+
+        ranges = []
+        for exp in experiment_ids:
+            if isinstance(table_id, str):
+                table_key = (activity_id, exp, table_id)
+                default = self.available_dates.get(
+                    table_key
+                ) or self.available_dates.get((activity_id, exp))
+                if source_ids:
+                    found = [
+                        self.available_dates.get((*table_key, str(src)), default)
+                        for src in source_ids
+                    ]
+                else:
+                    found = [default] + [
+                        rng
+                        for key, rng in self.available_dates.items()
+                        if len(key) == 4 and key[:3] == table_key
+                    ]
+                ranges.extend(
+                    (rng[0], self._last_timestamp(rng[1], table_id))
+                    for rng in found
+                    if rng is not None
+                )
+            else:
+                ranges.extend(
+                    rng
+                    for key, rng in self.available_dates.items()
+                    if key[:2] == (activity_id, exp)
+                )
+        if not ranges:
+            logger.debug(
+                "No known time range for activity_id=%s experiment_id=%s "
+                "table_id=%s; skipping time_slice availability check.",
+                activity_id,
+                experiment_ids,
+                table_id,
+            )
+            return True
+
+        first = min(r[0] for r in ranges)
+        last = max(r[1] for r in ranges)
+        described = f"{activity_id} {', '.join(experiment_ids)}"
+        if isinstance(table_id, str):
+            described += f" {table_id}"
+        if len(source_ids) == 1:
+            described += f" {source_ids[0]}"
+        return self._check_dates_overlap(
+            *dates,
+            pd.Timestamp(first),
+            pd.Timestamp(last),
+            label=f"{described} in the '{catalog_name}' catalog",
+            available=f"{first} to {last}",
+        )

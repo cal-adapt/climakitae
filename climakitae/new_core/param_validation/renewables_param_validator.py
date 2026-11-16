@@ -27,6 +27,13 @@ class RenewablesValidator(ParameterValidator):
 
     """
 
+    # Period covered by the data per (activity_id, experiment_id)
+    available_dates = {
+        ("WRF", "historical"): ("1980-12-31", "2013-12-31"),
+        ("WRF", "reanalysis"): ("1980-12-31", "2019-12-31"),
+        ("WRF", "ssp370"): ("2014-12-31", "2098-12-31"),
+    }
+
     def __init__(self, catalog: DataCatalog):
         """Initialize with  catalog of renewable energy datasets.
 
@@ -99,7 +106,24 @@ class RenewablesValidator(ParameterValidator):
         return defaults
 
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
+        """Catalog specific validation for the query.
+
+        Rejects a time_slice that falls entirely outside the years available
+        for the requested activity_id/experiment_id.
+
+        Parameters
+        ----------
+        query : Dict[str, Any]
+            The query to validate.
+
+        Returns
+        -------
+        Dict[str, Any] | None
+            The validated query if valid, None otherwise.
+        """
         logger.debug("Validating renewables query: %s", query)
+        if not self._check_time_slice_available(query, CATALOG_REN_ENERGY_GEN):
+            return None
         result = super()._is_valid_query(query)
         logger.info("Renewables query validation result: %s", bool(result))
         return result

@@ -8,6 +8,8 @@ that validates data catalog parameters for CADCAT catalog.
 import warnings
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from climakitae.core.constants import UNSET
 from climakitae.new_core.param_validation.sup3rcc_param_validator import (
     Sup3rCCValidator,
@@ -225,3 +227,78 @@ class TestSup3rCCValidator:
         # Check catalog-specific defaults
         assert defaults["drop_leap_days"] == "yes"
         assert defaults["concat"] == "time"  # Stays time for SSP
+
+
+class TestSup3rCCValidatorTimeSlice:
+    """Tests for time_slice availability checks in the Sup3rCC validator."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        mock_catalog = MagicMock()
+        mock_catalog.sup3rcc = MagicMock()
+        self.validator = Sup3rCCValidator(mock_catalog)
+
+    @staticmethod
+    def _query(time_slice, experiment_id="historical", table_id="1hr", source_id=None):
+        # activity_id omitted: the validator fills in "Sup3rCC"
+        query = {
+            "experiment_id": [experiment_id],
+            "table_id": table_id,
+            "variable_id": "tas",
+            "processes": {"time_slice": time_slice},
+        }
+        if source_id is not None:
+            query["source_id"] = source_id
+        return query
+
+    @pytest.mark.parametrize(
+        "experiment_id,time_slice",
+        [("historical", (1980, 1999)), ("ssp245", (2000, 2010))],
+    )
+    def test_out_of_range_rejected(self, experiment_id, time_slice):
+        """An out-of-range time_slice is rejected before the catalog search."""
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query"
+        ) as mock_parent:
+            assert (
+                self.validator.is_valid_query(self._query(time_slice, experiment_id))
+                is None
+            )
+        mock_parent.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "experiment_id,time_slice",
+        [("historical", (2000, 2014)), ("ssp245", (2050, 2060))],
+    )
+    def test_in_range_passes(self, experiment_id, time_slice):
+        """An in-range time_slice proceeds to the catalog search."""
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query",
+            return_value={"ok": True},
+        ):
+            assert self.validator.is_valid_query(
+                self._query(time_slice, experiment_id)
+            ) == {"ok": True}
+
+    @pytest.mark.parametrize(
+        "table_id,source_id,expected",
+        [
+            ("1hr", "TaiESM1", {"ok": True}),
+            ("1hr", "GFDL-CM4", None),
+            ("1hr", ["GFDL-CM4", "TaiESM1"], {"ok": True}),
+            ("1hr", None, {"ok": True}),
+            ("day", "TaiESM1", None),
+            ("day", None, None),
+        ],
+        ids=["taiesm1", "gfdl", "both", "no_source", "taiesm1_day", "day"],
+    )
+    def test_ssp245_after_2059_depends_on_model(self, table_id, source_id, expected):
+        """Only TaiESM1 hourly ssp245 data runs past 2059."""
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query",
+            return_value={"ok": True},
+        ):
+            result = self.validator.is_valid_query(
+                self._query((2060, 2070), "ssp245", table_id, source_id)
+            )
+        assert result == expected

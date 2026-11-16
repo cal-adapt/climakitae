@@ -683,3 +683,211 @@ class TestParameterValidatorIntegration:
                 result = validator.is_valid_query(query)
 
             assert result == {"variable": "tas", "experiment_id": "ssp245"}
+
+
+class _RangedValidator(ParameterValidator):
+    """Validator with a known available_dates table for time_slice tests."""
+
+    available_dates = {
+        ("WRF", "historical"): ("1980-09-01", "2014-08-31"),
+        ("WRF", "historical", "day"): ("1980-09-01", "2014-12-31"),
+        ("WRF", "ssp370"): ("2014-09-01", "2100-08-31"),
+        ("WRF", "ssp370", "1hr", "MODEL-A"): ("2014-09-01", "2059-12-31"),
+    }
+
+    def is_valid_query(self, query):
+        """Implement abstract method for testing."""
+        return self._is_valid_query(query)
+
+
+@pytest.fixture
+def ranged_validator():
+    """A validator with available_dates populated, without loading catalogs."""
+    with patch("climakitae.new_core.param_validation.abc_param_validation.DataCatalog"):
+        yield _RangedValidator()
+
+
+def _ts_query(
+    time_slice, activity_id="WRF", experiment_id=("historical",), table_id="1hr"
+):
+    """Build a query with a time_slice process."""
+    query = {
+        "activity_id": activity_id,
+        "experiment_id": list(experiment_id),
+        PROC_KEY: {"time_slice": time_slice},
+    }
+    if table_id is not None:
+        query["table_id"] = table_id
+    return query
+
+
+class TestGetTimeSliceDates:
+    """Tests for ParameterValidator._get_time_slice_dates."""
+
+    def test_tuple(self):
+        """Years are coerced to start/end of year."""
+        start, end = ParameterValidator._get_time_slice_dates(_ts_query((1990, 1991)))
+        assert start == pd.Timestamp("1990-01-01")
+        assert end.normalize() == pd.Timestamp("1991-12-31")
+
+    def test_dict_form(self):
+        """The dict form's 'dates' value is used."""
+        q = _ts_query({"dates": (1990, 1991), "seasons": "JJA"})
+        assert ParameterValidator._get_time_slice_dates(q) is not None
+
+    @pytest.mark.parametrize(
+        "processes",
+        [{}, {"time_slice": "bad"}, {"time_slice": (2005, 2000)}, UNSET],
+        ids=["absent", "malformed", "reversed", "processes_unset"],
+    )
+    def test_returns_none(self, processes):
+        """Absent, malformed or reversed slices are left to the processor validator."""
+        assert ParameterValidator._get_time_slice_dates({PROC_KEY: processes}) is None
+
+
+class TestCheckTimeSliceAvailable:
+    """Tests for ParameterValidator._check_time_slice_available."""
+
+    @pytest.mark.parametrize("time_slice", [(1902, 1904), ("1970-01-01", "1979-12-31")])
+    def test_no_overlap_fails(self, ranged_validator, time_slice, caplog):
+        """A slice entirely outside the available years fails."""
+        with caplog.at_level("WARNING"):
+            assert not ranged_validator._check_time_slice_available(
+                _ts_query(time_slice), "cadcat"
+            )
+        assert "covers 1980-09-01 to 2014-08-31" in caplog.text
+        assert "WRF historical 1hr in the 'cadcat' catalog" in caplog.text
+
+    def test_partial_overlap_warns(self, ranged_validator, caplog):
+        """A partial overlap passes with a warning."""
+        with caplog.at_level("WARNING"):
+            assert ranged_validator._check_time_slice_available(
+                _ts_query((1975, 1985)), "cadcat"
+            )
+        assert "extends beyond" in caplog.text
+
+    def test_in_range_passes_quietly(self, ranged_validator, caplog):
+        """A slice inside the available years passes with no warning."""
+        with caplog.at_level("WARNING"):
+            assert ranged_validator._check_time_slice_available(
+                _ts_query((1990, 2000)), "cadcat"
+            )
+        assert caplog.text == ""
+
+    def test_multiple_experiments_use_union(self, ranged_validator):
+        """Several experiments are checked against their combined period."""
+        q = _ts_query((2050, 2060), experiment_id=("historical", "ssp370"))
+        assert ranged_validator._check_time_slice_available(q, "cadcat")
+
+    def test_string_experiment_id(self, ranged_validator):
+        """A bare-string experiment_id is handled."""
+        q = _ts_query((1902, 1904))
+        q["experiment_id"] = "historical"
+        assert not ranged_validator._check_time_slice_available(q, "cadcat")
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            _ts_query((1902, 1904), experiment_id=("unknown",)),
+            {"activity_id": "WRF", PROC_KEY: {"time_slice": (1902, 1904)}},
+            {
+                "activity_id": ["WRF"],
+                "experiment_id": ["historical"],
+                PROC_KEY: {"time_slice": (1902, 1904)},
+            },
+            _ts_query((2005, 2000)),
+            {"activity_id": "WRF", "experiment_id": ["historical"]},
+        ],
+        ids=["unknown_exp", "no_experiment", "list_activity", "reversed", "no_slice"],
+    )
+    def test_skipped_when_unresolvable(self, ranged_validator, query):
+        """The check passes when the period or slice cannot be resolved."""
+        assert ranged_validator._check_time_slice_available(query, "cadcat")
+
+    @pytest.mark.parametrize(
+        "time_slice",
+        [("1980-01-01", "1980-06-30"), ("2014-09-01", "2014-12-31")],
+        ids=["before_first_date", "after_last_date"],
+    )
+    def test_partial_year_outside_dates_fails(self, ranged_validator, time_slice):
+        """Slices in the missing months of the first or last year fail."""
+        assert not ranged_validator._check_time_slice_available(
+            _ts_query(time_slice), "cadcat"
+        )
+
+    def test_last_date_is_inclusive(self, ranged_validator, caplog):
+        """A slice ending on the last available date passes quietly."""
+        with caplog.at_level("WARNING"):
+            assert ranged_validator._check_time_slice_available(
+                _ts_query(("2014-01-01", "2014-08-31")), "cadcat"
+            )
+        assert caplog.text == ""
+
+    def test_monthly_table_ends_on_last_stamp(self, ranged_validator, caplog):
+        """Monthly data covering through 2014-08-31 is stamped 2014-08-01."""
+        late_august = ("2014-08-15", "2014-08-31")
+        assert ranged_validator._check_time_slice_available(
+            _ts_query(late_august, table_id="1hr"), "cadcat"
+        )
+        with caplog.at_level("WARNING"):
+            assert not ranged_validator._check_time_slice_available(
+                _ts_query(late_august, table_id="mon"), "cadcat"
+            )
+        assert "1980-09-01 to 2014-08-01" in caplog.text
+
+    def test_yearly_table_ends_on_last_stamp(self, ranged_validator):
+        """Yearly data covering 2014 is stamped 2014-01-01."""
+        assert not ranged_validator._check_time_slice_available(
+            _ts_query(("2014-06-01", "2014-08-31"), table_id="yrmax"), "cadcat"
+        )
+        assert ranged_validator._check_time_slice_available(
+            _ts_query((2014, 2014), table_id="yrmax"), "cadcat"
+        )
+
+    def test_table_override_replaces_experiment_period(self, ranged_validator):
+        """A (activity, experiment, table) entry overrides the experiment's."""
+        fall_2014 = ("2014-09-01", "2014-12-31")
+        assert ranged_validator._check_time_slice_available(
+            _ts_query(fall_2014, table_id="day"), "cadcat"
+        )
+        assert not ranged_validator._check_time_slice_available(
+            _ts_query(fall_2014, table_id="1hr"), "cadcat"
+        )
+
+    def test_no_table_id_uses_widest_entry(self, ranged_validator):
+        """Without table_id, overrides count towards the experiment's period."""
+        q = _ts_query(("2014-09-01", "2014-12-31"), table_id=None)
+        assert ranged_validator._check_time_slice_available(q, "cadcat")
+
+    @pytest.mark.parametrize(
+        "source_id,expected",
+        [
+            ("MODEL-A", False),
+            ("MODEL-B", True),
+            (["MODEL-A", "MODEL-B"], True),
+            (None, True),
+        ],
+        ids=["override", "fallback", "list_uses_union", "no_source_uses_widest"],
+    )
+    def test_source_id_override(self, ranged_validator, source_id, expected):
+        """A (activity, experiment, table, source) entry applies to that model."""
+        q = _ts_query((2070, 2080), experiment_id=("ssp370",))
+        if source_id is not None:
+            q["source_id"] = source_id
+        assert ranged_validator._check_time_slice_available(q, "cadcat") is expected
+
+    def test_source_id_in_warning(self, ranged_validator, caplog):
+        """A single source_id is named in the warning."""
+        q = _ts_query((2070, 2080), experiment_id=("ssp370",))
+        q["source_id"] = "MODEL-A"
+        with caplog.at_level("WARNING"):
+            ranged_validator._check_time_slice_available(q, "cadcat")
+        assert "WRF ssp370 1hr MODEL-A" in caplog.text
+
+    def test_skipped_without_table(self):
+        """Validators with no available_dates skip the check."""
+        with patch(
+            "climakitae.new_core.param_validation.abc_param_validation.DataCatalog"
+        ):
+            validator = ConcreteValidator()
+        assert validator._check_time_slice_available(_ts_query((1902, 1904)), "x")
