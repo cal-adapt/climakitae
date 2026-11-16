@@ -80,5 +80,4 @@ def validate_time_slice_param(value: tuple[Any, Any], **kwargs) -> bool:
         logger.warning(msg)
         return False
 
-    # Availability against the data is checked by each catalog's validator.
     return True  # All parameters are valid

@@ -15,6 +15,8 @@ from climakitae.new_core.param_validation.abc_param_validation import (
 # Module logger
 logger = logging.getLogger(__name__)
 
+_SSPS = ("ssp245", "ssp370", "ssp585")
+
 
 @register_catalog_validator(CATALOG_CADCAT)
 class DataValidator(ParameterValidator):
@@ -27,38 +29,15 @@ class DataValidator(ParameterValidator):
 
     """
 
-    # Earliest first and latest last date on the time axes of the stored
-    # zarrs, per (activity_id, experiment_id, table_id). Monthly and yearly
-    # data are stamped at the start of each period. Individual sources can be
-    # narrower (e.g. some WRF historical daily data starts 1981-01-01).
+    # Period covered by the data per (activity_id, experiment_id)
     available_dates = {
-        ("LOCA2", "historical", "day"): ("1950-01-01", "2014-12-31"),
-        ("LOCA2", "historical", "mon"): ("1950-01-01", "2014-12-01"),
-        ("LOCA2", "historical", "yrmax"): ("1950-01-01", "2014-01-01"),
-        ("LOCA2", "ssp245", "day"): ("2015-01-01", "2100-12-31"),
-        ("LOCA2", "ssp245", "mon"): ("2015-01-01", "2100-12-01"),
-        ("LOCA2", "ssp245", "yrmax"): ("2015-01-01", "2100-01-01"),
-        ("LOCA2", "ssp370", "day"): ("2015-01-01", "2100-12-31"),
-        ("LOCA2", "ssp370", "mon"): ("2015-01-01", "2100-12-01"),
-        ("LOCA2", "ssp370", "yrmax"): ("2015-01-01", "2100-01-01"),
-        ("LOCA2", "ssp585", "day"): ("2015-01-01", "2100-12-31"),
-        ("LOCA2", "ssp585", "mon"): ("2015-01-01", "2100-12-01"),
-        ("LOCA2", "ssp585", "yrmax"): ("2015-01-01", "2100-01-01"),
-        ("WRF", "historical", "1hr"): ("1980-09-01", "2014-08-31"),
+        ("LOCA2", "historical"): ("1950-01-01", "2014-12-31"),
+        **{("LOCA2", ssp): ("2015-01-01", "2100-12-31") for ssp in _SSPS},
+        ("WRF", "historical"): ("1980-09-01", "2014-08-31"),
+        # Some daily variables run to the end of 2014
         ("WRF", "historical", "day"): ("1980-09-01", "2014-12-31"),
-        ("WRF", "historical", "mon"): ("1980-09-01", "2014-08-01"),
-        ("WRF", "reanalysis", "1hr"): ("1980-09-01", "2020-08-31"),
-        ("WRF", "reanalysis", "day"): ("1980-09-01", "2020-08-31"),
-        ("WRF", "reanalysis", "mon"): ("1980-09-01", "2020-08-01"),
-        ("WRF", "ssp245", "1hr"): ("2014-09-01", "2100-09-01"),
-        ("WRF", "ssp245", "day"): ("2014-09-01", "2100-08-31"),
-        ("WRF", "ssp245", "mon"): ("2014-09-01", "2100-08-01"),
-        ("WRF", "ssp370", "1hr"): ("2014-09-01", "2100-08-31"),
-        ("WRF", "ssp370", "day"): ("2014-09-01", "2100-08-31"),
-        ("WRF", "ssp370", "mon"): ("2014-09-01", "2100-08-01"),
-        ("WRF", "ssp585", "1hr"): ("2014-09-01", "2100-08-31"),
-        ("WRF", "ssp585", "day"): ("2014-09-01", "2100-08-31"),
-        ("WRF", "ssp585", "mon"): ("2014-09-01", "2100-08-01"),
+        ("WRF", "reanalysis"): ("1980-09-01", "2020-08-31"),
+        **{("WRF", ssp): ("2014-09-01", "2100-08-31") for ssp in _SSPS},
     }
 
     def __init__(self, catalog: DataCatalog):

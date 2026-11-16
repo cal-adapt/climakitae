@@ -251,11 +251,13 @@ class ParameterValidator(ABC):
             "update_attributes": UNSET,
         }
 
-    # First and last dates ("YYYY-MM-DD") on the time axis of the data for each
-    # (activity_id, experiment_id, table_id) in this catalog. Subclasses
-    # populate this to enable the time_slice availability check; leave empty
-    # to skip it.
-    available_dates: Dict[Tuple[str, str, str], Tuple[str, str]] = {}
+    # Period covered by the data ("YYYY-MM-DD" first and last day), keyed by
+    # (activity_id, experiment_id). A key with a third element, table_id,
+    # overrides the period for that table only.
+    available_dates: Dict[Tuple[str, ...], Tuple[str, str]] = {}
+
+    # Tables stamped on the first day of each period
+    _PERIOD_START_TABLES = {"mon": "M", "yrmax": "Y"}
 
     @abstractmethod
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:
@@ -805,17 +807,21 @@ class ParameterValidator(ABC):
             )
         return True
 
+    def _last_timestamp(self, last: str, table_id: str) -> str:
+        """Return the last timestamp in ``table_id`` for data covering up to ``last``."""
+        freq = self._PERIOD_START_TABLES.get(table_id)
+        if freq is None:
+            return last
+        return pd.Period(last, freq=freq).start_time.strftime("%Y-%m-%d")
+
     def _check_time_slice_available(
         self, query: Dict[str, Any], catalog_name: str
     ) -> bool:
         """Check the requested time_slice against ``available_dates``.
 
-        The period checked runs from the earliest first date to the latest
-        last date of the datasets matching activity_id, experiment_id and
-        table_id (all tables if table_id is not set). With several
-        experiments, their combined period is used. Skipped when no
-        time_slice is requested, when ``available_dates`` is empty, or when
-        the query does not resolve to a known period.
+        Uses the table_id override if there is one, otherwise the experiment's
+        period. With several experiments, their combined period is used.
+        Skipped when the query does not resolve to a known period.
 
         Parameters
         ----------
@@ -842,13 +848,20 @@ class ParameterValidator(ABC):
             experiment_ids = [experiment_ids]
         experiment_ids = [str(exp) for exp in experiment_ids]
 
-        ranges = [
-            rng
-            for (act, exp, table), rng in self.available_dates.items()
-            if act == activity_id
-            and exp in experiment_ids
-            and (not isinstance(table_id, str) or table == table_id)
-        ]
+        ranges = []
+        for exp in experiment_ids:
+            if isinstance(table_id, str):
+                rng = self.available_dates.get(
+                    (activity_id, exp, table_id)
+                ) or self.available_dates.get((activity_id, exp))
+                if rng is not None:
+                    ranges.append((rng[0], self._last_timestamp(rng[1], table_id)))
+            else:
+                ranges.extend(
+                    rng
+                    for key, rng in self.available_dates.items()
+                    if key[:2] == (activity_id, exp)
+                )
         if not ranges:
             logger.debug(
                 "No known time range for activity_id=%s experiment_id=%s "

@@ -689,9 +689,9 @@ class _RangedValidator(ParameterValidator):
     """Validator with a known available_dates table for time_slice tests."""
 
     available_dates = {
-        ("WRF", "historical", "1hr"): ("1980-09-01", "2014-08-31"),
-        ("WRF", "historical", "mon"): ("1980-09-01", "2014-08-01"),
-        ("WRF", "ssp370", "1hr"): ("2014-09-01", "2100-08-31"),
+        ("WRF", "historical"): ("1980-09-01", "2014-08-31"),
+        ("WRF", "historical", "day"): ("1980-09-01", "2014-12-31"),
+        ("WRF", "ssp370"): ("2014-09-01", "2100-08-31"),
     }
 
     def is_valid_query(self, query):
@@ -822,24 +822,40 @@ class TestCheckTimeSliceAvailable:
             )
         assert caplog.text == ""
 
-    def test_table_id_selects_range(self, ranged_validator):
-        """Monthly data stamped 2014-08-01 has nothing after that date."""
+    def test_monthly_table_ends_on_last_stamp(self, ranged_validator, caplog):
+        """Monthly data covering through 2014-08-31 is stamped 2014-08-01."""
         late_august = ("2014-08-15", "2014-08-31")
         assert ranged_validator._check_time_slice_available(
             _ts_query(late_august, table_id="1hr"), "cadcat"
         )
+        with caplog.at_level("WARNING"):
+            assert not ranged_validator._check_time_slice_available(
+                _ts_query(late_august, table_id="mon"), "cadcat"
+            )
+        assert "1980-09-01 to 2014-08-01" in caplog.text
+
+    def test_yearly_table_ends_on_last_stamp(self, ranged_validator):
+        """Yearly data covering 2014 is stamped 2014-01-01."""
         assert not ranged_validator._check_time_slice_available(
-            _ts_query(late_august, table_id="mon"), "cadcat"
+            _ts_query(("2014-06-01", "2014-08-31"), table_id="yrmax"), "cadcat"
+        )
+        assert ranged_validator._check_time_slice_available(
+            _ts_query((2014, 2014), table_id="yrmax"), "cadcat"
         )
 
-    def test_no_table_id_uses_all_tables(self, ranged_validator):
-        """Without table_id, the widest range across tables is used."""
-        q = _ts_query(("2014-08-15", "2014-08-31"), table_id=None)
-        assert ranged_validator._check_time_slice_available(q, "cadcat")
+    def test_table_override_replaces_experiment_period(self, ranged_validator):
+        """A (activity, experiment, table) entry overrides the experiment's."""
+        fall_2014 = ("2014-09-01", "2014-12-31")
+        assert ranged_validator._check_time_slice_available(
+            _ts_query(fall_2014, table_id="day"), "cadcat"
+        )
+        assert not ranged_validator._check_time_slice_available(
+            _ts_query(fall_2014, table_id="1hr"), "cadcat"
+        )
 
-    def test_unknown_table_id_skips_check(self, ranged_validator):
-        """A table_id with no known range skips the check."""
-        q = _ts_query((1902, 1904), table_id="day")
+    def test_no_table_id_uses_widest_entry(self, ranged_validator):
+        """Without table_id, overrides count towards the experiment's period."""
+        q = _ts_query(("2014-09-01", "2014-12-31"), table_id=None)
         assert ranged_validator._check_time_slice_available(q, "cadcat")
 
     def test_skipped_without_table(self):
