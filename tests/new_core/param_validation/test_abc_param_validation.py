@@ -692,6 +692,7 @@ class _RangedValidator(ParameterValidator):
         ("WRF", "historical"): ("1980-09-01", "2014-08-31"),
         ("WRF", "historical", "day"): ("1980-09-01", "2014-12-31"),
         ("WRF", "ssp370"): ("2014-09-01", "2100-08-31"),
+        ("WRF", "ssp370", "1hr", "MODEL-A"): ("2014-09-01", "2059-12-31"),
     }
 
     def is_valid_query(self, query):
@@ -857,6 +858,31 @@ class TestCheckTimeSliceAvailable:
         """Without table_id, overrides count towards the experiment's period."""
         q = _ts_query(("2014-09-01", "2014-12-31"), table_id=None)
         assert ranged_validator._check_time_slice_available(q, "cadcat")
+
+    @pytest.mark.parametrize(
+        "source_id,expected",
+        [
+            ("MODEL-A", False),
+            ("MODEL-B", True),
+            (["MODEL-A", "MODEL-B"], True),
+            (None, True),
+        ],
+        ids=["override", "fallback", "list_uses_union", "no_source_uses_widest"],
+    )
+    def test_source_id_override(self, ranged_validator, source_id, expected):
+        """A (activity, experiment, table, source) entry applies to that model."""
+        q = _ts_query((2070, 2080), experiment_id=("ssp370",))
+        if source_id is not None:
+            q["source_id"] = source_id
+        assert ranged_validator._check_time_slice_available(q, "cadcat") is expected
+
+    def test_source_id_in_warning(self, ranged_validator, caplog):
+        """A single source_id is named in the warning."""
+        q = _ts_query((2070, 2080), experiment_id=("ssp370",))
+        q["source_id"] = "MODEL-A"
+        with caplog.at_level("WARNING"):
+            ranged_validator._check_time_slice_available(q, "cadcat")
+        assert "WRF ssp370 1hr MODEL-A" in caplog.text
 
     def test_skipped_without_table(self):
         """Validators with no available_dates skip the check."""

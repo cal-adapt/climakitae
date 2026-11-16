@@ -252,8 +252,8 @@ class ParameterValidator(ABC):
         }
 
     # Period covered by the data ("YYYY-MM-DD" first and last day), keyed by
-    # (activity_id, experiment_id). A key with a third element, table_id,
-    # overrides the period for that table only.
+    # (activity_id, experiment_id). Optional table_id and source_id elements
+    # override the period for that table or model.
     available_dates: Dict[Tuple[str, ...], Tuple[str, str]] = {}
 
     # Tables stamped on the first day of each period
@@ -819,8 +819,8 @@ class ParameterValidator(ABC):
     ) -> bool:
         """Check the requested time_slice against ``available_dates``.
 
-        Uses the table_id override if there is one, otherwise the experiment's
-        period. With several experiments, their combined period is used.
+        Uses the most specific matching entry. Without a source_id, model
+        overrides count towards the period. With several experiments, their combined period is used.
         Skipped when the query does not resolve to a known period.
 
         Parameters
@@ -842,20 +842,41 @@ class ParameterValidator(ABC):
         activity_id = query.get("activity_id", UNSET)
         experiment_ids = query.get("experiment_id", UNSET)
         table_id = query.get("table_id", UNSET)
+        source_ids = query.get("source_id", UNSET)
         if not isinstance(activity_id, str) or experiment_ids is UNSET:
             return True
         if isinstance(experiment_ids, str):
             experiment_ids = [experiment_ids]
         experiment_ids = [str(exp) for exp in experiment_ids]
 
+        if isinstance(source_ids, str):
+            source_ids = [source_ids]
+        elif source_ids is UNSET or source_ids is None:
+            source_ids = []
+
         ranges = []
         for exp in experiment_ids:
             if isinstance(table_id, str):
-                rng = self.available_dates.get(
-                    (activity_id, exp, table_id)
+                table_key = (activity_id, exp, table_id)
+                default = self.available_dates.get(
+                    table_key
                 ) or self.available_dates.get((activity_id, exp))
-                if rng is not None:
-                    ranges.append((rng[0], self._last_timestamp(rng[1], table_id)))
+                if source_ids:
+                    found = [
+                        self.available_dates.get((*table_key, str(src)), default)
+                        for src in source_ids
+                    ]
+                else:
+                    found = [default] + [
+                        rng
+                        for key, rng in self.available_dates.items()
+                        if len(key) == 4 and key[:3] == table_key
+                    ]
+                ranges.extend(
+                    (rng[0], self._last_timestamp(rng[1], table_id))
+                    for rng in found
+                    if rng is not None
+                )
             else:
                 ranges.extend(
                     rng
@@ -877,6 +898,8 @@ class ParameterValidator(ABC):
         described = f"{activity_id} {', '.join(experiment_ids)}"
         if isinstance(table_id, str):
             described += f" {table_id}"
+        if len(source_ids) == 1:
+            described += f" {source_ids[0]}"
         return self._check_dates_overlap(
             *dates,
             pd.Timestamp(first),

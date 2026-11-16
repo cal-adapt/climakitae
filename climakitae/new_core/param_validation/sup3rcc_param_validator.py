@@ -30,9 +30,9 @@ class Sup3rCCValidator(ParameterValidator):
     # Period covered by the data per (activity_id, experiment_id)
     available_dates = {
         ("Sup3rCC", "historical"): ("2000-01-01", "2014-12-31"),
-        ("Sup3rCC", "ssp245"): ("2015-01-01", "2099-12-31"),
-        # Daily data ends in 2059
-        ("Sup3rCC", "ssp245", "day"): ("2015-01-01", "2059-12-31"),
+        ("Sup3rCC", "ssp245"): ("2015-01-01", "2059-12-31"),
+        # TaiESM1 hourly runs to 2099
+        ("Sup3rCC", "ssp245", "1hr", "TaiESM1"): ("2015-01-01", "2099-12-31"),
     }
 
     def __init__(self, catalog: DataCatalog):

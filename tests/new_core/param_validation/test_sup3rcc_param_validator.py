@@ -239,14 +239,17 @@ class TestSup3rCCValidatorTimeSlice:
         self.validator = Sup3rCCValidator(mock_catalog)
 
     @staticmethod
-    def _query(time_slice, experiment_id="historical", table_id="1hr"):
+    def _query(time_slice, experiment_id="historical", table_id="1hr", source_id=None):
         # activity_id omitted: the validator fills in "Sup3rCC"
-        return {
+        query = {
             "experiment_id": [experiment_id],
             "table_id": table_id,
             "variable_id": "tas",
             "processes": {"time_slice": time_slice},
         }
+        if source_id is not None:
+            query["source_id"] = source_id
+        return query
 
     @pytest.mark.parametrize(
         "experiment_id,time_slice",
@@ -278,16 +281,24 @@ class TestSup3rCCValidatorTimeSlice:
             ) == {"ok": True}
 
     @pytest.mark.parametrize(
-        "table_id,expected",
-        [("day", None), ("1hr", {"ok": True})],
+        "table_id,source_id,expected",
+        [
+            ("1hr", "TaiESM1", {"ok": True}),
+            ("1hr", "GFDL-CM4", None),
+            ("1hr", ["GFDL-CM4", "TaiESM1"], {"ok": True}),
+            ("1hr", None, {"ok": True}),
+            ("day", "TaiESM1", None),
+            ("day", None, None),
+        ],
+        ids=["taiesm1", "gfdl", "both", "no_source", "taiesm1_day", "day"],
     )
-    def test_daily_ssp245_ends_in_2059(self, table_id, expected):
-        """Daily ssp245 data ends in 2059; hourly runs to 2099."""
+    def test_ssp245_after_2059_depends_on_model(self, table_id, source_id, expected):
+        """Only TaiESM1 hourly ssp245 data runs past 2059."""
         with patch(
             "climakitae.new_core.param_validation.abc_param_validation.ParameterValidator._is_valid_query",
             return_value={"ok": True},
         ):
             result = self.validator.is_valid_query(
-                self._query((2060, 2070), "ssp245", table_id)
+                self._query((2060, 2070), "ssp245", table_id, source_id)
             )
         assert result == expected
