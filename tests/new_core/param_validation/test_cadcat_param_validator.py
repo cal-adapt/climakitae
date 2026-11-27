@@ -369,6 +369,64 @@ class TestDataValidator:
         )
         assert query == original_query
 
+    @pytest.mark.parametrize("variable_id", ["wind_speed_10m", ["wind_speed_10m"]])
+    def test_is_valid_query_plans_single_derived_variable(self, variable_id):
+        """Plan dependency retrieval for one derived variable."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["WRF", "WRF"],
+                "institution_id": ["UCLA", "UCLA"],
+                "table_id": ["1hr", "1hr"],
+                "grid_label": ["d03", "d03"],
+                "variable_id": ["u10", "v10"],
+            }
+        )
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 2)
+        query = {
+            "activity_id": "WRF",
+            "institution_id": "UCLA",
+            "table_id": "1hr",
+            "grid_label": "d03",
+            "variable_id": variable_id,
+        }
+
+        result = self.validator.is_valid_query(query)
+
+        assert result["variable_id"] == variable_id
+        assert result["_multi_variable_query"] is True
+        assert result["_requested_variables"] == ["wind_speed_10m"]
+        assert result["_derived_variables"] == ["wind_speed_10m"]
+        assert result["_catalog_variable_ids"] == ["u10", "v10"]
+        assert self.validator.catalog.search.call_args.kwargs["variable_id"] == [
+            "u10",
+            "v10",
+        ]
+
+    def test_is_valid_query_does_not_plan_single_native_variable(self):
+        """Keep the existing path for one native variable."""
+        self.validator.catalog.df = pd.DataFrame(
+            {
+                "activity_id": ["WRF"],
+                "institution_id": ["UCLA"],
+                "table_id": ["1hr"],
+                "grid_label": ["d03"],
+                "variable_id": ["u10"],
+            }
+        )
+        self.validator.catalog.search.return_value = MagicMock(__len__=lambda self: 1)
+        query = {
+            "activity_id": "WRF",
+            "institution_id": "UCLA",
+            "table_id": "1hr",
+            "grid_label": "d03",
+            "variable_id": "u10",
+        }
+
+        result = self.validator.is_valid_query(query)
+
+        assert "_multi_variable_query" not in result
+        assert self.validator.catalog.search.call_args.kwargs["variable_id"] == "u10"
+
     def test_is_valid_query_rejects_missing_derived_dependencies_under_constraints(
         self, caplog
     ):

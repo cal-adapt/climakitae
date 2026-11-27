@@ -44,7 +44,7 @@ Examples
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type
+from typing import Any, Callable, Dict, Type
 
 from climakitae.core.constants import PROC_KEY, UNSET
 from climakitae.new_core.data_access.data_access import DataCatalog
@@ -286,54 +286,30 @@ class ParameterValidator(ABC):
 
         """
 
-    def _check_derived_variable(
-        self, variable_id: str | List[str]
-    ) -> Tuple[bool, Optional[List[str]], Optional[str]]:
-        """Check if a variable_id is a derived variable.
-
-        Parameters
-        ----------
-        variable_id : str
-            The variable ID to check.
-
-        Returns
-        -------
-        Tuple[bool, Optional[List[str]], Optional[str]]
-            A tuple of (is_derived, source_variables, derived_name):
-            - is_derived: True if this is a derived variable
-            - source_variables: List of source variable IDs needed, or None
-            - derived_name: The name of the derived variable, or None
-
-        """
-        try:
-            from climakitae.new_core.derived_variables import list_derived_variables
-
-            derived_vars = list_derived_variables()
-            if isinstance(variable_id, str):
-                if variable_id in derived_vars:
-                    info = derived_vars[variable_id]
-                    return True, info.depends_on, variable_id
-
-        except ImportError:
-            pass
-        return False, None, None
-
     def _build_multi_variable_plan(self) -> Dict[str, Any] | None:
         """Build a catalog-field plan for an ordered multi-variable request.
+
+        A single derived variable is also planned, so its dependencies are
+        retrieved as separate fields and derived after spatial subsetting.
 
         Returns
         -------
         dict or None
             Query-local metadata for retrieval, or ``None`` when any requested
-            native field or derived dependency is unavailable.
+            native field or derived dependency is unavailable. An empty dict
+            means a single native variable that needs no plan.
         """
         variable_ids = self.all_catalog_keys.get("variable_id", UNSET)
-        if not isinstance(variable_ids, (list, tuple)) or len(variable_ids) < 2:
+        if isinstance(variable_ids, str):
+            variable_ids = [variable_ids]
+        if not isinstance(variable_ids, (list, tuple)) or not variable_ids:
             return {}
 
         from climakitae.new_core.derived_variables import list_derived_variables
 
         derived_variables = list_derived_variables()
+        if len(variable_ids) == 1 and variable_ids[0] not in derived_variables:
+            return {}
         requested_variables = list(variable_ids)
         derived_names = [
             variable
@@ -466,68 +442,6 @@ class ParameterValidator(ABC):
             return None
         self.all_catalog_keys.update(variable_plan)
 
-        # Check if variable_id is a derived variable
-        # For derived variables, we need to search for source variables in the catalog,
-        # then compute the derived variable during data loading.
-        derived_var_name = None
-        source_vars = None
-        original_variable_id = self.all_catalog_keys.get("variable_id", UNSET)
-        if (
-            original_variable_id is not UNSET
-            and not self.all_catalog_keys.get("_multi_variable_query", False)
-            and not self.all_catalog_keys.get("_hdp_variable_query", False)
-        ):
-            is_derived, source_vars, derived_name = self._check_derived_variable(
-                original_variable_id
-            )
-            if is_derived:
-                logger.info(
-                    "Detected derived variable '%s' depending on %s",
-                    derived_name,
-                    source_vars,
-                )
-                derived_var_name = derived_name
-                # Validate that all source variables exist in the catalog
-                # with the user's table_id/activity_id constraints before proceeding.
-                # This catches cases like querying a derived variable at a temporal
-                # resolution where only some source vars exist (e.g., u10/v10 not
-                # available at monthly resolution).
-                try:
-                    from climakitae.new_core.param_validation.derived_variable_param_validator import (
-                        check_derived_variable_dependencies,
-                    )
-
-                    catalog_df = getattr(self.catalog, "df", None)
-                    activity_id = self.all_catalog_keys.get("activity_id", UNSET)
-                    table_id = self.all_catalog_keys.get("table_id", UNSET)
-                    deps_ok = check_derived_variable_dependencies(
-                        source_vars,
-                        catalog_df,
-                        activity_id=activity_id,
-                        table_id=table_id,
-                    )
-                    if not deps_ok:
-                        logger.warning(
-                            "Cannot compute derived variable '%s': not all source "
-                            "variables %s are available with the requested constraints "
-                            "(activity_id=%s, table_id=%s). Check your query parameters.",
-                            derived_name,
-                            source_vars,
-                            activity_id,
-                            table_id,
-                        )
-                        return None
-                except ImportError as e:
-                    logger.debug("Could not check derived variable dependencies: %s", e)
-
-                # Keep derived variable name as variable_id for catalog search
-                # intake-esm registry will automatically expand to search for
-                # all source variables via its query parameter
-                logger.info(
-                    "Searching catalog with derived variable '%s' (registry will expand)",
-                    derived_name,
-                )
-
         requested_sources = self.all_catalog_keys.get("source_id", UNSET)
         if requested_sources is not UNSET:
             requested_sources = (
@@ -590,14 +504,6 @@ class ParameterValidator(ABC):
         if len(subset) != 0:
             logger.info("Found %d datasets matching your query.", len(subset))
             logger.info("Checking processes ...")
-            # Track derived variable for metadata/context
-            if derived_var_name:
-                self.all_catalog_keys["_derived_variable"] = derived_var_name
-                self.all_catalog_keys["_source_variables"] = source_vars
-                logger.info(
-                    "Query will compute derived variable '%s' via intake-esm registry",
-                    derived_var_name,
-                )
             return self.all_catalog_keys if self._has_valid_processes(query) else None
 
         if self.all_catalog_keys.get("_multi_variable_query", False):
@@ -710,14 +616,6 @@ class ParameterValidator(ABC):
         if not df.empty:
             logger.info("Found up to %d datasets matching your query.", len(df))
             logger.info("Checking processes ...")
-            # Track derived variable for metadata/context
-            if derived_var_name:
-                self.all_catalog_keys["_derived_variable"] = derived_var_name
-                self.all_catalog_keys["_source_variables"] = source_vars
-                logger.info(
-                    "Query will compute derived variable '%s' via intake-esm registry",
-                    derived_var_name,
-                )
             return self.all_catalog_keys if self._has_valid_processes(query) else None
         return None
 
