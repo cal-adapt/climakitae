@@ -77,7 +77,7 @@ The `new_core` module uses a **pipeline architecture** with layered responsibili
 
 ### 1. ClimateData (User Interface)
 
-**File**: `climakitae/new_core/user_interface.py` (~1200 lines)
+**File**: `climakitae/new_core/user_interface.py` (~1700 lines)
 
 **Responsibility**: Fluent API entry point for users. All setter methods chain and return `self`.
 
@@ -183,7 +183,7 @@ result = dataset.execute(query, context=context)
 
 ### 4. DataCatalog (Data Access Layer) {#data-access-layer}
 
-**File**: `climakitae/new_core/data_access/data_access.py` (~620 lines)
+**File**: `climakitae/new_core/data_access/data_access.py` (~1150 lines)
 
 **Responsibility**: Thread-safe singleton managing all catalog connections.
 
@@ -237,7 +237,7 @@ self._current_key = catalog_key  # DON'T DO THIS
 
 ### 5. ParameterValidator (Registry Pattern)
 
-**File**: `climakitae/new_core/param_validation/abc_param_validation.py` (~550 lines)
+**File**: `climakitae/new_core/param_validation/abc_param_validation.py` (~750 lines)
 
 **Responsibility**: Validate and normalize query parameters.
 
@@ -284,6 +284,8 @@ validator.load_catalog_df()
 matches = validator.find_catalog_entries({"variable_id": "t2max"})
 
 # Get default processors for this query
+# (always update_attributes; derive_variables when variable_id names a
+# registered derived variable; catalog validators add their own defaults)
 processors = validator.get_default_processors(query)
 
 # Suggest alternatives for typos
@@ -328,9 +330,10 @@ class MyProcessor(DataProcessor):
 
 ```
 0–10     : Pre-processing (filter_unadjusted_models=0, drop_leap_days=1,
-          convert_units=5, warming_level=10) — catalog refinement & GWL subset
-50–70    : Combination + adjustment + spatial
-          (concat=50, bias_adjust_model_to_station=60, clip=65,
+          clip=2, derive_variables=3, convert_units=5, warming_level=10)
+          — catalog refinement, spatial subset, derived variables & GWL subset
+50–70    : Combination + adjustment
+          (concat=50, bias_adjust_model_to_station=60,
            convert_to_local_time=70)
 150–7500 : Temporal subsetting & metric computation
           (time_slice=150, metric_calc=7500)
@@ -536,7 +539,7 @@ Components register at import time using decorators:
 
 ```python
 # Processor registration
-@register_processor("clip", priority=65)
+@register_processor("clip", priority=2)
 class Clip(DataProcessor):
     ...
 

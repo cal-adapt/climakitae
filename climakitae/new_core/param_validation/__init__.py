@@ -32,6 +32,7 @@ from .clip_param_validator import validate_clip_param
 from .concat_param_validator import validate_concat_param
 from .convert_to_local_time_param_validator import validate_convert_to_local_time_param
 from .convert_units_param_validator import validate_convert_units_param
+from .derive_variables_param_validator import validate_derive_variables_param
 from .drop_leap_days_param_validator import validate_drop_leap_days_param
 from .export_param_validator import validate_export_param
 from .filter_unadjusted_models_param_validator import (
@@ -54,6 +55,7 @@ __all__ = [
     "validate_concat_param",
     "validate_convert_to_local_time_param",
     "validate_convert_units_param",
+    "validate_derive_variables_param",
     "validate_drop_leap_days_param",
     "validate_export_param",
     "validate_filter_unadjusted_models_param",

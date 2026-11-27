@@ -1,6 +1,6 @@
 # Processor: Clip
 
-**Registry key:** `clip` &nbsp;|&nbsp; **Priority:** 65 &nbsp;|&nbsp; **Category:** Spatial Processing
+**Registry key:** `clip` &nbsp;|&nbsp; **Priority:** 2 &nbsp;|&nbsp; **Category:** Spatial Processing
 
 Subset climate data to specific geographic regions, points, or boundaries. Extract data for counties, watersheds, weather stations, or custom lat/lon coordinates with automatic nearest-gridcell location and coordinate system handling.
 
@@ -56,13 +56,22 @@ Clip to specific weather station locations from the HadISD station network.
 ### Mode 3: Single Point (Closest Valid Gridcell)
 Extract data for a single geographic point. The processor first selects the geographically closest gridcell; if that cell is all-NaN (common in WRF data near coastlines/mountains/masked regions) it falls back to a **3×3 index-space neighborhood** around the nearest cell and returns the **mean of the valid (non-NaN) cells in that neighborhood**.
 
-For multi-variable queries, point selection instead uses one common geographic
-cell for every requested field. Selection is independent of field values and
+For a Dataset with two or more measurement fields, point selection instead
+uses one common geographic cell for every field. This includes multi-variable
+queries and the dependency fields of a derived variable (for example `tasmax`
+and `tasmin` for `diurnal_temperature_range_loca`), because `clip` runs before
+`derive_variables`. Selection is independent of field values and
 request order: a missing measurement does not move the cell or trigger
 neighbor averaging. An applicable explicit spatial mask is still honored.
-Single-variable queries keep the behavior described above.
+Datasets with one measurement field keep the behavior described above.
 
-**Algorithm (`_clip_data_to_point`, line 665):**
+`clip` runs before `concat`, so it receives one dataset per simulation. For
+single-variable data, the processor finds the point cells once for each
+spatial grid and uses the same cells for every simulation on that grid
+(`_clip_dict_to_point`). The first simulation on each grid decides whether
+the nearest cell is valid.
+
+**Algorithm (`_clip_data_to_point`, single measurement field):**
 
 1. Call `get_closest_gridcell(dataset, lat, lon)` and check if it has valid data on a sample slice.
 2. If valid, return that cell.
@@ -126,13 +135,14 @@ When providing multiple point coordinates:
 
 ### Multi-variable Point Selection
 
-Multi-variable single- and multi-point queries share the same common-cell
-policy. All requested variables use the selected cell, and existing NaN
+Single- and multi-point clips of a Dataset with two or more measurement
+fields (a multi-variable query, or the dependency fields of a derived
+variable) share the same common-cell policy. All fields use the selected cell, and existing NaN
 measurements remain NaN. The processor does not compute measurement arrays to
 choose among cells.
 
 ### Coordinate System Handling
-- **Data CRS detection** (`_clip_data_with_geom`, line 595): if `data.rio.crs` is unset, the processor detects WRF data by the presence of a `Lambert_Conformal` coordinate and writes the CRS from `spatial_ref` or CF-convention attributes; otherwise it assumes EPSG:4326 (LOCA2 lat/lon).
+- **Data CRS detection** (`_clip_data_with_geom`): if `data.rio.crs` is unset, the processor detects WRF data by the presence of a `Lambert_Conformal` coordinate and writes the CRS from `spatial_ref` or CF-convention attributes; otherwise it assumes EPSG:4326 (LOCA2 lat/lon).
 - **Boundary CRS**: boundaries are assumed to be EPSG:4326 (a warning is logged if no CRS is set).
 - **Reprojection direction**: when `data.rio.crs != gdf.crs`, the **GeoDataFrame is reprojected to the data's CRS** — the data stays in its native projection (i.e., WRF output remains in Lambert Conformal).
 
@@ -152,7 +162,7 @@ For multi-point clipping, `_clip_data_to_points_as_mask` either applies a points
 When `persist=True` (constructor arg or `persist` key in dict input), the processor calls `.compute()` on the result before returning. This collapses the Dask task graph and is recommended for large multi-point clipping followed by 1-in-X analysis or other graph-heavy operations.
 
 ### Boundary Catalog Access
-- Boundaries loaded lazily via `_get_boundary_geometry` (line 1443) / `_get_multi_boundary_geometry` (line 1683).
+- Boundaries loaded lazily via `_get_boundary_geometry` / `_get_multi_boundary_geometry`.
 - Sourced from S3 intake-esm catalog and cached for the process lifetime.
 
 ## Parameters
@@ -168,7 +178,7 @@ When `persist=True` (constructor arg or `persist` key in dict input), the proces
 | Method | Link to Code | Purpose |
 |--------|-------|---------|
 | `__init__` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A__init__+path%3Aclip.py&type=code) | Parse `value`, set mode flags (`is_single_point`, `is_multi_point`, `separated`, `extract_points`, `persist`) |
-| `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Aclip.py&type=code) | Two-phase: parse value → geom (line 303), then dispatch over result type (line 386); optional `.compute()` if `persist` |
+| `execute` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aexecute+path%3Aclip.py&type=code) | Two-phase: parse value → geom, then dispatch over result type; optional `.compute()` if `persist` |
 | `update_context` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aupdate_context+path%3Aclip.py&type=code) | Record clipped-region metadata under `new_attrs["clip"]` |
 | `set_data_accessor` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3Aset_data_accessor+path%3Aclip.py&type=code) | Receive `DataCatalog` reference for boundary/station lookups |
 | `_get_station_coordinates` | [View on Github](https://github.com/search?q=repo%3Acal-adapt%2Fclimakitae+symbol%3A_get_station_coordinates+path%3Aclip.py&type=code) | HadISD station code → (lat, lon, metadata) |
@@ -348,15 +358,15 @@ data = (ClimateData()
 
 Clip resolves `self.value` to a geometry (or to a point-mode flag) in this order:
 
-1. **String** → station id (`is_station_identifier`, line 305) → file path (`os.path.exists`, line 318) → boundary key (`_get_boundary_geometry`, line 320).
-2. **List** → all-station list (line 324) → lat/lon tuples (`is_multi_point`, line 340) → separated boundaries (line 343) → union of boundaries (`_get_multi_boundary_geometry`, line 345).
-3. **Tuple** → single `(lat, lon)` (line 347) or bbox `((lat_min, lat_max), (lon_min, lon_max))` (line 355, builds `shapely.box` in EPSG:4326).
+1. **String** → station id (`is_station_identifier`) → file path (`os.path.exists`) → boundary key (`_get_boundary_geometry`).
+2. **List** → all-station list → lat/lon tuples (`is_multi_point`) → separated boundaries → union of boundaries (`_get_multi_boundary_geometry`).
+3. **Tuple** → single `(lat, lon)` or bbox `((lat_min, lat_max), (lon_min, lon_max))` (builds `shapely.box` in EPSG:4326).
 
 ### Result Dispatch
 
-The second `match` (line 386) routes the input data:
+The second `match` in `execute` routes the input data:
 
-- **dict**: per-key clip; mode flag selects the clipper.
+- **dict**: per-key clip; mode flag selects the clipper. `clip` runs before `concat`, so a gridded query usually arrives here as one dataset per simulation. A single point uses `_clip_dict_to_point`, which finds the cells once for each spatial grid and uses them for every key on that grid.
 - **Dataset / DataArray**: single clip via the matching mode’s clipper.
 - **list / tuple**: per-item clip, container type preserved; `None` results filtered out for point modes.
 

@@ -15,9 +15,9 @@ and attributes. There is no fixed variable-count cap.
 | --- | --- |
 | Catalogs | CADCAT (WRF and LOCA2), renewable energy generation, Sup3rCC, and HDP. One catalog and one set of shared constraints per query; HDP keeps one network per query. |
 | Input | `variable_id` takes a string or a list/tuple of strings. Names are trimmed and kept in request order; empty, blank, non-string, and duplicate entries raise `ValueError`. |
-| Single-variable compatibility | A string or one-element collection keeps the existing single-variable path and return shape. |
+| Single-variable compatibility | A string or one-element collection keeps the single-variable return shape. A single native variable keeps the existing retrieval path. A single derived variable uses the multi-variable plan, so its dependencies are retrieved as separate fields. |
 | Atomic availability | If any requested variable (or derived dependency) is unavailable under the shared constraints, the whole query fails. No partial results. |
-| Output | Exactly the requested variables, in request order. Dependency-only fields are dropped. Mixed-unit fields are never stacked into one DataArray. |
+| Output | The requested variables, in request order. Dependency-only fields are dropped, except for derived functions registered with `drop_dependencies=False`: their dependencies follow the requested variables. Mixed-unit fields are never stacked into one DataArray. |
 | Derived variables | Native/derived mixtures and several derived variables are supported wherever derived variables already work. Each derived function must produce its registered name, or the query fails. HDP has no derived variables. |
 | Failures | `get()` returns `None` and logs the reason. Setter misuse still raises `ValueError`. |
 | State | Query metadata (`_requested_variables`, `_catalog_variable_ids`, ...) travels in the query dict. Nothing is stored on the `DataCatalog` singleton. |
@@ -45,8 +45,9 @@ search already yields one intake key per simulation group. CADCAT adds a
 3. `to_dataset_dict` combines assets with
    `xarray_combine_by_coords_kwargs={"join": "inner"}` and
    `zarr_kwargs={"consolidated": None}` (works on Zarr v2 and v3).
-4. Derived variables are computed with their inputs kept until all outputs
-   exist. The result is then subset to the requested variables.
+4. The result is subset to the planned catalog variables
+   (`_catalog_variable_ids`). Retrieval does not calculate derived variables.
+   See [Derived variables after clip](#derived-variables-after-clip).
 
 Why an inner join: intake-esm's default outer combine pads a missing variable,
 member, or timestamp with NaN. After that, you can't tell a real missing
@@ -82,6 +83,43 @@ Per-station status and trim counts go to the `multi_variable_diagnostics`
 Dataset attribute as JSON. `get_hdp_observation_fields` discovers available
 fields from representative station assets.
 
+## Derived variables after clip
+
+Derived variables are calculated by the internal `derive_variables`
+processor (priority 3), not during retrieval. Validators add this processor
+automatically when `variable_id` names a registered derived variable. Users
+do not configure it.
+
+The processor order is:
+
+1. `clip` (priority 2) selects the region or points on the dependency fields.
+2. `derive_variables` (priority 3) calls each registered function on the
+   clipped data, then keeps the requested variables in request order.
+3. `convert_units`, `warming_level`, `concat`, and later processors use the
+   derived fields.
+
+Before this change, retrieval calculated derived variables on the full grid,
+and `clip` ran at priority 65, after `concat`. A derived query on a small
+region therefore built a full-grid calculation for each simulation, and a
+single-variable point clip could compute that graph to look for NaN cells
+(cal-adapt/climakitae#771).
+
+Consequences:
+
+- Derived functions receive clipped data. A function that needs the full
+  grid, for example a spatial gradient, sees only the clipped extent.
+- Derived functions run before `warming_level`, so time shifts such as
+  `shift(time=...)` use the complete time series.
+- Each function receives a shallow copy. Dependency cleanup by
+  `drop_dependencies=True` cannot remove a field that another requested
+  output needs.
+- A point clip on derived inputs uses the nearest common cell (see
+  `clip (points)` below), because the dependencies form a multi-variable
+  Dataset. If that cell is NaN, the derived output is NaN.
+- Because `clip` now runs before `concat`, it receives one dataset per
+  simulation. For single-variable data, a point clip finds its cells once
+  for each spatial grid and uses them for every simulation on that grid.
+
 ## Processor support
 
 Unsupported combinations are rejected by validators, before retrieval. No
@@ -95,7 +133,8 @@ still apply.
 | `metric_calc` | Basic reductions and percentiles run per variable. `by_variable` gives per-variable metric settings; omitted variables pass through. Percentiles become `{var}_percentiles` on a per-variable `{var}_percentile` dimension, so different levels never get union-padded. |
 | `metric_calc` thresholds / `one_in_x` | Rejected by the `metric_calc` validator. |
 | `bias_adjust_model_to_station` | Rejected by its validator. |
-| `clip` (points) | One common cell for all variables via `Clip._get_common_grid_index` (nearest coordinate, honoring an explicit land mask). NaNs don't move the cell or trigger neighbor averaging. Single-variable behavior is unchanged. |
+| `clip` (points) | One common cell for all variables via `Clip._get_common_grid_index` (nearest coordinate, honoring an explicit land mask). NaNs don't move the cell or trigger neighbor averaging. The same policy applies to the dependency fields of a single derived variable when there are two or more. A Dataset with one measurement field keeps the single-variable behavior. |
+| `derive_variables` | Internal, priority 3, after `clip`. Calculates each requested derived variable on the clipped dependency fields, in request order. See [Derived variables after clip](#derived-variables-after-clip). |
 | `export` | NetCDF/Zarr write the Dataset as is. CSV for multi-variable queries is long format (`variable`, `value`, `units`, plus applicable coordinates) with a metadata sidecar, so independent dimensions don't form a Cartesian product. |
 | Others (`concat`, `time_slice`, `drop_leap_days`, `warming_level`, `convert_to_local_time`, `filter_unadjusted_models`, `update_attributes`) | Already operate on whole Datasets and pass multiple variables through. |
 

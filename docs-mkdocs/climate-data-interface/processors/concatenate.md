@@ -101,7 +101,7 @@ stations = (ClimateData()
 - Input must be a collection (dict or iterable) of datasets/dataarrays. A single Dataset/DataArray is returned unchanged.
 - For the gridded path, each input dataset is expected to carry a `source_id` attribute, which becomes its label along the new dimension.
 - The HDP path uses a simpler concatenation that does not perform per-source attribute extraction.
-- Runs at priority **50** — after early refinement (filter, leap days, units, warming level) and before spatial clipping and time slicing, so the merged ensemble flows through the rest of the pipeline as a single object.
+- Runs at priority **50** — after early refinement (filter, leap days, `clip`, `derive_variables`, units, warming level) and before bias adjustment and time slicing, so the merged ensemble flows through the rest of the pipeline as a single object. `clip` therefore runs on each simulation before concatenation.
 
 ## See also
 

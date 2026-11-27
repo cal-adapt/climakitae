@@ -740,6 +740,16 @@ def test_data_catalog_fails_when_no_member_has_complete_variable_coverage(
     assert "missing requested catalog variables ['pr']" in caplog.text
 
 
+def _get_and_derive(data_catalog, query, catalog_key):
+    """Retrieve catalog fields, then calculate derived outputs as the pipeline does."""
+    from climakitae.new_core.processors.derive_variables import DeriveVariables
+
+    result = data_catalog.get_data(query, catalog_key=catalog_key)
+    for dataset in result.values():
+        assert list(dataset.data_vars) == query["_catalog_variable_ids"]
+    return DeriveVariables().execute(result, {"variable_id": query["variable_id"]})
+
+
 def test_data_catalog_computes_derived_and_native_variables_in_request_order(
     tmp_path,
 ):
@@ -757,10 +767,9 @@ def test_data_catalog_computes_derived_and_native_variables_in_request_order(
         "_requested_variables": ["wind_speed_10m", "pr"],
         "_derived_variables": ["wind_speed_10m"],
         "_catalog_variable_ids": ["u10", "v10", "pr"],
-        "_source_variables": ["u10", "v10"],
     }
 
-    result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+    result = _get_and_derive(data_catalog, query, CATALOG_CADCAT)
 
     dataset = next(iter(result.values()))
     assert list(dataset.data_vars) == ["wind_speed_10m", "pr"]
@@ -790,10 +799,9 @@ def test_data_catalog_preserves_independent_units_and_crs_for_outputs(tmp_path):
         "_requested_variables": ["wind_speed_10m", "pr"],
         "_derived_variables": ["wind_speed_10m"],
         "_catalog_variable_ids": ["u10", "v10", "pr"],
-        "_source_variables": ["u10", "v10"],
     }
 
-    result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+    result = _get_and_derive(data_catalog, query, CATALOG_CADCAT)
 
     dataset = next(iter(result.values()))
     assert dataset["wind_speed_10m"].attrs["units"] == "m/s"
@@ -830,10 +838,9 @@ def test_data_catalog_computes_shared_dependencies_without_dropping_requested_so
         ],
         "_derived_variables": ["wind_direction_10m", "wind_speed_10m"],
         "_catalog_variable_ids": ["u10", "v10", "pr"],
-        "_source_variables": ["u10", "v10"],
     }
 
-    result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+    result = _get_and_derive(data_catalog, query, CATALOG_CADCAT)
 
     dataset = next(iter(result.values()))
     assert list(dataset.data_vars) == [
@@ -886,10 +893,9 @@ def test_data_catalog_preserves_dependencies_when_derived_registration_keeps_the
         "_requested_variables": ["tasmax_plus_one", "tasmax"],
         "_derived_variables": ["tasmax_plus_one"],
         "_catalog_variable_ids": ["tasmax"],
-        "_source_variables": ["tasmax"],
     }
 
-    result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+    result = _get_and_derive(data_catalog, query, CATALOG_CADCAT)
 
     dataset = next(iter(result.values()))
     assert list(dataset.data_vars) == ["tasmax_plus_one", "tasmax"]
@@ -939,14 +945,13 @@ def test_data_catalog_rejects_custom_derived_alias_in_multi_variable_query(
         "_requested_variables": ["requested_derived", "pr"],
         "_derived_variables": ["requested_derived"],
         "_catalog_variable_ids": ["tasmax", "pr"],
-        "_source_variables": ["tasmax"],
     }
 
     with pytest.raises(
         ValueError,
-        match=r"missing requested output variables \['requested_derived'\]",
+        match=r"did not return its registered output name",
     ):
-        data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)
+        _get_and_derive(data_catalog, query, CATALOG_CADCAT)
 
 
 def test_scalar_custom_derived_query_remains_compatible(tmp_path):
@@ -973,8 +978,6 @@ def test_scalar_custom_derived_query_remains_compatible(tmp_path):
     )
     query = {
         "variable_id": "tasmax_plus_one",
-        "_derived_variable": "tasmax_plus_one",
-        "_source_variables": ["tasmax"],
     }
 
     result = data_catalog.get_data(query, catalog_key=CATALOG_CADCAT)

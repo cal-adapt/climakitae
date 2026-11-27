@@ -143,16 +143,21 @@ from climakitae.new_core.processors.abc_data_processor import (
 )
 from climakitae.new_core.processors.processor_utils import is_station_identifier
 from climakitae.util.utils import (
+    _average_gridcells_preserve_coords,
+    _check_has_valid_data,
+    _get_spatial_dims,
+    _reduce_to_single_point,
+    _transform_coords_to_data_crs,
+    add_crs_to_downscaled_data,
     get_closest_gridcell,
     get_closest_gridcells,
-    add_crs_to_downscaled_data,
 )
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 
-@register_processor("clip", priority=65)
+@register_processor("clip", priority=2)
 class Clip(DataProcessor):
     """
     Clip data based on spatial boundaries.
@@ -431,10 +436,7 @@ class Clip(DataProcessor):
             case dict():
                 # Clip each dataset in the dictionary
                 if self.is_single_point:
-                    ret = {
-                        key: self._clip_data_to_point(value, self.lat, self.lon)
-                        for key, value in result.items()
-                    }
+                    ret = self._clip_dict_to_point(result, self.lat, self.lon)
                 elif self.is_multi_point:
                     ret = {
                         key: self._clip_data_to_points_as_mask(
@@ -745,6 +747,132 @@ class Clip(DataProcessor):
         ) ** 2
         selected = valid_cells[int(distances.argmin())]
         return dim1, int(selected[0]), dim2, int(selected[1])
+
+    @staticmethod
+    def _find_point_cells(
+        dataset: xr.Dataset | xr.DataArray, lat: float, lon: float
+    ) -> tuple[str, str, list[tuple[int, int]]] | None:
+        """Find the grid cells that a single-variable point clip selects.
+
+        Use the nearest cell if it has valid data at the first index of each
+        non-spatial dimension. Otherwise, use the valid cells in the 3x3
+        neighborhood. This matches ``get_closest_gridcell``, but returns the
+        cell indices so that the same selection can be used for other datasets
+        on the same grid.
+
+        Returns
+        -------
+        tuple of (str, str, list of tuple of int) or None
+            The spatial dimension names and the selected cell indices, or None
+            if no cell has valid data.
+        """
+        try:
+            dim1, dim2 = _get_spatial_dims(dataset)
+            target1, target2 = _transform_coords_to_data_crs(
+                dataset, lat, lon, dim1, dim2
+            )
+            idx1 = dataset[dim1].to_index().get_indexer([target1], method="nearest")[0]
+            idx2 = dataset[dim2].to_index().get_indexer([target2], method="nearest")[0]
+        except Exception:  # pylint: disable=broad-except
+            logger.debug("Could not find the nearest point cell", exc_info=True)
+            return None
+        if idx1 == -1 or idx2 == -1:
+            return None
+
+        def _is_valid(i: int, j: int) -> bool:
+            cell = dataset.isel({dim1: i, dim2: j})
+            return _check_has_valid_data(_reduce_to_single_point(cell, dim1, dim2))
+
+        if _is_valid(idx1, idx2):
+            return dim1, dim2, [(int(idx1), int(idx2))]
+
+        logger.info("Closest gridcell contains NaN values, searching nearby indices...")
+        cells = [
+            (i, j)
+            for i in range(idx1 - 1, idx1 + 2)
+            for j in range(idx2 - 1, idx2 + 2)
+            if 0 <= i < dataset.sizes[dim1]
+            and 0 <= j < dataset.sizes[dim2]
+            and _is_valid(i, j)
+        ]
+        if not cells:
+            logger.warning("No valid gridcells found in immediate 3x3 neighborhood")
+            return None
+        return dim1, dim2, cells
+
+    @staticmethod
+    def _select_point_cells(
+        dataset: xr.Dataset | xr.DataArray,
+        dim1: str,
+        dim2: str,
+        cells: list[tuple[int, int]],
+    ) -> xr.Dataset | xr.DataArray:
+        """Select one cell, or average several cells, from a dataset."""
+        if len(cells) == 1:
+            i, j = cells[0]
+            return dataset.isel({dim1: i, dim2: j})
+        averaged, _ = _average_gridcells_preserve_coords(
+            [dataset.isel({dim1: i, dim2: j}) for i, j in cells], dim1, dim2
+        )
+        return averaged
+
+    @staticmethod
+    def _same_spatial_grid(
+        first: xr.Dataset | xr.DataArray,
+        second: xr.Dataset | xr.DataArray,
+        dims: tuple[str, str],
+    ) -> bool:
+        """Return whether two datasets have identical spatial coordinates."""
+        return all(
+            dim in second.dims
+            and np.array_equal(
+                np.asarray(first[dim].values), np.asarray(second[dim].values)
+            )
+            for dim in dims
+        )
+
+    def _clip_dict_to_point(
+        self, result: Dict[str, xr.Dataset | xr.DataArray], lat: float, lon: float
+    ) -> Dict[str, xr.Dataset | xr.DataArray | None]:
+        """Clip each dataset to one point with one selection per grid.
+
+        ``clip`` runs before ``concat``, so each simulation is a separate key.
+        For single-variable data, find the point cells once for each spatial
+        grid and use them for all keys on that grid. This keeps one location
+        for all simulations, as when the selection ran after concatenation.
+        Multi-variable datasets use the nearest common cell, which is already
+        the same for all keys on a grid.
+        """
+        clipped: Dict[str, xr.Dataset | xr.DataArray | None] = {}
+        # Each entry is (reference dataset, dims, cells).
+        selections: list[tuple[Any, tuple[str, str], list[tuple[int, int]]]] = []
+        for key, value in result.items():
+            if self._is_multivariable_dataset(value) or not isinstance(
+                value, (xr.Dataset, xr.DataArray)
+            ):
+                clipped[key] = self._clip_data_to_point(value, lat, lon)
+                continue
+
+            selection = next(
+                (
+                    (dims, cells)
+                    for reference, dims, cells in selections
+                    if self._same_spatial_grid(reference, value, dims)
+                ),
+                None,
+            )
+            if selection is None:
+                found = self._find_point_cells(value, lat, lon)
+                if found is None:
+                    clipped[key] = self._clip_data_to_point(value, lat, lon)
+                    continue
+                dim1, dim2, cells = found
+                selection = ((dim1, dim2), cells)
+                selections.append((value, (dim1, dim2), cells))
+
+            (dim1, dim2), cells = selection
+            clipped[key] = self._select_point_cells(value, dim1, dim2, cells)
+        return clipped
 
     @staticmethod
     def _clip_data_to_point(dataset: xr.DataArray | xr.Dataset, lat: float, lon: float):

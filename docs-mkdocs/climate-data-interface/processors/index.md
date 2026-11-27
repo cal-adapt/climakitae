@@ -16,11 +16,12 @@ The **registry key** is the string you pass to `.processes({...})`. It is not al
 |--------------|---------:|------|---------|
 | `filter_unadjusted_models` | 0 | [filter_unadjusted_models](filter_unadjusted_models.md) | Filter models by a-priori bias-adjustment status (default: enabled for WRF) |
 | `drop_leap_days` | 1 | [drop_leap_days](drop_leap_days.md) | Remove Feb 29 for calendar alignment |
+| `clip` | 2 | [clip](clip.md) | Spatial subsetting by boundary, point(s), bbox, station, or shapefile |
+| `derive_variables` | 3 | [derive_variables](derive_variables.md) | Calculate requested derived variables on the clipped data (internal; added automatically) |
 | `convert_units` | 5 | [convert_units](convert_units.md) | Unit conversion for climate variables |
 | `warming_level` | 10 | [warming_level](warming_level.md) | Subset around global warming-level thresholds |
 | `concat` | 50 | [concatenate](concatenate.md) | Concatenate datasets along the `sim` (or named) dimension |
 | `bias_adjust_model_to_station` | 60 | [bias_adjust_model_to_station](bias_adjust_model_to_station.md) | Quantile-delta-mapping bias adjustment using HDP station observations |
-| `clip` | 65 | [clip](clip.md) | Spatial subsetting by boundary, point(s), bbox, station, or shapefile |
 | `convert_to_local_time` | 70 | [convert_to_local_time](convert_to_local_time.md) | Convert UTC to a local timezone |
 | `time_slice` | 150 | [time_slice](time_slice.md) | Temporal subsetting by date range and optional season |
 | `metric_calc` | 7500 | [metric_calc](metric_calc.md) | Derived metrics, threshold exceedance, and 1-in-X return-period analysis |
@@ -32,16 +33,17 @@ The **registry key** is the string you pass to `.processes({...})`. It is not al
 Processors execute in **priority order** (ascending — lowest priority runs first). Within each workflow, only registered processors with configured parameters execute.
 
 ```
-Phase 1: Catalog refinement (priority 0–10)
+Phase 1: Catalog refinement, spatial subset, derived variables (priority 0–10)
   ├─ filter_unadjusted_models (0)    — Drop models without a-priori bias adjustment
   ├─ drop_leap_days (1)              — Calendar normalization
+  ├─ clip (2)                        — Geographic filtering
+  ├─ derive_variables (3)            — Derived variables on clipped data (internal)
   ├─ convert_units (5)               — Unit standardization
   └─ warming_level (10)              — Global-warming-level window selection
 
-Phase 2: Aggregation, adjustment, spatial (priority 50–70)
+Phase 2: Aggregation and adjustment (priority 50–70)
   ├─ concat (50)                     — Concatenate along sim (or other) dimension
   ├─ bias_adjust_model_to_station (60) — Station-based bias adjustment (WRF only)
-  ├─ clip (65)                       — Geographic filtering
   └─ convert_to_local_time (70)      — Timezone conversion
 
 Phase 3: Temporal subsetting & metrics (priority 150–7500)
@@ -53,11 +55,17 @@ Phase 4: Finalization (priority 9998–9999)
   └─ export (9999)                   — File writing & archival
 ```
 
-!!! tip "Why does spatial clipping run before time slicing?"
-    `clip` (priority 65) runs before `time_slice` (priority 150) so that spatial
+!!! tip "Why does spatial clipping run first?"
+    `clip` (priority 2) runs before all other data operations except
+    `filter_unadjusted_models` and `drop_leap_days`, so that spatial
     subsetting reduces the data volume that subsequent steps must read. Reducing
     spatial extent first is usually the dominant performance win for gridded
-    queries.
+    queries. Derived variables (`derive_variables`, priority 3) are calculated
+    after `clip`, so they use only the clipped grid.
+
+    Because `clip` runs before `concat`, it receives one dataset per
+    simulation. `bias_adjust_model_to_station` also receives clipped data, so
+    a clip region must contain the requested stations.
 
 ## Architecture
 

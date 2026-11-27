@@ -2,7 +2,8 @@
 
 This module provides a singleton registry for derived climate variables that
 integrates with intake-esm's DerivedVariableRegistry. It enables users to
-define variables that are computed from other variables during data loading.
+define variables that are computed from other variables. The internal
+``derive_variables`` processor calculates them after ``clip``.
 
 The registry follows the same patterns as the processor registry in
 climakitae.new_core.processors.abc_data_processor.
@@ -412,13 +413,13 @@ def register_derived(
 
         # Wrap function to automatically preserve spatial metadata
         # This must happen BEFORE storing in metadata so both intake-esm
-        # and _apply_derived_variable use the same wrapped function
+        # and the derive_variables processor use the same wrapped function
         wrapped_func = _wrap_with_metadata_preservation(
             func, variable, depends_on, drop_dependencies=drop_dependencies
         )
 
         # Store metadata with the WRAPPED function
-        # This ensures _apply_derived_variable() also preserves spatial metadata
+        # This ensures the derive_variables processor also preserves spatial metadata
         _DERIVED_METADATA[variable] = DerivedVariableInfo(
             name=variable,
             depends_on=depends_on,
