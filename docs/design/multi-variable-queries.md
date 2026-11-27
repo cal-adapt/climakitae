@@ -133,7 +133,8 @@ still apply.
 | `metric_calc` | Basic reductions and percentiles run per variable. `by_variable` gives per-variable metric settings; omitted variables pass through. Percentiles become `{var}_percentiles` on a per-variable `{var}_percentile` dimension, so different levels never get union-padded. |
 | `metric_calc` thresholds / `one_in_x` | Rejected by the `metric_calc` validator. |
 | `bias_adjust_model_to_station` | Rejected by its validator. |
-| `clip` (points) | One common cell for all variables via `Clip._get_common_grid_index` (nearest coordinate, honoring an explicit land mask). NaNs don't move the cell or trigger neighbor averaging. Single-variable behavior is unchanged. |
+| `clip` (points) | One common cell for all variables via `Clip._get_common_grid_index` (nearest coordinate, honoring an explicit land mask). NaNs don't move the cell or trigger neighbor averaging. The same policy applies to the dependency fields of a single derived variable when there are two or more. A Dataset with one measurement field keeps the single-variable behavior. |
+| `derive_variables` | Internal, priority 3, after `clip`. Calculates each requested derived variable on the clipped dependency fields, in request order. See [Derived variables after clip](#derived-variables-after-clip). |
 | `export` | NetCDF/Zarr write the Dataset as is. CSV for multi-variable queries is long format (`variable`, `value`, `units`, plus applicable coordinates) with a metadata sidecar, so independent dimensions don't form a Cartesian product. |
 | Others (`concat`, `time_slice`, `drop_leap_days`, `warming_level`, `convert_to_local_time`, `filter_unadjusted_models`, `update_attributes`) | Already operate on whole Datasets and pass multiple variables through. |
 

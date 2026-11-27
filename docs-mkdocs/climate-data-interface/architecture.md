@@ -77,7 +77,7 @@ The `new_core` module uses a **pipeline architecture** with layered responsibili
 
 ### 1. ClimateData (User Interface)
 
-**File**: `climakitae/new_core/user_interface.py` (~1200 lines)
+**File**: `climakitae/new_core/user_interface.py` (~1700 lines)
 
 **Responsibility**: Fluent API entry point for users. All setter methods chain and return `self`.
 
@@ -183,7 +183,7 @@ result = dataset.execute(query, context=context)
 
 ### 4. DataCatalog (Data Access Layer) {#data-access-layer}
 
-**File**: `climakitae/new_core/data_access/data_access.py` (~620 lines)
+**File**: `climakitae/new_core/data_access/data_access.py` (~1150 lines)
 
 **Responsibility**: Thread-safe singleton managing all catalog connections.
 
@@ -237,7 +237,7 @@ self._current_key = catalog_key  # DON'T DO THIS
 
 ### 5. ParameterValidator (Registry Pattern)
 
-**File**: `climakitae/new_core/param_validation/abc_param_validation.py` (~550 lines)
+**File**: `climakitae/new_core/param_validation/abc_param_validation.py` (~750 lines)
 
 **Responsibility**: Validate and normalize query parameters.
 
@@ -284,6 +284,8 @@ validator.load_catalog_df()
 matches = validator.find_catalog_entries({"variable_id": "t2max"})
 
 # Get default processors for this query
+# (always update_attributes; derive_variables when variable_id names a
+# registered derived variable; catalog validators add their own defaults)
 processors = validator.get_default_processors(query)
 
 # Suggest alternatives for typos

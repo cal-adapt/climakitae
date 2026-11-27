@@ -115,6 +115,7 @@ nav:
           - TimeSlice: climate-data-interface/processors/time_slice.md
           - WarmingLevel: climate-data-interface/processors/warming_level.md
           - Clip: climate-data-interface/processors/clip.md
+          - DeriveVariables: climate-data-interface/processors/derive_variables.md
           - Export: climate-data-interface/processors/export.md
           - Concatenate: climate-data-interface/processors/concatenate.md
           - ConvertUnits: climate-data-interface/processors/convert_units.md

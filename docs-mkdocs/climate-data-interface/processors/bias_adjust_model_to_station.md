@@ -50,6 +50,7 @@ The processor takes a **dict**:
 - **Time coverage**: Input must overlap the requested historical training period (default 1980–2014). HDP station coverage varies widely by station, from a few years to multiple decades.
 - **Multiple networks**: Requested stations may span multiple HDP networks in a single call.
 - **Calendar**: All inputs are converted to a `noleap` calendar internally for consistency.
+- **Clipping**: `clip` (priority 2) runs before this processor, which then selects the closest grid cell to each station. A clip is not required. If you clip, the region must contain every requested station; otherwise the closest cell is on the edge of the clipped region, not at the station.
 
 ## Example
 
