@@ -2495,6 +2495,60 @@ class TestClipDataToPointNaNSearch:
         )
 
 
+class TestClipDictToPointSharedSelection:
+    """Test that one point selection is used for all keys on a grid."""
+
+    @staticmethod
+    def _dataset(values, lat=(34.0, 35.0, 36.0), lon=(-120.0, -119.0, -118.0)):
+        """Return a single-variable lat/lon dataset with two time steps."""
+        return xr.Dataset(
+            {"tas": (("time", "lat", "lon"), np.asarray(values, dtype=float))},
+            coords={"time": [0, 1], "lat": list(lat), "lon": list(lon)},
+        )
+
+    def test_nan_center_selection_from_first_key_is_used_for_all_keys(self):
+        """Average the same neighbor cells for every key on the same grid."""
+        first_values = np.arange(18, dtype=float).reshape(2, 3, 3)
+        first_values[:, 1, 1] = np.nan
+        first = self._dataset(first_values)
+        second = self._dataset(np.full((2, 3, 3), 7.0))
+        second["tas"][:, 1, 1] = 100.0
+
+        result = Clip((35.0, -119.0)).execute({"a": first, "b": second}, {})
+
+        # The second key has valid data at the center, but it uses the
+        # neighbors that the first key selected.
+        np.testing.assert_allclose(result["b"]["tas"].values, [7.0, 7.0])
+        np.testing.assert_allclose(
+            result["a"]["tas"].values,
+            [np.nanmean(first_values[0]), np.nanmean(first_values[1])],
+        )
+
+    def test_valid_center_selects_same_cell_for_all_keys(self):
+        """Select the nearest cell for every key when it is valid."""
+        first = self._dataset(np.ones((2, 3, 3)))
+        second = self._dataset(np.arange(18, dtype=float).reshape(2, 3, 3))
+
+        result = Clip((35.9, -118.1)).execute({"a": first, "b": second}, {})
+
+        assert float(result["b"]["lat"]) == 36.0
+        assert float(result["b"]["lon"]) == -118.0
+        np.testing.assert_allclose(result["b"]["tas"].values, [8.0, 17.0])
+
+    def test_keys_on_different_grids_select_separately(self):
+        """Find a separate selection for a key on a different grid."""
+        first = self._dataset(np.ones((2, 3, 3)))
+        second = self._dataset(
+            np.ones((2, 3, 3)), lat=(10.0, 35.0, 60.0), lon=(-150.0, -119.0, -90.0)
+        )
+
+        result = Clip((34.0, -120.0)).execute({"a": first, "b": second}, {})
+
+        assert float(result["a"]["lat"]) == 34.0
+        assert float(result["b"]["lat"]) == 35.0
+        assert float(result["b"]["lon"]) == -119.0
+
+
 class TestClipDataToPointNaNSearchExpansion:
     """Test class for NaN search expansion radius logic in _clip_data_to_point.
 
