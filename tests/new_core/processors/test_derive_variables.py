@@ -135,3 +135,112 @@ def test_derive_variables_validator_rejects_user_values():
     """Accept only the internal UNSET value."""
     assert validate_derive_variables_param(UNSET)
     assert not validate_derive_variables_param("yes")
+
+
+def _ordered_steps(processes, variable_id):
+    """Build the processor list with the real registry and default processors."""
+    from unittest.mock import MagicMock, patch
+
+    from climakitae.core.constants import PROC_KEY
+    from climakitae.new_core.dataset_factory import DatasetFactory
+
+    with patch("climakitae.new_core.dataset_factory.DataCatalog") as mock_catalog:
+        mock_catalog.return_value = MagicMock()
+        factory = DatasetFactory()
+    query = {
+        PROC_KEY: dict(processes),
+        "variable_id": variable_id,
+        "experiment_id": "historical",
+        "_catalog_key": "cadcat",
+        _NEW_ATTRS_KEY: {},
+    }
+    with patch.object(
+        factory,
+        "create_validator",
+        return_value=DataValidator.__new__(DataValidator),
+    ):
+        return factory._get_list_of_processing_steps(query)
+
+
+def _grid_dataset(u_value=3.0):
+    """Return a 5x5 lat/lon dataset with wind components."""
+    shape = (2, 5, 5)
+    return xr.Dataset(
+        {
+            "u10": (("time", "lat", "lon"), np.full(shape, u_value)),
+            "v10": (("time", "lat", "lon"), np.full(shape, 4.0)),
+        },
+        coords={
+            "time": [0, 1],
+            "lat": np.linspace(33.0, 37.0, 5),
+            "lon": np.linspace(-121.0, -117.0, 5),
+        },
+    )
+
+
+def test_pipeline_orders_clip_then_derive_then_concat():
+    """Run clip first, then the derivation, before concat and warming levels."""
+    steps = _ordered_steps({"clip": (35.0, -119.0)}, "wind_speed_10m")
+
+    names = [type(step).__name__ for step in steps]
+
+    assert names.index("Clip") < names.index("DeriveVariables")
+    assert names.index("DeriveVariables") < names.index("Concat")
+    assert "DeriveVariables" not in [
+        type(step).__name__ for step in _ordered_steps({}, "u10")
+    ]
+
+
+def test_derived_function_receives_clipped_data(monkeypatch):
+    """Calculate derived variables on the clipped point, not the full grid."""
+    seen_sizes = []
+
+    def spy(dataset):
+        seen_sizes.append(dict(dataset.sizes))
+        dataset["spy_speed"] = np.hypot(dataset["u10"], dataset["v10"])
+        return dataset
+
+    monkeypatch.setitem(
+        registry._DERIVED_METADATA,
+        "spy_speed",
+        registry.DerivedVariableInfo(
+            name="spy_speed",
+            depends_on=["u10", "v10"],
+            description="Spy derived field",
+            units="m/s",
+            func=spy,
+            source="user",
+            drop_dependencies=True,
+        ),
+    )
+    steps = [
+        step
+        for step in _ordered_steps({"clip": (35.0, -119.0)}, "spy_speed")
+        if type(step).__name__ in ("Clip", "DeriveVariables")
+    ]
+    data = {"a": _grid_dataset(), "b": _grid_dataset()}
+    context = {"variable_id": "spy_speed"}
+
+    for step in steps:
+        data = step.execute(data, context)
+
+    assert seen_sizes == [{"time": 2}, {"time": 2}]
+    for dataset in data.values():
+        assert list(dataset.data_vars) == ["spy_speed"]
+        np.testing.assert_allclose(dataset["spy_speed"].values, 5.0)
+
+
+def test_derived_inputs_use_nearest_cell_without_nan_search():
+    """Keep the nearest cell for derived inputs, also when it has NaN values."""
+    from climakitae.new_core.processors.clip import Clip
+
+    dataset = _grid_dataset()
+    dataset["u10"][:, 2, 2] = np.nan
+    context = {"variable_id": "wind_speed_10m"}
+
+    clipped = Clip((35.0, -119.0)).execute({"a": dataset}, context)
+    result = DeriveVariables().execute(clipped, context)
+
+    assert float(result["a"]["lat"]) == 35.0
+    assert float(result["a"]["lon"]) == -119.0
+    assert np.isnan(result["a"]["wind_speed_10m"].values).all()
