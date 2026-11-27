@@ -35,6 +35,6 @@ def validate_derive_variables_param(value: Any, **kwargs: Any) -> bool:  # noqa:
         return True
     logger.warning(
         "\n\nThe derive_variables processor is internal and takes no value. "
-        "\nRequest a derived variable with .variable() instead."
+        "\nRequest a derived variable with .variable_id() instead."
     )
     return False
