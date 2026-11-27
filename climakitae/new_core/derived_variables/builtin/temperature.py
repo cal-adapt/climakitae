@@ -286,8 +286,7 @@ def calc_hdd_wrf(
     ----------
     ds : xr.Dataset
         Dataset containing:
-        - 't2max': Daily maximum 2m temperature (K)
-        - 't2min': Daily minimum 2m temperature (K)
+        - 't2': 2m air temperature (K)
     threshold_k : float, optional
         Threshold for heating degree days in Kelvin.
     threshold_c : float, optional
@@ -298,16 +297,17 @@ def calc_hdd_wrf(
     Returns
     -------
     xr.Dataset
-        Dataset with 'HDD_wrf' variable added (K).
+        Dataset with 'HDD_wrf' variable added: 1 where threshold - t2 > 0,
+        else 0. The ``units`` attribute is "K".
 
     Notes
     -----
     Heating degree days (HDD) represent the energy demand for heating.
-    Calculated as max(0, threshold - average_temp) where threshold is 65°F (291.48K)
-    and average_temp is (t2max + t2min) / 2.
+    Calculated as max(0, threshold - t2) where threshold is 65°F (291.48K)
+    by default; the result is then converted to a 0/1 mask.
 
     """
-    logger.debug("Computing HDD_wrf from t2max and t2min")
+    logger.debug("Computing HDD_wrf from t2")
 
     # Calculate daily average temperature
     t_avg = ds.t2
@@ -351,8 +351,7 @@ def calc_cdd_wrf(
     ----------
     ds : xr.Dataset
         Dataset containing:
-        - 't2max': Daily maximum 2m temperature (K)
-        - 't2min': Daily minimum 2m temperature (K)
+        - 't2': 2m air temperature (K)
     threshold_k : float, optional
         Threshold for cooling degree days in Kelvin.
     threshold_c : float, optional
@@ -363,16 +362,17 @@ def calc_cdd_wrf(
     Returns
     -------
     xr.Dataset
-        Dataset with 'CDD_wrf' variable added (K).
+        Dataset with 'CDD_wrf' variable added: 1 where t2 - threshold > 0,
+        else 0. The ``units`` attribute is "K".
 
     Notes
     -----
     Cooling degree days (CDD) represent the energy demand for cooling.
-    Calculated as max(0, average_temp - threshold) where threshold is 65°F (291.48K)
-    and average_temp is (t2max + t2min) / 2.
+    Calculated as max(0, t2 - threshold) where threshold is 65°F (291.48K)
+    by default; the result is then converted to a 0/1 mask.
 
     """
-    logger.debug("Computing CDD_wrf from t2max and t2min")
+    logger.debug("Computing CDD_wrf from t2")
 
     # Calculate daily average temperature
     t_avg = ds.t2
@@ -428,13 +428,15 @@ def calc_hdd_loca(
     Returns
     -------
     xr.Dataset
-        Dataset with 'HDD_loca' variable added (K).
+        Dataset with 'HDD_loca' variable added: 1 where threshold - average_temp > 0,
+        else 0. The ``units`` attribute is "K".
 
     Notes
     -----
     Heating degree days (HDD) represent the energy demand for heating.
     Calculated as max(0, threshold - average_temp) where threshold is 65°F (291.48K)
-    and average_temp is (tasmax + tasmin) / 2.
+    by default and average_temp is (tasmax + tasmin) / 2; the result is then
+    converted to a 0/1 mask.
 
     """
     logger.debug("Computing HDD_loca from tasmax and tasmin")
@@ -493,13 +495,15 @@ def calc_cdd_loca(
     Returns
     -------
     xr.Dataset
-        Dataset with 'CDD_loca' variable added (K).
+        Dataset with 'CDD_loca' variable added: 1 where average_temp - threshold > 0,
+        else 0. The ``units`` attribute is "K".
 
     Notes
     -----
     Cooling degree days (CDD) represent the energy demand for cooling.
     Calculated as max(0, average_temp - threshold) where threshold is 65°F (291.48K)
-    and average_temp is (tasmax + tasmin) / 2.
+    by default and average_temp is (tasmax + tasmin) / 2; the result is then
+    converted to a 0/1 mask.
 
     """
     logger.debug("Computing CDD_loca from tasmax and tasmin")

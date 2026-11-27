@@ -28,8 +28,8 @@ Using builtin derived variables:
 
     >>> from climakitae.new_core.user_interface import ClimateData
     >>> cd = ClimateData()
-    >>> # Query wind_speed which is derived from u10 and v10
-    >>> data = cd.catalog("cadcat").variable_id("wind_speed").get()
+    >>> # Query wind_speed_10m which is derived from u10 and v10
+    >>> data = cd.catalog("cadcat").variable_id("wind_speed_10m").get()
 
 Registering custom derived variables:
 

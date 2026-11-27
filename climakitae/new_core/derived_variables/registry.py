@@ -2,7 +2,8 @@
 
 This module provides a singleton registry for derived climate variables that
 integrates with intake-esm's DerivedVariableRegistry. It enables users to
-define variables that are computed from other variables during data loading.
+define variables that are computed from other variables. The internal
+``derive_variables`` processor calculates them after ``clip``.
 
 The registry follows the same patterns as the processor registry in
 climakitae.new_core.processors.abc_data_processor.

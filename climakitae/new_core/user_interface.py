@@ -746,7 +746,10 @@ class ClimateData:
 
         This method registers a custom function that computes a new variable
         from existing source variables, then sets that variable as the query target.
-        The computation happens during data loading (not as a post-processor).
+        Retrieval opens only the source variables. The internal
+        ``derive_variables`` processor calculates the new variable after
+        ``clip``, so the function receives only the clipped grid, in native
+        catalog units.
 
         Parameters
         ----------
@@ -757,8 +760,8 @@ class ClimateData:
             List of source variable IDs required for the computation
             (e.g., ['tasmax', 'tasmin'] or ['t2', 'rh']).
         func : callable
-            Function that takes an xarray.Dataset and returns a modified Dataset
-            with the new variable added. The function signature should be:
+            Function that takes an xarray.Dataset and returns a Dataset with
+            the new variable added under ``name``. The function signature should be:
             ``func(ds: xr.Dataset) -> xr.Dataset``
         description : str, optional
             Human-readable description of what this variable represents.
@@ -799,6 +802,9 @@ class ClimateData:
         -----
         - Registration is permanent for the Python session
         - The function must add the variable to the dataset and return it
+        - Only new variables are kept; changes to the source variables are ignored
+        - Source variables are removed from the result (use
+          ``register_user_function(..., drop_dependencies=False)`` to keep them)
         - Set appropriate attributes (units, long_name) on the new variable
         - For complex post-load transformations, use processors instead
 
@@ -1277,8 +1283,8 @@ class ClimateData:
         --------
         >>> cd = ClimateData()
         >>> cd.show_derived_variables()
-        Derived Variables (computed from source variables during loading):
-        ------------------------------------------------------------------
+        Derived Variables (computed from source variables after clip):
+        --------------------------------------------------------------
         wind_speed_10m      depends on: u10, v10
         heat_index          depends on: t2, rh
         ...
@@ -1286,7 +1292,7 @@ class ClimateData:
         """
         from climakitae.new_core.derived_variables import list_derived_variables
 
-        msg = "Derived Variables (computed from source variables during loading):"
+        msg = "Derived Variables (computed from source variables after clip):"
         logger.info(msg)
         logger.info("%s", "-" * len(msg))
         try:
