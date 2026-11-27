@@ -412,13 +412,13 @@ def register_derived(
 
         # Wrap function to automatically preserve spatial metadata
         # This must happen BEFORE storing in metadata so both intake-esm
-        # and _apply_derived_variable use the same wrapped function
+        # and the derive_variables processor use the same wrapped function
         wrapped_func = _wrap_with_metadata_preservation(
             func, variable, depends_on, drop_dependencies=drop_dependencies
         )
 
         # Store metadata with the WRAPPED function
-        # This ensures _apply_derived_variable() also preserves spatial metadata
+        # This ensures the derive_variables processor also preserves spatial metadata
         _DERIVED_METADATA[variable] = DerivedVariableInfo(
             name=variable,
             depends_on=depends_on,

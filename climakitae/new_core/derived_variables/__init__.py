@@ -2,8 +2,9 @@
 
 This module provides a registry system for derived climate variables that integrates
 with intake-esm catalogs. Derived variables are computed on-the-fly from source
-variables during data loading, enabling users to query variables that don't exist
-in the raw data but can be computed from available variables.
+variables by the internal ``derive_variables`` processor, after ``clip``,
+enabling users to query variables that don't exist in the raw data but can be
+computed from available variables.
 
 Key Features
 ------------
@@ -14,10 +15,12 @@ Key Features
 
 Architecture
 ------------
-The derived variable system operates at the intake-esm catalog level, meaning
-computations happen during `to_dataset_dict()` rather than as post-processing.
-This is more efficient for simple derived variables and allows them to be
-queried directly by name.
+Validation expands a requested derived variable into its catalog
+dependencies, and retrieval returns only those dependency fields. The
+``derive_variables`` processor (priority 3) then calls the registered function
+after ``clip`` (priority 2), so the calculation uses only the clipped grid.
+Registrations are also added to an intake-esm ``DerivedVariableRegistry`` that
+is attached to the catalogs.
 
 Example Usage
 -------------

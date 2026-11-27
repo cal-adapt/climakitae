@@ -66,7 +66,9 @@ station `ASOSAWOS_72019300117` has fields `tas` and `pr`.
 
 Registered derived variables can be mixed with native variables where that
 derived calculation is supported. Dependencies are retrieved as needed but
-are omitted from the result unless you requested them. Each derived function
+are omitted from the result unless you requested them, or the function was
+registered with `drop_dependencies=False`. Derived variables are calculated
+after `clip`, on the clipped data only. Each derived function
 must produce its registered output name; otherwise the whole request fails
 with a naming diagnostic. HDP does not support derived variables.
 

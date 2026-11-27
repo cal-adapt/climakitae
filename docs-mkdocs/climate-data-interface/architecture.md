@@ -328,9 +328,10 @@ class MyProcessor(DataProcessor):
 
 ```
 0–10     : Pre-processing (filter_unadjusted_models=0, drop_leap_days=1,
-          convert_units=5, warming_level=10) — catalog refinement & GWL subset
-50–70    : Combination + adjustment + spatial
-          (concat=50, bias_adjust_model_to_station=60, clip=65,
+          clip=2, derive_variables=3, convert_units=5, warming_level=10)
+          — catalog refinement, spatial subset, derived variables & GWL subset
+50–70    : Combination + adjustment
+          (concat=50, bias_adjust_model_to_station=60,
            convert_to_local_time=70)
 150–7500 : Temporal subsetting & metric computation
           (time_slice=150, metric_calc=7500)
@@ -536,7 +537,7 @@ Components register at import time using decorators:
 
 ```python
 # Processor registration
-@register_processor("clip", priority=65)
+@register_processor("clip", priority=2)
 class Clip(DataProcessor):
     ...
 

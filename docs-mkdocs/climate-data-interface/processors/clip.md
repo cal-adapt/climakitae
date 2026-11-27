@@ -1,6 +1,6 @@
 # Processor: Clip
 
-**Registry key:** `clip` &nbsp;|&nbsp; **Priority:** 65 &nbsp;|&nbsp; **Category:** Spatial Processing
+**Registry key:** `clip` &nbsp;|&nbsp; **Priority:** 2 &nbsp;|&nbsp; **Category:** Spatial Processing
 
 Subset climate data to specific geographic regions, points, or boundaries. Extract data for counties, watersheds, weather stations, or custom lat/lon coordinates with automatic nearest-gridcell location and coordinate system handling.
 
@@ -61,6 +61,12 @@ cell for every requested field. Selection is independent of field values and
 request order: a missing measurement does not move the cell or trigger
 neighbor averaging. An applicable explicit spatial mask is still honored.
 Single-variable queries keep the behavior described above.
+
+`clip` runs before `concat`, so it receives one dataset per simulation. For
+single-variable data, the processor finds the point cells once for each
+spatial grid and uses the same cells for every simulation on that grid
+(`_clip_dict_to_point`). The first simulation on each grid decides whether
+the nearest cell is valid.
 
 **Algorithm (`_clip_data_to_point`, line 665):**
 
