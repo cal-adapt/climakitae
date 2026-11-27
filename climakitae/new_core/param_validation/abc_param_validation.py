@@ -240,13 +240,20 @@ class ParameterValidator(ABC):
         Notes
         -----
         Subclasses should override this method to provide catalog-specific defaults.
-        The default implementation returns only the universal defaults that apply
-        to all catalogs.
+        The default implementation returns the universal defaults that apply
+        to all catalogs. It also adds the internal ``derive_variables``
+        processor when the query requests a registered derived variable.
         """
-        # Universal default for all catalogs
-        return {
-            "update_attributes": UNSET,
-        }
+        from climakitae.new_core.derived_variables import list_derived_variables
+
+        defaults: Dict[str, Any] = {"update_attributes": UNSET}
+        variable_id = query.get("variable_id", UNSET)
+        if variable_id is not UNSET and variable_id is not None:
+            requested = [variable_id] if isinstance(variable_id, str) else variable_id
+            derived = list_derived_variables()
+            if any(name in derived for name in requested):
+                defaults["derive_variables"] = UNSET
+        return defaults
 
     @abstractmethod
     def is_valid_query(self, query: Dict[str, Any]) -> Dict[str, Any] | None:

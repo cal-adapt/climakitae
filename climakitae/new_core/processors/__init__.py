@@ -11,6 +11,7 @@ from .clip import Clip
 from .concatenate import Concat
 from .convert_to_local_time import ConvertToLocalTime
 from .convert_units import ConvertUnits
+from .derive_variables import DeriveVariables
 from .drop_leap_days import DropLeapDays
 from .export import Export
 from .filter_unadjusted_models import FilterUnAdjustedModels
@@ -23,6 +24,7 @@ __all__ = [
     "Concat",
     "ConvertToLocalTime",
     "ConvertUnits",
+    "DeriveVariables",
     "Clip",
     "DropLeapDays",
     "Export",
